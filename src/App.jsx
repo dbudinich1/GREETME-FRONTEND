@@ -1,7 +1,38 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+/**
+ * Generate a stable anonymous userId and store it in localStorage.
+ * This gives us "user expansion" without login.
+ */
+function getOrCreateUserId() {
+  const KEY = "greetme_user_id";
+  const existing = localStorage.getItem(KEY);
+  if (existing) return existing;
+
+  // Prefer crypto.randomUUID if available
+  let id = "";
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    id = crypto.randomUUID();
+  } else {
+    // Fallback: reasonably-unique ID
+    id = `anon_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  }
+
+  localStorage.setItem(KEY, id);
+  return id;
+}
 
 export default function App() {
   const API_BASE = import.meta.env.VITE_API_BASE;
+
+  const userId = useMemo(() => {
+    try {
+      return getOrCreateUserId();
+    } catch {
+      // If localStorage is blocked, still allow app to run
+      return "anon_no_storage";
+    }
+  }, []);
 
   const [status, setStatus] = useState("Loading...");
   const [error, setError] = useState("");
@@ -18,7 +49,7 @@ export default function App() {
 
   // For now: URL-based photo (fastest path). Uploads come later.
   const [photoUrl, setPhotoUrl] = useState(
-    "https://images.unsplash.com/photo-1544005313-94ddf0286df2"
+    "https://raw.githubusercontent.com/danielgatis/rembg/main/examples/person.jpg"
   );
 
   const [submitting, setSubmitting] = useState(false);
@@ -58,12 +89,9 @@ export default function App() {
         setOccasions(occList);
         setTones(toneList);
 
-        // ✅ Defaults so keys are never empty (prevents “non-empty string” backend errors)
-        const defaultOccasion = occList[0]?.key || "";
-        const defaultTone = toneList[0] || "";
-
-        setOccasionKey((prev) => prev || defaultOccasion);
-        setToneKey((prev) => prev || defaultTone);
+        // Set defaults once (avoid empty selects)
+        if (occList.length > 0) setOccasionKey((prev) => prev || occList[0].key);
+        if (toneList.length > 0) setToneKey((prev) => prev || toneList[0]);
 
         setStatus("Loaded successfully ✅");
       } catch (e) {
@@ -84,32 +112,26 @@ export default function App() {
     setResult(null);
     setError("");
 
-    const cleanOccasionKey = (occasionKey || "").trim();
-    const cleanToneKey = (toneKey || "").trim();
-    const cleanRecipientName = (recipientName || "").trim();
-    const cleanRecipientEmail = (recipientEmail || "").trim();
-    const cleanPhotoUrl = (photoUrl || "").trim();
-
-    if (!cleanOccasionKey) return setError("Please choose an occasion.");
-    if (!cleanToneKey) return setError("Please choose a tone.");
-    if (!cleanRecipientName) return setError("Please enter recipient name.");
-    if (!cleanRecipientEmail) return setError("Please enter recipient email.");
-    if (!cleanPhotoUrl) return setError("Please enter a photo URL (HTTPS).");
+    if (!occasionKey) return setError("Please choose an occasion.");
+    if (!toneKey) return setError("Please choose a tone.");
+    if (!recipientName.trim()) return setError("Please enter recipient name.");
+    if (!recipientEmail.trim()) return setError("Please enter recipient email.");
+    if (!photoUrl.trim()) return setError("Please enter a photo URL (HTTPS).");
 
     try {
       setSubmitting(true);
       setStatus("Sending job to API...");
 
       const payload = {
-        recipientEmail: cleanRecipientEmail,
-        recipientName: cleanRecipientName,
-        occasionKey: cleanOccasionKey,
-        tone: cleanToneKey, // 🔥 THIS IS THE FIX
+        userId, // ✅ NEW: anonymous user identifier
+        recipientEmail: recipientEmail.trim(),
+        recipientName: recipientName.trim(),
+        occasionKey,
+        tone: toneKey, // ✅ IMPORTANT: send as `tone` (backend-friendly)
         greetingText: greetingText || "",
-        photoUrl: cleanPhotoUrl,
+        photoUrl: photoUrl.trim(),
         voiceId: null,
-};
-
+      };
 
       console.log("🚀 Sending payload:", payload);
 
@@ -139,7 +161,8 @@ export default function App() {
 
       <div style={{ marginBottom: 16, color: "#555" }}>
         <div><b>Frontend:</b> Vite / React</div>
-        <div><b>API Base:</b> {API_BASE}</div>
+        <div><b>API Base:</b> {API_BASE || "(missing)"}</div>
+        <div><b>User ID:</b> <code>{userId}</code></div>
         <div><b>Status:</b> {status}</div>
       </div>
 
@@ -197,7 +220,7 @@ export default function App() {
           />
 
           <textarea
-            placeholder="Greeting text (optional)"
+            placeholder="Greeting text (optional — leave blank for AI later)"
             value={greetingText}
             onChange={(e) => setGreetingText(e.target.value)}
             rows={3}
