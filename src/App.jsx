@@ -9,15 +9,17 @@ export default function App() {
   const [occasions, setOccasions] = useState([]);
   const [tones, setTones] = useState([]);
 
-  const [occasion, setOccasion] = useState("");
-  const [tone, setTone] = useState("");
+  const [occasionKey, setOccasionKey] = useState("");
+  const [toneKey, setToneKey] = useState("");
 
-  const [toName, setToName] = useState("");
-  const [toEmail, setToEmail] = useState("");
-  const [notes, setNotes] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [greetingText, setGreetingText] = useState("");
 
-  const [photoFile, setPhotoFile] = useState(null);
-  const [voiceFile, setVoiceFile] = useState(null);
+  // For now: URL-based photo (fastest path). Uploads come later.
+  const [photoUrl, setPhotoUrl] = useState(
+    "https://images.unsplash.com/photo-1544005313-94ddf0286df2"
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
@@ -30,11 +32,10 @@ export default function App() {
         setStatus("Loading occasions + tones...");
 
         const [occRes, toneRes] = await Promise.all([
-          fetch(`${API_BASE}/occasions`),
-          fetch(`${API_BASE}/tones`),
+          fetch(`${API_BASE}/api/occasions`),
+          fetch(`${API_BASE}/api/tones`),
         ]);
 
-        // If backend returns HTML (like an error page), this will throw — good.
         const occJson = await occRes.json();
         const toneJson = await toneRes.json();
 
@@ -57,28 +58,33 @@ export default function App() {
     setResult(null);
     setError("");
 
-    if (!occasion) return setError("Please choose an occasion.");
-    if (!tone) return setError("Please choose a tone.");
-    if (!toName.trim()) return setError("Please enter recipient name.");
-    if (!toEmail.trim()) return setError("Please enter recipient email.");
-    if (!photoFile) return setError("Please choose a photo file.");
-    if (!voiceFile) return setError("Please choose a voice file.");
+    if (!occasionKey) return setError("Please choose an occasion.");
+    if (!toneKey) return setError("Please choose a tone.");
+    if (!recipientName.trim()) return setError("Please enter recipient name.");
+    if (!recipientEmail.trim()) return setError("Please enter recipient email.");
+    if (!photoUrl.trim()) return setError("Please enter a photo URL (HTTPS).");
 
     try {
       setSubmitting(true);
+      setStatus("Sending job to API...");
 
-      const formData = new FormData();
-      formData.append("occasion", occasion);
-      formData.append("tone", tone);
-      formData.append("toName", toName);
-      formData.append("toEmail", toEmail);
-      formData.append("notes", notes);
-      formData.append("photo", photoFile);
-      formData.append("voice", voiceFile);
+      const payload = {
+        recipientEmail: recipientEmail.trim(),
+        recipientName: recipientName.trim(),
+        occasionKey,
+        toneKey,
+        greetingText: greetingText || "",
+        photoUrl: photoUrl.trim(),
+        voiceId: null,
+      };
+
+      // Helpful debug (you can remove later)
+      console.log("🚀 Sending payload:", payload);
 
       const res = await fetch(`${API_BASE}/api/jobs/send-greeting`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -124,7 +130,7 @@ export default function App() {
         <div style={{ display: "grid", gap: 10 }}>
           <label>
             Occasion:&nbsp;
-            <select value={occasion} onChange={(e) => setOccasion(e.target.value)}>
+            <select value={occasionKey} onChange={(e) => setOccasionKey(e.target.value)}>
               <option value="">Select occasion</option>
               {occasions.map((o) => (
                 <option key={o.key} value={o.key}>
@@ -136,7 +142,7 @@ export default function App() {
 
           <label>
             Tone:&nbsp;
-            <select value={tone} onChange={(e) => setTone(e.target.value)}>
+            <select value={toneKey} onChange={(e) => setToneKey(e.target.value)}>
               <option value="">Select tone</option>
               {tones.map((t) => (
                 <option key={t} value={t}>
@@ -148,40 +154,28 @@ export default function App() {
 
           <input
             placeholder="Recipient name"
-            value={toName}
-            onChange={(e) => setToName(e.target.value)}
+            value={recipientName}
+            onChange={(e) => setRecipientName(e.target.value)}
           />
 
           <input
             placeholder="Recipient email"
-            value={toEmail}
-            onChange={(e) => setToEmail(e.target.value)}
+            value={recipientEmail}
+            onChange={(e) => setRecipientEmail(e.target.value)}
           />
 
           <textarea
-            placeholder="Notes (optional)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Greeting text (optional)"
+            value={greetingText}
+            onChange={(e) => setGreetingText(e.target.value)}
             rows={3}
           />
 
-          <label>
-            Photo:
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
-            />
-          </label>
-
-          <label>
-            Voice:
-            <input
-              type="file"
-              accept="audio/*"
-              onChange={(e) => setVoiceFile(e.target.files?.[0] || null)}
-            />
-          </label>
+          <input
+            placeholder="Photo URL (HTTPS)"
+            value={photoUrl}
+            onChange={(e) => setPhotoUrl(e.target.value)}
+          />
 
           <button type="submit" disabled={submitting}>
             {submitting ? "Sending..." : "Send Greeting"}
