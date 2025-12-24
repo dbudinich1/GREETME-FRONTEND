@@ -58,9 +58,12 @@ export default function App() {
         setOccasions(occList);
         setTones(toneList);
 
-        // ✅ Set defaults (prevents empty occasion/tone issues)
-        if (occList.length > 0 && !occasionKey) setOccasionKey(occList[0].key);
-        if (toneList.length > 0 && !toneKey) setToneKey(toneList[0]);
+        // ✅ Defaults so keys are never empty (prevents “non-empty string” backend errors)
+        const defaultOccasion = occList[0]?.key || "";
+        const defaultTone = toneList[0] || "";
+
+        setOccasionKey((prev) => prev || defaultOccasion);
+        setToneKey((prev) => prev || defaultTone);
 
         setStatus("Loaded successfully ✅");
       } catch (e) {
@@ -74,8 +77,6 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-    // Intentionally NOT depending on occasionKey/toneKey (avoid loops)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API_BASE]);
 
   async function onSubmit(e) {
@@ -83,23 +84,29 @@ export default function App() {
     setResult(null);
     setError("");
 
-    if (!occasionKey) return setError("Please choose an occasion.");
-    if (!toneKey) return setError("Please choose a tone.");
-    if (!recipientName.trim()) return setError("Please enter recipient name.");
-    if (!recipientEmail.trim()) return setError("Please enter recipient email.");
-    if (!photoUrl.trim()) return setError("Please enter a photo URL (HTTPS).");
+    const cleanOccasionKey = (occasionKey || "").trim();
+    const cleanToneKey = (toneKey || "").trim();
+    const cleanRecipientName = (recipientName || "").trim();
+    const cleanRecipientEmail = (recipientEmail || "").trim();
+    const cleanPhotoUrl = (photoUrl || "").trim();
+
+    if (!cleanOccasionKey) return setError("Please choose an occasion.");
+    if (!cleanToneKey) return setError("Please choose a tone.");
+    if (!cleanRecipientName) return setError("Please enter recipient name.");
+    if (!cleanRecipientEmail) return setError("Please enter recipient email.");
+    if (!cleanPhotoUrl) return setError("Please enter a photo URL (HTTPS).");
 
     try {
       setSubmitting(true);
       setStatus("Sending job to API...");
 
       const payload = {
-        recipientEmail: recipientEmail.trim(),
-        recipientName: recipientName.trim(),
-        occasionKey,
-        toneKey,
+        recipientEmail: cleanRecipientEmail,
+        recipientName: cleanRecipientName,
+        occasionKey: cleanOccasionKey,
+        toneKey: cleanToneKey,
         greetingText: greetingText || "",
-        photoUrl: photoUrl.trim(),
+        photoUrl: cleanPhotoUrl,
         voiceId: null,
       };
 
