@@ -38,10 +38,10 @@ export default function App() {
   const [error, setError] = useState("");
 
   const [occasions, setOccasions] = useState([]);
-  const [tones, setTones] = useState([]);
+  
 
   const [occasionKey, setOccasionKey] = useState("");
-  const [toneKey, setToneKey] = useState("");
+  
 
   const [recipientName, setRecipientName] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
@@ -72,7 +72,7 @@ export default function App() {
 
         const [occRes, toneRes] = await Promise.all([
           fetch(`${API_BASE}/api/occasions`),
-          fetch(`${API_BASE}/api/tones`),
+          
         ]);
 
         const occJson = await occRes.json().catch(() => ({}));
