@@ -104,11 +104,12 @@ export default function App() {
         recipientEmail: cleanRecipientEmail,
         recipientName: cleanRecipientName,
         occasionKey: cleanOccasionKey,
-        toneKey: cleanToneKey,
+        tone: cleanToneKey, // 🔥 THIS IS THE FIX
         greetingText: greetingText || "",
         photoUrl: cleanPhotoUrl,
         voiceId: null,
-      };
+};
+
 
       console.log("🚀 Sending payload:", payload);
 
