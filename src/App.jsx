@@ -26,31 +26,56 @@ export default function App() {
 
   // Load occasions + tones on page load
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       try {
         setError("");
         setStatus("Loading occasions + tones...");
+
+        if (!API_BASE) {
+          setStatus("❌ Missing VITE_API_BASE");
+          setError("Set VITE_API_BASE in your frontend .env file.");
+          return;
+        }
 
         const [occRes, toneRes] = await Promise.all([
           fetch(`${API_BASE}/api/occasions`),
           fetch(`${API_BASE}/api/tones`),
         ]);
 
-        const occJson = await occRes.json();
-        const toneJson = await toneRes.json();
+        const occJson = await occRes.json().catch(() => ({}));
+        const toneJson = await toneRes.json().catch(() => ({}));
 
         if (!occRes.ok) throw new Error(occJson?.error || "Failed to load occasions");
         if (!toneRes.ok) throw new Error(toneJson?.error || "Failed to load tones");
 
-        setOccasions(Array.isArray(occJson.occasions) ? occJson.occasions : []);
-        setTones(Array.isArray(toneJson.tones) ? toneJson.tones : []);
+        const occList = Array.isArray(occJson.occasions) ? occJson.occasions : [];
+        const toneList = Array.isArray(toneJson.tones) ? toneJson.tones : [];
+
+        if (cancelled) return;
+
+        setOccasions(occList);
+        setTones(toneList);
+
+        // ✅ Set defaults (prevents empty occasion/tone issues)
+        if (occList.length > 0 && !occasionKey) setOccasionKey(occList[0].key);
+        if (toneList.length > 0 && !toneKey) setToneKey(toneList[0]);
+
         setStatus("Loaded successfully ✅");
       } catch (e) {
         console.error(e);
+        if (cancelled) return;
         setError(String(e?.message || e));
         setStatus("❌ Fetch failed");
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally NOT depending on occasionKey/toneKey (avoid loops)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API_BASE]);
 
   async function onSubmit(e) {
@@ -78,7 +103,6 @@ export default function App() {
         voiceId: null,
       };
 
-      // Helpful debug (you can remove later)
       console.log("🚀 Sending payload:", payload);
 
       const res = await fetch(`${API_BASE}/api/jobs/send-greeting`, {
