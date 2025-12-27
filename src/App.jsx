@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import JobStatus from "./JobStatus";
 
 /**
  * Generate a stable anonymous userId and store it in localStorage.
@@ -238,12 +239,15 @@ export default function App() {
         </div>
       </form>
 
-      {result ? (
+     {result?.jobId ? (
         <div style={{ marginTop: 20 }}>
-          <h3>Result</h3>
-          <pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8 }}>
-            {JSON.stringify(result, null, 2)}
-          </pre>
+          <JobStatus 
+            jobId={result.jobId}
+            apiBase={API_BASE}
+            onComplete={() => {
+              setStatus("✅ All done!");
+            }}
+          />
         </div>
       ) : null}
     </div>
