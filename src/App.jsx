@@ -39,10 +39,7 @@ export default function App() {
   const [error, setError] = useState("");
 
   const [occasions, setOccasions] = useState([]);
-  
-
   const [occasionKey, setOccasionKey] = useState("");
-  
 
   const [recipientName, setRecipientName] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
@@ -56,14 +53,14 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
 
-  // Load occasions + tones on page load
+  // Load occasions on page load
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
         setError("");
-        setStatus("Loading occasions + tones...");
+        setStatus("Loading occasions...");
 
         if (!API_BASE) {
           setStatus("❌ Missing VITE_API_BASE");
@@ -71,28 +68,19 @@ export default function App() {
           return;
         }
 
-        const [occRes, toneRes] = await Promise.all([
-          fetch(`${API_BASE}/api/occasions`),
-          
-        ]);
-
+        const occRes = await fetch(`${API_BASE}/api/occasions`);
         const occJson = await occRes.json().catch(() => ({}));
-        const toneJson = await toneRes.json().catch(() => ({}));
 
         if (!occRes.ok) throw new Error(occJson?.error || "Failed to load occasions");
-        if (!toneRes.ok) throw new Error(toneJson?.error || "Failed to load tones");
 
         const occList = Array.isArray(occJson.occasions) ? occJson.occasions : [];
-        const toneList = Array.isArray(toneJson.tones) ? toneJson.tones : [];
 
         if (cancelled) return;
 
         setOccasions(occList);
-        setTones(toneList);
 
-        // Set defaults once (avoid empty selects)
+        // Set default occasion once (avoid empty select)
         if (occList.length > 0) setOccasionKey((prev) => prev || occList[0].key);
-        if (toneList.length > 0) setToneKey((prev) => prev || toneList[0]);
 
         setStatus("Loaded successfully ✅");
       } catch (e) {
@@ -114,7 +102,6 @@ export default function App() {
     setError("");
 
     if (!occasionKey) return setError("Please choose an occasion.");
-    if (!toneKey) return setError("Please choose a tone.");
     if (!recipientName.trim()) return setError("Please enter recipient name.");
     if (!recipientEmail.trim()) return setError("Please enter recipient email.");
     if (!photoUrl.trim()) return setError("Please enter a photo URL (HTTPS).");
@@ -124,11 +111,10 @@ export default function App() {
       setStatus("Sending job to API...");
 
       const payload = {
-        userId, // ✅ NEW: anonymous user identifier
+        userId,
         recipientEmail: recipientEmail.trim(),
         recipientName: recipientName.trim(),
         occasionKey,
-        tone: toneKey, // ✅ IMPORTANT: send as `tone` (backend-friendly)
         greetingText: greetingText || "",
         photoUrl: photoUrl.trim(),
         voiceId: null,
@@ -191,18 +177,6 @@ export default function App() {
               {occasions.map((o) => (
                 <option key={o.key} value={o.key}>
                   {o.title}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Tone:&nbsp;
-            <select value={toneKey} onChange={(e) => setToneKey(e.target.value)}>
-              <option value="">Select tone</option>
-              {tones.map((t) => (
-                <option key={t} value={t}>
-                  {t}
                 </option>
               ))}
             </select>
