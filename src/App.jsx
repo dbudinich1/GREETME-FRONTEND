@@ -10,12 +10,10 @@ function getOrCreateUserId() {
   const existing = localStorage.getItem(KEY);
   if (existing) return existing;
 
-  // Prefer crypto.randomUUID if available
   let id = "";
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     id = crypto.randomUUID();
   } else {
-    // Fallback: reasonably-unique ID
     id = `anon_${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 
@@ -35,12 +33,15 @@ export default function App() {
     }
   }, []);
 
+  // System status / errors
   const [status, setStatus] = useState("Loading...");
   const [error, setError] = useState("");
 
+  // Occasion list
   const [occasions, setOccasions] = useState([]);
   const [occasionKey, setOccasionKey] = useState("");
 
+  // Form fields
   const [recipientName, setRecipientName] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
   const [greetingText, setGreetingText] = useState("");
@@ -50,6 +51,11 @@ export default function App() {
     "https://raw.githubusercontent.com/danielgatis/rembg/main/examples/person.jpg"
   );
 
+  // Item 24: consent
+  const [hasConsent, setHasConsent] = useState(false);
+  const [consentTouched, setConsentTouched] = useState(false);
+
+  // Submit result
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -70,11 +76,9 @@ export default function App() {
 
         const occRes = await fetch(`${API_BASE}/api/occasions`);
         const occJson = await occRes.json().catch(() => ({}));
-
         if (!occRes.ok) throw new Error(occJson?.error || "Failed to load occasions");
 
         const occList = Array.isArray(occJson.occasions) ? occJson.occasions : [];
-
         if (cancelled) return;
 
         setOccasions(occList);
@@ -96,15 +100,28 @@ export default function App() {
     };
   }, [API_BASE]);
 
+  function validateBeforeSubmit() {
+    if (!occasionKey) return "Please choose an occasion.";
+    if (!recipientName.trim()) return "Please enter recipient name.";
+    if (!recipientEmail.trim()) return "Please enter recipient email.";
+    if (!photoUrl.trim()) return "Please enter a photo URL (HTTPS).";
+    if (!hasConsent) return "You must confirm you have permission to use this photo and voice.";
+    return "";
+  }
+
   async function onSubmit(e) {
     e.preventDefault();
     setResult(null);
     setError("");
 
-    if (!occasionKey) return setError("Please choose an occasion.");
-    if (!recipientName.trim()) return setError("Please enter recipient name.");
-    if (!recipientEmail.trim()) return setError("Please enter recipient email.");
-    if (!photoUrl.trim()) return setError("Please enter a photo URL (HTTPS).");
+    // Mark consent as "touched" so we can show inline error if needed
+    setConsentTouched(true);
+
+    const validationError = validateBeforeSubmit();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -142,15 +159,25 @@ export default function App() {
     }
   }
 
+  const consentError = consentTouched && !hasConsent;
+
   return (
     <div style={{ padding: 40, fontFamily: "system-ui, Arial, sans-serif" }}>
       <h1 style={{ marginBottom: 10 }}>Greet-Me.com</h1>
 
       <div style={{ marginBottom: 16, color: "#555" }}>
-        <div><b>Frontend:</b> Vite / React</div>
-        <div><b>API Base:</b> {API_BASE || "(missing)"}</div>
-        <div><b>User ID:</b> <code>{userId}</code></div>
-        <div><b>Status:</b> {status}</div>
+        <div>
+          <b>Frontend:</b> Vite / React
+        </div>
+        <div>
+          <b>API Base:</b> {API_BASE || "(missing)"}
+        </div>
+        <div>
+          <b>User ID:</b> <code>{userId}</code>
+        </div>
+        <div>
+          <b>Status:</b> {status}
+        </div>
       </div>
 
       {error ? (
@@ -207,15 +234,53 @@ export default function App() {
             onChange={(e) => setPhotoUrl(e.target.value)}
           />
 
-          <button type="submit" disabled={submitting}>
+          {/* ITEM 24 — Consent */}
+          <div
+            style={{
+              marginTop: 6,
+              padding: 12,
+              borderRadius: 8,
+              border: consentError ? "1px solid #ff7a7a" : "1px solid #ddd",
+              background: consentError ? "#fff3f3" : "#fafafa",
+            }}
+          >
+            <label style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <input
+                type="checkbox"
+                checked={hasConsent}
+                onChange={(e) => setHasConsent(e.target.checked)}
+                onBlur={() => setConsentTouched(true)}
+                required
+              />
+              <span>
+                I confirm that I own or have obtained all necessary rights and permissions to use
+                this photo and voice, and that I consent to their use for creating and sending a
+                personalized greeting.
+              </span>
+            </label>
+
+            <div style={{ fontSize: 12, color: "#555", marginTop: 6 }}>
+              By continuing, you acknowledge that uploaded content may be processed by automated
+              systems to generate audio and video greetings, in accordance with Greet-Me’s Terms of
+              Service and Privacy Policy.
+            </div>
+
+            {consentError ? (
+              <div style={{ marginTop: 8, fontSize: 12, color: "#b00020" }}>
+                You must confirm you have permission to use this content before sending.
+              </div>
+            ) : null}
+          </div>
+
+          <button type="submit" disabled={submitting || !hasConsent}>
             {submitting ? "Sending..." : "Send Greeting"}
           </button>
         </div>
       </form>
 
-     {result?.jobId ? (
+      {result?.jobId ? (
         <div style={{ marginTop: 20 }}>
-          <JobStatus 
+          <JobStatus
             jobId={result.jobId}
             apiBase={API_BASE}
             onComplete={() => {
