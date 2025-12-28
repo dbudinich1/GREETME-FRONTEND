@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import JobStatus from "./JobStatus.jsx";
+import Legal from "./Legal.jsx";
 
 /**
  * Generate a stable anonymous userId and store it in localStorage.
