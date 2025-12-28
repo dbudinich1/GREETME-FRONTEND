@@ -25,6 +25,13 @@ function getOrCreateUserId() {
 export default function App() {
   const API_BASE = import.meta.env.VITE_API_BASE;
 
+  // SPA hash route: /#/legal
+  if (window.location.hash === "#/legal") {
+    // Lazy import avoided: keep it simple and stable
+    return <Legal />;
+  }
+
+
   const userId = useMemo(() => {
     try {
       return getOrCreateUserId();
@@ -279,7 +286,7 @@ export default function App() {
         </div>
       </form>
 
-      {result?.jobId ? (
+            {result?.jobId ? (
         <div style={{ marginTop: 20 }}>
           <JobStatus
             jobId={result.jobId}
@@ -290,6 +297,11 @@ export default function App() {
           />
         </div>
       ) : null}
+
+      {/* Legal footer */}
+      <div style={{ marginTop: 24, fontSize: 12, color: "#555" }}>
+        <a href="/#/legal">Terms of Service</a> |{" "}
+        <a href="/#/legal">Privacy Policy</a>
+      </div>
     </div>
-  );
-}
+
