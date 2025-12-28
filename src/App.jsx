@@ -304,4 +304,3 @@ export default function App() {
         <a href="/#/legal">Privacy Policy</a>
       </div>
     </div>
-
