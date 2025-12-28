@@ -303,4 +303,5 @@ export default function App() {
         <a href="/#/legal">Terms of Service</a> |{" "}
         <a href="/#/legal">Privacy Policy</a>
       </div>
-    </div>
+    </div>);
+}
