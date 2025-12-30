@@ -6,6 +6,13 @@ import Legal from "./Legal.jsx";
  * Generate a stable anonymous userId and store it in localStorage.
  * This gives us "user expansion" without login.
  */
+
+const [user, setUser] = useState(() => {
+  const saved = localStorage.getItem("greetme_user");
+  return saved ? JSON.parse(saved) : null;
+});
+
+
 function getOrCreateUserId() {
   const KEY = "greetme_user_id";
   const existing = localStorage.getItem(KEY);
@@ -244,6 +251,36 @@ export default function App() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  if (!user) {
+  return (
+    <div style={{ padding: 40, maxWidth: 420, margin: "auto" }}>
+      <h2>Welcome to Greet-Me</h2>
+      <p>Test Login (no password)</p>
+
+      <input
+        placeholder="Your name"
+        style={{ width: "100%", padding: 10, marginBottom: 10 }}
+        onChange={(e) =>
+          setUser({ name: e.target.value, id: crypto.randomUUID() })
+        }
+      />
+
+      <button
+        style={{ padding: 10, width: "100%" }}
+        onClick={() => {
+          localStorage.setItem(
+            "greetme_user",
+            JSON.stringify(user)
+          );
+          window.location.reload();
+        }}
+      >
+        Enter
+      </button>
+    </div>
+  );
+}
 
   return (
     <div style={{
