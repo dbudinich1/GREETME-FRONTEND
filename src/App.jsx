@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import JobStatus from "./JobStatus.jsx";
 import Legal from "./Legal.jsx";
+import DashboardLayout from "./components/DashboardLayout.jsx";
+import Contacts from "./components/Contacts.jsx";
+
 
 /**
  * Generate a stable anonymous userId and store it in localStorage.
  * This gives us "user expansion" without login.
  */
 
-const [user, setUser] = useState(() => {
-  const saved = localStorage.getItem("greetme_user");
-  return saved ? JSON.parse(saved) : null;
-});
+
 
 
 function getOrCreateUserId() {
@@ -43,6 +43,17 @@ const validateUrl = (url) => {
 };
 
 export default function App() {
+  const [user, setUser] = useState(() => {
+  const saved = localStorage.getItem("greetme_user");
+  return saved ? JSON.parse(saved) : null;
+});
+
+useEffect(() => {
+  if (user) {
+    localStorage.setItem("greetme_user", JSON.stringify(user));
+  }
+}, [user]);
+
   const API_BASE = import.meta.env.VITE_API_BASE;
 
   // SPA hash route: /#/legal
@@ -50,6 +61,14 @@ export default function App() {
     // Lazy import avoided: keep it simple and stable
     return <Legal />;
   }
+// SPA hash route: /#/dashboard
+if (window.location.hash === "#/dashboard") {
+  return (
+    <DashboardLayout>
+      <Contacts />
+    </DashboardLayout>
+  );
+}
 
   const userId = useMemo(() => {
     try {
