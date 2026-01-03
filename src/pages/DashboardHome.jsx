@@ -1,7 +1,17 @@
-// src/pages/DashboardHome.jsx
-import React, { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
-import { Link } from "react-router-dom";
+import React from "react";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
+
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import DashboardLayout from "./components/DashboardLayout";
+
+import Register from "./pages/Register";
+import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import DashboardHome from "./pages/DashboardHome";
+import Profile from "./pages/Profile";
+import Contacts from "./pages/Contacts";
+import Settings from "./pages/Settings";
 
 export default function DashboardHome() {
   const { user, getToken } = useAuth();
@@ -131,3 +141,4 @@ export default function DashboardHome() {
     </div>
   );
 }
+

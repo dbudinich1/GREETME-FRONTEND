@@ -12,6 +12,8 @@ import { Profile } from './pages/Profile';
 import { Contacts } from './pages/Contacts';
 import { Settings } from './pages/Settings';
 
+
+
 function App() {
   return (
     <AuthProvider>
