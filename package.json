@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "postbuild": "copy public\\web.config dist\\web.config",
+    "postbuild": "cp public/web.config dist/web.config",
     "lint": "eslint .",
     "preview": "vite preview"
   },
