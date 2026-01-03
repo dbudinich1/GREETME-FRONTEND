@@ -1,20 +1,11 @@
-import React from "react";
-import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
-
-import { AuthProvider } from "./context/AuthContext";
-import ProtectedRoute from "./components/ProtectedRoute";
-import DashboardLayout from "./components/DashboardLayout";
-
-import Register from "./pages/Register";
-import Login from "./pages/Login";
-import ForgotPassword from "./pages/ForgotPassword";
-import DashboardHome from "./pages/DashboardHome";
-import Profile from "./pages/Profile";
-import Contacts from "./pages/Contacts";
-import Settings from "./pages/Settings";
+// src/pages/DashboardHome.jsx
+import React, { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
 
 export default function DashboardHome() {
   const { user, getToken } = useAuth();
+
   const [stats, setStats] = useState({
     totalContacts: 0,
     upcomingOccasions: 0,
@@ -27,33 +18,31 @@ export default function DashboardHome() {
     "https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net";
 
   useEffect(() => {
-    fetchStats();
+    (async () => {
+      try {
+        const token = getToken?.();
+        const res = await fetch(`${API_URL}/api/dashboard/stats`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setStats(
+            data?.data || {
+              totalContacts: 0,
+              upcomingOccasions: 0,
+              greetingsSent: 0,
+            }
+          );
+        }
+      } catch (e) {
+        console.error("Failed to fetch stats:", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const fetchStats = async () => {
-    try {
-      const token = getToken?.();
-      const response = await fetch(`${API_URL}/api/dashboard/stats`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setStats(
-          data?.data || {
-            totalContacts: 0,
-            upcomingOccasions: 0,
-            greetingsSent: 0,
-          }
-        );
-      }
-    } catch (error) {
-      console.error("Failed to fetch stats:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const statStyles = {
     blue: "bg-blue-50",
@@ -82,7 +71,6 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {statCards.map((stat) => (
           <div
@@ -110,7 +98,6 @@ export default function DashboardHome() {
         ))}
       </div>
 
-      {/* Quick Actions */}
       <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
         <h2 className="text-xl font-extrabold text-gray-900 mb-4">Quick Actions</h2>
 
@@ -141,4 +128,3 @@ export default function DashboardHome() {
     </div>
   );
 }
-
