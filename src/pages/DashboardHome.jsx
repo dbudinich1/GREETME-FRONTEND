@@ -24,28 +24,44 @@ export default function DashboardHome() {
   }, []);
 
   const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      
-      const [statsRes, upcomingRes, recentRes] = await Promise.all([
-        api.getDashboardStats(),
-        api.getUpcomingOccasions(),
-        api.getRecentGreetings(),
-      ]);
+  try {
+    setLoading(true);
+    
+    // Try to fetch each endpoint separately, gracefully handling failures
+    let statsData = null;
+    let upcomingData = [];
+    let recentData = [];
 
-      setStats(statsRes.data);
-      setUpcomingOccasions(upcomingRes.data || []);
-      setRecentGreetings(recentRes.data || []);
-    } catch (error) {
-      console.error('Dashboard load error:', error);
-      // Don't show error for empty data
-      if (error.message !== 'HTTP 404') {
-        showAlert('error', 'Failed to load dashboard data');
-      }
-    } finally {
-      setLoading(false);
+    try {
+      const statsRes = await api.getDashboardStats();
+      statsData = statsRes.data;
+    } catch (err) {
+      console.log('Stats endpoint not available yet');
     }
-  };
+
+    try {
+      const upcomingRes = await api.getUpcomingOccasions();
+      upcomingData = upcomingRes.data || [];
+    } catch (err) {
+      console.log('Upcoming endpoint not available yet');
+    }
+
+    try {
+      const recentRes = await api.getRecentGreetings();
+      recentData = recentRes.data || [];
+    } catch (err) {
+      console.log('Recent endpoint not available yet');
+    }
+
+    setStats(statsData);
+    setUpcomingOccasions(upcomingData);
+    setRecentGreetings(recentData);
+  } catch (error) {
+    console.error('Dashboard load error:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const showAlert = (type, message) => {
     setAlert({ type, message });

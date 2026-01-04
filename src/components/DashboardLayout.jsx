@@ -17,6 +17,7 @@ export default function DashboardLayout() {
     { name: 'Dashboard', path: '/dashboard', icon: '📊' },
     { name: 'Contacts', path: '/contacts', icon: '👥' },
     { name: 'Profile', path: '/profile', icon: '👤' },
+    { name: 'Send Greeting', path: '/dashboard/send', icon: '📧' },
     { name: 'Settings', path: '/settings', icon: '⚙️' },
   ];
 
