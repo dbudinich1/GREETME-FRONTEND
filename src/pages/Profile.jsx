@@ -6,12 +6,14 @@ import VoiceRecorder from '../components/VoiceRecorder';
 import PhotoUpload from '../components/PhotoUpload';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
+import { useAuth } from '../context/AuthContext';
 
 export default function Profile() {
   const [activeTab, setActiveTab] = useState('info');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchProfile();
@@ -35,24 +37,32 @@ export default function Profile() {
   };
 
   const handleVoiceUpload = async (formData) => {
-    try {
-      await api.uploadVoice(formData);
-      showAlert('success', 'Voice uploaded successfully! Processing may take a moment.');
-      fetchProfile();
-    } catch (error) {
-      throw error;
+  try {
+    // Add userId to formData
+    if (user?.id || user?.email) {
+      formData.append('userId', user.id || user.email);
     }
-  };
+    await api.uploadVoice(formData);
+    showAlert('success', 'Voice uploaded successfully! Processing may take a moment.');
+    fetchProfile();
+  } catch (error) {
+    throw error;
+  }
+};
 
   const handlePhotoUpload = async (formData) => {
-    try {
-      await api.uploadPhoto(formData);
-      showAlert('success', 'Photo uploaded successfully!');
-      fetchProfile();
-    } catch (error) {
-      throw error;
+  try {
+    // Add userId to formData
+    if (user?.id || user?.email) {
+      formData.append('userId', user.id || user.email);
     }
-  };
+    await api.uploadPhoto(formData);
+    showAlert('success', 'Photo uploaded successfully!');
+    fetchProfile();
+  } catch (error) {
+    throw error;
+  }
+};
 
   const tabs = [
     { id: 'info', label: 'Profile Info', icon: <User size={18} /> },
