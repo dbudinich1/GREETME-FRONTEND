@@ -27,20 +27,21 @@ export default function App() {
 
           {/* Protected Routes */}
           <Route
-            path="/"
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <DashboardLayout />
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardHome />} />
-            <Route path="profile" element={<Profile />} />
+            <Route index element={<DashboardHome />} />
             <Route path="contacts" element={<Contacts />} />
+            <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
             <Route path="send" element={<SendGreeting />} />
           </Route>
+
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
