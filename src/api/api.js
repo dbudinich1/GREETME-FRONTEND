@@ -1,5 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE;
-
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
 /**
  * Fetch available occasions
  * GET /api/occasions
