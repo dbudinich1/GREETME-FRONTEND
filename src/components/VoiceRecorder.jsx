@@ -1,114 +1,125 @@
-// components/VoiceRecorder.jsx
-// Voice recording component using MediaRecorder API
-
+// src/components/VoiceRecorder.jsx
 import React, { useState, useRef, useEffect } from 'react';
+import { Mic, Square, Play, Pause, Upload } from 'lucide-react';
+import { validateAudioFile } from '../utils/helpers';
+import Alert from './Alert';
 
-export const VoiceRecorder = ({ onRecordingComplete }) => {
+export default function VoiceRecorder({ onUpload, existingVoice }) {
   const [isRecording, setIsRecording] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [audioURL, setAudioURL] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
-  
-  const mediaRecorderRef = useRef(null);
-  const chunksRef = useRef([]);
-  const timerRef = useRef(null);
-  const streamRef = useRef(null);
 
-  const script = `Hello! This is me speaking. I'm creating a personalized voice for my automated greetings. 
-I want my friends and family to hear my voice when they receive special messages from me. 
-Technology is amazing, and I'm excited to use it to stay connected with the people I care about.`;
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const audioPlayerRef = useRef(null);
+  const timerRef = useRef(null);
 
   useEffect(() => {
     return () => {
-      // Cleanup
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
     };
-  }, []);
+  }, [audioUrl]);
 
   const startRecording = async () => {
     try {
-      setError(null);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
 
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
       };
 
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const url = URL.createObjectURL(blob);
-        setAudioURL(url);
-        
-        if (onRecordingComplete) {
-          onRecordingComplete(blob);
-        }
-
-        // Stop all tracks
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
-        }
+        setAudioBlob(blob);
+        setAudioUrl(url);
+        stream.getTracks().forEach(track => track.stop());
       };
 
-      mediaRecorder.start();
+      mediaRecorderRef.current.start();
       setIsRecording(true);
       setRecordingTime(0);
+      setError(null);
 
-      // Start timer
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
     } catch (err) {
-      console.error('Error accessing microphone:', err);
-      setError('Unable to access microphone. Please check your browser permissions.');
-    }
-  };
-
-  const pauseRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.pause();
-      setIsPaused(true);
-      clearInterval(timerRef.current);
-    }
-  };
-
-  const resumeRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
-      mediaRecorderRef.current.resume();
-      setIsPaused(false);
-      
-      // Resume timer
-      timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-      }, 1000);
+      setError('Could not access microphone. Please grant permission.');
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+    if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      setIsPaused(false);
       clearInterval(timerRef.current);
     }
   };
 
+  const playAudio = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const pauseAudio = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const handleAudioEnded = () => {
+    setIsPlaying(false);
+  };
+
+  const handleUpload = async () => {
+    if (!audioBlob) return;
+
+    const file = new File([audioBlob], 'voice-recording.webm', { type: 'audio/webm' });
+    const validation = validateAudioFile(file);
+
+    if (!validation.valid) {
+      setError(validation.error);
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('voice', file);
+      await onUpload(formData);
+      setAudioBlob(null);
+      setAudioUrl(null);
+      setRecordingTime(0);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const resetRecording = () => {
-    setAudioURL(null);
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+    setAudioBlob(null);
+    setAudioUrl(null);
     setRecordingTime(0);
-    chunksRef.current = [];
+    setIsPlaying(false);
   };
 
   const formatTime = (seconds) => {
@@ -118,149 +129,104 @@ Technology is amazing, and I'm excited to use it to stay connected with the peop
   };
 
   return (
-    <div className="space-y-6">
-      {/* Script to read */}
-      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-          <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          Read this script
-        </h3>
-        <p className="text-gray-700 leading-relaxed italic">
-          "{script}"
-        </p>
-        <p className="text-sm text-gray-600 mt-4">
-          📝 Reading time: 30-45 seconds. Speak clearly and naturally.
+    <div className="space-y-4">
+      {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
+
+      {/* Recording Script */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h4 className="font-medium text-blue-900 mb-2">Read this script clearly:</h4>
+        <p className="text-sm text-blue-800 italic">
+          "Hello! This is my voice for Greet-Me. I'm recording this sample so my greetings can sound natural and personal. 
+          I hope this helps create wonderful messages for my friends and family. Thank you for using Greet-Me!"
         </p>
       </div>
 
-      {/* Error message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
-          {error}
-        </div>
-      )}
-
-      {/* Recording controls */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-200 text-center">
-        {/* Recording indicator */}
-        {isRecording && (
-          <div className="mb-6">
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <div className="w-4 h-4 rounded-full bg-red-500 animate-pulse"></div>
-              <span className="text-lg font-medium text-gray-900">
-                {isPaused ? 'Paused' : 'Recording...'}
-              </span>
-            </div>
-            <div className="text-4xl font-bold text-gray-900 tabular-nums">
-              {formatTime(recordingTime)}
-            </div>
+      {/* Recording Interface */}
+      <div className="border border-gray-200 rounded-lg p-6">
+        {!audioBlob ? (
+          <div className="text-center">
+            {!isRecording ? (
+              <button
+                onClick={startRecording}
+                className="w-24 h-24 mx-auto rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center text-white shadow-lg transition-all"
+              >
+                <Mic size={40} />
+              </button>
+            ) : (
+              <div>
+                <button
+                  onClick={stopRecording}
+                  className="w-24 h-24 mx-auto rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center text-white shadow-lg animate-pulse"
+                >
+                  <Square size={40} />
+                </button>
+                <p className="mt-4 text-2xl font-bold text-red-500">
+                  {formatTime(recordingTime)}
+                </p>
+                <p className="text-sm text-gray-600">Recording...</p>
+              </div>
+            )}
+            {!isRecording && (
+              <p className="mt-4 text-sm text-gray-600">
+                Click the microphone to start recording
+              </p>
+            )}
           </div>
-        )}
-
-        {/* Microphone icon */}
-        {!isRecording && !audioURL && (
-          <div className="mb-6">
-            <div className={`w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white shadow-xl ${
-              isRecording ? 'animate-pulse' : ''
-            }`}>
-              <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-              </svg>
-            </div>
-          </div>
-        )}
-
-        {/* Control buttons */}
-        <div className="flex justify-center gap-4">
-          {!isRecording && !audioURL && (
-            <button
-              onClick={startRecording}
-              className="px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-200 transform hover:scale-105"
-            >
-              Start Recording
-            </button>
-          )}
-
-          {isRecording && !isPaused && (
-            <>
-              <button
-                onClick={pauseRecording}
-                className="px-6 py-3 bg-yellow-500 text-white rounded-xl font-semibold shadow-lg hover:bg-yellow-600 transition-all"
-              >
-                Pause
-              </button>
-              <button
-                onClick={stopRecording}
-                className="px-6 py-3 bg-red-500 text-white rounded-xl font-semibold shadow-lg hover:bg-red-600 transition-all"
-              >
-                Stop
-              </button>
-            </>
-          )}
-
-          {isRecording && isPaused && (
-            <>
-              <button
-                onClick={resumeRecording}
-                className="px-6 py-3 bg-green-500 text-white rounded-xl font-semibold shadow-lg hover:bg-green-600 transition-all"
-              >
-                Resume
-              </button>
-              <button
-                onClick={stopRecording}
-                className="px-6 py-3 bg-red-500 text-white rounded-xl font-semibold shadow-lg hover:bg-red-600 transition-all"
-              >
-                Stop
-              </button>
-            </>
-          )}
-        </div>
-
-        {/* Playback */}
-        {audioURL && (
-          <div className="mt-6 space-y-4">
-            <div className="flex items-center justify-center gap-3 text-green-600">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="font-medium">Recording complete!</span>
-            </div>
-            
+        ) : (
+          <div className="space-y-4">
+            {/* Audio Player */}
             <audio
-              src={audioURL}
-              controls
-              className="w-full max-w-md mx-auto"
+              ref={audioPlayerRef}
+              src={audioUrl}
+              onEnded={handleAudioEnded}
+              className="hidden"
             />
 
-            <div className="flex justify-center gap-4">
+            <div className="flex items-center justify-center space-x-4">
+              <button
+                onClick={isPlaying ? pauseAudio : playAudio}
+                className="w-16 h-16 rounded-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center text-white"
+              >
+                {isPlaying ? <Pause size={24} /> : <Play size={24} />}
+              </button>
+              <div className="flex-1">
+                <div className="bg-gray-200 h-2 rounded-full">
+                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: '0%' }} />
+                </div>
+                <p className="text-sm text-gray-600 mt-1">
+                  Duration: {formatTime(recordingTime)}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-center space-x-3">
               <button
                 onClick={resetRecording}
-                className="px-6 py-2 text-gray-700 border-2 border-gray-300 rounded-xl font-medium hover:bg-gray-50 transition-all"
+                className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium"
               >
-                Record Again
+                Re-record
               </button>
               <button
-                className="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                onClick={handleUpload}
+                disabled={uploading}
+                className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 flex items-center"
               >
-                Save & Upload
+                <Upload size={18} className="mr-2" />
+                {uploading ? 'Uploading...' : 'Upload Voice'}
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Tips */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-        <h4 className="text-sm font-semibold text-blue-900 mb-2">💡 Recording Tips</h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Find a quiet space with minimal background noise</li>
-          <li>• Speak clearly and at a natural pace</li>
-          <li>• Aim for 30-60 seconds of recording</li>
-          <li>• Your voice will be used to create personalized greetings</li>
-        </ul>
-      </div>
+      {/* Existing Voice Status */}
+      {existingVoice && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <p className="text-sm text-green-800">
+            ✓ Voice configured. Record a new sample to update.
+          </p>
+        </div>
+      )}
     </div>
   );
-};
+}

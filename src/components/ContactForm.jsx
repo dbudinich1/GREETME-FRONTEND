@@ -1,32 +1,28 @@
-// components/ContactForm.jsx
-// Contact form with occasion assignment
+// src/components/ContactForm.jsx
+import React, { useState, useEffect } from 'react';
+import { validateEmail, occasionTypes } from '../utils/helpers';
+import Alert from './Alert';
 
-import React, { useState } from 'react';
-
-export const ContactForm = ({ contact, onClose, onSubmit }) => {
-  const isEditing = !!contact;
-  
+export default function ContactForm({ contact, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
-    name: contact?.name || '',
-    email: contact?.email || '',
-    relationship: contact?.relationship || '',
-    occasions: contact?.occasions || [],
+    name: '',
+    email: '',
+    relationship: '',
+    occasions: [],
   });
-
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
-  const occasionTypes = [
-    'Birthday',
-    'Anniversary',
-    'Wedding Anniversary',
-    'Work Anniversary',
-    'Graduation',
-    'New Baby',
-    'Get Well Soon',
-    'Congratulations',
-    'Thank You',
-    'Thinking of You',
-  ];
+  useEffect(() => {
+    if (contact) {
+      setFormData({
+        name: contact.name || '',
+        email: contact.email || '',
+        relationship: contact.relationship || '',
+        occasions: contact.occasions || [],
+      });
+    }
+  }, [contact]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -36,30 +32,35 @@ export const ContactForm = ({ contact, onClose, onSubmit }) => {
     }
   };
 
-  const handleAddOccasion = () => {
-    setFormData(prev => ({
-      ...prev,
-      occasions: [...prev.occasions, { type: 'Birthday', date: '', autoSend: true }],
-    }));
+  const handleOccasionToggle = (occasionValue) => {
+    setFormData(prev => {
+      const occasions = prev.occasions || [];
+      const exists = occasions.find(o => o.type === occasionValue);
+      
+      if (exists) {
+        return {
+          ...prev,
+          occasions: occasions.filter(o => o.type !== occasionValue),
+        };
+      } else {
+        return {
+          ...prev,
+          occasions: [...occasions, { type: occasionValue, date: '', autoSend: true }],
+        };
+      }
+    });
   };
 
-  const handleRemoveOccasion = (index) => {
+  const handleOccasionDateChange = (occasionValue, date) => {
     setFormData(prev => ({
       ...prev,
-      occasions: prev.occasions.filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleOccasionChange = (index, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      occasions: prev.occasions.map((occasion, i) =>
-        i === index ? { ...occasion, [field]: value } : occasion
+      occasions: prev.occasions.map(o =>
+        o.type === occasionValue ? { ...o, date } : o
       ),
     }));
   };
 
-  const validateForm = () => {
+  const validate = () => {
     const newErrors = {};
 
     if (!formData.name.trim()) {
@@ -68,7 +69,7 @@ export const ContactForm = ({ contact, onClose, onSubmit }) => {
 
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!validateEmail(formData.email)) {
       newErrors.email = 'Invalid email format';
     }
 
@@ -76,198 +77,145 @@ export const ContactForm = ({ contact, onClose, onSubmit }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validateForm()) {
-      onSubmit(formData);
+    
+    if (!validate()) return;
+
+    setSubmitting(true);
+    try {
+      await onSubmit(formData);
+    } catch (error) {
+      setErrors({ submit: error.message });
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  const selectedOccasions = formData.occasions?.map(o => o.type) || [];
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl p-6 max-w-2xl w-full my-8 shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {isEditing ? 'Edit Contact' : 'Add New Contact'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {errors.submit && <Alert type="error" message={errors.submit} />}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Info */}
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Name *
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className={`w-full px-4 py-3 rounded-xl border-2 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                  errors.name ? 'border-red-300 bg-red-50' : 'border-gray-200'
-                }`}
-                placeholder="John Doe"
-              />
-              {errors.name && (
-                <p className="mt-2 text-sm text-red-600">{errors.name}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email *
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className={`w-full px-4 py-3 rounded-xl border-2 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                  errors.email ? 'border-red-300 bg-red-50' : 'border-gray-200'
-                }`}
-                placeholder="john@example.com"
-              />
-              {errors.email && (
-                <p className="mt-2 text-sm text-red-600">{errors.email}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="relationship" className="block text-sm font-medium text-gray-700 mb-2">
-                Relationship (Optional)
-              </label>
-              <input
-                type="text"
-                id="relationship"
-                name="relationship"
-                value={formData.relationship}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
-                placeholder="Friend, Family, Colleague, etc."
-              />
-            </div>
-          </div>
-
-          {/* Occasions */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Occasions</h3>
-              <button
-                type="button"
-                onClick={handleAddOccasion}
-                className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg font-medium hover:bg-purple-200 transition-all flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Add Occasion
-              </button>
-            </div>
-
-            {formData.occasions.length === 0 ? (
-              <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-                <svg className="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <p className="text-gray-600 mb-3">No occasions added yet</p>
-                <button
-                  type="button"
-                  onClick={handleAddOccasion}
-                  className="text-purple-600 font-medium hover:text-purple-700"
-                >
-                  Add their first occasion
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {formData.occasions.map((occasion, index) => (
-                  <div key={index} className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-200">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Occasion Type
-                        </label>
-                        <select
-                          value={occasion.type}
-                          onChange={(e) => handleOccasionChange(index, 'type', e.target.value)}
-                          className="w-full px-3 py-2 border-2 border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                        >
-                          {occasionTypes.map(type => (
-                            <option key={type} value={type}>{type}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Date
-                        </label>
-                        <input
-                          type="date"
-                          value={occasion.date}
-                          onChange={(e) => handleOccasionChange(index, 'date', e.target.value)}
-                          className="w-full px-3 py-2 border-2 border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex items-center justify-between">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={occasion.autoSend}
-                          onChange={(e) => handleOccasionChange(index, 'autoSend', e.target.checked)}
-                          className="w-5 h-5 rounded text-purple-500 focus:ring-purple-500"
-                        />
-                        <span className="text-sm font-medium text-gray-700">
-                          Automatically send greeting on this date
-                        </span>
-                      </label>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveOccasion(index)}
-                        className="text-red-600 hover:text-red-700 text-sm font-medium"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Submit buttons */}
-          <div className="flex gap-3 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
-            >
-              {isEditing ? 'Save Changes' : 'Add Contact'}
-            </button>
-          </div>
-        </form>
+      {/* Basic Info */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Name <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          name="name"
+          value={formData.name}
+          onChange={handleChange}
+          className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.name ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="John Doe"
+        />
+        {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
       </div>
-    </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Email <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="email"
+          name="email"
+          value={formData.email}
+          onChange={handleChange}
+          className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.email ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="john@example.com"
+        />
+        {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Relationship
+        </label>
+        <select
+          name="relationship"
+          value={formData.relationship}
+          onChange={handleChange}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Select relationship...</option>
+          <option value="family">Family</option>
+          <option value="friend">Friend</option>
+          <option value="colleague">Colleague</option>
+          <option value="client">Client</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      {/* Occasions */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-3">
+          Occasions
+        </label>
+        <div className="space-y-3">
+          {occasionTypes.map((occasion) => {
+            const isSelected = selectedOccasions.includes(occasion.value);
+            const occasionData = formData.occasions?.find(o => o.type === occasion.value);
+
+            return (
+              <div key={occasion.value} className="border border-gray-200 rounded-lg p-3">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id={`occasion-${occasion.value}`}
+                    checked={isSelected}
+                    onChange={() => handleOccasionToggle(occasion.value)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label
+                    htmlFor={`occasion-${occasion.value}`}
+                    className="ml-3 text-sm font-medium text-gray-900 flex items-center"
+                  >
+                    <span className="mr-2">{occasion.icon}</span>
+                    {occasion.label}
+                  </label>
+                </div>
+
+                {isSelected && (
+                  <div className="mt-3 ml-7">
+                    <label className="block text-xs text-gray-600 mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={occasionData?.date || ''}
+                      onChange={(e) => handleOccasionDateChange(occasion.value, e.target.value)}
+                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium"
+          disabled={submitting}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+          disabled={submitting}
+        >
+          {submitting ? 'Saving...' : contact ? 'Update Contact' : 'Add Contact'}
+        </button>
+      </div>
+    </form>
   );
-};
+}

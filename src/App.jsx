@@ -13,6 +13,7 @@ import DashboardHome from "./pages/DashboardHome";
 import Profile from "./pages/Profile";
 import Contacts from "./pages/Contacts";
 import Settings from "./pages/Settings";
+import SendGreeting from './pages/SendGreeting';
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="contacts" element={<Contacts />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="send" element={<SendGreeting />} />
           </Route>
 
           {/* Fallback */}

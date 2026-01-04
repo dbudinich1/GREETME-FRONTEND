@@ -1,130 +1,141 @@
 // src/pages/DashboardHome.jsx
-import React, { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
+import {
+  StatsWidget,
+  UpcomingOccasionsWidget,
+  RecentGreetingsWidget,
+  QuickActionsWidget,
+} from '../components/DashboardWidgets';
+import LoadingSpinner from '../components/LoadingSpinner';
+import Alert from '../components/Alert';
 
 export default function DashboardHome() {
-  const { user, getToken } = useAuth();
-
-  const [stats, setStats] = useState({
-    totalContacts: 0,
-    upcomingOccasions: 0,
-    greetingsSent: 0,
-  });
+  const navigate = useNavigate();
+  const [stats, setStats] = useState(null);
+  const [upcomingOccasions, setUpcomingOccasions] = useState([]);
+  const [recentGreetings, setRecentGreetings] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const API_URL =
-    import.meta.env.VITE_API_URL ||
-    "https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net";
+  const [alert, setAlert] = useState(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const token = getToken?.();
-        const res = await fetch(`${API_URL}/api/dashboard/stats`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setStats(
-            data?.data || {
-              totalContacts: 0,
-              upcomingOccasions: 0,
-              greetingsSent: 0,
-            }
-          );
-        }
-      } catch (e) {
-        console.error("Failed to fetch stats:", e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchDashboardData();
   }, []);
 
-  const statStyles = {
-    blue: "bg-blue-50",
-    purple: "bg-purple-50",
-    green: "bg-green-50",
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      const [statsRes, upcomingRes, recentRes] = await Promise.all([
+        api.getDashboardStats(),
+        api.getUpcomingOccasions(),
+        api.getRecentGreetings(),
+      ]);
+
+      setStats(statsRes.data);
+      setUpcomingOccasions(upcomingRes.data || []);
+      setRecentGreetings(recentRes.data || []);
+    } catch (error) {
+      console.error('Dashboard load error:', error);
+      // Don't show error for empty data
+      if (error.message !== 'HTTP 404') {
+        showAlert('error', 'Failed to load dashboard data');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const statCards = [
-    { label: "Total Contacts", value: stats.totalContacts, icon: "👥", color: "blue" },
-    { label: "Upcoming Occasions", value: stats.upcomingOccasions, icon: "📅", color: "purple" },
-    { label: "Greetings Sent", value: stats.greetingsSent, icon: "✉️", color: "green" },
-  ];
+  const showAlert = (type, message) => {
+    setAlert({ type, message });
+    setTimeout(() => setAlert(null), 5000);
+  };
+
+  const handleQuickAction = (action) => {
+    switch (action) {
+      case 'addContact':
+        navigate('/contacts');
+        break;
+      case 'recordVoice':
+        navigate('/profile');
+        break;
+      case 'uploadPhoto':
+        navigate('/profile');
+        break;
+      default:
+        break;
+    }
+  };
+
+  if (loading) {
+    return <LoadingSpinner text="Loading dashboard..." />;
+  }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            Welcome back{user?.name ? `, ${user.name}` : ""}!
-          </h1>
-          <p className="text-gray-600 mt-2">Here’s what’s happening with your greetings</p>
-        </div>
-
-        <div className="text-xs font-semibold px-3 py-2 rounded-full border border-gray-200 bg-white shadow-sm">
-          {loading ? "Loading…" : "Updated ✓"}
-        </div>
+    <div>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600 mt-1">Welcome back! Here's your overview.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {statCards.map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm">{stat.label}</p>
-                <p className="text-3xl font-extrabold text-gray-900 mt-2">
-                  {loading ? "—" : stat.value}
-                </p>
-              </div>
+      {alert && (
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          onClose={() => setAlert(null)}
+        />
+      )}
 
-              <div
-                className={[
-                  "text-3xl w-14 h-14 rounded-full flex items-center justify-center",
-                  statStyles[stat.color] || "bg-gray-50",
-                ].join(" ")}
-              >
-                {stat.icon}
-              </div>
+      {/* Stats */}
+      <StatsWidget stats={stats} />
+
+      {/* Quick Actions */}
+      <div className="mb-6">
+        <QuickActionsWidget onAction={handleQuickAction} />
+      </div>
+
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Upcoming Occasions */}
+        <UpcomingOccasionsWidget occasions={upcomingOccasions} />
+
+        {/* Recent Greetings */}
+        <RecentGreetingsWidget greetings={recentGreetings} />
+      </div>
+
+      {/* Getting Started Help */}
+      {stats?.totalContacts === 0 && (
+        <div className="mt-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-sm p-8 text-white">
+          <h3 className="text-2xl font-bold mb-4">🎉 Get Started with Greet-Me!</h3>
+          <p className="mb-6 opacity-90">
+            Follow these simple steps to start sending personalized AI greetings:
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+              <div className="text-4xl mb-2">1️⃣</div>
+              <h4 className="font-bold mb-1">Add Contacts</h4>
+              <p className="text-sm opacity-90">Import or add your friends and family</p>
+            </div>
+            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+              <div className="text-4xl mb-2">2️⃣</div>
+              <h4 className="font-bold mb-1">Setup Profile</h4>
+              <p className="text-sm opacity-90">Upload your photo and record your voice</p>
+            </div>
+            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+              <div className="text-4xl mb-2">3️⃣</div>
+              <h4 className="font-bold mb-1">Set Occasions</h4>
+              <p className="text-sm opacity-90">Choose which occasions to celebrate</p>
             </div>
           </div>
-        ))}
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-        <h2 className="text-xl font-extrabold text-gray-900 mb-4">Quick Actions</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Link
-            to="/contacts"
-            className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition"
+          <button
+            onClick={() => navigate('/contacts')}
+            className="mt-6 bg-white text-blue-600 px-8 py-3 rounded-lg font-bold hover:bg-opacity-90 transition"
           >
-            <span className="text-3xl">➕</span>
-            <div>
-              <h3 className="font-semibold text-gray-900">Add Contact</h3>
-              <p className="text-sm text-gray-600">Add someone to send greetings to</p>
-            </div>
-          </Link>
-
-          <Link
-            to="/profile"
-            className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition"
-          >
-            <span className="text-3xl">🎙️</span>
-            <div>
-              <h3 className="font-semibold text-gray-900">Setup Profile</h3>
-              <p className="text-sm text-gray-600">Record your voice and upload photo</p>
-            </div>
-          </Link>
+            Add Your First Contact →
+          </button>
         </div>
-      </div>
+      )}
     </div>
   );
 }

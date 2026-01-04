@@ -1,65 +1,150 @@
 // src/pages/Profile.jsx
-import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { User, Mic, Camera } from 'lucide-react';
+import api from '../services/api';
+import VoiceRecorder from '../components/VoiceRecorder';
+import PhotoUpload from '../components/PhotoUpload';
+import LoadingSpinner from '../components/LoadingSpinner';
+import Alert from '../components/Alert';
 
-export const Profile = () => {
-  const { user, getToken } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
-  const [recording, setRecording] = useState(false);
+export default function Profile() {
+  const [activeTab, setActiveTab] = useState('info');
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [alert, setAlert] = useState(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const response = await api.getProfile();
+      setProfile(response.data);
+    } catch (error) {
+      showAlert('error', 'Failed to load profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showAlert = (type, message) => {
+    setAlert({ type, message });
+    setTimeout(() => setAlert(null), 5000);
+  };
+
+  const handleVoiceUpload = async (formData) => {
+    try {
+      await api.uploadVoice(formData);
+      showAlert('success', 'Voice uploaded successfully! Processing may take a moment.');
+      fetchProfile();
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handlePhotoUpload = async (formData) => {
+    try {
+      await api.uploadPhoto(formData);
+      showAlert('success', 'Photo uploaded successfully!');
+      fetchProfile();
+    } catch (error) {
+      throw error;
+    }
+  };
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: '📋' },
-    { id: 'voice', label: 'Voice', icon: '🎙️' },
-    { id: 'photo', label: 'Photo', icon: '📸' },
+    { id: 'info', label: 'Profile Info', icon: <User size={18} /> },
+    { id: 'voice', label: 'Voice Setup', icon: <Mic size={18} /> },
+    { id: 'photo', label: 'Photo Upload', icon: <Camera size={18} /> },
   ];
+
+  if (loading) {
+    return <LoadingSpinner text="Loading profile..." />;
+  }
 
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Profile</h1>
 
+      {alert && (
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          onClose={() => setAlert(null)}
+        />
+      )}
+
       {/* Tabs */}
-      <div className="flex space-x-4 mb-6 border-b border-gray-200">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center space-x-2 px-4 py-3 font-medium ${
-              activeTab === tab.id
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <span>{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
+      <div className="border-b border-gray-200 mb-6">
+        <div className="flex space-x-8">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center space-x-2 pb-4 border-b-2 transition ${
+                activeTab === tab.id
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {tab.icon}
+              <span className="font-medium">{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        {activeTab === 'overview' && (
-          <div>
-            <h2 className="text-xl font-bold mb-4">Account Information</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <input
-                  type="text"
-                  value={user?.name || ''}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  disabled
-                />
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        {activeTab === 'info' && (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+              <input
+                type="text"
+                value={profile?.name || ''}
+                disabled
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <input
+                type="email"
+                value={profile?.email || ''}
+                disabled
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+              />
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                Your voice and photo are used to create personalized AI-generated greetings. 
+                Configure them in the Voice Setup and Photo Upload tabs.
+              </p>
+            </div>
+
+            {/* Status Indicators */}
+            <div className="grid grid-cols-2 gap-4 mt-6">
+              <div className={`border rounded-lg p-4 ${profile?.voiceId ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                <div className="flex items-center space-x-2 mb-1">
+                  <Mic size={20} className={profile?.voiceId ? 'text-green-600' : 'text-gray-400'} />
+                  <span className="font-medium text-gray-900">Voice</span>
+                </div>
+                <p className={`text-sm ${profile?.voiceId ? 'text-green-600' : 'text-gray-500'}`}>
+                  {profile?.voiceId ? '✓ Configured' : 'Not configured'}
+                </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={user?.email || ''}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  disabled
-                />
+
+              <div className={`border rounded-lg p-4 ${profile?.photoUrl ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                <div className="flex items-center space-x-2 mb-1">
+                  <Camera size={20} className={profile?.photoUrl ? 'text-green-600' : 'text-gray-400'} />
+                  <span className="font-medium text-gray-900">Photo</span>
+                </div>
+                <p className={`text-sm ${profile?.photoUrl ? 'text-green-600' : 'text-gray-500'}`}>
+                  {profile?.photoUrl ? '✓ Configured' : 'Not configured'}
+                </p>
               </div>
             </div>
           </div>
@@ -67,26 +152,34 @@ export const Profile = () => {
 
         {activeTab === 'voice' && (
           <div>
-            <h2 className="text-xl font-bold mb-4">Voice Recording</h2>
-            <p className="text-gray-600 mb-4">Record your voice for personalized greetings (30-60 seconds)</p>
-            <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium">
-              {recording ? '⏹️ Stop Recording' : '🎙️ Start Recording'}
-            </button>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Record Your Voice
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Record a 30-60 second voice sample. This will be used to clone your voice for personalized greetings.
+            </p>
+            <VoiceRecorder
+              onUpload={handleVoiceUpload}
+              existingVoice={profile?.voiceId}
+            />
           </div>
         )}
 
         {activeTab === 'photo' && (
           <div>
-            <h2 className="text-xl font-bold mb-4">Profile Photo</h2>
-            <p className="text-gray-600 mb-4">Upload a clear photo of yourself for video greetings</p>
-            <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium">
-              📸 Upload Photo
-            </button>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Upload Your Photo
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Upload a clear photo of yourself. This will be used to create animated video greetings.
+            </p>
+            <PhotoUpload
+              onUpload={handlePhotoUpload}
+              existingPhoto={profile?.photoUrl}
+            />
           </div>
         )}
       </div>
     </div>
   );
-};
-
-export default Profile;
+}
