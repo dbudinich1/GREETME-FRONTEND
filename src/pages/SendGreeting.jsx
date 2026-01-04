@@ -97,6 +97,7 @@ export default function SendGreeting() {
         occasion: formData.occasionType,
         relationship: selectedContact.relationship || 'friend',
         notes: formData.customMessage || '',
+        photoUrl: 'https://via.placeholder.com/512',
       };
 
       const response = await api.sendGreeting(greetingData);
