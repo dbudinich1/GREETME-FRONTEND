@@ -15,11 +15,11 @@ export default function DashboardLayout() {
 
   const navigation = [
     { name: 'Dashboard', path: '/dashboard', icon: '📊' },
-    { name: 'Contacts', path: '/contacts', icon: '👥' },
-    { name: 'Profile', path: '/profile', icon: '👤' },
+    { name: 'Contacts', path: '/dashboard/contacts', icon: '👥' },
+    { name: 'Profile', path: '/dashboard/profile', icon: '👤' },
     { name: 'Send Greeting', path: '/dashboard/send', icon: '📧' },
-    { name: 'Settings', path: '/settings', icon: '⚙️' },
-  ];
+    { name: 'Settings', path: '/dashboard/settings', icon: '⚙️' },
+];
 
   return (
     <div className="min-h-screen bg-gray-50">
