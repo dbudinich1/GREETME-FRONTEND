@@ -6,9 +6,11 @@ import api from '../services/api';
 import { occasionTypes } from '../utils/helpers';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
+import { useAuth } from '../context/AuthContext';
 
 export default function SendGreeting() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -90,16 +92,18 @@ export default function SendGreeting() {
     setSending(true);
     setJobStatus(null);
 
-    try {
-      const greetingData = {
-        recipientName: selectedContact.name,
-        recipientEmail: selectedContact.email,
-        occasion: formData.occasionType,
-        relationship: selectedContact.relationship || 'friend',
-        notes: formData.customMessage || '',
-        photoUrl: 'https://via.placeholder.com/512',
-      };
-
+    const greetingData = {
+  userId: user?.id || user?.email || '',
+  recipientName: selectedContact.name,
+  recipientEmail: selectedContact.email,
+  greetingText: formData.customMessage || '',
+  voiceId: user?.voiceId || '',
+  photoUrl: user?.photoUrl || 'https://via.placeholder.com/512',
+  occasionKey: formData.occasionType,
+  relationshipKey: selectedContact.relationship || 'friend',
+  relationshipNote: '',
+  personalSentiment: formData.customMessage || '',
+};
       const response = await api.sendGreeting(greetingData);
       setJobId(response.jobId);
       setJobStatus('queued');
