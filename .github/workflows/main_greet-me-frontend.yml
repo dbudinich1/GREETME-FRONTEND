@@ -65,7 +65,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: dist
+          path: dist/
 
   deploy:
     runs-on: ubuntu-latest
@@ -94,3 +94,4 @@ jobs:
           app-name: 'greet-me-frontend'
           slot-name: 'Production'
           package: .
+          clean: true
