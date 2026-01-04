@@ -69,20 +69,20 @@ export default function DashboardHome() {
   };
 
   const handleQuickAction = (action) => {
-    switch (action) {
-      case 'addContact':
-        navigate('/contacts');
-        break;
-      case 'recordVoice':
-        navigate('/profile');
-        break;
-      case 'uploadPhoto':
-        navigate('/profile');
-        break;
-      default:
-        break;
-    }
-  };
+  switch (action) {
+    case 'addContact':
+      navigate('/dashboard/contacts');
+      break;
+    case 'recordVoice':
+      navigate('/dashboard/profile');
+      break;
+    case 'uploadPhoto':
+      navigate('/dashboard/profile');
+      break;
+    default:
+      break;
+  }
+};
 
   if (loading) {
     return <LoadingSpinner text="Loading dashboard..." />;
