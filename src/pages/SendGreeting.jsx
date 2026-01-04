@@ -91,18 +91,18 @@ export default function SendGreeting() {
 
     setSending(true);
     setJobStatus(null);
-
+  try {
     const greetingData = {
-  userId: user?.id || user?.email || '',
-  recipientName: selectedContact.name,
-  recipientEmail: selectedContact.email,
-  greetingText: formData.customMessage || '',
-  voiceId: user?.voiceId || '',
-  photoUrl: user?.photoUrl || 'https://via.placeholder.com/512',
-  occasionKey: formData.occasionType,
-  relationshipKey: selectedContact.relationship || 'friend',
-  relationshipNote: '',
-  personalSentiment: formData.customMessage || '',
+      userId: user?.id || user?.email || '',
+      recipientName: selectedContact.name,
+      recipientEmail: selectedContact.email,
+      greetingText: formData.customMessage || '',
+      voiceId: user?.voiceId || '',
+      photoUrl: user?.photoUrl || 'https://via.placeholder.com/512',
+      occasionKey: formData.occasionType,
+      relationshipKey: selectedContact.relationship || 'friend',
+      relationshipNote: '',
+      personalSentiment: formData.customMessage || '',
 };
       const response = await api.sendGreeting(greetingData);
       setJobId(response.jobId);
