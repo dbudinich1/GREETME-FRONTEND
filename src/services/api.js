@@ -77,10 +77,9 @@ async getProfile() {
     headers: {
       Authorization: `Bearer ${token}`,
     },
-  }).then(res => res.json());
-}
-  }
+  }).then((res) => res.json());
 
+}
   async uploadPhoto(formData) {
     const token = localStorage.getItem('token');
     return fetch(`${API_URL}/api/profile/photo`, {
