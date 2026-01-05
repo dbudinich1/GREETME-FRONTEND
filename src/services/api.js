@@ -70,15 +70,15 @@ class ApiService {
     });
   }
 
-  async uploadVoice(formData) {
-    const token = localStorage.getItem('token');
-    return fetch(`${API_URL}/api/profile/voice`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    }).then(res => res.json());
+  // GET profile (fixed)
+async getProfile() {
+  const token = localStorage.getItem('token');
+  return fetch(`${API_URL}/api/profile`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }).then(res => res.json());
+}
   }
 
   async uploadPhoto(formData) {
