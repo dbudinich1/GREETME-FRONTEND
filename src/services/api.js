@@ -21,10 +21,20 @@ class ApiService {
     try {
       const response = await fetch(`${API_URL}${endpoint}`, config);
       
+            // 🔕 suppress auth/missing-endpoint noise for dashboard + navigation
+      if (response.status === 401) {
+        return { ok: false, status: 401 };
+      }
+
+      if (response.status === 404) {
+        return { ok: false, status: 404 };
+      }
+
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Request failed' }));
+        const error = await response.json().catch(() => ({ message: "Request failed" }));
         throw new Error(error.message || `HTTP ${response.status}`);
       }
+
 
       return await response.json();
     } catch (error) {
