@@ -33,7 +33,7 @@ class ApiService {
     }
   }
 
-  // Contacts
+  // ---------- Contacts ----------
   async getContacts() {
     return this.request('/api/contacts');
   }
@@ -58,7 +58,7 @@ class ApiService {
     });
   }
 
-  // Profile
+  // ---------- Profile ----------
   async getProfile() {
     return this.request('/api/profile');
   }
@@ -70,28 +70,44 @@ class ApiService {
     });
   }
 
-  // GET profile (fixed)
-async getProfile() {
-  const token = localStorage.getItem('token');
-  return fetch(`${API_URL}/api/profile`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  }).then((res) => res.json());
-
-}
+  // Photo Upload
+  // IMPORTANT: FormData uploads MUST NOT set Content-Type manually
+  // The browser automatically sets multipart/form-data with boundary
   async uploadPhoto(formData) {
     const token = localStorage.getItem('token');
-    return fetch(`${API_URL}/api/profile/photo`, {
+    const response = await fetch(`${API_URL}/api/profile/photo`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       body: formData,
-    }).then(res => res.json());
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Photo upload failed' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+
+    return response.json();
   }
 
-  // Dashboard
+  // Voice Upload
+  // IMPORTANT: FormData uploads MUST NOT set Content-Type manually
+  async uploadVoice(formData) {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/api/profile/voice`, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Voice upload failed' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // ---------- Dashboard ----------
   async getDashboardStats() {
     return this.request('/api/dashboard/stats');
   }
@@ -104,7 +120,7 @@ async getProfile() {
     return this.request('/api/dashboard/recent');
   }
 
-  // Greetings
+  // ---------- Greetings ----------
   async sendGreeting(greetingData) {
     return this.request('/api/jobs/send-greeting', {
       method: 'POST',
