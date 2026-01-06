@@ -34,21 +34,27 @@ export default function DashboardHome() {
 
     try {
       const statsRes = await api.getDashboardStats();
+      if (statsRes?.ok === false) throw statsRes;
       statsData = statsRes.data;
+
     } catch (err) {
       console.log('Stats endpoint not available yet');
     }
 
     try {
       const upcomingRes = await api.getUpcomingOccasions();
+      if (upcomingRes?.ok === false) throw upcomingRes;
       upcomingData = upcomingRes.data || [];
+
     } catch (err) {
       console.log('Upcoming endpoint not available yet');
     }
 
     try {
       const recentRes = await api.getRecentGreetings();
+      if (recentRes?.ok === false) throw recentRes;
       recentData = recentRes.data || [];
+
     } catch (err) {
       console.log('Recent endpoint not available yet');
     }
