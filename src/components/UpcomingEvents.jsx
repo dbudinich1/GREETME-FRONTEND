@@ -12,6 +12,7 @@ export default function UpcomingEvents() {
   }, []);
 
   return (
+    
     <div>
       <h3>Upcoming Events</h3>
 
