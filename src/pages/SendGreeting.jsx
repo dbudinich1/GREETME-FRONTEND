@@ -34,14 +34,14 @@ export default function SendGreeting() {
   }, [jobId]);
 
   const fetchContacts = async () => {
-  try {
-    const response = await api.getContacts();
+    try {
+      const response = await api.getContacts();
 
-    const contacts =
-      Array.isArray(response?.data) ? response.data :
-      Array.isArray(response?.contacts) ? response.contacts :
-      Array.isArray(response) ? response :
-      [];
+      const contacts =
+        Array.isArray(response?.data) ? response.data :
+        Array.isArray(response?.contacts) ? response.contacts :
+        Array.isArray(response) ? response :
+        [];
 
     setContacts(contacts);
   } catch (error) {
