@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Send, CheckCircle, XCircle, Loader } from 'lucide-react';
-import api from '../services/api';
 import { occasionTypes } from '../utils/helpers';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';

@@ -1,7 +1,7 @@
 // src/pages/Profile.jsx
 import React, { useState, useEffect } from 'react';
 import { User, Mic, Camera } from 'lucide-react';
-import api from '../services/api';
+import api from "../api/api";
 import VoiceRecorder from '../components/VoiceRecorder';
 import PhotoUpload from '../components/PhotoUpload';
 import LoadingSpinner from '../components/LoadingSpinner';

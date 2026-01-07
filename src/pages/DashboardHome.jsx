@@ -1,7 +1,7 @@
 // src/pages/DashboardHome.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import api from "../api/api";
 import {
   StatsWidget,
   UpcomingOccasionsWidget,

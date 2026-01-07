@@ -1,7 +1,7 @@
 // src/pages/Contacts.jsx
 import React, { useState, useEffect } from 'react';
 import { Plus, Upload, Search, Edit, Trash2 } from 'lucide-react';
-import api from '../services/api';
+import api from "../api/api";
 import Modal from '../components/Modal';
 import ContactForm from '../components/ContactForm';
 import CSVImport from '../components/CSVImport';
