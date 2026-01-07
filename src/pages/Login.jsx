@@ -1,38 +1,36 @@
 // src/pages/Login.jsx
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
-   const result = await login(email, password);
+    const result = await login(email, password);
 
-if (result.success) {
-  // ✅ Persist auth state for API + reloads
-  localStorage.setItem("token", result.token);
-  localStorage.setItem("user", JSON.stringify(result.user));
-  navigate("/dashboard");
-} else {
-  setError(result.error);
-}
+    if (result?.success) {
+      // AuthContext already persisted token + user
+      navigate("/dashboard");
+    } else {
+      setError(result?.error || "Login failed");
+    }
 
-setLoading(false);
+    setLoading(false);
   };
 
-
   return (
-
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
@@ -55,6 +53,7 @@ setLoading(false);
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
+              autoComplete="email"
             />
           </div>
 
@@ -66,6 +65,7 @@ setLoading(false);
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
+              autoComplete="current-password"
             />
           </div>
 
@@ -80,12 +80,12 @@ setLoading(false);
             disabled={loading}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
         <p className="mt-6 text-center text-gray-600">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{" "}
           <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
             Sign up
           </Link>
