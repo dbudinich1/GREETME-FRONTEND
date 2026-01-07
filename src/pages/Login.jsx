@@ -18,17 +18,21 @@ export const Login = () => {
 
     const result = await login(email, password);
     
-    if (result.success) {
-  // ✅ Persist auth state for API + reloads
-  localStorage.setItem('token', result.token);
-  localStorage.setItem('user', JSON.stringify(result.user));
-
-  navigate('/dashboard');
+       if (result.success) {
+      // ✅ Persist auth state for API + reloads
+      localStorage.setItem("token", result.token);
+      localStorage.setItem("user", JSON.stringify(result.user));
+      navigate("/dashboard");
     } else {
-  setError(result.error);
+      setError(result.error);
     }
 
+    setLoading(false);
+  };
+
+
   return (
+
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
