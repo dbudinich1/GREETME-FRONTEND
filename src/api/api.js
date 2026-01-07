@@ -1,4 +1,7 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  "https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net";
+
 /**
  * Fetch available occasions
  * GET /api/occasions
@@ -24,10 +27,13 @@ export async function fetchTones() {
  * POST /api/jobs/send-greeting
  */
 export async function sendGreeting(payload) {
+  const token = localStorage.getItem("token");
+
   const res = await fetch(`${API_BASE}/api/jobs/send-greeting`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(payload),
   });
