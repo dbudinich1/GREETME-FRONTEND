@@ -16,18 +16,18 @@ export const Login = () => {
     setError('');
     setLoading(true);
 
-    const result = await login(email, password);
-    
-       if (result.success) {
-      // ✅ Persist auth state for API + reloads
-      localStorage.setItem("token", result.token);
-      localStorage.setItem("user", JSON.stringify(result.user));
-      navigate("/dashboard");
-    } else {
-      setError(result.error);
-    }
+   const result = await login(email, password);
 
-    setLoading(false);
+if (result.success) {
+  // ✅ Persist auth state for API + reloads
+  localStorage.setItem("token", result.token);
+  localStorage.setItem("user", JSON.stringify(result.user));
+  navigate("/dashboard");
+} else {
+  setError(result.error);
+}
+
+setLoading(false);
   };
 
 

@@ -10,13 +10,19 @@ export const AuthProvider = ({ children }) => {
   const API_URL = import.meta.env.VITE_API_BASE || 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    if (token && userData) {
+  const token = localStorage.getItem('token');
+  const userData = localStorage.getItem('user');
+  if (token && userData && userData !== 'undefined') {
+    try {
       setUser(JSON.parse(userData));
+    } catch (error) {
+      console.error('Failed to parse user data:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
     }
-    setLoading(false);
-  }, []);
+  }
+  setLoading(false);
+}, []);
 
   const login = async (email, password) => {
     try {
