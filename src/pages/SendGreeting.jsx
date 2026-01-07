@@ -34,15 +34,24 @@ export default function SendGreeting() {
   }, [jobId]);
 
   const fetchContacts = async () => {
-    try {
-      const response = await api.getContacts();
-      setContacts(response.data || []);
-    } catch (error) {
-      console.error('Failed to fetch contacts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const response = await api.getContacts();
+
+    const contacts =
+      Array.isArray(response?.data) ? response.data :
+      Array.isArray(response?.contacts) ? response.contacts :
+      Array.isArray(response) ? response :
+      [];
+
+    setContacts(contacts);
+  } catch (error) {
+    console.error("Failed to fetch contacts:", error);
+    setContacts([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const pollJobStatus = async () => {
     try {
