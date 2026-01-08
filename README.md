@@ -163,7 +163,7 @@ Since you're using Azure Static Web Apps:
 3. **Verify environment variable:**
    - In Azure Portal → Your Static Web App
    - Go to Configuration
-   - Ensure `VITE_API_URL` is set to:
+   - Ensure `VITE_API_BASE` is set to:
      `https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net`
 
 ---
@@ -193,7 +193,7 @@ Since you're using Azure Static Web Apps:
 
 ### **Problem: API calls failing**
 **Solution:**
-- Check `VITE_API_URL` environment variable
+- Check `VITE_API_BASE` environment variable
 - Verify backend is running and healthy
 - Check browser console for CORS errors
 - Verify JWT token is being sent in headers

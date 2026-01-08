@@ -72,17 +72,38 @@ export const validateAudioFile = (file, options = {}) => {
   return { valid: true };
 };
 
+// Occasion types categorized by type
 export const occasionTypes = [
-  { value: 'birthday', label: 'Birthday', icon: '🎂' },
-  { value: 'anniversary', label: 'Anniversary', icon: '💑' },
-  { value: 'christmas', label: 'Christmas', icon: '🎄' },
-  { value: 'new_year', label: 'New Year', icon: '🎆' },
-  { value: 'easter', label: 'Easter', icon: '🐰' },
-  { value: 'mothers_day', label: "Mother's Day", icon: '💐' },
-  { value: 'fathers_day', label: "Father's Day", icon: '👔' },
-  { value: 'valentines', label: "Valentine's Day", icon: '💝' },
-  { value: 'graduation', label: 'Graduation', icon: '🎓' },
-  { value: 'other', label: 'Other', icon: '🎉' },
+  // Personal Occasions (requires date)
+  { value: 'birthday', label: 'Birthday', icon: '🎂', category: 'personal', requiresDate: true },
+  { value: 'anniversary', label: 'Anniversary', icon: '💑', category: 'personal', requiresDate: true },
+  { value: 'graduation', label: 'Graduation', icon: '🎓', category: 'personal', requiresDate: true },
+  { value: 'other', label: 'Other Occasion', icon: '🎉', category: 'personal', requiresDate: true },
+
+  // Christian Faith-Based (fixed dates)
+  { value: 'christmas', label: 'Christmas', icon: '🎄', category: 'christian', fixedDate: '12-25' },
+  { value: 'easter', label: 'Easter', icon: '🐰', category: 'christian', requiresDate: true }, // Easter date varies
+  { value: 'good_friday', label: 'Good Friday', icon: '✝️', category: 'christian', requiresDate: true },
+  { value: 'ash_wednesday', label: 'Ash Wednesday', icon: '🕊️', category: 'christian', requiresDate: true },
+
+  // Jewish Faith-Based (dates vary by Hebrew calendar)
+  { value: 'rosh_hashanah', label: 'Rosh Hashanah', icon: '🍎', category: 'jewish', requiresDate: true },
+  { value: 'yom_kippur', label: 'Yom Kippur', icon: '🕯️', category: 'jewish', requiresDate: true },
+  { value: 'hanukkah', label: 'Hanukkah', icon: '🕎', category: 'jewish', requiresDate: true },
+  { value: 'passover', label: 'Passover', icon: '🍷', category: 'jewish', requiresDate: true },
+  { value: 'purim', label: 'Purim', icon: '🎭', category: 'jewish', requiresDate: true },
+
+  // Muslim Faith-Based (dates vary by Islamic calendar)
+  { value: 'eid_al_fitr', label: 'Eid al-Fitr', icon: '🌙', category: 'muslim', requiresDate: true },
+  { value: 'eid_al_adha', label: 'Eid al-Adha', icon: '🕌', category: 'muslim', requiresDate: true },
+  { value: 'ramadan', label: 'Ramadan', icon: '🌟', category: 'muslim', requiresDate: true },
+
+  // Secular Holidays (fixed dates)
+  { value: 'new_year', label: 'New Year', icon: '🎆', category: 'secular', fixedDate: '01-01' },
+  { value: 'valentines', label: "Valentine's Day", icon: '💝', category: 'secular', fixedDate: '02-14' },
+  { value: 'mothers_day', label: "Mother's Day", icon: '💐', category: 'secular', requiresDate: true }, // 2nd Sunday in May
+  { value: 'fathers_day', label: "Father's Day", icon: '👔', category: 'secular', requiresDate: true }, // 3rd Sunday in June
+  { value: 'thanksgiving', label: "Thanksgiving", icon: '🦃', category: 'secular', requiresDate: true }, // 4th Thursday in November
 ];
 
 export const getOccasionIcon = (occasionType) => {
@@ -93,6 +114,16 @@ export const getOccasionIcon = (occasionType) => {
 export const getOccasionLabel = (occasionType) => {
   const occasion = occasionTypes.find(o => o.value === occasionType);
   return occasion ? occasion.label : occasionType;
+};
+
+export const getOccasionsByCategory = () => {
+  return {
+    personal: occasionTypes.filter(o => o.category === 'personal'),
+    christian: occasionTypes.filter(o => o.category === 'christian'),
+    jewish: occasionTypes.filter(o => o.category === 'jewish'),
+    muslim: occasionTypes.filter(o => o.category === 'muslim'),
+    secular: occasionTypes.filter(o => o.category === 'secular'),
+  };
 };
 
 export const truncate = (str, length = 50) => {
@@ -108,7 +139,7 @@ export const parseCSV = (file) => {
         const text = e.target.result;
         const lines = text.split('\n');
         const headers = lines[0].split(',').map(h => h.trim());
-        
+
         const data = lines.slice(1).filter(line => line.trim()).map(line => {
           const values = line.split(',').map(v => v.trim());
           const obj = {};
@@ -117,7 +148,7 @@ export const parseCSV = (file) => {
           });
           return obj;
         });
-        
+
         resolve({ headers, data });
       } catch (error) {
         reject(error);
@@ -127,3 +158,32 @@ export const parseCSV = (file) => {
     reader.readAsText(file);
   });
 };
+
+// Relationship types with closeness
+export const relationshipTypes = [
+  { value: 'spouse', label: 'Spouse/Partner', closeness: 'intimate' },
+  { value: 'parent', label: 'Parent', closeness: 'close_family' },
+  { value: 'child', label: 'Child', closeness: 'close_family' },
+  { value: 'sibling', label: 'Sibling', closeness: 'close_family' },
+  { value: 'grandparent', label: 'Grandparent', closeness: 'close_family' },
+  { value: 'grandchild', label: 'Grandchild', closeness: 'close_family' },
+  { value: 'aunt_uncle', label: 'Aunt/Uncle', closeness: 'extended_family' },
+  { value: 'cousin', label: 'Cousin', closeness: 'extended_family' },
+  { value: 'close_friend', label: 'Close Friend', closeness: 'close_friend' },
+  { value: 'friend', label: 'Friend', closeness: 'friend' },
+  { value: 'colleague', label: 'Colleague', closeness: 'professional' },
+  { value: 'boss', label: 'Boss/Manager', closeness: 'professional' },
+  { value: 'client', label: 'Client/Customer', closeness: 'professional' },
+  { value: 'acquaintance', label: 'Acquaintance', closeness: 'casual' },
+  { value: 'other', label: 'Other', closeness: 'casual' },
+];
+
+export const closenessLevels = [
+  { value: 'intimate', label: 'Intimate (Spouse/Partner)' },
+  { value: 'close_family', label: 'Close Family' },
+  { value: 'extended_family', label: 'Extended Family' },
+  { value: 'close_friend', label: 'Close Friend' },
+  { value: 'friend', label: 'Friend' },
+  { value: 'professional', label: 'Professional' },
+  { value: 'casual', label: 'Casual Acquaintance' },
+];

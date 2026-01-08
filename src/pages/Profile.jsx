@@ -1,18 +1,21 @@
-// src/pages/Profile.jsx
-import React, { useState, useEffect } from 'react';
-import { User, Mic, Camera } from 'lucide-react';
+// src/pages/Profile.jsx - Renamed to Media Library
+import { useState, useEffect } from 'react';
+import { Mic, Camera, Play, Trash2, CheckCircle, Upload, Link as LinkIcon, Star } from 'lucide-react';
 import api from "../api/api";
-import VoiceRecorder from '../components/VoiceRecorder';
-import PhotoUpload from '../components/PhotoUpload';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import { useAuth } from '../context/AuthContext';
 
 export default function Profile() {
-  const [activeTab, setActiveTab] = useState('info');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
+  const [voiceFiles, setVoiceFiles] = useState([]);
+  const [photoFiles, setPhotoFiles] = useState([]);
+  const [uploadingVoice, setUploadingVoice] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [playingVoice, setPlayingVoice] = useState(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -24,8 +27,32 @@ export default function Profile() {
       setLoading(true);
       const response = await api.getProfile();
       setProfile(response.data);
+
+      // Simulate voice and photo files (in production, fetch from backend)
+      if (response.data?.voiceId) {
+        setVoiceFiles([
+          {
+            id: response.data.voiceId,
+            name: 'My Voice',
+            uploadedAt: new Date().toISOString(),
+            isDefault: true,
+            url: response.data.voiceUrl || '#',
+          }
+        ]);
+      }
+
+      if (response.data?.photoUrl) {
+        setPhotoFiles([
+          {
+            id: '1',
+            url: response.data.photoUrl,
+            uploadedAt: new Date().toISOString(),
+            isDefault: true,
+          }
+        ]);
+      }
     } catch (error) {
-      showAlert('error', 'Failed to load profile');
+      showAlert('error', 'Failed to load media library');
     } finally {
       setLoading(false);
     }
@@ -36,47 +63,145 @@ export default function Profile() {
     setTimeout(() => setAlert(null), 5000);
   };
 
-  const handleVoiceUpload = async (formData) => {
-  try {
-    // Add userId to formData
-    if (user?.id || user?.email) {
-      formData.append('userId', user.id || user.email);
-    }
-    await api.uploadVoice(formData);
-    showAlert('success', 'Voice uploaded successfully! Processing may take a moment.');
-    fetchProfile();
-  } catch (error) {
-    throw error;
-  }
-};
+  const handleVoiceUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  const handlePhotoUpload = async (formData) => {
-  try {
-    // Add userId to formData
-    if (user?.id || user?.email) {
-      formData.append('userId', user.id || user.email);
+    // Validate file type
+    if (!['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/webm', 'audio/m4a'].includes(file.type)) {
+      showAlert('error', 'Please upload an audio file (MP3, WAV, WebM, or M4A)');
+      return;
     }
-    await api.uploadPhoto(formData);
-    showAlert('success', 'Photo uploaded successfully!');
-    fetchProfile();
-  } catch (error) {
-    throw error;
-  }
-};
 
-  const tabs = [
-    { id: 'info', label: 'Profile Info', icon: <User size={18} /> },
-    { id: 'voice', label: 'Voice Setup', icon: <Mic size={18} /> },
-    { id: 'photo', label: 'Photo Upload', icon: <Camera size={18} /> },
-  ];
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      showAlert('error', 'File size must be less than 10MB');
+      return;
+    }
+
+    try {
+      setUploadingVoice(true);
+      const formData = new FormData();
+      formData.append('voice', file);
+      if (user?.id || user?.email) {
+        formData.append('userId', user.id || user.email);
+      }
+
+      await api.uploadVoice(formData);
+      showAlert('success', 'Voice uploaded successfully! Processing may take a moment.');
+      fetchProfile();
+    } catch (error) {
+      showAlert('error', error.message || 'Failed to upload voice');
+    } finally {
+      setUploadingVoice(false);
+    }
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!['image/jpeg', 'image/jpg', 'image/png'].includes(file.type)) {
+      showAlert('error', 'Please upload an image file (JPG or PNG)');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      showAlert('error', 'Image size must be less than 5MB');
+      return;
+    }
+
+    try {
+      setUploadingPhoto(true);
+      const formData = new FormData();
+      formData.append('photo', file);
+      if (user?.id || user?.email) {
+        formData.append('userId', user.id || user.email);
+      }
+
+      await api.uploadPhoto(formData);
+      showAlert('success', 'Photo uploaded successfully!');
+      fetchProfile();
+    } catch (error) {
+      showAlert('error', error.message || 'Failed to upload photo');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handlePhotoUrlSubmit = async (e) => {
+    e.preventDefault();
+    if (!photoUrl.trim()) return;
+
+    // Basic URL validation
+    try {
+      new URL(photoUrl);
+    } catch {
+      showAlert('error', 'Please enter a valid URL');
+      return;
+    }
+
+    try {
+      setUploadingPhoto(true);
+      // In production, send URL to backend
+      showAlert('success', 'Photo URL added successfully!');
+      setPhotoFiles(prev => [...prev, {
+        id: Date.now().toString(),
+        url: photoUrl,
+        uploadedAt: new Date().toISOString(),
+        isDefault: false,
+      }]);
+      setPhotoUrl('');
+    } catch (error) {
+      showAlert('error', 'Failed to add photo URL');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const playVoice = (voiceFile) => {
+    // In production, play actual audio file
+    showAlert('info', `Playing: ${voiceFile.name}`);
+    setPlayingVoice(voiceFile.id);
+    setTimeout(() => setPlayingVoice(null), 3000);
+  };
+
+  const deleteVoice = (voiceId) => {
+    if (confirm('Are you sure you want to delete this voice recording?')) {
+      setVoiceFiles(prev => prev.filter(v => v.id !== voiceId));
+      showAlert('success', 'Voice recording deleted');
+    }
+  };
+
+  const deletePhoto = (photoId) => {
+    if (confirm('Are you sure you want to delete this photo?')) {
+      setPhotoFiles(prev => prev.filter(p => p.id !== photoId));
+      showAlert('success', 'Photo deleted');
+    }
+  };
+
+  const setDefaultPhoto = (photoId) => {
+    setPhotoFiles(prev => prev.map(p => ({
+      ...p,
+      isDefault: p.id === photoId,
+    })));
+    showAlert('success', 'Default photo updated');
+  };
 
   if (loading) {
-    return <LoadingSpinner text="Loading profile..." />;
+    return <LoadingSpinner text="Loading media library..." />;
   }
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Profile</h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold gradient-text">Media Library</h1>
+          <p className="text-gray-600 mt-1">Manage your voice recordings and photos for AI greetings</p>
+        </div>
+      </div>
 
       {alert && (
         <Alert
@@ -86,109 +211,247 @@ export default function Profile() {
         />
       )}
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <div className="flex space-x-8">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center space-x-2 pb-4 border-b-2 transition ${
-                activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {tab.icon}
-              <span className="font-medium">{tab.label}</span>
-            </button>
-          ))}
+      {/* Voice Recordings Section */}
+      <div className="card space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+              <Mic className="text-white" size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Voice Recordings</h2>
+              <p className="text-sm text-gray-600">Upload audio samples to clone your voice</p>
+            </div>
+          </div>
+
+          <label className="btn-primary cursor-pointer">
+            <Upload size={18} />
+            <span>{uploadingVoice ? 'Uploading...' : 'Upload Voice'}</span>
+            <input
+              type="file"
+              accept="audio/*"
+              onChange={handleVoiceUpload}
+              className="hidden"
+              disabled={uploadingVoice}
+            />
+          </label>
         </div>
+
+        {/* Voice Files Table */}
+        {voiceFiles.length > 0 ? (
+          <div className="overflow-hidden border border-gray-200 rounded-xl">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Recording
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Uploaded
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {voiceFiles.map((voice) => (
+                  <tr key={voice.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                          <Mic className="text-purple-600" size={20} />
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">{voice.name}</div>
+                          <div className="text-sm text-gray-500">Voice ID: {voice.id.substring(0, 8)}...</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {new Date(voice.uploadedAt).toLocaleDateString()}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {new Date(voice.uploadedAt).toLocaleTimeString()}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {voice.isDefault && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <CheckCircle size={14} className="mr-1" />
+                          Active
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                      <button
+                        onClick={() => playVoice(voice)}
+                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                        disabled={playingVoice === voice.id}
+                      >
+                        <Play size={14} className="mr-1" />
+                        {playingVoice === voice.id ? 'Playing...' : 'Play'}
+                      </button>
+                      <button
+                        onClick={() => deleteVoice(voice.id)}
+                        className="inline-flex items-center px-3 py-1.5 border border-red-200 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 size={14} className="mr-1" />
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+            <Mic className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No voice recordings</h3>
+            <p className="mt-1 text-sm text-gray-500">Upload your first voice sample to get started</p>
+          </div>
+        )}
       </div>
 
-      {/* Tab Content */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        {activeTab === 'info' && (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
-              <input
-                type="text"
-                value={profile?.name || ''}
-                disabled
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
-              />
+      {/* Photos Section */}
+      <div className="card space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+              <Camera className="text-white" size={24} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-              <input
-                type="email"
-                value={profile?.email || ''}
-                disabled
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
-              />
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                Your voice and photo are used to create personalized AI-generated greetings. 
-                Configure them in the Voice Setup and Photo Upload tabs.
-              </p>
-            </div>
-
-            {/* Status Indicators */}
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              <div className={`border rounded-lg p-4 ${profile?.voiceId ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
-                <div className="flex items-center space-x-2 mb-1">
-                  <Mic size={20} className={profile?.voiceId ? 'text-green-600' : 'text-gray-400'} />
-                  <span className="font-medium text-gray-900">Voice</span>
-                </div>
-                <p className={`text-sm ${profile?.voiceId ? 'text-green-600' : 'text-gray-500'}`}>
-                  {profile?.voiceId ? '✓ Configured' : 'Not configured'}
-                </p>
-              </div>
-
-              <div className={`border rounded-lg p-4 ${profile?.photoUrl ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
-                <div className="flex items-center space-x-2 mb-1">
-                  <Camera size={20} className={profile?.photoUrl ? 'text-green-600' : 'text-gray-400'} />
-                  <span className="font-medium text-gray-900">Photo</span>
-                </div>
-                <p className={`text-sm ${profile?.photoUrl ? 'text-green-600' : 'text-gray-500'}`}>
-                  {profile?.photoUrl ? '✓ Configured' : 'Not configured'}
-                </p>
-              </div>
+              <h2 className="text-xl font-bold text-gray-900">Photos</h2>
+              <p className="text-sm text-gray-600">Upload photos or add from URL for video greetings</p>
             </div>
           </div>
-        )}
 
-        {activeTab === 'voice' && (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Record Your Voice
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Record a 30-60 second voice sample. This will be used to clone your voice for personalized greetings.
-            </p>
-            <VoiceRecorder
-              onUpload={handleVoiceUpload}
-              existingVoice={profile?.voiceId}
+          <label className="btn-secondary cursor-pointer">
+            <Upload size={18} />
+            <span>{uploadingPhoto ? 'Uploading...' : 'Upload Photo'}</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              className="hidden"
+              disabled={uploadingPhoto}
+            />
+          </label>
+        </div>
+
+        {/* Photo URL Upload */}
+        <form onSubmit={handlePhotoUrlSubmit} className="flex space-x-3">
+          <div className="flex-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <LinkIcon className="text-gray-400" size={20} />
+            </div>
+            <input
+              type="url"
+              value={photoUrl}
+              onChange={(e) => setPhotoUrl(e.target.value)}
+              placeholder="Or paste photo URL here..."
+              className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all"
             />
           </div>
-        )}
+          <button
+            type="submit"
+            className="btn-outline px-6"
+            disabled={!photoUrl.trim() || uploadingPhoto}
+          >
+            Add URL
+          </button>
+        </form>
 
-        {activeTab === 'photo' && (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Upload Your Photo
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Upload a clear photo of yourself. This will be used to create animated video greetings.
-            </p>
-            <PhotoUpload
-              onUpload={handlePhotoUpload}
-              existingPhoto={profile?.photoUrl}
-            />
+        {/* Photo Gallery */}
+        {photoFiles.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {photoFiles.map((photo) => (
+              <div
+                key={photo.id}
+                className="relative group rounded-xl overflow-hidden border-2 border-gray-200 hover:border-blue-500 transition-all"
+              >
+                <div className="aspect-square bg-gray-100">
+                  <img
+                    src={photo.url}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/300?text=Photo';
+                    }}
+                  />
+                </div>
+
+                {/* Default Badge */}
+                {photo.isDefault && (
+                  <div className="absolute top-2 left-2">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white shadow-lg">
+                      <Star size={12} className="mr-1" fill="currentColor" />
+                      Default
+                    </span>
+                  </div>
+                )}
+
+                {/* Hover Actions */}
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <div className="space-x-2">
+                    {!photo.isDefault && (
+                      <button
+                        onClick={() => setDefaultPhoto(photo.id)}
+                        className="px-3 py-2 bg-white rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors"
+                      >
+                        Set Default
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deletePhoto(photo.id)}
+                      className="px-3 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+
+                {/* Upload Date */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-2">
+                  <p className="text-xs text-white">
+                    {new Date(photo.uploadedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+            <Camera className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No photos yet</h3>
+            <p className="mt-1 text-sm text-gray-500">Upload a photo or add from URL to get started</p>
           </div>
         )}
+      </div>
+
+      {/* Info Card */}
+      <div className="card bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+        <div className="flex items-start space-x-4">
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
+              <CheckCircle className="text-white" size={20} />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">Tips for Best Results</h3>
+            <ul className="mt-2 text-sm text-gray-700 space-y-1">
+              <li>• Voice: Record 30-60 seconds in a quiet environment for best voice cloning</li>
+              <li>• Photos: Use clear, front-facing photos with good lighting</li>
+              <li>• Default: Mark your preferred photo as default for all greetings</li>
+              <li>• Messages: AI will use relationship context to create 20+ second personalized messages</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   );

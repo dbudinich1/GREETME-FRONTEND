@@ -161,6 +161,10 @@ class ApiService {
   getJobStatus(jobId) {
     return this.request(`/api/jobs/${jobId}`);
   }
+
+  getSentGreetings() {
+    return this.request("/api/greetings/sent");
+  }
 }
 
 const api = new ApiService();
