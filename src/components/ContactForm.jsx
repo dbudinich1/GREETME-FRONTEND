@@ -73,6 +73,14 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
       newErrors.email = 'Invalid email format';
     }
 
+    // Validate that all selected occasions have dates
+    if (formData.occasions && formData.occasions.length > 0) {
+      const occasionsWithoutDates = formData.occasions.filter(occ => !occ.date || occ.date.trim() === '');
+      if (occasionsWithoutDates.length > 0) {
+        newErrors.occasions = `Please provide dates for all selected occasions: ${occasionsWithoutDates.map(o => o.type).join(', ')}`;
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -196,6 +204,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
             );
           })}
         </div>
+        {errors.occasions && <p className="mt-2 text-sm text-red-500">{errors.occasions}</p>}
       </div>
 
       {/* Actions */}

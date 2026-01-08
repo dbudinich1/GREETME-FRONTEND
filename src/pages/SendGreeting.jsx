@@ -6,6 +6,7 @@ import { occasionTypes } from '../utils/helpers';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/api';
 
 export default function SendGreeting() {
   const navigate = useNavigate();
