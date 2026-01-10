@@ -8,7 +8,6 @@ import Alert from '../components/Alert';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import GreetingDraftEditor from '../components/GreetingDraftEditor';
-import draftService from '../services/draftService';
 
 // TEMP STUB — models layer intentionally disabled for V1 build safety
 const greetingDraftModel = {
@@ -153,7 +152,10 @@ export default function SendGreeting() {
       setJobStatus('queued');
 
       // Mark draft as sent
-      draftService.markDraftAsSent(draft.contactId, draft.occasionType);
+// V1 SAFETY: draft service disabled (persisted drafts deferred)
+if (typeof window !== "undefined") {
+  // no-op for V1
+}
     } catch (error) {
       setErrors({ submit: error.message });
       setSending(false);
