@@ -8,8 +8,20 @@ import Alert from '../components/Alert';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import GreetingDraftEditor from '../components/GreetingDraftEditor';
-import { convertDraftToSendFormat } from '../models/greetingDraft';
 import draftService from '../services/draftService';
+
+// TEMP STUB — models layer intentionally disabled for V1 build safety
+const greetingDraftModel = {
+  createEmpty: () => ({
+    message: "",
+    tone: "warm",
+    occasion: "",
+    recipientName: "",
+  }),
+  normalize: (draft) => draft ?? {},
+  validate: () => ({ ok: true, errors: [] }),
+};
+
 
 export default function SendGreeting() {
   const navigate = useNavigate();
