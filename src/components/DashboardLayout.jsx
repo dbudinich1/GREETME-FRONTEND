@@ -3,14 +3,19 @@ import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Home, Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, DollarSign, ShoppingCart, Film } from 'lucide-react';
-import cartService from '../services/cartService';
-import animationBankService from '../services/animationBankService';
+
+// TEMP STUB — services layer intentionally disabled for V1 build safety
+const animationBankService = {
+  getCount: () => 0,
+  hasAccess: () => false,
+};
+
 
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
+  
   const [animationCount, setAnimationCount] = useState(0);
 
   useEffect(() => {
@@ -21,7 +26,8 @@ export default function DashboardLayout() {
 
     // Update animation count
     const updateAnimationCount = () => {
-      setAnimationCount(animationBankService.getTotalAvailable());
+      setAnimationCount(
+        Service.getTotalAvailable());
     };
 
     updateCartCount();
