@@ -6,7 +6,7 @@ import { getDaysUntil, formatDate, getOccasionIcon, getOccasionLabel, getTimeAgo
 export function StatsWidget({ stats }) {
   const statItems = [
     {
-      label: 'Total Contacts',
+      label: 'Total Recipients',
       value: stats?.totalContacts || 0,
       icon: <Users className="text-blue-600" size={24} />,
       bgColor: 'bg-blue-50',
@@ -169,34 +169,42 @@ export function RecentGreetingsWidget({ greetings }) {
 export function QuickActionsWidget({ onAction }) {
   const actions = [
     {
-      label: 'Add Contact',
+      label: 'Add Recipient',
       icon: '👥',
-      action: 'addContact',
+      action: 'addRecipient',
       color: 'bg-blue-600 hover:bg-blue-700',
     },
     {
-      label: 'Record Voice',
-      icon: '🎤',
-      action: 'recordVoice',
+      label: 'Just Because',
+      icon: '✉️',
+      action: 'sendGreeting',
       color: 'bg-purple-600 hover:bg-purple-700',
+      tooltip: 'Click to send a one-off greeting to a recipient — Just Because.',
     },
     {
-      label: 'Upload Photo',
-      icon: '📸',
-      action: 'uploadPhoto',
+      label: 'Browse Gifts',
+      icon: '🎁',
+      action: 'viewGifts',
       color: 'bg-green-600 hover:bg-green-700',
+    },
+    {
+      label: 'View Merch',
+      icon: '🛍️',
+      action: 'viewMerch',
+      color: 'bg-pink-600 hover:bg-pink-700',
     },
   ];
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {actions.map((item) => (
           <button
             key={item.action}
             onClick={() => onAction(item.action)}
             className={`${item.color} text-white p-4 rounded-lg font-medium transition flex flex-col items-center space-y-2`}
+            title={item.tooltip || ''}
           >
             <span className="text-3xl">{item.icon}</span>
             <span>{item.label}</span>

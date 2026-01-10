@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Mail, Lock, Sparkles, Heart, ArrowRight } from "lucide-react";
+import { Mail, Lock, Sparkles } from "lucide-react";
 
 export const Login = () => {
   const [email, setEmail] = useState("");
@@ -30,52 +30,163 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
-      {/* Animated Gradient Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-pink-500 to-blue-500"></div>
-
-      {/* Animated Shapes */}
-      <div className="absolute top-20 left-20 w-72 h-72 bg-white opacity-10 rounded-full blur-3xl animate-pulse"></div>
-      <div className="absolute bottom-20 right-20 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-white opacity-5 rounded-full blur-2xl"></div>
-
-      {/* Content */}
-      <div className="relative z-10 w-full max-w-md">
-        {/* Logo Card */}
-        <div className="text-center mb-8 animate-fade-in">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-2xl mb-4">
-            <Sparkles className="text-purple-600" size={40} />
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      {/* Header */}
+      <header style={{
+        padding: '1.5rem 2rem',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{
+            width: '2.5rem',
+            height: '2.5rem',
+            background: 'white',
+            borderRadius: 'var(--radius-lg)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Sparkles style={{ color: '#667eea' }} size={20} />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2">Greet-Me</h1>
-          <p className="text-white text-opacity-90 text-lg">AI-Powered Personal Greetings</p>
+          <span style={{
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            color: 'white'
+          }}>Greet-Me</span>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-white bg-opacity-95 backdrop-blur-lg rounded-3xl shadow-2xl p-8 animate-slide-in">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back!</h2>
-            <p className="text-gray-600">Sign in to continue spreading joy</p>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Link
+            to="/"
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: 'transparent',
+              border: 'none',
+              color: 'white',
+              fontSize: '1rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              textDecoration: 'none',
+              transition: 'opacity 0.2s'
+            }}
+          >
+            Home
+          </Link>
+          <Link
+            to="/register"
+            style={{
+              padding: '0.75rem 2rem',
+              background: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              color: '#667eea',
+              fontSize: '1rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              textDecoration: 'none',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.2s ease',
+              display: 'inline-block'
+            }}
+          >
+            Register
+          </Link>
+        </div>
+      </header>
+
+      {/* Content Container */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem'
+      }}>
+        {/* Sign In Pane */}
+        <div style={{
+          width: '100%',
+          maxWidth: '420px',
+          background: 'white',
+          borderRadius: 'var(--radius-xl)',
+          padding: '2rem',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+        }}>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <h2 style={{
+              fontSize: '1.75rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem'
+            }}>Welcome Back!</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+              Sign in to continue spreading joy
+            </p>
           </div>
 
           {error && (
-            <div className="bg-red-50 border-2 border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 flex items-center space-x-2 animate-fade-in">
-              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              <span className="text-sm font-medium">{error}</span>
+            <div style={{
+              background: '#fef2f2',
+              border: '2px solid #fecaca',
+              color: '#dc2626',
+              padding: '0.75rem 1rem',
+              borderRadius: 'var(--radius-lg)',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <div style={{
+                width: '0.5rem',
+                height: '0.5rem',
+                background: '#dc2626',
+                borderRadius: '50%'
+              }}></div>
+              <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">Email Address</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Mail className="text-gray-400" size={20} />
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                marginBottom: '0.5rem'
+              }}>Email Address</label>
+              <div style={{ position: 'relative' }}>
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '1rem',
+                  transform: 'translateY(-50%)',
+                  pointerEvents: 'none'
+                }}>
+                  <Mail style={{ color: 'var(--text-tertiary)' }} size={18} />
                 </div>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                  style={{
+                    width: '100%',
+                    paddingLeft: '2.75rem',
+                    paddingRight: '1rem',
+                    paddingTop: '0.75rem',
+                    paddingBottom: '0.75rem',
+                    border: '2px solid var(--border)',
+                    borderRadius: 'var(--radius-lg)',
+                    fontSize: '0.95rem',
+                    outline: 'none',
+                    transition: 'all 0.2s'
+                  }}
                   placeholder="you@example.com"
                   required
                   autoComplete="email"
@@ -83,17 +194,40 @@ export const Login = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">Password</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="text-gray-400" size={20} />
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                marginBottom: '0.5rem'
+              }}>Password</label>
+              <div style={{ position: 'relative' }}>
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '1rem',
+                  transform: 'translateY(-50%)',
+                  pointerEvents: 'none'
+                }}>
+                  <Lock style={{ color: 'var(--text-tertiary)' }} size={18} />
                 </div>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                  style={{
+                    width: '100%',
+                    paddingLeft: '2.75rem',
+                    paddingRight: '1rem',
+                    paddingTop: '0.75rem',
+                    paddingBottom: '0.75rem',
+                    border: '2px solid var(--border)',
+                    borderRadius: 'var(--radius-lg)',
+                    fontSize: '0.95rem',
+                    outline: 'none',
+                    transition: 'all 0.2s'
+                  }}
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
@@ -101,10 +235,15 @@ export const Login = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Link
                 to="/forgot-password"
-                className="text-sm text-purple-600 hover:text-purple-700 font-medium hover:underline"
+                style={{
+                  fontSize: '0.875rem',
+                  color: '#667eea',
+                  fontWeight: 500,
+                  textDecoration: 'none'
+                }}
               >
                 Forgot password?
               </Link>
@@ -113,47 +252,109 @@ export const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full py-4 text-lg font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed group"
+              style={{
+                width: '100%',
+                padding: '0.875rem',
+                background: '#667eea',
+                border: 'none',
+                borderRadius: 'var(--radius-lg)',
+                color: 'white',
+                fontSize: '1rem',
+                fontWeight: 600,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.6 : 1,
+                transition: 'all 0.2s',
+                fontFamily: 'inherit'
+              }}
             >
-              {loading ? (
-                <span className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Signing in...
-                </span>
-              ) : (
-                <span className="flex items-center justify-center">
-                  Sign In
-                  <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={20} />
-                </span>
-              )}
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
+
+            {/* SSO Buttons inside form */}
+            <div style={{ marginTop: '0.5rem' }}>
+              <div style={{ position: 'relative', marginBottom: '1rem' }}>
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: 0,
+                  right: 0,
+                  height: '1px',
+                  background: 'var(--border)'
+                }}></div>
+                <div style={{
+                  position: 'relative',
+                  textAlign: 'center',
+                  background: 'white',
+                  display: 'inline-block',
+                  padding: '0 1rem',
+                  fontSize: '0.875rem',
+                  color: 'var(--text-tertiary)',
+                  left: '50%',
+                  transform: 'translateX(-50%)'
+                }}>
+                  Or continue with
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => alert('SSO Button 1 - Integration coming soon')}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid var(--border)',
+                  borderRadius: 'var(--radius-lg)',
+                  background: 'white',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  marginBottom: '0.75rem',
+                  fontFamily: 'inherit',
+                  transition: 'all 0.2s'
+                }}
+              >
+                SSO Button 1
+              </button>
+
+              <button
+                type="button"
+                onClick={() => alert('SSO Button 2 - Integration coming soon')}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid var(--border)',
+                  borderRadius: 'var(--radius-lg)',
+                  background: 'white',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: 'all 0.2s'
+                }}
+              >
+                SSO Button 2
+              </button>
+            </div>
           </form>
 
-          <div className="mt-8 text-center">
-            <p className="text-gray-600">
-              Don&apos;t have an account?{" "}
+          <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+              Don't have an account?{' '}
               <Link
                 to="/register"
-                className="text-purple-600 hover:text-purple-700 font-semibold hover:underline"
+                style={{
+                  color: '#667eea',
+                  fontWeight: 600,
+                  textDecoration: 'none'
+                }}
               >
                 Sign up for free
               </Link>
             </p>
           </div>
-
-          {/* Social Proof */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
-              <Heart className="text-pink-500" size={16} fill="currentColor" />
-              <span>Trusted by thousands of users worldwide</span>
-            </div>
-          </div>
         </div>
-
-        {/* Footer */}
-        <p className="text-center mt-6 text-white text-opacity-80 text-sm">
-          &copy; 2026 Greet-Me. Made with love using AI.
-        </p>
       </div>
     </div>
   );

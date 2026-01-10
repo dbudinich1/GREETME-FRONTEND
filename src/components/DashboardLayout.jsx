@@ -1,14 +1,41 @@
 // src/components/DashboardLayout.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Home, Users, Send, Image, Settings, LogOut, Menu, X, Sparkles, ChevronDown, Mail } from 'lucide-react';
+import { Home, Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, DollarSign, ShoppingCart, Film } from 'lucide-react';
+import cartService from '../services/cartService';
+import animationBankService from '../services/animationBankService';
 
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+  const [animationCount, setAnimationCount] = useState(0);
+
+  useEffect(() => {
+    // Update cart count on mount and when window regains focus
+    const updateCartCount = () => {
+      setCartCount(cartService.getCount());
+    };
+
+    // Update animation count
+    const updateAnimationCount = () => {
+      setAnimationCount(animationBankService.getTotalAvailable());
+    };
+
+    updateCartCount();
+    updateAnimationCount();
+    window.addEventListener('focus', updateCartCount);
+
+    // Custom event for cart updates
+    window.addEventListener('cartUpdated', updateCartCount);
+
+    return () => {
+      window.removeEventListener('focus', updateCartCount);
+      window.removeEventListener('cartUpdated', updateCartCount);
+    };
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -16,175 +43,383 @@ export default function DashboardLayout() {
   };
 
   const navigation = [
+    { name: 'Home', path: '/', icon: Home },
     { name: 'Dashboard', path: '/dashboard', icon: Home },
-    { name: 'Contacts', path: '/dashboard/contacts', icon: Users },
-    { name: 'Send Greeting', path: '/dashboard/send', icon: Send },
-    { name: 'Sent Greetings', path: '/dashboard/sent', icon: Mail },
-    { name: 'Media Library', path: '/dashboard/profile', icon: Image },
-    { name: 'Settings', path: '/dashboard/settings', icon: Settings },
+    { name: 'American-Made Marketplace', path: '/dashboard/gifts', icon: Gift },
+    { name: 'Merch', path: '/dashboard/merch', icon: ShoppingBag },
+    { name: 'Plans & Pricing', path: '/pricing', icon: DollarSign },
+    { name: '🥇 Greet-Me Hero™', path: '/dashboard/hero', icon: Home },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation Bar */}
-      <nav className="bg-white shadow-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            {/* Logo and Brand */}
-            <div className="flex items-center">
-              <div className="flex-shrink-0 flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
-                  <Sparkles className="text-white" size={20} />
-                </div>
-                <div className="hidden sm:block">
-                  <h1 className="text-xl font-bold gradient-text">Greet-Me</h1>
-                  <p className="text-xs text-gray-500">AI-Powered Greetings</p>
-                </div>
-              </div>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-secondary)' }}>
+      {/* Header */}
+      <header style={{
+        background: 'var(--bg-primary)',
+        borderBottom: '1px solid var(--border)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50
+      }}>
+        <div style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '0 2rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          height: '4rem'
+        }}>
+          {/* Empty left space */}
+          <div style={{ width: '150px' }}></div>
 
-              {/* Desktop Navigation */}
-              <div className="hidden lg:ml-10 lg:flex lg:space-x-1">
-                {navigation.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    className={({ isActive }) =>
-                      `group flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                        isActive
-                          ? 'bg-gradient-to-r from-purple-50 to-pink-50 text-purple-600'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <item.icon
-                          size={18}
-                          className={`${
-                            isActive ? 'text-purple-600' : 'text-gray-500 group-hover:text-gray-700'
-                          } transition-colors`}
-                        />
-                        <span>{item.name}</span>
-                      </>
-                    )}
-                  </NavLink>
-                ))}
-              </div>
-            </div>
+          {/* Centered Title */}
+          <div style={{ textAlign: 'center' }}>
+            <h1 style={{
+              fontSize: '1.75rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              margin: 0
+            }}>Dashboard</h1>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              margin: 0
+            }}>Welcome back, {user?.name?.split(' ')[0] || 'User'}!</p>
+          </div>
 
-            {/* Right Side - User Menu */}
-            <div className="flex items-center space-x-4">
-              {/* Status Badge */}
-              <div className="hidden md:flex items-center space-x-2 bg-gradient-to-r from-green-50 to-emerald-50 px-3 py-1 rounded-full">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-xs font-medium text-green-700">Active</span>
-              </div>
+          {/* Right side - Animation Bank, Cart, Settings and User icon */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', width: '200px', justifyContent: 'flex-end' }}>
+            {/* Animation Bank - Film icon with count */}
+            <button
+              onClick={() => navigate('/dashboard/animations')}
+              style={{
+                width: '2.5rem',
+                height: '2.5rem',
+                borderRadius: '50%',
+                border: 'none',
+                background: '#8b5cf6',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+                position: 'relative',
+                boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#7c3aed';
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#8b5cf6';
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(139, 92, 246, 0.3)';
+              }}
+              title="Animation Bank"
+            >
+              <Film size={20} style={{ color: '#FFD700' }} />
+              <span style={{
+                position: 'absolute',
+                top: '-2px',
+                right: '-2px',
+                background: '#10b981',
+                color: 'white',
+                fontSize: '0.625rem',
+                fontWeight: 700,
+                width: '1.125rem',
+                height: '1.125rem',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid white',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }}>
+                {animationCount > 9 ? '9+' : animationCount}
+              </span>
+            </button>
 
-              {/* User Menu - Desktop */}
-              <div className="hidden lg:block relative">
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center space-x-3 bg-gradient-to-r from-purple-50 to-pink-50 px-4 py-2 rounded-xl hover:shadow-md transition-all"
-                >
-                  <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                    {user?.name?.charAt(0).toUpperCase() || 'U'}
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-gray-900">{user?.name || 'User'}</p>
-                    <p className="text-xs text-gray-500">View profile</p>
-                  </div>
-                  <ChevronDown size={16} className="text-gray-500" />
-                </button>
+            {/* Cart Icon - Gold in Blue Bubble */}
+            <button
+              onClick={() => navigate('/dashboard/cart')}
+              style={{
+                width: '2.5rem',
+                height: '2.5rem',
+                borderRadius: '50%',
+                border: 'none',
+                background: '#667eea',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+                position: 'relative',
+                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#5568d3';
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#667eea';
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+              }}
+              title="Shopping Cart"
+            >
+              <ShoppingCart
+                size={22}
+                style={{
+                  color: '#FFD700',
+                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
+                  strokeWidth: 2.5
+                }}
+              />
+              {cartCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-2px',
+                  right: '-2px',
+                  background: '#ef4444',
+                  color: 'white',
+                  fontSize: '0.625rem',
+                  fontWeight: 700,
+                  width: '1.125rem',
+                  height: '1.125rem',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid white',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}>
+                  {cartCount > 9 ? '9+' : cartCount}
+                </span>
+              )}
+            </button>
 
-                {/* Dropdown Menu */}
-                {userMenuOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setUserMenuOpen(false)}
-                    ></div>
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-20">
-                      <div className="px-4 py-3 border-b border-gray-100">
-                        <p className="text-sm font-semibold text-gray-900">{user?.name || 'User'}</p>
-                        <p className="text-xs text-gray-500 truncate">{user?.email || 'user@example.com'}</p>
-                      </div>
-                      <button
-                        onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
-                      >
-                        <LogOut size={16} />
-                        <span>Logout</span>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+            {/* Settings Cog */}
+            <button
+              onClick={() => navigate('/dashboard/settings')}
+              style={{
+                width: '2.5rem',
+                height: '2.5rem',
+                borderRadius: '50%',
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--gray-100)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+              title="Settings"
+            >
+              <SettingsIcon size={20} style={{ color: 'var(--text-secondary)' }} />
+            </button>
 
-              {/* Mobile Menu Button */}
+            {/* User Icon with Dropdown */}
+            <div style={{ position: 'relative' }}>
               <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                style={{
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: 'var(--primary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: '1rem'
+                }}
+                title={user?.name || 'User'}
               >
-                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                {user?.name?.charAt(0).toUpperCase() || 'U'}
               </button>
+
+              {/* User Dropdown */}
+              {userMenuOpen && (
+                <>
+                  <div
+                    style={{
+                      position: 'fixed',
+                      inset: 0,
+                      zIndex: 10
+                    }}
+                    onClick={() => setUserMenuOpen(false)}
+                  ></div>
+                  <div style={{
+                    position: 'absolute',
+                    right: 0,
+                    marginTop: '0.5rem',
+                    width: '12rem',
+                    background: 'var(--bg-primary)',
+                    borderRadius: 'var(--radius-lg)',
+                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',
+                    border: '1px solid var(--border)',
+                    padding: '0.5rem',
+                    zIndex: 20
+                  }}>
+                    <div style={{
+                      padding: '0.75rem',
+                      borderBottom: '1px solid var(--border)',
+                      marginBottom: '0.5rem'
+                    }}>
+                      <p style={{
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        margin: 0
+                      }}>{user?.name || 'User'}</p>
+                      <p style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-tertiary)',
+                        margin: 0,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>{user?.email || 'user@example.com'}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        navigate('/dashboard/profile');
+                      }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '0.625rem 0.75rem',
+                        fontSize: '0.875rem',
+                        color: 'var(--text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        marginBottom: '0.25rem'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--gray-100)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      <User size={16} />
+                      <span>Profile</span>
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '0.625rem 0.75rem',
+                        fontSize: '0.875rem',
+                        color: 'var(--error)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#fef2f2';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      <LogOut size={16} />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
+      </header>
 
-        {/* Mobile Navigation Menu */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-200 bg-white">
-            <div className="px-4 pt-2 pb-3 space-y-1">
-              {navigation.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                      isActive
-                        ? 'bg-gradient-to-r from-purple-50 to-pink-50 text-purple-600'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <item.icon size={20} className={isActive ? 'text-purple-600' : 'text-gray-500'} />
-                      <span>{item.name}</span>
-                    </>
-                  )}
-                </NavLink>
-              ))}
-              <div className="pt-4 border-t border-gray-200 mt-4">
-                <div className="flex items-center space-x-3 px-4 py-2">
-                  <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
-                    {user?.name?.charAt(0).toUpperCase() || 'U'}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{user?.name || 'User'}</p>
-                    <p className="text-xs text-gray-500">{user?.email || 'user@example.com'}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 mt-2"
-                >
-                  <LogOut size={18} />
-                  <span>Logout</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+      {/* Horizontal Navigation Bar */}
+      <nav style={{
+        background: 'var(--bg-primary)',
+        borderBottom: '1px solid var(--border)',
+        padding: '0 2rem'
+      }}>
+        <div style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          display: 'flex',
+          justifyContent: 'space-evenly',
+          alignItems: 'center'
+        }}>
+          {navigation.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              style={({ isActive }) => ({
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '1rem 1.25rem',
+                textDecoration: 'none',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                transition: 'all 0.2s',
+                borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
+                color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                position: 'relative'
+              })}
+              onMouseEnter={(e) => {
+                if (!e.currentTarget.getAttribute('aria-current')) {
+                  e.currentTarget.style.color = 'var(--text-primary)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!e.currentTarget.getAttribute('aria-current')) {
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                }
+              }}
+            >
+              {({ isActive }) => (
+                <>
+                  <item.icon
+                    size={16}
+                    style={{ color: isActive ? 'var(--primary)' : 'currentColor' }}
+                  />
+                  <span>{item.name}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
       </nav>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="animate-fade-in">
+      <main style={{ flex: 1, padding: '2rem', overflowY: 'auto', background: 'var(--bg-secondary)' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <Outlet />
         </div>
-      </div>
+      </main>
     </div>
   );
 }

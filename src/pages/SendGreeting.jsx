@@ -1,12 +1,15 @@
 // src/pages/SendGreeting.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, CheckCircle, XCircle, Loader } from 'lucide-react';
+import { Send, CheckCircle, XCircle, Loader, Edit3, Zap } from 'lucide-react';
 import { occasionTypes } from '../utils/helpers';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
+import GreetingDraftEditor from '../components/GreetingDraftEditor';
+import { convertDraftToSendFormat } from '../models/greetingDraft';
+import draftService from '../services/draftService';
 
 export default function SendGreeting() {
   const navigate = useNavigate();
@@ -16,6 +19,7 @@ export default function SendGreeting() {
   const [sending, setSending] = useState(false);
   const [jobId, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
+  const [editorMode, setEditorMode] = useState(false); // Simple form vs advanced editor
   const [formData, setFormData] = useState({
     contactId: '',
     occasionType: '',
@@ -122,6 +126,28 @@ export default function SendGreeting() {
     }
   };
 
+  const handleSendFromEditor = async (draft) => {
+    const selectedContact = contacts.find(c => c.id === draft.contactId);
+    if (!selectedContact) return;
+
+    setSending(true);
+    setJobStatus(null);
+    setEditorMode(false);
+
+    try {
+      const greetingData = convertDraftToSendFormat(draft, selectedContact, user);
+      const response = await api.sendGreeting(greetingData);
+      setJobId(response.jobId);
+      setJobStatus('queued');
+
+      // Mark draft as sent
+      draftService.markDraftAsSent(draft.contactId, draft.occasionType);
+    } catch (error) {
+      setErrors({ submit: error.message });
+      setSending(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       contactId: '',
@@ -132,6 +158,7 @@ export default function SendGreeting() {
     setJobStatus(null);
     setSending(false);
     setErrors({});
+    setEditorMode(false);
   };
 
   if (loading) {
@@ -223,6 +250,30 @@ export default function SendGreeting() {
     );
   }
 
+  // Editor Mode - Multi-page greeting editor
+  if (editorMode && formData.contactId && formData.occasionType) {
+    const selectedContact = contacts.find(c => c.id === formData.contactId);
+
+    return (
+      <div className="max-w-6xl mx-auto">
+        <GreetingDraftEditor
+          contactId={formData.contactId}
+          occasionType={formData.occasionType}
+          contact={selectedContact}
+          userProfile={user}
+          onSave={(draft) => {
+            // Draft saved, show success message
+            alert('Draft saved! You can continue editing or send it.');
+          }}
+          onCancel={() => {
+            setEditorMode(false);
+          }}
+          onSend={handleSendFromEditor}
+        />
+      </div>
+    );
+  }
+
   // Form State
   return (
     <div className="max-w-2xl mx-auto">
@@ -309,22 +360,37 @@ export default function SendGreeting() {
         </div>
 
         {/* Submit */}
-        <div className="flex justify-end space-x-3">
-          <button
-            type="button"
-            onClick={() => navigate('/dashboard')}
-            className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={contacts.length === 0 || sending}
-            className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 flex items-center"
-          >
-            <Send size={18} className="mr-2" />
-            {sending ? 'Sending...' : 'Send Greeting'}
-          </button>
+        <div className="flex justify-between items-center">
+          {/* Advanced Editor Toggle */}
+          {formData.contactId && formData.occasionType && (
+            <button
+              type="button"
+              onClick={() => setEditorMode(true)}
+              className="px-4 py-2 text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 font-medium flex items-center space-x-2 border-2 border-purple-200"
+            >
+              <Edit3 size={18} />
+              <span>Advanced Editor</span>
+            </button>
+          )}
+
+          <div className="flex space-x-3 ml-auto">
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard')}
+              className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={contacts.length === 0 || sending}
+              className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 flex items-center"
+              title="Quick send with simple message"
+            >
+              <Zap size={18} className="mr-2" />
+              {sending ? 'Sending...' : 'Quick Send'}
+            </button>
+          </div>
         </div>
       </form>
     </div>

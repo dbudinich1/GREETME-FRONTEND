@@ -6,25 +6,36 @@ import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import DashboardLayout from "./components/DashboardLayout";
 
+import LandingPage from "./pages/LandingPage";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import DashboardHome from "./pages/DashboardHome";
 import Profile from "./pages/Profile";
-import Contacts from "./pages/Contacts";
+import Recipients from "./pages/Contacts";
 import Settings from "./pages/Settings";
 import SendGreeting from './pages/SendGreeting';
 import SentGreetings from './pages/SentGreetings';
+import Gifts from './pages/Gifts';
+import Cart from './pages/Cart';
+import Merch from './pages/Merch';
+import Pricing from './pages/Pricing';
+import HeroProgram from './pages/HeroProgram';
+import AnimationBank from './pages/AnimationBank';
 
 export default function App() {
   return (
     <AuthProvider>
       <HashRouter>
         <Routes>
+          {/* Landing Page */}
+          <Route path="/" element={<LandingPage />} />
+
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/pricing" element={<Pricing />} />
 
           {/* Protected Routes */}
           <Route
@@ -36,17 +47,20 @@ export default function App() {
             }
           >
             <Route index element={<DashboardHome />} />
-            <Route path="contacts" element={<Contacts />} />
+            <Route path="contacts" element={<Recipients />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
             <Route path="send" element={<SendGreeting />} />
             <Route path="sent" element={<SentGreetings />} />
+            <Route path="hero" element={<HeroProgram />} />
+            <Route path="gifts" element={<Gifts />} />
+            <Route path="cart" element={<Cart />} />
+            <Route path="merch" element={<Merch />} />
+            <Route path="animations" element={<AnimationBank />} />
           </Route>
 
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </HashRouter>
     </AuthProvider>

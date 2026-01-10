@@ -10,8 +10,8 @@ import EmptyState from '../components/EmptyState';
 import Alert from '../components/Alert';
 import { getOccasionIcon, getOccasionLabel } from '../utils/helpers';
 
-export default function Contacts() {
-  const [contacts, setContacts] = useState([]);
+export default function Recipients() {
+  const [recipients, setRecipients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -22,16 +22,26 @@ export default function Contacts() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   useEffect(() => {
-    fetchContacts();
+    fetchRecipients();
   }, []);
 
-  const fetchContacts = async () => {
+  const fetchRecipients = async () => {
     try {
       setLoading(true);
       const response = await api.getContacts();
-      setContacts(response.data || []);
+
+      // If API returns 401, use localStorage as fallback
+      if (response && response.ok === false && response.status === 401) {
+        console.warn('API authentication failed, using local storage');
+        const stored = localStorage.getItem('greetme_recipients');
+        setRecipients(stored ? JSON.parse(stored) : []);
+      } else {
+        setRecipients(response.data || []);
+      }
     } catch (error) {
-      showAlert('error', 'Failed to load contacts');
+      console.warn('API error, using local storage fallback:', error);
+      const stored = localStorage.getItem('greetme_recipients');
+      setRecipients(stored ? JSON.parse(stored) : []);
     } finally {
       setLoading(false);
     }
@@ -42,49 +52,85 @@ export default function Contacts() {
     setTimeout(() => setAlert(null), 5000);
   };
 
-  const handleAddContact = async (contactData) => {
+  const handleAddRecipient = async (contactData) => {
     try {
-      await api.createContact(contactData);
-      showAlert('success', 'Contact added successfully');
+      const response = await api.createContact(contactData);
+
+      // Create recipient object with ID
+      const newRecipient = {
+        id: response?.data?.id || Date.now(),
+        ...contactData,
+        createdAt: new Date().toISOString()
+      };
+
+      // Immediately append to state for instant feedback
+      setRecipients(prev => {
+        const updated = [...prev, newRecipient];
+        // Save to localStorage as fallback
+        localStorage.setItem('greetme_recipients', JSON.stringify(updated));
+        return updated;
+      });
+
+      showAlert('success', 'Recipient added successfully');
       setShowAddModal(false);
-      fetchContacts();
+
+      // Also refetch to ensure sync with server if API is working
+      if (response && response.data) {
+        fetchRecipients();
+      }
     } catch (error) {
-      throw error;
+      console.error('Add recipient error:', error);
+
+      // If API fails, still save locally
+      const newRecipient = {
+        id: Date.now(),
+        ...contactData,
+        createdAt: new Date().toISOString()
+      };
+
+      setRecipients(prev => {
+        const updated = [...prev, newRecipient];
+        localStorage.setItem('greetme_recipients', JSON.stringify(updated));
+        return updated;
+      });
+
+      showAlert('success', 'Recipient added (stored locally - backend unavailable)');
+      setShowAddModal(false);
     }
   };
 
-  const handleEditContact = async (contactData) => {
+  const handleEditRecipient = async (contactData) => {
     try {
       await api.updateContact(editingContact.id, contactData);
-      showAlert('success', 'Contact updated successfully');
+      showAlert('success', 'Recipient updated successfully');
       setShowEditModal(false);
       setEditingContact(null);
-      fetchContacts();
+      fetchRecipients();
     } catch (error) {
       throw error;
     }
   };
 
-  const handleDeleteContact = async (contactId) => {
+  const handleDeleteRecipient = async (contactId) => {
     try {
       await api.deleteContact(contactId);
-      showAlert('success', 'Contact deleted successfully');
+      showAlert('success', 'Recipient deleted successfully');
       setDeleteConfirm(null);
-      fetchContacts();
+      fetchRecipients();
     } catch (error) {
-      showAlert('error', 'Failed to delete contact');
+      showAlert('error', 'Failed to delete recipient');
     }
   };
 
-  const handleImportContacts = async (contactsToImport) => {
+  const handleImportRecipients = async (contactsToImport) => {
     try {
       const promises = contactsToImport.map(contact => api.createContact(contact));
       await Promise.all(promises);
-      showAlert('success', `${contactsToImport.length} contacts imported successfully`);
+      showAlert('success', `${contactsToImport.length} recipients imported successfully`);
       setShowImportModal(false);
-      fetchContacts();
+      fetchRecipients();
     } catch (error) {
-      throw new Error('Failed to import contacts');
+      throw new Error('Failed to import recipients');
     }
   };
 
@@ -93,35 +139,94 @@ export default function Contacts() {
     setShowEditModal(true);
   };
 
-  const filteredContacts = contacts.filter(contact =>
+  const filteredRecipients = recipients.filter(contact =>
     contact.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
-    return <LoadingSpinner text="Loading contacts..." />;
+    return <LoadingSpinner text="Loading recipients..." />;
   }
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Contacts</h1>
-        <div className="flex space-x-3">
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="flex items-center px-4 py-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 font-medium"
-          >
-            <Upload size={18} className="mr-2" />
-            Import CSV
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium"
-          >
-            <Plus size={18} className="mr-2" />
-            Add Contact
-          </button>
+      {/* Header with Gradient Background */}
+      <div style={{
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: '1rem',
+        padding: '2rem',
+        marginBottom: '2rem',
+        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)'
+      }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 style={{
+              fontSize: '2rem',
+              fontWeight: 700,
+              color: 'white',
+              marginBottom: '0.5rem'
+            }}>Recipients</h1>
+            <p style={{
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontSize: '1rem'
+            }}>Manage your contacts and their special occasions</p>
+          </div>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => setShowImportModal(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0.75rem 1.25rem',
+                background: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '0.75rem',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                backdropFilter: 'blur(10px)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+              }}
+            >
+              <Upload size={18} className="mr-2" />
+              Import CSV
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0.75rem 1.25rem',
+                background: 'white',
+                color: '#667eea',
+                border: 'none',
+                borderRadius: '0.75rem',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+              }}
+            >
+              <Plus size={18} className="mr-2" />
+              Add Recipient
+            </button>
+          </div>
         </div>
       </div>
 
@@ -135,13 +240,13 @@ export default function Contacts() {
       )}
 
       {/* Search */}
-      {contacts.length > 0 && (
+      {recipients.length > 0 && (
         <div className="mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
-              placeholder="Search contacts..."
+              placeholder="Search recipients..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -151,11 +256,11 @@ export default function Contacts() {
       )}
 
       {/* Empty State */}
-      {contacts.length === 0 ? (
+      {recipients.length === 0 ? (
         <EmptyState
           icon="👥"
-          title="No contacts yet"
-          description="Start by adding your first contact or import from CSV"
+          title="No recipients yet"
+          description="Start by adding your first recipient or import from CSV"
           action={
             <div className="flex space-x-3 justify-center">
               <button
@@ -168,31 +273,74 @@ export default function Contacts() {
                 onClick={() => setShowAddModal(true)}
                 className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium"
               >
-                Add Your First Contact
+                Add Your First Recipient
               </button>
             </div>
           }
         />
       ) : (
-        /* Contacts Table */
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+        /* Recipients Table */
+        <div className="bg-white rounded-xl shadow-md overflow-hidden border border-purple-100">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead style={{
+              background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+              borderBottom: '2px solid #d1d5db'
+            }}>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Relationship</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Occasions</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Name</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Email</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Relationship</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Occasions</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-purple-700 uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredContacts.map((contact) => (
-                <tr key={contact.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{contact.name}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{contact.email}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600 capitalize">
-                    {contact.relationship || '-'}
+            <tbody className="divide-y divide-gray-100">
+              {filteredRecipients.map((contact, index) => (
+                <tr
+                  key={contact.id}
+                  style={{
+                    background: index % 2 === 0 ? 'white' : '#faf5ff',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#f3e8ff';
+                    e.currentTarget.style.transform = 'scale(1.01)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = index % 2 === 0 ? 'white' : '#faf5ff';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  <td className="px-6 py-4">
+                    <span style={{
+                      fontWeight: 600,
+                      color: '#1f2937',
+                      fontSize: '0.9375rem'
+                    }}>{contact.name}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span style={{
+                      color: '#4b5563',
+                      fontSize: '0.875rem',
+                      fontFamily: 'monospace',
+                      background: '#f3f4f6',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '0.375rem'
+                    }}>{contact.email}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span style={{
+                      background: 'linear-gradient(135deg, #ddd6fe 0%, #c7d2fe 100%)',
+                      color: '#5b21b6',
+                      padding: '0.375rem 0.75rem',
+                      borderRadius: '9999px',
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      textTransform: 'capitalize',
+                      display: 'inline-block'
+                    }}>
+                      {contact.relationship || '-'}
+                    </span>
                   </td>
                   <td className="px-6 py-4 text-sm">
                     {contact.occasions?.length > 0 ? (
@@ -217,16 +365,59 @@ export default function Contacts() {
                   <td className="px-6 py-4 text-sm text-right">
                     <button
                       onClick={() => openEditModal(contact)}
-                      className="text-blue-600 hover:text-blue-800 mr-3 inline-flex items-center"
+                      style={{
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                        color: 'white',
+                        padding: '0.5rem 0.875rem',
+                        borderRadius: '0.5rem',
+                        border: 'none',
+                        fontSize: '0.8125rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        marginRight: '0.75rem',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(59, 130, 246, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.3)';
+                      }}
                     >
-                      <Edit size={16} className="mr-1" />
+                      <Edit size={14} className="mr-1" />
                       Edit
                     </button>
                     <button
                       onClick={() => setDeleteConfirm(contact)}
-                      className="text-red-600 hover:text-red-800 inline-flex items-center"
+                      style={{
+                        background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                        color: 'white',
+                        padding: '0.5rem 0.875rem',
+                        borderRadius: '0.5rem',
+                        border: 'none',
+                        fontSize: '0.8125rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(239, 68, 68, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(239, 68, 68, 0.3)';
+                      }}
                     >
-                      <Trash2 size={16} className="mr-1" />
+                      <Trash2 size={14} className="mr-1" />
                       Delete
                     </button>
                   </td>
@@ -235,40 +426,40 @@ export default function Contacts() {
             </tbody>
           </table>
 
-          {filteredContacts.length === 0 && searchTerm && (
+          {filteredRecipients.length === 0 && searchTerm && (
             <div className="text-center py-12">
-              <p className="text-gray-500">No contacts match "{searchTerm}"</p>
+              <p className="text-gray-500">No recipients match "{searchTerm}"</p>
             </div>
           )}
         </div>
       )}
 
-      {/* Add Contact Modal */}
+      {/* Add Recipient Modal */}
       <Modal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="Add New Contact"
+        title="Add New Recipient"
         size="lg"
       >
         <ContactForm
-          onSubmit={handleAddContact}
+          onSubmit={handleAddRecipient}
           onCancel={() => setShowAddModal(false)}
         />
       </Modal>
 
-      {/* Edit Contact Modal */}
+      {/* Edit Recipient Modal */}
       <Modal
         isOpen={showEditModal}
         onClose={() => {
           setShowEditModal(false);
           setEditingContact(null);
         }}
-        title="Edit Contact"
+        title="Edit Recipient"
         size="lg"
       >
         <ContactForm
           contact={editingContact}
-          onSubmit={handleEditContact}
+          onSubmit={handleEditRecipient}
           onCancel={() => {
             setShowEditModal(false);
             setEditingContact(null);
@@ -280,11 +471,11 @@ export default function Contacts() {
       <Modal
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
-        title="Import Contacts from CSV"
+        title="Import Recipients from CSV"
         size="lg"
       >
         <CSVImport
-          onImport={handleImportContacts}
+          onImport={handleImportRecipients}
           onCancel={() => setShowImportModal(false)}
         />
       </Modal>
@@ -294,7 +485,7 @@ export default function Contacts() {
         <Modal
           isOpen={!!deleteConfirm}
           onClose={() => setDeleteConfirm(null)}
-          title="Delete Contact"
+          title="Delete Recipient"
           size="sm"
         >
           <div>
@@ -309,7 +500,7 @@ export default function Contacts() {
                 Cancel
               </button>
               <button
-                onClick={() => handleDeleteContact(deleteConfirm.id)}
+                onClick={() => handleDeleteRecipient(deleteConfirm.id)}
                 className="px-6 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 font-medium"
               >
                 Delete

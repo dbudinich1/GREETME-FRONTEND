@@ -199,7 +199,23 @@ export default function Profile() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold gradient-text">Media Library</h1>
-          <p className="text-gray-600 mt-1">Manage your voice recordings and photos for AI greetings</p>
+          <p className="text-gray-600 mt-1">Your default voice and photo used across all greetings (unless overridden per greeting)</p>
+        </div>
+      </div>
+
+      {/* Info Banner */}
+      <div className="card bg-blue-50 border-blue-200">
+        <div className="flex items-start space-x-3">
+          <div className="flex-shrink-0">
+            <Star className="text-blue-600" size={24} fill="currentColor" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-blue-900 mb-1">Default Media Settings</h3>
+            <p className="text-sm text-blue-800">
+              Upload your default voice and photo here. These will be automatically used in all your greetings.
+              You can override them with specific photos when creating individual greeting cards.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -219,8 +235,11 @@ export default function Profile() {
               <Mic className="text-white" size={24} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Voice Recordings</h2>
-              <p className="text-sm text-gray-600">Upload audio samples to clone your voice</p>
+              <h2 className="text-xl font-bold text-gray-900 flex items-center space-x-2">
+                <span>Default Voice</span>
+                <Star size={16} className="text-yellow-500" fill="currentColor" />
+              </h2>
+              <p className="text-sm text-gray-600">Upload audio samples to clone your voice for all greetings</p>
             </div>
           </div>
 
@@ -326,8 +345,11 @@ export default function Profile() {
               <Camera className="text-white" size={24} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Photos</h2>
-              <p className="text-sm text-gray-600">Upload photos or add from URL for video greetings</p>
+              <h2 className="text-xl font-bold text-gray-900 flex items-center space-x-2">
+                <span>Default Photo</span>
+                <Star size={16} className="text-yellow-500" fill="currentColor" />
+              </h2>
+              <p className="text-sm text-gray-600">Your default photo used in greetings (upload or add from URL)</p>
             </div>
           </div>
 

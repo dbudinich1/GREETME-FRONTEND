@@ -72,38 +72,33 @@ export const validateAudioFile = (file, options = {}) => {
   return { valid: true };
 };
 
-// Occasion types categorized by type
+// Simplified occasion types - only widely celebrated holidays
 export const occasionTypes = [
   // Personal Occasions (requires date)
   { value: 'birthday', label: 'Birthday', icon: '🎂', category: 'personal', requiresDate: true },
   { value: 'anniversary', label: 'Anniversary', icon: '💑', category: 'personal', requiresDate: true },
   { value: 'graduation', label: 'Graduation', icon: '🎓', category: 'personal', requiresDate: true },
-  { value: 'other', label: 'Other Occasion', icon: '🎉', category: 'personal', requiresDate: true },
 
-  // Christian Faith-Based (fixed dates)
+  // Secular Holidays (widely celebrated)
+  { value: 'new_year', label: "New Year's Day", icon: '🎆', category: 'secular', fixedDate: '01-01' },
+  { value: 'valentines', label: "Valentine's Day", icon: '💝', category: 'secular', fixedDate: '02-14' },
+  { value: 'mothers_day', label: "Mother's Day", icon: '💐', category: 'secular', requiresDate: true },
+  { value: 'fathers_day', label: "Father's Day", icon: '👔', category: 'secular', requiresDate: true },
+  { value: 'thanksgiving', label: 'Thanksgiving', icon: '🦃', category: 'secular', requiresDate: true },
+
+  // Christian - Widely Celebrated
   { value: 'christmas', label: 'Christmas', icon: '🎄', category: 'christian', fixedDate: '12-25' },
-  { value: 'easter', label: 'Easter', icon: '🐰', category: 'christian', requiresDate: true }, // Easter date varies
-  { value: 'good_friday', label: 'Good Friday', icon: '✝️', category: 'christian', requiresDate: true },
-  { value: 'ash_wednesday', label: 'Ash Wednesday', icon: '🕊️', category: 'christian', requiresDate: true },
+  { value: 'easter', label: 'Easter', icon: '🐰', category: 'christian', requiresDate: true },
 
-  // Jewish Faith-Based (dates vary by Hebrew calendar)
+  // Jewish - Widely Celebrated
   { value: 'rosh_hashanah', label: 'Rosh Hashanah', icon: '🍎', category: 'jewish', requiresDate: true },
-  { value: 'yom_kippur', label: 'Yom Kippur', icon: '🕯️', category: 'jewish', requiresDate: true },
   { value: 'hanukkah', label: 'Hanukkah', icon: '🕎', category: 'jewish', requiresDate: true },
   { value: 'passover', label: 'Passover', icon: '🍷', category: 'jewish', requiresDate: true },
-  { value: 'purim', label: 'Purim', icon: '🎭', category: 'jewish', requiresDate: true },
 
-  // Muslim Faith-Based (dates vary by Islamic calendar)
+  // Muslim - Widely Celebrated
   { value: 'eid_al_fitr', label: 'Eid al-Fitr', icon: '🌙', category: 'muslim', requiresDate: true },
   { value: 'eid_al_adha', label: 'Eid al-Adha', icon: '🕌', category: 'muslim', requiresDate: true },
   { value: 'ramadan', label: 'Ramadan', icon: '🌟', category: 'muslim', requiresDate: true },
-
-  // Secular Holidays (fixed dates)
-  { value: 'new_year', label: 'New Year', icon: '🎆', category: 'secular', fixedDate: '01-01' },
-  { value: 'valentines', label: "Valentine's Day", icon: '💝', category: 'secular', fixedDate: '02-14' },
-  { value: 'mothers_day', label: "Mother's Day", icon: '💐', category: 'secular', requiresDate: true }, // 2nd Sunday in May
-  { value: 'fathers_day', label: "Father's Day", icon: '👔', category: 'secular', requiresDate: true }, // 3rd Sunday in June
-  { value: 'thanksgiving', label: "Thanksgiving", icon: '🦃', category: 'secular', requiresDate: true }, // 4th Thursday in November
 ];
 
 export const getOccasionIcon = (occasionType) => {
@@ -124,6 +119,76 @@ export const getOccasionsByCategory = () => {
     muslim: occasionTypes.filter(o => o.category === 'muslim'),
     secular: occasionTypes.filter(o => o.category === 'secular'),
   };
+};
+
+// Calculate dates for occasions that vary each year
+export const calculateVaryingOccasionDate = (occasionType, year = new Date().getFullYear()) => {
+  switch (occasionType) {
+    case 'mothers_day':
+      // 2nd Sunday in May
+      return getNthWeekdayOfMonth(year, 4, 0, 2); // Month 4 = May (0-indexed), 0 = Sunday, 2nd occurrence
+
+    case 'fathers_day':
+      // 3rd Sunday in June
+      return getNthWeekdayOfMonth(year, 5, 0, 3); // Month 5 = June, 0 = Sunday, 3rd occurrence
+
+    case 'thanksgiving':
+      // 4th Thursday in November
+      return getNthWeekdayOfMonth(year, 10, 4, 4); // Month 10 = November, 4 = Thursday, 4th occurrence
+
+    case 'easter':
+      // Easter calculation (Computus algorithm - simplified)
+      return calculateEaster(year);
+
+    default:
+      return null;
+  }
+};
+
+// Helper: Get the Nth occurrence of a weekday in a month
+const getNthWeekdayOfMonth = (year, month, weekday, occurrence) => {
+  let count = 0;
+  let date = new Date(year, month, 1);
+
+  while (date.getMonth() === month) {
+    if (date.getDay() === weekday) {
+      count++;
+      if (count === occurrence) {
+        return formatDateForInput(date);
+      }
+    }
+    date.setDate(date.getDate() + 1);
+  }
+
+  return null;
+};
+
+// Helper: Calculate Easter Sunday (using Meeus/Jones/Butcher algorithm)
+const calculateEaster = (year) => {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31) - 1; // 0-indexed
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+
+  return formatDateForInput(new Date(year, month, day));
+};
+
+// Helper: Format date as YYYY-MM-DD for input fields
+const formatDateForInput = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 export const truncate = (str, length = 50) => {
@@ -159,31 +224,66 @@ export const parseCSV = (file) => {
   });
 };
 
-// Relationship types with closeness
+// New hierarchical relationship system
+export const relationshipCategories = {
+  family: {
+    label: 'Family',
+    icon: '👨‍👩‍👧‍👦',
+    members: [
+      { value: 'mom', label: 'Mom', icon: '👩' },
+      { value: 'dad', label: 'Dad', icon: '👨' },
+      { value: 'brother', label: 'Brother', icon: '👦' },
+      { value: 'sister', label: 'Sister', icon: '👧' },
+      { value: 'grandmother', label: 'Grandmother', icon: '👵' },
+      { value: 'grandfather', label: 'Grandfather', icon: '👴' },
+      { value: 'aunt', label: 'Aunt', icon: '👩' },
+      { value: 'uncle', label: 'Uncle', icon: '👨' },
+      { value: 'cousin', label: 'Cousin', icon: '👤' },
+      { value: 'godmother', label: 'Godmother', icon: '👩' },
+      { value: 'godfather', label: 'Godfather', icon: '👨' },
+    ],
+    closenessOption: { value: 'super_close_loved_one', label: 'Super Close Loved One' }
+  },
+  friends: {
+    label: 'Friends',
+    icon: '👥',
+    levels: [
+      { value: 'casual_acquaintance', label: 'Casual Acquaintance' },
+      { value: 'fav', label: 'Fav' },
+      { value: 'bestie', label: 'Bestie' },
+      { value: 'like_family', label: 'Like Family to Me' },
+    ]
+  },
+  professional: {
+    label: 'Professional',
+    icon: '💼',
+    roles: [
+      { value: 'top_client', label: 'Top Client' },
+      { value: 'coworker', label: 'Coworker' },
+      { value: 'boss_management', label: 'Boss/Management' },
+    ],
+    tones: [
+      { value: 'keep_professional', label: 'Keep it Professional' },
+      { value: 'professional_friendly', label: 'Professional but Friendly' },
+      { value: 'good_like_that', label: "We're Good Like That!" },
+    ]
+  }
+};
+
+// Legacy support - flatten for backward compatibility
 export const relationshipTypes = [
-  { value: 'spouse', label: 'Spouse/Partner', closeness: 'intimate' },
-  { value: 'parent', label: 'Parent', closeness: 'close_family' },
-  { value: 'child', label: 'Child', closeness: 'close_family' },
-  { value: 'sibling', label: 'Sibling', closeness: 'close_family' },
-  { value: 'grandparent', label: 'Grandparent', closeness: 'close_family' },
-  { value: 'grandchild', label: 'Grandchild', closeness: 'close_family' },
-  { value: 'aunt_uncle', label: 'Aunt/Uncle', closeness: 'extended_family' },
-  { value: 'cousin', label: 'Cousin', closeness: 'extended_family' },
-  { value: 'close_friend', label: 'Close Friend', closeness: 'close_friend' },
-  { value: 'friend', label: 'Friend', closeness: 'friend' },
-  { value: 'colleague', label: 'Colleague', closeness: 'professional' },
-  { value: 'boss', label: 'Boss/Manager', closeness: 'professional' },
-  { value: 'client', label: 'Client/Customer', closeness: 'professional' },
-  { value: 'acquaintance', label: 'Acquaintance', closeness: 'casual' },
-  { value: 'other', label: 'Other', closeness: 'casual' },
+  ...relationshipCategories.family.members,
+  ...relationshipCategories.friends.levels,
+  ...relationshipCategories.professional.roles,
 ];
 
 export const closenessLevels = [
-  { value: 'intimate', label: 'Intimate (Spouse/Partner)' },
-  { value: 'close_family', label: 'Close Family' },
-  { value: 'extended_family', label: 'Extended Family' },
-  { value: 'close_friend', label: 'Close Friend' },
-  { value: 'friend', label: 'Friend' },
-  { value: 'professional', label: 'Professional' },
-  { value: 'casual', label: 'Casual Acquaintance' },
+  { value: 'super_close_loved_one', label: 'Super Close Loved One' },
+  { value: 'casual_acquaintance', label: 'Casual Acquaintance' },
+  { value: 'fav', label: 'Fav' },
+  { value: 'bestie', label: 'Bestie' },
+  { value: 'like_family', label: 'Like Family to Me' },
+  { value: 'keep_professional', label: 'Keep it Professional' },
+  { value: 'professional_friendly', label: 'Professional but Friendly' },
+  { value: 'good_like_that', label: "We're Good Like That!" },
 ];
