@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Home, Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, DollarSign, ShoppingCart, Film } from 'lucide-react';
+import { Home, Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart, Film } from 'lucide-react';
 
 // TEMP STUB — services layer intentionally disabled for V1 build safety
 const animationBankService = {
@@ -57,10 +57,11 @@ export default function DashboardLayout() {
   const navigation = [
     { name: 'Home', path: '/', icon: Home },
     { name: 'Dashboard', path: '/dashboard', icon: Home },
-    { name: 'American-Made Marketplace', path: '/dashboard/gifts', icon: Gift },
+    { name: 'Plans & Pricing', path: '/pricing', icon: null },
+    { name: 'Shopping Cart', path: '/dashboard/cart', icon: ShoppingCart },
     { name: 'Merch', path: '/dashboard/merch', icon: ShoppingBag },
-    { name: 'Plans & Pricing', path: '/pricing', icon: DollarSign },
-    { name: '🥇 Greet-Me Hero™', path: '/dashboard/hero', icon: Home },
+    { name: 'American-Made Marketplace', path: '/dashboard/gifts', icon: Gift },
+    { name: '🥇 Greet-Me Hero™', path: '/dashboard/hero', icon: null },
   ];
 
   return (

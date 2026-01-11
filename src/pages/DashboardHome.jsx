@@ -714,9 +714,9 @@ export default function DashboardHome() {
               onClick={() => navigate('/dashboard/contacts')}
               style={{
                 padding: '0.5rem 1rem',
-                background: 'white',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border)',
+                background: '#667eea',
+                color: 'white',
+                border: 'none',
                 borderRadius: 'var(--radius-lg)',
                 fontSize: '0.875rem',
                 fontWeight: 600,
