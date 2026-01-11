@@ -415,10 +415,12 @@ export default function DashboardLayout() {
             >
               {({ isActive }) => (
                 <>
-                  <item.icon
-                    size={16}
-                    style={{ color: isActive ? 'var(--primary)' : 'currentColor' }}
-                  />
+                  {item.icon && (
+                    <item.icon
+                      size={16}
+                      style={{ color: isActive ? 'var(--primary)' : 'currentColor' }}
+                    />
+                  )}
                   <span>{item.name}</span>
                 </>
               )}
