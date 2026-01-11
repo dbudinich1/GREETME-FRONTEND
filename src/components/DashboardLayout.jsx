@@ -15,8 +15,11 @@ export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  
+
   const [animationCount, setAnimationCount] = useState(0);
+  const [cartCount, setCartCount] = useState(0);
+
+
 
   useEffect(() => {
     // Update cart count on mount and when window regains focus
