@@ -1,7 +1,7 @@
 // src/pages/DashboardHome.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mic, Camera, Users, Plus, Search, Upload, Settings } from 'lucide-react';
+import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square } from 'lucide-react';
 import api from "../api/api";
 import { getOccasionIcon } from '../utils/helpers';
 
@@ -9,6 +9,7 @@ export default function DashboardHome() {
   const navigate = useNavigate();
   const voiceInputRef = useRef(null);
   const photoInputRef = useRef(null);
+  const audioRef = useRef(null);
   const [contacts, setContacts] = useState([]);
   const [upcomingOccasions, setUpcomingOccasions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +18,15 @@ export default function DashboardHome() {
   const [uploadingVoice, setUploadingVoice] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [voiceFileUrl, setVoiceFileUrl] = useState(null);
+  const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
+  const streamRef = useRef(null);
+
 
   useEffect(() => {
     fetchDashboardData();
@@ -78,6 +88,10 @@ export default function DashboardHome() {
 
     setUploadingVoice(true);
     try {
+      // Create object URL for playback
+      const fileUrl = URL.createObjectURL(file);
+      setVoiceFileUrl(fileUrl);
+
       // Simulate upload (replace with actual API call)
       await new Promise(resolve => setTimeout(resolve, 1000));
       setVoiceRecorded(true);
@@ -88,6 +102,135 @@ export default function DashboardHome() {
     } finally {
       setUploadingVoice(false);
     }
+  };
+
+  const handlePlayVoice = () => {
+    if (audioRef.current && voiceFileUrl) {
+      if (isPlayingVoice) {
+        audioRef.current.pause();
+        setIsPlayingVoice(false);
+      } else {
+        audioRef.current.play();
+        setIsPlayingVoice(true);
+      }
+    }
+  };
+
+  // Cleanup voice URL on unmount
+  useEffect(() => {
+    return () => {
+      if (voiceFileUrl) {
+        URL.revokeObjectURL(voiceFileUrl);
+      }
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    };
+  }, [voiceFileUrl]);
+
+  const startMicRecording = async () => {
+  try {
+    // Request mic
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    streamRef.current = stream;
+
+    // Choose a sane mimeType (Chrome/Edge: webm/opus; Safari may be limited)
+    let options = {};
+    if (window.MediaRecorder?.isTypeSupported?.("audio/webm;codecs=opus")) {
+      options = { mimeType: "audio/webm;codecs=opus" };
+    } else if (window.MediaRecorder?.isTypeSupported?.("audio/webm")) {
+      options = { mimeType: "audio/webm" };
+    }
+
+    mediaRecorderRef.current = new MediaRecorder(stream, options);
+    audioChunksRef.current = [];
+
+    mediaRecorderRef.current.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        audioChunksRef.current.push(event.data);
+      }
+    };
+
+    mediaRecorderRef.current.onstop = () => {
+      try {
+        // Build audio blob from chunks
+        const mime = mediaRecorderRef.current?.mimeType || "audio/webm";
+        const blob = new Blob(audioChunksRef.current, { type: mime });
+        const url = URL.createObjectURL(blob);
+
+        // Clean up old URL if exists
+        if (voiceFileUrl) URL.revokeObjectURL(voiceFileUrl);
+
+        setVoiceFileUrl(url);
+        setVoiceRecorded(true);
+      } finally {
+        // Stop mic hardware
+        streamRef.current?.getTracks?.().forEach((t) => t.stop());
+        streamRef.current = null;
+
+        // Reset chunks
+        audioChunksRef.current = [];
+
+        // Reset UI state
+        setIsRecording(false);
+        setRecordingTime(0);
+
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+      }
+    };
+
+    // Start recording + start timer
+    mediaRecorderRef.current.start();
+    setIsRecording(true);
+    setRecordingTime(0);
+
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    recordingTimerRef.current = setInterval(() => {
+      setRecordingTime((t) => t + 1);
+    }, 1000);
+  } catch (err) {
+    console.error("Mic recording failed:", err);
+
+    // Ensure we clean up if permission denied / error
+    streamRef.current?.getTracks?.().forEach((t) => t.stop());
+    streamRef.current = null;
+
+    setIsRecording(false);
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  }
+};
+
+  const stopMicRecording = () => {
+  try {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    } else {
+      // Fallback cleanup if recorder isn't running but stream exists
+      streamRef.current?.getTracks?.().forEach((t) => t.stop());
+      streamRef.current = null;
+
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    }
+  } catch (err) {
+    console.error("stopMicRecording error:", err);
+  }
+};
+
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handlePhotoUpload = async (e) => {
@@ -302,14 +445,16 @@ export default function DashboardHome() {
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
             padding: '1.5rem',
-            border: '1px solid var(--border)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+            border: '2px solid var(--border)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
           }}>
             <h2 style={{
               fontSize: '1.25rem',
               fontWeight: 700,
               color: 'var(--text-primary)',
-              marginBottom: '0.5rem'
+              marginBottom: '0.5rem',
+              paddingBottom: '0.75rem',
+              borderBottom: '2px solid var(--border)'
             }}>Your Presence</h2>
             <p style={{
               fontSize: '0.875rem',
@@ -360,36 +505,139 @@ export default function DashboardHome() {
                 onChange={handleVoiceUpload}
                 style={{ display: 'none' }}
               />
-              <button
-                onClick={() => voiceInputRef.current?.click()}
-                disabled={uploadingVoice}
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  background: uploadingVoice ? 'var(--gray-200)' : '#667eea',
-                  color: 'white',
-                  border: 'none',
+              <audio
+                ref={audioRef}
+                src={voiceFileUrl || ''}
+                onEnded={() => setIsPlayingVoice(false)}
+                style={{ display: 'none' }}
+              />
+              {isRecording && (
+                <div style={{
+                  padding: '1rem',
+                  background: '#fee2e2',
                   borderRadius: 'var(--radius-lg)',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: uploadingVoice ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  fontFamily: 'inherit',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem'
-                }}
-                onMouseEnter={(e) => {
-                  if (!uploadingVoice) e.currentTarget.style.background = '#5568d3';
-                }}
-                onMouseLeave={(e) => {
-                  if (!uploadingVoice) e.currentTarget.style.background = '#667eea';
-                }}
-              >
-                <Upload size={16} />
-                {uploadingVoice ? 'Uploading...' : voiceRecorded ? 'Re-record Voice' : 'Record Voice'}
-              </button>
+                  marginBottom: '0.75rem',
+                  textAlign: 'center'
+                }}>
+                  <div style={{
+                    fontSize: '1.5rem',
+                    fontWeight: 700,
+                    color: '#dc2626',
+                    marginBottom: '0.25rem'
+                  }}>
+                    {formatTime(recordingTime)}
+                  </div>
+                  <div style={{
+                    fontSize: '0.875rem',
+                    color: '#991b1b'
+                  }}>
+                    Recording...
+                  </div>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={isRecording ? stopMicRecording : startMicRecording}
+                  disabled={uploadingVoice}
+                  style={{
+                    flex: 1,
+                    minWidth: '120px',
+                    padding: '0.625rem',
+                    background: uploadingVoice ? 'var(--gray-200)' : isRecording ? '#dc2626' : '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 'var(--radius-lg)',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: uploadingVoice ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    fontFamily: 'inherit',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!uploadingVoice) {
+                      e.currentTarget.style.background = isRecording ? '#b91c1c' : '#dc2626';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!uploadingVoice) {
+                      e.currentTarget.style.background = isRecording ? '#dc2626' : '#ef4444';
+                    }
+                  }}
+                >
+                  {isRecording ? <Square size={16} /> : <Mic size={16} />}
+                  {isRecording ? 'Stop Recording' : 'Use Microphone'}
+                </button>
+                <button
+                  onClick={() => voiceInputRef.current?.click()}
+                  disabled={uploadingVoice || isRecording}
+                  style={{
+                    flex: 1,
+                    minWidth: '120px',
+                    padding: '0.625rem',
+                    background: (uploadingVoice || isRecording) ? 'var(--gray-200)' : '#667eea',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 'var(--radius-lg)',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: (uploadingVoice || isRecording) ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    fontFamily: 'inherit',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!uploadingVoice && !isRecording) e.currentTarget.style.background = '#5568d3';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!uploadingVoice && !isRecording) e.currentTarget.style.background = '#667eea';
+                  }}
+                >
+                  <Upload size={16} />
+                  {uploadingVoice ? 'Uploading...' : 'Upload File'}
+                </button>
+                {voiceRecorded && voiceFileUrl && (
+                  <button
+                    onClick={handlePlayVoice}
+                    disabled={isRecording}
+                    style={{
+                      padding: '0.625rem 1rem',
+                      background: isRecording ? 'var(--gray-200)' : (isPlayingVoice ? '#10b981' : '#667eea'),
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 'var(--radius-lg)',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      cursor: isRecording ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s',
+                      fontFamily: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isRecording) {
+                        e.currentTarget.style.background = isPlayingVoice ? '#059669' : '#5568d3';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isRecording) {
+                        e.currentTarget.style.background = isPlayingVoice ? '#10b981' : '#667eea';
+                      }
+                    }}
+                  >
+                    {isPlayingVoice ? <Pause size={16} /> : <Play size={16} />}
+                    {isPlayingVoice ? 'Pause' : 'Play'}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Photo Section */}
@@ -476,10 +724,10 @@ export default function DashboardHome() {
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
             padding: '1.5rem',
-            border: '1px solid var(--border)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+            border: '2px solid var(--border)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '2px solid var(--border)' }}>
               <h2 style={{
                 fontSize: '1.25rem',
                 fontWeight: 700,
