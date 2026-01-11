@@ -10,6 +10,10 @@ const animationBankService = {
   hasAccess: () => false,
 };
 
+const cartService = {
+  getCount: () => 0,
+};
+
 
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
@@ -29,8 +33,7 @@ export default function DashboardLayout() {
 
     // Update animation count
     const updateAnimationCount = () => {
-      setAnimationCount(
-        Service.getTotalAvailable());
+      setAnimationCount(animationBankService.getCount());
     };
 
     updateCartCount();
