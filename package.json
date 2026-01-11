@@ -9,7 +9,6 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "postbuild": "node -e \"require('fs').copyFileSync('public/web.config','dist/web.config')\"",
     "lint": "eslint .",
     "preview": "vite preview"
   },
