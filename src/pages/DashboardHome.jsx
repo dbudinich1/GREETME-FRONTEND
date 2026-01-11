@@ -117,16 +117,16 @@ export default function DashboardHome() {
   };
 
   // Cleanup voice URL on unmount
-  useEffect(() => {
-    return () => {
-      if (voiceFileUrl) {
-        URL.revokeObjectURL(voiceFileUrl);
-      }
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-      }
-    };
-  }, [voiceFileUrl]);
+  // Cleanup timers on unmount (do NOT revoke voiceFileUrl here)
+    useEffect(() => {
+      return () => {
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+    }
+  };
+}, []);
+
 
   const startMicRecording = async () => {
   try {
