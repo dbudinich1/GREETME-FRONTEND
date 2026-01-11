@@ -16,9 +16,13 @@ import Settings from "./pages/Settings";
 import SendGreeting from "./pages/SendGreeting";
 import SentGreetings from "./pages/SentGreetings";
 import MediaLibrary from "./pages/MediaLibrary";
-
-// NOTE: Removed imports for pages that are currently UNTRACKED in git:
-// LandingPage, Pricing, Gifts, Cart, Merch, HeroProgram, AnimationBank
+import LandingPage from "./pages/LandingPage";
+import Pricing from "./pages/Pricing";
+import Gifts from "./pages/Gifts";
+import Cart from "./pages/Cart";
+import Merch from "./pages/Merch";
+import HeroProgram from "./pages/HeroProgram";
+import AnimationBank from "./pages/AnimationBank";
 
 export default function App() {
   return (
@@ -49,7 +53,16 @@ export default function App() {
             <Route path="send" element={<SendGreeting />} />
             <Route path="sent" element={<SentGreetings />} />
             <Route path="media" element={<MediaLibrary />} />
+            <Route path="cart" element={<Cart />} />
+            <Route path="merch" element={<Merch />} />
+            <Route path="gifts" element={<Gifts />} />
+            <Route path="hero" element={<HeroProgram />} />
+            <Route path="animations" element={<AnimationBank />} />
           </Route>
+
+          {/* Public Landing and Pricing */}
+          <Route path="/landing" element={<LandingPage />} />
+          <Route path="/pricing" element={<Pricing />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
