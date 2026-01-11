@@ -15,6 +15,7 @@ import Recipients from "./pages/Contacts";
 import Settings from "./pages/Settings";
 import SendGreeting from "./pages/SendGreeting";
 import SentGreetings from "./pages/SentGreetings";
+import MediaLibrary from "./pages/MediaLibrary";
 
 // NOTE: Removed imports for pages that are currently UNTRACKED in git:
 // LandingPage, Pricing, Gifts, Cart, Merch, HeroProgram, AnimationBank
@@ -47,6 +48,7 @@ export default function App() {
             <Route path="settings" element={<Settings />} />
             <Route path="send" element={<SendGreeting />} />
             <Route path="sent" element={<SentGreetings />} />
+            <Route path="media" element={<MediaLibrary />} />
           </Route>
 
           {/* Fallback */}

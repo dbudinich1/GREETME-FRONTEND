@@ -1,15 +1,23 @@
 // src/pages/DashboardHome.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square } from 'lucide-react';
+import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square, CheckCircle } from 'lucide-react';
 import api from "../api/api";
 import { getOccasionIcon } from '../utils/helpers';
 
 export default function DashboardHome() {
   const navigate = useNavigate();
+
+  // Refs
   const voiceInputRef = useRef(null);
   const photoInputRef = useRef(null);
   const audioRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
+  const streamRef = useRef(null);
+
+  // State
   const [contacts, setContacts] = useState([]);
   const [upcomingOccasions, setUpcomingOccasions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,15 +30,66 @@ export default function DashboardHome() {
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const recordingTimerRef = useRef(null);
-  const streamRef = useRef(null);
+
+  // --- Presence persistence (navigation-safe) ---
+  const PRESENCE_KEY = 'gm_presence_v1';
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(PRESENCE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+
+      if (typeof saved.voiceRecorded === 'boolean') setVoiceRecorded(saved.voiceRecorded);
+      if (typeof saved.photoUploaded === 'boolean') setPhotoUploaded(saved.photoUploaded);
+      if (typeof saved.voiceFileUrl === 'string') setVoiceFileUrl(saved.voiceFileUrl);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        PRESENCE_KEY,
+        JSON.stringify({ voiceRecorded, photoUploaded, voiceFileUrl })
+      );
+    } catch {}
+  }, [voiceRecorded, photoUploaded, voiceFileUrl]);
+
 
 
   useEffect(() => {
     fetchDashboardData();
+    loadPersistedMedia();
   }, []);
+
+  // Load persisted media from localStorage
+  const loadPersistedMedia = () => {
+    try {
+      const savedVoice = localStorage.getItem('greetme_voice_file');
+      const savedPhoto = localStorage.getItem('greetme_photo_file');
+
+      if (savedVoice) {
+        setVoiceFileUrl(savedVoice);
+        setVoiceRecorded(true);
+      }
+
+      if (savedPhoto) {
+        setPhotoUploaded(true);
+      }
+    } catch (error) {
+      console.error('Error loading persisted media:', error);
+    }
+  };
+
+  // Convert file to base64 data URL for persistence
+  const fileToDataUrl = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -88,12 +147,13 @@ export default function DashboardHome() {
 
     setUploadingVoice(true);
     try {
-      // Create object URL for playback
-      const fileUrl = URL.createObjectURL(file);
-      setVoiceFileUrl(fileUrl);
+      // Convert file to base64 data URL for persistence
+      const dataUrl = await fileToDataUrl(file);
 
-      // Simulate upload (replace with actual API call)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Save to localStorage for persistence
+      localStorage.setItem('greetme_voice_file', dataUrl);
+
+      setVoiceFileUrl(dataUrl);
       setVoiceRecorded(true);
       alert('Voice uploaded successfully!');
     } catch (error) {
@@ -151,18 +211,23 @@ export default function DashboardHome() {
       }
     };
 
-    mediaRecorderRef.current.onstop = () => {
+    mediaRecorderRef.current.onstop = async () => {
       try {
         // Build audio blob from chunks
         const mime = mediaRecorderRef.current?.mimeType || "audio/webm";
         const blob = new Blob(audioChunksRef.current, { type: mime });
-        const url = URL.createObjectURL(blob);
 
-        // Clean up old URL if exists
-        if (voiceFileUrl) URL.revokeObjectURL(voiceFileUrl);
+        // Convert blob to data URL for persistence
+        const dataUrl = await fileToDataUrl(blob);
 
-        setVoiceFileUrl(url);
+        // Save to localStorage
+        localStorage.setItem('greetme_voice_file', dataUrl);
+
+        setVoiceFileUrl(dataUrl);
         setVoiceRecorded(true);
+      } catch (error) {
+        console.error('Error saving recording:', error);
+        alert('Failed to save recording. Please try again.');
       } finally {
         // Stop mic hardware
         streamRef.current?.getTracks?.().forEach((t) => t.stop());
@@ -251,8 +316,12 @@ export default function DashboardHome() {
 
     setUploadingPhoto(true);
     try {
-      // Simulate upload (replace with actual API call)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Convert file to base64 data URL for persistence
+      const dataUrl = await fileToDataUrl(file);
+
+      // Save to localStorage for persistence
+      localStorage.setItem('greetme_photo_file', dataUrl);
+
       setPhotoUploaded(true);
       alert('Photo uploaded successfully!');
     } catch (error) {
@@ -537,6 +606,7 @@ export default function DashboardHome() {
               )}
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button
+                  type="button"
                   onClick={isRecording ? stopMicRecording : startMicRecording}
                   disabled={uploadingVoice}
                   style={{
@@ -572,6 +642,7 @@ export default function DashboardHome() {
                   {isRecording ? 'Stop Recording' : 'Use Microphone'}
                 </button>
                 <button
+                  type="button"
                   onClick={() => voiceInputRef.current?.click()}
                   disabled={uploadingVoice || isRecording}
                   style={{
@@ -604,6 +675,7 @@ export default function DashboardHome() {
                 </button>
                 {voiceRecorded && voiceFileUrl && (
                   <button
+                    type="button"
                     onClick={handlePlayVoice}
                     disabled={isRecording}
                     style={{
@@ -685,6 +757,7 @@ export default function DashboardHome() {
                 style={{ display: 'none' }}
               />
               <button
+                type="button"
                 onClick={() => photoInputRef.current?.click()}
                 disabled={uploadingPhoto}
                 style={{
@@ -1103,6 +1176,140 @@ export default function DashboardHome() {
                 ))}
               </div>
               <div style={{ textAlign: 'right', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+                {item.date}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Past Greetings Section */}
+      <div style={{
+        background: 'var(--bg-primary)',
+        borderRadius: 'var(--radius-xl)',
+        padding: '1.5rem',
+        border: '2px solid var(--border)',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+        marginTop: '2rem'
+      }}>
+        <div style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid var(--border)' }}>
+          <h2 style={{
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            margin: 0
+          }}>Past Greetings <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>(Last 30 Days)</span></h2>
+        </div>
+
+        {/* Table Header */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '0.5fr 2fr 1fr 2fr 1fr',
+          padding: '0.75rem 1rem',
+          borderBottom: '2px solid var(--border)',
+          fontSize: '0.8125rem',
+          fontWeight: 600,
+          color: 'var(--text-secondary)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em'
+        }}>
+          <div style={{ textAlign: 'center' }}>STATUS</div>
+          <div>RECIPIENT</div>
+          <div>ICONS</div>
+          <div>OCCASIONS</div>
+          <div style={{ textAlign: 'right' }}>SENT DATE</div>
+        </div>
+
+        {/* Table Rows */}
+        <div>
+          {[
+            { id: 1, recipient: 'Mom', relationship: 'Mother', icons: ['🎂'], occasions: ['Birthday'], date: 'Dec 15, 2025', sent: true },
+            { id: 2, recipient: 'John Smith', relationship: 'Friend', icons: ['🎄'], occasions: ['Christmas'], date: 'Dec 25, 2025', sent: true },
+            { id: 3, recipient: 'Sarah Johnson', relationship: 'Sister', icons: ['❤️'], occasions: ['Anniversary'], date: 'Dec 28, 2025', sent: true },
+          ].map((item, index, array) => (
+            <div
+              key={item.id}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '0.5fr 2fr 1fr 2fr 1fr',
+                padding: '1rem',
+                borderBottom: index < array.length - 1 ? '1px solid var(--border)' : 'none',
+                alignItems: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--gray-50)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <CheckCircle
+                  size={24}
+                  style={{
+                    color: '#22c55e',
+                    fill: '#22c55e',
+                    strokeWidth: 2
+                  }}
+                />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{
+                    width: '2.5rem',
+                    height: '2.5rem',
+                    borderRadius: '50%',
+                    background: 'var(--gray-200)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.25rem'
+                  }}>
+                    👤
+                  </div>
+                  <div>
+                    <div style={{
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)'
+                    }}>{item.recipient}</div>
+                    <div style={{
+                      fontSize: '0.8125rem',
+                      color: 'var(--text-secondary)'
+                    }}>{item.relationship}</div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                {item.icons.map((icon, idx) => (
+                  <span key={idx} style={{ fontSize: '1.25rem' }}>{icon}</span>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                {item.occasions.map((occasion, idx) => (
+                  <span
+                    key={idx}
+                    style={{
+                      padding: '0.25rem 0.625rem',
+                      background: 'rgba(34, 197, 94, 0.1)',
+                      color: '#22c55e',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.75rem',
+                      fontWeight: 500
+                    }}
+                  >
+                    {occasion}
+                  </span>
+                ))}
+              </div>
+              <div style={{
+                textAlign: 'right',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                color: 'var(--text-secondary)'
+              }}>
                 {item.date}
               </div>
             </div>

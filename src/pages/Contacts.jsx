@@ -1,6 +1,7 @@
 // src/pages/Contacts.jsx
 import React, { useState, useEffect } from 'react';
-import { Plus, Upload, Search, Edit, Trash2 } from 'lucide-react';
+import { Plus, Upload, Search, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import api from "../api/api";
 import Modal from '../components/Modal';
 import ContactForm from '../components/ContactForm';
@@ -11,6 +12,7 @@ import Alert from '../components/Alert';
 import { getOccasionIcon, getOccasionLabel } from '../utils/helpers';
 
 export default function Recipients() {
+  const navigate = useNavigate();
   const [recipients, setRecipients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -159,17 +161,44 @@ export default function Recipients() {
         boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)'
       }}>
         <div className="flex items-center justify-between">
-          <div>
-            <h1 style={{
-              fontSize: '2rem',
-              fontWeight: 700,
-              color: 'white',
-              marginBottom: '0.5rem'
-            }}>Recipients</h1>
-            <p style={{
-              color: 'rgba(255, 255, 255, 0.9)',
-              fontSize: '1rem'
-            }}>Manage your contacts and their special occasions</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <button
+              onClick={() => navigate('/dashboard')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '2.5rem',
+                height: '2.5rem',
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '0.5rem',
+                color: 'white',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                backdropFilter: 'blur(10px)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+              }}
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div>
+              <h1 style={{
+                fontSize: '2rem',
+                fontWeight: 700,
+                color: 'white',
+                marginBottom: '0.5rem'
+              }}>Recipients</h1>
+              <p style={{
+                color: 'rgba(255, 255, 255, 0.9)',
+                fontSize: '1rem'
+              }}>Manage your contacts and their special occasions</p>
+            </div>
           </div>
           <div className="flex space-x-3">
             <button
