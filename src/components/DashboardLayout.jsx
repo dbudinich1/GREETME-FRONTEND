@@ -59,9 +59,9 @@ export default function DashboardLayout() {
     { name: 'Dashboard', path: '/dashboard', icon: Home },
     { name: 'Media Library', path: '/dashboard/media', icon: Image },
     { name: 'Plans & Pricing', path: '/pricing', icon: null },
-    { name: 'Shopping Cart', path: '/dashboard/cart', icon: ShoppingCart },
+    { name: 'For Business', path: '/business', icon: null },
     { name: 'Merch', path: '/dashboard/merch', icon: ShoppingBag },
-    { name: 'American-Made Marketplace', path: '/dashboard/gifts', icon: Gift },
+    { name: 'American Marketplace', path: '/dashboard/gifts', icon: Gift },
     { name: '🥇 Greet-Me Hero™', path: '/dashboard/hero', icon: null },
   ];
 
@@ -75,6 +75,7 @@ export default function DashboardLayout() {
         top: 0,
         zIndex: 50
       }}>
+        
         <div style={{
           maxWidth: '1400px',
           margin: '0 auto',
@@ -82,10 +83,165 @@ export default function DashboardLayout() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          height: '4rem'
+          height: '7rem'
         }}>
-          {/* Empty left space */}
-          <div style={{ width: '150px' }}></div>
+          {/* G1G1 Gold Foil Seal with Star-Point Edge */}
+        <div style={{ width: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ position: 'relative', width: '90px', height: '90px' }}>
+            {/* Star-point notched edge layer - 24 points around the circle */}
+            {[...Array(24)].map((_, i) => {
+              const angle = (i * 15) - 90; // 24 points = 15 degrees apart
+              const radius = 45; // Distance from center
+              const x = 45 + radius * Math.cos(angle * Math.PI / 180);
+              const y = 45 + radius * Math.sin(angle * Math.PI / 180);
+              return (
+                <div
+                  key={i}
+                  style={{
+                    position: 'absolute',
+                    left: `${x}px`,
+                    top: `${y}px`,
+                    width: '6px',
+                    height: '6px',
+                    background: '#D4AF37',
+                    transform: 'translate(-50%, -50%) rotate(45deg)',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                    pointerEvents: 'none'
+                  }}
+                />
+              );
+            })}
+
+            {/* Main seal button */}
+            <button
+              onClick={() => navigate('/dashboard/hero')}
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '80px',
+                height: '80px',
+                borderRadius: '9999px',
+                border: '2px solid #8B6914',
+                background:
+                  'radial-gradient(circle at 35% 35%, rgba(255,245,220,1) 0%, rgba(255,240,200,0.8) 15%, transparent 40%),' +
+                  'radial-gradient(circle at 65% 65%, rgba(0,0,0,0.15) 0%, transparent 30%),' +
+                  'repeating-conic-gradient(from 0deg, #E8D7A3 0deg 9deg, #C9A961 9deg 18deg, #F5E6C8 18deg 27deg, #D4AF37 27deg 36deg)',
+                boxShadow:
+                  '0 6px 16px rgba(0,0,0,0.25),' +
+                  '0 12px 32px rgba(139,105,20,0.3),' +
+                  'inset 0 2px 4px rgba(255,255,255,0.4),' +
+                  'inset 0 -2px 4px rgba(0,0,0,0.2)',
+                cursor: 'pointer',
+                transition: 'all 0.25s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'column',
+                padding: 0,
+                fontFamily: 'inherit',
+                zIndex: 10
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.parentElement.style.transform = 'scale(1.05) rotate(2deg)';
+                e.currentTarget.style.boxShadow =
+                  '0 8px 24px rgba(0,0,0,0.3),' +
+                  '0 16px 48px rgba(139,105,20,0.4),' +
+                  'inset 0 2px 4px rgba(255,255,255,0.5),' +
+                  'inset 0 -2px 4px rgba(0,0,0,0.25)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.parentElement.style.transform = 'scale(1) rotate(0deg)';
+                e.currentTarget.style.boxShadow =
+                  '0 6px 16px rgba(0,0,0,0.25),' +
+                  '0 12px 32px rgba(139,105,20,0.3),' +
+                  'inset 0 2px 4px rgba(255,255,255,0.4),' +
+                  'inset 0 -2px 4px rgba(0,0,0,0.2)';
+              }}
+              title="Greet-Me Hero™"
+            >
+              {/* Faint G watermark - more visible */}
+              <div style={{
+                position: 'absolute',
+                fontSize: '3rem',
+                fontWeight: 900,
+                color: 'rgba(139,105,20,0.15)',
+                fontFamily: 'Georgia, serif',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                pointerEvents: 'none',
+                userSelect: 'none',
+                zIndex: 0
+              }}>G</div>
+
+              {/* Star decorations at cardinal points */}
+              <span style={{
+                position: 'absolute',
+                top: '4px',
+                fontSize: '10px',
+                color: '#8B6914',
+                opacity: 0.8,
+                textShadow: '0 0 2px rgba(255,235,205,0.5)',
+                pointerEvents: 'none',
+                zIndex: 2
+              }}>★</span>
+              <span style={{
+                position: 'absolute',
+                bottom: '4px',
+                fontSize: '10px',
+                color: '#8B6914',
+                opacity: 0.8,
+                textShadow: '0 0 2px rgba(255,235,205,0.5)',
+                pointerEvents: 'none',
+                zIndex: 2
+              }}>★</span>
+              <span style={{
+                position: 'absolute',
+                left: '4px',
+                fontSize: '8px',
+                color: '#8B6914',
+                opacity: 0.7,
+                textShadow: '0 0 2px rgba(255,235,205,0.5)',
+                pointerEvents: 'none',
+                zIndex: 2
+              }}>★</span>
+              <span style={{
+                position: 'absolute',
+                right: '4px',
+                fontSize: '8px',
+                color: '#8B6914',
+                opacity: 0.7,
+                textShadow: '0 0 2px rgba(255,235,205,0.5)',
+                pointerEvents: 'none',
+                zIndex: 2
+              }}>★</span>
+
+              {/* Main content */}
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <div style={{
+                  fontSize: '1.125rem',
+                  fontWeight: 900,
+                  color: '#3D2F0F',
+                  letterSpacing: '1px',
+                  textShadow: '0 1px 2px rgba(255,255,255,0.5)',
+                  marginBottom: '2px'
+                }}>G1G1™</div>
+                <div style={{
+                  fontSize: '0.5625rem',
+                  fontWeight: 800,
+                  color: '#4D3A12',
+                  textShadow: '0 1px 1px rgba(255,255,255,0.3)',
+                  lineHeight: 1.2
+                }}>
+                  <div>Greet One</div>
+                  <div>Give One™</div>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
 
           {/* Centered Title */}
           <div style={{ textAlign: 'center' }}>

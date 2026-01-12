@@ -160,14 +160,14 @@ export default function Gifts() {
             fontWeight: 700,
             marginBottom: '0.75rem'
           }}>
-            QR Cash™
+            QR Cash™ — Send · Scan · Spend
           </h2>
           <p style={{
             fontSize: '1.125rem',
             opacity: 0.95,
             marginBottom: '1.5rem'
           }}>
-            Send instant digital cash via QR code - Include Venmo or Cash App QR codes with your greeting
+            Add real cash to any greeting you send.
           </p>
           <button style={{
             padding: '0.875rem 2rem',

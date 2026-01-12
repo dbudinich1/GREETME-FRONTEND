@@ -23,6 +23,9 @@ import Cart from "./pages/Cart";
 import Merch from "./pages/Merch";
 import HeroProgram from "./pages/HeroProgram";
 import AnimationBank from "./pages/AnimationBank";
+import Invitations from "./pages/Invitations";
+import RedeemQRCash from "./pages/RedeemQRCash";
+import ForBusiness from "./pages/ForBusiness";
 
 export default function App() {
   return (
@@ -36,6 +39,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/redeem/qr-cash/:id" element={<RedeemQRCash />} />
 
           {/* Protected Routes */}
           <Route
@@ -58,11 +62,13 @@ export default function App() {
             <Route path="gifts" element={<Gifts />} />
             <Route path="hero" element={<HeroProgram />} />
             <Route path="animations" element={<AnimationBank />} />
+            <Route path="invitations" element={<Invitations />} />
           </Route>
 
           {/* Public Landing and Pricing */}
           <Route path="/landing" element={<LandingPage />} />
           <Route path="/pricing" element={<Pricing />} />
+          <Route path="/business" element={<ForBusiness />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

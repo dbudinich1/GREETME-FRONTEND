@@ -1,8 +1,10 @@
 // src/pages/MediaLibrary.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Trash2, Play, Pause, Image as ImageIcon, Mic } from 'lucide-react';
+import { Upload, Trash2, Play, Pause, Image as ImageIcon, Mic, ArrowLeft, Smartphone, QrCode, Video } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function MediaLibrary() {
+  const navigate = useNavigate();
   const [voices, setVoices] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [activeVoice, setActiveVoice] = useState(null);
@@ -27,15 +29,26 @@ export default function MediaLibrary() {
       }]);
     }
 
-    // Load saved photo
-    const savedPhoto = localStorage.getItem('greetme_photo_file');
-    if (savedPhoto) {
-      setPhotos([{
-        id: 'main-photo',
-        name: 'My Profile Photo',
-        dataUrl: savedPhoto,
-        date: new Date().toLocaleDateString()
-      }]);
+    // Load saved photos (new multi-photo structure)
+    const savedPhotos = localStorage.getItem('greetme_photos');
+    if (savedPhotos) {
+      try {
+        const parsedPhotos = JSON.parse(savedPhotos);
+        setPhotos(parsedPhotos);
+      } catch (error) {
+        console.error('Error loading photos:', error);
+      }
+    } else {
+      // Fallback to old single photo storage for backward compatibility
+      const savedPhoto = localStorage.getItem('greetme_photo_file');
+      if (savedPhoto) {
+        setPhotos([{
+          id: 'main-photo',
+          name: 'My Profile Photo',
+          dataUrl: savedPhoto,
+          date: new Date().toLocaleDateString()
+        }]);
+      }
     }
   };
 
@@ -74,27 +87,50 @@ export default function MediaLibrary() {
   };
 
   const handlePhotoUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image file must be less than 5MB');
-      return;
+    // Validate all files first
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        alert(`${file.name} is not an image file. Only images are allowed.`);
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`${file.name} is too large. Images must be less than 5MB.`);
+        return;
+      }
     }
 
     try {
-      const dataUrl = await fileToDataUrl(file);
-      localStorage.setItem('greetme_photo_file', dataUrl);
+      // Get existing photos from localStorage
+      const existingPhotos = JSON.parse(localStorage.getItem('greetme_photos') || '[]');
+
+      // Process each file
+      for (const file of files) {
+        const dataUrl = await fileToDataUrl(file);
+        const newPhoto = {
+          id: Date.now() + Math.random(),
+          name: file.name,
+          dataUrl: dataUrl,
+          date: new Date().toLocaleDateString()
+        };
+        existingPhotos.push(newPhoto);
+      }
+
+      // Save back to localStorage
+      localStorage.setItem('greetme_photos', JSON.stringify(existingPhotos));
+
+      // Also keep the old single photo storage for backward compatibility
+      if (existingPhotos.length > 0) {
+        localStorage.setItem('greetme_photo_file', existingPhotos[0].dataUrl);
+      }
+
       loadMedia();
-      alert('Photo uploaded successfully!');
+      alert(`${files.length} photo(s) uploaded successfully!`);
     } catch (error) {
       console.error('Photo upload error:', error);
-      alert('Failed to upload photo.');
+      alert('Failed to upload photos.');
     }
   };
 
@@ -109,8 +145,24 @@ export default function MediaLibrary() {
 
   const deletePhoto = (id) => {
     if (confirm('Are you sure you want to delete this photo?')) {
-      localStorage.removeItem('greetme_photo_file');
-      setPhotos([]);
+      // Get current photos
+      const savedPhotos = JSON.parse(localStorage.getItem('greetme_photos') || '[]');
+
+      // Remove the photo with matching id
+      const updatedPhotos = savedPhotos.filter(photo => photo.id !== id);
+
+      // Save updated list
+      localStorage.setItem('greetme_photos', JSON.stringify(updatedPhotos));
+
+      // Update backward compatibility storage
+      if (updatedPhotos.length > 0) {
+        localStorage.setItem('greetme_photo_file', updatedPhotos[0].dataUrl);
+      } else {
+        localStorage.removeItem('greetme_photo_file');
+      }
+
+      // Update state
+      setPhotos(updatedPhotos);
     }
   };
 
@@ -129,6 +181,35 @@ export default function MediaLibrary() {
 
   return (
     <div style={{ padding: '2rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+        <button
+          onClick={() => navigate('/dashboard')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.5rem 1rem',
+            background: 'transparent',
+            border: '1px solid #000000',
+            borderRadius: 'var(--radius-md)',
+            color: '#000000',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            fontFamily: 'inherit'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#f3f4f6';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+          }}
+        >
+          <ArrowLeft size={16} />
+          Back
+        </button>
+      </div>
       <h1 style={{
         fontSize: '2rem',
         fontWeight: 700,
@@ -139,6 +220,168 @@ export default function MediaLibrary() {
         color: 'var(--text-secondary)',
         marginBottom: '2rem'
       }}>Manage your voice recordings and photos</p>
+
+      {/* Demo Video Section */}
+      <div style={{
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '1.5rem',
+        marginBottom: '2rem',
+        color: 'white',
+        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+          <div style={{
+            width: '3rem',
+            height: '3rem',
+            borderRadius: '50%',
+            background: 'rgba(255, 255, 255, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Video size={24} style={{ color: 'white' }} />
+          </div>
+          <div>
+            <h2 style={{
+              fontSize: '1.25rem',
+              fontWeight: 700,
+              margin: 0,
+              marginBottom: '0.25rem'
+            }}>Watch the Demo</h2>
+            <p style={{
+              fontSize: '0.875rem',
+              opacity: 0.9,
+              margin: 0
+            }}>Learn how to use Greet-Me in under 2 minutes</p>
+          </div>
+        </div>
+        <button
+          onClick={() => alert('Demo video will open here - integration coming soon')}
+          style={{
+            width: '100%',
+            padding: '0.875rem',
+            background: 'white',
+            color: '#667eea',
+            border: 'none',
+            borderRadius: 'var(--radius-lg)',
+            fontSize: '0.9375rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            transition: 'all 0.2s',
+            fontFamily: 'inherit',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+          }}
+        >
+          <Play size={20} />
+          Watch Demo Video
+        </button>
+      </div>
+
+      {/* Mobile App QR Code */}
+      <div style={{
+        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '1rem 1.5rem',
+        marginBottom: '2rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        border: '1px solid var(--border)',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{
+            width: '3rem',
+            height: '3rem',
+            borderRadius: 'var(--radius-md)',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+          }}>
+            <Smartphone size={20} style={{ color: 'white' }} />
+          </div>
+          <div>
+            <h3 style={{
+              fontSize: '0.9375rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.25rem'
+            }}>Download Greet-Me Mobile App</h3>
+            <p style={{
+              fontSize: '0.8125rem',
+              color: 'var(--text-secondary)',
+              margin: 0
+            }}>Send greetings on the go - scan QR code to download</p>
+          </div>
+        </div>
+        <div style={{
+          width: '5rem',
+          height: '5rem',
+          background: 'white',
+          borderRadius: 'var(--radius-md)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '2px solid var(--border)',
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          position: 'relative'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.05)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = 'none';
+        }}
+        title="Scan to download mobile app"
+        >
+          <QrCode size={40} style={{ color: '#667eea' }} />
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '0.5rem',
+            fontWeight: 700,
+            color: '#667eea',
+            pointerEvents: 'none'
+          }}>
+            <div style={{
+              width: '70%',
+              height: '70%',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(8, 1fr)',
+              gridTemplateRows: 'repeat(8, 1fr)',
+              gap: '1px'
+            }}>
+              {[...Array(64)].map((_, i) => (
+                <div key={i} style={{
+                  background: Math.random() > 0.5 ? '#667eea' : 'transparent',
+                  borderRadius: '1px'
+                }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Voice Recordings Section */}
       <div style={{
@@ -328,6 +571,7 @@ export default function MediaLibrary() {
             ref={photoInputRef}
             type="file"
             accept="image/*"
+            multiple
             onChange={handlePhotoUpload}
             style={{ display: 'none' }}
           />
@@ -351,7 +595,7 @@ export default function MediaLibrary() {
             onMouseLeave={(e) => e.currentTarget.style.background = '#667eea'}
           >
             <Upload size={16} />
-            Upload Photo
+            Upload Photos
           </button>
         </div>
 

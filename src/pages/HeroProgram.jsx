@@ -23,11 +23,11 @@ export default function HeroProgram() {
   const faqItems = [
     {
       question: 'What is the Hero Program?',
-      answer: 'The Hero Program is our initiative where we give back — 15% of proceeds support veterans and first responders. Every subscription includes "Greet One, Gift One™" allowing you to gift an additional subscription or donate it through the Hero Program.'
+      answer: 'The Hero Program is our initiative where we give back — 10% of proceeds support veterans and first responders. Every subscription includes "Greet One, Give One™" allowing you to gift an additional subscription or donate it through the Hero Program.'
     },
     {
-      question: 'How does the 15% donation work?',
-      answer: '15% of our proceeds are automatically donated to support veterans or first responder organizations. You can choose which cause to support when you participate in the Hero Program.'
+      question: 'How does the 10% donation work?',
+      answer: '10% of our proceeds are automatically donated to support veterans or first responder organizations. You can choose which cause to support when you participate in the Hero Program.'
     },
     {
       question: 'Who receives the donations?',
@@ -61,7 +61,7 @@ export default function HeroProgram() {
             fontSize: '0.875rem',
             fontWeight: 600
           }}>
-            🏅 15% donated
+            🏅 10% donated
           </div>
 
           <h1 style={{
@@ -79,7 +79,7 @@ export default function HeroProgram() {
             marginBottom: '1rem',
             lineHeight: 1.6
           }}>
-            The Greet-Me Hero™ program is designed for corporate clients and partners who want to provide personalized greeting services as value-adds to their customers.
+            Greet-Me Hero™ is our B2B program for companies who want to distribute Greet-Me subscriptions as customer value-adds, employee benefits, or white-label services.
           </p>
           <p style={{
             fontSize: '1rem',
@@ -87,7 +87,7 @@ export default function HeroProgram() {
             marginBottom: '2rem',
             lineHeight: 1.6
           }}>
-            We're givers too — 15% of proceeds support veterans and first responders. Looking for branded merchandise? Check out our merch store!
+            10% of qualifying corporate program proceeds support veterans and first responders. Scale your impact while building meaningful connections.
           </p>
 
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -173,6 +173,72 @@ export default function HeroProgram() {
         </div>
       </div>
 
+      {/* Corporate Focus Section */}
+      <div style={{
+        background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
+        borderRadius: 'var(--radius-xl)',
+        padding: '3rem 2rem',
+        margin: '0 0 2rem',
+        textAlign: 'center',
+        color: 'white',
+        boxShadow: '0 10px 30px rgba(30, 58, 138, 0.3)'
+      }}>
+        <h2 style={{
+          fontSize: '2.5rem',
+          fontWeight: 800,
+          marginBottom: '1rem'
+        }}>
+          Built for Business Scale
+        </h2>
+        <p style={{
+          fontSize: '1.25rem',
+          opacity: 0.95,
+          maxWidth: '700px',
+          margin: '0 auto 1.5rem',
+          lineHeight: 1.6
+        }}>
+          Corporate subscription bundles, white-label services, and customer value distribution.
+        </p>
+        <p style={{
+          fontSize: '1rem',
+          opacity: 0.9,
+          maxWidth: '650px',
+          margin: '0 auto',
+          lineHeight: 1.6
+        }}>
+          Whether you're rewarding customers, engaging employees, or offering Greet-Me as part of your platform —
+          Hero™ gives you the infrastructure to deliver meaningful connections at scale.
+        </p>
+        <div style={{ marginTop: '2rem' }}>
+          <button
+            onClick={() => navigate('/pricing')}
+            style={{
+              padding: '1rem 2rem',
+              background: 'white',
+              color: '#1e3a8a',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '1rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            }}
+          >
+            View Business Pricing
+          </button>
+        </div>
+      </div>
+
       {/* How It Works Section */}
       <div style={{ marginBottom: '2rem' }}>
         <h2 style={{
@@ -188,7 +254,7 @@ export default function HeroProgram() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '1.5rem'
         }}>
-          {/* Card 1: Greet One, Gift One */}
+          {/* Card 1: Greet One, Give One */}
           <div style={{
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
@@ -215,13 +281,13 @@ export default function HeroProgram() {
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.5rem'
-            }}>Greet One, Gift One™</h3>
+            }}>Corporate Bundles</h3>
             <p style={{
               fontSize: '0.875rem',
               color: 'var(--text-secondary)',
               lineHeight: 1.6
             }}>
-              Every subscription includes one additional subscription you can gift to a friend or donate through the Hero Program to support veterans and first responders.
+              Purchase subscription bundles to gift to customers, employees, or partners. White-label options available for enterprise clients.
             </p>
           </div>
 
@@ -252,13 +318,13 @@ export default function HeroProgram() {
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.5rem'
-            }}>Hero Impact</h3>
+            }}>Recognition & Impact</h3>
             <p style={{
               fontSize: '0.875rem',
               color: 'var(--text-secondary)',
               lineHeight: 1.6
             }}>
-              15% of our proceeds are automatically donated to support veterans or first responder organizations. Choose which cause matters most to you.
+              10% of qualifying corporate program proceeds support veterans and first responders. Track your impact with leaderboard rankings and earn permanent Hall of Fame recognition.
             </p>
           </div>
 
@@ -295,7 +361,7 @@ export default function HeroProgram() {
               color: 'var(--text-secondary)',
               lineHeight: 1.6
             }}>
-              Add gifts from our 🇺🇸 American-Made Gift Marketplace to your greetings, supporting American makers while spreading joy.
+              Add gifts from our American Marketplace to your greetings, supporting American makers while spreading joy.
             </p>
           </div>
         </div>
@@ -348,7 +414,7 @@ export default function HeroProgram() {
                 fontSize: '0.875rem',
                 color: 'var(--text-secondary)',
                 fontWeight: 500
-              }}>Total Donated (15%)</div>
+              }}>Total Donated (10%)</div>
             </div>
             <div>
               <div style={{
@@ -495,7 +561,7 @@ export default function HeroProgram() {
         </div>
       </div>
 
-      {/* Hall of Fame Badge Section */}
+      {/* Hall of Fame vs Leaderboard Section */}
       <div style={{ marginBottom: '2rem' }}>
         <div style={{
           background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
@@ -519,30 +585,40 @@ export default function HeroProgram() {
             fontSize: '2rem',
             fontWeight: 700,
             marginBottom: '1rem'
-          }}>Hall of Fame Hero™</h2>
+          }}>Hall of Fame™</h2>
           <p style={{
             fontSize: '1.125rem',
             marginBottom: '1rem',
             opacity: 0.95,
             lineHeight: 1.6
           }}>
-            Awarded to the Top 25 sponsors (Individuals + Companies).
+            Permanent, invite-only recognition for corporate sponsors who achieve benchmark impact milestones.
           </p>
           <p style={{
             fontSize: '1rem',
             opacity: 0.9,
             marginBottom: '1.5rem'
           }}>
-            Ranking based on <strong>total gifted subscriptions sponsored</strong>, NOT dollars.
+            Hall of Fame status is <strong>permanent and badge-worthy</strong> — once earned, you keep it forever. This is separate from the dynamic leaderboard rankings.
           </p>
           <div style={{
             background: 'rgba(255, 255, 255, 0.2)',
             borderRadius: 'var(--radius-lg)',
             padding: '1rem',
             fontSize: '0.875rem',
+            lineHeight: 1.6,
+            marginBottom: '1rem'
+          }}>
+            <strong>Hall of Honor Leaderboard:</strong> Dynamic rankings updated in real-time based on total subscriptions distributed. Compete for recognition and visibility.
+          </div>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.15)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1rem',
+            fontSize: '0.875rem',
             lineHeight: 1.6
           }}>
-            <strong>Hall of Fame (Alumni):</strong> If you drop out of the Top 25, you become a Hall of Fame Alumni and retain your badge forever.
+            <strong>Hall of Fame:</strong> Benchmark-based permanent recognition. Invitation only. Badge displayed forever across your profile and marketing materials.
           </div>
         </div>
       </div>
@@ -685,6 +761,74 @@ export default function HeroProgram() {
               )}
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Greet One, Give One™ Prominent Section */}
+      <div style={{
+        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+        borderRadius: 'var(--radius-xl)',
+        padding: '3rem 2rem',
+        margin: '3rem 0 2rem',
+        textAlign: 'center',
+        color: 'white',
+        boxShadow: '0 10px 30px rgba(16, 185, 129, 0.3)'
+      }}>
+        <h2 style={{
+          fontSize: '2.5rem',
+          fontWeight: 800,
+          marginBottom: '1rem'
+        }}>
+          Greet One, Give One™
+        </h2>
+        <p style={{
+          fontSize: '1.25rem',
+          opacity: 0.95,
+          maxWidth: '700px',
+          margin: '0 auto 1.5rem',
+          lineHeight: 1.6
+        }}>
+          Every greeting helps support veterans and first responders.
+        </p>
+        <p style={{
+          fontSize: '1rem',
+          opacity: 0.9,
+          maxWidth: '650px',
+          margin: '0 auto',
+          lineHeight: 1.6
+        }}>
+          With every subscription, you get to make an impact.
+          Gift your extra subscription to a loved one, or donate it through
+          our <strong>Greet-Me Hero™</strong> program to ensure those who serve
+          and protect us stay connected to the ones they love.
+        </p>
+        <div style={{ marginTop: '2rem' }}>
+          <button
+            onClick={() => navigate('/pricing')}
+            style={{
+              padding: '1rem 2rem',
+              background: 'white',
+              color: '#10b981',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '1rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            }}
+          >
+            View Pricing & Get Started
+          </button>
         </div>
       </div>
     </div>

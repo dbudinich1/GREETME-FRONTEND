@@ -1,7 +1,7 @@
 // src/pages/SendGreeting.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, CheckCircle, XCircle, Loader, Edit3, Zap } from 'lucide-react';
+import { Send, CheckCircle, XCircle, Loader, Edit3, Zap, Gift, ArrowLeft, Camera } from 'lucide-react';
 import { occasionTypes } from '../utils/helpers';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
@@ -34,7 +34,10 @@ export default function SendGreeting() {
   const [formData, setFormData] = useState({
     contactId: '',
     occasionType: '',
+    customOccasion: '',
     customMessage: '',
+    isRecurring: false,
+    aiContext: '',
   });
   const [errors, setErrors] = useState({});
 
@@ -204,6 +207,22 @@ if (typeof window !== "undefined") {
             </button>
           </div>
         </div>
+
+        {/* QR Cash Microcopy */}
+        <div style={{
+          marginTop: '1.5rem',
+          padding: '1rem',
+          background: 'var(--gray-50)',
+          borderRadius: '0.5rem',
+          borderLeft: '4px solid #f59e0b',
+          fontSize: '0.875rem',
+          color: 'var(--text-secondary)'
+        }}>
+          <strong style={{ color: 'var(--text-primary)' }}>Add QR Cash — Send · Scan · Spend</strong>
+          <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>
+            It prints inside the card so the recipient can deposit it like cash.
+          </p>
+        </div>
       </div>
     );
   }
@@ -291,6 +310,35 @@ if (typeof window !== "undefined") {
   // Form State
   return (
     <div className="max-w-2xl mx-auto">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+        <button
+          onClick={() => navigate('/dashboard')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.5rem 1rem',
+            background: 'transparent',
+            border: '1px solid #000000',
+            borderRadius: '0.5rem',
+            color: '#000000',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            fontFamily: 'inherit'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#f3f4f6';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+          }}
+        >
+          <ArrowLeft size={16} />
+          Back
+        </button>
+      </div>
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Send a Greeting</h1>
       <p className="text-gray-600 mb-6">
         Create and send a personalized AI greeting to one of your contacts.
@@ -302,6 +350,28 @@ if (typeof window !== "undefined") {
           message="You don't have any contacts yet. Add contacts first to send greetings."
         />
       )}
+
+      {/* Top Action Buttons */}
+      <div className="flex justify-end space-x-3 mb-4">
+        <button
+          type="button"
+          onClick={() => alert('Draft saved!')}
+          className="px-6 py-2 text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+        >
+          Save Draft
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            document.querySelector('form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+          }}
+          disabled={contacts.length === 0 || sending}
+          className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+        >
+          {sending ? 'Sending...' : 'Done & Send'}
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         {errors.submit && <Alert type="error" message={errors.submit} />}
@@ -335,24 +405,70 @@ if (typeof window !== "undefined") {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Occasion <span className="text-red-500">*</span>
           </label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <select
+            name="occasionType"
+            value={formData.occasionType}
+            onChange={handleChange}
+            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.occasionType ? 'border-red-500' : 'border-gray-300'
+            }`}
+          >
+            <option value="">Choose an occasion...</option>
             {occasionTypes.map((occasion) => (
-              <button
-                key={occasion.value}
-                type="button"
-                onClick={() => setFormData(prev => ({ ...prev, occasionType: occasion.value }))}
-                className={`p-3 border-2 rounded-lg text-left transition ${
-                  formData.occasionType === occasion.value
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <span className="text-2xl block mb-1">{occasion.icon}</span>
-                <span className="text-sm font-medium text-gray-900">{occasion.label}</span>
-              </button>
+              <option key={occasion.value} value={occasion.value}>
+                {occasion.icon} {occasion.label}
+              </option>
             ))}
-          </div>
+            <option value="other">Other</option>
+          </select>
           {errors.occasionType && <p className="mt-1 text-sm text-red-500">{errors.occasionType}</p>}
+
+          {/* Other Occasion Field */}
+          {formData.occasionType === 'other' && (
+            <div className="mt-3">
+              <input
+                type="text"
+                name="customOccasion"
+                value={formData.customOccasion}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter custom occasion..."
+              />
+            </div>
+          )}
+
+          {/* Recurring Toggle */}
+          <div className="mt-3 flex items-center">
+            <input
+              type="checkbox"
+              id="isRecurring"
+              name="isRecurring"
+              checked={formData.isRecurring}
+              onChange={(e) => setFormData(prev => ({ ...prev, isRecurring: e.target.checked }))}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label htmlFor="isRecurring" className="ml-2 block text-sm text-gray-700">
+              Make this a recurring occasion (send annually)
+            </label>
+          </div>
+        </div>
+
+        {/* AI Context */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            AI Context (Optional)
+          </label>
+          <textarea
+            name="aiContext"
+            value={formData.aiContext}
+            onChange={handleChange}
+            rows="3"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Add context to help AI personalize your greeting (e.g., 'They just got promoted' or 'We met at a conference')..."
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Help AI generate a more personalized greeting
+          </p>
         </div>
 
         {/* Custom Message */}
@@ -373,6 +489,79 @@ if (typeof window !== "undefined") {
           </p>
         </div>
 
+        {/* Memory Album */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Memory Album (Optional)
+          </label>
+          <div className="grid grid-cols-2 gap-4">
+            {/* Default Photo Pane */}
+            <div className="border-2 border-gray-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-gray-900">Default Photo</h4>
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  ✓ Default
+                </span>
+              </div>
+              <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-gray-400">
+                <Camera size={48} />
+              </div>
+              <button
+                type="button"
+                className="w-full px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition"
+              >
+                Upload Photo
+              </button>
+              <button
+                type="button"
+                className="w-full mt-2 px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition"
+              >
+                Select from Media Library
+              </button>
+            </div>
+
+            {/* Memory Photos Pane */}
+            <div className="border-2 border-gray-200 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Memory Photos</h4>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                  <Camera size={32} />
+                </div>
+                <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                  <Camera size={32} />
+                </div>
+              </div>
+              <button
+                type="button"
+                className="w-full px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition"
+              >
+                Add Memory Photos
+              </button>
+              <p className="mt-2 text-xs text-gray-500">Upload multiple photos to create a memory album</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Add a Gift (Coming Soon) */}
+        <div className="mb-6">
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <Gift size={20} className="text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Add a Gift</h3>
+                  <p className="text-xs text-gray-600">Make it extra special with an American-made gift</p>
+                </div>
+              </div>
+              <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                Coming Soon
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Submit */}
         <div className="flex justify-between items-center">
           {/* Advanced Editor Toggle */}
@@ -390,19 +579,19 @@ if (typeof window !== "undefined") {
           <div className="flex space-x-3 ml-auto">
             <button
               type="button"
-              onClick={() => navigate('/dashboard')}
-              className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium"
+              onClick={() => alert('Draft saved!')}
+              className="px-6 py-2 text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
             >
-              Cancel
+              Save Draft
             </button>
             <button
               type="submit"
               disabled={contacts.length === 0 || sending}
               className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 flex items-center"
-              title="Quick send with simple message"
+              title="Send greeting"
             >
-              <Zap size={18} className="mr-2" />
-              {sending ? 'Sending...' : 'Quick Send'}
+              <Send size={18} className="mr-2" />
+              {sending ? 'Sending...' : 'Done & Send'}
             </button>
           </div>
         </div>

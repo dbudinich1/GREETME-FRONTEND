@@ -13,8 +13,8 @@ const personalPlans = {
       description: 'Perfect for immediate family',
       features: [
         'Up to 5 recipients',
-        'Greet One, Gift One™ included',
-        '🇺🇸 American-Made Gift Marketplace',
+        'Greet One, Give One™ included',
+        'American Marketplace',
         'Voice + Photo greetings',
         'Automated scheduled occasions',
         'Just Because greetings',
@@ -29,8 +29,8 @@ const personalPlans = {
       description: 'For friends and extended family',
       features: [
         'Up to 25 recipients',
-        'Greet One, Gift One™ included',
-        '🇺🇸 American-Made Gift Marketplace',
+        'Greet One, Give One™ included',
+        'American Marketplace',
         'Voice + Photo greetings',
         'Automated scheduled occasions',
         'Just Because greetings',
@@ -46,8 +46,8 @@ const personalPlans = {
       description: 'For the ultimate connector',
       features: [
         'Unlimited recipients',
-        'Greet One, Gift One™ included',
-        '🇺🇸 American-Made Gift Marketplace',
+        'Greet One, Give One™ included',
+        'American Marketplace',
         'Voice + Photo greetings',
         'Automated scheduled occasions',
         'Just Because greetings',
@@ -68,8 +68,8 @@ const personalPlans = {
       description: 'Perfect for immediate family',
       features: [
         'Up to 5 recipients',
-        'Greet One, Gift One™ included',
-        '🇺🇸 American-Made Gift Marketplace',
+        'Greet One, Give One™ included',
+        'American Marketplace',
         'Voice + Photo greetings',
         'Automated scheduled occasions',
         'Just Because greetings',
@@ -84,8 +84,8 @@ const personalPlans = {
       description: 'For friends and extended family',
       features: [
         'Up to 25 recipients',
-        'Greet One, Gift One™ included',
-        '🇺🇸 American-Made Gift Marketplace',
+        'Greet One, Give One™ included',
+        'American Marketplace',
         'Voice + Photo greetings',
         'Automated scheduled occasions',
         'Just Because greetings',
@@ -101,8 +101,8 @@ const personalPlans = {
       description: 'For the ultimate connector',
       features: [
         'Unlimited recipients',
-        'Greet One, Gift One™ included',
-        '🇺🇸 American-Made Gift Marketplace',
+        'Greet One, Give One™ included',
+        'American Marketplace',
         'Voice + Photo greetings',
         'Automated scheduled occasions',
         'Just Because greetings',
@@ -127,7 +127,7 @@ const businessPlans = [
       'Client gifting bundles',
       'Branding + templates',
       'Hero impact reporting (coming soon)',
-      '🇺🇸 American-Made Gift Marketplace',
+      'American Marketplace',
       'Bulk greeting sending',
       'Email support'
     ]
@@ -142,7 +142,7 @@ const businessPlans = [
       'Everything in Client Appreciation',
       'Advanced branding options',
       'Hero impact reporting (coming soon)',
-      '🇺🇸 American-Made Gift Marketplace',
+      'American Marketplace',
       'Analytics & reporting',
       'Priority support',
       'Team collaboration tools'
@@ -160,7 +160,7 @@ const businessPlans = [
       'White-label platform option',
       'Custom integrations',
       'Hero impact reporting (coming soon)',
-      '🇺🇸 American-Made Gift Marketplace',
+      'American Marketplace',
       'Dedicated account manager',
       'API access',
       'Custom SLA agreements'
@@ -168,38 +168,10 @@ const businessPlans = [
   }
 ];
 
-const faqs = [
-  {
-    question: 'What is Greet One, Gift One™?',
-    answer: 'Every subscription includes one additional subscription you can gift — or donate through Greet-Me Hero™.'
-  },
-  {
-    question: 'What is a Just Because greeting?',
-    answer: 'A manual greeting you send anytime, outside of scheduled occasions.'
-  },
-  {
-    question: 'Are gifts really American-made?',
-    answer: 'Yes — gifts are curated from our 🇺🇸 American-Made Gift Marketplace.'
-  },
-  {
-    question: 'Can I change plans at any time?',
-    answer: 'Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately, and we\'ll prorate any charges.'
-  },
-  {
-    question: 'What happens to my Founders Pricing?',
-    answer: 'Founders Pricing is locked in for life as long as you maintain an active subscription. If you cancel and return later, standard pricing applies.'
-  },
-  {
-    question: 'Do you offer refunds?',
-    answer: 'We offer a 30-day money-back guarantee on all paid plans. If you\'re not satisfied, contact us for a full refund.'
-  }
-];
-
 export default function Pricing() {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState('personal'); // 'personal' or 'business'
   const [pricingMode, setPricingMode] = useState('founders'); // 'founders' or 'standard' (for personal)
-  const [expandedFaq, setExpandedFaq] = useState(null);
 
   const handlePlanSelect = (planId) => {
     if (planId.includes('enterprise') || planId.includes('appreciation') || planId.includes('growth')) {
@@ -218,33 +190,72 @@ export default function Pricing() {
       {/* Header */}
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: '4rem 2rem',
-        textAlign: 'center'
+        padding: '2.5rem 2rem',
+        textAlign: 'center',
+        position: 'relative'
       }}>
+        {/* Back Button */}
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            position: 'absolute',
+            top: '1.5rem',
+            left: '2rem',
+            padding: '0.625rem 1.25rem',
+            background: 'rgba(255, 255, 255, 0.2)',
+            color: 'white',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: 'var(--radius-lg)',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+          }}
+        >
+          ← Back
+        </button>
+
         <h1 style={{
-          fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+          fontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
           fontWeight: 800,
           color: 'white',
-          marginBottom: '1rem'
+          marginBottom: '0.5rem'
         }}>
           Choose Your Plan
         </h1>
         <p style={{
-          fontSize: 'clamp(1rem, 2.5vw, 1.25rem)',
+          fontSize: 'clamp(0.9375rem, 1.5vw, 1.125rem)',
           color: 'rgba(255, 255, 255, 0.9)',
           maxWidth: '600px',
-          margin: '0 auto 2rem'
+          margin: '0 auto'
         }}>
           Never forget the ones you love. Start with Founders Pricing or explore business options.
         </p>
+      </div>
 
-        {/* View Mode Toggle */}
+      {/* View Mode Toggle - Separate section with breathing room */}
+      <div style={{
+        background: 'var(--bg-secondary)',
+        padding: '2rem 2rem 1rem',
+        display: 'flex',
+        justifyContent: 'center'
+      }}>
         <div style={{
           display: 'inline-flex',
-          background: 'rgba(255, 255, 255, 0.2)',
+          background: 'rgba(102, 126, 234, 0.1)',
           borderRadius: '9999px',
           padding: '0.25rem',
-          marginBottom: '1.5rem'
+          border: '1px solid rgba(102, 126, 234, 0.2)'
         }}>
           <button
             onClick={() => setViewMode('personal')}
@@ -252,7 +263,7 @@ export default function Pricing() {
               padding: '0.5rem 1.5rem',
               borderRadius: '9999px',
               background: viewMode === 'personal' ? 'white' : 'transparent',
-              color: viewMode === 'personal' ? '#667eea' : 'white',
+              color: viewMode === 'personal' ? '#667eea' : 'var(--text-secondary)',
               border: 'none',
               fontWeight: 600,
               cursor: 'pointer',
@@ -268,7 +279,7 @@ export default function Pricing() {
               padding: '0.5rem 1.5rem',
               borderRadius: '9999px',
               background: viewMode === 'business' ? 'white' : 'transparent',
-              color: viewMode === 'business' ? '#667eea' : 'white',
+              color: viewMode === 'business' ? '#667eea' : 'var(--text-secondary)',
               border: 'none',
               fontWeight: 600,
               cursor: 'pointer',
@@ -285,7 +296,7 @@ export default function Pricing() {
       {viewMode === 'personal' && (
         <div style={{
           maxWidth: '1200px',
-          margin: '-2rem auto 2rem',
+          margin: '0 auto 2rem',
           padding: '0 2rem'
         }}>
           <div style={{
@@ -359,8 +370,9 @@ export default function Pricing() {
       }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '2rem'
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '2rem',
+          alignItems: 'start'
         }}>
           {currentPlans.map((plan) => {
             return (
@@ -373,8 +385,10 @@ export default function Pricing() {
                   boxShadow: plan.highlight ? '0 20px 50px rgba(0, 0, 0, 0.15)' : 'var(--shadow-md)',
                   border: plan.highlight ? '2px solid var(--primary)' : '1px solid var(--border)',
                   position: 'relative',
-                  transform: plan.highlight ? 'scale(1.05)' : 'scale(1)',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: '100%'
                 }}
               >
                 {plan.highlight && (
@@ -393,6 +407,125 @@ export default function Pricing() {
                     MOST POPULAR
                   </div>
                 )}
+
+                {/* G1G1™ Gold Foil Seal - Top Right */}
+                <div style={{
+                  position: 'absolute',
+                  top: plan.highlight ? '1.5rem' : '1rem',
+                  right: '1rem',
+                  width: plan.highlight ? '40px' : '45px',
+                  height: plan.highlight ? '40px' : '45px',
+                  opacity: 0.9
+                }}>
+                  {/* Star-point notched edge layer */}
+                  {[...Array(16)].map((_, i) => {
+                    const angle = (i * 22.5) - 90;
+                    const radius = plan.highlight ? 20 : 22.5;
+                    const x = (plan.highlight ? 20 : 22.5) + radius * Math.cos(angle * Math.PI / 180);
+                    const y = (plan.highlight ? 20 : 22.5) + radius * Math.sin(angle * Math.PI / 180);
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          position: 'absolute',
+                          left: `${x}px`,
+                          top: `${y}px`,
+                          width: '3px',
+                          height: '3px',
+                          background: '#D4AF37',
+                          transform: 'translate(-50%, -50%) rotate(45deg)',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
+                          pointerEvents: 'none'
+                        }}
+                      />
+                    );
+                  })}
+
+                  {/* Main seal */}
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: plan.highlight ? '36px' : '40px',
+                    height: plan.highlight ? '36px' : '40px',
+                    borderRadius: '9999px',
+                    border: '1px solid #8B6914',
+                    background:
+                      'radial-gradient(circle at 35% 35%, rgba(255,245,220,1) 0%, rgba(255,240,200,0.8) 15%, transparent 40%),' +
+                      'radial-gradient(circle at 65% 65%, rgba(0,0,0,0.15) 0%, transparent 30%),' +
+                      'repeating-conic-gradient(from 0deg, #E8D7A3 0deg 9deg, #C9A961 9deg 18deg, #F5E6C8 18deg 27deg, #D4AF37 27deg 36deg)',
+                    boxShadow:
+                      '0 2px 6px rgba(0,0,0,0.12),' +
+                      '0 4px 12px rgba(139,105,20,0.15),' +
+                      'inset 0 1px 2px rgba(255,255,255,0.4),' +
+                      'inset 0 -1px 2px rgba(0,0,0,0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'column',
+                    padding: 0
+                  }}>
+                    {/* Faint G watermark */}
+                    <div style={{
+                      position: 'absolute',
+                      fontSize: plan.highlight ? '1.25rem' : '1.5rem',
+                      fontWeight: 900,
+                      color: 'rgba(139,105,20,0.12)',
+                      fontFamily: 'Georgia, serif',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      zIndex: 0
+                    }}>G</div>
+
+                    {/* Star decorations */}
+                    <span style={{
+                      position: 'absolute',
+                      top: '2px',
+                      fontSize: '5px',
+                      color: '#8B6914',
+                      opacity: 0.8,
+                      textShadow: '0 0 1px rgba(255,235,205,0.5)',
+                      pointerEvents: 'none',
+                      zIndex: 2
+                    }}>★</span>
+                    <span style={{
+                      position: 'absolute',
+                      bottom: '2px',
+                      fontSize: '5px',
+                      color: '#8B6914',
+                      opacity: 0.8,
+                      textShadow: '0 0 1px rgba(255,235,205,0.5)',
+                      pointerEvents: 'none',
+                      zIndex: 2
+                    }}>★</span>
+
+                    {/* Main content */}
+                    <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+                      <div style={{
+                        fontSize: plan.highlight ? '0.5rem' : '0.5625rem',
+                        fontWeight: 900,
+                        color: '#3D2F0F',
+                        letterSpacing: '0.3px',
+                        textShadow: '0 0.5px 1px rgba(255,255,255,0.5)',
+                        marginBottom: '0.5px'
+                      }}>G1G1™</div>
+                      <div style={{
+                        fontSize: plan.highlight ? '0.25rem' : '0.28rem',
+                        fontWeight: 800,
+                        color: '#4D3A12',
+                        textShadow: '0 0.5px 1px rgba(255,255,255,0.3)',
+                        lineHeight: 1.1
+                      }}>
+                        <div>Greet One</div>
+                        <div>Give One™</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Plan Name */}
                 <h3 style={{
@@ -416,7 +549,8 @@ export default function Pricing() {
                 {/* Price */}
                 <div style={{
                   marginBottom: '2rem',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
+                  textAlign: 'center'
                 }}>
                   {plan.price === 'Custom' ? (
                     <div>
@@ -465,7 +599,10 @@ export default function Pricing() {
                 {/* Features */}
                 <div style={{
                   borderTop: '1px solid var(--border)',
-                  paddingTop: '1.5rem'
+                  paddingTop: '1.5rem',
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column'
                 }}>
                   <p style={{
                     fontSize: '0.875rem',
@@ -478,7 +615,8 @@ export default function Pricing() {
                   <ul style={{
                     listStyle: 'none',
                     padding: 0,
-                    margin: 0
+                    margin: 0,
+                    flex: 1
                   }}>
                     {plan.features.map((feature, index) => (
                       <li
@@ -502,103 +640,6 @@ export default function Pricing() {
             );
           })}
         </div>
-      </div>
-
-      {/* FAQ Section */}
-      <div style={{
-        maxWidth: '800px',
-        margin: '0 auto 4rem',
-        padding: '0 2rem'
-      }}>
-        <h2 style={{
-          fontSize: '2rem',
-          fontWeight: 700,
-          textAlign: 'center',
-          marginBottom: '2rem',
-          color: 'var(--text-primary)'
-        }}>
-          Frequently Asked Questions
-        </h2>
-        <div style={{
-          background: 'white',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border)',
-          overflow: 'hidden'
-        }}>
-          {faqs.map((faq, index) => (
-            <div
-              key={index}
-              style={{
-                borderBottom: index < faqs.length - 1 ? '1px solid var(--border)' : 'none'
-              }}
-            >
-              <button
-                onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}
-                style={{
-                  width: '100%',
-                  padding: '1.5rem',
-                  background: 'transparent',
-                  border: 'none',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
-              >
-                <span style={{
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)'
-                }}>
-                  {faq.question}
-                </span>
-                <span style={{
-                  fontSize: '1.5rem',
-                  color: 'var(--text-tertiary)',
-                  transition: 'transform 0.2s ease',
-                  transform: expandedFaq === index ? 'rotate(45deg)' : 'rotate(0deg)'
-                }}>
-                  +
-                </span>
-              </button>
-              {expandedFaq === index && (
-                <div style={{
-                  padding: '0 1.5rem 1.5rem',
-                  fontSize: '0.875rem',
-                  color: 'var(--text-secondary)',
-                  lineHeight: 1.6
-                }}>
-                  {faq.answer}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Back to Home */}
-      <div style={{
-        textAlign: 'center',
-        padding: '2rem'
-      }}>
-        <button
-          onClick={() => navigate('/')}
-          style={{
-            padding: '0.75rem 1.5rem',
-            background: 'transparent',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-lg)',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontFamily: 'inherit'
-          }}
-        >
-          ← Back to Home
-        </button>
       </div>
     </div>
   );

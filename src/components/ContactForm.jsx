@@ -1199,7 +1199,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {[
                       { value: 'auto_curated', label: 'Let Greet-Me curate gifts within your budget automatically', desc: 'We\'ll select and send thoughtful gifts based on your budget and recipient preferences' },
-                      { value: 'qr_cash', label: 'Send QR Cash', desc: 'Quick and easy digital cash transfer via QR code' },
+                      { value: 'qr_cash', label: 'Add QR Cash — Send · Scan · Spend', desc: 'It prints inside the card so the recipient can deposit it like cash' },
                       { value: 'curated_suggestions', label: 'Select a gift from Greet-Me curated suggestions', desc: 'Choose from our personalized gift recommendations for this recipient' },
                       { value: 'marketplace', label: 'Select your own gift from our American-Made Marketplace', desc: 'Browse and choose from our full catalog of Made in America products' }
                     ].map(option => (

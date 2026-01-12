@@ -1,9 +1,12 @@
 // src/pages/DashboardHome.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square, CheckCircle } from 'lucide-react';
+import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square, CheckCircle, Copy, Image as ImageIcon, Smartphone, QrCode } from 'lucide-react';
 import api from "../api/api";
 import { getOccasionIcon } from '../utils/helpers';
+import OnboardingTour from '../components/OnboardingTour';
+import OnboardingCoach from '../components/OnboardingCoach';
+import QRCashGiftModal from '../components/QRCashGiftModal';
 
 export default function DashboardHome() {
   const navigate = useNavigate();
@@ -30,6 +33,7 @@ export default function DashboardHome() {
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [showQRCashModal, setShowQRCashModal] = useState(false);
 
   // --- Presence persistence (navigation-safe) ---
   const PRESENCE_KEY = 'gm_presence_v1';
@@ -367,6 +371,16 @@ export default function DashboardHome() {
 
   return (
     <div>
+      {/* First-time user onboarding tour */}
+      <OnboardingTour />
+
+      {/* Onboarding Coach - shows checklist for first-time users */}
+      <OnboardingCoach
+        voiceDone={voiceRecorded}
+        photoDone={photoUploaded}
+        recipientDone={contacts && contacts.length > 0}
+      />
+
       {/* Combined Navigation Header */}
       <div style={{
         display: 'flex',
@@ -443,33 +457,6 @@ export default function DashboardHome() {
           Add Recipient
         </button>
         <button
-          onClick={() => alert('Add Occasion - Integration coming soon')}
-          style={{
-            padding: '0.75rem 1.5rem',
-            background: 'white',
-            color: 'var(--text-primary)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-lg)',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            transition: 'all 0.2s',
-            fontFamily: 'inherit'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--gray-50)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'white';
-          }}
-        >
-          <Plus size={18} />
-          Add Occasion
-        </button>
-        <button
           onClick={() => navigate('/dashboard/send')}
           style={{
             padding: '0.75rem 1.5rem',
@@ -501,30 +488,244 @@ export default function DashboardHome() {
         </div>
       </div>
 
+      {/* Greet One, Give One™ Banner - Reduced prominence */}
+      <div style={{
+        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '1.25rem 1.5rem',
+        marginBottom: '2rem',
+        textAlign: 'center',
+        color: 'white',
+        boxShadow: '0 2px 8px rgba(16, 185, 129, 0.2)',
+        border: '1px solid rgba(255, 255, 255, 0.15)'
+      }}>
+        <h2 style={{
+          fontSize: '1.25rem',
+          fontWeight: 700,
+          marginBottom: '0.5rem'
+        }}>
+          Greet One, Give One™
+        </h2>
+        <p style={{
+          fontSize: '0.875rem',
+          opacity: 0.9,
+          maxWidth: '600px',
+          margin: '0 auto 1rem',
+          lineHeight: 1.5,
+          fontStyle: 'italic',
+          fontFamily: 'Georgia, "Times New Roman", serif'
+        }}>
+          As our gift to you, every Greet-Me subscription includes one for you — and one for a loved one.
+        </p>
+        <button
+          onClick={() => navigate('/dashboard/hero')}
+          style={{
+            padding: '0.5rem 1.25rem',
+            background: 'white',
+            color: '#10b981',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+            fontFamily: 'inherit'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-1px)';
+            e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+          }}
+        >
+          Learn More
+        </button>
+      </div>
+
+      {/* QR Cash Card */}
+      <div style={{
+        background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '1.25rem 1.5rem',
+        marginBottom: '2rem',
+        color: 'white',
+        boxShadow: '0 2px 8px rgba(251, 191, 36, 0.2)',
+        border: '1px solid rgba(255, 255, 255, 0.15)'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '0.5rem'
+        }}>
+          <div>
+            <h2 style={{
+              fontSize: '1.25rem',
+              fontWeight: 700,
+              margin: 0,
+              marginBottom: '0.25rem'
+            }}>
+              QR Cash™ — Send Cash by QR
+            </h2>
+            <p style={{
+              fontSize: '0.875rem',
+              opacity: 0.85,
+              margin: 0,
+              fontWeight: 500,
+              letterSpacing: '0.5px'
+            }}>
+              Send · Scan · Spend
+            </p>
+          </div>
+          <div style={{
+            textAlign: 'right'
+          }}>
+            <div style={{
+              fontSize: '0.75rem',
+              opacity: 0.8,
+              marginBottom: '0.125rem'
+            }}>Available balance</div>
+            <div style={{
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              opacity: 0.95
+            }}>
+              $0.00
+            </div>
+          </div>
+        </div>
+        <p style={{
+          fontSize: '0.875rem',
+          opacity: 0.95,
+          marginBottom: '1rem',
+          lineHeight: 1.5
+        }}>
+          Add real cash to any greeting you send.
+        </p>
+        <div style={{
+          display: 'flex',
+          gap: '0.75rem'
+        }}>
+          <button
+            onClick={() => setShowQRCashModal(true)}
+            style={{
+              flex: 1,
+              padding: '0.5rem 1rem',
+              background: 'white',
+              color: '#f59e0b',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              fontFamily: 'inherit'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+            }}
+          >
+            Send QR Cash
+          </button>
+          <button
+            onClick={() => alert('How it works - Integration coming soon')}
+            style={{
+              flex: 1,
+              padding: '0.5rem 1rem',
+              background: 'transparent',
+              color: 'white',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              fontFamily: 'inherit'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            How It Works
+          </button>
+        </div>
+      </div>
+
       {/* Two Column Layout */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: '380px 1fr',
         gap: '2rem',
-        marginBottom: '2rem'
+        marginBottom: '2rem',
+        alignItems: 'stretch'
       }}>
         {/* Left Column - Your Presence */}
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <div style={{
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
             padding: '1.5rem',
             border: '2px solid var(--border)',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+            flex: 1
           }}>
-            <h2 style={{
-              fontSize: '1.25rem',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
               marginBottom: '0.5rem',
               paddingBottom: '0.75rem',
               borderBottom: '2px solid var(--border)'
-            }}>Your Presence</h2>
+            }}>
+              <h2 style={{
+                fontSize: '1.25rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                margin: 0
+              }}>Your Presence</h2>
+              <button
+                onClick={() => navigate('/dashboard/media')}
+                style={{
+                  padding: '0.375rem 0.75rem',
+                  background: 'transparent',
+                  color: '#667eea',
+                  border: '1px solid #667eea',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.375rem',
+                  transition: 'all 0.2s',
+                  fontFamily: 'inherit'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#667eea';
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = '#667eea';
+                }}
+                title="Open Media Library"
+              >
+                <ImageIcon size={14} />
+                Media Library
+              </button>
+            </div>
             <p style={{
               fontSize: '0.875rem',
               color: 'var(--text-secondary)',
@@ -574,12 +775,16 @@ export default function DashboardHome() {
                 onChange={handleVoiceUpload}
                 style={{ display: 'none' }}
               />
-              <audio
-                ref={audioRef}
-                src={voiceFileUrl || ''}
-                onEnded={() => setIsPlayingVoice(false)}
-                style={{ display: 'none' }}
-              />
+              {voiceFileUrl && (
+                <audio
+                  ref={audioRef}
+                  src={voiceFileUrl}
+                  onEnded={() => setIsPlayingVoice(false)}
+                  style={{ display: 'none' }}
+                />
+              )}
+
+
               {isRecording && (
                 <div style={{
                   padding: '1rem',
@@ -604,14 +809,14 @@ export default function DashboardHome() {
                   </div>
                 </div>
               )}
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {/* Top row: Record and Play buttons side by side */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                 <button
                   type="button"
                   onClick={isRecording ? stopMicRecording : startMicRecording}
                   disabled={uploadingVoice}
                   style={{
                     flex: 1,
-                    minWidth: '120px',
                     padding: '0.625rem',
                     background: uploadingVoice ? 'var(--gray-200)' : isRecording ? '#dc2626' : '#ef4444',
                     color: 'white',
@@ -639,23 +844,22 @@ export default function DashboardHome() {
                   }}
                 >
                   {isRecording ? <Square size={16} /> : <Mic size={16} />}
-                  {isRecording ? 'Stop Recording' : 'Use Microphone'}
+                  {isRecording ? 'Stop' : 'Record'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => voiceInputRef.current?.click()}
-                  disabled={uploadingVoice || isRecording}
+                  onClick={handlePlayVoice}
+                  disabled={!voiceRecorded || !voiceFileUrl || isRecording}
                   style={{
                     flex: 1,
-                    minWidth: '120px',
                     padding: '0.625rem',
-                    background: (uploadingVoice || isRecording) ? 'var(--gray-200)' : '#667eea',
+                    background: (!voiceRecorded || isRecording) ? 'var(--gray-200)' : (isPlayingVoice ? '#10b981' : '#667eea'),
                     color: 'white',
                     border: 'none',
                     borderRadius: 'var(--radius-lg)',
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    cursor: (uploadingVoice || isRecording) ? 'not-allowed' : 'pointer',
+                    cursor: (!voiceRecorded || isRecording) ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s',
                     fontFamily: 'inherit',
                     display: 'flex',
@@ -664,52 +868,56 @@ export default function DashboardHome() {
                     gap: '0.5rem'
                   }}
                   onMouseEnter={(e) => {
-                    if (!uploadingVoice && !isRecording) e.currentTarget.style.background = '#5568d3';
+                    if (voiceRecorded && !isRecording) {
+                      e.currentTarget.style.background = isPlayingVoice ? '#059669' : '#5568d3';
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    if (!uploadingVoice && !isRecording) e.currentTarget.style.background = '#667eea';
+                    if (voiceRecorded && !isRecording) {
+                      e.currentTarget.style.background = isPlayingVoice ? '#10b981' : '#667eea';
+                    }
                   }}
                 >
-                  <Upload size={16} />
-                  {uploadingVoice ? 'Uploading...' : 'Upload File'}
+                  {isPlayingVoice ? <Pause size={16} /> : <Play size={16} />}
+                  Play
                 </button>
-                {voiceRecorded && voiceFileUrl && (
-                  <button
-                    type="button"
-                    onClick={handlePlayVoice}
-                    disabled={isRecording}
-                    style={{
-                      padding: '0.625rem 1rem',
-                      background: isRecording ? 'var(--gray-200)' : (isPlayingVoice ? '#10b981' : '#667eea'),
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 'var(--radius-lg)',
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      cursor: isRecording ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.2s',
-                      fontFamily: 'inherit',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.5rem'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isRecording) {
-                        e.currentTarget.style.background = isPlayingVoice ? '#059669' : '#5568d3';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isRecording) {
-                        e.currentTarget.style.background = isPlayingVoice ? '#10b981' : '#667eea';
-                      }
-                    }}
-                  >
-                    {isPlayingVoice ? <Pause size={16} /> : <Play size={16} />}
-                    {isPlayingVoice ? 'Pause' : 'Play'}
-                  </button>
-                )}
               </div>
+              {/* Bottom row: Save & Done button spanning full width */}
+              <button
+                type="button"
+                onClick={() => alert('Voice saved successfully!')}
+                disabled={!voiceRecorded || uploadingVoice}
+                style={{
+                  width: '100%',
+                  padding: '0.625rem',
+                  background: (!voiceRecorded || uploadingVoice) ? 'var(--gray-200)' : '#22c55e',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--radius-lg)',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: (!voiceRecorded || uploadingVoice) ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  fontFamily: 'inherit',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
+                }}
+                onMouseEnter={(e) => {
+                  if (voiceRecorded && !uploadingVoice) {
+                    e.currentTarget.style.background = '#16a34a';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (voiceRecorded && !uploadingVoice) {
+                    e.currentTarget.style.background = '#22c55e';
+                  }
+                }}
+              >
+                <CheckCircle size={16} />
+                Save & Done
+              </button>
             </div>
 
             {/* Photo Section */}
@@ -756,49 +964,120 @@ export default function DashboardHome() {
                 onChange={handlePhotoUpload}
                 style={{ display: 'none' }}
               />
-              <button
-                type="button"
-                onClick={() => photoInputRef.current?.click()}
-                disabled={uploadingPhoto}
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  background: uploadingPhoto ? 'var(--gray-200)' : '#667eea',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 'var(--radius-lg)',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: uploadingPhoto ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  fontFamily: 'inherit',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem'
-                }}
-                onMouseEnter={(e) => {
-                  if (!uploadingPhoto) e.currentTarget.style.background = '#5568d3';
-                }}
-                onMouseLeave={(e) => {
-                  if (!uploadingPhoto) e.currentTarget.style.background = '#667eea';
-                }}
-              >
-                <Upload size={16} />
-                {uploadingPhoto ? 'Uploading...' : photoUploaded ? 'Replace Photo' : 'Upload Photo'}
-              </button>
+              {/* Stacked photo buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  style={{
+                    width: '100%',
+                    padding: '0.625rem',
+                    background: uploadingPhoto ? 'var(--gray-200)' : '#667eea',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 'var(--radius-lg)',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: uploadingPhoto ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    fontFamily: 'inherit',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!uploadingPhoto) e.currentTarget.style.background = '#5568d3';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!uploadingPhoto) e.currentTarget.style.background = '#667eea';
+                  }}
+                >
+                  <Upload size={16} />
+                  {uploadingPhoto ? 'Uploading...' : 'Add Photo'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/dashboard/media')}
+                  style={{
+                    width: '100%',
+                    padding: '0.625rem',
+                    background: 'white',
+                    color: '#667eea',
+                    border: '1px solid #667eea',
+                    borderRadius: 'var(--radius-lg)',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    fontFamily: 'inherit',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#667eea';
+                    e.currentTarget.style.color = 'white';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'white';
+                    e.currentTarget.style.color = '#667eea';
+                  }}
+                >
+                  <ImageIcon size={16} />
+                  Select from Media Library
+                </button>
+                <button
+                  type="button"
+                  onClick={() => alert('Photo saved successfully!')}
+                  disabled={!photoUploaded || uploadingPhoto}
+                  style={{
+                    width: '100%',
+                    padding: '0.625rem',
+                    background: (!photoUploaded || uploadingPhoto) ? 'var(--gray-200)' : '#22c55e',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 'var(--radius-lg)',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: (!photoUploaded || uploadingPhoto) ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    fontFamily: 'inherit',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (photoUploaded && !uploadingPhoto) {
+                      e.currentTarget.style.background = '#16a34a';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (photoUploaded && !uploadingPhoto) {
+                      e.currentTarget.style.background = '#22c55e';
+                    }
+                  }}
+                >
+                  <CheckCircle size={16} />
+                  Save & Done
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Right Column - Recipients & Occasions */}
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <div style={{
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
             padding: '1.5rem',
             border: '2px solid var(--border)',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+            flex: 1
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '2px solid var(--border)' }}>
               <h2 style={{
@@ -806,51 +1085,28 @@ export default function DashboardHome() {
                 fontWeight: 700,
                 color: 'var(--text-primary)',
                 margin: 0
-              }}>Recipients & Occasions</h2>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  onClick={() => navigate('/dashboard/contacts')}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: '#667eea',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 'var(--radius-lg)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.2s',
-                    fontFamily: 'inherit'
-                  }}
-                >
-                  <Plus size={16} />
-                  Add Recipient
-                </button>
-                <button
-                  onClick={() => alert('Add Occasion')}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: 'white',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-lg)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.2s',
-                    fontFamily: 'inherit'
-                  }}
-                >
-                  <Plus size={16} />
-                  Add Occasion
-                </button>
-              </div>
+              }}>Recipients & Settings</h2>
+              <button
+                onClick={() => navigate('/dashboard/contacts')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--radius-lg)',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s',
+                  fontFamily: 'inherit'
+                }}
+              >
+                <Plus size={16} />
+                Add Recipient
+              </button>
             </div>
 
             {/* Search Bar */}
@@ -1011,6 +1267,38 @@ export default function DashboardHome() {
                 </div>
               )))}
             </div>
+
+            {/* Add Recipient button at bottom */}
+            <button
+              onClick={() => navigate('/dashboard/contacts')}
+              style={{
+                width: '100%',
+                marginTop: '1rem',
+                padding: '0.75rem 1rem',
+                background: '#667eea',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-lg)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#5568d3';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#667eea';
+              }}
+            >
+              <Plus size={16} />
+              Add Recipient
+            </button>
           </div>
         </div>
       </div>
@@ -1030,50 +1318,27 @@ export default function DashboardHome() {
             color: 'var(--text-primary)',
             margin: 0
           }}>Coming Up <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>(Next 30 Days)</span></h2>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              onClick={() => navigate('/dashboard/contacts')}
-              style={{
-                padding: '0.5rem 1rem',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit'
-              }}
-            >
-              <Plus size={16} />
-              Add Recipient
-            </button>
-            <button
-              onClick={() => alert('Add Occasion')}
-              style={{
-                padding: '0.5rem 1rem',
-                background: 'white',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit'
-              }}
-            >
-              <Plus size={16} />
-              Add Occasion
-            </button>
-          </div>
+          <button
+            onClick={() => navigate('/dashboard/contacts')}
+            style={{
+              padding: '0.5rem 1rem',
+              background: '#667eea',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.2s',
+              fontFamily: 'inherit'
+            }}
+          >
+            <Plus size={16} />
+            Add Recipient
+          </button>
         </div>
 
         {/* Table Header */}
@@ -1180,6 +1445,99 @@ export default function DashboardHome() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Mobile App QR Code - Subtle placement */}
+      <div style={{
+        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '1rem 1.5rem',
+        marginBottom: '2rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        border: '1px solid var(--border)',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{
+            width: '3rem',
+            height: '3rem',
+            borderRadius: 'var(--radius-md)',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+          }}>
+            <Smartphone size={20} style={{ color: 'white' }} />
+          </div>
+          <div>
+            <h3 style={{
+              fontSize: '0.9375rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.25rem'
+            }}>Download Greet-Me Mobile App</h3>
+            <p style={{
+              fontSize: '0.8125rem',
+              color: 'var(--text-secondary)',
+              margin: 0
+            }}>Send greetings on the go - scan QR code to download</p>
+          </div>
+        </div>
+        <div style={{
+          width: '5rem',
+          height: '5rem',
+          background: 'white',
+          borderRadius: 'var(--radius-md)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '2px solid var(--border)',
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          position: 'relative'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.05)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = 'none';
+        }}
+        title="Scan to download mobile app"
+        >
+          <QrCode size={40} style={{ color: '#667eea' }} />
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '0.5rem',
+            fontWeight: 700,
+            color: '#667eea',
+            pointerEvents: 'none'
+          }}>
+            <div style={{
+              width: '70%',
+              height: '70%',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(8, 1fr)',
+              gridTemplateRows: 'repeat(8, 1fr)',
+              gap: '1px'
+            }}>
+              {[...Array(64)].map((_, i) => (
+                <div key={i} style={{
+                  background: Math.random() > 0.5 ? '#667eea' : 'transparent',
+                  borderRadius: '1px'
+                }} />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1316,6 +1674,13 @@ export default function DashboardHome() {
           ))}
         </div>
       </div>
+
+      {/* QR Cash Gift Modal */}
+      <QRCashGiftModal
+        isOpen={showQRCashModal}
+        onClose={() => setShowQRCashModal(false)}
+      />
+
     </div>
   );
 }
