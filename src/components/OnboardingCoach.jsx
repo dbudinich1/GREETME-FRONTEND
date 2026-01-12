@@ -1,7 +1,7 @@
 // src/components/OnboardingCoach.jsx
 import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Copy, CheckCircle } from 'lucide-react';
-import confetti from 'canvas-confetti';
+
 
 const ONBOARDING_KEYS = {
   DISMISSED: 'greetme_onboarding_v1_dismissed',
@@ -31,11 +31,18 @@ export default function OnboardingCoach({ voiceDone, photoDone, recipientDone })
 
       if (!confettiFired) {
         // Fire confetti once
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
+        
+        localStorage.setItem(ONBOARDING_KEYS.CONFETTI_FIRED, "true");
+        
+        (async () => {
+          const confetti = (await import("canvas-confetti")).default;
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        })();
+
         localStorage.setItem(ONBOARDING_KEYS.CONFETTI_FIRED, 'true');
       }
 
