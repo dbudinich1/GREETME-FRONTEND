@@ -1,65 +1,106 @@
 // src/pages/HeroProgram.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, Heart, ChevronDown, ChevronUp, Gift } from 'lucide-react';
+import { Award, Heart, Gift, Building2, ShoppingCart, X, CreditCard, Check, Image, ArrowLeft } from 'lucide-react';
 
 export default function HeroProgram() {
   const navigate = useNavigate();
-  const [expandedFaq, setExpandedFaq] = useState(null);
+  const [showImageBankModal, setShowImageBankModal] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [checkoutStep, setCheckoutStep] = useState('select'); // 'select', 'payment', 'success'
+  const [paymentInfo, setPaymentInfo] = useState({
+    cardNumber: '',
+    expiry: '',
+    cvv: '',
+    name: ''
+  });
 
-  const toggleFaq = (index) => {
-    setExpandedFaq(expandedFaq === index ? null : index);
+  const imageBankPackages = [
+    { id: 1, images: 3, price: 5, perImage: '1.67', popular: false },
+    { id: 2, images: 5, price: 10, perImage: '2.00', popular: true },
+    { id: 3, images: 10, price: 15, perImage: '1.50', popular: false, bestValue: true }
+  ];
+
+  const handlePurchase = () => {
+    if (checkoutStep === 'select' && selectedPackage) {
+      setCheckoutStep('payment');
+    } else if (checkoutStep === 'payment') {
+      // Simulate payment processing
+      setCheckoutStep('success');
+    }
+  };
+
+  const resetModal = () => {
+    setShowImageBankModal(false);
+    setSelectedPackage(null);
+    setCheckoutStep('select');
+    setPaymentInfo({ cardNumber: '', expiry: '', cvv: '', name: '' });
   };
 
   // Mock leaderboard data - Top 5 for preview
   const topHeroes = [
-    { rank: 1, name: 'TechCorp Solutions', type: 'Company', totalGifted: 450, isHallOfFame: true },
-    { rank: 2, name: 'Sarah Johnson', type: 'Individual', totalGifted: 380, isHallOfFame: true },
-    { rank: 3, name: 'Blue Sky Enterprises', type: 'Company', totalGifted: 320, isHallOfFame: true },
-    { rank: 4, name: 'Michael Rodriguez', type: 'Individual', totalGifted: 275, isHallOfFame: true },
-    { rank: 5, name: 'GreenLeaf Industries', type: 'Company', totalGifted: 240, isHallOfFame: true }
-  ];
-
-  const faqItems = [
-    {
-      question: 'What is the Hero Program?',
-      answer: 'The Hero Program is our initiative where we give back — 10% of proceeds support veterans and first responders. Every subscription includes "Greet One, Give One™" allowing you to gift an additional subscription or donate it through the Hero Program.'
-    },
-    {
-      question: 'How does the 10% donation work?',
-      answer: '10% of our proceeds are automatically donated to support veterans or first responder organizations. You can choose which cause to support when you participate in the Hero Program.'
-    },
-    {
-      question: 'Who receives the donations?',
-      answer: 'Depending on your selection, donations go to verified veteran support organizations or first responder family assistance programs. We partner with established charities with proven track records.'
-    },
-    {
-      question: 'How does the Hall of Fame work?',
-      answer: 'The Hall of Fame recognizes the Top 25 sponsors (individuals and companies combined) based on total gifted subscriptions sponsored. Members receive a special Hall of Fame Hero™ badge. If you drop out of the Top 25, you become a Hall of Fame Alumni and retain your badge.'
-    }
+    { rank: 1, name: 'TechCorp Solutions', type: 'Company', totalGifted: 450, isHallOfHeroes: true },
+    { rank: 2, name: 'Sarah Johnson', type: 'Individual', totalGifted: 380, isHallOfHeroes: true },
+    { rank: 3, name: 'Blue Sky Enterprises', type: 'Company', totalGifted: 320, isHallOfHeroes: true },
+    { rank: 4, name: 'Michael Rodriguez', type: 'Individual', totalGifted: 275, isHallOfHeroes: true },
+    { rank: 5, name: 'GreenLeaf Industries', type: 'Company', totalGifted: 240, isHallOfHeroes: true }
   ];
 
   return (
     <div>
+      {/* Back Button */}
+      <div style={{ marginBottom: '1rem' }}>
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.5rem 1rem',
+            background: 'transparent',
+            color: 'var(--text-secondary)',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--gray-100)';
+            e.currentTarget.style.color = 'var(--text-primary)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = 'var(--text-secondary)';
+          }}
+        >
+          <ArrowLeft size={16} />
+          Back
+        </button>
+      </div>
+
       {/* Hero Header Card */}
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         borderRadius: 'var(--radius-xl)',
         padding: '3rem 2rem',
         marginBottom: '2rem',
-        color: 'white',
+        color: '#000000',
         position: 'relative',
         overflow: 'hidden'
       }}>
         <div style={{ position: 'relative', zIndex: 1, maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}>
           <div style={{
             display: 'inline-block',
-            background: 'rgba(255, 255, 255, 0.2)',
+            background: 'rgba(0, 0, 0, 0.1)',
             padding: '0.5rem 1rem',
             borderRadius: 'var(--radius-lg)',
             marginBottom: '1rem',
             fontSize: '0.875rem',
-            fontWeight: 600
+            fontWeight: 600,
+            color: '#000000'
           }}>
             🏅 10% donated
           </div>
@@ -68,41 +109,50 @@ export default function HeroProgram() {
             fontSize: '2.5rem',
             fontWeight: 700,
             marginBottom: '1rem',
-            textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            color: '#000000'
           }}>
             Greet-Me Hero™
           </h1>
 
           <p style={{
             fontSize: '1.25rem',
-            opacity: 0.95,
             marginBottom: '1rem',
-            lineHeight: 1.6
+            lineHeight: 1.6,
+            color: '#000000'
           }}>
-            Greet-Me Hero™ is our B2B program for companies who want to distribute Greet-Me subscriptions as customer value-adds, employee benefits, or white-label services.
+            Greet-Me Hero™ is our B2B program for companies who purchase bulk subscription bundles or use our white label services. Whether you're including subscriptions as an added value for your existing client base OR recognizing valued clients or employees, you get meaningful connections at scale.
+          </p>
+          <p style={{
+            fontSize: '1.125rem',
+            marginBottom: '1rem',
+            lineHeight: 1.6,
+            color: '#000000'
+          }}>
+            The Greet-Me Hero program gives <strong>10% of proceeds</strong> to veterans, law enforcement, and EMS causes. Now that's a gift worth giving!
           </p>
           <p style={{
             fontSize: '1rem',
-            opacity: 0.9,
             marginBottom: '2rem',
-            lineHeight: 1.6
+            lineHeight: 1.6,
+            color: '#000000'
           }}>
-            10% of qualifying corporate program proceeds support veterans and first responders. Scale your impact while building meaningful connections.
+            All participants automatically earn ranked placement in the <strong>Greet-Me Hall of Honor</strong>. Enterprise level participants earn a permanent place in the <strong>Greet-Me Hall of Heroes</strong> and will be ranked according to level of participation.
           </p>
 
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {/* Shop Merch Store - Yellow */}
             <button
               onClick={() => navigate('/dashboard/merch')}
               style={{
                 padding: '0.875rem 2rem',
-                background: 'white',
-                color: '#667eea',
+                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                color: '#000000',
                 border: 'none',
                 borderRadius: 'var(--radius-lg)',
                 fontSize: '1rem',
                 fontWeight: 600,
                 cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                boxShadow: '0 4px 12px rgba(251, 191, 36, 0.4)',
                 transition: 'all 0.2s',
                 fontFamily: 'inherit',
                 display: 'flex',
@@ -111,131 +161,71 @@ export default function HeroProgram() {
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(251, 191, 36, 0.5)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
               }}
             >
               <Gift size={20} />
-              Shop Merch Store
+              Visit Gift Shop
             </button>
+            {/* View Hall of Heroes - Yellow */}
             <button
               onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
               style={{
                 padding: '0.875rem 2rem',
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                border: '2px solid white',
+                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                color: '#000000',
+                border: 'none',
                 borderRadius: 'var(--radius-lg)',
                 fontSize: '1rem',
                 fontWeight: 600,
                 cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(251, 191, 36, 0.4)',
                 transition: 'all 0.2s',
                 fontFamily: 'inherit'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
                 e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(251, 191, 36, 0.5)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
                 e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
               }}
             >
-              View Hall of Honor
+              View Hall of Heroes
             </button>
+            {/* Be a Hero - Yellow */}
             <button
               onClick={() => alert('Become a Hero Sponsor form - Integration coming soon')}
               style={{
                 padding: '0.875rem 2rem',
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                border: '2px solid white',
+                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                color: '#000000',
+                border: 'none',
                 borderRadius: 'var(--radius-lg)',
                 fontSize: '1rem',
                 fontWeight: 600,
                 cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(251, 191, 36, 0.4)',
                 transition: 'all 0.2s',
                 fontFamily: 'inherit'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(251, 191, 36, 0.5)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
               }}
             >
-              Become a Hero Sponsor
+              Be a Hero
             </button>
           </div>
-        </div>
-      </div>
-
-      {/* Corporate Focus Section */}
-      <div style={{
-        background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
-        borderRadius: 'var(--radius-xl)',
-        padding: '3rem 2rem',
-        margin: '0 0 2rem',
-        textAlign: 'center',
-        color: 'white',
-        boxShadow: '0 10px 30px rgba(30, 58, 138, 0.3)'
-      }}>
-        <h2 style={{
-          fontSize: '2.5rem',
-          fontWeight: 800,
-          marginBottom: '1rem'
-        }}>
-          Built for Business Scale
-        </h2>
-        <p style={{
-          fontSize: '1.25rem',
-          opacity: 0.95,
-          maxWidth: '700px',
-          margin: '0 auto 1.5rem',
-          lineHeight: 1.6
-        }}>
-          Corporate subscription bundles, white-label services, and customer value distribution.
-        </p>
-        <p style={{
-          fontSize: '1rem',
-          opacity: 0.9,
-          maxWidth: '650px',
-          margin: '0 auto',
-          lineHeight: 1.6
-        }}>
-          Whether you're rewarding customers, engaging employees, or offering Greet-Me as part of your platform —
-          Hero™ gives you the infrastructure to deliver meaningful connections at scale.
-        </p>
-        <div style={{ marginTop: '2rem' }}>
-          <button
-            onClick={() => navigate('/pricing')}
-            style={{
-              padding: '1rem 2rem',
-              background: 'white',
-              color: '#1e3a8a',
-              border: 'none',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '1rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-            }}
-          >
-            View Business Pricing
-          </button>
         </div>
       </div>
 
@@ -254,7 +244,71 @@ export default function HeroProgram() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '1.5rem'
         }}>
-          {/* Card 1: Greet One, Give One */}
+          {/* Card 1: Corporate Bundles / Image Bank - Clickable */}
+          <div
+            onClick={() => setShowImageBankModal(true)}
+            style={{
+              background: 'var(--bg-primary)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '2rem',
+              border: '2px solid var(--border)',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+              textAlign: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#667eea';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.2)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border)';
+              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              fontSize: '1.5rem'
+            }}>
+              <Building2 size={28} style={{ color: 'white' }} />
+            </div>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem'
+            }}>Image Bank</h3>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6
+            }}>
+              Purchase image credits to send premium greeting cards. Click to view packages and pricing.
+            </p>
+            <div style={{
+              marginTop: '1rem',
+              padding: '0.5rem 1rem',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              display: 'inline-block'
+            }}>
+              Buy Credits →
+            </div>
+          </div>
+
+          {/* Card 2: Branded Merch */}
           <div style={{
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
@@ -272,59 +326,22 @@ export default function HeroProgram() {
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 1rem',
-              fontSize: '1.5rem'
+              fontSize: '1.75rem'
             }}>
-              <Gift size={28} style={{ color: 'white' }} />
+              <ShoppingCart size={28} style={{ color: 'white' }} />
             </div>
             <h3 style={{
               fontSize: '1.25rem',
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.5rem'
-            }}>Corporate Bundles</h3>
+            }}>Branded Merchandise</h3>
             <p style={{
               fontSize: '0.875rem',
               color: 'var(--text-secondary)',
               lineHeight: 1.6
             }}>
-              Purchase subscription bundles to gift to customers, employees, or partners. White-label options available for enterprise clients.
-            </p>
-          </div>
-
-          {/* Card 2: Hero Impact */}
-          <div style={{
-            background: 'var(--bg-primary)',
-            borderRadius: 'var(--radius-xl)',
-            padding: '2rem',
-            border: '1px solid var(--border)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              width: '4rem',
-              height: '4rem',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 1rem',
-              fontSize: '1.5rem'
-            }}>
-              <Heart size={28} style={{ color: 'white' }} />
-            </div>
-            <h3 style={{
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              marginBottom: '0.5rem'
-            }}>Recognition & Impact</h3>
-            <p style={{
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)',
-              lineHeight: 1.6
-            }}>
-              10% of qualifying corporate program proceeds support veterans and first responders. Track your impact with leaderboard rankings and earn permanent Hall of Fame recognition.
+              Custom apparel, drinkware, and accessories with your branding. Build your brand while showing appreciation.
             </p>
           </div>
 
@@ -362,6 +379,43 @@ export default function HeroProgram() {
               lineHeight: 1.6
             }}>
               Add gifts from our American Marketplace to your greetings, supporting American makers while spreading joy.
+            </p>
+          </div>
+
+          {/* Card 4: Recognition & Impact */}
+          <div style={{
+            background: 'var(--bg-primary)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '2rem',
+            border: '1px solid var(--border)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              fontSize: '1.5rem'
+            }}>
+              <Heart size={28} style={{ color: 'white' }} />
+            </div>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem'
+            }}>Recognition & Impact</h3>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6
+            }}>
+              10% of qualifying corporate program proceeds support veterans and first responders. Track your impact with leaderboard rankings and earn permanent Hall of Heroes recognition.
             </p>
           </div>
         </div>
@@ -497,7 +551,7 @@ export default function HeroProgram() {
                   gap: '0.5rem'
                 }}>
                   {hero.name}
-                  {hero.isHallOfFame && (
+                  {hero.isHallOfHeroes && (
                     <span style={{
                       fontSize: '0.75rem',
                       background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
@@ -506,7 +560,7 @@ export default function HeroProgram() {
                       borderRadius: 'var(--radius-md)',
                       fontWeight: 600
                     }}>
-                      🏆 Hall of Fame
+                      🏆 Hall of Heroes
                     </span>
                   )}
                 </div>
@@ -545,15 +599,24 @@ export default function HeroProgram() {
             onClick={() => alert('Full leaderboard - Integration coming soon')}
             style={{
               padding: '0.75rem 1.5rem',
-              background: '#667eea',
-              color: 'white',
+              background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+              color: '#000000',
               border: 'none',
               borderRadius: 'var(--radius-lg)',
               fontSize: '0.875rem',
               fontWeight: 600,
               cursor: 'pointer',
               fontFamily: 'inherit',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              boxShadow: '0 4px 12px rgba(251, 191, 36, 0.4)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 16px rgba(251, 191, 36, 0.5)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
             }}
           >
             View Full Hall of Honor →
@@ -561,13 +624,13 @@ export default function HeroProgram() {
         </div>
       </div>
 
-      {/* Hall of Fame vs Leaderboard Section */}
+      {/* Hall of Heroes vs Leaderboard Section */}
       <div style={{ marginBottom: '2rem' }}>
         <div style={{
           background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
           borderRadius: 'var(--radius-xl)',
           padding: '2rem',
-          color: 'white',
+          color: '#000000',
           textAlign: 'center'
         }}>
           <div style={{
@@ -584,253 +647,538 @@ export default function HeroProgram() {
           <h2 style={{
             fontSize: '2rem',
             fontWeight: 700,
-            marginBottom: '1rem'
-          }}>Hall of Fame™</h2>
+            marginBottom: '1rem',
+            color: '#000000'
+          }}>Hall of Heroes™</h2>
           <p style={{
             fontSize: '1.125rem',
             marginBottom: '1rem',
-            opacity: 0.95,
-            lineHeight: 1.6
+            lineHeight: 1.6,
+            color: '#000000'
           }}>
             Permanent, invite-only recognition for corporate sponsors who achieve benchmark impact milestones.
           </p>
           <p style={{
             fontSize: '1rem',
-            opacity: 0.9,
-            marginBottom: '1.5rem'
+            marginBottom: '1.5rem',
+            color: '#000000'
           }}>
-            Hall of Fame status is <strong>permanent and badge-worthy</strong> — once earned, you keep it forever. This is separate from the dynamic leaderboard rankings.
+            Hall of Heroes status is <strong>permanent and badge-worthy</strong> — once earned, you keep it forever. This is separate from the dynamic leaderboard rankings.
           </p>
           <div style={{
-            background: 'rgba(255, 255, 255, 0.2)',
+            background: 'rgba(0, 0, 0, 0.1)',
             borderRadius: 'var(--radius-lg)',
             padding: '1rem',
             fontSize: '0.875rem',
             lineHeight: 1.6,
-            marginBottom: '1rem'
+            marginBottom: '1rem',
+            color: '#000000'
           }}>
             <strong>Hall of Honor Leaderboard:</strong> Dynamic rankings updated in real-time based on total subscriptions distributed. Compete for recognition and visibility.
           </div>
           <div style={{
-            background: 'rgba(255, 255, 255, 0.15)',
+            background: 'rgba(0, 0, 0, 0.08)',
             borderRadius: 'var(--radius-lg)',
             padding: '1rem',
             fontSize: '0.875rem',
-            lineHeight: 1.6
+            lineHeight: 1.6,
+            color: '#000000'
           }}>
-            <strong>Hall of Fame:</strong> Benchmark-based permanent recognition. Invitation only. Badge displayed forever across your profile and marketing materials.
+            <strong>Hall of Heroes:</strong> Benchmark-based permanent recognition. Invitation only. Badge displayed forever across your profile and marketing materials.
           </div>
         </div>
       </div>
 
-      {/* Corporate Callout */}
-      <div style={{ marginBottom: '2rem' }}>
-        <div style={{
-          background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
-          borderRadius: 'var(--radius-xl)',
-          padding: '2rem',
-          color: 'white',
-          display: 'grid',
-          gridTemplateColumns: '1fr auto',
-          gap: '2rem',
-          alignItems: 'center'
-        }}>
-          <div>
-            <h2 style={{
-              fontSize: '1.75rem',
-              fontWeight: 700,
-              marginBottom: '0.75rem'
-            }}>
-              Corporate Hero Sponsorship
-            </h2>
-            <p style={{
-              fontSize: '1.125rem',
-              opacity: 0.95,
-              marginBottom: '1.5rem',
-              lineHeight: 1.6
-            }}>
-              Amplify your impact and climb the Hall of Honor by sponsoring gifted subscriptions for clients, employees, or charitable causes.
-            </p>
-            <button
-              onClick={() => navigate('/pricing')}
-              style={{
-                padding: '0.875rem 2rem',
-                background: 'white',
-                color: '#1e3a8a',
-                border: 'none',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '1rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-              }}
-            >
-              View Business Pricing →
-            </button>
-          </div>
+      {/* Image Bank Modal */}
+      {showImageBankModal && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={resetModal}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 999,
+              backdropFilter: 'blur(4px)'
+            }}
+          />
+
+          {/* Modal */}
           <div style={{
-            width: '6rem',
-            height: '6rem',
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
             background: 'white',
-            borderRadius: 'var(--radius-lg)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '3rem'
+            borderRadius: 'var(--radius-xl)',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+            zIndex: 1000,
+            width: '90%',
+            maxWidth: '600px',
+            maxHeight: '90vh',
+            overflow: 'auto'
           }}>
-            🏢
-          </div>
-        </div>
-      </div>
-
-      {/* FAQ Section */}
-      <div>
-        <h2 style={{
-          fontSize: '1.75rem',
-          fontWeight: 700,
-          color: 'var(--text-primary)',
-          marginBottom: '1.5rem',
-          textAlign: 'center'
-        }}>Frequently Asked Questions</h2>
-
-        <div style={{
-          maxWidth: '800px',
-          margin: '0 auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1rem'
-        }}>
-          {faqItems.map((item, index) => (
-            <div
-              key={index}
-              style={{
-                background: 'var(--bg-primary)',
-                borderRadius: 'var(--radius-xl)',
-                border: '1px solid var(--border)',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-                overflow: 'hidden'
-              }}
-            >
+            {/* Header */}
+            <div style={{
+              padding: '1.5rem',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderTopLeftRadius: 'var(--radius-xl)',
+              borderTopRightRadius: 'var(--radius-xl)',
+              color: 'white'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Image size={24} />
+                <div>
+                  <h2 style={{
+                    fontSize: '1.5rem',
+                    fontWeight: 700,
+                    margin: 0
+                  }}>
+                    {checkoutStep === 'success' ? 'Purchase Complete!' : 'Image Bank'}
+                  </h2>
+                  <p style={{
+                    fontSize: '0.875rem',
+                    opacity: 0.9,
+                    margin: 0
+                  }}>
+                    {checkoutStep === 'select' && 'Buy image credits for greeting cards'}
+                    {checkoutStep === 'payment' && 'Complete your purchase'}
+                    {checkoutStep === 'success' && 'Your credits have been added'}
+                  </p>
+                </div>
+              </div>
               <button
-                onClick={() => toggleFaq(index)}
+                onClick={resetModal}
                 style={{
-                  width: '100%',
-                  padding: '1.5rem',
-                  background: 'transparent',
-                  border: 'none',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '50%',
+                  width: '2.5rem',
+                  height: '2.5rem',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
+                  justifyContent: 'center',
                   cursor: 'pointer',
-                  textAlign: 'left',
-                  fontFamily: 'inherit'
+                  transition: 'all 0.2s',
+                  color: 'white'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
                 }}
               >
-                <h3 style={{
-                  fontSize: '1.125rem',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  margin: 0
-                }}>{item.question}</h3>
-                {expandedFaq === index ? (
-                  <ChevronUp size={20} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-                ) : (
-                  <ChevronDown size={20} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-                )}
+                <X size={20} />
               </button>
+            </div>
 
-              {expandedFaq === index && (
-                <div style={{
-                  padding: '0 1.5rem 1.5rem 1.5rem',
-                  fontSize: '0.875rem',
-                  color: 'var(--text-secondary)',
-                  lineHeight: 1.6
-                }}>
-                  {item.answer}
+            {/* Content */}
+            <div style={{ padding: '1.5rem' }}>
+              {/* Step 1: Select Package */}
+              {checkoutStep === 'select' && (
+                <>
+                  <p style={{
+                    textAlign: 'center',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '1.5rem',
+                    fontSize: '0.9375rem'
+                  }}>
+                    Choose a package to add image credits to your account
+                  </p>
+
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1rem'
+                  }}>
+                    {imageBankPackages.map((pkg) => (
+                      <div
+                        key={pkg.id}
+                        onClick={() => setSelectedPackage(pkg)}
+                        style={{
+                          padding: '1.25rem',
+                          border: selectedPackage?.id === pkg.id ? '2px solid #667eea' : '2px solid var(--border)',
+                          borderRadius: 'var(--radius-lg)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          background: selectedPackage?.id === pkg.id ? 'rgba(102, 126, 234, 0.05)' : 'white',
+                          position: 'relative'
+                        }}
+                      >
+                        {pkg.popular && (
+                          <span style={{
+                            position: 'absolute',
+                            top: '-0.5rem',
+                            right: '1rem',
+                            background: '#f59e0b',
+                            color: 'white',
+                            fontSize: '0.6875rem',
+                            fontWeight: 600,
+                            padding: '0.25rem 0.75rem',
+                            borderRadius: 'var(--radius-md)'
+                          }}>
+                            POPULAR
+                          </span>
+                        )}
+                        {pkg.bestValue && (
+                          <span style={{
+                            position: 'absolute',
+                            top: '-0.5rem',
+                            right: '1rem',
+                            background: '#22c55e',
+                            color: 'white',
+                            fontSize: '0.6875rem',
+                            fontWeight: 600,
+                            padding: '0.25rem 0.75rem',
+                            borderRadius: 'var(--radius-md)'
+                          }}>
+                            BEST VALUE
+                          </span>
+                        )}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div style={{
+                              width: '3rem',
+                              height: '3rem',
+                              borderRadius: '50%',
+                              background: selectedPackage?.id === pkg.id
+                                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                : 'var(--gray-100)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s'
+                            }}>
+                              <Image size={20} style={{
+                                color: selectedPackage?.id === pkg.id ? 'white' : 'var(--text-secondary)'
+                              }} />
+                            </div>
+                            <div>
+                              <div style={{
+                                fontSize: '1.125rem',
+                                fontWeight: 600,
+                                color: 'var(--text-primary)'
+                              }}>
+                                {pkg.images} Images
+                              </div>
+                              <div style={{
+                                fontSize: '0.8125rem',
+                                color: 'var(--text-secondary)'
+                              }}>
+                                ${pkg.perImage} per image
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{
+                            fontSize: '1.5rem',
+                            fontWeight: 700,
+                            color: selectedPackage?.id === pkg.id ? '#667eea' : 'var(--text-primary)'
+                          }}>
+                            ${pkg.price}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={handlePurchase}
+                    disabled={!selectedPackage}
+                    style={{
+                      width: '100%',
+                      marginTop: '1.5rem',
+                      padding: '1rem',
+                      background: selectedPackage
+                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                        : 'var(--gray-200)',
+                      color: selectedPackage ? 'white' : 'var(--text-secondary)',
+                      border: 'none',
+                      borderRadius: 'var(--radius-lg)',
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      cursor: selectedPackage ? 'pointer' : 'not-allowed',
+                      transition: 'all 0.2s',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    Continue to Payment →
+                  </button>
+                </>
+              )}
+
+              {/* Step 2: Payment */}
+              {checkoutStep === 'payment' && selectedPackage && (
+                <>
+                  {/* Order Summary */}
+                  <div style={{
+                    background: 'var(--gray-50)',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '1rem',
+                    marginBottom: '1.5rem'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '0.5rem'
+                    }}>
+                      <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                        {selectedPackage.images} Image Credits
+                      </span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        ${selectedPackage.price}.00
+                      </span>
+                    </div>
+                    <div style={{
+                      fontSize: '0.8125rem',
+                      color: 'var(--text-secondary)'
+                    }}>
+                      Use for premium greeting card images
+                    </div>
+                  </div>
+
+                  {/* Payment Form */}
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.5rem'
+                    }}>
+                      <CreditCard size={14} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'middle' }} />
+                      Card Number
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="1234 5678 9012 3456"
+                      value={paymentInfo.cardNumber}
+                      onChange={(e) => setPaymentInfo({ ...paymentInfo, cardNumber: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.875rem',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        marginBottom: '0.5rem'
+                      }}>
+                        Expiry Date
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="MM/YY"
+                        value={paymentInfo.expiry}
+                        onChange={(e) => setPaymentInfo({ ...paymentInfo, expiry: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem',
+                          border: '1px solid var(--border)',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '0.875rem',
+                          fontFamily: 'inherit'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        marginBottom: '0.5rem'
+                      }}>
+                        CVV
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="123"
+                        value={paymentInfo.cvv}
+                        onChange={(e) => setPaymentInfo({ ...paymentInfo, cvv: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem',
+                          border: '1px solid var(--border)',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '0.875rem',
+                          fontFamily: 'inherit'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.5rem'
+                    }}>
+                      Name on Card
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="John Doe"
+                      value={paymentInfo.name}
+                      onChange={(e) => setPaymentInfo({ ...paymentInfo, name: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.875rem',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '1rem' }}>
+                    <button
+                      onClick={() => setCheckoutStep('select')}
+                      style={{
+                        flex: 1,
+                        padding: '1rem',
+                        background: 'white',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-lg)',
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit'
+                      }}
+                    >
+                      ← Back
+                    </button>
+                    <button
+                      onClick={handlePurchase}
+                      style={{
+                        flex: 2,
+                        padding: '1rem',
+                        background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 'var(--radius-lg)',
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <CreditCard size={18} />
+                      Pay ${selectedPackage.price}.00
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 3: Success */}
+              {checkoutStep === 'success' && selectedPackage && (
+                <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+                  <div style={{
+                    width: '5rem',
+                    height: '5rem',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 1.5rem'
+                  }}>
+                    <Check size={40} style={{ color: 'white' }} />
+                  </div>
+                  <h3 style={{
+                    fontSize: '1.5rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    marginBottom: '0.75rem'
+                  }}>
+                    Thank You!
+                  </h3>
+                  <p style={{
+                    fontSize: '1rem',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '1.5rem',
+                    lineHeight: 1.6
+                  }}>
+                    <strong>{selectedPackage.images} image credits</strong> have been added to your account.<br />
+                    You can now use them when creating greeting cards.
+                  </p>
+                  <div style={{
+                    background: 'var(--gray-50)',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '1rem',
+                    marginBottom: '1.5rem'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '0.5rem'
+                    }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Order Total:</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>${selectedPackage.price}.00</span>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between'
+                    }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Credits Added:</span>
+                      <span style={{ fontWeight: 600, color: '#22c55e' }}>{selectedPackage.images} Images</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={resetModal}
+                    style={{
+                      width: '100%',
+                      padding: '1rem',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 'var(--radius-lg)',
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    Done
+                  </button>
                 </div>
               )}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        </>
+      )}
 
-      {/* Greet One, Give One™ Prominent Section */}
-      <div style={{
-        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-        borderRadius: 'var(--radius-xl)',
-        padding: '3rem 2rem',
-        margin: '3rem 0 2rem',
-        textAlign: 'center',
-        color: 'white',
-        boxShadow: '0 10px 30px rgba(16, 185, 129, 0.3)'
-      }}>
-        <h2 style={{
-          fontSize: '2.5rem',
-          fontWeight: 800,
-          marginBottom: '1rem'
-        }}>
-          Greet One, Give One™
-        </h2>
-        <p style={{
-          fontSize: '1.25rem',
-          opacity: 0.95,
-          maxWidth: '700px',
-          margin: '0 auto 1.5rem',
-          lineHeight: 1.6
-        }}>
-          Every greeting helps support veterans and first responders.
-        </p>
-        <p style={{
-          fontSize: '1rem',
-          opacity: 0.9,
-          maxWidth: '650px',
-          margin: '0 auto',
-          lineHeight: 1.6
-        }}>
-          With every subscription, you get to make an impact.
-          Gift your extra subscription to a loved one, or donate it through
-          our <strong>Greet-Me Hero™</strong> program to ensure those who serve
-          and protect us stay connected to the ones they love.
-        </p>
-        <div style={{ marginTop: '2rem' }}>
-          <button
-            onClick={() => navigate('/pricing')}
-            style={{
-              padding: '1rem 2rem',
-              background: 'white',
-              color: '#10b981',
-              border: 'none',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '1rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-            }}
-          >
-            View Pricing & Get Started
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

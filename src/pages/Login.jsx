@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Mail, Lock, Sparkles } from "lucide-react";
+import { Mail, Lock, QrCode, Smartphone } from "lucide-react";
+import GreetMeLogo from "../components/GreetMeLogo";
 
 export const Login = () => {
   const [email, setEmail] = useState("");
@@ -43,24 +44,7 @@ export const Login = () => {
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{
-            width: '2.5rem',
-            height: '2.5rem',
-            background: 'white',
-            borderRadius: 'var(--radius-lg)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <Sparkles style={{ color: '#667eea' }} size={20} />
-          </div>
-          <span style={{
-            fontSize: '1.5rem',
-            fontWeight: 700,
-            color: 'white'
-          }}>Greet-Me</span>
-        </div>
+        <GreetMeLogo size="medium" clickable={false} />
 
         <div style={{ display: 'flex', gap: '1rem' }}>
           <Link
@@ -353,6 +337,71 @@ export const Login = () => {
                 Sign up for free
               </Link>
             </p>
+          </div>
+
+          {/* Mobile App Download QR Code */}
+          <div style={{
+            marginTop: '1.5rem',
+            paddingTop: '1.5rem',
+            borderTop: '1px solid var(--border)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.75rem'
+            }}>
+              <Smartphone size={18} style={{ color: '#667eea' }} />
+              <span style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)'
+              }}>Get the Mobile App</span>
+            </div>
+            <p style={{
+              fontSize: '0.75rem',
+              color: 'var(--text-secondary)',
+              marginBottom: '0.75rem'
+            }}>
+              Scan to download and send greetings on the go
+            </p>
+            <div style={{
+              display: 'inline-flex',
+              padding: '0.75rem',
+              background: 'white',
+              borderRadius: 'var(--radius-lg)',
+              border: '2px solid var(--border)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+            }}>
+              <div style={{
+                width: '80px',
+                height: '80px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative'
+              }}>
+                <QrCode size={64} style={{ color: '#667eea' }} />
+                <div style={{
+                  position: 'absolute',
+                  inset: '8px',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(8, 1fr)',
+                  gridTemplateRows: 'repeat(8, 1fr)',
+                  gap: '1px',
+                  pointerEvents: 'none'
+                }}>
+                  {[...Array(64)].map((_, i) => (
+                    <div key={i} style={{
+                      background: [0,1,2,5,6,7,8,15,16,23,40,47,48,55,56,57,58,61,62,63,9,14,17,22,41,46,49,54,10,13,18,21,42,45,50,53,11,12,19,20,43,44,51,52,27,28,35,36].includes(i) ? '#667eea' : 'transparent',
+                      borderRadius: '1px'
+                    }} />
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

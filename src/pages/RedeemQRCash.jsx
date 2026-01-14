@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Gift, CheckCircle, AlertCircle } from 'lucide-react';
+import GreetMeLogo from '../components/GreetMeLogo';
 
 export default function RedeemQRCash() {
   const { id } = useParams();
@@ -316,6 +317,9 @@ export default function RedeemQRCash() {
         textAlign: 'center',
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
       }}>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <GreetMeLogo size="large" clickable={false} />
+        </div>
         <div style={{
           width: '5rem',
           height: '5rem',

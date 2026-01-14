@@ -1,7 +1,9 @@
 // src/pages/Pricing.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check } from 'lucide-react';
+import { Check, CreditCard, Lock, CheckCircle } from 'lucide-react';
+import GreetMeLogo from '../components/GreetMeLogo';
+import { useAuth } from '../context/AuthContext';
 
 const personalPlans = {
   founders: [
@@ -116,74 +118,205 @@ const personalPlans = {
   ]
 };
 
-const businessPlans = [
-  {
-    id: 'client-appreciation',
-    name: 'Client Appreciation',
-    price: 199,
-    period: 'year',
-    description: 'Up to 25 gifted subscriptions',
-    features: [
-      'Client gifting bundles',
-      'Branding + templates',
-      'Hero impact reporting (coming soon)',
-      'American Marketplace',
-      'Bulk greeting sending',
-      'Email support'
-    ]
-  },
-  {
-    id: 'growth-partner',
-    name: 'Growth Partner',
-    price: 499,
-    period: 'year',
-    description: 'Up to 100 gifted subscriptions',
-    features: [
-      'Everything in Client Appreciation',
-      'Advanced branding options',
-      'Hero impact reporting (coming soon)',
-      'American Marketplace',
-      'Analytics & reporting',
-      'Priority support',
-      'Team collaboration tools'
-    ],
-    highlight: true
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise / White Label',
-    price: 'Custom',
-    period: 'contact us',
-    description: 'Custom enterprise solution',
-    features: [
-      'Everything in Growth Partner',
-      'White-label platform option',
-      'Custom integrations',
-      'Hero impact reporting (coming soon)',
-      'American Marketplace',
-      'Dedicated account manager',
-      'API access',
-      'Custom SLA agreements'
-    ]
-  }
-];
+const businessPlans = {
+  founders: [
+    {
+      id: 'business-small-founders',
+      name: 'Small Business',
+      price: 99,
+      period: 'year',
+      description: 'Up to 25 Employees',
+      features: [
+        'Up to 25 employee recipients',
+        'Branding + templates',
+        'Hero impact reporting (coming soon)',
+        'American Marketplace',
+        'Bulk greeting sending',
+        'Email support',
+        'Team dashboard'
+      ]
+    },
+    {
+      id: 'business-medium-founders',
+      name: 'Medium Business',
+      price: 149,
+      period: 'year',
+      description: 'Up to 50 Employees',
+      features: [
+        'Up to 50 employee recipients',
+        'Advanced branding options',
+        'Hero impact reporting (coming soon)',
+        'American Marketplace',
+        'Analytics & reporting',
+        'Priority support',
+        'Team collaboration tools'
+      ],
+      highlight: true
+    },
+    {
+      id: 'enterprise',
+      name: 'Enterprise',
+      price: 'Contact Sales',
+      period: '',
+      description: 'Custom enterprise solution',
+      features: [
+        'Unlimited employees',
+        'White-label platform option',
+        'Custom integrations',
+        'Hero impact reporting (coming soon)',
+        'American Marketplace',
+        'Dedicated account manager',
+        'API access',
+        'Custom SLA agreements'
+      ]
+    }
+  ],
+  standard: [
+    {
+      id: 'business-small-standard',
+      name: 'Small Business',
+      price: 149,
+      period: 'year',
+      description: 'Up to 25 Employees',
+      features: [
+        'Up to 25 employee recipients',
+        'Branding + templates',
+        'Hero impact reporting (coming soon)',
+        'American Marketplace',
+        'Bulk greeting sending',
+        'Email support',
+        'Team dashboard'
+      ]
+    },
+    {
+      id: 'business-medium-standard',
+      name: 'Medium Business',
+      price: 299,
+      period: 'year',
+      description: 'Up to 50 Employees',
+      features: [
+        'Up to 50 employee recipients',
+        'Advanced branding options',
+        'Hero impact reporting (coming soon)',
+        'American Marketplace',
+        'Analytics & reporting',
+        'Priority support',
+        'Team collaboration tools'
+      ],
+      highlight: true
+    },
+    {
+      id: 'enterprise',
+      name: 'Enterprise',
+      price: 'Contact Sales',
+      period: '',
+      description: 'Custom enterprise solution',
+      features: [
+        'Unlimited employees',
+        'White-label platform option',
+        'Custom integrations',
+        'Hero impact reporting (coming soon)',
+        'American Marketplace',
+        'Dedicated account manager',
+        'API access',
+        'Custom SLA agreements'
+      ]
+    }
+  ]
+};
 
 export default function Pricing() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState('personal'); // 'personal' or 'business'
   const [pricingMode, setPricingMode] = useState('founders'); // 'founders' or 'standard' (for personal)
 
-  const handlePlanSelect = (planId) => {
-    if (planId.includes('enterprise') || planId.includes('appreciation') || planId.includes('growth')) {
-      alert('Contact sales form - Integration coming soon');
+  const [showEnterpriseForm, setShowEnterpriseForm] = useState(false);
+  const [enterpriseFormData, setEnterpriseFormData] = useState({
+    companyName: '',
+    contactName: '',
+    email: '',
+    phone: '',
+    employeeCount: '',
+    message: ''
+  });
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [checkoutStep, setCheckoutStep] = useState('summary'); // 'summary', 'payment', 'complete'
+  const [paymentData, setPaymentData] = useState({
+    cardNumber: '',
+    expiry: '',
+    cvc: '',
+    name: ''
+  });
+  const [processing, setProcessing] = useState(false);
+
+  const handlePlanSelect = (plan) => {
+    if (plan.id.includes('enterprise')) {
+      setShowEnterpriseForm(true);
     } else {
-      navigate('/register');
+      setSelectedPlan(plan);
+      setCheckoutStep('summary');
+      setShowCheckout(true);
     }
+  };
+
+  const handleEnterpriseSubmit = (e) => {
+    e.preventDefault();
+    alert('Thank you! Our sales team will contact you within 24 hours.');
+    setShowEnterpriseForm(false);
+    setEnterpriseFormData({
+      companyName: '',
+      contactName: '',
+      email: '',
+      phone: '',
+      employeeCount: '',
+      message: ''
+    });
+  };
+
+  const handleCheckout = (e) => {
+    e.preventDefault();
+    // If user is not logged in, proceed to payment step first
+    if (!user) {
+      setCheckoutStep('payment');
+    } else {
+      // User is already logged in, proceed to payment
+      setCheckoutStep('payment');
+    }
+  };
+
+  const handlePaymentSubmit = (e) => {
+    e.preventDefault();
+    setProcessing(true);
+
+    // Simulate payment processing
+    setTimeout(() => {
+      setProcessing(false);
+      setCheckoutStep('complete');
+
+      // After 2 seconds, redirect to dashboard or registration
+      setTimeout(() => {
+        setShowCheckout(false);
+        if (user) {
+          navigate('/dashboard');
+        } else {
+          navigate('/register', { state: { plan: selectedPlan } });
+        }
+      }, 2000);
+    }, 2000);
+  };
+
+  const closeCheckout = () => {
+    setShowCheckout(false);
+    setCheckoutStep('summary');
+    setPaymentData({ cardNumber: '', expiry: '', cvc: '', name: '' });
+    setProcessing(false);
   };
 
   const currentPlans = viewMode === 'personal'
     ? personalPlans[pricingMode]
-    : businessPlans;
+    : businessPlans[pricingMode];
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)' }}>
@@ -224,6 +357,10 @@ export default function Pricing() {
         >
           ← Back
         </button>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <GreetMeLogo size="large" clickable={false} />
+        </div>
 
         <h1 style={{
           fontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
@@ -292,8 +429,8 @@ export default function Pricing() {
         </div>
       </div>
 
-      {/* Founders Banner - Only show for Personal view */}
-      {viewMode === 'personal' && (
+      {/* Founders Banner - Show for both Personal and Business */}
+      {(
         <div style={{
           maxWidth: '1200px',
           margin: '0 auto 2rem',
@@ -408,124 +545,126 @@ export default function Pricing() {
                   </div>
                 )}
 
-                {/* G1G1™ Gold Foil Seal - Top Right */}
-                <div style={{
-                  position: 'absolute',
-                  top: plan.highlight ? '1.5rem' : '1rem',
-                  right: '1rem',
-                  width: plan.highlight ? '40px' : '45px',
-                  height: plan.highlight ? '40px' : '45px',
-                  opacity: 0.9
-                }}>
-                  {/* Star-point notched edge layer */}
-                  {[...Array(16)].map((_, i) => {
-                    const angle = (i * 22.5) - 90;
-                    const radius = plan.highlight ? 20 : 22.5;
-                    const x = (plan.highlight ? 20 : 22.5) + radius * Math.cos(angle * Math.PI / 180);
-                    const y = (plan.highlight ? 20 : 22.5) + radius * Math.sin(angle * Math.PI / 180);
-                    return (
-                      <div
-                        key={i}
-                        style={{
-                          position: 'absolute',
-                          left: `${x}px`,
-                          top: `${y}px`,
-                          width: '3px',
-                          height: '3px',
-                          background: '#D4AF37',
-                          transform: 'translate(-50%, -50%) rotate(45deg)',
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
-                          pointerEvents: 'none'
-                        }}
-                      />
-                    );
-                  })}
-
-                  {/* Main seal */}
+                {/* G1G1™ Gold Foil Seal - Top Right (Personal plans only) */}
+                {viewMode === 'personal' && (
                   <div style={{
                     position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: plan.highlight ? '36px' : '40px',
-                    height: plan.highlight ? '36px' : '40px',
-                    borderRadius: '9999px',
-                    border: '1px solid #8B6914',
-                    background:
-                      'radial-gradient(circle at 35% 35%, rgba(255,245,220,1) 0%, rgba(255,240,200,0.8) 15%, transparent 40%),' +
-                      'radial-gradient(circle at 65% 65%, rgba(0,0,0,0.15) 0%, transparent 30%),' +
-                      'repeating-conic-gradient(from 0deg, #E8D7A3 0deg 9deg, #C9A961 9deg 18deg, #F5E6C8 18deg 27deg, #D4AF37 27deg 36deg)',
-                    boxShadow:
-                      '0 2px 6px rgba(0,0,0,0.12),' +
-                      '0 4px 12px rgba(139,105,20,0.15),' +
-                      'inset 0 1px 2px rgba(255,255,255,0.4),' +
-                      'inset 0 -1px 2px rgba(0,0,0,0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexDirection: 'column',
-                    padding: 0
+                    top: plan.highlight ? '1.5rem' : '1rem',
+                    right: '1rem',
+                    width: plan.highlight ? '40px' : '45px',
+                    height: plan.highlight ? '40px' : '45px',
+                    opacity: 0.9
                   }}>
-                    {/* Faint G watermark */}
+                    {/* Star-point notched edge layer */}
+                    {[...Array(16)].map((_, i) => {
+                      const angle = (i * 22.5) - 90;
+                      const radius = plan.highlight ? 20 : 22.5;
+                      const x = (plan.highlight ? 20 : 22.5) + radius * Math.cos(angle * Math.PI / 180);
+                      const y = (plan.highlight ? 20 : 22.5) + radius * Math.sin(angle * Math.PI / 180);
+                      return (
+                        <div
+                          key={i}
+                          style={{
+                            position: 'absolute',
+                            left: `${x}px`,
+                            top: `${y}px`,
+                            width: '3px',
+                            height: '3px',
+                            background: '#D4AF37',
+                            transform: 'translate(-50%, -50%) rotate(45deg)',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
+                            pointerEvents: 'none'
+                          }}
+                        />
+                      );
+                    })}
+
+                    {/* Main seal */}
                     <div style={{
                       position: 'absolute',
-                      fontSize: plan.highlight ? '1.25rem' : '1.5rem',
-                      fontWeight: 900,
-                      color: 'rgba(139,105,20,0.12)',
-                      fontFamily: 'Georgia, serif',
                       top: '50%',
                       left: '50%',
                       transform: 'translate(-50%, -50%)',
-                      pointerEvents: 'none',
-                      userSelect: 'none',
-                      zIndex: 0
-                    }}>G</div>
-
-                    {/* Star decorations */}
-                    <span style={{
-                      position: 'absolute',
-                      top: '2px',
-                      fontSize: '5px',
-                      color: '#8B6914',
-                      opacity: 0.8,
-                      textShadow: '0 0 1px rgba(255,235,205,0.5)',
-                      pointerEvents: 'none',
-                      zIndex: 2
-                    }}>★</span>
-                    <span style={{
-                      position: 'absolute',
-                      bottom: '2px',
-                      fontSize: '5px',
-                      color: '#8B6914',
-                      opacity: 0.8,
-                      textShadow: '0 0 1px rgba(255,235,205,0.5)',
-                      pointerEvents: 'none',
-                      zIndex: 2
-                    }}>★</span>
-
-                    {/* Main content */}
-                    <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+                      width: plan.highlight ? '36px' : '40px',
+                      height: plan.highlight ? '36px' : '40px',
+                      borderRadius: '9999px',
+                      border: '1px solid #8B6914',
+                      background:
+                        'radial-gradient(circle at 35% 35%, rgba(255,245,220,1) 0%, rgba(255,240,200,0.8) 15%, transparent 40%),' +
+                        'radial-gradient(circle at 65% 65%, rgba(0,0,0,0.15) 0%, transparent 30%),' +
+                        'repeating-conic-gradient(from 0deg, #E8D7A3 0deg 9deg, #C9A961 9deg 18deg, #F5E6C8 18deg 27deg, #D4AF37 27deg 36deg)',
+                      boxShadow:
+                        '0 2px 6px rgba(0,0,0,0.12),' +
+                        '0 4px 12px rgba(139,105,20,0.15),' +
+                        'inset 0 1px 2px rgba(255,255,255,0.4),' +
+                        'inset 0 -1px 2px rgba(0,0,0,0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexDirection: 'column',
+                      padding: 0
+                    }}>
+                      {/* Faint G watermark */}
                       <div style={{
-                        fontSize: plan.highlight ? '0.5rem' : '0.5625rem',
+                        position: 'absolute',
+                        fontSize: plan.highlight ? '1.25rem' : '1.5rem',
                         fontWeight: 900,
-                        color: '#3D2F0F',
-                        letterSpacing: '0.3px',
-                        textShadow: '0 0.5px 1px rgba(255,255,255,0.5)',
-                        marginBottom: '0.5px'
-                      }}>G1G1™</div>
-                      <div style={{
-                        fontSize: plan.highlight ? '0.25rem' : '0.28rem',
-                        fontWeight: 800,
-                        color: '#4D3A12',
-                        textShadow: '0 0.5px 1px rgba(255,255,255,0.3)',
-                        lineHeight: 1.1
-                      }}>
-                        <div>Greet One</div>
-                        <div>Give One™</div>
+                        color: 'rgba(139,105,20,0.12)',
+                        fontFamily: 'Georgia, serif',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        pointerEvents: 'none',
+                        userSelect: 'none',
+                        zIndex: 0
+                      }}>G</div>
+
+                      {/* Star decorations */}
+                      <span style={{
+                        position: 'absolute',
+                        top: '2px',
+                        fontSize: '5px',
+                        color: '#8B6914',
+                        opacity: 0.8,
+                        textShadow: '0 0 1px rgba(255,235,205,0.5)',
+                        pointerEvents: 'none',
+                        zIndex: 2
+                      }}>★</span>
+                      <span style={{
+                        position: 'absolute',
+                        bottom: '2px',
+                        fontSize: '5px',
+                        color: '#8B6914',
+                        opacity: 0.8,
+                        textShadow: '0 0 1px rgba(255,235,205,0.5)',
+                        pointerEvents: 'none',
+                        zIndex: 2
+                      }}>★</span>
+
+                      {/* Main content */}
+                      <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+                        <div style={{
+                          fontSize: plan.highlight ? '0.5rem' : '0.5625rem',
+                          fontWeight: 900,
+                          color: '#3D2F0F',
+                          letterSpacing: '0.3px',
+                          textShadow: '0 0.5px 1px rgba(255,255,255,0.5)',
+                          marginBottom: '0.5px'
+                        }}>G1G1™</div>
+                        <div style={{
+                          fontSize: plan.highlight ? '0.25rem' : '0.28rem',
+                          fontWeight: 800,
+                          color: '#4D3A12',
+                          textShadow: '0 0.5px 1px rgba(255,255,255,0.3)',
+                          lineHeight: 1.1
+                        }}>
+                          <div>Greet One</div>
+                          <div>Give One™</div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Plan Name */}
                 <h3 style={{
@@ -569,7 +708,7 @@ export default function Pricing() {
 
                 {/* CTA Button */}
                 <button
-                  onClick={() => handlePlanSelect(plan.id)}
+                  onClick={() => handlePlanSelect(plan)}
                   style={{
                     width: '100%',
                     padding: '0.875rem',
@@ -593,7 +732,7 @@ export default function Pricing() {
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  {plan.price === 'Custom' ? 'Contact Sales' : 'Get Started'}
+                  {plan.price === 'Contact Sales' ? 'Contact Sales' : 'Get Started'}
                 </button>
 
                 {/* Features */}
@@ -641,6 +780,560 @@ export default function Pricing() {
           })}
         </div>
       </div>
+
+      {/* Enterprise Contact Form Modal */}
+      {showEnterpriseForm && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '2rem'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 'var(--radius-xl)',
+            padding: '2rem',
+            maxWidth: '500px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1.5rem'
+            }}>
+              <h2 style={{
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                margin: 0
+              }}>Contact Sales</h2>
+              <button
+                onClick={() => setShowEnterpriseForm(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: 'var(--text-secondary)'
+                }}
+              >×</button>
+            </div>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              marginBottom: '1.5rem'
+            }}>
+              Tell us about your business and we'll create a custom enterprise solution for you.
+            </p>
+            <form onSubmit={handleEnterpriseSubmit}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+                  Company Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={enterpriseFormData.companyName}
+                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, companyName: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.875rem',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+                  Contact Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={enterpriseFormData.contactName}
+                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, contactName: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.875rem',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={enterpriseFormData.email}
+                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, email: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.875rem',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={enterpriseFormData.phone}
+                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, phone: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.875rem',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+                  Number of Employees *
+                </label>
+                <select
+                  required
+                  value={enterpriseFormData.employeeCount}
+                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, employeeCount: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.875rem',
+                    fontFamily: 'inherit',
+                    background: 'white'
+                  }}
+                >
+                  <option value="">Select...</option>
+                  <option value="51-100">51-100</option>
+                  <option value="101-250">101-250</option>
+                  <option value="251-500">251-500</option>
+                  <option value="501-1000">501-1000</option>
+                  <option value="1000+">1000+</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+                  Tell us about your needs
+                </label>
+                <textarea
+                  value={enterpriseFormData.message}
+                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, message: e.target.value})}
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.875rem',
+                    fontFamily: 'inherit',
+                    resize: 'vertical'
+                  }}
+                  placeholder="What features are most important? Any specific integrations needed?"
+                />
+              </div>
+              <button
+                type="submit"
+                style={{
+                  width: '100%',
+                  padding: '0.875rem',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--radius-lg)',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit'
+                }}
+              >
+                Submit Request
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Checkout Modal */}
+      {showCheckout && selectedPlan && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '2rem'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 'var(--radius-xl)',
+            padding: '2rem',
+            maxWidth: '450px',
+            width: '100%',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1.5rem'
+            }}>
+              <h2 style={{
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                margin: 0
+              }}>
+                {checkoutStep === 'summary' && 'Checkout'}
+                {checkoutStep === 'payment' && 'Payment Details'}
+                {checkoutStep === 'complete' && 'Success!'}
+              </h2>
+              {checkoutStep !== 'complete' && (
+                <button
+                  onClick={closeCheckout}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '1.5rem',
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary)'
+                  }}
+                >×</button>
+              )}
+            </div>
+
+            {/* Step: Order Summary */}
+            {checkoutStep === 'summary' && (
+              <>
+                <div style={{
+                  background: 'var(--gray-50)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '1.5rem',
+                  marginBottom: '1.5rem'
+                }}>
+                  <h3 style={{
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '1rem'
+                  }}>Order Summary</h3>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '0.5rem'
+                  }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{selectedPlan.name}</span>
+                    <span style={{ fontWeight: 600 }}>${selectedPlan.price}/{selectedPlan.period}</span>
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingTop: '0.75rem',
+                    borderTop: '1px solid var(--border)',
+                    marginTop: '0.75rem'
+                  }}>
+                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Total</span>
+                    <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--primary)' }}>${selectedPlan.price}</span>
+                  </div>
+                  {pricingMode === 'founders' && (
+                    <div style={{
+                      marginTop: '0.75rem',
+                      padding: '0.5rem',
+                      background: 'rgba(251, 191, 36, 0.1)',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.75rem',
+                      color: '#b45309',
+                      textAlign: 'center',
+                      fontWeight: 500
+                    }}>
+                      🎉 Founders pricing locked for life!
+                    </div>
+                  )}
+                </div>
+
+                {user && (
+                  <div style={{
+                    padding: '0.75rem',
+                    background: '#dcfce7',
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: '1rem',
+                    fontSize: '0.875rem',
+                    color: '#166534',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <CheckCircle size={16} />
+                    Signed in as {user.email}
+                  </div>
+                )}
+
+                <form onSubmit={handleCheckout}>
+                  <button
+                    type="submit"
+                    style={{
+                      width: '100%',
+                      padding: '0.875rem',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 'var(--radius-lg)',
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      marginBottom: '1rem'
+                    }}
+                  >
+                    Continue to Payment
+                  </button>
+                  <p style={{
+                    fontSize: '0.75rem',
+                    color: 'var(--text-secondary)',
+                    textAlign: 'center',
+                    margin: 0
+                  }}>
+                    Secure checkout powered by Stripe. Cancel anytime.
+                  </p>
+                </form>
+              </>
+            )}
+
+            {/* Step: Payment Form */}
+            {checkoutStep === 'payment' && (
+              <form onSubmit={handlePaymentSubmit}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    <CreditCard size={14} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'middle' }} />
+                    Card Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="1234 5678 9012 3456"
+                    value={paymentData.cardNumber}
+                    onChange={(e) => setPaymentData({ ...paymentData, cardNumber: e.target.value })}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.875rem',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.5rem'
+                    }}>Expiry Date</label>
+                    <input
+                      type="text"
+                      placeholder="MM/YY"
+                      value={paymentData.expiry}
+                      onChange={(e) => setPaymentData({ ...paymentData, expiry: e.target.value })}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.875rem',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.5rem'
+                    }}>CVC</label>
+                    <input
+                      type="text"
+                      placeholder="123"
+                      value={paymentData.cvc}
+                      onChange={(e) => setPaymentData({ ...paymentData, cvc: e.target.value })}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.875rem',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '0.5rem'
+                  }}>Name on Card</label>
+                  <input
+                    type="text"
+                    placeholder="John Smith"
+                    value={paymentData.name}
+                    onChange={(e) => setPaymentData({ ...paymentData, name: e.target.value })}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.875rem',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+
+                <div style={{
+                  background: 'var(--gray-50)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.75rem',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Total</span>
+                  <span style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--primary)' }}>${selectedPlan.price}</span>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={processing}
+                  style={{
+                    width: '100%',
+                    padding: '0.875rem',
+                    background: processing ? 'var(--gray-300)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 'var(--radius-lg)',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    cursor: processing ? 'not-allowed' : 'pointer',
+                    fontFamily: 'inherit',
+                    marginBottom: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  {processing ? (
+                    <>Processing...</>
+                  ) : (
+                    <>
+                      <Lock size={16} />
+                      Pay ${selectedPlan.price}
+                    </>
+                  )}
+                </button>
+
+                <p style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary)',
+                  textAlign: 'center',
+                  margin: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.25rem'
+                }}>
+                  <Lock size={12} />
+                  Secure 256-bit SSL encryption
+                </p>
+              </form>
+            )}
+
+            {/* Step: Complete */}
+            {checkoutStep === 'complete' && (
+              <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+                <div style={{
+                  width: '4rem',
+                  height: '4rem',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 1.5rem',
+                  boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
+                }}>
+                  <CheckCircle size={32} style={{ color: 'white' }} />
+                </div>
+                <h3 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  marginBottom: '0.75rem'
+                }}>Payment Successful!</h3>
+                <p style={{
+                  fontSize: '1rem',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '0.5rem',
+                  lineHeight: 1.6
+                }}>
+                  Thank you for choosing {selectedPlan.name}!
+                </p>
+                <p style={{
+                  fontSize: '0.875rem',
+                  color: 'var(--text-tertiary)'
+                }}>
+                  Redirecting you to your dashboard...
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

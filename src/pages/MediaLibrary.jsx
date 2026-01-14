@@ -1,6 +1,6 @@
 // src/pages/MediaLibrary.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Trash2, Play, Pause, Image as ImageIcon, Mic, ArrowLeft, Smartphone, QrCode, Video } from 'lucide-react';
+import { Upload, Trash2, Play, Pause, Image as ImageIcon, Mic, ArrowLeft, Smartphone, QrCode, Video, Star, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function MediaLibrary() {
@@ -9,6 +9,7 @@ export default function MediaLibrary() {
   const [photos, setPhotos] = useState([]);
   const [activeVoice, setActiveVoice] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [defaultPhotoId, setDefaultPhotoId] = useState(null);
   const audioRef = useRef(null);
   const voiceInputRef = useRef(null);
   const photoInputRef = useRef(null);
@@ -49,6 +50,23 @@ export default function MediaLibrary() {
           date: new Date().toLocaleDateString()
         }]);
       }
+    }
+
+    // Load default photo ID
+    const savedDefaultPhotoId = localStorage.getItem('greetme_default_photo_id');
+    if (savedDefaultPhotoId) {
+      setDefaultPhotoId(savedDefaultPhotoId);
+    }
+  };
+
+  const setAsDefaultPhoto = (photoId) => {
+    const photo = photos.find(p => p.id === photoId);
+    if (photo) {
+      // Save as default photo for greetings
+      localStorage.setItem('greetme_default_photo_id', photoId);
+      localStorage.setItem('greetme_photo_file', photo.dataUrl);
+      setDefaultPhotoId(photoId);
+      alert('Photo set as default for greetings!');
     }
   };
 
@@ -615,65 +633,144 @@ export default function MediaLibrary() {
             gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
             gap: '1rem'
           }}>
-            {photos.map(photo => (
-              <div
-                key={photo.id}
-                style={{
-                  position: 'relative',
-                  border: '2px solid var(--border)',
-                  borderRadius: 'var(--radius-lg)',
-                  overflow: 'hidden',
-                  background: 'white'
-                }}
-              >
-                <img
-                  src={photo.dataUrl}
-                  alt={photo.name}
+            {photos.map(photo => {
+              const isDefault = defaultPhotoId === photo.id || (defaultPhotoId === null && photos.indexOf(photo) === 0);
+              return (
+                <div
+                  key={photo.id}
                   style={{
-                    width: '100%',
-                    height: '200px',
-                    objectFit: 'cover'
+                    position: 'relative',
+                    border: isDefault ? '3px solid #22c55e' : '2px solid var(--border)',
+                    borderRadius: 'var(--radius-lg)',
+                    overflow: 'hidden',
+                    background: 'white',
+                    boxShadow: isDefault ? '0 4px 12px rgba(34, 197, 94, 0.2)' : 'none'
                   }}
-                />
-                <div style={{
-                  padding: '0.75rem',
-                  borderTop: '1px solid var(--border)'
-                }}>
-                  <h3 style={{
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    marginBottom: '0.25rem'
-                  }}>{photo.name}</h3>
-                  <p style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--text-secondary)'
-                  }}>Uploaded {photo.date}</p>
-                </div>
-                <button
-                  onClick={() => deletePhoto(photo.id)}
-                  style={{
-                    position: 'absolute',
-                    top: '0.5rem',
-                    right: '0.5rem',
-                    padding: '0.5rem',
-                    background: 'rgba(255, 255, 255, 0.9)',
-                    color: '#dc2626',
-                    border: 'none',
-                    borderRadius: '50%',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#fee2e2'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)'}
                 >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
+                  {/* Default Badge */}
+                  {isDefault && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '0.5rem',
+                      left: '0.5rem',
+                      padding: '0.25rem 0.5rem',
+                      background: '#22c55e',
+                      color: 'white',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.6875rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                      zIndex: 10
+                    }}>
+                      <Star size={12} fill="currentColor" />
+                      DEFAULT
+                    </div>
+                  )}
+                  <img
+                    src={photo.dataUrl}
+                    alt={photo.name}
+                    style={{
+                      width: '100%',
+                      height: '200px',
+                      objectFit: 'cover'
+                    }}
+                  />
+                  <div style={{
+                    padding: '0.75rem',
+                    borderTop: '1px solid var(--border)'
+                  }}>
+                    <h3 style={{
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.25rem'
+                    }}>{photo.name}</h3>
+                    <p style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '0.5rem'
+                    }}>Uploaded {photo.date}</p>
+                    {/* Set as Default Button */}
+                    {!isDefault && (
+                      <button
+                        onClick={() => setAsDefaultPhoto(photo.id)}
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem',
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.375rem',
+                          transition: 'all 0.2s',
+                          fontFamily: 'inherit'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <CheckCircle size={14} />
+                        Set as Default for Greetings
+                      </button>
+                    )}
+                    {isDefault && (
+                      <div style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        background: '#dcfce7',
+                        color: '#15803d',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.375rem'
+                      }}>
+                        <CheckCircle size={14} />
+                        Used for Greetings
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => deletePhoto(photo.id)}
+                    style={{
+                      position: 'absolute',
+                      top: '0.5rem',
+                      right: '0.5rem',
+                      padding: '0.5rem',
+                      background: 'rgba(255, 255, 255, 0.9)',
+                      color: '#dc2626',
+                      border: 'none',
+                      borderRadius: '50%',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#fee2e2'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)'}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

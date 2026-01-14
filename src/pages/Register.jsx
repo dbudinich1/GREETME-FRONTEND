@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { QrCode, Smartphone } from 'lucide-react';
+import GreetMeLogo from '../components/GreetMeLogo';
 
 export const Register = () => {
   const [name, setName] = useState('');
@@ -31,6 +33,9 @@ export const Register = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+            <GreetMeLogo size="large" clickable={false} />
+          </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
           <p className="text-gray-600">Start sending personalized greetings</p>
         </div>
@@ -92,6 +97,71 @@ export const Register = () => {
             Sign in
           </Link>
         </p>
+
+        {/* Mobile App Download QR Code */}
+        <div style={{
+          marginTop: '2rem',
+          paddingTop: '1.5rem',
+          borderTop: '1px solid #e5e7eb',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            marginBottom: '0.75rem'
+          }}>
+            <Smartphone size={18} style={{ color: '#667eea' }} />
+            <span style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: '#374151'
+            }}>Get the Mobile App</span>
+          </div>
+          <p style={{
+            fontSize: '0.75rem',
+            color: '#6b7280',
+            marginBottom: '0.75rem'
+          }}>
+            Scan to download and send greetings on the go
+          </p>
+          <div style={{
+            display: 'inline-flex',
+            padding: '0.75rem',
+            background: 'white',
+            borderRadius: '0.75rem',
+            border: '2px solid #e5e7eb',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+          }}>
+            <div style={{
+              width: '80px',
+              height: '80px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative'
+            }}>
+              <QrCode size={64} style={{ color: '#667eea' }} />
+              <div style={{
+                position: 'absolute',
+                inset: '8px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(8, 1fr)',
+                gridTemplateRows: 'repeat(8, 1fr)',
+                gap: '1px',
+                pointerEvents: 'none'
+              }}>
+                {[...Array(64)].map((_, i) => (
+                  <div key={i} style={{
+                    background: [0,1,2,5,6,7,8,15,16,23,40,47,48,55,56,57,58,61,62,63,9,14,17,22,41,46,49,54,10,13,18,21,42,45,50,53,11,12,19,20,43,44,51,52,27,28,35,36].includes(i) ? '#667eea' : 'transparent',
+                    borderRadius: '1px'
+                  }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

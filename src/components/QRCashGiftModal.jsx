@@ -1,7 +1,8 @@
 // src/components/QRCashGiftModal.jsx
 import { useState, useEffect } from 'react';
-import { X, Copy, Download, QrCode } from 'lucide-react';
+import { X, Copy, Download, QrCode, ChevronDown, Bell } from 'lucide-react';
 import QRCode from 'qrcode';
+import GreetMeLogo from './GreetMeLogo';
 
 export default function QRCashGiftModal({ isOpen, onClose }) {
   const DEFAULT_GREETING = 'Just a little something for you — hope it makes your day a bit brighter.';
@@ -19,8 +20,23 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
   const [giftId, setGiftId] = useState(null);
   const [copied, setCopied] = useState(false);
   const [autoSent, setAutoSent] = useState(false);
+  const [savedRecipients, setSavedRecipients] = useState([]);
+  const [showRecipientDropdown, setShowRecipientDropdown] = useState(false);
 
   const presetAmounts = ['5', '10', '25'];
+
+  // Load saved recipients from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('greetme_recipients');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setSavedRecipients(parsed);
+      } catch (e) {
+        console.error('Error loading recipients:', e);
+      }
+    }
+  }, [isOpen]);
 
   // Auto-update delivery method when email changes
   useEffect(() => {
@@ -179,33 +195,39 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
           borderTopRightRadius: 'var(--radius-xl)',
           color: 'white'
         }}>
-          <div>
-            <h2 style={{
-              fontSize: '1.5rem',
-              fontWeight: 700,
-              margin: 0,
-              marginBottom: '0.25rem'
-            }}>Send QR Cash</h2>
-            <p style={{
-              fontSize: '0.875rem',
-              opacity: 0.9,
-              margin: 0
-            }}>Send · Scan · Spend</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <GreetMeLogo size="small" clickable={false} />
+            <div>
+              <h2 style={{
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                margin: 0,
+                marginBottom: '0.25rem'
+              }}>Send QR Cash</h2>
+              <p style={{
+                fontSize: '0.875rem',
+                opacity: 0.9,
+                margin: 0
+              }}>Send · Scan · Spend</p>
+            </div>
           </div>
           <button
             onClick={handleClose}
             style={{
               background: 'rgba(255, 255, 255, 0.2)',
               border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: '50%',
-              width: '2rem',
-              height: '2rem',
+              borderRadius: 'var(--radius-lg)',
+              padding: '0.5rem 1rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: '0.375rem',
               cursor: 'pointer',
               transition: 'all 0.2s',
-              color: 'white'
+              color: 'white',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              fontFamily: 'inherit'
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
@@ -214,7 +236,8 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
               e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
             }}
           >
-            <X size={20} />
+            Done
+            <X size={16} />
           </button>
         </div>
 
@@ -325,7 +348,7 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
               </div>
 
               {/* Recipient Name (Optional) */}
-              <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ marginBottom: '1.5rem', position: 'relative' }}>
                 <label style={{
                   display: 'block',
                   fontSize: '0.875rem',
@@ -335,27 +358,120 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                 }}>
                   Recipient Name <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>(Optional)</span>
                 </label>
-                <input
-                  type="text"
-                  placeholder="Who's this for?"
-                  value={recipientName}
-                  onChange={(e) => setRecipientName(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    placeholder="Who's this for?"
+                    value={recipientName}
+                    onChange={(e) => setRecipientName(e.target.value)}
+                    onFocus={() => setShowRecipientDropdown(true)}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      paddingRight: savedRecipients.length > 0 ? '2.5rem' : '0.75rem',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.875rem',
+                      outline: 'none',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                  {savedRecipients.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowRecipientDropdown(!showRecipientDropdown)}
+                      style={{
+                        position: 'absolute',
+                        right: '0.5rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '0.25rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--text-secondary)'
+                      }}
+                    >
+                      <ChevronDown size={18} />
+                    </button>
+                  )}
+                </div>
+                {/* Saved Recipients Dropdown */}
+                {showRecipientDropdown && savedRecipients.length > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    background: 'white',
                     border: '1px solid var(--border)',
                     borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    outline: 'none',
-                    fontFamily: 'inherit'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#f59e0b';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--border)';
-                  }}
-                />
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                    zIndex: 100,
+                    maxHeight: '200px',
+                    overflow: 'auto',
+                    marginTop: '0.25rem'
+                  }}>
+                    <div style={{
+                      padding: '0.5rem 0.75rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      borderBottom: '1px solid var(--border)',
+                      background: 'var(--gray-50)'
+                    }}>
+                      Saved Recipients
+                    </div>
+                    {savedRecipients.map((recipient, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => {
+                          setRecipientName(recipient.name || '');
+                          setRecipientEmail(recipient.email || '');
+                          setShowRecipientDropdown(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem',
+                          background: 'transparent',
+                          border: 'none',
+                          borderBottom: index < savedRecipients.length - 1 ? '1px solid var(--border)' : 'none',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          fontFamily: 'inherit'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'var(--gray-50)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        <div style={{
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          color: 'var(--text-primary)'
+                        }}>
+                          {recipient.name}
+                        </div>
+                        {recipient.email && (
+                          <div style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--text-secondary)',
+                            marginTop: '0.125rem'
+                          }}>
+                            {recipient.email}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Recipient Email (Optional) */}
@@ -602,34 +718,63 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                 </div>
               </div>
 
+              {/* Validation Message */}
+              {(!recipientName.trim() || !recipientEmail.trim()) && (
+                <div style={{
+                  padding: '0.75rem',
+                  background: '#fef3c7',
+                  border: '1px solid #f59e0b',
+                  borderRadius: 'var(--radius-md)',
+                  marginBottom: '1rem',
+                  fontSize: '0.8125rem',
+                  color: '#92400e',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  <span>⚠️</span>
+                  Please provide both recipient name and email to send QR Cash.
+                </div>
+              )}
+
               {/* Generate Button */}
               <button
                 onClick={handleGenerateQR}
+                disabled={!recipientName.trim() || !recipientEmail.trim()}
                 style={{
                   width: '100%',
                   padding: '0.875rem',
-                  background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                  background: (!recipientName.trim() || !recipientEmail.trim())
+                    ? '#d1d5db'
+                    : 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
                   color: 'white',
                   border: 'none',
                   borderRadius: 'var(--radius-md)',
                   fontSize: '0.9375rem',
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: (!recipientName.trim() || !recipientEmail.trim()) ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s',
-                  boxShadow: '0 2px 8px rgba(251, 191, 36, 0.3)',
+                  boxShadow: (!recipientName.trim() || !recipientEmail.trim())
+                    ? 'none'
+                    : '0 2px 8px rgba(251, 191, 36, 0.3)',
                   fontFamily: 'inherit',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '0.5rem'
+                  gap: '0.5rem',
+                  opacity: (!recipientName.trim() || !recipientEmail.trim()) ? 0.7 : 1
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
+                  if (recipientName.trim() && recipientEmail.trim()) {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(251, 191, 36, 0.3)';
+                  if (recipientName.trim() && recipientEmail.trim()) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(251, 191, 36, 0.3)';
+                  }
                 }}
               >
                 <QrCode size={18} />
@@ -680,7 +825,7 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                     padding: '1rem',
                     background: 'var(--gray-50)',
                     borderRadius: 'var(--radius-md)',
-                    marginBottom: '1.5rem',
+                    marginBottom: '1rem',
                     maxWidth: '100%',
                     borderLeft: '4px solid #f59e0b'
                   }}>
@@ -694,6 +839,29 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                     </p>
                   </div>
                 )}
+                {/* Notification Instruction */}
+                <div style={{
+                  padding: '1rem',
+                  background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                  borderRadius: 'var(--radius-md)',
+                  marginBottom: '1.5rem',
+                  maxWidth: '100%',
+                  border: '1px solid #93c5fd',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem'
+                }}>
+                  <Bell size={20} style={{ color: '#3b82f6', flexShrink: 0 }} />
+                  <p style={{
+                    fontSize: '0.875rem',
+                    color: '#1e40af',
+                    margin: 0,
+                    textAlign: 'left',
+                    lineHeight: 1.5
+                  }}>
+                    You will receive a notification when your greeting and QR Cash gift has been received by the recipient.
+                  </p>
+                </div>
               </div>
 
               {/* Done Button */}

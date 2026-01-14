@@ -1,6 +1,6 @@
 // src/pages/Contacts.jsx
 import React, { useState, useEffect } from 'react';
-import { Plus, Upload, Search, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import { Plus, Upload, Search, Edit, Trash2, ArrowLeft, Users, Calendar, Gift } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from "../api/api";
 import Modal from '../components/Modal';
@@ -22,6 +22,7 @@ export default function Recipients() {
   const [editingContact, setEditingContact] = useState(null);
   const [alert, setAlert] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [viewMode, setViewMode] = useState('recipients'); // 'recipients' or 'occasions'
 
   useEffect(() => {
     fetchRecipients();
@@ -268,14 +269,75 @@ export default function Recipients() {
         />
       )}
 
-      {/* Search */}
+      {/* View Toggle and Search */}
       {recipients.length > 0 && (
-        <div className="mb-6">
+        <div style={{ marginBottom: '1.5rem' }}>
+          {/* View Toggle */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '1rem'
+          }}>
+            <div style={{
+              display: 'inline-flex',
+              background: 'var(--gray-100)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '0.25rem'
+            }}>
+              <button
+                onClick={() => setViewMode('recipients')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.625rem 1rem',
+                  background: viewMode === 'recipients' ? 'white' : 'transparent',
+                  color: viewMode === 'recipients' ? '#667eea' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  fontFamily: 'inherit',
+                  boxShadow: viewMode === 'recipients' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                <Users size={16} />
+                Recipients
+              </button>
+              <button
+                onClick={() => setViewMode('occasions')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.625rem 1rem',
+                  background: viewMode === 'occasions' ? 'white' : 'transparent',
+                  color: viewMode === 'occasions' ? '#667eea' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  fontFamily: 'inherit',
+                  boxShadow: viewMode === 'occasions' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                <Calendar size={16} />
+                Occasions
+              </button>
+            </div>
+          </div>
+
+          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
-              placeholder="Search recipients..."
+              placeholder={viewMode === 'recipients' ? "Search recipients..." : "Search occasions..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -307,7 +369,7 @@ export default function Recipients() {
             </div>
           }
         />
-      ) : (
+      ) : viewMode === 'recipients' ? (
         /* Recipients Table */
         <div className="bg-white rounded-xl shadow-md overflow-hidden border border-purple-100">
           <table className="w-full">
@@ -319,6 +381,7 @@ export default function Recipients() {
                 <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Name</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Email</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Relationship</th>
+                <th className="px-6 py-4 text-center text-xs font-semibold text-purple-700 uppercase tracking-wide">Gift</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Occasions</th>
                 <th className="px-6 py-4 text-right text-xs font-semibold text-purple-700 uppercase tracking-wide">Actions</th>
               </tr>
@@ -370,6 +433,41 @@ export default function Recipients() {
                     }}>
                       {contact.relationship || '-'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    {contact.giftSelected ? (
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                          boxShadow: '0 2px 4px rgba(34, 197, 94, 0.3)'
+                        }}
+                        title="Gift selected"
+                      >
+                        <Gift size={16} style={{ color: 'white' }} />
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: 'var(--gray-100)',
+                          border: '2px dashed var(--gray-300)'
+                        }}
+                        title="No gift selected"
+                      >
+                        <Gift size={16} style={{ color: 'var(--gray-400)' }} />
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     {contact.occasions?.length > 0 ? (
@@ -460,6 +558,121 @@ export default function Recipients() {
               <p className="text-gray-500">No recipients match "{searchTerm}"</p>
             </div>
           )}
+        </div>
+      ) : (
+        /* Occasions View */
+        <div className="bg-white rounded-xl shadow-md overflow-hidden border border-purple-100">
+          <table className="w-full">
+            <thead style={{
+              background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+              borderBottom: '2px solid #d1d5db'
+            }}>
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Occasion</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Date</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Recipient</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Relationship</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {(() => {
+                // Flatten all occasions from all recipients
+                const allOccasions = recipients.flatMap(contact =>
+                  (contact.occasions || []).map(occasion => ({
+                    ...occasion,
+                    recipientName: contact.name,
+                    recipientRelationship: contact.relationship,
+                    contactId: contact.id
+                  }))
+                ).filter(occ =>
+                  !searchTerm ||
+                  occ.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  occ.recipientName?.toLowerCase().includes(searchTerm.toLowerCase())
+                ).sort((a, b) => {
+                  // Sort by upcoming date
+                  const dateA = new Date(a.date || '9999-12-31');
+                  const dateB = new Date(b.date || '9999-12-31');
+                  return dateA - dateB;
+                });
+
+                if (allOccasions.length === 0) {
+                  return (
+                    <tr>
+                      <td colSpan={4} className="text-center py-12">
+                        <p className="text-gray-500">
+                          {searchTerm ? `No occasions match "${searchTerm}"` : 'No occasions scheduled'}
+                        </p>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                return allOccasions.map((occasion, index) => (
+                  <tr
+                    key={`${occasion.contactId}-${occasion.type}-${index}`}
+                    style={{
+                      background: index % 2 === 0 ? 'white' : '#faf5ff',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f3e8ff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = index % 2 === 0 ? 'white' : '#faf5ff';
+                    }}
+                  >
+                    <td className="px-6 py-4">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span style={{ fontSize: '1.5rem' }}>{getOccasionIcon(occasion.type)}</span>
+                        <span style={{
+                          fontWeight: 600,
+                          color: '#1f2937',
+                          fontSize: '0.9375rem',
+                          textTransform: 'capitalize'
+                        }}>{getOccasionLabel(occasion.type)}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span style={{
+                        color: '#4b5563',
+                        fontSize: '0.875rem',
+                        background: '#f3f4f6',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '0.375rem'
+                      }}>
+                        {occasion.date ? new Date(occasion.date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        }) : 'Not set'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span style={{
+                        fontWeight: 600,
+                        color: '#1f2937',
+                        fontSize: '0.9375rem'
+                      }}>{occasion.recipientName}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span style={{
+                        background: 'linear-gradient(135deg, #ddd6fe 0%, #c7d2fe 100%)',
+                        color: '#5b21b6',
+                        padding: '0.375rem 0.75rem',
+                        borderRadius: '9999px',
+                        fontSize: '0.8125rem',
+                        fontWeight: 600,
+                        textTransform: 'capitalize',
+                        display: 'inline-block'
+                      }}>
+                        {occasion.recipientRelationship || '-'}
+                      </span>
+                    </td>
+                  </tr>
+                ));
+              })()}
+            </tbody>
+          </table>
         </div>
       )}
 

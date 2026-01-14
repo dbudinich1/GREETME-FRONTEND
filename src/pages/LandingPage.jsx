@@ -1,6 +1,7 @@
 // src/pages/LandingPage.jsx
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Heart, Calendar, Zap, Smartphone } from 'lucide-react';
+import { Heart, Calendar, Zap, Smartphone } from 'lucide-react';
+import GreetMeLogo from '../components/GreetMeLogo';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -19,24 +20,7 @@ export default function LandingPage() {
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{
-            width: '2.5rem',
-            height: '2.5rem',
-            background: 'white',
-            borderRadius: 'var(--radius-lg)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <Sparkles style={{ color: '#667eea' }} size={20} />
-          </div>
-          <span style={{
-            fontSize: '1.5rem',
-            fontWeight: 700,
-            color: 'white'
-          }}>Greet-Me</span>
-        </div>
+        <GreetMeLogo size="medium" clickable={false} />
 
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <button

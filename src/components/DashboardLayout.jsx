@@ -2,7 +2,9 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Home, Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart, Film, Image } from 'lucide-react';
+import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart, Film, Image } from 'lucide-react';
+import GreetMeLogo from './GreetMeLogo';
+import NotificationBell from './NotificationBell';
 
 // TEMP STUB — services layer intentionally disabled for V1 build safety
 const animationBankService = {
@@ -55,13 +57,14 @@ export default function DashboardLayout() {
   };
 
   const navigation = [
-    { name: 'Home', path: '/', icon: Home },
-    { name: 'Dashboard', path: '/dashboard', icon: Home },
+    { name: 'Home', path: '/', icon: null },
+    { name: 'Dashboard', path: '/dashboard', icon: null },
     { name: 'Media Library', path: '/dashboard/media', icon: Image },
     { name: 'Plans & Pricing', path: '/pricing', icon: null },
     { name: 'For Business', path: '/business', icon: null },
     { name: 'Merch', path: '/dashboard/merch', icon: ShoppingBag },
     { name: 'American Marketplace', path: '/dashboard/gifts', icon: Gift },
+    { name: '❤️ Rewards', path: '/dashboard/rewards', icon: null },
     { name: '🥇 Greet-Me Hero™', path: '/dashboard/hero', icon: null },
   ];
 
@@ -243,18 +246,13 @@ export default function DashboardLayout() {
           </div>
         </div>
 
-          {/* Centered Title */}
-          <div style={{ textAlign: 'center' }}>
-            <h1 style={{
-              fontSize: '1.75rem',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              margin: 0
-            }}>Dashboard</h1>
+          {/* Centered Logo and Title */}
+          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <GreetMeLogo size="medium" clickable={true} />
             <p style={{
               fontSize: '0.875rem',
               color: 'var(--text-secondary)',
-              margin: 0
+              margin: '0.5rem 0 0 0'
             }}>Welcome back, {user?.name?.split(' ')[0] || 'User'}!</p>
           </div>
 
@@ -370,6 +368,9 @@ export default function DashboardLayout() {
                 </span>
               )}
             </button>
+
+            {/* Notification Bell */}
+            <NotificationBell />
 
             {/* Settings Cog */}
             <button

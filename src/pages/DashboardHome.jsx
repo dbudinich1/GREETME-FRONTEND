@@ -1,9 +1,12 @@
 // src/pages/DashboardHome.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square, CheckCircle, Copy, Image as ImageIcon, Smartphone, QrCode } from 'lucide-react';
+import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square, CheckCircle, Copy, Image as ImageIcon, Smartphone, QrCode, DollarSign, X, Send, Gift, CreditCard } from 'lucide-react';
 import api from "../api/api";
 import { getOccasionIcon } from '../utils/helpers';
+import { getRewardsBalance, getRemainingDailyHearts } from '../utils/rewards';
+import { pushInApp } from '../utils/notify';
+import { COMMS_EVENTS } from '../utils/commsCatalog';
 import OnboardingTour from '../components/OnboardingTour';
 import OnboardingCoach from '../components/OnboardingCoach';
 import QRCashGiftModal from '../components/QRCashGiftModal';
@@ -34,6 +37,10 @@ export default function DashboardHome() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [showQRCashModal, setShowQRCashModal] = useState(false);
+  const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
+  const [sentGreetings, setSentGreetings] = useState([]);
+  const [qrCashGifts, setQrCashGifts] = useState([]);
+  const [rewardsBalance, setRewardsBalance] = useState(0);
 
   // --- Presence persistence (navigation-safe) ---
   const PRESENCE_KEY = 'gm_presence_v1';
@@ -64,6 +71,8 @@ export default function DashboardHome() {
   useEffect(() => {
     fetchDashboardData();
     loadPersistedMedia();
+    // Load rewards balance
+    setRewardsBalance(getRewardsBalance());
   }, []);
 
   // Load persisted media from localStorage
@@ -79,6 +88,18 @@ export default function DashboardHome() {
 
       if (savedPhoto) {
         setPhotoUploaded(true);
+      }
+
+      // Load sent greetings
+      const savedGreetings = localStorage.getItem('greetme_sent_greetings');
+      if (savedGreetings) {
+        setSentGreetings(JSON.parse(savedGreetings));
+      }
+
+      // Load QR Cash gifts
+      const savedQrCash = localStorage.getItem('greetme_qrcash_gifts');
+      if (savedQrCash) {
+        setQrCashGifts(JSON.parse(savedQrCash));
       }
     } catch (error) {
       console.error('Error loading persisted media:', error);
@@ -159,7 +180,7 @@ export default function DashboardHome() {
 
       setVoiceFileUrl(dataUrl);
       setVoiceRecorded(true);
-      alert('Voice uploaded successfully!');
+      pushInApp(COMMS_EVENTS.VOICE_UPLOADED);
     } catch (error) {
       console.error('Voice upload error:', error);
       alert('Failed to upload voice. Please try again.');
@@ -229,9 +250,9 @@ export default function DashboardHome() {
 
         setVoiceFileUrl(dataUrl);
         setVoiceRecorded(true);
+        pushInApp(COMMS_EVENTS.VOICE_UPLOADED);
       } catch (error) {
         console.error('Error saving recording:', error);
-        alert('Failed to save recording. Please try again.');
       } finally {
         // Stop mic hardware
         streamRef.current?.getTracks?.().forEach((t) => t.stop());
@@ -327,7 +348,7 @@ export default function DashboardHome() {
       localStorage.setItem('greetme_photo_file', dataUrl);
 
       setPhotoUploaded(true);
-      alert('Photo uploaded successfully!');
+      pushInApp(COMMS_EVENTS.PHOTO_UPLOADED);
     } catch (error) {
       console.error('Photo upload error:', error);
       alert('Failed to upload photo. Please try again.');
@@ -637,7 +658,7 @@ export default function DashboardHome() {
             Send QR Cash
           </button>
           <button
-            onClick={() => alert('How it works - Integration coming soon')}
+            onClick={() => setShowHowItWorksModal(true)}
             style={{
               flex: 1,
               padding: '0.5rem 1rem',
@@ -659,6 +680,130 @@ export default function DashboardHome() {
             }}
           >
             How It Works
+          </button>
+        </div>
+      </div>
+
+      {/* Greet-Me Rewards Card */}
+      <div style={{
+        background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '1.25rem 1.5rem',
+        marginBottom: '2rem',
+        color: 'white',
+        boxShadow: '0 2px 8px rgba(236, 72, 153, 0.2)',
+        border: '1px solid rgba(255, 255, 255, 0.15)'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '0.5rem'
+        }}>
+          <div>
+            <h2 style={{
+              fontSize: '1.25rem',
+              fontWeight: 700,
+              margin: 0,
+              marginBottom: '0.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <span style={{ fontSize: '1.5rem' }}>❤️</span> Greet-Me Rewards™
+            </h2>
+            <p style={{
+              fontSize: '0.875rem',
+              opacity: 0.85,
+              margin: 0,
+              fontWeight: 500
+            }}>
+              Earn Hearts, Get Rewards
+            </p>
+          </div>
+          <div style={{
+            textAlign: 'right'
+          }}>
+            <div style={{
+              fontSize: '0.75rem',
+              opacity: 0.8,
+              marginBottom: '0.125rem'
+            }}>Available Hearts</div>
+            <div style={{
+              fontSize: '1.75rem',
+              fontWeight: 700,
+              opacity: 0.95,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: '0.25rem'
+            }}>
+              {rewardsBalance} <span style={{ fontSize: '1.25rem' }}>❤️</span>
+            </div>
+          </div>
+        </div>
+        <p style={{
+          fontSize: '0.875rem',
+          opacity: 0.95,
+          marginBottom: '1rem',
+          lineHeight: 1.5
+        }}>
+          Send greetings to earn Hearts. Redeem for discounts, free greetings, and more!
+        </p>
+        <div style={{
+          display: 'flex',
+          gap: '0.75rem'
+        }}>
+          <button
+            onClick={() => navigate('/dashboard/rewards')}
+            style={{
+              flex: 1,
+              padding: '0.5rem 1rem',
+              background: 'white',
+              color: '#ec4899',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              fontFamily: 'inherit'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+            }}
+          >
+            View Rewards
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/rewards')}
+            style={{
+              flex: 1,
+              padding: '0.5rem 1rem',
+              background: 'transparent',
+              color: 'white',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              fontFamily: 'inherit'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            Redeem Hearts
           </button>
         </div>
       </div>
@@ -1215,6 +1360,25 @@ export default function DashboardHome() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    {/* Gift Indicator */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '50%',
+                        background: contact.giftSelected
+                          ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
+                          : 'var(--gray-100)',
+                        border: contact.giftSelected ? 'none' : '2px dashed var(--gray-300)',
+                        boxShadow: contact.giftSelected ? '0 2px 4px rgba(34, 197, 94, 0.3)' : 'none'
+                      }}
+                      title={contact.giftSelected ? 'Gift selected' : 'No gift selected'}
+                    >
+                      <Gift size={14} style={{ color: contact.giftSelected ? 'white' : 'var(--gray-400)' }} />
+                    </div>
                     {/* Occasion Icons */}
                     <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
                       {(contact.occasions || []).slice(0, 3).map((occasion, idx) => {
@@ -1562,7 +1726,7 @@ export default function DashboardHome() {
         {/* Table Header */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '0.5fr 2fr 1fr 2fr 1fr',
+          gridTemplateColumns: '0.5fr 0.5fr 2fr 1fr 2fr 1fr',
           padding: '0.75rem 1rem',
           borderBottom: '2px solid var(--border)',
           fontSize: '0.8125rem',
@@ -1572,6 +1736,7 @@ export default function DashboardHome() {
           letterSpacing: '0.05em'
         }}>
           <div style={{ textAlign: 'center' }}>STATUS</div>
+          <div style={{ textAlign: 'center' }}>CASH</div>
           <div>RECIPIENT</div>
           <div>ICONS</div>
           <div>OCCASIONS</div>
@@ -1580,98 +1745,166 @@ export default function DashboardHome() {
 
         {/* Table Rows */}
         <div>
-          {[
-            { id: 1, recipient: 'Mom', relationship: 'Mother', icons: ['🎂'], occasions: ['Birthday'], date: 'Dec 15, 2025', sent: true },
-            { id: 2, recipient: 'John Smith', relationship: 'Friend', icons: ['🎄'], occasions: ['Christmas'], date: 'Dec 25, 2025', sent: true },
-            { id: 3, recipient: 'Sarah Johnson', relationship: 'Sister', icons: ['❤️'], occasions: ['Anniversary'], date: 'Dec 28, 2025', sent: true },
-          ].map((item, index, array) => (
-            <div
-              key={item.id}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '0.5fr 2fr 1fr 2fr 1fr',
-                padding: '1rem',
-                borderBottom: index < array.length - 1 ? '1px solid var(--border)' : 'none',
-                alignItems: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--gray-50)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-              }}
-            >
-              <div style={{ textAlign: 'center' }}>
-                <CheckCircle
-                  size={24}
-                  style={{
-                    color: '#22c55e',
-                    fill: '#22c55e',
-                    strokeWidth: 2
-                  }}
-                />
-              </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{
-                    width: '2.5rem',
-                    height: '2.5rem',
-                    borderRadius: '50%',
-                    background: 'var(--gray-200)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1.25rem'
-                  }}>
-                    👤
-                  </div>
-                  <div>
+          {(() => {
+            // Combine sent greetings and QR Cash gifts
+            const allItems = [
+              ...sentGreetings.map(g => ({
+                ...g,
+                type: 'greeting',
+                qrCash: qrCashGifts.find(qr => qr.recipientEmail === g.recipientEmail || qr.recipientName === g.recipient)
+              })),
+              ...qrCashGifts.filter(qr => !sentGreetings.some(g => g.recipientEmail === qr.recipientEmail || g.recipient === qr.recipientName))
+                .map(qr => ({
+                  id: qr.id,
+                  recipient: qr.recipientName,
+                  relationship: 'QR Cash Gift',
+                  icons: ['💵'],
+                  occasions: ['QR Cash'],
+                  date: new Date(qr.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                  sent: true,
+                  type: 'qrcash',
+                  qrCash: qr
+                }))
+            ];
+
+            // If no items, show example data
+            const displayItems = allItems.length > 0 ? allItems : [
+              { id: 1, recipient: 'Mom', relationship: 'Mother', icons: ['🎂'], occasions: ['Birthday'], date: 'Dec 15, 2025', sent: true, qrCash: null },
+              { id: 2, recipient: 'John Smith', relationship: 'Friend', icons: ['🎄'], occasions: ['Christmas'], date: 'Dec 25, 2025', sent: true, qrCash: { redeemed: true, amount: '25' } },
+              { id: 3, recipient: 'Sarah Johnson', relationship: 'Sister', icons: ['❤️'], occasions: ['Anniversary'], date: 'Dec 28, 2025', sent: true, qrCash: { redeemed: false, amount: '10' } },
+            ];
+
+            return displayItems.map((item, index, array) => (
+              <div
+                key={item.id}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '0.5fr 0.5fr 2fr 1fr 2fr 1fr',
+                  padding: '1rem',
+                  borderBottom: index < array.length - 1 ? '1px solid var(--border)' : 'none',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--gray-50)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <div style={{ textAlign: 'center' }}>
+                  <CheckCircle
+                    size={24}
+                    style={{
+                      color: '#22c55e',
+                      fill: '#22c55e',
+                      strokeWidth: 2
+                    }}
+                  />
+                </div>
+                {/* QR Cash Status Icon */}
+                <div style={{ textAlign: 'center' }}>
+                  {item.qrCash ? (
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        background: item.qrCash.redeemed ? '#dcfce7' : '#fef2f2',
+                        border: `2px solid ${item.qrCash.redeemed ? '#22c55e' : '#ef4444'}`
+                      }}
+                      title={item.qrCash.redeemed ? `$${item.qrCash.amount} Received` : `$${item.qrCash.amount} Pending`}
+                    >
+                      <DollarSign
+                        size={16}
+                        style={{
+                          color: item.qrCash.redeemed ? '#22c55e' : '#ef4444',
+                          strokeWidth: 2.5
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>—</span>
+                  )}
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <div style={{
-                      fontSize: '0.9375rem',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)'
-                    }}>{item.recipient}</div>
-                    <div style={{
-                      fontSize: '0.8125rem',
-                      color: 'var(--text-secondary)'
-                    }}>{item.relationship}</div>
+                      width: '2.5rem',
+                      height: '2.5rem',
+                      borderRadius: '50%',
+                      background: 'var(--gray-200)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.25rem'
+                    }}>
+                      👤
+                    </div>
+                    <div>
+                      <div style={{
+                        fontSize: '0.9375rem',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)'
+                      }}>{item.recipient}</div>
+                      <div style={{
+                        fontSize: '0.8125rem',
+                        color: 'var(--text-secondary)'
+                      }}>{item.relationship}</div>
+                    </div>
                   </div>
                 </div>
+                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                  {(item.icons || []).map((icon, idx) => (
+                    <span key={idx} style={{ fontSize: '1.25rem' }}>{icon}</span>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {(item.occasions || []).map((occasion, idx) => (
+                    <span
+                      key={idx}
+                      style={{
+                        padding: '0.25rem 0.625rem',
+                        background: 'rgba(34, 197, 94, 0.1)',
+                        color: '#22c55e',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.75rem',
+                        fontWeight: 500
+                      }}
+                    >
+                      {occasion}
+                    </span>
+                  ))}
+                  {item.qrCash && (
+                    <span
+                      style={{
+                        padding: '0.25rem 0.625rem',
+                        background: item.qrCash.redeemed ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        color: item.qrCash.redeemed ? '#22c55e' : '#ef4444',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.75rem',
+                        fontWeight: 500
+                      }}
+                    >
+                      💵 ${item.qrCash.amount}
+                    </span>
+                  )}
+                </div>
+                <div style={{
+                  textAlign: 'right',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: 'var(--text-secondary)'
+                }}>
+                  {item.date}
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: '0.25rem' }}>
-                {item.icons.map((icon, idx) => (
-                  <span key={idx} style={{ fontSize: '1.25rem' }}>{icon}</span>
-                ))}
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                {item.occasions.map((occasion, idx) => (
-                  <span
-                    key={idx}
-                    style={{
-                      padding: '0.25rem 0.625rem',
-                      background: 'rgba(34, 197, 94, 0.1)',
-                      color: '#22c55e',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.75rem',
-                      fontWeight: 500
-                    }}
-                  >
-                    {occasion}
-                  </span>
-                ))}
-              </div>
-              <div style={{
-                textAlign: 'right',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                color: 'var(--text-secondary)'
-              }}>
-                {item.date}
-              </div>
-            </div>
-          ))}
+            ));
+          })()}
         </div>
       </div>
 
@@ -1680,6 +1913,295 @@ export default function DashboardHome() {
         isOpen={showQRCashModal}
         onClose={() => setShowQRCashModal(false)}
       />
+
+      {/* How QR Cash Works Modal */}
+      {showHowItWorksModal && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setShowHowItWorksModal(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 999,
+              backdropFilter: 'blur(4px)'
+            }}
+          />
+
+          {/* Modal */}
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'white',
+            borderRadius: 'var(--radius-xl)',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+            zIndex: 1000,
+            width: '90%',
+            maxWidth: '600px',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '1.5rem',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+              borderTopLeftRadius: 'var(--radius-xl)',
+              borderTopRightRadius: 'var(--radius-xl)',
+              color: 'white',
+              position: 'sticky',
+              top: 0,
+              zIndex: 10
+            }}>
+              <div>
+                <h2 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: 700,
+                  margin: 0,
+                  marginBottom: '0.25rem'
+                }}>How QR Cash Works</h2>
+                <p style={{
+                  fontSize: '0.875rem',
+                  opacity: 0.9,
+                  margin: 0
+                }}>Send · Scan · Spend</p>
+              </div>
+              <button
+                onClick={() => setShowHowItWorksModal(false)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '50%',
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  color: 'white'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                }}
+                title="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '2rem' }}>
+              {/* Introduction */}
+              <p style={{
+                fontSize: '1rem',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.7,
+                marginBottom: '2rem',
+                textAlign: 'center'
+              }}>
+                QR Cash lets you send real money as a gift that recipients can spend anywhere. It's simple, personal, and universally appreciated.
+              </p>
+
+              {/* Steps */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {/* Step 1 */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '1rem',
+                  padding: '1.25rem',
+                  background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%)',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid rgba(251, 191, 36, 0.2)'
+                }}>
+                  <div style={{
+                    width: '3rem',
+                    height: '3rem',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    boxShadow: '0 2px 8px rgba(251, 191, 36, 0.3)'
+                  }}>
+                    <Send size={20} style={{ color: 'white' }} />
+                  </div>
+                  <div>
+                    <h3 style={{
+                      fontSize: '1.125rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.5rem'
+                    }}>1. Create & Send</h3>
+                    <p style={{
+                      fontSize: '0.9375rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.6,
+                      margin: 0
+                    }}>
+                      Choose an amount ($5, $10, $25, or custom), add a personal message, and enter the recipient's name and email. We'll generate a unique QR code and send it automatically, or you can print/share it yourself.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 2 */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '1rem',
+                  padding: '1.25rem',
+                  background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.05) 100%)',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid rgba(102, 126, 234, 0.2)'
+                }}>
+                  <div style={{
+                    width: '3rem',
+                    height: '3rem',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+                  }}>
+                    <QrCode size={20} style={{ color: 'white' }} />
+                  </div>
+                  <div>
+                    <h3 style={{
+                      fontSize: '1.125rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.5rem'
+                    }}>2. Recipient Scans</h3>
+                    <p style={{
+                      fontSize: '0.9375rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.6,
+                      margin: 0
+                    }}>
+                      The recipient receives the QR Cash via email or as a printed gift. They simply scan the QR code with their phone camera to open the redemption page and claim their cash gift.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 3 */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '1rem',
+                  padding: '1.25rem',
+                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.05) 100%)',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid rgba(34, 197, 94, 0.2)'
+                }}>
+                  <div style={{
+                    width: '3rem',
+                    height: '3rem',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    boxShadow: '0 2px 8px rgba(34, 197, 94, 0.3)'
+                  }}>
+                    <CreditCard size={20} style={{ color: 'white' }} />
+                  </div>
+                  <div>
+                    <h3 style={{
+                      fontSize: '1.125rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.5rem'
+                    }}>3. Spend Anywhere</h3>
+                    <p style={{
+                      fontSize: '0.9375rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.6,
+                      margin: 0
+                    }}>
+                      Once redeemed, the cash is transferred to their preferred payment method (bank account, PayPal, Venmo, etc.). They can spend it anywhere they like—no restrictions!
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tracking Info */}
+              <div style={{
+                marginTop: '2rem',
+                padding: '1rem',
+                background: 'var(--gray-50)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                textAlign: 'center'
+              }}>
+                <Gift size={24} style={{ color: '#f59e0b', marginBottom: '0.5rem' }} />
+                <p style={{
+                  fontSize: '0.9375rem',
+                  color: 'var(--text-secondary)',
+                  margin: 0,
+                  lineHeight: 1.6
+                }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>Track Your Gifts:</strong> You'll see a red dollar sign for pending gifts and a green dollar sign when they've been received in your Past Greetings dashboard.
+                </p>
+              </div>
+
+              {/* CTA Button */}
+              <button
+                onClick={() => {
+                  setShowHowItWorksModal(false);
+                  setShowQRCashModal(true);
+                }}
+                style={{
+                  width: '100%',
+                  marginTop: '2rem',
+                  padding: '1rem',
+                  background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--radius-lg)',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 12px rgba(251, 191, 36, 0.3)',
+                  fontFamily: 'inherit',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(251, 191, 36, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.3)';
+                }}
+              >
+                <DollarSign size={20} />
+                Send QR Cash Now
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
     </div>
   );

@@ -26,6 +26,8 @@ import AnimationBank from "./pages/AnimationBank";
 import Invitations from "./pages/Invitations";
 import RedeemQRCash from "./pages/RedeemQRCash";
 import ForBusiness from "./pages/ForBusiness";
+import Rewards from "./pages/Rewards";
+import Notifications from "./pages/Notifications";
 
 export default function App() {
   return (
@@ -63,6 +65,8 @@ export default function App() {
             <Route path="hero" element={<HeroProgram />} />
             <Route path="animations" element={<AnimationBank />} />
             <Route path="invitations" element={<Invitations />} />
+            <Route path="rewards" element={<Rewards />} />
+            <Route path="notifications" element={<Notifications />} />
           </Route>
 
           {/* Public Landing and Pricing */}

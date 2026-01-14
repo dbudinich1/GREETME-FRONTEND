@@ -1,13 +1,15 @@
 // src/pages/SendGreeting.jsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, CheckCircle, XCircle, Loader, Edit3, Zap, Gift, ArrowLeft, Camera } from 'lucide-react';
-import { occasionTypes } from '../utils/helpers';
+import { Send, CheckCircle, XCircle, Loader, Edit3, Gift, ArrowLeft, Camera } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import GreetingDraftEditor from '../components/GreetingDraftEditor';
+import { pushInApp } from '../utils/notify';
+import { COMMS_EVENTS } from '../utils/commsCatalog';
+import { awardGreetingHearts } from '../utils/rewards';
 
 // TEMP STUB — models layer intentionally disabled for V1 build safety
 const greetingDraftModel = {
@@ -38,6 +40,7 @@ export default function SendGreeting() {
     customMessage: '',
     isRecurring: false,
     aiContext: '',
+    giftAmount: '',
   });
   const [errors, setErrors] = useState({});
 
@@ -77,7 +80,22 @@ export default function SendGreeting() {
       const response = await api.getJobStatus(jobId);
       setJobStatus(response.status);
 
-      if (response.status === 'completed' || response.status === 'failed') {
+      if (response.status === 'completed') {
+        setJobId(null);
+        // Trigger notification and rewards
+        const selectedContact = contacts.find(c => c._id === formData.contactId);
+        const recipientName = selectedContact?.name || 'your recipient';
+        pushInApp(COMMS_EVENTS.GREETING_SENT, { recipientName });
+        // Award hearts for sending greeting
+        const heartsEarned = awardGreetingHearts();
+        if (heartsEarned > 0) {
+          pushInApp(COMMS_EVENTS.REWARDS_EARNED, {
+            amount: heartsEarned,
+            reason: 'sending a greeting',
+            timestamp: Date.now()
+          });
+        }
+      } else if (response.status === 'failed') {
         setJobId(null);
       }
     } catch (error) {
@@ -169,7 +187,11 @@ if (typeof window !== "undefined") {
     setFormData({
       contactId: '',
       occasionType: '',
+      customOccasion: '',
       customMessage: '',
+      isRecurring: false,
+      aiContext: '',
+      giftAmount: '',
     });
     setJobId(null);
     setJobStatus(null);
@@ -339,9 +361,9 @@ if (typeof window !== "undefined") {
           Back
         </button>
       </div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">Send a Greeting</h1>
-      <p className="text-gray-600 mb-6">
-        Create and send a personalized AI greeting to one of your contacts.
+      <h1 className="text-3xl font-bold text-gray-900 mb-2">Send a Greeting Just Because!</h1>
+      <p className="text-gray-600 mb-8">
+        Create and send a one-off personalized greeting to one of your recipients.
       </p>
 
       {contacts.length === 0 && (
@@ -351,46 +373,24 @@ if (typeof window !== "undefined") {
         />
       )}
 
-      {/* Top Action Buttons */}
-      <div className="flex justify-end space-x-3 mb-4">
-        <button
-          type="button"
-          onClick={() => alert('Draft saved!')}
-          className="px-6 py-2 text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
-        >
-          Save Draft
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            document.querySelector('form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-          }}
-          disabled={contacts.length === 0 || sending}
-          className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
-        >
-          {sending ? 'Sending...' : 'Done & Send'}
-        </button>
-      </div>
-
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
         {errors.submit && <Alert type="error" message={errors.submit} />}
 
         {/* Select Contact */}
-        <div className="mb-6">
+        <div className="mb-8">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Contact <span className="text-red-500">*</span>
+            Select Recipient <span className="text-red-500">*</span>
           </label>
           <select
             name="contactId"
             value={formData.contactId}
             onChange={handleChange}
-            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
               errors.contactId ? 'border-red-500' : 'border-gray-300'
             }`}
             disabled={contacts.length === 0}
           >
-            <option value="">Choose a contact...</option>
+            <option value="">Choose a recipient...</option>
             {contacts.map((contact) => (
               <option key={contact.id} value={contact.id}>
                 {contact.name} ({contact.email})
@@ -400,61 +400,29 @@ if (typeof window !== "undefined") {
           {errors.contactId && <p className="mt-1 text-sm text-red-500">{errors.contactId}</p>}
         </div>
 
-        {/* Select Occasion */}
-        <div className="mb-6">
+        {/* Occasion - Free Text Input */}
+        <div className="mb-8">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Occasion <span className="text-red-500">*</span>
           </label>
-          <select
+          <input
+            type="text"
             name="occasionType"
             value={formData.occasionType}
             onChange={handleChange}
-            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
               errors.occasionType ? 'border-red-500' : 'border-gray-300'
             }`}
-          >
-            <option value="">Choose an occasion...</option>
-            {occasionTypes.map((occasion) => (
-              <option key={occasion.value} value={occasion.value}>
-                {occasion.icon} {occasion.label}
-              </option>
-            ))}
-            <option value="other">Other</option>
-          </select>
+            placeholder="What's the occasion? (e.g., Just thinking of you, Congrats on the new job, etc.)"
+          />
           {errors.occasionType && <p className="mt-1 text-sm text-red-500">{errors.occasionType}</p>}
-
-          {/* Other Occasion Field */}
-          {formData.occasionType === 'other' && (
-            <div className="mt-3">
-              <input
-                type="text"
-                name="customOccasion"
-                value={formData.customOccasion}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter custom occasion..."
-              />
-            </div>
-          )}
-
-          {/* Recurring Toggle */}
-          <div className="mt-3 flex items-center">
-            <input
-              type="checkbox"
-              id="isRecurring"
-              name="isRecurring"
-              checked={formData.isRecurring}
-              onChange={(e) => setFormData(prev => ({ ...prev, isRecurring: e.target.checked }))}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label htmlFor="isRecurring" className="ml-2 block text-sm text-gray-700">
-              Make this a recurring occasion (send annually)
-            </label>
-          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Enter any occasion or reason for sending this greeting
+          </p>
         </div>
 
         {/* AI Context */}
-        <div className="mb-6">
+        <div className="mb-8">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             AI Context (Optional)
           </label>
@@ -463,16 +431,16 @@ if (typeof window !== "undefined") {
             value={formData.aiContext}
             onChange={handleChange}
             rows="3"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Add context to help AI personalize your greeting (e.g., 'They just got promoted' or 'We met at a conference')..."
           />
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-2 text-xs text-gray-500">
             Help AI generate a more personalized greeting
           </p>
         </div>
 
         {/* Custom Message */}
-        <div className="mb-6">
+        <div className="mb-8">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Custom Message (Optional)
           </label>
@@ -481,84 +449,357 @@ if (typeof window !== "undefined") {
             value={formData.customMessage}
             onChange={handleChange}
             rows="4"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Add a personal touch to your greeting..."
           />
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-2 text-xs text-gray-500">
             This will be incorporated into the AI-generated message
           </p>
         </div>
 
-        {/* Memory Album */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Memory Album (Optional)
+        {/* Photo Section - Side by Side Centered Panes */}
+        <div className="mb-8">
+          <label className="block text-sm font-medium text-gray-700 mb-4 text-center">
+            Photos
           </label>
-          <div className="grid grid-cols-2 gap-4">
+          <div style={{
+            display: 'flex',
+            gap: '2rem',
+            justifyContent: 'center',
+            maxWidth: '700px',
+            margin: '0 auto'
+          }}>
             {/* Default Photo Pane */}
-            <div className="border-2 border-gray-200 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-semibold text-gray-900">Default Photo</h4>
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            <div style={{
+              flex: 1,
+              maxWidth: '300px',
+              border: '2px solid #e5e7eb',
+              borderRadius: '0.75rem',
+              padding: '1.5rem',
+              background: 'white',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '1rem'
+              }}>
+                <h4 style={{
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  color: '#1f2937'
+                }}>Default Photo</h4>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '0.25rem 0.625rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  background: '#dcfce7',
+                  color: '#16a34a'
+                }}>
                   ✓ Default
                 </span>
               </div>
-              <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-gray-400">
-                <Camera size={48} />
+              <div style={{
+                aspectRatio: '1',
+                background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                borderRadius: '0.5rem',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px dashed #d1d5db'
+              }}>
+                <Camera size={48} style={{ color: '#9ca3af' }} />
               </div>
               <button
                 type="button"
-                className="w-full px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: '#22c55e',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  marginBottom: '0.5rem',
+                  fontFamily: 'inherit',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#16a34a'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#22c55e'}
               >
                 Upload Photo
               </button>
               <button
                 type="button"
-                className="w-full mt-2 px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: 'white',
+                  color: '#667eea',
+                  border: '1px solid #667eea',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#667eea';
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'white';
+                  e.currentTarget.style.color = '#667eea';
+                }}
               >
                 Select from Media Library
               </button>
             </div>
 
             {/* Memory Photos Pane */}
-            <div className="border-2 border-gray-200 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">Memory Photos</h4>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-                  <Camera size={32} />
+            <div style={{
+              flex: 1,
+              maxWidth: '300px',
+              border: '2px solid #e5e7eb',
+              borderRadius: '0.75rem',
+              padding: '1.5rem',
+              background: 'white',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+            }}>
+              <h4 style={{
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                color: '#1f2937',
+                marginBottom: '1rem'
+              }}>Memory Photos</h4>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '0.5rem',
+                marginBottom: '1rem'
+              }}>
+                <div style={{
+                  aspectRatio: '1',
+                  background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                  borderRadius: '0.375rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px dashed #d1d5db'
+                }}>
+                  <Camera size={24} style={{ color: '#9ca3af' }} />
                 </div>
-                <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-                  <Camera size={32} />
+                <div style={{
+                  aspectRatio: '1',
+                  background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                  borderRadius: '0.375rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px dashed #d1d5db'
+                }}>
+                  <Camera size={24} style={{ color: '#9ca3af' }} />
                 </div>
               </div>
               <button
                 type="button"
-                className="w-full px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: '#22c55e',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  marginBottom: '0.5rem',
+                  fontFamily: 'inherit',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#16a34a'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#22c55e'}
               >
                 Add Memory Photos
               </button>
-              <p className="mt-2 text-xs text-gray-500">Upload multiple photos to create a memory album</p>
+              <button
+                type="button"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: 'white',
+                  color: '#667eea',
+                  border: '1px solid #667eea',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#667eea';
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'white';
+                  e.currentTarget.style.color = '#667eea';
+                }}
+              >
+                Select from Media Library
+              </button>
+              <p style={{
+                marginTop: '0.75rem',
+                fontSize: '0.75rem',
+                color: '#6b7280',
+                textAlign: 'center'
+              }}>Upload multiple photos to create a memory album</p>
             </div>
           </div>
         </div>
 
-        {/* Add a Gift (Coming Soon) */}
-        <div className="mb-6">
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                  <Gift size={20} className="text-purple-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900">Add a Gift</h3>
-                  <p className="text-xs text-gray-600">Make it extra special with an American-made gift</p>
-                </div>
+        {/* Add a Gift - Live Button */}
+        <div className="mb-8">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Add a Gift (Optional)
+          </label>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%)',
+            border: '2px solid rgba(251, 191, 36, 0.3)',
+            borderRadius: '0.75rem',
+            padding: '1.5rem'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              marginBottom: '1rem'
+            }}>
+              <div style={{
+                width: '3rem',
+                height: '3rem',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(251, 191, 36, 0.3)'
+              }}>
+                <Gift size={24} style={{ color: 'white' }} />
               </div>
-              <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
-                Coming Soon
-              </span>
+              <div>
+                <h3 style={{
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: '#1f2937',
+                  marginBottom: '0.25rem'
+                }}>QR Cash™ — Send Cash by QR</h3>
+                <p style={{
+                  fontSize: '0.875rem',
+                  color: '#6b7280'
+                }}>Add real cash to your greeting — Send · Scan · Spend</p>
+              </div>
             </div>
+
+            {/* Gift Amount Options */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '0.5rem',
+              marginBottom: '1rem'
+            }}>
+              {['5', '10', '25', 'Custom'].map((amt) => (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => {
+                    if (amt === 'Custom') {
+                      const custom = prompt('Enter custom amount:');
+                      if (custom) {
+                        setFormData(prev => ({ ...prev, giftAmount: custom }));
+                      }
+                    } else {
+                      setFormData(prev => ({ ...prev, giftAmount: amt }));
+                    }
+                  }}
+                  style={{
+                    padding: '0.75rem',
+                    background: formData.giftAmount === amt ? '#f59e0b' : 'white',
+                    color: formData.giftAmount === amt ? 'white' : '#1f2937',
+                    border: `2px solid ${formData.giftAmount === amt ? '#f59e0b' : '#e5e7eb'}`,
+                    borderRadius: '0.5rem',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    fontFamily: 'inherit'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (formData.giftAmount !== amt) {
+                      e.currentTarget.style.borderColor = '#f59e0b';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (formData.giftAmount !== amt) {
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                    }
+                  }}
+                >
+                  {amt === 'Custom' ? amt : `$${amt}`}
+                </button>
+              ))}
+            </div>
+
+            {formData.giftAmount && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.75rem 1rem',
+                background: '#dcfce7',
+                borderRadius: '0.5rem',
+                marginBottom: '0.75rem'
+              }}>
+                <span style={{
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: '#16a34a'
+                }}>
+                  💵 ${formData.giftAmount} QR Cash will be included
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, giftAmount: '' }))}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#dc2626',
+                    fontSize: '0.8125rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit'
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+
+            <p style={{
+              fontSize: '0.75rem',
+              color: '#6b7280',
+              textAlign: 'center'
+            }}>
+              QR Cash prints inside the card so the recipient can deposit it like cash
+            </p>
           </div>
         </div>
 
