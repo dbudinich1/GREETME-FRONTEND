@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart, Film, Image } from 'lucide-react';
 import GreetMeLogo from './GreetMeLogo';
 import NotificationBell from './NotificationBell';
+import GuidedSetupFlow, { shouldShowGuidedSetup } from './GuidedSetupFlow';
 
 // TEMP STUB — services layer intentionally disabled for V1 build safety
 const animationBankService = {
@@ -24,9 +25,17 @@ export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [showGuidedSetup, setShowGuidedSetup] = useState(false);
 
   const [animationCount, setAnimationCount] = useState(0);
   const [cartCount, setCartCount] = useState(0);
+
+  // Check if guided setup should show on mount
+  useEffect(() => {
+    if (shouldShowGuidedSetup()) {
+      setShowGuidedSetup(true);
+    }
+  }, []);
 
 
 
@@ -602,6 +611,14 @@ export default function DashboardLayout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Guided Setup Flow for first-time users */}
+      {showGuidedSetup && (
+        <GuidedSetupFlow
+          onComplete={() => setShowGuidedSetup(false)}
+          onDismiss={() => setShowGuidedSetup(false)}
+        />
+      )}
     </div>
   );
 }
