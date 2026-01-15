@@ -1,45 +1,148 @@
 // src/components/ContactForm.jsx
-// Implement relationship-scoped media albums, multi-page greeting drafts, and reminder-based edit flows without altering existing navigation or breaking the current send-greeting pipeline.
-import { useState, useEffect } from 'react';
-import { validateEmail, getOccasionsByCategory, calculateVaryingOccasionDate, relationshipTypes, closenessLevels } from '../utils/helpers';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { validateEmail, getOccasionsByCategory, calculateVaryingOccasionDate } from '../utils/helpers';
 import Alert from './Alert';
 import FaithBasedOccasionSelector from './FaithBasedOccasionSelector';
-import RelationshipSelector from './RelationshipSelector';
-import RelationshipSelectorHoverLadder from './RelationshipSelectorHoverLadder';
-import { Heart, User, Mail, Info, Plus, Camera, Upload, X, Star, Gift, ChevronDown, ChevronUp } from 'lucide-react';
+import { Heart, User, Mail, Info, Plus, Camera, X, Gift, ChevronDown, ChevronUp, DollarSign, ExternalLink } from 'lucide-react';
+
+// Session storage key for preserving form data during gift selection navigation
+const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
+// Session storage key for scroll position
+const FORM_SCROLL_KEY = 'greetme_contact_form_scroll';
+
+const getInitialFormData = () => ({
+  name: '',
+  email: '',
+  gender: '',
+  relationshipCategory: '',
+  relationship: '',
+  relationshipCloseness: '',
+  relationshipContext: '',
+  relationshipProfile: null,
+  occasions: [],
+  occasionGiftSettings: {},
+  avatar: '',
+  memoryPhotos: [],
+  coverPhoto: '',
+  culturalContext: {
+    heritage: [],
+    faith: null,
+    preferCulturalGifts: false,
+  },
+  giftPreferences: {
+    enabled: false,
+    budgetCap: '',
+    giftingMode: 'always',
+  },
+});
 
 export default function ContactForm({ contact, onSubmit, onCancel }) {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    gender: '',
-    relationship: '',
-    relationshipCloseness: '',
-    relationshipContext: '',
-    relationshipProfile: null, // New hover ladder format: {group, groupLabel, role, roleLabel, closeness, closenessLabel}
-    occasions: [],
-    avatar: '',
-    memoryPhotos: [],
-    coverPhoto: '',
-    culturalContext: {
-      heritage: [],
-      faith: null,
-      preferCulturalGifts: false,
-    },
-    giftPreferences: {
-      enabled: false,
-      budgetCap: '',
-      giftingMode: 'always', // 'always', 'occasions_only', 'never'
-    },
-  });
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState(getInitialFormData());
   const [selectedFaiths, setSelectedFaiths] = useState([]);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [culturalSectionExpanded, setCulturalSectionExpanded] = useState(false);
-  const [giftSectionExpanded, setGiftSectionExpanded] = useState(false);
+  const [secularExpanded, setSecularExpanded] = useState(false);
+
+  // Ref for the form container - used for scroll restoration
+  const formRef = useRef(null);
 
   const occasionCategories = getOccasionsByCategory();
+
+  // Save form data to sessionStorage for persistence during navigation
+  const saveFormDraft = useCallback((data, faiths) => {
+    try {
+      sessionStorage.setItem(FORM_DRAFT_KEY, JSON.stringify({
+        formData: data,
+        selectedFaiths: faiths,
+        timestamp: Date.now(),
+        isEditing: !!contact
+      }));
+    } catch (e) {
+      console.warn('Could not save form draft:', e);
+    }
+  }, [contact]);
+
+  // Clear form draft from sessionStorage
+  const clearFormDraft = useCallback(() => {
+    try {
+      sessionStorage.removeItem(FORM_DRAFT_KEY);
+    } catch (e) {
+      console.warn('Could not clear form draft:', e);
+    }
+  }, []);
+
+  // Save current scroll position before navigating to gift selection
+  const saveScrollPosition = useCallback(() => {
+    try {
+      const modalContent = formRef.current?.closest('.modal-content') || formRef.current?.closest('[class*="modal"]');
+      const scrollTop = modalContent ? modalContent.scrollTop : window.scrollY;
+      sessionStorage.setItem(FORM_SCROLL_KEY, JSON.stringify({
+        scrollTop,
+        timestamp: Date.now()
+      }));
+    } catch (e) {
+      console.warn('Could not save scroll position:', e);
+    }
+  }, []);
+
+  // Load saved draft on mount (only if not editing an existing contact)
+  useEffect(() => {
+    if (!contact) {
+      try {
+        const saved = sessionStorage.getItem(FORM_DRAFT_KEY);
+        if (saved) {
+          const draft = JSON.parse(saved);
+          // Only restore if draft is less than 30 minutes old and wasn't for editing
+          if (draft.timestamp && Date.now() - draft.timestamp < 30 * 60 * 1000 && !draft.isEditing) {
+            setFormData(draft.formData);
+            setSelectedFaiths(draft.selectedFaiths || []);
+          } else {
+            clearFormDraft();
+          }
+        }
+      } catch (e) {
+        console.warn('Could not restore form draft:', e);
+      }
+    }
+  }, [contact, clearFormDraft]);
+
+  // Restore scroll position after form loads (when returning from gift page)
+  useEffect(() => {
+    try {
+      const savedScroll = sessionStorage.getItem(FORM_SCROLL_KEY);
+      if (savedScroll) {
+        const scrollData = JSON.parse(savedScroll);
+        // Only restore if recent (less than 5 minutes)
+        if (scrollData.timestamp && Date.now() - scrollData.timestamp < 5 * 60 * 1000) {
+          // Use setTimeout to ensure form has rendered
+          setTimeout(() => {
+            const modalContent = formRef.current?.closest('.modal-content') || formRef.current?.closest('[class*="modal"]');
+            if (modalContent) {
+              modalContent.scrollTop = scrollData.scrollTop;
+            } else if (formRef.current) {
+              // Fallback: scroll the form into view at the saved offset
+              window.scrollTo(0, scrollData.scrollTop);
+            }
+          }, 100);
+        }
+        // Clear after restoring
+        sessionStorage.removeItem(FORM_SCROLL_KEY);
+      }
+    } catch (e) {
+      console.warn('Could not restore scroll position:', e);
+    }
+  }, []);
+
+  // Auto-save form data when it changes
+  useEffect(() => {
+    // Only auto-save if form has meaningful data (name or email entered)
+    if (formData.name || formData.email) {
+      saveFormDraft(formData, selectedFaiths);
+    }
+  }, [formData, selectedFaiths, saveFormDraft]);
 
   useEffect(() => {
     if (contact) {
@@ -47,11 +150,13 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         name: contact.name || '',
         email: contact.email || '',
         gender: contact.gender || '',
+        relationshipCategory: contact.relationshipCategory || '',
         relationship: contact.relationship || '',
         relationshipCloseness: contact.relationshipCloseness || '',
         relationshipContext: contact.relationshipContext || '',
         relationshipProfile: contact.relationshipProfile || null,
         occasions: contact.occasions || [],
+        occasionGiftSettings: contact.occasionGiftSettings || {},
         avatar: contact.avatar || '',
         memoryPhotos: contact.memoryPhotos || [],
         coverPhoto: contact.coverPhoto || '',
@@ -130,6 +235,24 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
     }));
   };
 
+  // Gift settings helper - default: { type: "none", requireConfirm: true }
+  const getOccasionGiftSetting = (occasionValue) => {
+    return formData.occasionGiftSettings?.[occasionValue] || { type: 'none', requireConfirm: true };
+  };
+
+  const handleOccasionGiftChange = (occasionValue, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      occasionGiftSettings: {
+        ...prev.occasionGiftSettings,
+        [occasionValue]: {
+          ...getOccasionGiftSetting(occasionValue),
+          [field]: value
+        }
+      }
+    }));
+  };
+
   const handleFaithSelectionChange = (newSelectedFaiths) => {
     setSelectedFaiths(newSelectedFaiths);
 
@@ -181,12 +304,14 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
       newErrors.email = 'Invalid email format';
     }
 
-    // Check for relationship using new hover ladder format OR old separate fields
-    if (!formData.relationshipProfile && !formData.relationship) {
-      newErrors.relationship = 'Please select a relationship';
+    // Check for relationship category, role, and closeness
+    if (!formData.relationshipCategory) {
+      newErrors.relationship = 'Please select a relationship category';
+    } else if (!formData.relationship) {
+      newErrors.relationship = 'Please select a specific relationship';
     }
 
-    if (!formData.relationshipProfile && !formData.relationshipCloseness) {
+    if (!formData.relationshipCloseness) {
       newErrors.relationshipCloseness = 'Please select relationship closeness';
     }
 
@@ -210,6 +335,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
     setSubmitting(true);
     try {
       await onSubmit(formData);
+      // Clear draft on successful submission
+      clearFormDraft();
     } catch (error) {
       setErrors({ submit: error.message });
     } finally {
@@ -220,124 +347,404 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
   const selectedOccasions = formData.occasions?.map(o => o.type) || [];
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
       {errors.submit && <Alert type="error" message={errors.submit} />}
 
       {/* Contact Information */}
-      <div className="card space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-          <User size={20} className="text-purple-600" />
+      <div style={{
+        background: 'var(--bg-primary)',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid var(--border)',
+        padding: '1.25rem 1.5rem',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+      }}>
+        <h3 style={{
+          fontSize: '1rem',
+          fontWeight: 600,
+          color: 'var(--text-primary)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          marginBottom: '1.25rem'
+        }}>
+          <User size={18} style={{ color: '#667eea' }} />
           <span>Contact Information</span>
         </h3>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 transition-all ${
-              errors.name ? 'border-red-500' : 'border-gray-200'
-            }`}
-            placeholder="John Doe"
-          />
-          {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Email <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Mail className="text-gray-400" size={20} />
-            </div>
+        {/* Two-column layout on desktop */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: window.innerWidth > 600 ? '1fr 1fr' : '1fr',
+          gap: '1rem'
+        }}>
+          {/* Name */}
+          <div>
+            <label style={{
+              display: 'block',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+              marginBottom: '0.375rem'
+            }}>
+              Name <span style={{ color: '#ef4444' }}>*</span>
+            </label>
             <input
-              type="email"
-              name="email"
-              value={formData.email}
+              type="text"
+              name="name"
+              value={formData.name}
               onChange={handleChange}
-              className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 transition-all ${
-                errors.email ? 'border-red-500' : 'border-gray-200'
-              }`}
-              placeholder="john@example.com"
+              style={{
+                width: '100%',
+                padding: '0.625rem 0.875rem',
+                border: errors.name ? '1.5px solid #ef4444' : '1.5px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.9375rem',
+                fontFamily: 'inherit',
+                background: 'white',
+                transition: 'border-color 0.2s'
+              }}
+              placeholder="John Doe"
             />
+            {errors.name && <p style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: '#ef4444' }}>{errors.name}</p>}
           </div>
-          {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
-        </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Gender
-          </label>
-          <select
-            name="gender"
-            value={formData.gender}
-            onChange={handleChange}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 transition-all bg-white"
-          >
-            <option value="">Prefer not to say</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-          <p className="mt-1 text-xs text-gray-500">
-            Helps us filter relevant occasions (e.g., hide Mother's Day for males)
-          </p>
+          {/* Email */}
+          <div>
+            <label style={{
+              display: 'block',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+              marginBottom: '0.375rem'
+            }}>
+              Email <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Mail size={16} style={{
+                position: 'absolute',
+                left: '0.75rem',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-tertiary)'
+              }} />
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                style={{
+                  width: '100%',
+                  padding: '0.625rem 0.875rem 0.625rem 2.25rem',
+                  border: errors.email ? '1.5px solid #ef4444' : '1.5px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.9375rem',
+                  fontFamily: 'inherit',
+                  background: 'white',
+                  transition: 'border-color 0.2s'
+                }}
+                placeholder="john@example.com"
+              />
+            </div>
+            {errors.email && <p style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: '#ef4444' }}>{errors.email}</p>}
+          </div>
+
+          {/* Gender - spans both columns on desktop */}
+          <div style={{ gridColumn: window.innerWidth > 600 ? 'span 2' : 'span 1' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+              marginBottom: '0.375rem'
+            }}>
+              Gender
+            </label>
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              style={{
+                width: '100%',
+                maxWidth: '200px',
+                padding: '0.625rem 0.875rem',
+                border: '1.5px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.9375rem',
+                fontFamily: 'inherit',
+                background: 'white',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Prefer not to say</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+            <p style={{
+              marginTop: '0.25rem',
+              fontSize: '0.6875rem',
+              color: 'var(--text-tertiary)'
+            }}>
+              Helps us filter relevant occasions (e.g., hide Mother's Day for males)
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Relationship Information */}
-      <div className="card space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-          <Heart size={20} className="text-pink-500" fill="currentColor" />
+      <div style={{
+        background: 'var(--bg-primary)',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid var(--border)',
+        padding: '1.25rem 1.5rem',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+      }}>
+        <h3 style={{
+          fontSize: '1rem',
+          fontWeight: 600,
+          color: 'var(--text-primary)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          marginBottom: '1.25rem'
+        }}>
+          <Heart size={18} style={{ color: '#ec4899' }} fill="#ec4899" />
           <span>Relationship</span>
         </h3>
 
-        {/* New Hover Ladder Selector */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Relationship <span className="text-red-500">*</span>
-          </label>
-          <RelationshipSelectorHoverLadder
-            value={formData.relationshipProfile}
-            onChange={(profile) => {
-              setFormData(prev => ({
-                ...prev,
-                relationshipProfile: profile,
-                // Also populate old fields for backward compatibility
-                relationship: profile.role,
-                relationshipCloseness: profile.closeness
-              }));
-            }}
-            className=""
-          />
-          {(errors.relationship || errors.relationshipCloseness) && (
-            <p className="mt-1 text-sm text-red-500">
-              {errors.relationship || errors.relationshipCloseness}
-            </p>
-          )}
+        {/* 3 Cascading Relationship Dropdowns */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: window.innerWidth > 600 ? '1fr 1fr 1fr' : '1fr',
+          gap: '1rem',
+          marginBottom: '1rem'
+        }}>
+          {/* Dropdown 1: Category */}
+          <div>
+            <label style={{
+              display: 'block',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+              marginBottom: '0.375rem'
+            }}>
+              Category <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <select
+              name="relationshipCategory"
+              value={formData.relationshipCategory || ''}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFormData(prev => ({
+                  ...prev,
+                  relationshipCategory: value,
+                  relationship: '', // Reset specific role when category changes
+                  relationshipProfile: null
+                }));
+                if (errors.relationship) {
+                  setErrors(prev => ({ ...prev, relationship: '' }));
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '0.625rem 0.875rem',
+                border: errors.relationship && !formData.relationshipCategory ? '1.5px solid #ef4444' : '1.5px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.9375rem',
+                fontFamily: 'inherit',
+                background: 'white',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Select...</option>
+              <option value="family">Family</option>
+              <option value="friend">Friend</option>
+              <option value="professional">Professional</option>
+            </select>
+          </div>
+
+          {/* Dropdown 2: Specific Role (depends on Category) */}
+          <div>
+            <label style={{
+              display: 'block',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+              marginBottom: '0.375rem'
+            }}>
+              Relationship <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <select
+              name="relationship"
+              value={formData.relationship || ''}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFormData(prev => ({
+                  ...prev,
+                  relationship: value,
+                  relationshipProfile: value ? {
+                    group: prev.relationshipCategory,
+                    role: value,
+                    roleLabel: value,
+                    closeness: prev.relationshipCloseness || ''
+                  } : null
+                }));
+                if (errors.relationship) {
+                  setErrors(prev => ({ ...prev, relationship: '' }));
+                }
+              }}
+              disabled={!formData.relationshipCategory}
+              style={{
+                width: '100%',
+                padding: '0.625rem 0.875rem',
+                border: errors.relationship && formData.relationshipCategory && !formData.relationship ? '1.5px solid #ef4444' : '1.5px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.9375rem',
+                fontFamily: 'inherit',
+                background: !formData.relationshipCategory ? 'var(--gray-100)' : 'white',
+                cursor: formData.relationshipCategory ? 'pointer' : 'not-allowed',
+                color: !formData.relationshipCategory ? 'var(--text-tertiary)' : 'inherit'
+              }}
+            >
+              <option value="">Select...</option>
+              {formData.relationshipCategory === 'family' && (
+                <>
+                  <option value="parent">Parent</option>
+                  <option value="sibling">Sibling</option>
+                  <option value="child">Child</option>
+                  <option value="grandparent">Grandparent</option>
+                  <option value="grandchild">Grandchild</option>
+                  <option value="aunt_uncle">Aunt/Uncle</option>
+                  <option value="cousin">Cousin</option>
+                  <option value="spouse">Spouse</option>
+                  <option value="partner">Partner</option>
+                  <option value="fiancee">Fiancee</option>
+                  <option value="in_law">In-Law</option>
+                </>
+              )}
+              {formData.relationshipCategory === 'friend' && (
+                <>
+                  <option value="best_friend">Best Friend</option>
+                  <option value="close_friend">Close Friend</option>
+                  <option value="friend">Friend</option>
+                  <option value="acquaintance">Acquaintance</option>
+                  <option value="neighbor">Neighbor</option>
+                  <option value="teammate">Teammate</option>
+                  <option value="classmate">Classmate</option>
+                </>
+              )}
+              {formData.relationshipCategory === 'professional' && (
+                <>
+                  <option value="colleague">Colleague</option>
+                  <option value="mentor">Mentor</option>
+                  <option value="mentee">Mentee</option>
+                  <option value="boss">Boss</option>
+                  <option value="employee">Employee</option>
+                  <option value="client">Client</option>
+                  <option value="vendor">Vendor</option>
+                  <option value="business_partner">Business Partner</option>
+                </>
+              )}
+            </select>
+          </div>
+
+          {/* Dropdown 3: Closeness Level */}
+          <div>
+            <label style={{
+              display: 'block',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+              marginBottom: '0.375rem'
+            }}>
+              Closeness <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <select
+              name="relationshipCloseness"
+              value={formData.relationshipCloseness || ''}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFormData(prev => ({
+                  ...prev,
+                  relationshipCloseness: value,
+                  relationshipProfile: prev.relationshipProfile ? {
+                    ...prev.relationshipProfile,
+                    closeness: value
+                  } : null
+                }));
+                if (errors.relationshipCloseness) {
+                  setErrors(prev => ({ ...prev, relationshipCloseness: '' }));
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '0.625rem 0.875rem',
+                border: errors.relationshipCloseness ? '1.5px solid #ef4444' : '1.5px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.9375rem',
+                fontFamily: 'inherit',
+                background: 'white',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Select...</option>
+              <option value="innermost">Innermost</option>
+              <option value="greetme_worthy">Greet-Me Worthy</option>
+              <option value="obligatory">You Gotta Do What Ya Gotta Do</option>
+            </select>
+            {errors.relationshipCloseness && (
+              <p style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: '#ef4444' }}>
+                {errors.relationshipCloseness}
+              </p>
+            )}
+          </div>
         </div>
 
+        {/* Combined validation error */}
+        {errors.relationship && (
+          <p style={{ marginTop: '-0.5rem', marginBottom: '1rem', fontSize: '0.75rem', color: '#ef4444' }}>
+            {errors.relationship}
+          </p>
+        )}
+
+        {/* Context Text Area */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            color: 'var(--text-secondary)',
+            marginBottom: '0.375rem'
+          }}>
             <span>Relationship Context</span>
-            <Info size={16} className="text-gray-400" />
+            <Info size={14} style={{ color: 'var(--text-tertiary)' }} />
           </label>
           <textarea
             name="relationshipContext"
             value={formData.relationshipContext}
             onChange={handleChange}
-            rows={3}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 transition-all"
-            placeholder="Describe your relationship with this person... How did you meet? What memories do you share? This helps AI personalize the greeting message."
+            rows={2}
+            style={{
+              width: '100%',
+              padding: '0.625rem 0.875rem',
+              border: '1.5px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.875rem',
+              fontFamily: 'inherit',
+              resize: 'vertical',
+              minHeight: '60px'
+            }}
+            placeholder="How did you meet? What memories do you share?"
             maxLength={500}
           />
-          <p className="mt-1 text-xs text-gray-500">
-            {formData.relationshipContext?.length || 0}/500 characters - Helps personalize greetings
+          <p style={{
+            marginTop: '0.25rem',
+            fontSize: '0.6875rem',
+            color: 'var(--text-tertiary)'
+          }}>
+            {formData.relationshipContext?.length || 0}/500 characters
           </p>
         </div>
       </div>
@@ -576,202 +983,505 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         )}
       </div>
 
-      {/* Memory Album - Side by Side Layout */}
-      <div className="card space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-          <Camera size={20} className="text-blue-600" />
-          <span>Memory Album</span>
+      {/* Memory Photos - Media Library Style */}
+      <div style={{
+        background: 'var(--bg-primary)',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid var(--border)',
+        padding: '1.25rem 1.5rem',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+      }}>
+        <h3 style={{
+          fontSize: '1rem',
+          fontWeight: 600,
+          color: 'var(--text-primary)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          marginBottom: '0.5rem'
+        }}>
+          <Camera size={18} style={{ color: '#3b82f6' }} />
+          <span>Memory Photos</span>
         </h3>
-        <p className="text-sm text-gray-600">
-          Add photos that represent memories with this person. These will be available when creating personalized greetings.
+        <p style={{
+          fontSize: '0.8125rem',
+          color: 'var(--text-secondary)',
+          marginBottom: '1rem'
+        }}>
+          Add photos for this recipient. The first photo becomes the default.
         </p>
 
-        {/* Side-by-Side Layout: Default Photo | Memory Photos */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-          {/* LEFT: Default Photo Pane */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <label className="block text-sm font-medium text-gray-700 flex items-center space-x-2">
-              <Star size={16} className="text-yellow-500" fill="currentColor" />
-              <span>Default Photo</span>
+        {/* Photo Grid - Media Library Layout */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+          gap: '0.75rem'
+        }}>
+          {/* Default Photo Slot (first photo or placeholder) */}
+          {formData.avatar ? (
+            <div style={{ position: 'relative' }}>
+              <div style={{
+                position: 'relative',
+                paddingBottom: '100%',
+                borderRadius: 'var(--radius-md)',
+                overflow: 'hidden',
+                border: '3px solid #22c55e',
+                boxShadow: '0 2px 8px rgba(34, 197, 94, 0.25)'
+              }}>
+                <img
+                  src={formData.avatar}
+                  alt="Default Photo"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => window.open(formData.avatar, '_blank')}
+                  title="Default photo - Click to enlarge"
+                />
+                {/* Default badge */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '4px',
+                  left: '4px',
+                  background: '#22c55e',
+                  color: 'white',
+                  fontSize: '0.5625rem',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.02em'
+                }}>
+                  Default
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, avatar: '' }))}
+                style={{
+                  position: 'absolute',
+                  top: '-6px',
+                  right: '-6px',
+                  width: '20px',
+                  height: '20px',
+                  background: '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ) : (
+            <label style={{ cursor: 'pointer' }}>
+              <input
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    if (file.size > 5 * 1024 * 1024) {
+                      alert('Image must be less than 5MB');
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setFormData(prev => ({ ...prev, avatar: reader.result }));
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+              />
+              <div style={{
+                position: 'relative',
+                paddingBottom: '100%',
+                borderRadius: 'var(--radius-md)',
+                border: '2px dashed var(--border)',
+                background: 'var(--gray-50)',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text-tertiary)',
+                  textAlign: 'center',
+                  padding: '0.5rem'
+                }}>
+                  <Camera size={24} style={{ marginBottom: '0.25rem', opacity: 0.5 }} />
+                  <span style={{ fontSize: '0.625rem', fontWeight: 500, lineHeight: 1.2 }}>Your photo here</span>
+                </div>
+              </div>
             </label>
-            <div className="border-2 border-gray-200 rounded-xl p-4 bg-gray-50">
-              {formData.avatar ? (
-                <div className="relative">
-                  <img
-                    src={formData.avatar}
-                    alt="Default Photo"
-                    className="w-32 h-32 mx-auto rounded-lg object-cover border-2 border-purple-200 cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => {
-                      // TODO: Open lightbox/modal for full view
-                      window.open(formData.avatar, '_blank');
-                    }}
-                    title="Click to enlarge"
-                  />
+          )}
+
+          {/* Memory Photos */}
+          {formData.memoryPhotos.map((photo, index) => (
+            <div key={index} style={{ position: 'relative' }}>
+              <div style={{
+                position: 'relative',
+                paddingBottom: '100%',
+                borderRadius: 'var(--radius-md)',
+                overflow: 'hidden',
+                border: '1px solid var(--border)'
+              }}>
+                <img
+                  src={photo}
+                  alt={`Memory ${index + 1}`}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => window.open(photo, '_blank')}
+                  title="Click to enlarge"
+                />
+                {/* Set as default button on hover */}
+                {!formData.avatar && (
                   <button
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, avatar: '' }))}
-                    className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFormData(prev => ({
+                        ...prev,
+                        avatar: photo,
+                        memoryPhotos: prev.memoryPhotos.filter((_, i) => i !== index)
+                      }));
+                    }}
+                    style={{
+                      position: 'absolute',
+                      bottom: '4px',
+                      left: '4px',
+                      background: 'rgba(34, 197, 94, 0.9)',
+                      color: 'white',
+                      fontSize: '0.5625rem',
+                      fontWeight: 600,
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
                   >
-                    <X size={14} />
+                    Set Default
                   </button>
-                </div>
-              ) : (
-                <div className="w-32 h-32 mx-auto rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-white">
-                  <User size={48} className="text-gray-300" />
-                </div>
-              )}
-              <label className="cursor-pointer block mt-3">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      // Validate size
-                      if (file.size > 5 * 1024 * 1024) {
-                        alert('Image must be less than 5MB');
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        setFormData(prev => ({ ...prev, avatar: reader.result }));
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                />
-                <div className="w-full px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-medium text-sm flex items-center justify-center space-x-2">
-                  <Upload size={16} />
-                  <span>{formData.avatar ? 'Change Photo' : 'Upload Photo'}</span>
-                </div>
-              </label>
-              <p className="text-xs text-gray-500 mt-2 text-center">Max 5MB • Click image to enlarge</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData(prev => ({
+                    ...prev,
+                    memoryPhotos: prev.memoryPhotos.filter((_, i) => i !== index)
+                  }));
+                }}
+                style={{
+                  position: 'absolute',
+                  top: '-6px',
+                  right: '-6px',
+                  width: '20px',
+                  height: '20px',
+                  background: '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}
+              >
+                <X size={12} />
+              </button>
             </div>
-          </div>
+          ))}
 
-          {/* RIGHT: Memory Album Pane */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <label className="block text-sm font-medium text-gray-700 flex items-center space-x-2">
-              <Camera size={16} className="text-blue-600" />
-              <span>Memory Photos</span>
-            </label>
-            <div className="border-2 border-gray-200 rounded-xl p-4 bg-gray-50 min-h-[200px]">
-              {/* Photo Grid - Smaller Thumbnails */}
-              {formData.memoryPhotos.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  {formData.memoryPhotos.map((photo, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={photo}
-                        alt={`Memory ${index + 1}`}
-                        className="w-full aspect-square rounded-lg object-cover border border-gray-300 cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => {
-                          // TODO: Open lightbox/modal for full view
-                          window.open(photo, '_blank');
-                        }}
-                        title="Click to enlarge"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormData(prev => ({
-                            ...prev,
-                            memoryPhotos: prev.memoryPhotos.filter((_, i) => i !== index)
-                          }));
-                        }}
-                        className="absolute -top-1 -right-1 p-0.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Upload Button */}
-              <label className="cursor-pointer block">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files);
-                    files.forEach(file => {
-                      // Validate size
-                      if (file.size > 5 * 1024 * 1024) {
-                        alert('Each image must be less than 5MB');
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        setFormData(prev => ({
-                          ...prev,
-                          memoryPhotos: [...prev.memoryPhotos, reader.result]
-                        }));
-                      };
-                      reader.readAsDataURL(file);
-                    });
-                  }}
-                />
-                <div className="w-full px-3 py-2 border-2 border-dashed border-blue-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-all flex items-center justify-center space-x-2 text-gray-600 hover:text-blue-700">
-                  <Plus size={18} />
-                  <span className="font-medium text-sm">Add Photos</span>
-                </div>
-              </label>
-
-              {formData.memoryPhotos.length > 0 && (
-                <p className="text-xs text-gray-500 mt-2 text-center">
-                  {formData.memoryPhotos.length} photo{formData.memoryPhotos.length !== 1 ? 's' : ''} • Click to enlarge
-                </p>
-              )}
+          {/* Add More Photos Button */}
+          <label style={{ cursor: 'pointer' }}>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const files = Array.from(e.target.files);
+                files.forEach(file => {
+                  if (file.size > 5 * 1024 * 1024) {
+                    alert('Each image must be less than 5MB');
+                    return;
+                  }
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setFormData(prev => ({
+                      ...prev,
+                      memoryPhotos: [...prev.memoryPhotos, reader.result]
+                    }));
+                  };
+                  reader.readAsDataURL(file);
+                });
+              }}
+            />
+            <div style={{
+              position: 'relative',
+              paddingBottom: '100%',
+              borderRadius: 'var(--radius-md)',
+              border: '2px dashed #3b82f6',
+              background: '#eff6ff',
+              overflow: 'hidden',
+              transition: 'all 0.2s'
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#3b82f6'
+              }}>
+                <Plus size={24} />
+                <span style={{ fontSize: '0.625rem', fontWeight: 600, marginTop: '0.125rem' }}>Add</span>
+              </div>
             </div>
-          </div>
+          </label>
         </div>
+
+        {/* Photo count */}
+        <p style={{
+          fontSize: '0.6875rem',
+          color: 'var(--text-tertiary)',
+          marginTop: '0.75rem',
+          textAlign: 'center'
+        }}>
+          {(formData.avatar ? 1 : 0) + formData.memoryPhotos.length} photo{((formData.avatar ? 1 : 0) + formData.memoryPhotos.length) !== 1 ? 's' : ''} • Max 5MB each • Click to enlarge
+        </p>
       </div>
 
       {/* Occasions */}
       <div className="card space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Special Occasions</h3>
 
+        {/* Guardrail text */}
+        <p style={{
+          fontSize: '0.75rem',
+          color: 'var(--text-tertiary)',
+          padding: '0.75rem',
+          background: 'var(--gray-50)',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border)',
+          marginBottom: '0.5rem'
+        }}>
+          <Gift size={14} style={{ display: 'inline', marginRight: '0.375rem', verticalAlign: 'middle' }} />
+          Gifts are optional and never auto-sent unless you select them for a specific occasion.
+        </p>
+
         {/* Personal Occasions */}
         <div>
           <h4 className="text-sm font-semibold text-gray-700 mb-3">Personal Occasions</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {occasionCategories.personal.map((occasion) => {
               const isSelected = selectedOccasions.includes(occasion.value);
               const occasionData = formData.occasions?.find(o => o.type === occasion.value);
+              const giftSetting = getOccasionGiftSetting(occasion.value);
 
               return (
-                <div key={occasion.value} className="border border-gray-200 rounded-xl p-4 hover:border-purple-200 transition-colors">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id={`occasion-${occasion.value}`}
-                      checked={isSelected}
-                      onChange={() => handleOccasionToggle(occasion.value, occasion.fixedDate)}
-                      className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                    />
-                    <label
-                      htmlFor={`occasion-${occasion.value}`}
-                      className="ml-3 text-sm font-medium text-gray-900 flex items-center cursor-pointer"
-                    >
-                      <span className="text-2xl mr-2">{occasion.icon}</span>
-                      {occasion.label}
-                    </label>
-                  </div>
+                <div
+                  key={occasion.value}
+                  style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '1rem',
+                    background: isSelected ? 'var(--gray-50)' : 'white',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {/* Occasion header row */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <input
+                        type="checkbox"
+                        id={`occasion-${occasion.value}`}
+                        checked={isSelected}
+                        onChange={() => handleOccasionToggle(occasion.value, occasion.fixedDate)}
+                        style={{ width: '1.125rem', height: '1.125rem', accentColor: '#8b5cf6' }}
+                      />
+                      <label
+                        htmlFor={`occasion-${occasion.value}`}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                      >
+                        <span style={{ fontSize: '1.5rem' }}>{occasion.icon}</span>
+                        <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{occasion.label}</span>
+                      </label>
+                    </div>
 
-                  {isSelected && (
-                    <div className="mt-3 ml-8">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Date *</label>
+                    {/* Date field inline */}
+                    {isSelected && (
                       <input
                         type="date"
                         value={occasionData?.date || ''}
                         onChange={(e) => handleOccasionDateChange(occasion.value, e.target.value)}
-                        className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        style={{
+                          padding: '0.375rem 0.625rem',
+                          border: '1px solid var(--border)',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '0.8125rem',
+                          fontFamily: 'inherit'
+                        }}
                         required
                       />
+                    )}
+                  </div>
+
+                  {/* Gift Add-On Section - only show when occasion is selected */}
+                  {isSelected && (
+                    <div style={{
+                      marginTop: '0.75rem',
+                      paddingTop: '0.75rem',
+                      borderTop: '1px dashed var(--border)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                        {/* Gift Add-On dropdown */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Gift size={16} style={{ color: '#10b981' }} />
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Gift Add-On:</span>
+                          <select
+                            value={giftSetting.type}
+                            onChange={(e) => handleOccasionGiftChange(occasion.value, 'type', e.target.value)}
+                            style={{
+                              padding: '0.375rem 0.625rem',
+                              border: '1px solid var(--border)',
+                              borderRadius: 'var(--radius-md)',
+                              fontSize: '0.8125rem',
+                              fontFamily: 'inherit',
+                              background: 'white',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <option value="none">None</option>
+                            <option value="qrcash">QR Cash</option>
+                            <option value="merch">Greet-Me Merch</option>
+                            <option value="subscription">Subscription</option>
+                          </select>
+                        </div>
+
+                        {/* QR Cash amount selector */}
+                        {giftSetting.type === 'qrcash' && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <DollarSign size={14} style={{ color: '#f59e0b' }} />
+                            <select
+                              value={giftSetting.amount || 25}
+                              onChange={(e) => handleOccasionGiftChange(occasion.value, 'amount', parseInt(e.target.value))}
+                              style={{
+                                padding: '0.375rem 0.625rem',
+                                border: '1px solid #fbbf24',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit',
+                                background: '#fffbeb',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value={10}>$10</option>
+                              <option value={25}>$25</option>
+                              <option value={50}>$50</option>
+                              <option value={100}>$100</option>
+                              <option value={0}>Custom</option>
+                            </select>
+                            {giftSetting.amount === 0 && (
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="Amount"
+                                value={giftSetting.customAmount || ''}
+                                onChange={(e) => handleOccasionGiftChange(occasion.value, 'customAmount', parseInt(e.target.value))}
+                                style={{
+                                  width: '80px',
+                                  padding: '0.375rem 0.625rem',
+                                  border: '1px solid #fbbf24',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit',
+                                  background: '#fffbeb'
+                                }}
+                              />
+                            )}
+                          </div>
+                        )}
+
+                        {/* Choose Item button for merch/subscription */}
+                        {(giftSetting.type === 'merch' || giftSetting.type === 'subscription') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              saveScrollPosition();
+                              navigate(`/dashboard/gifts?category=${giftSetting.type}`);
+                            }}
+                            style={{
+                              padding: '0.375rem 0.75rem',
+                              background: '#10b981',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: 'var(--radius-md)',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.375rem',
+                              fontFamily: 'inherit'
+                            }}
+                          >
+                            <ExternalLink size={12} />
+                            Choose Item
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Require confirmation checkbox - only when gift is selected */}
+                      {giftSetting.type !== 'none' && (
+                        <label style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          marginTop: '0.625rem',
+                          cursor: 'pointer'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={giftSetting.requireConfirm !== false}
+                            onChange={(e) => handleOccasionGiftChange(occasion.value, 'requireConfirm', e.target.checked)}
+                            style={{ width: '0.875rem', height: '0.875rem', accentColor: '#10b981' }}
+                          />
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            Require confirmation before sending gift
+                          </span>
+                        </label>
+                      )}
                     </div>
                   )}
                 </div>
@@ -780,14 +1490,98 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           </div>
         </div>
 
-        {/* Secular Occasions - Gender Filtered */}
-        <div>
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">Holiday Occasions</h4>
-          <p className="text-xs text-gray-500 mb-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <Info size={14} className="inline mr-1" />
-            Dates for holidays like Mother's Day and Thanksgiving vary each year. We'll automatically track and update these dates annually.
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+        {/* Secular Occasions - Collapsible */}
+        <div style={{
+          border: '1px solid',
+          borderColor: selectedFaiths.includes('secular') ? 'var(--primary)' : 'var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          overflow: 'hidden',
+          background: selectedFaiths.includes('secular') ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-primary)'
+        }}>
+          {/* Secular Header */}
+          <div style={{
+            padding: '0.875rem 1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem'
+          }}>
+            {/* Checkbox */}
+            <input
+              type="checkbox"
+              checked={selectedFaiths.includes('secular')}
+              onChange={() => {
+                const newSelection = selectedFaiths.includes('secular')
+                  ? selectedFaiths.filter(id => id !== 'secular')
+                  : [...selectedFaiths, 'secular'];
+                handleFaithSelectionChange(newSelection);
+              }}
+              style={{
+                width: '1.125rem',
+                height: '1.125rem',
+                cursor: 'pointer',
+                accentColor: 'var(--primary)'
+              }}
+            />
+
+            {/* Click area for expand/collapse */}
+            <div
+              onClick={() => setSecularExpanded(!secularExpanded)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flex: 1,
+                cursor: 'pointer'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ fontSize: '1.25rem' }}>🎉</span>
+                <div style={{ textAlign: 'left' }}>
+                  <h4 style={{
+                    fontSize: '0.9375rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    margin: 0
+                  }}>
+                    Secular Holidays
+                  </h4>
+                  <p style={{
+                    fontSize: '0.75rem',
+                    color: 'var(--text-tertiary)',
+                    margin: 0
+                  }}>
+                    {occasionCategories.secular.length} holidays (Mother's Day, Thanksgiving, etc.)
+                  </p>
+                </div>
+              </div>
+              {secularExpanded ? (
+                <ChevronUp size={18} style={{ color: 'var(--text-tertiary)' }} />
+              ) : (
+                <ChevronDown size={18} style={{ color: 'var(--text-tertiary)' }} />
+              )}
+            </div>
+          </div>
+
+          {/* Secular Content - Expandable */}
+          {secularExpanded && (
+            <div style={{
+              padding: '1rem',
+              borderTop: '1px solid var(--border)',
+              background: 'var(--gray-50)'
+            }}>
+              <p style={{
+                fontSize: '0.75rem',
+                color: 'var(--text-secondary)',
+                marginBottom: '0.75rem',
+                padding: '0.5rem 0.75rem',
+                background: '#eff6ff',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid #bfdbfe'
+              }}>
+                <Info size={12} style={{ display: 'inline', marginRight: '0.375rem', verticalAlign: 'middle' }} />
+                Dates for holidays like Mother's Day and Thanksgiving vary each year.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {occasionCategories.secular.filter(occasion => {
               // Gender-based filtering
               const gender = formData.gender?.toLowerCase();
@@ -807,44 +1601,192 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
             }).map((occasion) => {
               const isSelected = selectedOccasions.includes(occasion.value);
               const occasionData = formData.occasions?.find(o => o.type === occasion.value);
+              const giftSetting = getOccasionGiftSetting(occasion.value);
 
               return (
-                <div key={occasion.value} className="border border-gray-200 rounded-xl p-4 hover:border-purple-200 transition-colors">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id={`occasion-${occasion.value}`}
-                      checked={isSelected}
-                      onChange={() => handleOccasionToggle(occasion.value, occasion.fixedDate)}
-                      className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                    />
-                    <label
-                      htmlFor={`occasion-${occasion.value}`}
-                      className="ml-3 text-sm font-medium text-gray-900 flex items-center cursor-pointer"
-                    >
-                      <span className="text-2xl mr-2">{occasion.icon}</span>
-                      {occasion.label}
-                    </label>
-                  </div>
-
-                  {isSelected && (
-                    <div className="mt-3 ml-8">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        Date * {!occasion.fixedDate && <span className="text-gray-500 font-normal">(varies each year)</span>}
+                <div
+                  key={occasion.value}
+                  style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '1rem',
+                    background: isSelected ? 'var(--gray-50)' : 'white',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {/* Occasion header row */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <input
+                        type="checkbox"
+                        id={`occasion-${occasion.value}`}
+                        checked={isSelected}
+                        onChange={() => handleOccasionToggle(occasion.value, occasion.fixedDate)}
+                        style={{ width: '1.125rem', height: '1.125rem', accentColor: '#8b5cf6' }}
+                      />
+                      <label
+                        htmlFor={`occasion-${occasion.value}`}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                      >
+                        <span style={{ fontSize: '1.5rem' }}>{occasion.icon}</span>
+                        <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{occasion.label}</span>
+                        {!occasion.fixedDate && (
+                          <span style={{ fontSize: '0.625rem', color: 'var(--text-tertiary)', fontWeight: 400 }}>(varies)</span>
+                        )}
                       </label>
+                    </div>
+
+                    {/* Date field inline */}
+                    {isSelected && (
                       <input
                         type="date"
                         value={occasionData?.date || ''}
                         onChange={(e) => handleOccasionDateChange(occasion.value, e.target.value)}
-                        className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        style={{
+                          padding: '0.375rem 0.625rem',
+                          border: '1px solid var(--border)',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '0.8125rem',
+                          fontFamily: 'inherit'
+                        }}
                         required
                       />
+                    )}
+                  </div>
+
+                  {/* Gift Add-On Section - only show when occasion is selected */}
+                  {isSelected && (
+                    <div style={{
+                      marginTop: '0.75rem',
+                      paddingTop: '0.75rem',
+                      borderTop: '1px dashed var(--border)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                        {/* Gift Add-On dropdown */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Gift size={16} style={{ color: '#10b981' }} />
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Gift Add-On:</span>
+                          <select
+                            value={giftSetting.type}
+                            onChange={(e) => handleOccasionGiftChange(occasion.value, 'type', e.target.value)}
+                            style={{
+                              padding: '0.375rem 0.625rem',
+                              border: '1px solid var(--border)',
+                              borderRadius: 'var(--radius-md)',
+                              fontSize: '0.8125rem',
+                              fontFamily: 'inherit',
+                              background: 'white',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <option value="none">None</option>
+                            <option value="qrcash">QR Cash</option>
+                            <option value="merch">Greet-Me Merch</option>
+                            <option value="subscription">Subscription</option>
+                          </select>
+                        </div>
+
+                        {/* QR Cash amount selector */}
+                        {giftSetting.type === 'qrcash' && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <DollarSign size={14} style={{ color: '#f59e0b' }} />
+                            <select
+                              value={giftSetting.amount || 25}
+                              onChange={(e) => handleOccasionGiftChange(occasion.value, 'amount', parseInt(e.target.value))}
+                              style={{
+                                padding: '0.375rem 0.625rem',
+                                border: '1px solid #fbbf24',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit',
+                                background: '#fffbeb',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value={10}>$10</option>
+                              <option value={25}>$25</option>
+                              <option value={50}>$50</option>
+                              <option value={100}>$100</option>
+                              <option value={0}>Custom</option>
+                            </select>
+                            {giftSetting.amount === 0 && (
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="Amount"
+                                value={giftSetting.customAmount || ''}
+                                onChange={(e) => handleOccasionGiftChange(occasion.value, 'customAmount', parseInt(e.target.value))}
+                                style={{
+                                  width: '80px',
+                                  padding: '0.375rem 0.625rem',
+                                  border: '1px solid #fbbf24',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit',
+                                  background: '#fffbeb'
+                                }}
+                              />
+                            )}
+                          </div>
+                        )}
+
+                        {/* Choose Item button for merch/subscription */}
+                        {(giftSetting.type === 'merch' || giftSetting.type === 'subscription') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              saveScrollPosition();
+                              navigate(`/dashboard/gifts?category=${giftSetting.type}`);
+                            }}
+                            style={{
+                              padding: '0.375rem 0.75rem',
+                              background: '#10b981',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: 'var(--radius-md)',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.375rem',
+                              fontFamily: 'inherit'
+                            }}
+                          >
+                            <ExternalLink size={12} />
+                            Choose Item
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Require confirmation checkbox - only when gift is selected */}
+                      {giftSetting.type !== 'none' && (
+                        <label style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          marginTop: '0.625rem',
+                          cursor: 'pointer'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={giftSetting.requireConfirm !== false}
+                            onChange={(e) => handleOccasionGiftChange(occasion.value, 'requireConfirm', e.target.checked)}
+                            style={{ width: '0.875rem', height: '0.875rem', accentColor: '#10b981' }}
+                          />
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            Require confirmation before sending gift
+                          </span>
+                        </label>
+                      )}
                     </div>
                   )}
                 </div>
               );
             })}
-          </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Faith-Based Occasions - New Clean Interface */}
@@ -870,7 +1812,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               color: 'var(--text-primary)',
               marginBottom: 'var(--space-md)'
             }}>
-              Holiday Dates
+              Faith-Based Holiday Dates
             </h4>
             <p style={{
               fontSize: '0.75rem',
@@ -885,10 +1827,10 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               gap: 'var(--space-md)'
             }}>
               {formData.occasions?.filter(occ => {
-                const occasion = [...occasionCategories.christian, ...occasionCategories.jewish, ...occasionCategories.muslim, ...occasionCategories.secular].find(o => o.value === occ.type);
-                return occasion && ['christian', 'jewish', 'muslim', 'secular'].includes(occasion.category);
+                const occasion = [...occasionCategories.christian, ...occasionCategories.jewish, ...occasionCategories.muslim].find(o => o.value === occ.type);
+                return occasion && ['christian', 'jewish', 'muslim'].includes(occasion.category);
               }).map(occ => {
-                const occasion = [...occasionCategories.christian, ...occasionCategories.jewish, ...occasionCategories.muslim, ...occasionCategories.secular].find(o => o.value === occ.type);
+                const occasion = [...occasionCategories.christian, ...occasionCategories.jewish, ...occasionCategories.muslim].find(o => o.value === occ.type);
                 if (!occasion) return null;
 
                 return (
@@ -932,23 +1874,23 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         {errors.occasions && <p className="mt-2 text-sm text-red-500">{errors.occasions}</p>}
       </div>
 
-      {/* Gift Reminder Nudge */}
+      {/* Gift Reminder Banner */}
       <div style={{
-        marginTop: 'var(--space-lg)',
-        marginBottom: 'var(--space-md)',
-        padding: 'var(--space-md)',
+        marginTop: '1rem',
+        padding: '0.875rem 1rem',
         background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
         borderRadius: 'var(--radius-lg)',
-        border: '2px solid #fbbf24',
+        border: '1px solid #fbbf24',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        gap: '1rem'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Gift size={24} style={{ color: '#d97706' }} />
+          <Gift size={20} style={{ color: '#d97706', flexShrink: 0 }} />
           <div>
             <p style={{
-              fontSize: '0.9375rem',
+              fontSize: '0.875rem',
               fontWeight: 600,
               color: '#78350f',
               margin: 0
@@ -958,315 +1900,31 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
             <p style={{
               fontSize: '0.75rem',
               color: '#92400e',
-              margin: '0.25rem 0 0 0'
+              margin: '0.125rem 0 0 0'
             }}>
-              Make occasions even more special with thoughtful gifts
+              Make occasions even more special with thoughtful gifts.
             </p>
           </div>
         </div>
         <button
           type="button"
-          onClick={() => {
-            setGiftSectionExpanded(true);
-            // Scroll to gift section
-            setTimeout(() => {
-              const giftSection = document.getElementById('gift-preferences-section');
-              if (giftSection) {
-                giftSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }
-            }, 100);
-          }}
+          onClick={() => navigate('/dashboard/gifts')}
           style={{
-            padding: '0.625rem 1.25rem',
+            padding: '0.5rem 1rem',
             background: '#d97706',
             color: 'white',
             border: 'none',
             borderRadius: 'var(--radius-md)',
-            fontSize: '0.875rem',
+            fontSize: '0.8125rem',
             fontWeight: 600,
             cursor: 'pointer',
             transition: 'all 0.2s',
-            boxShadow: '0 2px 4px rgba(217, 119, 6, 0.3)',
-            whiteSpace: 'nowrap'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#b45309';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = '0 4px 8px rgba(217, 119, 6, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#d97706';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 2px 4px rgba(217, 119, 6, 0.3)';
+            whiteSpace: 'nowrap',
+            flexShrink: 0
           }}
         >
           Add Gift
         </button>
-      </div>
-
-      {/* Gift Preferences - Collapsible Section */}
-      <div id="gift-preferences-section" style={{
-        marginTop: 'var(--space-lg)',
-        border: '2px solid #10b981',
-        borderRadius: 'var(--radius-lg)',
-        overflow: 'hidden'
-      }}>
-        {/* Header - Always Visible */}
-        <button
-          type="button"
-          onClick={() => setGiftSectionExpanded(!giftSectionExpanded)}
-          style={{
-            width: '100%',
-            padding: 'var(--space-md)',
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            border: 'none',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Gift size={20} style={{ color: 'white' }} />
-            <div style={{ textAlign: 'left' }}>
-              <h3 style={{
-                fontSize: '1rem',
-                fontWeight: 700,
-                color: 'white',
-                margin: 0
-              }}>
-                Gift Preferences
-              </h3>
-              <p style={{
-                fontSize: '0.75rem',
-                color: 'rgba(255, 255, 255, 0.9)',
-                margin: 0
-              }}>
-                {formData.giftPreferences?.enabled
-                  ? `Enabled • Budget: $${formData.giftPreferences.budgetCap || 'No limit'}`
-                  : 'Click to configure gift settings'}
-              </p>
-            </div>
-          </div>
-          {giftSectionExpanded ? (
-            <ChevronUp size={20} style={{ color: 'white' }} />
-          ) : (
-            <ChevronDown size={20} style={{ color: 'white' }} />
-          )}
-        </button>
-
-        {/* Collapsible Content */}
-        {giftSectionExpanded && (
-          <div style={{
-            padding: 'var(--space-lg)',
-            background: 'var(--bg-primary)',
-            borderTop: '1px solid rgba(16, 185, 129, 0.2)'
-          }}>
-            {/* Enable Toggle */}
-            <div style={{
-              marginBottom: 'var(--space-lg)',
-              padding: 'var(--space-md)',
-              background: '#f0fdf4',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid #bbf7d0'
-            }}>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                cursor: 'pointer',
-                gap: '0.75rem'
-              }}>
-                <input
-                  type="checkbox"
-                  checked={formData.giftPreferences?.enabled || false}
-                  onChange={(e) => {
-                    setFormData(prev => ({
-                      ...prev,
-                      giftPreferences: {
-                        ...prev.giftPreferences,
-                        enabled: e.target.checked
-                      }
-                    }));
-                  }}
-                  style={{
-                    width: '1.25rem',
-                    height: '1.25rem',
-                    accentColor: '#10b981',
-                    cursor: 'pointer'
-                  }}
-                />
-                <div>
-                  <span style={{
-                    fontSize: '0.9375rem',
-                    fontWeight: 600,
-                    color: 'var(--text-primary)'
-                  }}>
-                    Enable gift recommendations for this recipient
-                  </span>
-                  <p style={{
-                    fontSize: '0.8125rem',
-                    color: 'var(--text-secondary)',
-                    margin: '0.25rem 0 0 0'
-                  }}>
-                    We'll suggest thoughtful gifts from our American-Made Marketplace
-                  </p>
-                </div>
-              </label>
-            </div>
-
-            {/* Budget Cap - Only show when enabled */}
-            {formData.giftPreferences?.enabled && (
-              <>
-                <div style={{ marginBottom: 'var(--space-lg)' }}>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    marginBottom: 'var(--space-xs)'
-                  }}>
-                    Budget Cap (Optional)
-                  </label>
-                  <p style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--text-secondary)',
-                    marginBottom: 'var(--space-sm)'
-                  }}>
-                    Maximum amount you'd like to spend on gifts for this recipient
-                  </p>
-                  <div style={{ position: 'relative', maxWidth: '300px' }}>
-                    <span style={{
-                      position: 'absolute',
-                      left: '1rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                      color: 'var(--text-secondary)'
-                    }}>$</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="5"
-                      placeholder="No limit"
-                      value={formData.giftPreferences?.budgetCap || ''}
-                      onChange={(e) => {
-                        setFormData(prev => ({
-                          ...prev,
-                          giftPreferences: {
-                            ...prev.giftPreferences,
-                            budgetCap: e.target.value
-                          }
-                        }));
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem 1rem 0.75rem 2rem',
-                        fontSize: '0.9375rem',
-                        border: '2px solid var(--border)',
-                        borderRadius: 'var(--radius-md)',
-                        fontFamily: 'inherit'
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Gifting Mode */}
-                <div>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    marginBottom: 'var(--space-xs)'
-                  }}>
-                    How would you like to send gifts?
-                  </label>
-                  <p style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--text-secondary)',
-                    marginBottom: 'var(--space-sm)'
-                  }}>
-                    Choose your preferred gifting method
-                  </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {[
-                      { value: 'auto_curated', label: 'Let Greet-Me curate gifts within your budget automatically', desc: 'We\'ll select and send thoughtful gifts based on your budget and recipient preferences' },
-                      { value: 'qr_cash', label: 'Add QR Cash — Send · Scan · Spend', desc: 'It prints inside the card so the recipient can deposit it like cash' },
-                      { value: 'curated_suggestions', label: 'Select a gift from Greet-Me curated suggestions', desc: 'Choose from our personalized gift recommendations for this recipient' },
-                      { value: 'marketplace', label: 'Select your own gift from our American-Made Marketplace', desc: 'Browse and choose from our full catalog of Made in America products' }
-                    ].map(option => (
-                      <label
-                        key={option.value}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          padding: 'var(--space-md)',
-                          border: formData.giftPreferences?.giftingMode === option.value
-                            ? '2px solid #10b981'
-                            : '2px solid var(--border)',
-                          borderRadius: 'var(--radius-md)',
-                          background: formData.giftPreferences?.giftingMode === option.value
-                            ? '#f0fdf4'
-                            : 'var(--bg-primary)',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="giftingMode"
-                          value={option.value}
-                          checked={formData.giftPreferences?.giftingMode === option.value}
-                          onChange={(e) => {
-                            setFormData(prev => ({
-                              ...prev,
-                              giftPreferences: {
-                                ...prev.giftPreferences,
-                                giftingMode: e.target.value
-                              }
-                            }));
-                          }}
-                          style={{
-                            width: '1.125rem',
-                            height: '1.125rem',
-                            marginTop: '0.125rem',
-                            marginRight: '0.75rem',
-                            accentColor: '#10b981',
-                            cursor: 'pointer'
-                          }}
-                        />
-                        <div>
-                          <div style={{
-                            fontSize: '0.875rem',
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                            marginBottom: '0.25rem'
-                          }}>
-                            {option.label}
-                          </div>
-                          <div style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--text-secondary)'
-                          }}>
-                            {option.desc}
-                          </div>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Actions */}

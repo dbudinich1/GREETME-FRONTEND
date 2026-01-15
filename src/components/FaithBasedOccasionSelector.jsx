@@ -5,18 +5,11 @@ import { getOccasionsByCategory } from '../utils/helpers';
 
 const faithPackages = [
   {
-    id: 'secular',
-    name: 'Secular Holidays',
-    icon: '🎉',
-    description: 'Widely celebrated non-religious holidays',
-    occasions: null
-  },
-  {
     id: 'christian',
     name: 'Christianity',
     icon: '✝️',
     description: 'Major Christian holidays',
-    occasions: null // will be populated from helpers
+    occasions: null
   },
   {
     id: 'jewish',
@@ -35,7 +28,6 @@ const faithPackages = [
 ];
 
 export default function FaithBasedOccasionSelector({ selectedFaiths = [], onChange }) {
-  const [hoveredFaith, setHoveredFaith] = useState(null);
   const [expandedFaith, setExpandedFaith] = useState(null);
 
   // Populate occasions from helpers
@@ -62,20 +54,20 @@ export default function FaithBasedOccasionSelector({ selectedFaiths = [], onChan
       <div style={{
         marginBottom: 'var(--space-lg)'
       }}>
-        <h3 style={{
+        <h4 style={{
           fontSize: '0.875rem',
           fontWeight: 600,
           color: 'var(--text-primary)',
           marginBottom: 'var(--space-xs)'
         }}>
-          Faith Traditions
-        </h3>
+          Faith-Based Holidays
+        </h4>
         <p style={{
           fontSize: '0.75rem',
           color: 'var(--text-tertiary)',
           margin: 0
         }}>
-          Select the faith traditions you want to track. Click to expand and see included holidays.
+          Select faith traditions to include their holidays. Click the info icon to see what's included.
         </p>
       </div>
 
@@ -87,7 +79,6 @@ export default function FaithBasedOccasionSelector({ selectedFaiths = [], onChan
         {faithsWithOccasions.map(faith => {
           const isSelected = selectedFaiths.includes(faith.id);
           const isExpanded = expandedFaith === faith.id;
-          const isHovered = hoveredFaith === faith.id;
 
           return (
             <div
@@ -110,8 +101,6 @@ export default function FaithBasedOccasionSelector({ selectedFaiths = [], onChan
                   gap: 'var(--space-md)',
                   cursor: 'pointer'
                 }}
-                onMouseEnter={() => setHoveredFaith(faith.id)}
-                onMouseLeave={() => setHoveredFaith(null)}
               >
                 {/* Checkbox */}
                 <label style={{

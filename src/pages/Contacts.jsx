@@ -1,5 +1,5 @@
 // src/pages/Contacts.jsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Upload, Search, Edit, Trash2, ArrowLeft, Users, Calendar, Gift, FileSpreadsheet, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from "../api/api";
@@ -10,8 +10,8 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import { getOccasionIcon, getOccasionLabel } from '../utils/helpers';
 
-// Mobile detection
-const isMobile = window.innerWidth <= 600;
+// Session storage key (must match ContactForm.jsx)
+const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
 
 export default function Recipients() {
   const navigate = useNavigate();
@@ -24,10 +24,34 @@ export default function Recipients() {
   const [editingContact, setEditingContact] = useState(null);
   const [alert, setAlert] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [viewMode, setViewMode] = useState('recipients'); // 'recipients' or 'occasions'
+  const [viewMode, setViewMode] = useState('recipients');
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  // Handle resize for responsive layout
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     fetchRecipients();
+
+    // Check if there's a saved form draft
+    try {
+      const saved = sessionStorage.getItem(FORM_DRAFT_KEY);
+      if (saved) {
+        const draft = JSON.parse(saved);
+        if (draft.timestamp && Date.now() - draft.timestamp < 30 * 60 * 1000 && !draft.isEditing) {
+          setShowAddModal(true);
+          setTimeout(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }, 150);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not check form draft:', e);
+    }
   }, []);
 
   const fetchRecipients = async () => {
@@ -35,7 +59,6 @@ export default function Recipients() {
       setLoading(true);
       const response = await api.getContacts();
 
-      // If API returns 401, use localStorage as fallback
       if (response && response.ok === false && response.status === 401) {
         console.warn('API authentication failed, using local storage');
         const stored = localStorage.getItem('greetme_recipients');
@@ -52,7 +75,7 @@ export default function Recipients() {
     }
   };
 
-  const showAlert = (type, message) => {
+  const showAlertMessage = (type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 5000);
   };
@@ -61,32 +84,27 @@ export default function Recipients() {
     try {
       const response = await api.createContact(contactData);
 
-      // Create recipient object with ID
       const newRecipient = {
         id: response?.data?.id || Date.now(),
         ...contactData,
         createdAt: new Date().toISOString()
       };
 
-      // Immediately append to state for instant feedback
       setRecipients(prev => {
         const updated = [...prev, newRecipient];
-        // Save to localStorage as fallback
         localStorage.setItem('greetme_recipients', JSON.stringify(updated));
         return updated;
       });
 
-      showAlert('success', 'Recipient added successfully');
+      showAlertMessage('success', 'Recipient added successfully');
       setShowAddModal(false);
 
-      // Also refetch to ensure sync with server if API is working
       if (response && response.data) {
         fetchRecipients();
       }
     } catch (error) {
       console.error('Add recipient error:', error);
 
-      // If API fails, still save locally
       const newRecipient = {
         id: Date.now(),
         ...contactData,
@@ -99,7 +117,7 @@ export default function Recipients() {
         return updated;
       });
 
-      showAlert('success', 'Recipient added (stored locally - backend unavailable)');
+      showAlertMessage('success', 'Recipient added (stored locally - backend unavailable)');
       setShowAddModal(false);
     }
   };
@@ -107,7 +125,7 @@ export default function Recipients() {
   const handleEditRecipient = async (contactData) => {
     try {
       await api.updateContact(editingContact.id, contactData);
-      showAlert('success', 'Recipient updated successfully');
+      showAlertMessage('success', 'Recipient updated successfully');
       setShowEditModal(false);
       setEditingContact(null);
       fetchRecipients();
@@ -119,11 +137,11 @@ export default function Recipients() {
   const handleDeleteRecipient = async (contactId) => {
     try {
       await api.deleteContact(contactId);
-      showAlert('success', 'Recipient deleted successfully');
+      showAlertMessage('success', 'Recipient deleted successfully');
       setDeleteConfirm(null);
       fetchRecipients();
     } catch (error) {
-      showAlert('error', 'Failed to delete recipient');
+      showAlertMessage('error', 'Failed to delete recipient');
     }
   };
 
@@ -131,7 +149,7 @@ export default function Recipients() {
     try {
       const promises = contactsToImport.map(contact => api.createContact(contact));
       await Promise.all(promises);
-      showAlert('success', `${contactsToImport.length} recipients imported successfully`);
+      showAlertMessage('success', `${contactsToImport.length} recipients imported successfully`);
       setShowImportModal(false);
       fetchRecipients();
     } catch (error) {
@@ -142,6 +160,9 @@ export default function Recipients() {
   const openEditModal = (contact) => {
     setEditingContact(contact);
     setShowEditModal(true);
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
   };
 
   const filteredRecipients = recipients.filter(contact =>
@@ -153,7 +174,7 @@ export default function Recipients() {
     return <LoadingSpinner text="Loading recipients..." />;
   }
 
-  // Calculate stats for chips
+  // Calculate stats
   const upcomingCount = recipients.reduce((count, contact) => {
     const upcoming = (contact.occasions || []).filter(occ => {
       if (!occ.date) return false;
@@ -166,50 +187,69 @@ export default function Recipients() {
     return count + upcoming.length;
   }, 0);
 
+  // Example placeholder data for empty state
+  const placeholderRecipients = [
+    { name: 'Mom', relationship: 'Parent', occasions: [{ type: 'birthday' }], hasGift: true },
+    { name: 'Best Friend', relationship: 'Friend', occasions: [{ type: 'birthday' }, { type: 'christmas' }], hasGift: false },
+    { name: 'Partner', relationship: 'Partner', occasions: [{ type: 'birthday' }, { type: 'anniversary' }], hasGift: true }
+  ];
+
+  // Flatten occasions for occasions view
+  const allOccasions = recipients.flatMap(contact =>
+    (contact.occasions || []).map(occasion => ({
+      ...occasion,
+      recipientName: contact.name,
+      recipientRelationship: contact.relationship,
+      contactId: contact.id
+    }))
+  ).filter(occ =>
+    !searchTerm ||
+    occ.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    occ.recipientName?.toLowerCase().includes(searchTerm.toLowerCase())
+  ).sort((a, b) => {
+    const dateA = new Date(a.date || '9999-12-31');
+    const dateB = new Date(b.date || '9999-12-31');
+    return dateA - dateB;
+  });
+
   return (
     <div>
-      {/* Header with Gradient Background - Premium Hero Banner */}
+      {/* Header Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         borderRadius: 'var(--radius-xl)',
-        padding: isMobile ? '1.125rem 1rem' : '1.5rem 1.75rem',
-        marginBottom: '1.25rem',
+        padding: isMobile ? '24px 20px' : '32px',
+        marginBottom: '24px',
         boxShadow: '0 8px 24px rgba(102, 126, 234, 0.25)'
       }}>
-        {/* Two-column layout: left = content, right = actions */}
         <div style={{
           display: 'flex',
           flexDirection: isMobile ? 'column' : 'row',
           justifyContent: 'space-between',
           alignItems: isMobile ? 'stretch' : 'flex-start',
-          gap: isMobile ? '1rem' : '1.5rem'
+          gap: isMobile ? '16px' : '24px'
         }}>
-          {/* Left side: Back button + Title + Subtitle + Chips */}
+          {/* Left: Back + Title + Subtitle */}
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
               <button
                 onClick={() => navigate('/dashboard')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  width: '2.25rem',
-                  height: '2.25rem',
+                  width: '36px',
+                  height: '36px',
                   background: 'rgba(255, 255, 255, 0.2)',
                   border: '1px solid rgba(255, 255, 255, 0.3)',
                   borderRadius: 'var(--radius-md)',
                   color: 'white',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
-                  backdropFilter: 'blur(10px)',
                   flexShrink: 0
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
               >
                 <ArrowLeft size={18} />
               </button>
@@ -218,33 +258,28 @@ export default function Recipients() {
                   fontSize: isMobile ? '1.5rem' : '1.75rem',
                   fontWeight: 700,
                   color: 'white',
-                  marginBottom: '0.25rem',
+                  marginBottom: '4px',
                   lineHeight: 1.2
                 }}>Recipients</h1>
                 <p style={{
                   color: 'rgba(255, 255, 255, 0.9)',
                   fontSize: isMobile ? '0.8125rem' : '0.9375rem',
                   lineHeight: 1.5,
-                  marginBottom: '0.75rem'
-                }}>Manage who you greet — birthdays, anniversaries, "just because," and more.</p>
+                  marginBottom: '12px'
+                }}>Personalize how you greet each recipient — birthdays, anniversaries, "just because," and more.</p>
 
                 {/* Stats Chips */}
-                <div style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem'
-                }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   <span style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '0.375rem',
-                    padding: '0.375rem 0.75rem',
+                    gap: '6px',
+                    padding: '6px 12px',
                     background: 'rgba(255, 255, 255, 0.2)',
                     borderRadius: '9999px',
                     fontSize: '0.75rem',
                     fontWeight: 600,
-                    color: 'white',
-                    backdropFilter: 'blur(8px)'
+                    color: 'white'
                   }}>
                     <Users size={12} />
                     {recipients.length} Recipient{recipients.length !== 1 ? 's' : ''}
@@ -252,14 +287,13 @@ export default function Recipients() {
                   <span style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '0.375rem',
-                    padding: '0.375rem 0.75rem',
+                    gap: '6px',
+                    padding: '6px 12px',
                     background: 'rgba(255, 255, 255, 0.2)',
                     borderRadius: '9999px',
                     fontSize: '0.75rem',
                     fontWeight: 600,
-                    color: 'white',
-                    backdropFilter: 'blur(8px)'
+                    color: 'white'
                   }}>
                     <Clock size={12} />
                     {upcomingCount} Upcoming (30 days)
@@ -267,14 +301,13 @@ export default function Recipients() {
                   <span style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '0.375rem',
-                    padding: '0.375rem 0.75rem',
+                    gap: '6px',
+                    padding: '6px 12px',
                     background: 'rgba(255, 255, 255, 0.2)',
                     borderRadius: '9999px',
                     fontSize: '0.75rem',
                     fontWeight: 600,
-                    color: 'white',
-                    backdropFilter: 'blur(8px)'
+                    color: 'white'
                   }}>
                     <FileSpreadsheet size={12} />
                     CSV Ready
@@ -284,11 +317,11 @@ export default function Recipients() {
             </div>
           </div>
 
-          {/* Right side: Action Buttons */}
+          {/* Right: Action Buttons */}
           <div style={{
             display: 'flex',
             flexDirection: isMobile ? 'column' : 'row',
-            gap: '0.625rem',
+            gap: '10px',
             flexShrink: 0
           }}>
             <button
@@ -297,10 +330,9 @@ export default function Recipients() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '0.5rem',
-                padding: isMobile ? '0.875rem 1rem' : '0.75rem 1.25rem',
+                gap: '8px',
+                padding: isMobile ? '14px 16px' : '12px 20px',
                 width: isMobile ? '100%' : 'auto',
-                minHeight: isMobile ? '48px' : 'auto',
                 background: 'rgba(255, 255, 255, 0.2)',
                 color: 'white',
                 border: '1px solid rgba(255, 255, 255, 0.3)',
@@ -309,15 +341,10 @@ export default function Recipients() {
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                backdropFilter: 'blur(10px)',
                 fontFamily: 'inherit'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
             >
               <Upload size={18} />
               Import CSV
@@ -328,10 +355,9 @@ export default function Recipients() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '0.5rem',
-                padding: isMobile ? '0.875rem 1rem' : '0.75rem 1.25rem',
+                gap: '8px',
+                padding: isMobile ? '14px 16px' : '12px 20px',
                 width: isMobile ? '100%' : 'auto',
-                minHeight: isMobile ? '48px' : 'auto',
                 background: 'white',
                 color: '#667eea',
                 border: 'none',
@@ -368,29 +394,29 @@ export default function Recipients() {
         />
       )}
 
-      {/* View Toggle and Search */}
+      {/* View Toggle and Search - only when recipients exist */}
       {recipients.length > 0 && (
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ marginBottom: '24px' }}>
           {/* View Toggle */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            marginBottom: '1rem'
+            marginBottom: '16px'
           }}>
             <div style={{
               display: 'inline-flex',
               background: 'var(--gray-100)',
               borderRadius: 'var(--radius-lg)',
-              padding: '0.25rem'
+              padding: '4px'
             }}>
               <button
                 onClick={() => setViewMode('recipients')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.625rem 1rem',
+                  gap: '8px',
+                  padding: '10px 16px',
                   background: viewMode === 'recipients' ? 'white' : 'transparent',
                   color: viewMode === 'recipients' ? '#667eea' : 'var(--text-secondary)',
                   border: 'none',
@@ -411,8 +437,8 @@ export default function Recipients() {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.625rem 1rem',
+                  gap: '8px',
+                  padding: '10px 16px',
                   background: viewMode === 'occasions' ? 'white' : 'transparent',
                   color: viewMode === 'occasions' ? '#667eea' : 'var(--text-secondary)',
                   border: 'none',
@@ -432,106 +458,162 @@ export default function Recipients() {
           </div>
 
           {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <div style={{ position: 'relative' }}>
+            <Search
+              size={18}
+              style={{
+                position: 'absolute',
+                left: '16px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-tertiary)'
+              }}
+            />
             <input
               type="text"
               placeholder={viewMode === 'recipients' ? "Search recipients..." : "Search occasions..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{
+                width: '100%',
+                padding: '12px 16px 12px 44px',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-lg)',
+                fontSize: '0.875rem',
+                fontFamily: 'inherit',
+                background: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                transition: 'border-color 0.2s'
+              }}
+              onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
+              onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
             />
           </div>
         </div>
       )}
 
-      {/* Empty State with Preview Table */}
+      {/* Empty State with Placeholder Cards */}
       {recipients.length === 0 ? (
         <div style={{
           background: 'var(--bg-primary)',
           borderRadius: 'var(--radius-xl)',
           border: '1px solid var(--border)',
-          overflow: 'hidden',
+          padding: '24px',
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
         }}>
-          {/* Preview Table Header */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr 1fr' : '2fr 1.5fr 1fr 1.5fr 1fr',
-            padding: '0.75rem 1rem',
-            borderBottom: '1px solid var(--border)',
-            background: 'var(--gray-50)',
+          {/* Placeholder Cards */}
+          <p style={{
             fontSize: '0.75rem',
-            fontWeight: 600,
             color: 'var(--text-tertiary)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em'
-          }}>
-            <div>Name</div>
-            {!isMobile && <div>Email</div>}
-            {!isMobile && <div>Relationship</div>}
-            <div>Occasions</div>
-            {!isMobile && <div style={{ textAlign: 'right' }}>Actions</div>}
-          </div>
+            textAlign: 'center',
+            marginBottom: '16px',
+            fontStyle: 'italic'
+          }}>Examples — your recipients will appear here</p>
 
-          {/* Preview Rows (Example Data) */}
-          {[
-            { name: 'Mom', email: 'mom@example.com', relationship: 'Parent', occasions: ['🎂', '💝'] },
-            { name: 'Best Friend', email: 'bestie@example.com', relationship: 'Friend', occasions: ['🎂', '🎄'] },
-            { name: 'Partner', email: 'partner@example.com', relationship: 'Partner', occasions: ['🎂', '💕', '🎉'] }
-          ].map((preview, idx) => (
+          {placeholderRecipients.map((preview, idx) => (
             <div
               key={idx}
               style={{
-                display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr 1fr' : '2fr 1.5fr 1fr 1.5fr 1fr',
-                padding: '1rem',
-                borderBottom: '1px solid var(--border)',
-                background: idx % 2 === 0 ? 'white' : 'var(--gray-50)',
+                display: 'flex',
+                flexDirection: isMobile ? 'column' : 'row',
+                alignItems: isMobile ? 'stretch' : 'center',
+                justifyContent: 'space-between',
+                padding: '16px 20px',
+                marginBottom: '12px',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-lg)',
+                background: '#fff',
                 opacity: 0.5,
-                filter: 'blur(1px)',
-                pointerEvents: 'none'
+                pointerEvents: 'none',
+                gap: isMobile ? '12px' : '0'
               }}
             >
-              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{preview.name}</div>
-              {!isMobile && <div style={{ color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: '0.8125rem' }}>{preview.email}</div>}
-              {!isMobile && (
+              {/* Left: Avatar + Name + Relationship */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: '1rem'
+                }}>
+                  {preview.name.charAt(0)}
+                </div>
                 <div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>
+                    {preview.name}
+                  </div>
                   <span style={{
                     background: 'linear-gradient(135deg, #ddd6fe 0%, #c7d2fe 100%)',
                     color: '#5b21b6',
-                    padding: '0.25rem 0.5rem',
+                    padding: '2px 8px',
+                    borderRadius: '9999px',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600
+                  }}>
+                    {preview.relationship}
+                  </span>
+                </div>
+              </div>
+
+              {/* Middle: Occasions */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {preview.occasions.map((occ, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      background: 'var(--gray-100)',
+                      borderRadius: '9999px',
+                      fontSize: '0.75rem',
+                      color: 'var(--text-secondary)'
+                    }}
+                  >
+                    <span>{getOccasionIcon(occ.type)}</span>
+                    <span>{getOccasionLabel(occ.type)}</span>
+                  </span>
+                ))}
+                {preview.hasGift && (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 10px',
+                    background: 'linear-gradient(135deg, #fef08a 0%, #fde047 100%)',
                     borderRadius: '9999px',
                     fontSize: '0.75rem',
+                    color: '#92400e',
                     fontWeight: 600
-                  }}>{preview.relationship}</span>
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: '0.25rem' }}>
-                {preview.occasions.map((icon, i) => (
-                  <span key={i} style={{ fontSize: '1rem' }}>{icon}</span>
-                ))}
+                  }}>
+                    🎁 Gift
+                  </span>
+                )}
               </div>
-              {!isMobile && (
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{
-                    background: 'var(--gray-100)',
-                    color: 'var(--text-tertiary)',
-                    padding: '0.25rem 0.5rem',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: '0.75rem'
-                  }}>Edit</span>
-                </div>
-              )}
+
+              {/* Right: Actions placeholder */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span style={{
+                  padding: '6px 12px',
+                  background: 'var(--gray-100)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.75rem',
+                  color: 'var(--text-tertiary)'
+                }}>Edit</span>
+              </div>
             </div>
           ))}
 
-          {/* Call to Action Overlay */}
-          <div style={{
-            padding: '2rem',
-            textAlign: 'center',
-            background: 'linear-gradient(to bottom, transparent, white 20%)'
-          }}>
+          {/* CTA */}
+          <div style={{ textAlign: 'center', marginTop: '24px' }}>
             <div style={{
               width: '64px',
               height: '64px',
@@ -540,7 +622,7 @@ export default function Recipients() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 1rem',
+              margin: '0 auto 16px',
               boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
             }}>
               <Users size={28} style={{ color: 'white' }} />
@@ -549,21 +631,21 @@ export default function Recipients() {
               fontSize: '1.25rem',
               fontWeight: 700,
               color: 'var(--text-primary)',
-              marginBottom: '0.5rem'
+              marginBottom: '8px'
             }}>Add your first recipient</h3>
             <p style={{
               fontSize: '0.9375rem',
               color: 'var(--text-secondary)',
-              marginBottom: '1.5rem',
+              marginBottom: '24px',
               maxWidth: '400px',
-              margin: '0 auto 1.5rem'
+              margin: '0 auto 24px'
             }}>
               Start building your greeting list. Add loved ones manually or import from a CSV file.
             </p>
             <div style={{
               display: 'flex',
               flexDirection: isMobile ? 'column' : 'row',
-              gap: '0.75rem',
+              gap: '12px',
               justifyContent: 'center'
             }}>
               <button
@@ -572,8 +654,8 @@ export default function Recipients() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '0.5rem',
-                  padding: '0.875rem 1.5rem',
+                  gap: '8px',
+                  padding: '14px 24px',
                   background: 'var(--gray-100)',
                   color: 'var(--text-primary)',
                   border: 'none',
@@ -581,9 +663,7 @@ export default function Recipients() {
                   fontSize: '0.9375rem',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  fontFamily: 'inherit',
-                  minWidth: isMobile ? '100%' : '160px'
+                  fontFamily: 'inherit'
                 }}
               >
                 <Upload size={18} />
@@ -595,8 +675,8 @@ export default function Recipients() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '0.5rem',
-                  padding: '0.875rem 1.5rem',
+                  gap: '8px',
+                  padding: '14px 24px',
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   color: 'white',
                   border: 'none',
@@ -604,18 +684,8 @@ export default function Recipients() {
                   fontSize: '0.9375rem',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  transition: 'all 0.2s',
                   fontFamily: 'inherit',
-                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
-                  minWidth: isMobile ? '100%' : '180px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
                 }}
               >
                 <Plus size={18} />
@@ -625,322 +695,334 @@ export default function Recipients() {
           </div>
         </div>
       ) : viewMode === 'recipients' ? (
-        /* Recipients Table */
-        <div className="bg-white rounded-xl shadow-md overflow-hidden border border-purple-100">
-          <table className="w-full">
-            <thead style={{
-              background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-              borderBottom: '2px solid #d1d5db'
+        /* Recipients Card List */
+        <div>
+          {filteredRecipients.length === 0 && searchTerm ? (
+            <div style={{
+              textAlign: 'center',
+              padding: '48px 24px',
+              background: 'var(--bg-primary)',
+              borderRadius: 'var(--radius-xl)',
+              border: '1px solid var(--border)'
             }}>
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Name</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Email</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Relationship</th>
-                <th className="px-6 py-4 text-center text-xs font-semibold text-purple-700 uppercase tracking-wide">Gift</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Occasions</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-purple-700 uppercase tracking-wide">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredRecipients.map((contact, index) => (
-                <tr
-                  key={contact.id}
-                  style={{
-                    background: index % 2 === 0 ? 'white' : '#faf5ff',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#f3e8ff';
-                    e.currentTarget.style.transform = 'scale(1.01)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = index % 2 === 0 ? 'white' : '#faf5ff';
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
-                >
-                  <td className="px-6 py-4">
-                    <span style={{
-                      fontWeight: 600,
-                      color: '#1f2937',
-                      fontSize: '0.9375rem'
-                    }}>{contact.name}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span style={{
-                      color: '#4b5563',
-                      fontSize: '0.875rem',
-                      fontFamily: 'monospace',
-                      background: '#f3f4f6',
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: '0.375rem'
-                    }}>{contact.email}</span>
-                  </td>
-                  <td className="px-6 py-4">
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem' }}>
+                No recipients match "{searchTerm}"
+              </p>
+            </div>
+          ) : (
+            filteredRecipients.map((contact) => (
+              <div
+                key={contact.id}
+                style={{
+                  display: 'flex',
+                  flexDirection: isMobile ? 'column' : 'row',
+                  alignItems: isMobile ? 'stretch' : 'center',
+                  justifyContent: 'space-between',
+                  padding: '16px 20px',
+                  marginBottom: '12px',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-lg)',
+                  background: '#fff',
+                  transition: 'all 0.2s',
+                  gap: isMobile ? '12px' : '16px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
+                  e.currentTarget.style.borderColor = '#667eea';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                }}
+              >
+                {/* Left: Avatar + Name + Relationship */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: isMobile ? 'none' : '0 0 200px' }}>
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '50%',
+                    background: contact.avatar ? `url(${contact.avatar}) center/cover` : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: '1.125rem',
+                    flexShrink: 0
+                  }}>
+                    {!contact.avatar && contact.name?.charAt(0)?.toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9375rem', marginBottom: '2px' }}>
+                      {contact.name}
+                    </div>
                     <span style={{
                       background: 'linear-gradient(135deg, #ddd6fe 0%, #c7d2fe 100%)',
                       color: '#5b21b6',
-                      padding: '0.375rem 0.75rem',
+                      padding: '2px 10px',
                       borderRadius: '9999px',
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                      textTransform: 'capitalize'
+                    }}>
+                      {contact.relationship || 'Not set'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Middle: Occasions + Gift */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
+                  {contact.occasions?.length > 0 ? (
+                    contact.occasions.slice(0, 4).map((occasion, idx) => (
+                      <span
+                        key={idx}
+                        title={getOccasionLabel(occasion.type)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 10px',
+                          background: 'var(--gray-100)',
+                          borderRadius: '9999px',
+                          fontSize: '0.75rem',
+                          color: 'var(--text-secondary)'
+                        }}
+                      >
+                        <span style={{ fontSize: '0.875rem' }}>{getOccasionIcon(occasion.type)}</span>
+                        {!isMobile && <span>{getOccasionLabel(occasion.type)}</span>}
+                      </span>
+                    ))
+                  ) : (
+                    <span style={{
+                      padding: '4px 10px',
+                      background: 'var(--gray-50)',
+                      borderRadius: '9999px',
+                      fontSize: '0.75rem',
+                      color: 'var(--text-tertiary)'
+                    }}>
+                      No occasions
+                    </span>
+                  )}
+                  {contact.occasions?.length > 4 && (
+                    <span style={{
+                      padding: '4px 10px',
+                      fontSize: '0.75rem',
+                      color: 'var(--text-tertiary)'
+                    }}>
+                      +{contact.occasions.length - 4} more
+                    </span>
+                  )}
+
+                  {/* Gift status */}
+                  {contact.giftSelected ? (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      background: 'linear-gradient(135deg, #fef08a 0%, #fde047 100%)',
+                      borderRadius: '9999px',
+                      fontSize: '0.75rem',
+                      color: '#92400e',
+                      fontWeight: 600
+                    }}>
+                      🎁 Gift
+                    </span>
+                  ) : (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      background: 'var(--gray-50)',
+                      borderRadius: '9999px',
+                      fontSize: '0.75rem',
+                      color: 'var(--text-tertiary)',
+                      border: '1px dashed var(--gray-300)'
+                    }}>
+                      <Gift size={12} />
+                      No gift
+                    </span>
+                  )}
+                </div>
+
+                {/* Right: Actions */}
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  justifyContent: isMobile ? 'flex-end' : 'flex-start',
+                  flexShrink: 0
+                }}>
+                  <button
+                    onClick={() => openEditModal(contact)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 'var(--radius-md)',
                       fontSize: '0.8125rem',
                       fontWeight: 600,
-                      textTransform: 'capitalize',
-                      display: 'inline-block'
-                    }}>
-                      {contact.relationship || '-'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    {contact.giftSelected ? (
-                      <div
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-                          boxShadow: '0 2px 4px rgba(34, 197, 94, 0.3)'
-                        }}
-                        title="Gift selected"
-                      >
-                        <Gift size={16} style={{ color: 'white' }} />
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          background: 'var(--gray-100)',
-                          border: '2px dashed var(--gray-300)'
-                        }}
-                        title="No gift selected"
-                      >
-                        <Gift size={16} style={{ color: 'var(--gray-400)' }} />
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    {contact.occasions?.length > 0 ? (
-                      <div className="flex space-x-1">
-                        {contact.occasions.slice(0, 3).map((occasion, idx) => (
-                          <span
-                            key={idx}
-                            title={getOccasionLabel(occasion.type)}
-                            className="text-lg"
-                          >
-                            {getOccasionIcon(occasion.type)}
-                          </span>
-                        ))}
-                        {contact.occasions.length > 3 && (
-                          <span className="text-gray-400 text-xs">+{contact.occasions.length - 3}</span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">None</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-right">
-                    <button
-                      onClick={() => openEditModal(contact)}
-                      style={{
-                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                        color: 'white',
-                        padding: '0.5rem 0.875rem',
-                        borderRadius: '0.5rem',
-                        border: 'none',
-                        fontSize: '0.8125rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        marginRight: '0.75rem',
-                        transition: 'all 0.2s',
-                        boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(59, 130, 246, 0.4)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.3)';
-                      }}
-                    >
-                      <Edit size={14} className="mr-1" />
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirm(contact)}
-                      style={{
-                        background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                        color: 'white',
-                        padding: '0.5rem 0.875rem',
-                        borderRadius: '0.5rem',
-                        border: 'none',
-                        fontSize: '0.8125rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        transition: 'all 0.2s',
-                        boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(239, 68, 68, 0.4)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(239, 68, 68, 0.3)';
-                      }}
-                    >
-                      <Trash2 size={14} className="mr-1" />
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {filteredRecipients.length === 0 && searchTerm && (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No recipients match "{searchTerm}"</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* Occasions View */
-        <div className="bg-white rounded-xl shadow-md overflow-hidden border border-purple-100">
-          <table className="w-full">
-            <thead style={{
-              background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-              borderBottom: '2px solid #d1d5db'
-            }}>
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Occasion</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Date</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Recipient</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">Relationship</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {(() => {
-                // Flatten all occasions from all recipients
-                const allOccasions = recipients.flatMap(contact =>
-                  (contact.occasions || []).map(occasion => ({
-                    ...occasion,
-                    recipientName: contact.name,
-                    recipientRelationship: contact.relationship,
-                    contactId: contact.id
-                  }))
-                ).filter(occ =>
-                  !searchTerm ||
-                  occ.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  occ.recipientName?.toLowerCase().includes(searchTerm.toLowerCase())
-                ).sort((a, b) => {
-                  // Sort by upcoming date
-                  const dateA = new Date(a.date || '9999-12-31');
-                  const dateB = new Date(b.date || '9999-12-31');
-                  return dateA - dateB;
-                });
-
-                if (allOccasions.length === 0) {
-                  return (
-                    <tr>
-                      <td colSpan={4} className="text-center py-12">
-                        <p className="text-gray-500">
-                          {searchTerm ? `No occasions match "${searchTerm}"` : 'No occasions scheduled'}
-                        </p>
-                      </td>
-                    </tr>
-                  );
-                }
-
-                return allOccasions.map((occasion, index) => (
-                  <tr
-                    key={`${occasion.contactId}-${occasion.type}-${index}`}
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      fontFamily: 'inherit'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <Edit size={14} />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirm(contact)}
                     style={{
-                      background: index % 2 === 0 ? 'white' : '#faf5ff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '36px',
+                      height: '36px',
+                      background: 'var(--gray-100)',
+                      color: 'var(--text-secondary)',
+                      border: 'none',
+                      borderRadius: 'var(--radius-md)',
+                      cursor: 'pointer',
                       transition: 'all 0.2s'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#f3e8ff';
+                      e.currentTarget.style.background = '#fee2e2';
+                      e.currentTarget.style.color = '#dc2626';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = index % 2 === 0 ? 'white' : '#faf5ff';
+                      e.currentTarget.style.background = 'var(--gray-100)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
                     }}
+                    title="Delete"
                   >
-                    <td className="px-6 py-4">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <span style={{ fontSize: '1.5rem' }}>{getOccasionIcon(occasion.type)}</span>
-                        <span style={{
-                          fontWeight: 600,
-                          color: '#1f2937',
-                          fontSize: '0.9375rem',
-                          textTransform: 'capitalize'
-                        }}>{getOccasionLabel(occasion.type)}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span style={{
-                        color: '#4b5563',
-                        fontSize: '0.875rem',
-                        background: '#f3f4f6',
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '0.375rem'
-                      }}>
-                        {occasion.date ? new Date(occasion.date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        }) : 'Not set'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span style={{
-                        fontWeight: 600,
-                        color: '#1f2937',
-                        fontSize: '0.9375rem'
-                      }}>{occasion.recipientName}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span style={{
-                        background: 'linear-gradient(135deg, #ddd6fe 0%, #c7d2fe 100%)',
-                        color: '#5b21b6',
-                        padding: '0.375rem 0.75rem',
-                        borderRadius: '9999px',
-                        fontSize: '0.8125rem',
-                        fontWeight: 600,
-                        textTransform: 'capitalize',
-                        display: 'inline-block'
-                      }}>
-                        {occasion.recipientRelationship || '-'}
-                      </span>
-                    </td>
-                  </tr>
-                ));
-              })()}
-            </tbody>
-          </table>
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
+        /* Occasions Card List */
+        <div>
+          {allOccasions.length === 0 ? (
+            <div style={{
+              textAlign: 'center',
+              padding: '48px 24px',
+              background: 'var(--bg-primary)',
+              borderRadius: 'var(--radius-xl)',
+              border: '1px solid var(--border)'
+            }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem' }}>
+                {searchTerm ? `No occasions match "${searchTerm}"` : 'No occasions scheduled'}
+              </p>
+            </div>
+          ) : (
+            allOccasions.map((occasion, index) => (
+              <div
+                key={`${occasion.contactId}-${occasion.type}-${index}`}
+                style={{
+                  display: 'flex',
+                  flexDirection: isMobile ? 'column' : 'row',
+                  alignItems: isMobile ? 'stretch' : 'center',
+                  justifyContent: 'space-between',
+                  padding: '16px 20px',
+                  marginBottom: '12px',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-lg)',
+                  background: '#fff',
+                  transition: 'all 0.2s',
+                  gap: isMobile ? '12px' : '16px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
+                  e.currentTarget.style.borderColor = '#667eea';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                }}
+              >
+                {/* Left: Occasion icon + label */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: isMobile ? 'none' : '0 0 180px' }}>
+                  <span style={{ fontSize: '1.75rem' }}>{getOccasionIcon(occasion.type)}</span>
+                  <div style={{
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    fontSize: '0.9375rem',
+                    textTransform: 'capitalize'
+                  }}>
+                    {getOccasionLabel(occasion.type)}
+                  </div>
+                </div>
+
+                {/* Date */}
+                <div style={{
+                  padding: '6px 12px',
+                  background: 'var(--gray-100)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.8125rem',
+                  color: 'var(--text-secondary)',
+                  fontWeight: 500
+                }}>
+                  {occasion.date ? new Date(occasion.date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  }) : 'Not set'}
+                </div>
+
+                {/* Recipient info */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>
+                    {occasion.recipientName}
+                  </span>
+                  <span style={{
+                    background: 'linear-gradient(135deg, #ddd6fe 0%, #c7d2fe 100%)',
+                    color: '#5b21b6',
+                    padding: '2px 10px',
+                    borderRadius: '9999px',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    textTransform: 'capitalize'
+                  }}>
+                    {occasion.recipientRelationship || '-'}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
       {/* Add Recipient Modal */}
       <Modal
         isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={() => {
+          setShowAddModal(false);
+          try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch (e) {}
+        }}
         title="Add New Recipient"
         size="lg"
       >
         <ContactForm
           onSubmit={handleAddRecipient}
-          onCancel={() => setShowAddModal(false)}
+          onCancel={() => {
+            setShowAddModal(false);
+            try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch (e) {}
+          }}
         />
       </Modal>
 
@@ -986,19 +1068,39 @@ export default function Recipients() {
           size="sm"
         >
           <div>
-            <p className="text-gray-600 mb-6">
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.9375rem' }}>
               Are you sure you want to delete <strong>{deleteConfirm.name}</strong>? This action cannot be undone.
             </p>
-            <div className="flex justify-end space-x-3">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium"
+                style={{
+                  padding: '10px 24px',
+                  background: 'var(--gray-100)',
+                  color: 'var(--text-primary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-lg)',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit'
+                }}
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDeleteRecipient(deleteConfirm.id)}
-                className="px-6 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 font-medium"
+                style={{
+                  padding: '10px 24px',
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--radius-lg)',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit'
+                }}
               >
                 Delete
               </button>

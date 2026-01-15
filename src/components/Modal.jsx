@@ -1,7 +1,6 @@
 // src/components/Modal.jsx
 import React from 'react';
 import { X } from 'lucide-react';
-import GreetMeLogo from './GreetMeLogo';
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md' }) {
   if (!isOpen) return null;
@@ -26,10 +25,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
         <div className={`relative bg-white rounded-xl shadow-xl ${sizeClasses[size]} w-full`}>
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <GreetMeLogo size="small" clickable={false} />
-              <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
-            </div>
+            <h2 className="text-xl font-bold text-gray-900">{title}</h2>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition"

@@ -1,6 +1,8 @@
 // src/pages/Merch.jsx
 import { useState, useEffect } from 'react';
-import { ShoppingCart, Briefcase, Users } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ShoppingCart, Briefcase, Users, Check, ArrowLeft } from 'lucide-react';
+import cartService from '../services/cartService';
 
 const merchItems = [
   {
@@ -99,9 +101,31 @@ const merchItems = [
 const merchCategories = ['All', ...new Set(merchItems.map(item => item.category))];
 
 export default function Merch() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [showCorporateModal, setShowCorporateModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
+  const [addedItems, setAddedItems] = useState(new Set());
+
+  // Check if user came from recipient form (has category param)
+  const cameFromRecipientForm = searchParams.has('category');
+
+  // Handle category from URL query param
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+      const categoryMap = {
+        'merch': 'All',
+        'apparel': 'Apparel',
+        'drinkware': 'Drinkware',
+        'accessories': 'Accessories',
+        'stationery': 'Stationery'
+      };
+      const mappedCategory = categoryMap[categoryParam.toLowerCase()] || 'All';
+      setSelectedCategory(mappedCategory);
+    }
+  }, [searchParams]);
 
   // Handle resize for mobile detection
   useEffect(() => {
@@ -110,6 +134,45 @@ export default function Merch() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const handleAddToCart = (item, e) => {
+    e.stopPropagation();
+    try {
+      cartService.addItem({
+        merchId: item.id,
+        name: item.name,
+        price: item.price,
+        description: item.description,
+        category: item.category,
+        icon: '🛍️'
+      });
+
+      // Show feedback
+      setAddedItems(prev => new Set(prev).add(item.id));
+
+      // Trigger cart count update
+      window.dispatchEvent(new Event('cartUpdated'));
+
+      // If came from recipient form, redirect back to contacts page after brief delay
+      if (cameFromRecipientForm) {
+        setTimeout(() => {
+          navigate('/dashboard/contacts');
+        }, 500);
+      } else {
+        // Normal behavior - remove "Added" state after 2 seconds
+        setTimeout(() => {
+          setAddedItems(prev => {
+            const next = new Set(prev);
+            next.delete(item.id);
+            return next;
+          });
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      alert('Failed to add item to cart');
+    }
+  };
+
   // Filter items by category
   const filteredItems = selectedCategory === 'All'
     ? merchItems
@@ -117,6 +180,38 @@ export default function Merch() {
 
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+      {/* Back Button - only show when came from recipient form */}
+      {cameFromRecipientForm && (
+        <button
+          onClick={() => navigate('/dashboard/contacts')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.5rem 1rem',
+            background: 'var(--gray-100)',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            marginBottom: '1rem',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--gray-200)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--gray-100)';
+          }}
+        >
+          <ArrowLeft size={16} />
+          Back
+        </button>
+      )}
+
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{
@@ -407,9 +502,10 @@ export default function Merch() {
                   </span>
                 </div>
                 <button
+                  onClick={(e) => handleAddToCart(item, e)}
                   style={{
                     padding: isNarrow ? '0.375rem 0.75rem' : '0.5rem 1.25rem',
-                    background: 'var(--primary)',
+                    background: addedItems.has(item.id) ? '#22c55e' : 'var(--primary)',
                     color: 'white',
                     border: 'none',
                     borderRadius: 'var(--radius-md)',
@@ -419,11 +515,21 @@ export default function Merch() {
                     fontSize: isNarrow ? '0.75rem' : '0.875rem',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem'
+                    gap: '0.5rem',
+                    transition: 'all 0.2s'
                   }}
                 >
-                  <ShoppingCart size={isNarrow ? 14 : 18} />
-                  {isNarrow ? 'Add' : 'Add to Cart'}
+                  {addedItems.has(item.id) ? (
+                    <>
+                      <Check size={isNarrow ? 14 : 18} />
+                      {isNarrow ? '✓' : 'Added!'}
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart size={isNarrow ? 14 : 18} />
+                      {isNarrow ? 'Add' : 'Add to Cart'}
+                    </>
+                  )}
                 </button>
               </div>
             </div>

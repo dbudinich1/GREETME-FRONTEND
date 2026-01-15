@@ -1,7 +1,7 @@
 // src/pages/Gifts.jsx
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Heart, Check } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ShoppingCart, Heart, Check, ArrowLeft } from 'lucide-react';
 import cartService from '../services/cartService';
 
 const giftProducts = [
@@ -92,9 +92,30 @@ const giftCategories = ['All', ...new Set(giftProducts.map(gift => gift.category
 
 export default function Gifts() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [addedItems, setAddedItems] = useState(new Set());
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
+
+  // Handle category from URL query param (e.g., /gifts?category=merch)
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+      // Map query param values to display categories
+      const categoryMap = {
+        'merch': 'All', // Show all for merch since we don't have a specific merch category
+        'subscription': 'All', // Placeholder for subscription category
+        'food': 'Food & Gourmet',
+        'flowers': 'Flowers',
+        'wellness': 'Wellness',
+        'home': 'Home',
+        'plants': 'Plants',
+        'personalized': 'Personalized'
+      };
+      const mappedCategory = categoryMap[categoryParam.toLowerCase()] || 'All';
+      setSelectedCategory(mappedCategory);
+    }
+  }, [searchParams]);
 
   // Handle resize for mobile detection
   useEffect(() => {
@@ -107,6 +128,9 @@ export default function Gifts() {
   const filteredGifts = selectedCategory === 'All'
     ? giftProducts
     : giftProducts.filter(gift => gift.category === selectedCategory);
+
+  // Check if user came from recipient form (has category param)
+  const cameFromRecipientForm = searchParams.has('category');
 
   const handleAddToCart = (gift, e) => {
     e.stopPropagation();
@@ -123,16 +147,25 @@ export default function Gifts() {
 
       // Show feedback
       setAddedItems(prev => new Set(prev).add(gift.id));
-      setTimeout(() => {
-        setAddedItems(prev => {
-          const next = new Set(prev);
-          next.delete(gift.id);
-          return next;
-        });
-      }, 2000);
 
       // Trigger cart count update
       window.dispatchEvent(new Event('cartUpdated'));
+
+      // If came from recipient form, redirect back to contacts page after brief delay
+      if (cameFromRecipientForm) {
+        setTimeout(() => {
+          navigate('/dashboard/contacts');
+        }, 500);
+      } else {
+        // Normal behavior - remove "Added" state after 2 seconds
+        setTimeout(() => {
+          setAddedItems(prev => {
+            const next = new Set(prev);
+            next.delete(gift.id);
+            return next;
+          });
+        }, 2000);
+      }
     } catch (error) {
       console.error('Error adding to cart:', error);
       alert('Failed to add item to cart');
@@ -141,6 +174,38 @@ export default function Gifts() {
 
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+      {/* Back Button - only show when came from recipient form */}
+      {cameFromRecipientForm && (
+        <button
+          onClick={() => navigate('/dashboard/contacts')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.5rem 1rem',
+            background: 'var(--gray-100)',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            marginBottom: '1rem',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--gray-200)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--gray-100)';
+          }}
+        >
+          <ArrowLeft size={16} />
+          Back
+        </button>
+      )}
+
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{
@@ -155,7 +220,9 @@ export default function Gifts() {
           fontSize: '1rem',
           color: 'var(--text-secondary)'
         }}>
-          Add a thoughtful gift from our 🇺🇸 American-Made Marketplace
+          {cameFromRecipientForm
+            ? 'Select a gift for your recipient'
+            : 'Add a thoughtful gift from our 🇺🇸 American-Made Marketplace'}
         </p>
       </div>
 

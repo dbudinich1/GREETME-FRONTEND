@@ -269,125 +269,11 @@ export default function DashboardLayout() {
             }}>Welcome back, {user?.name?.split(' ')[0] || 'User'}!</p>
           </div>
 
-          {/* Right side - Animation Bank, Cart, Settings and User icon */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', width: '200px', justifyContent: 'flex-end' }}>
-            {/* Animation Bank - Film icon with count */}
+          {/* Right side - Image Bank, Cart, User icon */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            {/* Image Bank - for tracking images */}
             <button
               onClick={() => navigate('/dashboard/animations')}
-              style={{
-                width: '2.5rem',
-                height: '2.5rem',
-                borderRadius: '50%',
-                border: 'none',
-                background: '#8b5cf6',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s',
-                position: 'relative',
-                boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#7c3aed';
-                e.currentTarget.style.transform = 'scale(1.05)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#8b5cf6';
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(139, 92, 246, 0.3)';
-              }}
-              title="Animation Bank"
-            >
-              <Film size={20} style={{ color: '#FFD700' }} />
-              <span style={{
-                position: 'absolute',
-                top: '-2px',
-                right: '-2px',
-                background: '#10b981',
-                color: 'white',
-                fontSize: '0.625rem',
-                fontWeight: 700,
-                width: '1.125rem',
-                height: '1.125rem',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px solid white',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-              }}>
-                {animationCount > 9 ? '9+' : animationCount}
-              </span>
-            </button>
-
-            {/* Cart Icon - Gold in Blue Bubble */}
-            <button
-              onClick={() => navigate('/dashboard/cart')}
-              style={{
-                width: '2.5rem',
-                height: '2.5rem',
-                borderRadius: '50%',
-                border: 'none',
-                background: '#667eea',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s',
-                position: 'relative',
-                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#5568d3';
-                e.currentTarget.style.transform = 'scale(1.05)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#667eea';
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
-              }}
-              title="Shopping Cart"
-            >
-              <ShoppingCart
-                size={22}
-                style={{
-                  color: '#FFD700',
-                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
-                  strokeWidth: 2.5
-                }}
-              />
-              {cartCount > 0 && (
-                <span style={{
-                  position: 'absolute',
-                  top: '-2px',
-                  right: '-2px',
-                  background: '#ef4444',
-                  color: 'white',
-                  fontSize: '0.625rem',
-                  fontWeight: 700,
-                  width: '1.125rem',
-                  height: '1.125rem',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '2px solid white',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                }}>
-                  {cartCount > 9 ? '9+' : cartCount}
-                </span>
-              )}
-            </button>
-
-            {/* Notification Bell */}
-            <NotificationBell />
-
-            {/* Settings Cog */}
-            <button
-              onClick={() => navigate('/dashboard/settings')}
               style={{
                 width: '2.5rem',
                 height: '2.5rem',
@@ -398,7 +284,8 @@ export default function DashboardLayout() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                position: 'relative'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = 'var(--gray-100)';
@@ -406,9 +293,76 @@ export default function DashboardLayout() {
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = 'transparent';
               }}
-              title="Settings"
+              title="Image Bank"
             >
-              <SettingsIcon size={20} style={{ color: 'var(--text-secondary)' }} />
+              <Image size={20} style={{ color: 'var(--text-secondary)' }} />
+              {animationCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '0',
+                  right: '0',
+                  background: '#8b5cf6',
+                  color: 'white',
+                  fontSize: '0.625rem',
+                  fontWeight: 700,
+                  minWidth: '1rem',
+                  height: '1rem',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid var(--bg-primary)'
+                }}>
+                  {animationCount > 9 ? '9+' : animationCount}
+                </span>
+              )}
+            </button>
+
+            {/* Shopping Cart Icon */}
+            <button
+              onClick={() => navigate('/dashboard/cart')}
+              style={{
+                width: '2.5rem',
+                height: '2.5rem',
+                borderRadius: '50%',
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+                position: 'relative'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--gray-100)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+              title="Shopping Cart"
+            >
+              <ShoppingCart size={20} style={{ color: 'var(--text-secondary)' }} />
+              {cartCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '0',
+                  right: '0',
+                  background: '#ef4444',
+                  color: 'white',
+                  fontSize: '0.625rem',
+                  fontWeight: 700,
+                  minWidth: '1rem',
+                  height: '1rem',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid var(--bg-primary)'
+                }}>
+                  {cartCount > 9 ? '9+' : cartCount}
+                </span>
+              )}
             </button>
 
             {/* User Icon with Dropdown */}
