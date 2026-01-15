@@ -291,9 +291,9 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     onComplete?.();
   };
 
-  const goToSendGreeting = () => {
+  const goToRecipientControls = () => {
     handleComplete();
-    navigate('/dashboard/send');
+    navigate('/dashboard/contacts');
   };
 
   const goToDashboard = () => {
@@ -381,7 +381,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         marginBottom: '1.5rem',
         lineHeight: 1.7,
       }}>
-        In a few short steps, you'll help Greet-Me sound like you — so future greetings feel natural and personal.
+        In a few short steps, you'll help Greet-Me sound like you, look like you, and show up when it matters.
       </p>
       <p style={{
         fontSize: '0.9375rem',
@@ -389,7 +389,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         marginBottom: '2rem',
         lineHeight: 1.6,
       }}>
-        We'll ask for a quick voice recording and a photo. Then, you'll send your first greeting to someone — it can even be yourself.
+        When you're done, you'll experience your first Greet-Me greeting — just as friends and loved ones will.
       </p>
       <button
         onClick={nextStep}
@@ -1015,13 +1015,20 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       <p style={{
         fontSize: '0.9375rem',
         color: 'var(--text-secondary)',
-        marginBottom: '2rem',
+        marginBottom: '1rem',
         lineHeight: 1.6,
       }}>
-        Your greeting is on its way. Check your inbox — or explore more from the dashboard.
+        You're set. From here on out, Greet-Me can show up for the moments that matter — in your voice, with your presence.
+      </p>
+      <p style={{
+        fontSize: '0.8125rem',
+        color: 'var(--text-tertiary)',
+        marginBottom: '1.5rem',
+      }}>
+        What would you like to do next?
       </p>
       <button
-        onClick={goToSendGreeting}
+        onClick={goToRecipientControls}
         style={{
           width: '100%',
           padding: '1rem',
@@ -1033,16 +1040,18 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           fontWeight: 600,
           cursor: 'pointer',
           fontFamily: 'inherit',
-          marginBottom: '0.75rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.5rem',
+          marginBottom: '0.25rem',
         }}
       >
-        <Send size={18} />
-        Send to someone else
+        Explore recipient controls
       </button>
+      <p style={{
+        fontSize: '0.75rem',
+        color: 'var(--text-tertiary)',
+        marginBottom: '1rem',
+      }}>
+        Personalize like a pro
+      </p>
       <button
         onClick={goToDashboard}
         style={{
@@ -1058,7 +1067,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           fontFamily: 'inherit',
         }}
       >
-        Go to Dashboard
+        Go to dashboard
       </button>
     </div>
   );

@@ -8,7 +8,6 @@ import { getRewardsBalance, getRemainingDailyHearts } from '../utils/rewards';
 import { pushInApp } from '../utils/notify';
 import { COMMS_EVENTS } from '../utils/commsCatalog';
 import OnboardingTour from '../components/OnboardingTour';
-import OnboardingCoach from '../components/OnboardingCoach';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 
 // Mobile detection (simple, no hooks)
@@ -44,6 +43,7 @@ export default function DashboardHome() {
   const [sentGreetings, setSentGreetings] = useState([]);
   const [qrCashGifts, setQrCashGifts] = useState([]);
   const [rewardsBalance, setRewardsBalance] = useState(0);
+  const [viewMode, setViewMode] = useState('recipients'); // 'recipients' or 'occasions'
 
   // --- Presence persistence (navigation-safe) ---
   const PRESENCE_KEY = 'gm_presence_v1';
@@ -398,13 +398,6 @@ export default function DashboardHome() {
       {/* First-time user onboarding tour */}
       <OnboardingTour />
 
-      {/* Onboarding Coach - shows checklist for first-time users */}
-      <OnboardingCoach
-        voiceDone={voiceRecorded}
-        photoDone={photoUploaded}
-        recipientDone={contacts && contacts.length > 0}
-      />
-
       {/* Combined Navigation Header */}
       <div style={{
         display: 'flex',
@@ -569,267 +562,173 @@ export default function DashboardHome() {
         </button>
       </div>
 
-      {/* QR Cash Card */}
+      {/* QR Cash & Rewards - Side by Side */}
       <div style={{
-        background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-        borderRadius: 'var(--radius-lg)',
-        padding: isMobile ? '1rem' : '1.25rem 1.5rem',
-        marginBottom: isMobile ? '1.25rem' : '2rem',
-        color: 'white',
-        boxShadow: '0 2px 8px rgba(251, 191, 36, 0.2)',
-        border: '1px solid rgba(255, 255, 255, 0.15)'
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '1rem',
+        marginBottom: '2rem',
+        alignItems: 'stretch',
       }}>
+        {/* QR Cash Card */}
         <div style={{
+          background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '1.25rem',
+          textAlign: 'center',
+          color: 'white',
+          boxShadow: '0 2px 8px rgba(251, 191, 36, 0.2)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
           display: 'flex',
-          alignItems: isMobile ? 'flex-start' : 'center',
+          flexDirection: 'column',
           justifyContent: 'space-between',
-          marginBottom: '0.5rem',
-          flexDirection: isMobile ? 'column' : 'row',
-          gap: isMobile ? '0.5rem' : '0'
+          minHeight: '160px',
         }}>
           <div>
-            <h2 style={{
-              fontSize: isMobile ? '1.125rem' : '1.25rem',
+            <h3 style={{
+              fontSize: '1rem',
               fontWeight: 700,
-              margin: 0,
-              marginBottom: '0.25rem',
-              lineHeight: 1.3
+              marginBottom: '0.25rem'
             }}>
-              QR Cash™ — Send Cash by QR
-            </h2>
+              QR Cash™
+            </h3>
             <p style={{
-              fontSize: isMobile ? '0.8125rem' : '0.875rem',
-              opacity: 0.85,
-              margin: 0,
-              marginTop: '0.5rem',
-              fontWeight: 500,
-              letterSpacing: '0.5px'
+              fontSize: '0.75rem',
+              opacity: 0.9,
+              marginBottom: '0.5rem',
             }}>
               Send · Scan · Spend
             </p>
           </div>
-          <div style={{
-            textAlign: isMobile ? 'left' : 'right'
+          <p style={{
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            marginBottom: '0.75rem',
           }}>
-            <div style={{
-              fontSize: '0.75rem',
-              opacity: 0.8,
-              marginBottom: '0.125rem'
-            }}>Available balance</div>
-            <div style={{
-              fontSize: isMobile ? '1.75rem' : '1.5rem',
-              fontWeight: 700,
-              opacity: 0.95
-            }}>
-              $0.00
-            </div>
+            $0.00
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+            <button
+              onClick={() => setShowQRCashModal(true)}
+              style={{
+                padding: '0.5rem 1rem',
+                background: 'white',
+                color: '#f59e0b',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit'
+              }}
+            >
+              Send
+            </button>
+            <button
+              onClick={() => setShowHowItWorksModal(true)}
+              style={{
+                padding: '0.5rem 1rem',
+                background: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit'
+              }}
+            >
+              How It Works
+            </button>
           </div>
         </div>
-        <p style={{
-          fontSize: '0.875rem',
-          opacity: 0.95,
-          marginBottom: '1rem',
-          marginTop: '0.75rem',
-          lineHeight: 1.5
-        }}>
-          Add real cash to any greeting you send.
-        </p>
-        <div style={{
-          display: 'flex',
-          gap: '0.75rem',
-          flexDirection: isMobile ? 'column' : 'row'
-        }}>
-          <button
-            onClick={() => setShowQRCashModal(true)}
-            style={{
-              flex: 1,
-              padding: isMobile ? '0.75rem 1rem' : '0.5rem 1rem',
-              minHeight: isMobile ? '48px' : '40px',
-              background: 'white',
-              color: '#f59e0b',
-              border: 'none',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-              fontFamily: 'inherit'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
-            }}
-          >
-            Send QR Cash
-          </button>
-          <button
-            onClick={() => setShowHowItWorksModal(true)}
-            style={{
-              flex: 1,
-              padding: isMobile ? '0.75rem 1rem' : '0.5rem 1rem',
-              minHeight: isMobile ? '48px' : '40px',
-              background: 'transparent',
-              color: 'white',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              fontFamily: 'inherit'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-            }}
-          >
-            How It Works
-          </button>
-        </div>
-      </div>
 
-      {/* Greet-Me Rewards Card */}
-      <div style={{
-        background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
-        borderRadius: 'var(--radius-lg)',
-        padding: isMobile ? '1rem' : '1.25rem 1.5rem',
-        marginBottom: isMobile ? '1.25rem' : '2rem',
-        color: 'white',
-        boxShadow: '0 2px 8px rgba(236, 72, 153, 0.2)',
-        border: '1px solid rgba(255, 255, 255, 0.15)'
-      }}>
+        {/* Greet-Me Rewards Card */}
         <div style={{
+          background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '1.25rem',
+          textAlign: 'center',
+          color: 'white',
+          boxShadow: '0 2px 8px rgba(236, 72, 153, 0.2)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
           display: 'flex',
-          alignItems: isMobile ? 'flex-start' : 'center',
+          flexDirection: 'column',
           justifyContent: 'space-between',
-          marginBottom: '0.5rem',
-          flexDirection: isMobile ? 'column' : 'row',
-          gap: isMobile ? '0.5rem' : '0'
+          minHeight: '160px',
         }}>
           <div>
-            <h2 style={{
-              fontSize: isMobile ? '1.125rem' : '1.25rem',
+            <h3 style={{
+              fontSize: '1rem',
               fontWeight: 700,
-              margin: 0,
               marginBottom: '0.25rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
-              lineHeight: 1.3
+              justifyContent: 'center',
+              gap: '0.375rem'
             }}>
-              <span style={{ fontSize: isMobile ? '1.25rem' : '1.5rem' }}>❤️</span> Greet-Me Rewards™
-            </h2>
+              <span>❤️</span> Rewards
+            </h3>
             <p style={{
-              fontSize: isMobile ? '0.8125rem' : '0.875rem',
-              opacity: 0.85,
-              margin: 0,
-              fontWeight: 500
+              fontSize: '0.75rem',
+              opacity: 0.9,
+              marginBottom: '0.5rem',
             }}>
               Earn Hearts, Get Rewards
             </p>
           </div>
-          <div style={{
-            textAlign: isMobile ? 'left' : 'right'
+          <p style={{
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            marginBottom: '0.75rem',
           }}>
-            <div style={{
-              fontSize: '0.75rem',
-              opacity: 0.8,
-              marginBottom: '0.125rem'
-            }}>Available Hearts</div>
-            <div style={{
-              fontSize: isMobile ? '1.5rem' : '1.75rem',
-              fontWeight: 700,
-              opacity: 0.95,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: isMobile ? 'flex-start' : 'flex-end',
-              gap: '0.25rem'
-            }}>
-              {rewardsBalance} <span style={{ fontSize: '1.25rem' }}>❤️</span>
-            </div>
+            {rewardsBalance} ❤️
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+            <button
+              onClick={() => navigate('/dashboard/rewards')}
+              style={{
+                padding: '0.5rem 1rem',
+                background: 'white',
+                color: '#ec4899',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit'
+              }}
+            >
+              View
+            </button>
+            <button
+              onClick={() => navigate('/dashboard/rewards')}
+              style={{
+                padding: '0.5rem 1rem',
+                background: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit'
+              }}
+            >
+              Redeem
+            </button>
           </div>
-        </div>
-        <p style={{
-          fontSize: '0.875rem',
-          opacity: 0.95,
-          marginBottom: '1rem',
-          marginTop: '0.75rem',
-          lineHeight: 1.5
-        }}>
-          Send greetings to earn Hearts. Redeem for discounts, free greetings, and more!
-        </p>
-        <div style={{
-          display: 'flex',
-          gap: '0.75rem',
-          flexDirection: isMobile ? 'column' : 'row'
-        }}>
-          <button
-            onClick={() => navigate('/dashboard/rewards')}
-            style={{
-              flex: 1,
-              padding: isMobile ? '0.75rem 1rem' : '0.5rem 1rem',
-              minHeight: isMobile ? '48px' : '40px',
-              background: 'white',
-              color: '#ec4899',
-              border: 'none',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-              fontFamily: 'inherit'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
-            }}
-          >
-            View Rewards
-          </button>
-          <button
-            onClick={() => navigate('/dashboard/rewards')}
-            style={{
-              flex: 1,
-              padding: isMobile ? '0.75rem 1rem' : '0.5rem 1rem',
-              minHeight: isMobile ? '48px' : '40px',
-              background: 'transparent',
-              color: 'white',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              fontFamily: 'inherit'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-            }}
-          >
-            Redeem Hearts
-          </button>
         </div>
       </div>
 
       {/* Two Column Layout */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '380px 1fr',
+        gridTemplateColumns: '0.45fr 0.55fr',
         gap: '2rem',
         marginBottom: '2rem',
         alignItems: 'stretch'
@@ -1272,8 +1171,57 @@ export default function DashboardHome() {
               </button>
             </div>
 
+            {/* View Toggle */}
+            <div style={{
+              display: 'flex',
+              gap: '0.5rem',
+              marginBottom: '1rem',
+              background: 'var(--gray-100)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '0.25rem',
+            }}>
+              <button
+                onClick={() => setViewMode('recipients')}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem 1rem',
+                  background: viewMode === 'recipients' ? 'white' : 'transparent',
+                  color: viewMode === 'recipients' ? '#667eea' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  fontFamily: 'inherit',
+                  boxShadow: viewMode === 'recipients' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
+                }}
+              >
+                By Recipient
+              </button>
+              <button
+                onClick={() => setViewMode('occasions')}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem 1rem',
+                  background: viewMode === 'occasions' ? 'white' : 'transparent',
+                  color: viewMode === 'occasions' ? '#667eea' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  fontFamily: 'inherit',
+                  boxShadow: viewMode === 'occasions' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
+                }}
+              >
+                By Occasion
+              </button>
+            </div>
+
             {/* Search Bar */}
-            <div style={{ position: 'relative', marginBottom: '1.5rem' }}>
+            <div style={{ position: 'relative', marginBottom: '1rem' }}>
               <Search
                 size={18}
                 style={{
@@ -1286,7 +1234,7 @@ export default function DashboardHome() {
               />
               <input
                 type="text"
-                placeholder="Search recipients..."
+                placeholder={viewMode === 'recipients' ? 'Search recipients...' : 'Search occasions...'}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 style={{
@@ -1308,7 +1256,8 @@ export default function DashboardHome() {
               />
             </div>
 
-            {/* Contact List */}
+            {/* Contact List - By Recipient */}
+            {viewMode === 'recipients' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {filteredContacts.length === 0 && searchTerm ? (
                 <div style={{
@@ -1449,6 +1398,103 @@ export default function DashboardHome() {
                 </div>
               )))}
             </div>
+            )}
+
+            {/* Occasions List - By Occasion */}
+            {viewMode === 'occasions' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {(() => {
+                // Gather all unique occasions from contacts
+                const occasionMap = {};
+                displayContacts.forEach(contact => {
+                  (contact.occasions || []).forEach(occ => {
+                    const occasionType = typeof occ === 'object' ? occ.type : occ;
+                    if (!occasionMap[occasionType]) {
+                      occasionMap[occasionType] = [];
+                    }
+                    occasionMap[occasionType].push(contact);
+                  });
+                });
+
+                const occasionTypes = Object.keys(occasionMap).filter(type =>
+                  type.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+
+                if (occasionTypes.length === 0 && searchTerm) {
+                  return (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '2rem',
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.875rem'
+                    }}>
+                      No occasions match "{searchTerm}"
+                    </div>
+                  );
+                }
+
+                return occasionTypes.map((occasionType) => (
+                  <div
+                    key={occasionType}
+                    style={{
+                      padding: '0.75rem',
+                      borderRadius: 'var(--radius-lg)',
+                      background: 'var(--gray-50)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onClick={() => navigate('/dashboard/contacts')}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--gray-100)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'var(--gray-50)';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '1.5rem' }}>{getOccasionIcon(occasionType)}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{
+                          fontSize: '0.9375rem',
+                          fontWeight: 600,
+                          color: 'var(--text-primary)',
+                        }}>{occasionType}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          {occasionMap[occasionType].length} recipient{occasionMap[occasionType].length !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginLeft: '2.25rem' }}>
+                      {occasionMap[occasionType].slice(0, 4).map((contact, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            background: 'white',
+                            borderRadius: 'var(--radius-md)',
+                            fontSize: '0.75rem',
+                            color: 'var(--text-secondary)',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          {contact.name}
+                        </span>
+                      ))}
+                      {occasionMap[occasionType].length > 4 && (
+                        <span style={{
+                          padding: '0.25rem 0.5rem',
+                          fontSize: '0.75rem',
+                          color: 'var(--text-tertiary)',
+                        }}>
+                          +{occasionMap[occasionType].length - 4} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+            )}
 
             {/* Add Recipient button at bottom */}
             <button
