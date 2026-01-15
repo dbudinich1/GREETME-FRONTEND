@@ -58,6 +58,12 @@
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
+  --radius-full: 9999px;
+
+  /* Mobile Spacing Tokens */
+  --space-mobile-card: 20px;
+  --space-mobile-padding: 16px;
+  --tap-target-min: 48px;
 
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
@@ -345,7 +351,7 @@ input::placeholder, textarea::placeholder {
   justify-content: center;
 }
 
-/* Responsive */
+/* Responsive - Tablet */
 @media (max-width: 768px) {
   h1 {
     font-size: 1.5rem;
@@ -357,5 +363,24 @@ input::placeholder, textarea::placeholder {
 
   .card {
     padding: var(--space-md);
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.25rem;
+  }
+
+  h2 {
+    font-size: 1.125rem;
+  }
+
+  .card {
+    padding: var(--space-mobile-padding);
+  }
+
+  button {
+    min-height: var(--tap-target-min);
   }
 }

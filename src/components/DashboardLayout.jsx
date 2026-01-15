@@ -17,6 +17,9 @@ const cartService = {
 };
 
 
+// Mobile detection (simple, no hooks)
+const isMobile = window.innerWidth <= 480;
+
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -82,15 +85,16 @@ export default function DashboardLayout() {
         <div style={{
           maxWidth: '1400px',
           margin: '0 auto',
-          padding: '0 2rem',
+          padding: isMobile ? '0 1rem' : '0 2rem',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          height: '7rem'
+          height: isMobile ? '5rem' : '7rem',
+          gap: isMobile ? '0.75rem' : '1rem'
         }}>
           {/* G1G1 Gold Foil Seal with Star-Point Edge */}
-        <div style={{ width: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ position: 'relative', width: '90px', height: '90px' }}>
+        <div style={{ width: isMobile ? '80px' : '150px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ position: 'relative', width: isMobile ? '60px' : '90px', height: isMobile ? '60px' : '90px', transform: isMobile ? 'scale(0.7)' : 'none' }}>
             {/* Star-point notched edge layer - 24 points around the circle */}
             {[...Array(24)].map((_, i) => {
               const angle = (i * 15) - 90; // 24 points = 15 degrees apart
@@ -534,14 +538,17 @@ export default function DashboardLayout() {
       <nav style={{
         background: 'var(--bg-primary)',
         borderBottom: '1px solid var(--border)',
-        padding: '0 2rem'
+        padding: isMobile ? '0 0.5rem' : '0 2rem',
+        overflowX: isMobile ? 'auto' : 'visible',
+        WebkitOverflowScrolling: 'touch'
       }}>
         <div style={{
           maxWidth: '1400px',
           margin: '0 auto',
           display: 'flex',
-          justifyContent: 'space-evenly',
-          alignItems: 'center'
+          justifyContent: isMobile ? 'flex-start' : 'space-evenly',
+          alignItems: 'center',
+          gap: isMobile ? '0' : undefined
         }}>
           {navigation.map((item) => (
             <NavLink
@@ -550,15 +557,17 @@ export default function DashboardLayout() {
               style={({ isActive }) => ({
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
-                padding: '1rem 1.25rem',
+                gap: isMobile ? '0.25rem' : '0.5rem',
+                padding: isMobile ? '0.625rem 0.5rem' : '1rem 1.25rem',
                 textDecoration: 'none',
-                fontSize: '0.875rem',
+                fontSize: isMobile ? '0.75rem' : '0.875rem',
                 fontWeight: 500,
                 transition: 'all 0.2s',
                 borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
                 color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                position: 'relative'
+                position: 'relative',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
               })}
               onMouseEnter={(e) => {
                 if (!e.currentTarget.getAttribute('aria-current')) {
@@ -588,7 +597,7 @@ export default function DashboardLayout() {
       </nav>
 
       {/* Main Content */}
-      <main style={{ flex: 1, padding: '2rem', overflowY: 'auto', background: 'var(--bg-secondary)' }}>
+      <main style={{ flex: 1, padding: isMobile ? '1rem' : '2rem', overflowY: 'auto', background: 'var(--bg-secondary)' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <Outlet />
         </div>

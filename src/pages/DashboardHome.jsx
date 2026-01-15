@@ -11,6 +11,9 @@ import OnboardingTour from '../components/OnboardingTour';
 import OnboardingCoach from '../components/OnboardingCoach';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 
+// Mobile detection (simple, no hooks)
+const isMobile = window.innerWidth <= 480;
+
 export default function DashboardHome() {
   const navigate = useNavigate();
 
@@ -570,31 +573,35 @@ export default function DashboardHome() {
       <div style={{
         background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
         borderRadius: 'var(--radius-lg)',
-        padding: '1.25rem 1.5rem',
-        marginBottom: '2rem',
+        padding: isMobile ? '1rem' : '1.25rem 1.5rem',
+        marginBottom: isMobile ? '1.25rem' : '2rem',
         color: 'white',
         boxShadow: '0 2px 8px rgba(251, 191, 36, 0.2)',
         border: '1px solid rgba(255, 255, 255, 0.15)'
       }}>
         <div style={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: isMobile ? 'flex-start' : 'center',
           justifyContent: 'space-between',
-          marginBottom: '0.5rem'
+          marginBottom: '0.5rem',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? '0.5rem' : '0'
         }}>
           <div>
             <h2 style={{
-              fontSize: '1.25rem',
+              fontSize: isMobile ? '1.125rem' : '1.25rem',
               fontWeight: 700,
               margin: 0,
-              marginBottom: '0.25rem'
+              marginBottom: '0.25rem',
+              lineHeight: 1.3
             }}>
               QR Cash™ — Send Cash by QR
             </h2>
             <p style={{
-              fontSize: '0.875rem',
+              fontSize: isMobile ? '0.8125rem' : '0.875rem',
               opacity: 0.85,
               margin: 0,
+              marginTop: '0.5rem',
               fontWeight: 500,
               letterSpacing: '0.5px'
             }}>
@@ -602,7 +609,7 @@ export default function DashboardHome() {
             </p>
           </div>
           <div style={{
-            textAlign: 'right'
+            textAlign: isMobile ? 'left' : 'right'
           }}>
             <div style={{
               fontSize: '0.75rem',
@@ -610,7 +617,7 @@ export default function DashboardHome() {
               marginBottom: '0.125rem'
             }}>Available balance</div>
             <div style={{
-              fontSize: '1.5rem',
+              fontSize: isMobile ? '1.75rem' : '1.5rem',
               fontWeight: 700,
               opacity: 0.95
             }}>
@@ -622,23 +629,26 @@ export default function DashboardHome() {
           fontSize: '0.875rem',
           opacity: 0.95,
           marginBottom: '1rem',
+          marginTop: '0.75rem',
           lineHeight: 1.5
         }}>
           Add real cash to any greeting you send.
         </p>
         <div style={{
           display: 'flex',
-          gap: '0.75rem'
+          gap: '0.75rem',
+          flexDirection: isMobile ? 'column' : 'row'
         }}>
           <button
             onClick={() => setShowQRCashModal(true)}
             style={{
               flex: 1,
-              padding: '0.5rem 1rem',
+              padding: isMobile ? '0.75rem 1rem' : '0.5rem 1rem',
+              minHeight: isMobile ? '48px' : '40px',
               background: 'white',
               color: '#f59e0b',
               border: 'none',
-              borderRadius: 'var(--radius-md)',
+              borderRadius: 'var(--radius-lg)',
               fontSize: '0.8125rem',
               fontWeight: 600,
               cursor: 'pointer',
@@ -661,11 +671,12 @@ export default function DashboardHome() {
             onClick={() => setShowHowItWorksModal(true)}
             style={{
               flex: 1,
-              padding: '0.5rem 1rem',
+              padding: isMobile ? '0.75rem 1rem' : '0.5rem 1rem',
+              minHeight: isMobile ? '48px' : '40px',
               background: 'transparent',
               color: 'white',
               border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: 'var(--radius-md)',
+              borderRadius: 'var(--radius-lg)',
               fontSize: '0.8125rem',
               fontWeight: 600,
               cursor: 'pointer',
@@ -688,32 +699,35 @@ export default function DashboardHome() {
       <div style={{
         background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
         borderRadius: 'var(--radius-lg)',
-        padding: '1.25rem 1.5rem',
-        marginBottom: '2rem',
+        padding: isMobile ? '1rem' : '1.25rem 1.5rem',
+        marginBottom: isMobile ? '1.25rem' : '2rem',
         color: 'white',
         boxShadow: '0 2px 8px rgba(236, 72, 153, 0.2)',
         border: '1px solid rgba(255, 255, 255, 0.15)'
       }}>
         <div style={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: isMobile ? 'flex-start' : 'center',
           justifyContent: 'space-between',
-          marginBottom: '0.5rem'
+          marginBottom: '0.5rem',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? '0.5rem' : '0'
         }}>
           <div>
             <h2 style={{
-              fontSize: '1.25rem',
+              fontSize: isMobile ? '1.125rem' : '1.25rem',
               fontWeight: 700,
               margin: 0,
               marginBottom: '0.25rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem'
+              gap: '0.5rem',
+              lineHeight: 1.3
             }}>
-              <span style={{ fontSize: '1.5rem' }}>❤️</span> Greet-Me Rewards™
+              <span style={{ fontSize: isMobile ? '1.25rem' : '1.5rem' }}>❤️</span> Greet-Me Rewards™
             </h2>
             <p style={{
-              fontSize: '0.875rem',
+              fontSize: isMobile ? '0.8125rem' : '0.875rem',
               opacity: 0.85,
               margin: 0,
               fontWeight: 500
@@ -722,7 +736,7 @@ export default function DashboardHome() {
             </p>
           </div>
           <div style={{
-            textAlign: 'right'
+            textAlign: isMobile ? 'left' : 'right'
           }}>
             <div style={{
               fontSize: '0.75rem',
@@ -730,12 +744,12 @@ export default function DashboardHome() {
               marginBottom: '0.125rem'
             }}>Available Hearts</div>
             <div style={{
-              fontSize: '1.75rem',
+              fontSize: isMobile ? '1.5rem' : '1.75rem',
               fontWeight: 700,
               opacity: 0.95,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'flex-end',
+              justifyContent: isMobile ? 'flex-start' : 'flex-end',
               gap: '0.25rem'
             }}>
               {rewardsBalance} <span style={{ fontSize: '1.25rem' }}>❤️</span>
@@ -746,23 +760,26 @@ export default function DashboardHome() {
           fontSize: '0.875rem',
           opacity: 0.95,
           marginBottom: '1rem',
+          marginTop: '0.75rem',
           lineHeight: 1.5
         }}>
           Send greetings to earn Hearts. Redeem for discounts, free greetings, and more!
         </p>
         <div style={{
           display: 'flex',
-          gap: '0.75rem'
+          gap: '0.75rem',
+          flexDirection: isMobile ? 'column' : 'row'
         }}>
           <button
             onClick={() => navigate('/dashboard/rewards')}
             style={{
               flex: 1,
-              padding: '0.5rem 1rem',
+              padding: isMobile ? '0.75rem 1rem' : '0.5rem 1rem',
+              minHeight: isMobile ? '48px' : '40px',
               background: 'white',
               color: '#ec4899',
               border: 'none',
-              borderRadius: 'var(--radius-md)',
+              borderRadius: 'var(--radius-lg)',
               fontSize: '0.8125rem',
               fontWeight: 600,
               cursor: 'pointer',
@@ -785,11 +802,12 @@ export default function DashboardHome() {
             onClick={() => navigate('/dashboard/rewards')}
             style={{
               flex: 1,
-              padding: '0.5rem 1rem',
+              padding: isMobile ? '0.75rem 1rem' : '0.5rem 1rem',
+              minHeight: isMobile ? '48px' : '40px',
               background: 'transparent',
               color: 'white',
               border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: 'var(--radius-md)',
+              borderRadius: 'var(--radius-lg)',
               fontSize: '0.8125rem',
               fontWeight: 600,
               cursor: 'pointer',
