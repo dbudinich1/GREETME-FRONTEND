@@ -165,6 +165,23 @@ class ApiService {
   getSentGreetings() {
     return this.request("/api/greetings/sent");
   }
+
+  // --------------------
+  // Public Greeting View (no auth required)
+  // --------------------
+  getPublicGreeting(greetingId) {
+    return this.request(`/api/greetings/public/${greetingId}`);
+  }
+
+  // --------------------
+  // Thank You (public, no auth required)
+  // --------------------
+  sendThankYou(greetingId, payload) {
+    return this.request(`/api/greetings/${greetingId}/thank-you`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
 }
 
 const api = new ApiService();
