@@ -1,5 +1,5 @@
 // src/pages/Gifts.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Heart, Check } from 'lucide-react';
 import cartService from '../services/cartService';
@@ -87,9 +87,26 @@ const giftProducts = [
   }
 ];
 
+// Get unique categories from gift products
+const giftCategories = ['All', ...new Set(giftProducts.map(gift => gift.category))];
+
 export default function Gifts() {
   const navigate = useNavigate();
   const [addedItems, setAddedItems] = useState(new Set());
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
+
+  // Handle resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => setIsNarrow(window.innerWidth < 420);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Filter items by category
+  const filteredGifts = selectedCategory === 'All'
+    ? giftProducts
+    : giftProducts.filter(gift => gift.category === selectedCategory);
 
   const handleAddToCart = (gift, e) => {
     e.stopPropagation();
@@ -123,7 +140,7 @@ export default function Gifts() {
   };
 
   return (
-    <div>
+    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{
@@ -198,13 +215,48 @@ export default function Gifts() {
         </div>
       </div>
 
+      {/* Category Filter Pills */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '0.5rem',
+        marginBottom: '1.5rem',
+        maxWidth: '100%',
+        overflowX: 'hidden'
+      }}>
+        {giftCategories.map((category) => (
+          <button
+            key={category}
+            onClick={() => setSelectedCategory(category)}
+            style={{
+              padding: '0.5rem 1rem',
+              background: selectedCategory === category ? 'var(--primary)' : 'var(--gray-100)',
+              color: selectedCategory === category ? 'white' : 'var(--text-secondary)',
+              border: 'none',
+              borderRadius: '9999px',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'all 0.2s'
+            }}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
+
       {/* Gift Grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-        gap: '1.5rem'
+        gridTemplateColumns: isNarrow
+          ? '1fr 1fr'
+          : 'repeat(auto-fill, minmax(300px, 1fr))',
+        gap: isNarrow ? '0.75rem' : '1.5rem',
+        maxWidth: '100%',
+        overflowX: 'hidden'
       }}>
-        {giftProducts.map((gift) => (
+        {filteredGifts.map((gift) => (
           <div
             key={gift.id}
             style={{
@@ -227,69 +279,77 @@ export default function Gifts() {
             {/* Image Placeholder */}
             <div style={{
               width: '100%',
-              height: '200px',
+              height: isNarrow ? '120px' : '200px',
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '4rem'
+              fontSize: isNarrow ? '2.5rem' : '4rem'
             }}>
               🎁
             </div>
 
             {/* Content */}
-            <div style={{ padding: '1.5rem' }}>
+            <div style={{ padding: isNarrow ? '0.75rem' : '1.5rem' }}>
               {/* Category Badge */}
-              <div style={{
-                display: 'inline-block',
-                padding: '0.25rem 0.75rem',
-                background: 'var(--gray-100)',
-                borderRadius: '9999px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: 'var(--text-tertiary)',
-                marginBottom: '0.75rem'
-              }}>
-                {gift.category}
-              </div>
+              {!isNarrow && (
+                <div style={{
+                  display: 'inline-block',
+                  padding: '0.25rem 0.75rem',
+                  background: 'var(--gray-100)',
+                  borderRadius: '9999px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: 'var(--text-tertiary)',
+                  marginBottom: '0.75rem'
+                }}>
+                  {gift.category}
+                </div>
+              )}
 
               <h3 style={{
-                fontSize: '1.125rem',
+                fontSize: isNarrow ? '0.875rem' : '1.125rem',
                 fontWeight: 600,
                 color: 'var(--text-primary)',
-                marginBottom: '0.5rem'
+                marginBottom: '0.25rem'
               }}>
                 {gift.name}
               </h3>
 
-              <p style={{
-                fontSize: '0.875rem',
-                color: 'var(--text-tertiary)',
-                marginBottom: '0.5rem'
-              }}>
-                by {gift.partner}
-              </p>
+              {!isNarrow && (
+                <>
+                  <p style={{
+                    fontSize: '0.875rem',
+                    color: 'var(--text-tertiary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    by {gift.partner}
+                  </p>
 
-              <p style={{
-                fontSize: '0.875rem',
-                color: 'var(--text-secondary)',
-                marginBottom: '1rem',
-                lineHeight: 1.5
-              }}>
-                {gift.description}
-              </p>
+                  <p style={{
+                    fontSize: '0.875rem',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '1rem',
+                    lineHeight: 1.5
+                  }}>
+                    {gift.description}
+                  </p>
+                </>
+              )}
 
               {/* Price and Actions */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                paddingTop: '1rem',
-                borderTop: '1px solid var(--border)'
+                paddingTop: isNarrow ? '0.5rem' : '1rem',
+                borderTop: isNarrow ? 'none' : '1px solid var(--border)',
+                flexWrap: isNarrow ? 'wrap' : 'nowrap',
+                gap: '0.5rem'
               }}>
                 <div>
                   <span style={{
-                    fontSize: '1.5rem',
+                    fontSize: isNarrow ? '1rem' : '1.5rem',
                     fontWeight: 700,
                     color: 'var(--primary)'
                   }}>
@@ -297,33 +357,35 @@ export default function Gifts() {
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button
-                    style={{
-                      padding: '0.5rem',
-                      background: 'var(--gray-100)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-md)',
-                      cursor: 'pointer',
-                      color: 'var(--text-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--gray-200)';
-                      e.currentTarget.style.color = 'var(--accent)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'var(--gray-100)';
-                      e.currentTarget.style.color = 'var(--text-secondary)';
-                    }}
-                  >
-                    <Heart size={20} />
-                  </button>
+                  {!isNarrow && (
+                    <button
+                      style={{
+                        padding: '0.5rem',
+                        background: 'var(--gray-100)',
+                        border: 'none',
+                        borderRadius: 'var(--radius-md)',
+                        cursor: 'pointer',
+                        color: 'var(--text-secondary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--gray-200)';
+                        e.currentTarget.style.color = 'var(--accent)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'var(--gray-100)';
+                        e.currentTarget.style.color = 'var(--text-secondary)';
+                      }}
+                    >
+                      <Heart size={20} />
+                    </button>
+                  )}
                   <button
                     onClick={(e) => handleAddToCart(gift, e)}
                     style={{
-                      padding: '0.5rem 1.25rem',
+                      padding: isNarrow ? '0.375rem 0.75rem' : '0.5rem 1.25rem',
                       background: addedItems.has(gift.id) ? '#22c55e' : 'var(--primary)',
                       color: 'white',
                       border: 'none',
@@ -331,7 +393,7 @@ export default function Gifts() {
                       cursor: 'pointer',
                       fontFamily: 'inherit',
                       fontWeight: 600,
-                      fontSize: '0.875rem',
+                      fontSize: isNarrow ? '0.75rem' : '0.875rem',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.5rem',
@@ -340,13 +402,13 @@ export default function Gifts() {
                   >
                     {addedItems.has(gift.id) ? (
                       <>
-                        <Check size={18} />
-                        Added!
+                        <Check size={isNarrow ? 14 : 18} />
+                        {isNarrow ? '✓' : 'Added!'}
                       </>
                     ) : (
                       <>
-                        <ShoppingCart size={18} />
-                        Add to Cart
+                        <ShoppingCart size={isNarrow ? 14 : 18} />
+                        {isNarrow ? 'Add' : 'Add to Cart'}
                       </>
                     )}
                   </button>

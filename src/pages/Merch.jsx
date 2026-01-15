@@ -1,5 +1,5 @@
 // src/pages/Merch.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ShoppingCart, Briefcase, Users } from 'lucide-react';
 
 const merchItems = [
@@ -95,11 +95,28 @@ const merchItems = [
   }
 ];
 
+// Get unique categories from merch items
+const merchCategories = ['All', ...new Set(merchItems.map(item => item.category))];
+
 export default function Merch() {
   const [showCorporateModal, setShowCorporateModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
+
+  // Handle resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => setIsNarrow(window.innerWidth < 420);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Filter items by category
+  const filteredItems = selectedCategory === 'All'
+    ? merchItems
+    : merchItems.filter(item => item.category === selectedCategory);
 
   return (
-    <div>
+    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{
@@ -205,13 +222,48 @@ export default function Merch() {
         </div>
       </div>
 
+      {/* Category Filter Pills */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '0.5rem',
+        marginBottom: '1.5rem',
+        maxWidth: '100%',
+        overflowX: 'hidden'
+      }}>
+        {merchCategories.map((category) => (
+          <button
+            key={category}
+            onClick={() => setSelectedCategory(category)}
+            style={{
+              padding: '0.5rem 1rem',
+              background: selectedCategory === category ? 'var(--primary)' : 'var(--gray-100)',
+              color: selectedCategory === category ? 'white' : 'var(--text-secondary)',
+              border: 'none',
+              borderRadius: '9999px',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'all 0.2s'
+            }}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
+
       {/* Merch Grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-        gap: '1.5rem'
+        gridTemplateColumns: isNarrow
+          ? '1fr 1fr'
+          : 'repeat(auto-fill, minmax(300px, 1fr))',
+        gap: isNarrow ? '0.75rem' : '1.5rem',
+        maxWidth: '100%',
+        overflowX: 'hidden'
       }}>
-        {merchItems.map((item) => (
+        {filteredItems.map((item) => (
           <div
             key={item.id}
             style={{
@@ -257,89 +309,97 @@ export default function Merch() {
             {/* Image Placeholder */}
             <div style={{
               width: '100%',
-              height: '200px',
+              height: isNarrow ? '120px' : '200px',
               background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '4rem'
+              fontSize: isNarrow ? '2.5rem' : '4rem'
             }}>
               🛍️
             </div>
 
             {/* Content */}
-            <div style={{ padding: '1.5rem' }}>
+            <div style={{ padding: isNarrow ? '0.75rem' : '1.5rem' }}>
               {/* Category Badge */}
-              <div style={{
-                display: 'inline-block',
-                padding: '0.25rem 0.75rem',
-                background: 'var(--gray-100)',
-                borderRadius: '9999px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: 'var(--text-tertiary)',
-                marginBottom: '0.75rem'
-              }}>
-                {item.category}
-              </div>
+              {!isNarrow && (
+                <div style={{
+                  display: 'inline-block',
+                  padding: '0.25rem 0.75rem',
+                  background: 'var(--gray-100)',
+                  borderRadius: '9999px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: 'var(--text-tertiary)',
+                  marginBottom: '0.75rem'
+                }}>
+                  {item.category}
+                </div>
+              )}
 
               <h3 style={{
-                fontSize: '1.125rem',
+                fontSize: isNarrow ? '0.875rem' : '1.125rem',
                 fontWeight: 600,
                 color: 'var(--text-primary)',
-                marginBottom: '0.5rem'
+                marginBottom: '0.25rem'
               }}>
                 {item.name}
               </h3>
 
-              <p style={{
-                fontSize: '0.875rem',
-                color: 'var(--text-secondary)',
-                marginBottom: '0.75rem',
-                lineHeight: 1.5
-              }}>
-                {item.description}
-              </p>
-
-              {/* Colors */}
-              <div style={{ marginBottom: '1rem' }}>
+              {!isNarrow && (
                 <p style={{
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  color: 'var(--text-tertiary)',
-                  marginBottom: '0.5rem'
+                  fontSize: '0.875rem',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '0.75rem',
+                  lineHeight: 1.5
                 }}>
-                  Available Colors:
+                  {item.description}
                 </p>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  {item.colors.map((color) => (
-                    <span
-                      key={color}
-                      style={{
-                        padding: '0.25rem 0.625rem',
-                        background: 'var(--gray-100)',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '0.75rem',
-                        color: 'var(--text-secondary)'
-                      }}
-                    >
-                      {color}
-                    </span>
-                  ))}
+              )}
+
+              {/* Colors - hide on narrow */}
+              {!isNarrow && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <p style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'var(--text-tertiary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    Available Colors:
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {item.colors.map((color) => (
+                      <span
+                        key={color}
+                        style={{
+                          padding: '0.25rem 0.625rem',
+                          background: 'var(--gray-100)',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.75rem',
+                          color: 'var(--text-secondary)'
+                        }}
+                      >
+                        {color}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Price and Actions */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                paddingTop: '1rem',
-                borderTop: '1px solid var(--border)'
+                paddingTop: isNarrow ? '0.5rem' : '1rem',
+                borderTop: isNarrow ? 'none' : '1px solid var(--border)',
+                flexWrap: isNarrow ? 'wrap' : 'nowrap',
+                gap: '0.5rem'
               }}>
                 <div>
                   <span style={{
-                    fontSize: '1.5rem',
+                    fontSize: isNarrow ? '1rem' : '1.5rem',
                     fontWeight: 700,
                     color: 'var(--primary)'
                   }}>
@@ -348,7 +408,7 @@ export default function Merch() {
                 </div>
                 <button
                   style={{
-                    padding: '0.5rem 1.25rem',
+                    padding: isNarrow ? '0.375rem 0.75rem' : '0.5rem 1.25rem',
                     background: 'var(--primary)',
                     color: 'white',
                     border: 'none',
@@ -356,14 +416,14 @@ export default function Merch() {
                     cursor: 'pointer',
                     fontFamily: 'inherit',
                     fontWeight: 600,
-                    fontSize: '0.875rem',
+                    fontSize: isNarrow ? '0.75rem' : '0.875rem',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem'
                   }}
                 >
-                  <ShoppingCart size={18} />
-                  Add to Cart
+                  <ShoppingCart size={isNarrow ? 14 : 18} />
+                  {isNarrow ? 'Add' : 'Add to Cart'}
                 </button>
               </div>
             </div>
