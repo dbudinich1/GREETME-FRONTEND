@@ -10,9 +10,6 @@ import { COMMS_EVENTS } from '../utils/commsCatalog';
 import OnboardingTour from '../components/OnboardingTour';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 
-// Mobile detection (simple, no hooks)
-const isMobile = window.innerWidth <= 480;
-
 export default function DashboardHome() {
   const navigate = useNavigate();
 
@@ -44,6 +41,14 @@ export default function DashboardHome() {
   const [qrCashGifts, setQrCashGifts] = useState([]);
   const [rewardsBalance, setRewardsBalance] = useState(0);
   const [viewMode, setViewMode] = useState('recipients'); // 'recipients' or 'occasions'
+  const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
+
+  // Handle resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => setIsNarrow(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // --- Presence persistence (navigation-safe) ---
   const PRESENCE_KEY = 'gm_presence_v1';
@@ -401,57 +406,62 @@ export default function DashboardHome() {
       {/* Combined Navigation Header */}
       <div style={{
         display: 'flex',
-        gap: '1rem',
-        marginBottom: '2rem',
-        justifyContent: 'space-between',
-        alignItems: 'center'
+        gap: isNarrow ? '0.5rem' : '1rem',
+        marginBottom: isNarrow ? '1rem' : '2rem',
+        justifyContent: isNarrow ? 'center' : 'space-between',
+        alignItems: 'center',
+        flexWrap: isNarrow ? 'wrap' : 'nowrap'
       }}>
-        {/* Hero Program Button - Left Side */}
-        <button
-          onClick={() => navigate('/dashboard/hero')}
-          style={{
-            padding: '0.625rem 1.25rem',
-            borderRadius: 'var(--radius-lg)',
-            border: 'none',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            fontSize: '0.9375rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            transition: 'all 0.2s',
-            boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
-            fontFamily: 'inherit'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
-          }}
-          title="Access the Greet-Me Hero™ Program"
-        >
-          🥇 Greet-Me Hero™
-        </button>
+        {/* Hero Program Button - Left Side - Hidden on Mobile */}
+        {!isNarrow && (
+          <button
+            onClick={() => navigate('/dashboard/hero')}
+            style={{
+              padding: '0.625rem 1.25rem',
+              borderRadius: 'var(--radius-lg)',
+              border: 'none',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              fontSize: '0.9375rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+              fontFamily: 'inherit'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+            }}
+            title="Access the Greet-Me Hero™ Program"
+          >
+            🥇 Greet-Me Hero™
+          </button>
+        )}
 
-        {/* Action Buttons - Right Side */}
+        {/* Action Buttons - Visible on all screens */}
         <div style={{
           display: 'flex',
-          gap: '1rem'
+          gap: isNarrow ? '0.5rem' : '1rem',
+          width: isNarrow ? '100%' : 'auto',
+          justifyContent: isNarrow ? 'center' : 'flex-end'
         }}>
         <button
           onClick={() => navigate('/dashboard/contacts')}
           style={{
-            padding: '0.75rem 1.5rem',
+            padding: isNarrow ? '0.625rem 1rem' : '0.75rem 1.5rem',
             background: '#667eea',
             color: 'white',
             border: 'none',
             borderRadius: 'var(--radius-lg)',
-            fontSize: '0.875rem',
+            fontSize: isNarrow ? '0.8125rem' : '0.875rem',
             fontWeight: 600,
             cursor: 'pointer',
             display: 'flex',
@@ -459,7 +469,8 @@ export default function DashboardHome() {
             gap: '0.5rem',
             transition: 'all 0.2s',
             boxShadow: '0 2px 4px rgba(102, 126, 234, 0.2)',
-            fontFamily: 'inherit'
+            fontFamily: 'inherit',
+            flex: isNarrow ? 1 : 'none'
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = '#5568d3';
@@ -470,18 +481,18 @@ export default function DashboardHome() {
             e.currentTarget.style.boxShadow = '0 2px 4px rgba(102, 126, 234, 0.2)';
           }}
         >
-          <Plus size={18} />
+          <Plus size={isNarrow ? 16 : 18} />
           Add Recipient
         </button>
         <button
           onClick={() => navigate('/dashboard/send')}
           style={{
-            padding: '0.75rem 1.5rem',
+            padding: isNarrow ? '0.625rem 1rem' : '0.75rem 1.5rem',
             background: '#22c55e',
             color: 'white',
             border: 'none',
             borderRadius: 'var(--radius-lg)',
-            fontSize: '0.875rem',
+            fontSize: isNarrow ? '0.8125rem' : '0.875rem',
             fontWeight: 600,
             cursor: 'pointer',
             display: 'flex',
@@ -489,7 +500,8 @@ export default function DashboardHome() {
             gap: '0.5rem',
             transition: 'all 0.2s',
             boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)',
-            fontFamily: 'inherit'
+            fontFamily: 'inherit',
+            flex: isNarrow ? 1 : 'none'
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = '#16a34a';
@@ -500,123 +512,112 @@ export default function DashboardHome() {
             e.currentTarget.style.boxShadow = '0 2px 4px rgba(34, 197, 94, 0.2)';
           }}
         >
-          ✓ Send Just Because
+          <Send size={isNarrow ? 14 : 16} />
+          Just Because
         </button>
         </div>
       </div>
 
-      {/* Greet One, Give One™ Banner - Reduced prominence */}
+      {/* Greet One, Give One™ Banner - Compact */}
       <div style={{
         background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
         borderRadius: 'var(--radius-lg)',
-        padding: '1.25rem 1.5rem',
-        marginBottom: '2rem',
+        padding: isNarrow ? '0.75rem 1rem' : '0.875rem 1.25rem',
+        marginBottom: '1rem',
         textAlign: 'center',
         color: 'white',
         boxShadow: '0 2px 8px rgba(16, 185, 129, 0.2)',
-        border: '1px solid rgba(255, 255, 255, 0.15)'
+        border: '1px solid rgba(255, 255, 255, 0.15)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: isNarrow ? '0.75rem' : '1rem',
+        flexWrap: 'wrap'
       }}>
-        <h2 style={{
-          fontSize: '1.25rem',
-          fontWeight: 700,
-          marginBottom: '0.5rem'
-        }}>
-          Greet One, Give One™
-        </h2>
-        <p style={{
-          fontSize: '0.875rem',
-          opacity: 0.9,
-          maxWidth: '600px',
-          margin: '0 auto 1rem',
-          lineHeight: 1.5,
-          fontStyle: 'italic',
-          fontFamily: 'Georgia, "Times New Roman", serif'
-        }}>
-          As our gift to you, every Greet-Me subscription includes one for you — and one for a loved one.
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <h2 style={{
+            fontSize: isNarrow ? '0.875rem' : '1rem',
+            fontWeight: 700,
+            margin: 0
+          }}>
+            Greet One, Give One™
+          </h2>
+          <span style={{
+            fontSize: isNarrow ? '0.6875rem' : '0.75rem',
+            opacity: 0.9,
+            fontStyle: 'italic'
+          }}>
+            — Every subscription includes one for a loved one
+          </span>
+        </div>
         <button
           onClick={() => navigate('/dashboard/hero')}
           style={{
-            padding: '0.5rem 1.25rem',
+            padding: '0.375rem 0.875rem',
             background: 'white',
             color: '#10b981',
             border: 'none',
             borderRadius: 'var(--radius-md)',
-            fontSize: '0.8125rem',
+            fontSize: '0.75rem',
             fontWeight: 600,
             cursor: 'pointer',
             transition: 'all 0.2s',
             boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
             fontFamily: 'inherit'
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
-          }}
         >
           Learn More
         </button>
       </div>
 
-      {/* QR Cash & Rewards - Side by Side */}
+      {/* QR Cash - Compact Card */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
+        background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+        borderRadius: 'var(--radius-lg)',
+        padding: isNarrow ? '0.75rem 1rem' : '0.875rem 1.25rem',
+        marginBottom: isNarrow ? '1rem' : '1.5rem',
+        color: 'white',
+        boxShadow: '0 2px 8px rgba(251, 191, 36, 0.2)',
+        border: '1px solid rgba(255, 255, 255, 0.15)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         gap: '1rem',
-        marginBottom: '2rem',
-        alignItems: 'stretch',
+        flexWrap: 'wrap'
       }}>
-        {/* QR Cash Card */}
-        <div style={{
-          background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '1.25rem',
-          textAlign: 'center',
-          color: 'white',
-          boxShadow: '0 2px 8px rgba(251, 191, 36, 0.2)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          minHeight: '160px',
-        }}>
           <div>
             <h3 style={{
-              fontSize: '1rem',
+              fontSize: isNarrow ? '0.8125rem' : '0.875rem',
               fontWeight: 700,
-              marginBottom: '0.25rem'
+              marginBottom: '0.125rem'
             }}>
               QR Cash™
             </h3>
             <p style={{
-              fontSize: '0.75rem',
+              fontSize: isNarrow ? '0.625rem' : '0.6875rem',
               opacity: 0.9,
-              marginBottom: '0.5rem',
+              marginBottom: '0.25rem',
             }}>
               Send · Scan · Spend
             </p>
           </div>
           <p style={{
-            fontSize: '1.5rem',
+            fontSize: isNarrow ? '1.125rem' : '1.25rem',
             fontWeight: 700,
-            marginBottom: '0.75rem',
+            marginBottom: '0.5rem',
           }}>
             $0.00
           </p>
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center' }}>
             <button
               onClick={() => setShowQRCashModal(true)}
               style={{
-                padding: '0.5rem 1rem',
+                padding: isNarrow ? '0.375rem 0.625rem' : '0.375rem 0.75rem',
                 background: 'white',
                 color: '#f59e0b',
                 border: 'none',
                 borderRadius: 'var(--radius-md)',
-                fontSize: '0.75rem',
+                fontSize: isNarrow ? '0.6875rem' : '0.75rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
@@ -628,108 +629,28 @@ export default function DashboardHome() {
             <button
               onClick={() => setShowHowItWorksModal(true)}
               style={{
-                padding: '0.5rem 1rem',
+                padding: isNarrow ? '0.375rem 0.625rem' : '0.375rem 0.75rem',
                 background: 'rgba(255, 255, 255, 0.2)',
                 color: 'white',
                 border: 'none',
                 borderRadius: 'var(--radius-md)',
-                fontSize: '0.75rem',
+                fontSize: isNarrow ? '0.6875rem' : '0.75rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
                 fontFamily: 'inherit'
               }}
             >
-              How It Works
+              How?
             </button>
           </div>
-        </div>
-
-        {/* Greet-Me Rewards Card */}
-        <div style={{
-          background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '1.25rem',
-          textAlign: 'center',
-          color: 'white',
-          boxShadow: '0 2px 8px rgba(236, 72, 153, 0.2)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          minHeight: '160px',
-        }}>
-          <div>
-            <h3 style={{
-              fontSize: '1rem',
-              fontWeight: 700,
-              marginBottom: '0.25rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.375rem'
-            }}>
-              <span>❤️</span> Rewards
-            </h3>
-            <p style={{
-              fontSize: '0.75rem',
-              opacity: 0.9,
-              marginBottom: '0.5rem',
-            }}>
-              Earn Hearts, Get Rewards
-            </p>
-          </div>
-          <p style={{
-            fontSize: '1.5rem',
-            fontWeight: 700,
-            marginBottom: '0.75rem',
-          }}>
-            {rewardsBalance} ❤️
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-            <button
-              onClick={() => navigate('/dashboard/rewards')}
-              style={{
-                padding: '0.5rem 1rem',
-                background: 'white',
-                color: '#ec4899',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit'
-              }}
-            >
-              View
-            </button>
-            <button
-              onClick={() => navigate('/dashboard/rewards')}
-              style={{
-                padding: '0.5rem 1rem',
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit'
-              }}
-            >
-              Redeem
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Two Column Layout */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '0.45fr 0.55fr',
-        gap: '2rem',
+        gridTemplateColumns: isNarrow ? '1fr' : '0.45fr 0.55fr',
+        gap: isNarrow ? '1.5rem' : '2rem',
         marginBottom: '2rem',
         alignItems: 'stretch'
       }}>
@@ -1570,6 +1491,7 @@ export default function DashboardHome() {
         </div>
 
         {/* Table Header */}
+        {!isNarrow && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: '2fr 1fr 2fr 1fr',
@@ -1586,6 +1508,7 @@ export default function DashboardHome() {
           <div>OCCASIONS</div>
           <div style={{ textAlign: 'right' }}>DATE</div>
         </div>
+        )}
 
         {/* Table Rows */}
         <div>
@@ -1593,11 +1516,13 @@ export default function DashboardHome() {
             <div
               key={item.id}
               style={{
-                display: 'grid',
-                gridTemplateColumns: '2fr 1fr 2fr 1fr',
-                padding: '1rem',
+                display: isNarrow ? 'flex' : 'grid',
+                flexDirection: isNarrow ? 'column' : undefined,
+                gridTemplateColumns: isNarrow ? undefined : '2fr 1fr 2fr 1fr',
+                padding: isNarrow ? '0.75rem' : '1rem',
+                gap: isNarrow ? '0.5rem' : undefined,
                 borderBottom: index < comingUpOccasions.length - 1 ? '1px solid var(--border)' : 'none',
-                alignItems: 'center',
+                alignItems: isNarrow ? 'flex-start' : 'center',
                 cursor: 'pointer',
                 transition: 'all 0.2s'
               }}
@@ -1608,17 +1533,17 @@ export default function DashboardHome() {
                 e.currentTarget.style.background = 'transparent';
               }}
             >
-              <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: isNarrow ? '100%' : 'auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <div style={{
-                    width: '2.5rem',
-                    height: '2.5rem',
+                    width: isNarrow ? '2rem' : '2.5rem',
+                    height: isNarrow ? '2rem' : '2.5rem',
                     borderRadius: '50%',
                     background: 'var(--gray-200)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '1.25rem',
+                    fontSize: isNarrow ? '1rem' : '1.25rem',
                     position: 'relative'
                   }}>
                     👤
@@ -1635,23 +1560,30 @@ export default function DashboardHome() {
                   </div>
                   <div>
                     <div style={{
-                      fontSize: '0.9375rem',
+                      fontSize: isNarrow ? '0.875rem' : '0.9375rem',
                       fontWeight: 600,
                       color: 'var(--text-primary)'
                     }}>{item.recipient}</div>
                     <div style={{
-                      fontSize: '0.8125rem',
+                      fontSize: isNarrow ? '0.75rem' : '0.8125rem',
                       color: 'var(--text-secondary)'
                     }}>{item.relationship}</div>
                   </div>
                 </div>
+                {isNarrow && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                    {item.date}
+                  </div>
+                )}
               </div>
+              {!isNarrow && (
               <div style={{ display: 'flex', gap: '0.25rem' }}>
                 {item.icons.map((icon, idx) => (
                   <span key={idx} style={{ fontSize: '1.25rem' }}>{icon}</span>
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              )}
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 {item.occasions.map((occasion, idx) => (
                   <span
                     key={idx}
@@ -1668,9 +1600,11 @@ export default function DashboardHome() {
                   </span>
                 ))}
               </div>
+              {!isNarrow && (
               <div style={{ textAlign: 'right', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>
                 {item.date}
               </div>
+              )}
             </div>
           ))}
         </div>
@@ -1680,18 +1614,20 @@ export default function DashboardHome() {
       <div style={{
         background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
         borderRadius: 'var(--radius-lg)',
-        padding: '1rem 1.5rem',
+        padding: isNarrow ? '1rem' : '1rem 1.5rem',
         marginBottom: '2rem',
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: isNarrow ? 'column' : 'row',
+        alignItems: isNarrow ? 'flex-start' : 'center',
         justifyContent: 'space-between',
+        gap: isNarrow ? '1rem' : '0',
         border: '1px solid var(--border)',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{
-            width: '3rem',
-            height: '3rem',
+            width: isNarrow ? '2.5rem' : '3rem',
+            height: isNarrow ? '2.5rem' : '3rem',
             borderRadius: 'var(--radius-md)',
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             display: 'flex',
@@ -1699,7 +1635,7 @@ export default function DashboardHome() {
             justifyContent: 'center',
             boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
           }}>
-            <Smartphone size={20} style={{ color: 'white' }} />
+            <Smartphone size={isNarrow ? 16 : 20} style={{ color: 'white' }} />
           </div>
           <div>
             <h3 style={{
@@ -1788,6 +1724,7 @@ export default function DashboardHome() {
         </div>
 
         {/* Table Header */}
+        {!isNarrow && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: '0.5fr 0.5fr 2fr 1fr 2fr 1fr',
@@ -1806,6 +1743,7 @@ export default function DashboardHome() {
           <div>OCCASIONS</div>
           <div style={{ textAlign: 'right' }}>SENT DATE</div>
         </div>
+        )}
 
         {/* Table Rows */}
         <div>
@@ -1842,11 +1780,13 @@ export default function DashboardHome() {
               <div
                 key={item.id}
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: '0.5fr 0.5fr 2fr 1fr 2fr 1fr',
-                  padding: '1rem',
+                  display: isNarrow ? 'flex' : 'grid',
+                  flexDirection: isNarrow ? 'column' : undefined,
+                  gridTemplateColumns: isNarrow ? undefined : '0.5fr 0.5fr 2fr 1fr 2fr 1fr',
+                  padding: isNarrow ? '0.75rem' : '1rem',
+                  gap: isNarrow ? '0.5rem' : undefined,
                   borderBottom: index < array.length - 1 ? '1px solid var(--border)' : 'none',
-                  alignItems: 'center',
+                  alignItems: isNarrow ? 'flex-start' : 'center',
                   cursor: 'pointer',
                   transition: 'all 0.2s'
                 }}
@@ -1857,6 +1797,7 @@ export default function DashboardHome() {
                   e.currentTarget.style.background = 'transparent';
                 }}
               >
+                {!isNarrow && (
                 <div style={{ textAlign: 'center' }}>
                   <CheckCircle
                     size={24}
@@ -1867,7 +1808,9 @@ export default function DashboardHome() {
                     }}
                   />
                 </div>
+                )}
                 {/* QR Cash Status Icon */}
+                {!isNarrow && (
                 <div style={{ textAlign: 'center' }}>
                   {item.qrCash ? (
                     <div
@@ -1895,38 +1838,56 @@ export default function DashboardHome() {
                     <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>—</span>
                   )}
                 </div>
-                <div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: isNarrow ? '100%' : 'auto' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    {isNarrow && (
+                      <CheckCircle
+                        size={18}
+                        style={{
+                          color: '#22c55e',
+                          fill: '#22c55e',
+                          strokeWidth: 2
+                        }}
+                      />
+                    )}
                     <div style={{
-                      width: '2.5rem',
-                      height: '2.5rem',
+                      width: isNarrow ? '2rem' : '2.5rem',
+                      height: isNarrow ? '2rem' : '2.5rem',
                       borderRadius: '50%',
                       background: 'var(--gray-200)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '1.25rem'
+                      fontSize: isNarrow ? '1rem' : '1.25rem'
                     }}>
                       👤
                     </div>
                     <div>
                       <div style={{
-                        fontSize: '0.9375rem',
+                        fontSize: isNarrow ? '0.875rem' : '0.9375rem',
                         fontWeight: 600,
                         color: 'var(--text-primary)'
                       }}>{item.recipient}</div>
                       <div style={{
-                        fontSize: '0.8125rem',
+                        fontSize: isNarrow ? '0.75rem' : '0.8125rem',
                         color: 'var(--text-secondary)'
                       }}>{item.relationship}</div>
                     </div>
                   </div>
+                  {isNarrow && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                      {item.date}
+                    </div>
+                  )}
                 </div>
+                {!isNarrow && (
                 <div style={{ display: 'flex', gap: '0.25rem' }}>
                   {(item.icons || []).map((icon, idx) => (
                     <span key={idx} style={{ fontSize: '1.25rem' }}>{icon}</span>
                   ))}
                 </div>
+                )}
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                   {(item.occasions || []).map((occasion, idx) => (
                     <span
@@ -1958,6 +1919,7 @@ export default function DashboardHome() {
                     </span>
                   )}
                 </div>
+                {!isNarrow && (
                 <div style={{
                   textAlign: 'right',
                   fontSize: '0.875rem',
@@ -1966,6 +1928,7 @@ export default function DashboardHome() {
                 }}>
                   {item.date}
                 </div>
+                )}
               </div>
             ));
           })()}

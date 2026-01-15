@@ -234,26 +234,26 @@ export default function Merch() {
       <div style={{
         background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
         borderRadius: 'var(--radius-xl)',
-        padding: '2rem',
-        marginBottom: '3rem',
+        padding: isNarrow ? '1.25rem' : '2rem',
+        marginBottom: '2rem',
         color: 'white'
       }}>
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr auto',
-          gap: '2rem',
-          alignItems: 'center'
+          display: 'flex',
+          flexDirection: isNarrow ? 'column' : 'row',
+          gap: isNarrow ? '1rem' : '2rem',
+          alignItems: isNarrow ? 'flex-start' : 'center'
         }}>
           <div>
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.75rem',
-              marginBottom: '1rem'
+              gap: '0.5rem',
+              marginBottom: isNarrow ? '0.5rem' : '1rem'
             }}>
-              <Briefcase size={32} />
+              <Briefcase size={isNarrow ? 20 : 32} />
               <h2 style={{
-                fontSize: '1.75rem',
+                fontSize: isNarrow ? '1.125rem' : '1.75rem',
                 fontWeight: 700,
                 margin: 0
               }}>
@@ -261,34 +261,36 @@ export default function Merch() {
               </h2>
             </div>
             <p style={{
-              fontSize: '1.125rem',
+              fontSize: isNarrow ? '0.875rem' : '1.125rem',
               opacity: 0.95,
-              marginBottom: '1rem',
+              marginBottom: isNarrow ? '0.75rem' : '1rem',
               lineHeight: 1.6
             }}>
               Strengthen client relationships and boost employee morale with custom-branded Greet-Me merchandise.
-              Add your company logo to any white-label eligible item.
+              {!isNarrow && ' Add your company logo to any white-label eligible item.'}
             </p>
-            <ul style={{
-              fontSize: '1rem',
-              opacity: 0.9,
-              marginBottom: '1.5rem',
-              paddingLeft: '1.5rem'
-            }}>
-              <li>Minimum order: 25 units per item</li>
-              <li>Custom logo embroidery or printing included</li>
-              <li>Bulk pricing available for 100+ units</li>
-              <li>Perfect for client gifts and employee appreciation</li>
-            </ul>
+            {!isNarrow && (
+              <ul style={{
+                fontSize: '1rem',
+                opacity: 0.9,
+                marginBottom: '1.5rem',
+                paddingLeft: '1.5rem'
+              }}>
+                <li>Minimum order: 25 units per item</li>
+                <li>Custom logo embroidery or printing included</li>
+                <li>Bulk pricing available for 100+ units</li>
+                <li>Perfect for client gifts and employee appreciation</li>
+              </ul>
+            )}
             <button
               onClick={() => setShowCorporateModal(true)}
               style={{
-                padding: '0.875rem 2rem',
+                padding: isNarrow ? '0.625rem 1.25rem' : '0.875rem 2rem',
                 background: 'white',
                 color: '#1e3a8a',
                 border: 'none',
                 borderRadius: 'var(--radius-lg)',
-                fontSize: '1rem',
+                fontSize: isNarrow ? '0.875rem' : '1rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 fontFamily: 'inherit',
@@ -298,22 +300,24 @@ export default function Merch() {
                 gap: '0.5rem'
               }}
             >
-              <Users size={20} />
+              <Users size={isNarrow ? 16 : 20} />
               Request Corporate Quote
             </button>
           </div>
-          <div style={{
-            width: '8rem',
-            height: '8rem',
-            background: 'white',
-            borderRadius: 'var(--radius-lg)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '4rem'
-          }}>
-            🏢
-          </div>
+          {!isNarrow && (
+            <div style={{
+              width: '8rem',
+              height: '8rem',
+              background: 'white',
+              borderRadius: 'var(--radius-lg)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '4rem'
+            }}>
+              🏢
+            </div>
+          )}
         </div>
       </div>
 

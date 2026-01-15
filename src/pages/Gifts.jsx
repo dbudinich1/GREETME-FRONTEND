@@ -222,7 +222,7 @@ export default function Gifts() {
         }}>
           {cameFromRecipientForm
             ? 'Select a gift for your recipient'
-            : 'Add a thoughtful gift from our 🇺🇸 American-Made Marketplace'}
+            : 'Add a thoughtful gift from our 🇺🇸 American Marketplace'}
         </p>
       </div>
 

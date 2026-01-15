@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart, Film, Image } from 'lucide-react';
+import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart, Film, Image, Menu, X } from 'lucide-react';
 import GreetMeLogo from './GreetMeLogo';
 import NotificationBell from './NotificationBell';
 import GuidedSetupFlow, { shouldShowGuidedSetup } from './GuidedSetupFlow';
@@ -17,18 +17,23 @@ const cartService = {
   getCount: () => 0,
 };
 
-
-// Mobile detection (simple, no hooks)
-const isMobile = window.innerWidth <= 480;
-
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [showGuidedSetup, setShowGuidedSetup] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
 
   const [animationCount, setAnimationCount] = useState(0);
   const [cartCount, setCartCount] = useState(0);
+
+  // Handle resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => setIsNarrow(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Check if guided setup should show on mount
   useEffect(() => {
@@ -94,16 +99,43 @@ export default function DashboardLayout() {
         <div style={{
           maxWidth: '1400px',
           margin: '0 auto',
-          padding: isMobile ? '0 1rem' : '0 2rem',
+          padding: isNarrow ? '0 1rem' : '0 2rem',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          height: isMobile ? '5rem' : '7rem',
-          gap: isMobile ? '0.75rem' : '1rem'
+          height: isNarrow ? '4rem' : '7rem',
+          gap: isNarrow ? '0.5rem' : '1rem'
         }}>
-          {/* G1G1 Gold Foil Seal with Star-Point Edge */}
-        <div style={{ width: isMobile ? '80px' : '150px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ position: 'relative', width: isMobile ? '60px' : '90px', height: isMobile ? '60px' : '90px', transform: isMobile ? 'scale(0.7)' : 'none' }}>
+          {/* Hamburger Menu Button - Mobile Only */}
+          {isNarrow && (
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              style={{
+                width: '2.5rem',
+                height: '2.5rem',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border)',
+                background: mobileMenuOpen ? 'var(--gray-200)' : 'var(--gray-100)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+                flexShrink: 0
+              }}
+            >
+              {mobileMenuOpen ? (
+                <X size={24} style={{ color: 'var(--text-primary)' }} />
+              ) : (
+                <Menu size={24} style={{ color: 'var(--text-primary)' }} />
+              )}
+            </button>
+          )}
+
+          {/* G1G1 Gold Foil Seal with Star-Point Edge - Hide on mobile */}
+          {!isNarrow && (
+        <div style={{ width: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ position: 'relative', width: '90px', height: '90px' }}>
             {/* Star-point notched edge layer - 24 points around the circle */}
             {[...Array(24)].map((_, i) => {
               const angle = (i * 15) - 90; // 24 points = 15 degrees apart
@@ -258,15 +290,25 @@ export default function DashboardLayout() {
             </button>
           </div>
         </div>
+          )}
 
           {/* Centered Logo and Title */}
-          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            flex: isNarrow ? 1 : 'none',
+            justifyContent: 'center'
+          }}>
             <GreetMeLogo size="medium" clickable={true} />
-            <p style={{
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)',
-              margin: '0.5rem 0 0 0'
-            }}>Welcome back, {user?.name?.split(' ')[0] || 'User'}!</p>
+            {!isNarrow && (
+              <p style={{
+                fontSize: '0.875rem',
+                color: 'var(--text-secondary)',
+                margin: '0.5rem 0 0 0'
+              }}>Welcome back, {user?.name?.split(' ')[0] || 'User'}!</p>
+            )}
           </div>
 
           {/* Right side - Image Bank, Cart, User icon */}
@@ -497,21 +539,180 @@ export default function DashboardLayout() {
         </div>
       </header>
 
-      {/* Horizontal Navigation Bar */}
+      {/* Mobile Slide-out Menu */}
+      {isNarrow && mobileMenuOpen && (
+        <>
+          {/* Overlay */}
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 40
+            }}
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          {/* Slide-out Menu */}
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            bottom: 0,
+            width: '280px',
+            background: 'var(--bg-primary)',
+            zIndex: 50,
+            boxShadow: '4px 0 20px rgba(0, 0, 0, 0.15)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            {/* Menu Header */}
+            <div style={{
+              padding: '1rem',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <GreetMeLogo size="small" clickable={false} />
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  width: '2rem',
+                  height: '2rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <X size={20} style={{ color: 'var(--text-secondary)' }} />
+              </button>
+            </div>
+
+            {/* User Info */}
+            <div style={{
+              padding: '1rem',
+              borderBottom: '1px solid var(--border)',
+              background: 'var(--gray-50)'
+            }}>
+              <p style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                margin: 0
+              }}>Welcome, {user?.name?.split(' ')[0] || 'User'}!</p>
+              <p style={{
+                fontSize: '0.75rem',
+                color: 'var(--text-tertiary)',
+                margin: '0.25rem 0 0 0'
+              }}>{user?.email || ''}</p>
+            </div>
+
+            {/* Navigation Links */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
+              {navigation.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  style={({ isActive }) => ({
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.875rem 1rem',
+                    textDecoration: 'none',
+                    fontSize: '0.9375rem',
+                    fontWeight: isActive ? 600 : 500,
+                    borderRadius: 'var(--radius-md)',
+                    background: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                    color: isActive ? 'var(--primary)' : 'var(--text-primary)',
+                    marginBottom: '0.25rem'
+                  })}
+                >
+                  {item.icon && <item.icon size={18} />}
+                  <span>{item.name}</span>
+                </NavLink>
+              ))}
+            </div>
+
+            {/* Menu Footer */}
+            <div style={{
+              padding: '1rem',
+              borderTop: '1px solid var(--border)'
+            }}>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate('/dashboard/profile');
+                }}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '0.75rem 1rem',
+                  fontSize: '0.875rem',
+                  color: 'var(--text-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  marginBottom: '0.5rem'
+                }}
+              >
+                <User size={18} />
+                <span>Profile</span>
+              </button>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '0.75rem 1rem',
+                  fontSize: '0.875rem',
+                  color: 'var(--error)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit'
+                }}
+              >
+                <LogOut size={18} />
+                <span>Logout</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Horizontal Navigation Bar - Desktop Only */}
+      {!isNarrow && (
       <nav style={{
         background: 'var(--bg-primary)',
         borderBottom: '1px solid var(--border)',
-        padding: isMobile ? '0 0.5rem' : '0 2rem',
-        overflowX: isMobile ? 'auto' : 'visible',
+        padding: '0 2rem',
+        overflowX: 'visible',
         WebkitOverflowScrolling: 'touch'
       }}>
         <div style={{
           maxWidth: '1400px',
           margin: '0 auto',
           display: 'flex',
-          justifyContent: isMobile ? 'flex-start' : 'space-evenly',
-          alignItems: 'center',
-          gap: isMobile ? '0' : undefined
+          justifyContent: 'space-evenly',
+          alignItems: 'center'
         }}>
           {navigation.map((item) => (
             <NavLink
@@ -520,10 +721,10 @@ export default function DashboardLayout() {
               style={({ isActive }) => ({
                 display: 'flex',
                 alignItems: 'center',
-                gap: isMobile ? '0.25rem' : '0.5rem',
-                padding: isMobile ? '0.625rem 0.5rem' : '1rem 1.25rem',
+                gap: '0.5rem',
+                padding: '1rem 1.25rem',
                 textDecoration: 'none',
-                fontSize: isMobile ? '0.75rem' : '0.875rem',
+                fontSize: '0.875rem',
                 fontWeight: 500,
                 transition: 'all 0.2s',
                 borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
@@ -558,9 +759,10 @@ export default function DashboardLayout() {
           ))}
         </div>
       </nav>
+      )}
 
       {/* Main Content */}
-      <main style={{ flex: 1, padding: isMobile ? '1rem' : '2rem', overflowY: 'auto', background: 'var(--bg-secondary)' }}>
+      <main style={{ flex: 1, padding: isNarrow ? '1rem' : '2rem', overflowY: 'auto', background: 'var(--bg-secondary)' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <Outlet />
         </div>
