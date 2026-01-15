@@ -1,15 +1,17 @@
 // src/pages/Contacts.jsx
 import React, { useState, useEffect } from 'react';
-import { Plus, Upload, Search, Edit, Trash2, ArrowLeft, Users, Calendar, Gift } from 'lucide-react';
+import { Plus, Upload, Search, Edit, Trash2, ArrowLeft, Users, Calendar, Gift, FileSpreadsheet, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from "../api/api";
 import Modal from '../components/Modal';
 import ContactForm from '../components/ContactForm';
 import CSVImport from '../components/CSVImport';
 import LoadingSpinner from '../components/LoadingSpinner';
-import EmptyState from '../components/EmptyState';
 import Alert from '../components/Alert';
 import { getOccasionIcon, getOccasionLabel } from '../utils/helpers';
+
+// Mobile detection
+const isMobile = window.innerWidth <= 600;
 
 export default function Recipients() {
   const navigate = useNavigate();
@@ -151,72 +153,164 @@ export default function Recipients() {
     return <LoadingSpinner text="Loading recipients..." />;
   }
 
+  // Calculate stats for chips
+  const upcomingCount = recipients.reduce((count, contact) => {
+    const upcoming = (contact.occasions || []).filter(occ => {
+      if (!occ.date) return false;
+      const occDate = new Date(occ.date);
+      const now = new Date();
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(now.getDate() + 30);
+      return occDate >= now && occDate <= thirtyDaysFromNow;
+    });
+    return count + upcoming.length;
+  }, 0);
+
   return (
     <div>
-      {/* Header with Gradient Background */}
+      {/* Header with Gradient Background - Premium Hero Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        borderRadius: '1rem',
-        padding: '2rem',
-        marginBottom: '2rem',
-        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)'
+        borderRadius: 'var(--radius-xl)',
+        padding: isMobile ? '1.125rem 1rem' : '1.5rem 1.75rem',
+        marginBottom: '1.25rem',
+        boxShadow: '0 8px 24px rgba(102, 126, 234, 0.25)'
       }}>
-        <div className="flex items-center justify-between">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <button
-              onClick={() => navigate('/dashboard')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '2.5rem',
-                height: '2.5rem',
-                background: 'rgba(255, 255, 255, 0.2)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '0.5rem',
-                color: 'white',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                backdropFilter: 'blur(10px)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              }}
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div>
-              <h1 style={{
-                fontSize: '2rem',
-                fontWeight: 700,
-                color: 'white',
-                marginBottom: '0.5rem'
-              }}>Recipients</h1>
-              <p style={{
-                color: 'rgba(255, 255, 255, 0.9)',
-                fontSize: '1rem'
-              }}>Manage your contacts and their special occasions</p>
+        {/* Two-column layout: left = content, right = actions */}
+        <div style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          justifyContent: 'space-between',
+          alignItems: isMobile ? 'stretch' : 'flex-start',
+          gap: isMobile ? '1rem' : '1.5rem'
+        }}>
+          {/* Left side: Back button + Title + Subtitle + Chips */}
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+              <button
+                onClick={() => navigate('/dashboard')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '2.25rem',
+                  height: '2.25rem',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  backdropFilter: 'blur(10px)',
+                  flexShrink: 0
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                }}
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <div>
+                <h1 style={{
+                  fontSize: isMobile ? '1.5rem' : '1.75rem',
+                  fontWeight: 700,
+                  color: 'white',
+                  marginBottom: '0.25rem',
+                  lineHeight: 1.2
+                }}>Recipients</h1>
+                <p style={{
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontSize: isMobile ? '0.8125rem' : '0.9375rem',
+                  lineHeight: 1.5,
+                  marginBottom: '0.75rem'
+                }}>Manage who you greet — birthdays, anniversaries, "just because," and more.</p>
+
+                {/* Stats Chips */}
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem'
+                }}>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    padding: '0.375rem 0.75rem',
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'white',
+                    backdropFilter: 'blur(8px)'
+                  }}>
+                    <Users size={12} />
+                    {recipients.length} Recipient{recipients.length !== 1 ? 's' : ''}
+                  </span>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    padding: '0.375rem 0.75rem',
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'white',
+                    backdropFilter: 'blur(8px)'
+                  }}>
+                    <Clock size={12} />
+                    {upcomingCount} Upcoming (30 days)
+                  </span>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    padding: '0.375rem 0.75rem',
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'white',
+                    backdropFilter: 'blur(8px)'
+                  }}>
+                    <FileSpreadsheet size={12} />
+                    CSV Ready
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="flex space-x-3">
+
+          {/* Right side: Action Buttons */}
+          <div style={{
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: '0.625rem',
+            flexShrink: 0
+          }}>
             <button
               onClick={() => setShowImportModal(true)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                padding: '0.75rem 1.25rem',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                padding: isMobile ? '0.875rem 1rem' : '0.75rem 1.25rem',
+                width: isMobile ? '100%' : 'auto',
+                minHeight: isMobile ? '48px' : 'auto',
                 background: 'rgba(255, 255, 255, 0.2)',
                 color: 'white',
                 border: '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '0.75rem',
+                borderRadius: 'var(--radius-lg)',
                 fontSize: '0.875rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                backdropFilter: 'blur(10px)'
+                backdropFilter: 'blur(10px)',
+                fontFamily: 'inherit'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
@@ -225,7 +319,7 @@ export default function Recipients() {
                 e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
               }}
             >
-              <Upload size={18} className="mr-2" />
+              <Upload size={18} />
               Import CSV
             </button>
             <button
@@ -233,16 +327,21 @@ export default function Recipients() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                padding: '0.75rem 1.25rem',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                padding: isMobile ? '0.875rem 1rem' : '0.75rem 1.25rem',
+                width: isMobile ? '100%' : 'auto',
+                minHeight: isMobile ? '48px' : 'auto',
                 background: 'white',
                 color: '#667eea',
                 border: 'none',
-                borderRadius: '0.75rem',
+                borderRadius: 'var(--radius-lg)',
                 fontSize: '0.875rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                fontFamily: 'inherit'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
@@ -253,7 +352,7 @@ export default function Recipients() {
                 e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
               }}
             >
-              <Plus size={18} className="mr-2" />
+              <Plus size={18} />
               Add Recipient
             </button>
           </div>
@@ -346,29 +445,185 @@ export default function Recipients() {
         </div>
       )}
 
-      {/* Empty State */}
+      {/* Empty State with Preview Table */}
       {recipients.length === 0 ? (
-        <EmptyState
-          icon="👥"
-          title="No recipients yet"
-          description="Start by adding your first recipient or import from CSV"
-          action={
-            <div className="flex space-x-3 justify-center">
+        <div style={{
+          background: 'var(--bg-primary)',
+          borderRadius: 'var(--radius-xl)',
+          border: '1px solid var(--border)',
+          overflow: 'hidden',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+        }}>
+          {/* Preview Table Header */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr 1fr' : '2fr 1.5fr 1fr 1.5fr 1fr',
+            padding: '0.75rem 1rem',
+            borderBottom: '1px solid var(--border)',
+            background: 'var(--gray-50)',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            color: 'var(--text-tertiary)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em'
+          }}>
+            <div>Name</div>
+            {!isMobile && <div>Email</div>}
+            {!isMobile && <div>Relationship</div>}
+            <div>Occasions</div>
+            {!isMobile && <div style={{ textAlign: 'right' }}>Actions</div>}
+          </div>
+
+          {/* Preview Rows (Example Data) */}
+          {[
+            { name: 'Mom', email: 'mom@example.com', relationship: 'Parent', occasions: ['🎂', '💝'] },
+            { name: 'Best Friend', email: 'bestie@example.com', relationship: 'Friend', occasions: ['🎂', '🎄'] },
+            { name: 'Partner', email: 'partner@example.com', relationship: 'Partner', occasions: ['🎂', '💕', '🎉'] }
+          ].map((preview, idx) => (
+            <div
+              key={idx}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr 1fr' : '2fr 1.5fr 1fr 1.5fr 1fr',
+                padding: '1rem',
+                borderBottom: '1px solid var(--border)',
+                background: idx % 2 === 0 ? 'white' : 'var(--gray-50)',
+                opacity: 0.5,
+                filter: 'blur(1px)',
+                pointerEvents: 'none'
+              }}
+            >
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{preview.name}</div>
+              {!isMobile && <div style={{ color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: '0.8125rem' }}>{preview.email}</div>}
+              {!isMobile && (
+                <div>
+                  <span style={{
+                    background: 'linear-gradient(135deg, #ddd6fe 0%, #c7d2fe 100%)',
+                    color: '#5b21b6',
+                    padding: '0.25rem 0.5rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600
+                  }}>{preview.relationship}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                {preview.occasions.map((icon, i) => (
+                  <span key={i} style={{ fontSize: '1rem' }}>{icon}</span>
+                ))}
+              </div>
+              {!isMobile && (
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{
+                    background: 'var(--gray-100)',
+                    color: 'var(--text-tertiary)',
+                    padding: '0.25rem 0.5rem',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.75rem'
+                  }}>Edit</span>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Call to Action Overlay */}
+          <div style={{
+            padding: '2rem',
+            textAlign: 'center',
+            background: 'linear-gradient(to bottom, transparent, white 20%)'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+            }}>
+              <Users size={28} style={{ color: 'white' }} />
+            </div>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem'
+            }}>Add your first recipient</h3>
+            <p style={{
+              fontSize: '0.9375rem',
+              color: 'var(--text-secondary)',
+              marginBottom: '1.5rem',
+              maxWidth: '400px',
+              margin: '0 auto 1.5rem'
+            }}>
+              Start building your greeting list. Add loved ones manually or import from a CSV file.
+            </p>
+            <div style={{
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: '0.75rem',
+              justifyContent: 'center'
+            }}>
               <button
                 onClick={() => setShowImportModal(true)}
-                className="px-6 py-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 font-medium"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  padding: '0.875rem 1.5rem',
+                  background: 'var(--gray-100)',
+                  color: 'var(--text-primary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-lg)',
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  fontFamily: 'inherit',
+                  minWidth: isMobile ? '100%' : '160px'
+                }}
               >
+                <Upload size={18} />
                 Import CSV
               </button>
               <button
                 onClick={() => setShowAddModal(true)}
-                className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  padding: '0.875rem 1.5rem',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--radius-lg)',
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  fontFamily: 'inherit',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                  minWidth: isMobile ? '100%' : '180px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                }}
               >
-                Add Your First Recipient
+                <Plus size={18} />
+                Add Recipient
               </button>
             </div>
-          }
-        />
+          </div>
+        </div>
       ) : viewMode === 'recipients' ? (
         /* Recipients Table */
         <div className="bg-white rounded-xl shadow-md overflow-hidden border border-purple-100">
