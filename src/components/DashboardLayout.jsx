@@ -301,7 +301,7 @@ export default function DashboardLayout() {
             flex: isNarrow ? 1 : 'none',
             justifyContent: 'center'
           }}>
-            <GreetMeLogo size="medium" clickable={true} />
+            <GreetMeLogo size={isNarrow ? 'large' : 'medium'} clickable={true} />
             {!isNarrow && (
               <p style={{
                 fontSize: '0.875rem',
@@ -312,9 +312,9 @@ export default function DashboardLayout() {
           </div>
 
           {/* Right side - Image Bank, Cart, User icon */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'flex-end' }}>
-            {/* Image Bank - for tracking images */}
-            <button
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'flex-end', width: isNarrow ? '2.5rem' : 'auto' }}>
+            {/* Image Bank - for tracking images - Hide on mobile */}
+            {!isNarrow && <button
               onClick={() => navigate('/dashboard/animations')}
               style={{
                 width: '2.5rem',
@@ -358,10 +358,10 @@ export default function DashboardLayout() {
                   {animationCount > 9 ? '9+' : animationCount}
                 </span>
               )}
-            </button>
+            </button>}
 
-            {/* Shopping Cart Icon */}
-            <button
+            {/* Shopping Cart Icon - Hide on mobile */}
+            {!isNarrow && <button
               onClick={() => navigate('/dashboard/cart')}
               style={{
                 width: '2.5rem',
@@ -405,7 +405,7 @@ export default function DashboardLayout() {
                   {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}
-            </button>
+            </button>}
 
             {/* User Icon with Dropdown */}
             <div style={{ position: 'relative' }}>

@@ -534,21 +534,22 @@ export default function DashboardHome() {
         gap: isNarrow ? '0.75rem' : '1rem',
         flexWrap: 'wrap'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ textAlign: 'center' }}>
           <h2 style={{
             fontSize: isNarrow ? '0.875rem' : '1rem',
             fontWeight: 700,
-            margin: 0
+            margin: 0,
+            marginBottom: '0.25rem'
           }}>
             Greet One, Give One™
           </h2>
-          <span style={{
+          <p style={{
             fontSize: isNarrow ? '0.6875rem' : '0.75rem',
             opacity: 0.9,
-            fontStyle: 'italic'
+            margin: 0
           }}>
-            — Every subscription includes one for a loved one
-          </span>
+            Every subscription includes one for a loved one
+          </p>
         </div>
         <button
           onClick={() => navigate('/dashboard/hero')}
