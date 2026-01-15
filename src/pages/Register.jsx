@@ -1,11 +1,13 @@
 // src/pages/Register.jsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { QrCode, Smartphone } from 'lucide-react';
 import GreetMeLogo from '../components/GreetMeLogo';
 
-export const Register = () => {
+const isMobile = window.innerWidth <= 480;
+
+export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +22,7 @@ export const Register = () => {
     setLoading(true);
 
     const result = await register(name, email, password);
-    
+
     if (result.success) {
       navigate('/dashboard');
     } else {
@@ -30,79 +32,201 @@ export const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-        <div className="text-center mb-8">
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
-            <GreetMeLogo size="large" clickable={false} />
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: isMobile ? '1rem' : '2rem',
+    }}>
+      <div style={{
+        background: 'white',
+        borderRadius: 'var(--radius-xl)',
+        padding: isMobile ? '1.5rem' : '2rem',
+        width: '100%',
+        maxWidth: '380px',
+        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+      }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <div style={{ marginBottom: '1rem' }}>
+            <GreetMeLogo size="medium" clickable={false} />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-          <p className="text-gray-600">Start sending personalized greetings</p>
+          <h1 style={{
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            marginBottom: '0.25rem',
+          }}>
+            Create Account
+          </h1>
+          <p style={{
+            fontSize: '0.875rem',
+            color: 'var(--text-secondary)',
+          }}>
+            Start sending personalized greetings
+          </p>
         </div>
 
+        {/* Error */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+          <div style={{
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#dc2626',
+            padding: '0.75rem',
+            borderRadius: 'var(--radius-md)',
+            marginBottom: '1rem',
+            fontSize: '0.875rem',
+          }}>
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+        {/* Form */}
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.375rem',
+            }}>
+              Name
+            </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Your name"
               required
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+                background: 'var(--bg-primary)',
+              }}
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.375rem',
+            }}>
+              Email
+            </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="you@example.com"
               required
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+                background: 'var(--bg-primary)',
+              }}
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.375rem',
+            }}>
+              Password
+            </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Create a password"
               required
-              minLength={12}
+              minLength={8}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+                background: 'var(--bg-primary)',
+              }}
             />
-            <p className="mt-1 text-xs text-gray-500">At least 12 characters with uppercase, lowercase, numbers, and special characters</p>
+            <p style={{
+              marginTop: '0.375rem',
+              fontSize: '0.75rem',
+              color: 'var(--text-tertiary)',
+            }}>
+              At least 8 characters
+            </p>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+            style={{
+              width: '100%',
+              padding: '0.875rem',
+              background: loading ? 'var(--gray-300)' : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '0.9375rem',
+              fontWeight: 600,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
+              minHeight: isMobile ? '48px' : '44px',
+            }}
           >
             {loading ? 'Creating account...' : 'Sign Up'}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-gray-600">
+        {/* Sign in link */}
+        <p style={{
+          marginTop: '1.25rem',
+          textAlign: 'center',
+          fontSize: '0.875rem',
+          color: 'var(--text-secondary)',
+        }}>
           Already have an account?{' '}
-          <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+          <Link
+            to="/login"
+            style={{
+              color: '#6366f1',
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
             Sign in
           </Link>
         </p>
 
         {/* Mobile App Download QR Code */}
         <div style={{
-          marginTop: '2rem',
-          paddingTop: '1.5rem',
-          borderTop: '1px solid #e5e7eb',
+          marginTop: '1.5rem',
+          paddingTop: '1.25rem',
+          borderTop: '1px solid var(--border)',
           textAlign: 'center'
         }}>
           <div style={{
@@ -110,42 +234,41 @@ export const Register = () => {
             alignItems: 'center',
             justifyContent: 'center',
             gap: '0.5rem',
-            marginBottom: '0.75rem'
+            marginBottom: '0.5rem'
           }}>
-            <Smartphone size={18} style={{ color: '#667eea' }} />
+            <Smartphone size={16} style={{ color: '#6366f1' }} />
             <span style={{
-              fontSize: '0.875rem',
+              fontSize: '0.8125rem',
               fontWeight: 600,
-              color: '#374151'
+              color: 'var(--text-primary)'
             }}>Get the Mobile App</span>
           </div>
           <p style={{
-            fontSize: '0.75rem',
-            color: '#6b7280',
-            marginBottom: '0.75rem'
+            fontSize: '0.6875rem',
+            color: 'var(--text-tertiary)',
+            marginBottom: '0.5rem'
           }}>
             Scan to download and send greetings on the go
           </p>
           <div style={{
             display: 'inline-flex',
-            padding: '0.75rem',
+            padding: '0.5rem',
             background: 'white',
-            borderRadius: '0.75rem',
-            border: '2px solid #e5e7eb',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border)',
           }}>
             <div style={{
-              width: '80px',
-              height: '80px',
+              width: '64px',
+              height: '64px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               position: 'relative'
             }}>
-              <QrCode size={64} style={{ color: '#667eea' }} />
+              <QrCode size={52} style={{ color: '#6366f1' }} />
               <div style={{
                 position: 'absolute',
-                inset: '8px',
+                inset: '6px',
                 display: 'grid',
                 gridTemplateColumns: 'repeat(8, 1fr)',
                 gridTemplateRows: 'repeat(8, 1fr)',
@@ -154,7 +277,7 @@ export const Register = () => {
               }}>
                 {[...Array(64)].map((_, i) => (
                   <div key={i} style={{
-                    background: [0,1,2,5,6,7,8,15,16,23,40,47,48,55,56,57,58,61,62,63,9,14,17,22,41,46,49,54,10,13,18,21,42,45,50,53,11,12,19,20,43,44,51,52,27,28,35,36].includes(i) ? '#667eea' : 'transparent',
+                    background: [0,1,2,5,6,7,8,15,16,23,40,47,48,55,56,57,58,61,62,63,9,14,17,22,41,46,49,54,10,13,18,21,42,45,50,53,11,12,19,20,43,44,51,52,27,28,35,36].includes(i) ? '#6366f1' : 'transparent',
                     borderRadius: '1px'
                   }} />
                 ))}
@@ -165,6 +288,4 @@ export const Register = () => {
       </div>
     </div>
   );
-};
-
-export default Register;
+}

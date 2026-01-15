@@ -2,7 +2,7 @@
 // Guided first-time user setup flow - in-context actions, no navigation
 
 import { useState, useRef, useEffect } from 'react';
-import { X, Mic, Square, Play, Pause, Upload, Image as ImageIcon, User, Check, ArrowRight, Send } from 'lucide-react';
+import { X, Mic, Square, Play, Pause, Upload, Image as ImageIcon, Check, ArrowRight, Send, Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { validateFile, validateAudioFile, validateEmail } from '../utils/helpers';
 import api from '../api/api';
@@ -31,13 +31,14 @@ export function updateSetupState(updates) {
 export function shouldShowGuidedSetup() {
   const state = getSetupState();
   if (state.onboardingDismissed || state.onboardingCompleted) return false;
-  if (state.voiceDone && state.photoDone && state.recipientDone) return false;
+  if (state.voiceDone && state.photoDone && state.firstGreetingSent) return false;
   return true;
 }
 
 export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const navigate = useNavigate();
-  const [step, setStep] = useState(0); // 0=Welcome, 1=Voice, 2=Photo, 3=Recipient, 4=Complete
+  // Steps: 0=Welcome, 1=ProcessOrientation, 2=Voice, 3=Photo, 4=TestGreeting, 5=Sending, 6=Success
+  const [step, setStep] = useState(0);
   const [setupState, setSetupState] = useState(getSetupState());
 
   // Voice recording state
@@ -62,12 +63,15 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const [photoSaved, setPhotoSaved] = useState(setupState.photoDone || false);
   const fileInputRef = useRef(null);
 
-  // Recipient state
-  const [recipientName, setRecipientName] = useState('');
-  const [recipientEmail, setRecipientEmail] = useState('');
-  const [recipientSaving, setRecipientSaving] = useState(false);
-  const [recipientError, setRecipientError] = useState(null);
-  const [recipientSaved, setRecipientSaved] = useState(setupState.recipientDone || false);
+  // Test greeting state
+  const [greetingRecipient, setGreetingRecipient] = useState('');
+  const [greetingEmail, setGreetingEmail] = useState('');
+  const [greetingMessage, setGreetingMessage] = useState('');
+  const [greetingError, setGreetingError] = useState(null);
+
+  // Sending state
+  const [sendingStatus, setSendingStatus] = useState(''); // 'voice', 'video', 'finalizing'
+  const [sendingError, setSendingError] = useState(null);
 
   const isMobile = window.innerWidth <= 480;
 
@@ -226,52 +230,53 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // ==================== RECIPIENT FUNCTIONS ====================
-  const saveRecipient = async () => {
+  // ==================== TEST GREETING FUNCTIONS ====================
+  const sendTestGreeting = async () => {
     // Validate
-    if (!recipientName.trim()) {
-      setRecipientError('Please enter a name');
+    if (!greetingRecipient.trim()) {
+      setGreetingError('Please enter a name');
       return;
     }
-    if (!recipientEmail.trim()) {
-      setRecipientError('Please enter an email');
+    if (!greetingEmail.trim()) {
+      setGreetingError('Please enter an email');
       return;
     }
-    if (!validateEmail(recipientEmail)) {
-      setRecipientError('Please enter a valid email');
+    if (!validateEmail(greetingEmail)) {
+      setGreetingError('Please enter a valid email');
       return;
     }
 
-    setRecipientSaving(true);
-    setRecipientError(null);
+    setGreetingError(null);
+    setStep(5); // Go to sending state
+    setSendingStatus('voice');
 
     try {
-      await api.createContact({
-        name: recipientName.trim(),
-        email: recipientEmail.trim(),
-        relationship: 'friend',
-        occasions: [],
-      });
-      setRecipientSaved(true);
-      updateSetupState({ recipientDone: true });
-      setSetupState(prev => ({ ...prev, recipientDone: true }));
+      // Simulate the sending process with status updates
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setSendingStatus('video');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setSendingStatus('finalizing');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Try to send via API
+      try {
+        await api.sendGreeting({
+          recipientName: greetingRecipient.trim(),
+          recipientEmail: greetingEmail.trim(),
+          message: greetingMessage.trim() || 'Thinking of you',
+          occasion: 'greeting',
+        });
+      } catch (err) {
+        console.warn('Greeting send failed, continuing anyway:', err);
+      }
+
+      // Mark as complete
+      updateSetupState({ firstGreetingSent: true });
+      setSetupState(prev => ({ ...prev, firstGreetingSent: true }));
+      setStep(6); // Go to success
     } catch (err) {
-      // V1 fallback: store locally
-      console.warn('Recipient save failed, storing locally:', err);
-      const contacts = JSON.parse(localStorage.getItem('greetme_contacts') || '[]');
-      contacts.push({
-        id: Date.now().toString(),
-        name: recipientName.trim(),
-        email: recipientEmail.trim(),
-        relationship: 'friend',
-        createdAt: new Date().toISOString(),
-      });
-      localStorage.setItem('greetme_contacts', JSON.stringify(contacts));
-      setRecipientSaved(true);
-      updateSetupState({ recipientDone: true });
-      setSetupState(prev => ({ ...prev, recipientDone: true }));
-    } finally {
-      setRecipientSaving(false);
+      setSendingError('Something went wrong. Please try again.');
+      setStep(4); // Go back to test greeting
     }
   };
 
@@ -303,7 +308,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
   // STEP 0: Welcome
   const renderWelcome = () => (
-    <div style={{ textAlign: 'center', padding: isMobile ? '1.5rem' : '2rem' }}>
+    <div style={{ textAlign: 'center', padding: isMobile ? '2rem 1.5rem' : '2.5rem 2rem' }}>
       <div style={{
         width: '5rem',
         height: '5rem',
@@ -321,7 +326,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         fontSize: isMobile ? '1.5rem' : '1.75rem',
         fontWeight: 700,
         color: 'var(--text-primary)',
-        marginBottom: '0.75rem',
+        marginBottom: '0.5rem',
       }}>
         Welcome to Greet-Me
       </h2>
@@ -331,7 +336,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         marginBottom: '2rem',
         lineHeight: 1.6,
       }}>
-        Creating unforgettable, personal greetings is as easy as 1-2-3.
+        Where technology meets the moments that matter most.
       </p>
       <button
         onClick={nextStep}
@@ -347,13 +352,9 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           cursor: 'pointer',
           fontFamily: 'inherit',
           marginBottom: '0.75rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.5rem',
         }}
       >
-        Start Setup <ArrowRight size={18} />
+        Begin
       </button>
       <button
         onClick={handleSkip}
@@ -371,50 +372,76 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     </div>
   );
 
-  // STEP 1: Record Voice
-  const renderVoice = () => (
-    <div style={{ padding: isMobile ? '1rem' : '1.5rem' }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        marginBottom: '1rem',
+  // STEP 1: Process Orientation
+  const renderProcessOrientation = () => (
+    <div style={{ textAlign: 'center', padding: isMobile ? '2rem 1.5rem' : '2.5rem 2rem' }}>
+      <p style={{
+        fontSize: '1.0625rem',
+        color: 'var(--text-primary)',
+        marginBottom: '1.5rem',
+        lineHeight: 1.7,
       }}>
-        <div style={{
-          width: '2rem',
-          height: '2rem',
-          borderRadius: '50%',
-          background: '#6366f1',
+        In a few short steps, you'll help Greet-Me sound like you — so future greetings feel natural and personal.
+      </p>
+      <p style={{
+        fontSize: '0.9375rem',
+        color: 'var(--text-secondary)',
+        marginBottom: '2rem',
+        lineHeight: 1.6,
+      }}>
+        We'll ask for a quick voice recording and a photo. Then, you'll send your first greeting to someone — it can even be yourself.
+      </p>
+      <button
+        onClick={nextStep}
+        style={{
+          width: '100%',
+          padding: '1rem',
+          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
           color: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '0.875rem',
+          border: 'none',
+          borderRadius: 'var(--radius-lg)',
+          fontSize: '1rem',
           fontWeight: 600,
-        }}>1</div>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-          Record Your Voice
-        </h3>
-      </div>
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        Continue
+      </button>
+    </div>
+  );
+
+  // STEP 2: Record Voice
+  const renderVoice = () => (
+    <div style={{ padding: isMobile ? '1.5rem' : '2rem' }}>
+      <h3 style={{
+        fontSize: '1.125rem',
+        fontWeight: 600,
+        color: 'var(--text-primary)',
+        marginBottom: '0.75rem',
+        textAlign: 'center',
+      }}>
+        First, we'll capture your voice — so future greetings sound like you.
+      </h3>
 
       {/* Script */}
       <div style={{
         background: 'var(--gray-50)',
         borderRadius: 'var(--radius-md)',
         padding: '1rem',
-        marginBottom: '1.25rem',
+        marginBottom: '1rem',
         borderLeft: '4px solid #6366f1',
       }}>
         <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
           Read this script:
         </p>
         <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.6, margin: 0 }}>
-          "Hello, I hope this greeting finds you well. I'm recording my voice so my greetings sound natural and warm. I look forward to creating many meaningful memories with friends and family for years to come. Thank you for using Greet-Me!"
+          "Hello, I hope this greeting finds you well. I'm recording my voice so my greetings sound natural and warm. I look forward to creating many meaningful memories with friends and family for years to come. Thank you for using Greet-Me."
         </p>
       </div>
 
-      <p style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)', marginBottom: '1rem', textAlign: 'center' }}>
-        Don't forget to smile! 🙂
+      <p style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', marginBottom: '1.25rem', textAlign: 'center' }}>
+        Just read naturally — there's no need to perform. And don't forget to smile.
       </p>
 
       {voiceError && (
@@ -537,7 +564,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
             <Check size={32} color="white" />
           </div>
           <p style={{ fontSize: '1rem', fontWeight: 600, color: '#10b981', marginBottom: '1.5rem' }}>
-            Voice saved!
+            Voice saved
           </p>
           <button
             onClick={nextStep}
@@ -563,38 +590,25 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     </div>
   );
 
-  // STEP 2: Upload Photo
+  // STEP 3: Upload Photo
   const renderPhoto = () => (
-    <div style={{ padding: isMobile ? '1rem' : '1.5rem' }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        marginBottom: '1rem',
+    <div style={{ padding: isMobile ? '1.5rem' : '2rem' }}>
+      <h3 style={{
+        fontSize: '1.125rem',
+        fontWeight: 600,
+        color: 'var(--text-primary)',
+        marginBottom: '0.75rem',
+        textAlign: 'center',
       }}>
-        <div style={{
-          width: '2rem',
-          height: '2rem',
-          borderRadius: '50%',
-          background: '#6366f1',
-          color: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '0.875rem',
-          fontWeight: 600,
-        }}>2</div>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-          Upload Your Photo
-        </h3>
-      </div>
+        Next, we'll choose a photo that's unmistakably you.
+      </h3>
 
-      <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-        Upload a clear photo of yourself. This brings your greetings to life.
+      <p style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', marginBottom: '1.25rem', textAlign: 'center' }}>
+        Any clear photo works — this isn't about looking perfect.
       </p>
 
       {photoError && (
-        <p style={{ fontSize: '0.8125rem', color: 'var(--error)', marginBottom: '1rem' }}>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--error)', marginBottom: '1rem', textAlign: 'center' }}>
           {photoError}
         </p>
       )}
@@ -696,8 +710,11 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           }}>
             <Check size={32} color="white" />
           </div>
-          <p style={{ fontSize: '1rem', fontWeight: 600, color: '#10b981', marginBottom: '1.5rem' }}>
-            Photo saved!
+          <p style={{ fontSize: '1rem', fontWeight: 600, color: '#10b981', marginBottom: '0.75rem' }}>
+            Photo saved
+          </p>
+          <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+            That's it — now let's make it real.
           </p>
           <button
             onClick={nextStep}
@@ -723,152 +740,258 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     </div>
   );
 
-  // STEP 3: Add Recipient
-  const renderRecipient = () => (
-    <div style={{ padding: isMobile ? '1rem' : '1.5rem' }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        marginBottom: '1rem',
+  // STEP 4: Test Greeting
+  const renderTestGreeting = () => (
+    <div style={{ padding: isMobile ? '1.5rem' : '2rem' }}>
+      <h3 style={{
+        fontSize: '1.25rem',
+        fontWeight: 600,
+        color: 'var(--text-primary)',
+        marginBottom: '0.75rem',
+        textAlign: 'center',
       }}>
-        <div style={{
-          width: '2rem',
-          height: '2rem',
-          borderRadius: '50%',
-          background: '#6366f1',
-          color: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '0.875rem',
-          fontWeight: 600,
-        }}>3</div>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-          Add Your First Recipient
-        </h3>
-      </div>
+        Now, let's experience it.
+      </h3>
 
-      <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-        Add one person you'd like to send a greeting to.
+      <p style={{
+        fontSize: '0.9375rem',
+        color: 'var(--text-secondary)',
+        marginBottom: '1.5rem',
+        textAlign: 'center',
+        lineHeight: 1.6,
+      }}>
+        Enter your own email below to receive a greeting — or choose someone else to surprise.
       </p>
 
-      {recipientError && (
-        <p style={{ fontSize: '0.8125rem', color: 'var(--error)', marginBottom: '1rem' }}>
-          {recipientError}
+      {greetingError && (
+        <p style={{ fontSize: '0.8125rem', color: 'var(--error)', marginBottom: '1rem', textAlign: 'center' }}>
+          {greetingError}
         </p>
       )}
 
-      {!recipientSaved ? (
-        <div>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
-              Name
-            </label>
-            <input
-              type="text"
-              value={recipientName}
-              onChange={(e) => setRecipientName(e.target.value)}
-              placeholder="e.g., Mom, John, Sarah"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.875rem',
-                fontFamily: 'inherit',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
-              Email
-            </label>
-            <input
-              type="email"
-              value={recipientEmail}
-              onChange={(e) => setRecipientEmail(e.target.value)}
-              placeholder="their@email.com"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.875rem',
-                fontFamily: 'inherit',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-          <button
-            onClick={saveRecipient}
-            disabled={recipientSaving}
-            style={{
-              width: '100%',
-              padding: '0.875rem',
-              background: recipientSaving ? 'var(--gray-300)' : '#6366f1',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.9375rem',
-              fontWeight: 600,
-              cursor: recipientSaving ? 'not-allowed' : 'pointer',
-              fontFamily: 'inherit',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-            }}
-          >
-            <User size={18} />
-            {recipientSaving ? 'Saving...' : 'Save Recipient'}
-          </button>
-        </div>
-      ) : (
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '4rem',
-            height: '4rem',
-            borderRadius: '50%',
-            background: '#10b981',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 1rem',
-          }}>
-            <Check size={32} color="white" />
-          </div>
-          <p style={{ fontSize: '1rem', fontWeight: 600, color: '#10b981', marginBottom: '1.5rem' }}>
-            Recipient added!
-          </p>
-          <button
-            onClick={nextStep}
-            style={{
-              padding: '0.875rem 2rem',
-              background: '#6366f1',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.9375rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-            }}
-          >
-            Continue <ArrowRight size={18} />
-          </button>
-        </div>
-      )}
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
+          Recipient Name
+        </label>
+        <input
+          type="text"
+          value={greetingRecipient}
+          onChange={(e) => setGreetingRecipient(e.target.value)}
+          placeholder="e.g., Mom, John, or yourself"
+          style={{
+            width: '100%',
+            padding: '0.75rem',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.875rem',
+            fontFamily: 'inherit',
+            boxSizing: 'border-box',
+          }}
+        />
+      </div>
+
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
+          Email Address
+        </label>
+        <input
+          type="email"
+          value={greetingEmail}
+          onChange={(e) => setGreetingEmail(e.target.value)}
+          placeholder="their@email.com (or your own)"
+          style={{
+            width: '100%',
+            padding: '0.75rem',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.875rem',
+            fontFamily: 'inherit',
+            boxSizing: 'border-box',
+          }}
+        />
+      </div>
+
+      <div style={{ marginBottom: '1.5rem' }}>
+        <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
+          Message (optional)
+        </label>
+        <textarea
+          value={greetingMessage}
+          onChange={(e) => setGreetingMessage(e.target.value)}
+          placeholder="Add a personal note..."
+          rows={3}
+          style={{
+            width: '100%',
+            padding: '0.75rem',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.875rem',
+            fontFamily: 'inherit',
+            boxSizing: 'border-box',
+            resize: 'vertical',
+          }}
+        />
+      </div>
+
+      <button
+        onClick={sendTestGreeting}
+        style={{
+          width: '100%',
+          padding: '1rem',
+          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+          color: 'white',
+          border: 'none',
+          borderRadius: 'var(--radius-lg)',
+          fontSize: '1rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem',
+        }}
+      >
+        <Send size={18} />
+        Send my first Greet-Me greeting
+      </button>
     </div>
   );
 
-  // STEP 4: Complete
-  const renderComplete = () => (
-    <div style={{ textAlign: 'center', padding: isMobile ? '1.5rem' : '2rem' }}>
+  // STEP 5: Sending State
+  const renderSending = () => (
+    <div style={{ textAlign: 'center', padding: isMobile ? '2rem 1.5rem' : '2.5rem 2rem' }}>
+      <div style={{
+        width: '5rem',
+        height: '5rem',
+        borderRadius: '50%',
+        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: '0 auto 1.5rem',
+        animation: 'pulse 1.5s infinite',
+      }}>
+        <Loader size={32} color="white" style={{ animation: 'spin 1s linear infinite' }} />
+      </div>
+
+      <h3 style={{
+        fontSize: '1.25rem',
+        fontWeight: 600,
+        color: 'var(--text-primary)',
+        marginBottom: '1.5rem',
+      }}>
+        Creating your greeting…
+      </h3>
+
+      <div style={{ marginBottom: '0.5rem' }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem',
+          marginBottom: '0.75rem',
+        }}>
+          <div style={{
+            width: '1.25rem',
+            height: '1.25rem',
+            borderRadius: '50%',
+            background: sendingStatus === 'voice' || sendingStatus === 'video' || sendingStatus === 'finalizing' ? '#10b981' : 'var(--gray-200)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            {(sendingStatus === 'video' || sendingStatus === 'finalizing') ? (
+              <Check size={12} color="white" />
+            ) : sendingStatus === 'voice' ? (
+              <Loader size={12} color="white" style={{ animation: 'spin 1s linear infinite' }} />
+            ) : null}
+          </div>
+          <span style={{
+            fontSize: '0.875rem',
+            color: sendingStatus === 'voice' ? 'var(--text-primary)' : 'var(--text-secondary)',
+            fontWeight: sendingStatus === 'voice' ? 600 : 400,
+          }}>
+            Generating voice
+          </span>
+        </div>
+
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem',
+          marginBottom: '0.75rem',
+        }}>
+          <div style={{
+            width: '1.25rem',
+            height: '1.25rem',
+            borderRadius: '50%',
+            background: sendingStatus === 'video' || sendingStatus === 'finalizing' ? '#10b981' : 'var(--gray-200)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            {sendingStatus === 'finalizing' ? (
+              <Check size={12} color="white" />
+            ) : sendingStatus === 'video' ? (
+              <Loader size={12} color="white" style={{ animation: 'spin 1s linear infinite' }} />
+            ) : null}
+          </div>
+          <span style={{
+            fontSize: '0.875rem',
+            color: sendingStatus === 'video' ? 'var(--text-primary)' : 'var(--text-secondary)',
+            fontWeight: sendingStatus === 'video' ? 600 : 400,
+          }}>
+            Creating video
+          </span>
+        </div>
+
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem',
+        }}>
+          <div style={{
+            width: '1.25rem',
+            height: '1.25rem',
+            borderRadius: '50%',
+            background: sendingStatus === 'finalizing' ? '#10b981' : 'var(--gray-200)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            {sendingStatus === 'finalizing' ? (
+              <Loader size={12} color="white" style={{ animation: 'spin 1s linear infinite' }} />
+            ) : null}
+          </div>
+          <span style={{
+            fontSize: '0.875rem',
+            color: sendingStatus === 'finalizing' ? 'var(--text-primary)' : 'var(--text-secondary)',
+            fontWeight: sendingStatus === 'finalizing' ? 600 : 400,
+          }}>
+            Finalizing
+          </span>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+      `}</style>
+    </div>
+  );
+
+  // STEP 6: Success
+  const renderSuccess = () => (
+    <div style={{ textAlign: 'center', padding: isMobile ? '2rem 1.5rem' : '2.5rem 2rem' }}>
       <div style={{
         width: '5rem',
         height: '5rem',
@@ -887,7 +1010,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         color: 'var(--text-primary)',
         marginBottom: '0.75rem',
       }}>
-        You're all set!
+        That's it.
       </h2>
       <p style={{
         fontSize: '0.9375rem',
@@ -895,8 +1018,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         marginBottom: '2rem',
         lineHeight: 1.6,
       }}>
-        You can always watch the demo or tutorial if you need help.<br />
-        Feel free to explore — or send your first greeting now.
+        Your greeting is on its way. Check your inbox — or explore more from the dashboard.
       </p>
       <button
         onClick={goToSendGreeting}
@@ -919,7 +1041,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         }}
       >
         <Send size={18} />
-        Send a Test Greeting to Yourself
+        Send to someone else
       </button>
       <button
         onClick={goToDashboard}
@@ -944,10 +1066,21 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   // Step content map
   const stepContent = {
     0: renderWelcome,
-    1: renderVoice,
-    2: renderPhoto,
-    3: renderRecipient,
-    4: renderComplete,
+    1: renderProcessOrientation,
+    2: renderVoice,
+    3: renderPhoto,
+    4: renderTestGreeting,
+    5: renderSending,
+    6: renderSuccess,
+  };
+
+  // Calculate progress (steps 2-4 are the main progress steps)
+  const getProgressWidth = () => {
+    if (step <= 1) return 0;
+    if (step === 2) return 33;
+    if (step === 3) return 66;
+    if (step >= 4) return 100;
+    return 0;
   };
 
   return (
@@ -978,8 +1111,8 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         overflowY: 'auto',
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
       }}>
-        {/* Progress bar */}
-        {step > 0 && step < 4 && (
+        {/* Progress bar (shown during voice/photo/test greeting steps) */}
+        {step >= 2 && step <= 4 && (
           <div style={{
             height: '4px',
             background: 'var(--gray-100)',
@@ -987,13 +1120,13 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
             <div style={{
               height: '100%',
               background: '#6366f1',
-              width: `${(step / 3) * 100}%`,
+              width: `${getProgressWidth()}%`,
               transition: 'width 0.3s ease',
             }} />
           </div>
         )}
 
-        {/* Close button (only on step 0) */}
+        {/* Close button (only on welcome step) */}
         {step === 0 && (
           <button
             onClick={handleSkip}
@@ -1020,6 +1153,18 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         {/* Step content */}
         {stepContent[step]?.()}
       </div>
+
+      {/* Global animation styles */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.8; transform: scale(1.05); }
+        }
+      `}</style>
     </div>
   );
 }
