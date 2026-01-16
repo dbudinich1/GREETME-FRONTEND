@@ -267,6 +267,12 @@ export default function Recipients() {
                   lineHeight: 1.5,
                   marginBottom: '12px'
                 }}>Personalize how you greet each recipient — birthdays, anniversaries, "just because," and more.</p>
+                <p style={{
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  fontSize: isMobile ? '0.6875rem' : '0.75rem',
+                  lineHeight: 1.4,
+                  marginBottom: '12px'
+                }}>Gifts are optional and never auto-sent unless you enable Auto-Gift for a specific occasion.</p>
 
                 {/* Stats Chips */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>

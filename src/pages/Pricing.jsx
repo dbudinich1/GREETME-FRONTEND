@@ -1,5 +1,5 @@
 // src/pages/Pricing.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, CreditCard, Lock, CheckCircle } from 'lucide-react';
 import GreetMeLogo from '../components/GreetMeLogo';
@@ -230,6 +230,14 @@ export default function Pricing() {
   const { user } = useAuth();
   const [viewMode, setViewMode] = useState('personal'); // 'personal' or 'business'
   const [pricingMode, setPricingMode] = useState('founders'); // 'founders' or 'standard' (for personal)
+  const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
+
+  // Handle resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => setIsNarrow(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const [showEnterpriseForm, setShowEnterpriseForm] = useState(false);
   const [enterpriseFormData, setEnterpriseFormData] = useState({
@@ -320,48 +328,67 @@ export default function Pricing() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)' }}>
-      {/* Header */}
+      {/* Top Band - Logo and Back Button */}
       <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: '2.5rem 2rem',
-        textAlign: 'center',
-        position: 'relative'
+        background: 'var(--bg-primary)',
+        borderBottom: '1px solid var(--border)',
+        padding: isNarrow ? '1rem' : '1.25rem 2rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50
       }}>
         {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
           style={{
-            position: 'absolute',
-            top: '1.5rem',
-            left: '2rem',
-            padding: '0.625rem 1.25rem',
-            background: 'rgba(255, 255, 255, 0.2)',
-            color: 'white',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
+            padding: isNarrow ? '0.5rem 0.875rem' : '0.625rem 1.25rem',
+            background: 'var(--gray-100)',
+            color: 'var(--text-secondary)',
+            border: '1px solid var(--border)',
             borderRadius: 'var(--radius-lg)',
-            fontSize: '0.875rem',
+            fontSize: isNarrow ? '0.8125rem' : '0.875rem',
             fontWeight: 600,
             cursor: 'pointer',
             fontFamily: 'inherit',
             transition: 'all 0.2s',
-            display: 'flex',
+            display: 'inline-flex',
             alignItems: 'center',
             gap: '0.5rem'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+            e.currentTarget.style.background = 'var(--gray-200)';
+            e.currentTarget.style.color = 'var(--text-primary)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+            e.currentTarget.style.background = 'var(--gray-100)';
+            e.currentTarget.style.color = 'var(--text-secondary)';
           }}
         >
           ← Back
         </button>
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <GreetMeLogo size="large" clickable={false} />
+        {/* Centered Logo */}
+        <div style={{
+          position: 'absolute',
+          left: '50%',
+          transform: 'translateX(-50%)'
+        }}>
+          <GreetMeLogo size={isNarrow ? 'small' : 'medium'} clickable={true} />
         </div>
 
+        {/* Spacer for layout balance */}
+        <div style={{ width: isNarrow ? '70px' : '100px' }} />
+      </div>
+
+      {/* Header Banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: isNarrow ? '2rem 1rem' : '3rem 2rem',
+        textAlign: 'center'
+      }}>
         <h1 style={{
           fontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
           fontWeight: 800,
@@ -383,7 +410,7 @@ export default function Pricing() {
       {/* View Mode Toggle - Separate section with breathing room */}
       <div style={{
         background: 'var(--bg-secondary)',
-        padding: '2rem 2rem 1rem',
+        padding: isNarrow ? '1.5rem 1rem 1rem' : '2rem 2rem 1rem',
         display: 'flex',
         justifyContent: 'center'
       }}>
@@ -397,12 +424,13 @@ export default function Pricing() {
           <button
             onClick={() => setViewMode('personal')}
             style={{
-              padding: '0.5rem 1.5rem',
+              padding: isNarrow ? '0.5rem 1rem' : '0.5rem 1.5rem',
               borderRadius: '9999px',
               background: viewMode === 'personal' ? 'white' : 'transparent',
               color: viewMode === 'personal' ? '#667eea' : 'var(--text-secondary)',
               border: 'none',
               fontWeight: 600,
+              fontSize: isNarrow ? '0.875rem' : '1rem',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               fontFamily: 'inherit'
@@ -413,18 +441,19 @@ export default function Pricing() {
           <button
             onClick={() => setViewMode('business')}
             style={{
-              padding: '0.5rem 1.5rem',
+              padding: isNarrow ? '0.5rem 1rem' : '0.5rem 1.5rem',
               borderRadius: '9999px',
               background: viewMode === 'business' ? 'white' : 'transparent',
               color: viewMode === 'business' ? '#667eea' : 'var(--text-secondary)',
               border: 'none',
               fontWeight: 600,
+              fontSize: isNarrow ? '0.875rem' : '1rem',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               fontFamily: 'inherit'
             }}
           >
-            Business / Corporate
+            {isNarrow ? 'Business' : 'Business / Corporate'}
           </button>
         </div>
       </div>
@@ -434,67 +463,73 @@ export default function Pricing() {
         <div style={{
           maxWidth: '1200px',
           margin: '0 auto 2rem',
-          padding: '0 2rem'
+          padding: isNarrow ? '0 1rem' : '0 2rem'
         }}>
           <div style={{
             background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
             borderRadius: 'var(--radius-xl)',
-            padding: '2rem',
+            padding: isNarrow ? '1.5rem 1rem' : '2rem',
             textAlign: 'center',
             color: 'white',
             boxShadow: '0 10px 30px rgba(251, 191, 36, 0.3)'
           }}>
             <h2 style={{
-              fontSize: '1.75rem',
+              fontSize: isNarrow ? '1.25rem' : '1.75rem',
               fontWeight: 700,
               marginBottom: '0.5rem'
             }}>
-              🎉 Founders Offer: Lock in Founders Pricing for a limited time
+              🎉 {isNarrow ? 'Founders Offer' : 'Founders Offer: Lock in Founders Pricing for a limited time'}
             </h2>
             <p style={{
-              fontSize: '1.125rem',
+              fontSize: isNarrow ? '0.9375rem' : '1.125rem',
               opacity: 0.95,
               marginBottom: '1.5rem'
             }}>
-              Founders get the same features at a lifetime discounted rate.
+              {isNarrow ? 'Lock in lifetime discounted pricing!' : 'Founders get the same features at a lifetime discounted rate.'}
             </p>
-            <button
-              onClick={() => setPricingMode('founders')}
-              style={{
-                padding: '0.875rem 2rem',
-                background: pricingMode === 'founders' ? 'white' : 'rgba(255, 255, 255, 0.3)',
-                color: pricingMode === 'founders' ? '#f59e0b' : 'white',
-                border: pricingMode === 'founders' ? 'none' : '2px solid white',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '1rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                transition: 'all 0.2s'
-              }}
-            >
-              {pricingMode === 'founders' ? '✓ Viewing Founders Pricing' : 'Get Founders Pricing'}
-            </button>
-            {pricingMode === 'founders' && (
+            <div style={{
+              display: 'flex',
+              flexDirection: isNarrow ? 'column' : 'row',
+              justifyContent: 'center',
+              gap: isNarrow ? '0.75rem' : '1rem'
+            }}>
               <button
-                onClick={() => setPricingMode('standard')}
+                onClick={() => setPricingMode('founders')}
                 style={{
-                  marginLeft: '1rem',
-                  padding: '0.875rem 2rem',
-                  background: 'rgba(255, 255, 255, 0.3)',
-                  color: 'white',
-                  border: '2px solid white',
+                  padding: isNarrow ? '0.75rem 1.5rem' : '0.875rem 2rem',
+                  background: pricingMode === 'founders' ? 'white' : 'rgba(255, 255, 255, 0.3)',
+                  color: pricingMode === 'founders' ? '#f59e0b' : 'white',
+                  border: pricingMode === 'founders' ? 'none' : '2px solid white',
                   borderRadius: 'var(--radius-lg)',
-                  fontSize: '1rem',
+                  fontSize: isNarrow ? '0.9375rem' : '1rem',
                   fontWeight: 600,
                   cursor: 'pointer',
                   fontFamily: 'inherit',
                   transition: 'all 0.2s'
                 }}
               >
-                View Standard Pricing
+                {pricingMode === 'founders' ? '✓ Viewing Founders Pricing' : 'Get Founders Pricing'}
               </button>
-            )}
+              {pricingMode === 'founders' && (
+                <button
+                  onClick={() => setPricingMode('standard')}
+                  style={{
+                    padding: isNarrow ? '0.75rem 1.5rem' : '0.875rem 2rem',
+                    background: 'rgba(255, 255, 255, 0.3)',
+                    color: 'white',
+                    border: '2px solid white',
+                    borderRadius: 'var(--radius-lg)',
+                    fontSize: isNarrow ? '0.9375rem' : '1rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  View Standard Pricing
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -503,12 +538,12 @@ export default function Pricing() {
       <div style={{
         maxWidth: '1200px',
         margin: '0 auto 4rem',
-        padding: '0 2rem'
+        padding: isNarrow ? '0 1rem' : '0 2rem'
       }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '2rem',
+          gridTemplateColumns: isNarrow ? '1fr' : 'repeat(3, 1fr)',
+          gap: isNarrow ? '1.5rem' : '2rem',
           alignItems: 'start'
         }}>
           {currentPlans.map((plan) => {

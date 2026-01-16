@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart, Film, Image, Menu, X } from 'lucide-react';
+import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart, Film, X } from 'lucide-react';
 import GreetMeLogo from './GreetMeLogo';
 import NotificationBell from './NotificationBell';
 import GuidedSetupFlow, { shouldShowGuidedSetup } from './GuidedSetupFlow';
@@ -111,8 +111,8 @@ export default function DashboardLayout() {
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               style={{
-                width: '2.5rem',
-                height: '2.5rem',
+                width: '2rem',
+                height: '2rem',
                 borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--border)',
                 background: mobileMenuOpen ? 'var(--gray-200)' : 'var(--gray-100)',
@@ -121,13 +121,24 @@ export default function DashboardLayout() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 transition: 'all 0.2s',
-                flexShrink: 0
+                flexShrink: 0,
+                padding: 0
               }}
             >
               {mobileMenuOpen ? (
-                <X size={24} style={{ color: 'var(--text-primary)' }} />
+                <X size={18} style={{ color: '#111827' }} />
               ) : (
-                <Menu size={24} style={{ color: 'var(--text-primary)' }} />
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '3px'
+                }}>
+                  <span style={{ width: '14px', height: '2px', background: '#111827', borderRadius: '1px' }} />
+                  <span style={{ width: '14px', height: '2px', background: '#111827', borderRadius: '1px' }} />
+                  <span style={{ width: '14px', height: '2px', background: '#111827', borderRadius: '1px' }} />
+                </div>
               )}
             </button>
           )}
@@ -299,9 +310,10 @@ export default function DashboardLayout() {
             flexDirection: 'column',
             alignItems: 'center',
             flex: isNarrow ? 1 : 'none',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            minWidth: 0
           }}>
-            <GreetMeLogo size={isNarrow ? 'large' : 'medium'} clickable={true} />
+            <GreetMeLogo size={isNarrow ? 'small' : 'medium'} clickable={true} />
             {!isNarrow && (
               <p style={{
                 fontSize: '0.875rem',
@@ -312,13 +324,13 @@ export default function DashboardLayout() {
           </div>
 
           {/* Right side - Image Bank, Cart, User icon */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'flex-end', width: isNarrow ? '2.5rem' : 'auto' }}>
-            {/* Image Bank - for tracking images - Hide on mobile */}
-            {!isNarrow && <button
+          <div style={{ display: 'flex', alignItems: 'center', gap: isNarrow ? '0.125rem' : '0.25rem', justifyContent: 'flex-end', flexShrink: 0 }}>
+            {/* Image Bank - for tracking images */}
+            <button
               onClick={() => navigate('/dashboard/animations')}
               style={{
-                width: '2.5rem',
-                height: '2.5rem',
+                width: isNarrow ? '2rem' : '2.5rem',
+                height: isNarrow ? '2rem' : '2.5rem',
                 borderRadius: '50%',
                 border: 'none',
                 background: 'transparent',
@@ -327,7 +339,8 @@ export default function DashboardLayout() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 transition: 'all 0.2s',
-                position: 'relative'
+                position: 'relative',
+                padding: 0
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = 'var(--gray-100)';
@@ -337,8 +350,31 @@ export default function DashboardLayout() {
               }}
               title="Image Bank"
             >
-              <Image size={20} style={{ color: 'var(--text-secondary)' }} />
-              {animationCount > 0 && (
+              {/* Custom Bank Icon with $ */}
+              <svg
+                width={isNarrow ? 16 : 20}
+                height={isNarrow ? 16 : 20}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--text-secondary)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                {/* Roof/Triangle */}
+                <path d="M3 21h18" />
+                <path d="M3 10h18" />
+                <path d="M5 6l7-3 7 3" />
+                {/* Pillars */}
+                <path d="M4 10v11" />
+                <path d="M20 10v11" />
+                <path d="M8 10v11" />
+                <path d="M16 10v11" />
+                {/* Dollar sign in center */}
+                <path d="M12 12v6" />
+                <path d="M10 14h4c.5 0 1 .5 1 1s-.5 1-1 1h-2c-.5 0-1 .5-1 1s.5 1 1 1h4" style={{ strokeWidth: 1.5 }} />
+              </svg>
+                            {animationCount > 0 && (
                 <span style={{
                   position: 'absolute',
                   top: '0',
@@ -358,14 +394,14 @@ export default function DashboardLayout() {
                   {animationCount > 9 ? '9+' : animationCount}
                 </span>
               )}
-            </button>}
+            </button>
 
-            {/* Shopping Cart Icon - Hide on mobile */}
-            {!isNarrow && <button
+            {/* Shopping Cart Icon */}
+            <button
               onClick={() => navigate('/dashboard/cart')}
               style={{
-                width: '2.5rem',
-                height: '2.5rem',
+                width: isNarrow ? '2rem' : '2.5rem',
+                height: isNarrow ? '2rem' : '2.5rem',
                 borderRadius: '50%',
                 border: 'none',
                 background: 'transparent',
@@ -374,7 +410,8 @@ export default function DashboardLayout() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 transition: 'all 0.2s',
-                position: 'relative'
+                position: 'relative',
+                padding: 0
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = 'var(--gray-100)';
@@ -384,7 +421,7 @@ export default function DashboardLayout() {
               }}
               title="Shopping Cart"
             >
-              <ShoppingCart size={20} style={{ color: 'var(--text-secondary)' }} />
+              <ShoppingCart size={isNarrow ? 16 : 20} style={{ color: 'var(--text-secondary)' }} />
               {cartCount > 0 && (
                 <span style={{
                   position: 'absolute',
@@ -405,15 +442,15 @@ export default function DashboardLayout() {
                   {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}
-            </button>}
+            </button>
 
             {/* User Icon with Dropdown */}
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 style={{
-                  width: '2.5rem',
-                  height: '2.5rem',
+                  width: isNarrow ? '2rem' : '2.5rem',
+                  height: isNarrow ? '2rem' : '2.5rem',
                   borderRadius: '50%',
                   border: 'none',
                   background: 'var(--primary)',
@@ -423,7 +460,8 @@ export default function DashboardLayout() {
                   justifyContent: 'center',
                   color: 'white',
                   fontWeight: 600,
-                  fontSize: '1rem'
+                  fontSize: isNarrow ? '0.875rem' : '1rem',
+                  padding: 0
                 }}
                 title={user?.name || 'User'}
               >

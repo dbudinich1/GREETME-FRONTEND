@@ -340,6 +340,11 @@ input::placeholder, textarea::placeholder {
   background: var(--gray-400);
 }
 
+/* Brand Tagline */
+.tagline {
+  font-style: italic;
+}
+
 /* Utility Classes */
 .text-center {
   text-align: center;

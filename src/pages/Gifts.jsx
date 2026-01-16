@@ -1,8 +1,9 @@
 // src/pages/Gifts.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ShoppingCart, Heart, Check, ArrowLeft } from 'lucide-react';
+import { ShoppingCart, Heart, Check, ArrowLeft, DollarSign, X } from 'lucide-react';
 import cartService from '../services/cartService';
+import QRCashGiftModal from '../components/QRCashGiftModal';
 
 const giftProducts = [
   {
@@ -96,6 +97,8 @@ export default function Gifts() {
   const [addedItems, setAddedItems] = useState(new Set());
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
+  const [showQRCashModal, setShowQRCashModal] = useState(false);
+  const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
 
   // Handle category from URL query param (e.g., /gifts?category=merch)
   useEffect(() => {
@@ -222,7 +225,7 @@ export default function Gifts() {
         }}>
           {cameFromRecipientForm
             ? 'Select a gift for your recipient'
-            : 'Add a thoughtful gift from our 🇺🇸 American Marketplace'}
+            : 'Add a thoughtful gift from 🇺🇸 American Marketplace'}
         </p>
       </div>
 
@@ -230,55 +233,56 @@ export default function Gifts() {
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         borderRadius: 'var(--radius-xl)',
-        padding: '2rem',
-        marginBottom: '3rem',
+        padding: isNarrow ? '1.25rem' : '2rem',
+        marginBottom: isNarrow ? '1.5rem' : '3rem',
         color: 'white',
-        display: 'grid',
-        gridTemplateColumns: '1fr auto',
-        gap: '2rem',
-        alignItems: 'center'
+        textAlign: isNarrow ? 'center' : 'left'
       }}>
-        <div>
-          <h2 style={{
-            fontSize: '1.75rem',
-            fontWeight: 700,
-            marginBottom: '0.75rem'
-          }}>
-            QR Cash™ — Send · Scan · Spend
-          </h2>
-          <p style={{
-            fontSize: '1.125rem',
-            opacity: 0.95,
-            marginBottom: '1.5rem'
-          }}>
-            Add real cash to any greeting you send.
-          </p>
-          <button style={{
-            padding: '0.875rem 2rem',
-            background: 'white',
-            color: '#667eea',
-            border: 'none',
-            borderRadius: 'var(--radius-lg)',
-            fontSize: '1rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-          }}>
-            Set Up Digital Cash
-          </button>
-        </div>
-        <div style={{
-          width: '8rem',
-          height: '8rem',
-          background: 'white',
-          borderRadius: 'var(--radius-lg)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '4rem'
+        <h2 style={{
+          fontSize: isNarrow ? '1.125rem' : '1.75rem',
+          fontWeight: 700,
+          marginBottom: isNarrow ? '0.5rem' : '0.75rem'
         }}>
-          💸
+          QR Cash™ — Send · Scan · Spend
+        </h2>
+        <p style={{
+          fontSize: isNarrow ? '0.875rem' : '1.125rem',
+          opacity: 0.95,
+          marginBottom: isNarrow ? '1rem' : '1.5rem'
+        }}>
+          Add real cash to any greeting.
+        </p>
+        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: isNarrow ? 'center' : 'flex-start' }}>
+          <button
+            onClick={() => setShowQRCashModal(true)}
+            style={{
+              padding: isNarrow ? '0.5rem 1rem' : '0.625rem 1.25rem',
+              background: 'white',
+              color: '#667eea',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              fontSize: isNarrow ? '0.8125rem' : '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit'
+            }}>
+            Send
+          </button>
+          <button
+            onClick={() => setShowHowItWorksModal(true)}
+            style={{
+              padding: isNarrow ? '0.5rem 1rem' : '0.625rem 1.25rem',
+              background: 'rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              fontSize: isNarrow ? '0.8125rem' : '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit'
+            }}>
+            How?
+          </button>
         </div>
       </div>
 
@@ -485,6 +489,275 @@ export default function Gifts() {
           </div>
         ))}
       </div>
+
+      {/* QR Cash Gift Modal */}
+      <QRCashGiftModal
+        isOpen={showQRCashModal}
+        onClose={() => setShowQRCashModal(false)}
+      />
+
+      {/* How QR Cash Works Modal */}
+      {showHowItWorksModal && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setShowHowItWorksModal(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 999,
+              backdropFilter: 'blur(4px)'
+            }}
+          />
+
+          {/* Modal */}
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'white',
+            borderRadius: 'var(--radius-xl)',
+            width: '90%',
+            maxWidth: '500px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            zIndex: 1000,
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+          }}>
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+              padding: '1.5rem',
+              borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <h2 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: 700,
+                  margin: 0,
+                  marginBottom: '0.25rem',
+                  color: 'white'
+                }}>How QR Cash Works</h2>
+                <p style={{
+                  fontSize: '0.875rem',
+                  opacity: 0.9,
+                  margin: 0,
+                  color: 'white'
+                }}>Send · Scan · Spend</p>
+              </div>
+              <button
+                onClick={() => setShowHowItWorksModal(false)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '50%',
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  color: 'white'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '1.5rem' }}>
+              <p style={{
+                fontSize: '1rem',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.7,
+                marginBottom: '2rem',
+                textAlign: 'center'
+              }}>
+                QR Cash lets you send real money as a gift that recipients can spend anywhere. It's simple, personal, and universally appreciated.
+              </p>
+
+              {/* Steps */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {/* Step 1 */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '1rem',
+                  padding: '1.25rem',
+                  background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%)',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid rgba(251, 191, 36, 0.2)'
+                }}>
+                  <div style={{
+                    width: '3rem',
+                    height: '3rem',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: '1.25rem',
+                    flexShrink: 0
+                  }}>
+                    1
+                  </div>
+                  <div>
+                    <h4 style={{
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.25rem'
+                    }}>Send</h4>
+                    <p style={{
+                      fontSize: '0.9375rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.6,
+                      margin: 0
+                    }}>
+                      Choose an amount to gift and add it to any greeting. A unique QR code is generated for your recipient.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 2 */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '1rem',
+                  padding: '1.25rem',
+                  background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.05) 100%)',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid rgba(102, 126, 234, 0.2)'
+                }}>
+                  <div style={{
+                    width: '3rem',
+                    height: '3rem',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: '1.25rem',
+                    flexShrink: 0
+                  }}>
+                    2
+                  </div>
+                  <div>
+                    <h4 style={{
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.25rem'
+                    }}>Scan</h4>
+                    <p style={{
+                      fontSize: '0.9375rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.6,
+                      margin: 0
+                    }}>
+                      The recipient receives the QR Cash via email or as a printed gift. They simply scan the QR code with their phone camera to open the redemption page and claim their cash gift.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 3 */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '1rem',
+                  padding: '1.25rem',
+                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.05) 100%)',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid rgba(34, 197, 94, 0.2)'
+                }}>
+                  <div style={{
+                    width: '3rem',
+                    height: '3rem',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: '1.25rem',
+                    flexShrink: 0
+                  }}>
+                    3
+                  </div>
+                  <div>
+                    <h4 style={{
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.25rem'
+                    }}>Spend</h4>
+                    <p style={{
+                      fontSize: '0.9375rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.6,
+                      margin: 0
+                    }}>
+                      The cash is instantly available to spend anywhere. No restrictions, no gift cards - just real money they can use however they'd like.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <button
+                onClick={() => {
+                  setShowHowItWorksModal(false);
+                  setShowQRCashModal(true);
+                }}
+                style={{
+                  width: '100%',
+                  marginTop: '2rem',
+                  padding: '1rem',
+                  background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--radius-lg)',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  boxShadow: '0 4px 12px rgba(251, 191, 36, 0.3)',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(251, 191, 36, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.3)';
+                }}
+              >
+                <DollarSign size={20} />
+                Send QR Cash Now
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

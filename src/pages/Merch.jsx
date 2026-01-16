@@ -245,6 +245,24 @@ export default function Merch() {
           alignItems: isNarrow ? 'flex-start' : 'center'
         }}>
           <div>
+            {/* Hero Medal Badge */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              marginBottom: isNarrow ? '0.5rem' : '0.75rem'
+            }}>
+              <div style={{
+                display: 'inline-block',
+                background: 'rgba(0, 0, 0, 0.15)',
+                padding: isNarrow ? '0.375rem 0.75rem' : '0.5rem 1rem',
+                borderRadius: 'var(--radius-lg)',
+                fontSize: isNarrow ? '0.75rem' : '0.875rem',
+                fontWeight: 600,
+                color: 'white'
+              }}>
+                🏅 10% donated
+              </div>
+            </div>
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -257,17 +275,16 @@ export default function Merch() {
                 fontWeight: 700,
                 margin: 0
               }}>
-                Corporate White Label Program
+                Corporate White Label Services
               </h2>
             </div>
             <p style={{
               fontSize: isNarrow ? '0.875rem' : '1.125rem',
-              opacity: 0.95,
+              color: 'black',
               marginBottom: isNarrow ? '0.75rem' : '1rem',
               lineHeight: 1.6
             }}>
-              Strengthen client relationships and boost employee morale with custom-branded Greet-Me merchandise.
-              {!isNarrow && ' Add your company logo to any white-label eligible item.'}
+              Mission-driven, branded gifting that supports veterans, law enforcement, and EMS — while recognizing clients and teams with quality gifts they'll truly appreciate.
             </p>
             {!isNarrow && (
               <ul style={{

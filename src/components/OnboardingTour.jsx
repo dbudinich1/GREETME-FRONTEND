@@ -41,9 +41,10 @@ export default function OnboardingTour() {
     },
     {
       title: 'Add Your First Contact',
-      description: 'Add the people you want to send greetings to. You can add occasions for each contact.',
+      description: 'Add the people you want to send greetings and gifts to. You can add occasions for each contact, pre-select a gift (including QR Cash™), or let Greet-Me curate one automatically within your budget.',
       icon: <UserPlus size={32} />,
-      action: 'Click "Add Recipient" button to create your first contact'
+      action: 'Click "Add Recipient" button to create your first contact',
+      helperText: "You'll get a reminder 10 days before the occasion to confirm or change your gift selection."
     }
   ];
 
@@ -183,6 +184,16 @@ export default function OnboardingTour() {
             lineHeight: 1.6,
             marginBottom: step.action ? '1rem' : 0
           }}>{step.description}</p>
+          {step.helperText && (
+            <p style={{
+              fontSize: '0.8125rem',
+              color: 'var(--text-tertiary)',
+              marginBottom: '1rem',
+              fontStyle: 'italic'
+            }}>
+              {step.helperText}
+            </p>
+          )}
           {step.action && (
             <div style={{
               background: 'linear-gradient(135deg, #eff6ff 0%, #f0f4ff 100%)',

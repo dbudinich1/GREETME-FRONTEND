@@ -81,14 +81,52 @@ export default function GreetMeLogo({ size = 'medium', clickable = true }) {
           }}>
             Greet-Me
           </span>
-          <span style={{
-            fontSize: s.tagline,
-            color: 'var(--text-secondary)',
-            fontWeight: 500,
-            fontStyle: 'italic',
-            letterSpacing: '0.5px',
-            marginTop: '-2px'
-          }}>
+          <span
+            className="tagline"
+            style={{
+              fontSize: s.tagline,
+              color: 'var(--text-secondary)',
+              fontWeight: 500,
+              letterSpacing: '0.5px',
+              marginTop: '-2px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px'
+            }}
+          >
+            {/* Forget-me-not flower */}
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '10px',
+              height: '10px',
+              position: 'relative',
+              flexShrink: 0
+            }}>
+              {[0, 72, 144, 216, 288].map((rotation, i) => (
+                <span
+                  key={i}
+                  style={{
+                    position: 'absolute',
+                    width: '4px',
+                    height: '4px',
+                    background: '#60a5fa',
+                    borderRadius: '50%',
+                    transform: `rotate(${rotation}deg) translateY(-3px)`,
+                    transformOrigin: 'center center'
+                  }}
+                />
+              ))}
+              <span style={{
+                position: 'absolute',
+                width: '3px',
+                height: '3px',
+                background: '#fbbf24',
+                borderRadius: '50%',
+                zIndex: 1
+              }} />
+            </span>
             Forget Them Not!
           </span>
         </div>
