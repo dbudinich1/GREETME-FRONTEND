@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, Briefcase, Users, Check, ArrowLeft } from 'lucide-react';
 import cartService from '../services/cartService';
+import AddToCartModal from '../components/AddToCartModal';
 import greetmeFlags from '../assets/greetme-flags.jpg';
 
 const merchItems = [
@@ -108,6 +109,8 @@ export default function Merch() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
   const [addedItems, setAddedItems] = useState(new Set());
+  const [showCartModal, setShowCartModal] = useState(false);
+  const [lastAddedItem, setLastAddedItem] = useState(null);
 
   // Check if user came from recipient form (has category param)
   const cameFromRecipientForm = searchParams.has('category');
@@ -153,25 +156,30 @@ export default function Merch() {
       // Trigger cart count update
       window.dispatchEvent(new Event('cartUpdated'));
 
-      // If came from recipient form, redirect back to contacts page after brief delay
-      if (cameFromRecipientForm) {
-        setTimeout(() => {
-          navigate('/dashboard/contacts');
-        }, 500);
-      } else {
-        // Normal behavior - remove "Added" state after 2 seconds
-        setTimeout(() => {
-          setAddedItems(prev => {
-            const next = new Set(prev);
-            next.delete(item.id);
-            return next;
-          });
-        }, 2000);
-      }
+      // Store the added item and show the modal
+      setLastAddedItem(item);
+      setShowCartModal(true);
     } catch (error) {
       console.error('Error adding to cart:', error);
-      alert('Failed to add item to cart');
     }
+  };
+
+  const handleContinueShopping = () => {
+    setShowCartModal(false);
+    // Remove the "Added" state after closing
+    if (lastAddedItem) {
+      setAddedItems(prev => {
+        const next = new Set(prev);
+        next.delete(lastAddedItem.id);
+        return next;
+      });
+    }
+    setLastAddedItem(null);
+  };
+
+  const handleGoToCheckout = () => {
+    setShowCartModal(false);
+    navigate('/dashboard/cart');
   };
 
   // Filter items by category
@@ -771,6 +779,15 @@ export default function Merch() {
           </div>
         </div>
       )}
+
+      {/* Add to Cart Confirmation Modal */}
+      <AddToCartModal
+        isOpen={showCartModal}
+        onClose={handleContinueShopping}
+        item={lastAddedItem}
+        onContinueShopping={handleContinueShopping}
+        onGoToCheckout={handleGoToCheckout}
+      />
     </div>
   );
 }

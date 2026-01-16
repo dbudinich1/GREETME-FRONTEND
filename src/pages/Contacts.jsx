@@ -222,116 +222,115 @@ export default function Recipients() {
         marginBottom: '24px',
         boxShadow: '0 8px 24px rgba(102, 126, 234, 0.25)'
       }}>
+        {/* Title Row with Back Arrow on Left, Recipients Centered */}
         <div style={{
           display: 'flex',
-          flexDirection: isMobile ? 'column' : 'row',
-          justifyContent: 'space-between',
-          alignItems: isMobile ? 'stretch' : 'flex-start',
-          gap: isMobile ? '16px' : '24px'
+          alignItems: 'center',
+          position: 'relative',
+          marginBottom: '12px'
         }}>
-          {/* Left: Back + Title + Subtitle */}
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-              <button
-                onClick={() => navigate('/dashboard')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '36px',
-                  height: '36px',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'white',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  flexShrink: 0
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-              >
-                <ArrowLeft size={18} />
-              </button>
-              <div>
-                <h1 style={{
-                  fontSize: isMobile ? '1.5rem' : '1.75rem',
-                  fontWeight: 700,
-                  color: 'white',
-                  marginBottom: '4px',
-                  lineHeight: 1.2
-                }}>Recipients</h1>
-                <p style={{
-                  color: 'rgba(255, 255, 255, 0.9)',
-                  fontSize: isMobile ? '0.8125rem' : '0.9375rem',
-                  lineHeight: 1.5,
-                  marginBottom: '12px'
-                }}>Personalize how you greet each recipient — birthdays, anniversaries, "just because," and more.</p>
-                <p style={{
-                  color: 'rgba(255, 255, 255, 0.7)',
-                  fontSize: isMobile ? '0.6875rem' : '0.75rem',
-                  lineHeight: 1.4,
-                  marginBottom: '12px'
-                }}>Gifts are optional and never auto-sent unless you enable Auto-Gift for a specific occasion.</p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(255, 255, 255, 0.2)',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer',
+              padding: '6px',
+              borderRadius: '50%',
+              fontFamily: 'inherit',
+              position: 'absolute',
+              left: 0
+            }}
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h1 style={{
+            fontSize: isMobile ? '1.5rem' : '1.75rem',
+            fontWeight: 700,
+            color: 'white',
+            margin: 0,
+            lineHeight: 1.2,
+            width: '100%',
+            textAlign: 'center'
+          }}>Recipients</h1>
+        </div>
 
-                {/* Stats Chips */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    borderRadius: '9999px',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    color: 'white'
-                  }}>
-                    <Users size={12} />
-                    {recipients.length} Recipient{recipients.length !== 1 ? 's' : ''}
-                  </span>
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    borderRadius: '9999px',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    color: 'white'
-                  }}>
-                    <Clock size={12} />
-                    {upcomingCount} Upcoming
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Subtitle - Justified */}
+        <div style={{ textAlign: 'justify' }}>
+          <p style={{
+            color: 'rgba(255, 255, 255, 0.9)',
+            fontSize: isMobile ? '0.8125rem' : '0.9375rem',
+            lineHeight: 1.5,
+            marginBottom: '12px'
+          }}>Personalize how you greet each recipient — birthdays, holidays, or "just because".</p>
+          <p style={{
+            color: 'rgba(255, 255, 255, 0.7)',
+            fontSize: isMobile ? '0.6875rem' : '0.75rem',
+            lineHeight: 1.4,
+            marginBottom: '0'
+          }}>Gifts are optional and never auto-sent unless you enable Auto-Gift for a specific occasion.</p>
+        </div>
 
+        {/* Stats Chips - Centered */}
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '12px' }}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            background: 'rgba(255, 255, 255, 0.2)',
+            borderRadius: '9999px',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            color: 'white'
+          }}>
+            <Users size={12} />
+            {recipients.length} Recipient{recipients.length !== 1 ? 's' : ''}
+          </span>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            background: 'rgba(255, 255, 255, 0.2)',
+            borderRadius: '9999px',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            color: 'white'
+          }}>
+            <Clock size={12} />
+            {upcomingCount} Upcoming
+          </span>
         </div>
 
         {/* Centered Action Buttons */}
         <div style={{
           display: 'flex',
           flexDirection: 'row',
-          gap: '12px',
+          gap: '8px',
           justifyContent: 'center',
           marginTop: '16px'
         }}>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={() => {
+              try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch (e) {}
+              setShowAddModal(true);
+            }}
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px',
-              padding: '12px 24px',
+              gap: '6px',
+              padding: '10px 16px',
               background: 'white',
               color: '#667eea',
               border: 'none',
               borderRadius: 'var(--radius-lg)',
-              fontSize: '0.875rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               cursor: 'pointer',
               transition: 'all 0.2s',
@@ -355,13 +354,13 @@ export default function Recipients() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px',
-              padding: '12px 24px',
+              gap: '6px',
+              padding: '10px 16px',
               background: 'rgba(255, 255, 255, 0.2)',
               color: 'white',
               border: '1px solid rgba(255, 255, 255, 0.3)',
               borderRadius: 'var(--radius-lg)',
-              fontSize: '0.875rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               cursor: 'pointer',
               transition: 'all 0.2s',
@@ -660,7 +659,10 @@ export default function Recipients() {
                 Import CSV
               </button>
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch (e) {}
+                  setShowAddModal(true);
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
