@@ -225,9 +225,8 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
               cursor: 'pointer',
               transition: 'all 0.2s',
               color: 'white',
-              fontSize: '0.625rem',
-              fontWeight: 700,
-              fontFamily: 'inherit'
+              fontFamily: 'inherit',
+              flexShrink: 0
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
@@ -237,7 +236,7 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
             }}
             title="Close"
           >
-            Close
+            <X size={20} />
           </button>
         </div>
 
