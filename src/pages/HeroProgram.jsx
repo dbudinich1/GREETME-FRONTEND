@@ -115,29 +115,31 @@ export default function HeroProgram() {
           </h1>
 
           <p style={{
-            fontSize: '1.25rem',
-            marginBottom: '1rem',
-            lineHeight: 1.6,
-            color: '#000000'
-          }}>
-            Greet-Me Hero™ is our B2B program for companies who purchase bulk subscription bundles or use our white label services. Whether you're including subscriptions as an added value for your existing client base OR recognizing valued clients or employees, you get meaningful connections at scale.
-          </p>
-          <p style={{
             fontSize: '1.125rem',
-            marginBottom: '1rem',
+            marginBottom: '1.5rem',
             lineHeight: 1.6,
             color: '#000000'
           }}>
-            The Greet-Me Hero program gives <strong>10% of proceeds</strong> to veterans, law enforcement, and EMS causes. Now that's a gift worth giving!
+            Our B2B program for meaningful connections at scale—with 10% of proceeds supporting veterans and first responders.
           </p>
-          <p style={{
-            fontSize: '1rem',
-            marginBottom: '2rem',
-            lineHeight: 1.6,
-            color: '#000000'
-          }}>
-            All participants automatically earn ranked placement in the <strong>Greet-Me Hall of Honor</strong>. Enterprise level participants earn a permanent place in the <strong>Greet-Me Hall of Heroes</strong> and will be ranked according to level of participation.
-          </p>
+
+          {/* Jump link */}
+          <button
+            onClick={() => document.getElementById('many-ways-to-be-a-greet-me-hero')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#000000',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              marginBottom: '1.5rem',
+              fontFamily: 'inherit'
+            }}
+          >
+            Many Ways to Be a Greet-Me Hero
+          </button>
 
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             {/* Shop Merch Store - Yellow */}
@@ -229,15 +231,15 @@ export default function HeroProgram() {
         </div>
       </div>
 
-      {/* How It Works Section */}
-      <div style={{ marginBottom: '2rem' }}>
+      {/* Many Ways to Be a Greet-Me Hero Section */}
+      <div id="many-ways-to-be-a-greet-me-hero" style={{ marginBottom: '2rem' }}>
         <h2 style={{
           fontSize: '1.75rem',
           fontWeight: 700,
           color: 'var(--text-primary)',
           marginBottom: '1.5rem',
           textAlign: 'center'
-        }}>How It Works</h2>
+        }}>Many Ways to Be a Greet-Me Hero</h2>
 
         <div style={{
           display: 'grid',
