@@ -313,7 +313,7 @@ export default function DashboardLayout() {
             justifyContent: 'center',
             minWidth: 0
           }}>
-            <GreetMeLogo size={isNarrow ? 'small' : 'medium'} clickable={true} />
+            <GreetMeLogo size={isNarrow ? 'small' : 'large'} clickable={true} />
             {!isNarrow && (
               <p style={{
                 fontSize: '0.875rem',
