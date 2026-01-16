@@ -408,15 +408,20 @@ export default function MediaLibrary() {
         borderRadius: 'var(--radius-lg)',
         padding: '1.5rem',
         marginBottom: '2rem',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+        width: '100%',
+        overflow: 'hidden'
       }}>
         <div style={{
           display: 'flex',
+          flexWrap: 'wrap',
           justifyContent: 'space-between',
           alignItems: 'center',
+          gap: '0.75rem',
           marginBottom: '1.5rem',
           paddingBottom: '1rem',
-          borderBottom: '2px solid var(--border)'
+          borderBottom: '2px solid var(--border)',
+          width: '100%'
         }}>
           <h2 style={{
             fontSize: '1.25rem',
@@ -424,10 +429,12 @@ export default function MediaLibrary() {
             color: 'var(--text-primary)',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem'
+            gap: '0.5rem',
+            minWidth: 0,
+            flex: '1 1 auto'
           }}>
-            <Mic size={20} />
-            Voice Recordings
+            <Mic size={20} style={{ flexShrink: 0 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Voice Recordings</span>
           </h2>
           <input
             ref={voiceInputRef}
@@ -450,7 +457,9 @@ export default function MediaLibrary() {
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              flexShrink: 0,
+              whiteSpace: 'nowrap'
             }}
             onMouseEnter={(e) => e.currentTarget.style.background = '#5568d3'}
             onMouseLeave={(e) => e.currentTarget.style.background = '#667eea'}
