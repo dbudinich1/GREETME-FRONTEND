@@ -1,6 +1,6 @@
 // src/pages/Contacts.jsx
 import { useState, useEffect } from 'react';
-import { Plus, Upload, Search, Edit, Trash2, ArrowLeft, Users, Calendar, Gift, FileSpreadsheet, Clock } from 'lucide-react';
+import { Plus, Upload, Search, Edit, Trash2, ArrowLeft, Users, Calendar, Gift, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from "../api/api";
 import Modal from '../components/Modal';
@@ -302,21 +302,7 @@ export default function Recipients() {
                     color: 'white'
                   }}>
                     <Clock size={12} />
-                    {upcomingCount} Upcoming (30 days)
-                  </span>
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    borderRadius: '9999px',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    color: 'white'
-                  }}>
-                    <FileSpreadsheet size={12} />
-                    CSV Ready
+                    {upcomingCount} Upcoming
                   </span>
                 </div>
               </div>
