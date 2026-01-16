@@ -7,11 +7,14 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
 
   // Body scroll lock
   useEffect(() => {
-    if (!isOpen) return;
-    const original = document.body.style.overflow;
+    if (!isOpen) {
+      // Ensure scroll is restored when modal closes
+      document.body.style.overflow = '';
+      return;
+    }
     document.body.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = original;
+      document.body.style.overflow = '';
     };
   }, [isOpen]);
 
