@@ -244,7 +244,7 @@ export default function HeroProgram() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '1.5rem'
         }}>
-          {/* Card 1: Recognition & Impact (FIRST) */}
+          {/* Card 1: Recognition & Impact */}
           <div style={{
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
@@ -318,92 +318,7 @@ export default function HeroProgram() {
             </p>
           </div>
 
-          {/* Card 3: American Merch */}
-          <div style={{
-            background: 'var(--bg-primary)',
-            borderRadius: 'var(--radius-xl)',
-            padding: '2rem',
-            border: '1px solid var(--border)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              width: '4rem',
-              height: '4rem',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 1rem',
-              fontSize: '1.75rem'
-            }}>
-              <ShoppingCart size={28} style={{ color: 'white' }} />
-            </div>
-            <h3 style={{
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              marginBottom: '0.5rem'
-            }}>American Merch</h3>
-            <p style={{
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)',
-              lineHeight: 1.6
-            }}>
-              Custom apparel, drinkware, and accessories with your branding. Build your brand while showing appreciation.
-            </p>
-          </div>
-
-          {/* Card 4: American Marketplace Gifts - with RWB accent */}
-          <div style={{
-            background: 'var(--bg-primary)',
-            borderRadius: 'var(--radius-xl)',
-            padding: '2rem',
-            border: '1px solid var(--border)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-            textAlign: 'center',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            {/* Subtle RWB accent bar at top */}
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '3px',
-              background: 'linear-gradient(90deg, #bf0a30 0%, #bf0a30 33%, #ffffff 33%, #ffffff 66%, #002868 66%, #002868 100%)'
-            }} />
-            <div style={{
-              width: '4rem',
-              height: '4rem',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 1rem',
-              fontSize: '1.5rem'
-            }}>
-              <Gift size={28} style={{ color: 'white' }} />
-            </div>
-            <h3 style={{
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              marginBottom: '0.5rem'
-            }}>American Marketplace Gifts</h3>
-            <p style={{
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)',
-              lineHeight: 1.6
-            }}>
-              Curated gifts from American makers. Perfect for events, promotions, and client appreciation.
-            </p>
-          </div>
-
-          {/* Card 5: White Glove Service */}
+          {/* Card 3: White Label Services */}
           <div style={{
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
@@ -430,7 +345,7 @@ export default function HeroProgram() {
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.5rem'
-            }}>White Glove Service</h3>
+            }}>White Label Services</h3>
             <p style={{
               fontSize: '0.875rem',
               color: 'var(--text-secondary)',
@@ -440,7 +355,118 @@ export default function HeroProgram() {
             </p>
           </div>
 
-          {/* Card 6: Subscriptions */}
+          {/* Card 4: American Merch 🇺🇸 */}
+          <div style={{
+            background: 'var(--bg-primary)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '2rem',
+            border: '1px solid var(--border)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              fontSize: '1.75rem'
+            }}>
+              <ShoppingCart size={28} style={{ color: 'white' }} />
+            </div>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem'
+            }}>American Merch 🇺🇸</h3>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6
+            }}>
+              Custom apparel, drinkware, and accessories with your branding. Build your brand while showing appreciation.
+            </p>
+          </div>
+
+          {/* Card 5: Value-Add Giveaway Bundles */}
+          <div style={{
+            background: 'var(--bg-primary)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '2rem',
+            border: '1px solid var(--border)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              fontSize: '1.5rem'
+            }}>
+              <Gift size={28} style={{ color: 'white' }} />
+            </div>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem'
+            }}>Value-Add Giveaway Bundles</h3>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6
+            }}>
+              Pre-packaged gift bundles perfect for events, promotions, and client appreciation. Ready to give, easy to customize.
+            </p>
+          </div>
+
+          {/* Card 6: Subscription Bundles */}
+          <div style={{
+            background: 'var(--bg-primary)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '2rem',
+            border: '1px solid var(--border)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              fontSize: '1.5rem'
+            }}>
+              <Gift size={28} style={{ color: 'white' }} />
+            </div>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem'
+            }}>Subscription Bundles</h3>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6
+            }}>
+              Curated subscription collections combining the best of Greet-Me. Perfect for bulk purchases and corporate gifting programs.
+            </p>
+          </div>
+
+          {/* Card 7: Subscriptions */}
           <div
             onClick={() => setShowImageBankModal(true)}
             style={{
@@ -502,43 +528,6 @@ export default function HeroProgram() {
             }}>
               Buy Credits →
             </div>
-          </div>
-
-          {/* Card 7: Bundles (LAST) */}
-          <div style={{
-            background: 'var(--bg-primary)',
-            borderRadius: 'var(--radius-xl)',
-            padding: '2rem',
-            border: '1px solid var(--border)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              width: '4rem',
-              height: '4rem',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 1rem',
-              fontSize: '1.5rem'
-            }}>
-              <Gift size={28} style={{ color: 'white' }} />
-            </div>
-            <h3 style={{
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              marginBottom: '0.5rem'
-            }}>Bundles</h3>
-            <p style={{
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)',
-              lineHeight: 1.6
-            }}>
-              Curated gift collections combining the best of Greet-Me. Perfect for bulk purchases and corporate gifting programs.
-            </p>
           </div>
         </div>
       </div>
