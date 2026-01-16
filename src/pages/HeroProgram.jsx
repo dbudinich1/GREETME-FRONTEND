@@ -382,7 +382,7 @@ export default function HeroProgram() {
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.5rem'
-            }}>American Merch 🇺🇸</h3>
+            }}>American Merch</h3>
             <p style={{
               fontSize: '0.875rem',
               color: 'var(--text-secondary)',
