@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, Heart, Check, ArrowLeft, DollarSign, X } from 'lucide-react';
 import cartService from '../services/cartService';
 import QRCashGiftModal from '../components/QRCashGiftModal';
+import greetmeFlags from '../assets/greetme-flags.jpg';
 
 const giftProducts = [
   {
@@ -210,12 +211,21 @@ export default function Gifts() {
 
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '0.5rem' }}>
+        {/* Single row: Title centered with toggle + flag */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '1rem',
+          marginBottom: '0.75rem',
+          flexWrap: 'wrap'
+        }}>
           <h1 style={{
-            fontSize: '2rem',
+            fontSize: isNarrow ? '1.5rem' : '2rem',
             fontWeight: 700,
             color: 'var(--text-primary)',
-            margin: 0
+            margin: 0,
+            whiteSpace: 'nowrap'
           }}>
             Gift Add-Ons
           </h1>
@@ -259,11 +269,22 @@ export default function Gifts() {
               Merch
             </button>
           </div>
+          {/* Crossed flags icon */}
+          <img
+            src={greetmeFlags}
+            alt="Greet-Me American Made"
+            style={{
+              height: isNarrow ? '32px' : '40px',
+              width: 'auto',
+              objectFit: 'contain'
+            }}
+          />
         </div>
         <p style={{
           fontSize: '1rem',
           color: 'var(--text-secondary)',
-          lineHeight: 1.6
+          lineHeight: 1.6,
+          textAlign: 'center'
         }}>
           {cameFromRecipientForm
             ? 'Select a gift for your recipient'

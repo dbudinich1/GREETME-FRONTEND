@@ -316,19 +316,7 @@ export default function DashboardLayout() {
             justifyContent: 'center',
             minWidth: 0
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: isNarrow ? '0.5rem' : '0.75rem' }}>
-              <GreetMeLogo size={isNarrow ? 'small' : 'large'} clickable={true} />
-              <img
-                src={greetmeFlags}
-                alt="Greet-Me American Flag"
-                style={{
-                  height: isNarrow ? '20px' : '32px',
-                  width: 'auto',
-                  flexShrink: 0,
-                  objectFit: 'contain'
-                }}
-              />
-            </div>
+            <GreetMeLogo size={isNarrow ? 'small' : 'large'} clickable={true} />
             {!isNarrow && (
               <p style={{
                 fontSize: '0.875rem',

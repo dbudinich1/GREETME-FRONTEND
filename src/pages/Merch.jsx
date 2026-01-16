@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, Briefcase, Users, Check, ArrowLeft } from 'lucide-react';
 import cartService from '../services/cartService';
+import greetmeFlags from '../assets/greetme-flags.jpg';
 
 const merchItems = [
   {
@@ -213,12 +214,21 @@ export default function Merch() {
 
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '0.5rem' }}>
+        {/* Single row: Title centered with toggle + flag */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '1rem',
+          marginBottom: '0.75rem',
+          flexWrap: 'wrap'
+        }}>
           <h1 style={{
-            fontSize: '2rem',
+            fontSize: isNarrow ? '1.5rem' : '2rem',
             fontWeight: 700,
             color: 'var(--text-primary)',
-            margin: 0
+            margin: 0,
+            whiteSpace: 'nowrap'
           }}>
             Greet-Me Merchandise
           </h1>
@@ -262,10 +272,21 @@ export default function Merch() {
               Merch
             </button>
           </div>
+          {/* Crossed flags icon */}
+          <img
+            src={greetmeFlags}
+            alt="Greet-Me American Made"
+            style={{
+              height: isNarrow ? '32px' : '40px',
+              width: 'auto',
+              objectFit: 'contain'
+            }}
+          />
         </div>
         <p style={{
           fontSize: '1rem',
-          color: 'var(--text-secondary)'
+          color: 'var(--text-secondary)',
+          textAlign: 'center'
         }}>
           Show your love for staying connected with branded merch
         </p>
