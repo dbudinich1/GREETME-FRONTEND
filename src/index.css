@@ -356,6 +356,14 @@ input::placeholder, textarea::placeholder {
   justify-content: center;
 }
 
+/* Dashboard Grid - Two columns on wider screens */
+@media (min-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 0.45fr) minmax(0, 0.55fr) !important;
+    gap: 2rem !important;
+  }
+}
+
 /* Responsive - Tablet */
 @media (max-width: 768px) {
   h1 {
