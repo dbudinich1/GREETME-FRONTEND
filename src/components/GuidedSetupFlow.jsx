@@ -6,6 +6,7 @@ import { X, Mic, Square, Play, Pause, Upload, Image as ImageIcon, Check, ArrowRi
 import { useNavigate } from 'react-router-dom';
 import { validateFile, validateAudioFile, validateEmail } from '../utils/helpers';
 import api from '../api/api';
+import processPicto from '../assets/PROCESS PICTO - MAN SEND TO MOM.png';
 
 // Setup state keys
 const SETUP_STATE_KEY = 'greetme_setup_state';
@@ -372,25 +373,38 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     </div>
   );
 
-  // STEP 1: Process Orientation
-  const renderProcessOrientation = () => (
-    <div style={{ textAlign: 'center', padding: isMobile ? '2rem 1.5rem' : '2.5rem 2rem' }}>
-      <p style={{
-        fontSize: '1.0625rem',
+  // STEP 1: Teaching Screen (Locked - Upload → Automate → Delight)
+  const renderTeachingScreen = () => (
+    <div style={{ textAlign: 'center', padding: isMobile ? '1.5rem 1rem' : '2rem 1.5rem' }}>
+      {/* Approved Illustration */}
+      <img
+        src={processPicto}
+        alt="Upload once, send greetings automatically, delight recipients"
+        style={{
+          width: '100%',
+          maxWidth: '380px',
+          height: 'auto',
+          marginBottom: '1.5rem',
+        }}
+      />
+
+      {/* Locked Copy - DO NOT EDIT */}
+      <div style={{
+        fontSize: isMobile ? '0.9375rem' : '1rem',
         color: 'var(--text-primary)',
-        marginBottom: '1.5rem',
-        lineHeight: 1.7,
-      }}>
-        In a few short steps, you'll help Greet-Me sound like you, look like you, and show up when it matters.
-      </p>
-      <p style={{
-        fontSize: '0.9375rem',
-        color: 'var(--text-secondary)',
+        lineHeight: 1.8,
         marginBottom: '2rem',
-        lineHeight: 1.6,
+        textAlign: 'left',
+        maxWidth: '340px',
+        margin: '0 auto 2rem',
       }}>
-        When you're done, you'll experience your first Greet-Me greeting — just as friends and loved ones will.
-      </p>
+        <p style={{ marginBottom: '0.5rem' }}>Upload once.</p>
+        <p style={{ marginBottom: '0.5rem' }}>Add who matters.</p>
+        <p style={{ marginBottom: '0.5rem' }}>Set your can't-miss moments.</p>
+        <p style={{ marginBottom: 0 }}>Enjoy automatic animated greetings — with thoughtful gifts they'll never forget.</p>
+      </div>
+
+      {/* Single Primary CTA */}
       <button
         onClick={nextStep}
         style={{
@@ -406,7 +420,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           fontFamily: 'inherit',
         }}
       >
-        Continue
+        Let's set this up
       </button>
     </div>
   );
@@ -1069,7 +1083,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   // Step content map
   const stepContent = {
     0: renderWelcome,
-    1: renderProcessOrientation,
+    1: renderTeachingScreen,
     2: renderVoice,
     3: renderPhoto,
     4: renderTestGreeting,
