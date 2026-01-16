@@ -844,13 +844,14 @@ export default function DashboardHome() {
                   style={{
                     flex: 1,
                     padding: '0.625rem',
-                    background: (!voiceRecorded || isRecording) ? '#e5e7eb' : (isPlayingVoice ? '#10b981' : '#667eea'),
-                    color: (!voiceRecorded || isRecording) ? '#9ca3af' : 'white',
+                    background: '#3b82f6',
+                    color: 'white',
                     border: 'none',
                     borderRadius: 'var(--radius-lg)',
                     fontSize: '0.875rem',
                     fontWeight: 600,
                     cursor: (!voiceRecorded || isRecording) ? 'not-allowed' : 'pointer',
+                    opacity: (!voiceRecorded || isRecording) ? 0.6 : 1,
                     transition: 'all 0.2s',
                     fontFamily: 'inherit',
                     display: 'flex',
@@ -860,13 +861,11 @@ export default function DashboardHome() {
                   }}
                   onMouseEnter={(e) => {
                     if (voiceRecorded && !isRecording) {
-                      e.currentTarget.style.background = isPlayingVoice ? '#059669' : '#5568d3';
+                      e.currentTarget.style.background = '#2563eb';
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (voiceRecorded && !isRecording) {
-                      e.currentTarget.style.background = isPlayingVoice ? '#10b981' : '#667eea';
-                    }
+                    e.currentTarget.style.background = '#3b82f6';
                   }}
                 >
                   {isPlayingVoice ? <Pause size={16} /> : <Play size={16} />}
@@ -881,8 +880,9 @@ export default function DashboardHome() {
                 style={{
                   width: '100%',
                   padding: '0.625rem',
-                  background: (!voiceRecorded || uploadingVoice) ? '#e5e7eb' : '#22c55e',
-                  color: (!voiceRecorded || uploadingVoice) ? '#9ca3af' : 'white',
+                  background: '#22c55e',
+                  color: 'white',
+                  opacity: (!voiceRecorded || uploadingVoice) ? 0.6 : 1,
                   border: 'none',
                   borderRadius: 'var(--radius-lg)',
                   fontSize: '0.875rem',
@@ -1027,8 +1027,9 @@ export default function DashboardHome() {
                   style={{
                     width: '100%',
                     padding: '0.625rem',
-                    background: (!photoUploaded || uploadingPhoto) ? '#e5e7eb' : '#22c55e',
-                    color: (!photoUploaded || uploadingPhoto) ? '#9ca3af' : 'white',
+                    background: '#22c55e',
+                    color: 'white',
+                    opacity: (!photoUploaded || uploadingPhoto) ? 0.6 : 1,
                     border: 'none',
                     borderRadius: 'var(--radius-lg)',
                     fontSize: '0.875rem',
