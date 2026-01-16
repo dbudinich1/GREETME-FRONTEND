@@ -6,6 +6,7 @@ import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart
 import GreetMeLogo from './GreetMeLogo';
 import NotificationBell from './NotificationBell';
 import GuidedSetupFlow, { shouldShowGuidedSetup } from './GuidedSetupFlow';
+import greetmeFlags from '../assets/greetme-flags.png';
 
 // TEMP STUB — services layer intentionally disabled for V1 build safety
 const animationBankService = {
@@ -315,7 +316,19 @@ export default function DashboardLayout() {
             justifyContent: 'center',
             minWidth: 0
           }}>
-            <GreetMeLogo size={isNarrow ? 'small' : 'large'} clickable={true} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: isNarrow ? '0.5rem' : '0.75rem' }}>
+              <GreetMeLogo size={isNarrow ? 'small' : 'large'} clickable={true} />
+              <img
+                src={greetmeFlags}
+                alt="Greet-Me American Flag"
+                style={{
+                  height: isNarrow ? '20px' : '32px',
+                  width: 'auto',
+                  flexShrink: 0,
+                  objectFit: 'contain'
+                }}
+              />
+            </div>
             {!isNarrow && (
               <p style={{
                 fontSize: '0.875rem',
