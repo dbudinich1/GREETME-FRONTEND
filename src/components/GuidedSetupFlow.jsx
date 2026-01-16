@@ -6,7 +6,9 @@ import { X, Mic, Square, Play, Pause, Upload, Image as ImageIcon, Check, ArrowRi
 import { useNavigate } from 'react-router-dom';
 import { validateFile, validateAudioFile, validateEmail } from '../utils/helpers';
 import api from '../api/api';
-import processPicto from '../assets/PROCESS PICTO - MAN SEND TO MOM.png';
+
+// Onboarding illustration from public folder
+const onboardingExplainer = '/assets/onboarding/onboarding-explainer.png';
 
 // Setup state keys
 const SETUP_STATE_KEY = 'greetme_setup_state';
@@ -376,13 +378,13 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   // STEP 1: Teaching Screen (Locked - Upload → Automate → Delight)
   const renderTeachingScreen = () => (
     <div style={{ textAlign: 'center', padding: isMobile ? '1.5rem 1rem' : '2rem 1.5rem' }}>
-      {/* Approved Illustration */}
+      {/* Onboarding Illustration - 3-panel explainer */}
       <img
-        src={processPicto}
+        src={onboardingExplainer}
         alt="Upload once, send greetings automatically, delight recipients"
         style={{
           width: '100%',
-          maxWidth: '380px',
+          maxWidth: '100%',
           height: 'auto',
           marginBottom: '1.5rem',
         }}
