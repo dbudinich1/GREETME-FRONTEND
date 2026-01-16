@@ -1,5 +1,5 @@
 // src/pages/Login.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Mail, Lock, QrCode, Smartphone } from "lucide-react";
@@ -10,9 +10,16 @@ export const Login = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
 
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleResize = () => setIsNarrow(window.innerWidth < 420);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,26 +42,28 @@ export const Login = () => {
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      overflow: 'hidden',
+      maxWidth: '100vw'
     }}>
       {/* Header */}
       <header style={{
-        padding: '1.5rem 2rem',
+        padding: isNarrow ? '1rem' : '1.5rem 2rem',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <GreetMeLogo size="medium" clickable={false} />
+        <GreetMeLogo size={isNarrow ? "small" : "medium"} clickable={false} variant="light" />
 
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: isNarrow ? '0.5rem' : '1rem' }}>
           <Link
             to="/"
             style={{
-              padding: '0.75rem 1.5rem',
+              padding: isNarrow ? '0.5rem 0.75rem' : '0.75rem 1.5rem',
               background: 'transparent',
               border: 'none',
               color: 'white',
-              fontSize: '1rem',
+              fontSize: isNarrow ? '0.875rem' : '1rem',
               fontWeight: 600,
               cursor: 'pointer',
               textDecoration: 'none',
@@ -66,12 +75,12 @@ export const Login = () => {
           <Link
             to="/register"
             style={{
-              padding: '0.75rem 2rem',
+              padding: isNarrow ? '0.5rem 1rem' : '0.75rem 2rem',
               background: 'white',
               border: 'none',
               borderRadius: 'var(--radius-lg)',
               color: '#667eea',
-              fontSize: '1rem',
+              fontSize: isNarrow ? '0.875rem' : '1rem',
               fontWeight: 600,
               cursor: 'pointer',
               textDecoration: 'none',
@@ -91,7 +100,7 @@ export const Login = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '2rem'
+        padding: isNarrow ? '1rem' : '2rem'
       }}>
         {/* Sign In Pane */}
         <div style={{
@@ -99,8 +108,9 @@ export const Login = () => {
           maxWidth: '420px',
           background: 'white',
           borderRadius: 'var(--radius-xl)',
-          padding: '2rem',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+          padding: isNarrow ? '1.25rem' : '2rem',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+          boxSizing: 'border-box'
         }}>
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
             <h2 style={{
@@ -169,7 +179,8 @@ export const Login = () => {
                     borderRadius: 'var(--radius-lg)',
                     fontSize: '0.95rem',
                     outline: 'none',
-                    transition: 'all 0.2s'
+                    transition: 'all 0.2s',
+                    boxSizing: 'border-box'
                   }}
                   placeholder="you@example.com"
                   required
@@ -210,7 +221,8 @@ export const Login = () => {
                     borderRadius: 'var(--radius-lg)',
                     fontSize: '0.95rem',
                     outline: 'none',
-                    transition: 'all 0.2s'
+                    transition: 'all 0.2s',
+                    boxSizing: 'border-box'
                   }}
                   placeholder="••••••••"
                   required

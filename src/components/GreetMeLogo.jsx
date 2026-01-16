@@ -1,7 +1,7 @@
 // src/components/GreetMeLogo.jsx
 import { useNavigate } from 'react-router-dom';
 
-export default function GreetMeLogo({ size = 'medium', clickable = true }) {
+export default function GreetMeLogo({ size = 'medium', clickable = true, variant = 'default' }) {
   const navigate = useNavigate();
 
   const sizes = {
@@ -11,6 +11,7 @@ export default function GreetMeLogo({ size = 'medium', clickable = true }) {
   };
 
   const s = sizes[size] || sizes.medium;
+  const isLight = variant === 'light'; // For use on dark/gradient backgrounds
 
   const handleClick = () => {
     if (clickable) {
@@ -51,14 +52,14 @@ export default function GreetMeLogo({ size = 'medium', clickable = true }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+          boxShadow: isLight ? 'none' : '0 2px 8px rgba(102, 126, 234, 0.3)'
         }}>
           <span style={{
             fontSize: s.fontSize,
             fontWeight: 800,
             color: 'white',
             fontFamily: 'Georgia, serif',
-            textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+            textShadow: isLight ? 'none' : '0 1px 2px rgba(0,0,0,0.2)'
           }}>G</span>
         </div>
 
@@ -72,10 +73,14 @@ export default function GreetMeLogo({ size = 'medium', clickable = true }) {
           <span style={{
             fontSize: s.fontSize,
             fontWeight: 800,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
+            ...(isLight ? {
+              color: 'white'
+            } : {
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }),
             letterSpacing: '-0.5px',
             lineHeight: 1
           }}>
@@ -85,14 +90,15 @@ export default function GreetMeLogo({ size = 'medium', clickable = true }) {
             className="tagline"
             style={{
               fontSize: s.tagline,
-              color: 'var(--text-secondary)',
+              color: isLight ? 'rgba(255,255,255,0.9)' : 'var(--text-secondary)',
               fontWeight: 500,
               fontStyle: 'italic',
               letterSpacing: '0.5px',
               marginTop: '-2px',
               display: 'flex',
               alignItems: 'center',
-              gap: '3px'
+              gap: '3px',
+              textShadow: 'none'
             }}
           >
             {/* Forget-me-not flower */}

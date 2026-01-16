@@ -6,7 +6,6 @@ import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart
 import GreetMeLogo from './GreetMeLogo';
 import NotificationBell from './NotificationBell';
 import GuidedSetupFlow, { shouldShowGuidedSetup } from './GuidedSetupFlow';
-import greetmeFlags from '../assets/greetme-flags.png';
 
 // TEMP STUB — services layer intentionally disabled for V1 build safety
 const animationBankService = {

@@ -211,25 +211,23 @@ export default function Gifts() {
 
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
-        {/* Single row: Title centered with toggle + flag */}
+        {/* Title */}
+        <h1 style={{
+          fontSize: isNarrow ? '1.5rem' : '2rem',
+          fontWeight: 700,
+          color: 'var(--text-primary)',
+          margin: 0,
+          marginBottom: '0.75rem',
+          textAlign: 'center'
+        }}>
+          Gift Add-Ons
+        </h1>
+        {/* Toggle centered */}
         <div style={{
           display: 'flex',
-          alignItems: 'center',
           justifyContent: 'center',
-          gap: '1rem',
-          marginBottom: '0.75rem',
-          flexWrap: 'wrap'
+          marginBottom: '0.75rem'
         }}>
-          <h1 style={{
-            fontSize: isNarrow ? '1.5rem' : '2rem',
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-            margin: 0,
-            whiteSpace: 'nowrap'
-          }}>
-            Gift Add-Ons
-          </h1>
-          {/* Gifts / Merch Toggle */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -269,12 +267,18 @@ export default function Gifts() {
               Merch
             </button>
           </div>
-          {/* Crossed flags icon */}
+        </div>
+        {/* Crossed flags icon - centered below toggle */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          marginBottom: '0.75rem'
+        }}>
           <img
             src={greetmeFlags}
             alt="Greet-Me American Made"
             style={{
-              height: isNarrow ? '32px' : '40px',
+              height: isNarrow ? '85px' : '110px',
               width: 'auto',
               objectFit: 'contain'
             }}
