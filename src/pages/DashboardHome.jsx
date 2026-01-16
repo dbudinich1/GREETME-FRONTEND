@@ -918,13 +918,13 @@ export default function DashboardHome() {
                   width: '4rem',
                   height: '4rem',
                   borderRadius: '50%',
-                  background: 'var(--gray-200)',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   overflow: 'hidden'
                 }}>
-                  <Camera size={24} style={{ color: 'var(--text-tertiary)' }} />
+                  <Camera size={24} style={{ color: 'white' }} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <h3 style={{
