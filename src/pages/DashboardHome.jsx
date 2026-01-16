@@ -2013,8 +2013,8 @@ export default function DashboardHome() {
               <button
                 onClick={() => setShowHowItWorksModal(false)}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                  border: '2px solid white',
                   borderRadius: '50%',
                   width: '2.5rem',
                   height: '2.5rem',
@@ -2023,17 +2023,19 @@ export default function DashboardHome() {
                   justifyContent: 'center',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
-                  color: 'white'
+                  color: 'white',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                  flexShrink: 0
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                  e.currentTarget.style.transform = 'scale(1.05)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                  e.currentTarget.style.transform = 'scale(1)';
                 }}
                 title="Close"
               >
-                <X size={20} />
+                <X size={20} strokeWidth={3} />
               </button>
             </div>
 
