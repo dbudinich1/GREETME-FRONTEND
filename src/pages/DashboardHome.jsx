@@ -399,7 +399,7 @@ export default function DashboardHome() {
   );
 
   return (
-    <div>
+    <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
       {/* First-time user onboarding tour */}
       <OnboardingTour />
 
@@ -653,10 +653,13 @@ export default function DashboardHome() {
       {/* Two Column Layout */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isNarrow ? '1fr' : '0.45fr 0.55fr',
+        gridTemplateColumns: isNarrow ? '1fr' : 'minmax(0, 0.45fr) minmax(0, 0.55fr)',
         gap: isNarrow ? '1.5rem' : '2rem',
         marginBottom: '2rem',
-        alignItems: 'stretch'
+        alignItems: 'stretch',
+        width: '100%',
+        maxWidth: '100%',
+        overflow: 'hidden'
       }}>
         {/* Left Column - Your Presence */}
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
