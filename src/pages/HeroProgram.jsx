@@ -318,7 +318,7 @@ export default function HeroProgram() {
             </p>
           </div>
 
-          {/* Card 3: Branded Merch */}
+          {/* Card 3: American Merch */}
           <div style={{
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
@@ -345,7 +345,7 @@ export default function HeroProgram() {
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.5rem'
-            }}>Branded Merch</h3>
+            }}>American Merch</h3>
             <p style={{
               fontSize: '0.875rem',
               color: 'var(--text-secondary)',
@@ -355,15 +355,26 @@ export default function HeroProgram() {
             </p>
           </div>
 
-          {/* Card 4: Give-Away Value-Add Bundles */}
+          {/* Card 4: American Marketplace Gifts - with RWB accent */}
           <div style={{
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
             padding: '2rem',
             border: '1px solid var(--border)',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-            textAlign: 'center'
+            textAlign: 'center',
+            position: 'relative',
+            overflow: 'hidden'
           }}>
+            {/* Subtle RWB accent bar at top */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '3px',
+              background: 'linear-gradient(90deg, #bf0a30 0%, #bf0a30 33%, #ffffff 33%, #ffffff 66%, #002868 66%, #002868 100%)'
+            }} />
             <div style={{
               width: '4rem',
               height: '4rem',
@@ -382,13 +393,13 @@ export default function HeroProgram() {
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.5rem'
-            }}>Give-Away Value-Add Bundles</h3>
+            }}>American Marketplace Gifts</h3>
             <p style={{
               fontSize: '0.875rem',
               color: 'var(--text-secondary)',
               lineHeight: 1.6
             }}>
-              Pre-packaged gift bundles perfect for events, promotions, and client appreciation. Ready to give, easy to customize.
+              Curated gifts from American makers. Perfect for events, promotions, and client appreciation.
             </p>
           </div>
 

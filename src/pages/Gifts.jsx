@@ -262,11 +262,12 @@ export default function Gifts() {
         </div>
         <p style={{
           fontSize: '1rem',
-          color: 'var(--text-secondary)'
+          color: 'var(--text-secondary)',
+          lineHeight: 1.6
         }}>
           {cameFromRecipientForm
             ? 'Select a gift for your recipient'
-            : 'Add a thoughtful gift from the 🇺🇸 American Marketplace'}
+            : 'Add a thoughtful gift from the 🇺🇸 American Marketplace — curated to celebrate life\'s moments while supporting American makers and the values we stand for.'}
         </p>
       </div>
 
