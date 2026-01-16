@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart, Film, X } from 'lucide-react';
+import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart, Film, X, Image as ImageIcon } from 'lucide-react';
 import GreetMeLogo from './GreetMeLogo';
 import NotificationBell from './NotificationBell';
 import GuidedSetupFlow, { shouldShowGuidedSetup } from './GuidedSetupFlow';
@@ -76,7 +76,7 @@ export default function DashboardLayout() {
   const navigation = [
     { name: 'Home', path: '/', icon: null },
     { name: 'Dashboard', path: '/dashboard', icon: null },
-    { name: 'Media Library', path: '/dashboard/media', icon: Image },
+    { name: 'Media Library', path: '/dashboard/media', icon: ImageIcon },
     { name: 'Plans & Pricing', path: '/pricing', icon: null },
     { name: 'For Business', path: '/business', icon: null },
     { name: 'Merch', path: '/dashboard/merch', icon: ShoppingBag },
@@ -309,7 +309,7 @@ export default function DashboardLayout() {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            flex: isNarrow ? 1 : 'none',
+            flex: 1,
             justifyContent: 'center',
             minWidth: 0
           }}>

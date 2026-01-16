@@ -87,6 +87,7 @@ export default function GreetMeLogo({ size = 'medium', clickable = true }) {
               fontSize: s.tagline,
               color: 'var(--text-secondary)',
               fontWeight: 500,
+              fontStyle: 'italic',
               letterSpacing: '0.5px',
               marginTop: '-2px',
               display: 'flex',

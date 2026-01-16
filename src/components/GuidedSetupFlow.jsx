@@ -1015,18 +1015,37 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       <p style={{
         fontSize: '0.9375rem',
         color: 'var(--text-secondary)',
-        marginBottom: '1rem',
+        marginBottom: '1.5rem',
         lineHeight: 1.6,
       }}>
         You're set. From here on out, Greet-Me can show up for the moments that matter — in your voice, with your presence.
       </p>
       <p style={{
-        fontSize: '0.8125rem',
-        color: 'var(--text-tertiary)',
-        marginBottom: '1.5rem',
+        fontSize: '1rem',
+        fontWeight: 600,
+        color: 'var(--text-primary)',
+        marginBottom: '1.25rem',
       }}>
         What would you like to do next?
       </p>
+      <button
+        onClick={goToDashboard}
+        style={{
+          width: '100%',
+          padding: '1rem',
+          background: 'white',
+          color: 'var(--text-primary)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          fontSize: '1rem',
+          fontWeight: 500,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          marginBottom: '0.75rem',
+        }}
+      >
+        Go to Dashboard
+      </button>
       <button
         onClick={goToRecipientControls}
         style={{
@@ -1040,34 +1059,9 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           fontWeight: 600,
           cursor: 'pointer',
           fontFamily: 'inherit',
-          marginBottom: '0.25rem',
         }}
       >
-        Explore recipient controls
-      </button>
-      <p style={{
-        fontSize: '0.75rem',
-        color: 'var(--text-tertiary)',
-        marginBottom: '1rem',
-      }}>
-        Personalize like a pro
-      </p>
-      <button
-        onClick={goToDashboard}
-        style={{
-          width: '100%',
-          padding: '0.875rem',
-          background: 'white',
-          color: '#6366f1',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-lg)',
-          fontSize: '0.9375rem',
-          fontWeight: 500,
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-        }}
-      >
-        Go to dashboard
+        Explore Recipient Controls (Recommended)
       </button>
     </div>
   );

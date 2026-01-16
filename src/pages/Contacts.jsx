@@ -323,71 +323,69 @@ export default function Recipients() {
             </div>
           </div>
 
-          {/* Right: Action Buttons */}
-          <div style={{
-            display: 'flex',
-            flexDirection: isMobile ? 'column' : 'row',
-            gap: '10px',
-            flexShrink: 0
-          }}>
-            <button
-              onClick={() => setShowImportModal(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: isMobile ? '14px 16px' : '12px 20px',
-                width: isMobile ? '100%' : 'auto',
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-            >
-              <Upload size={18} />
-              Import CSV
-            </button>
-            <button
-              onClick={() => setShowAddModal(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: isMobile ? '14px 16px' : '12px 20px',
-                width: isMobile ? '100%' : 'auto',
-                background: 'white',
-                color: '#667eea',
-                border: 'none',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-                fontFamily: 'inherit'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-              }}
-            >
-              <Plus size={18} />
-              Add Recipient
-            </button>
-          </div>
+        </div>
+
+        {/* Centered Action Buttons */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'row',
+          gap: '12px',
+          justifyContent: 'center',
+          marginTop: '16px'
+        }}>
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '12px 24px',
+              background: 'white',
+              color: '#667eea',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+              fontFamily: 'inherit'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+            }}
+          >
+            Add Recipient
+          </button>
+          <button
+            onClick={() => setShowImportModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '12px 24px',
+              background: 'rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              fontFamily: 'inherit'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+          >
+            Import Contacts
+          </button>
         </div>
       </div>
 

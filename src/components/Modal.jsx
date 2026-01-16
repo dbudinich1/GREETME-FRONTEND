@@ -1,8 +1,27 @@
 // src/components/Modal.jsx
-import React from 'react';
+import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md' }) {
+  const scrollContainerRef = useRef(null);
+
+  // Body scroll lock
+  useEffect(() => {
+    if (!isOpen) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [isOpen]);
+
+  // Scroll modal to top when it opens
+  useEffect(() => {
+    if (isOpen && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const sizeClasses = {
@@ -14,17 +33,21 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
-        {/* Backdrop */}
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-          onClick={onClose}
-        />
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/50"
+        onClick={onClose}
+      />
 
-        {/* Modal Content */}
-        <div className={`relative bg-white rounded-xl shadow-xl ${sizeClasses[size]} w-full`}>
+      {/* Modal positioning wrapper */}
+      <div className="relative min-h-full flex items-start justify-center p-4 pt-20">
+        {/* Modal */}
+        <div
+          className={`relative z-10 bg-white rounded-xl shadow-xl w-full ${sizeClasses[size]} max-h-[calc(100dvh-6rem)] flex flex-col overflow-hidden`}
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
             <h2 className="text-xl font-bold text-gray-900">{title}</h2>
             <button
               onClick={onClose}
@@ -35,7 +58,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
           </div>
 
           {/* Body */}
-          <div className="p-6">
+          <div ref={scrollContainerRef} className="p-4 overflow-y-auto flex-1">
             {children}
           </div>
         </div>

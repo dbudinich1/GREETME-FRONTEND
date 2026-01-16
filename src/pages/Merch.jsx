@@ -187,16 +187,15 @@ export default function Merch() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 1rem',
+            justifyContent: 'center',
+            width: '2rem',
+            height: '2rem',
+            padding: 0,
             background: 'var(--gray-100)',
             border: 'none',
             borderRadius: 'var(--radius-md)',
-            fontSize: '0.875rem',
-            fontWeight: 600,
             color: 'var(--text-secondary)',
             cursor: 'pointer',
-            fontFamily: 'inherit',
             marginBottom: '1rem',
             transition: 'all 0.2s'
           }}
@@ -206,22 +205,64 @@ export default function Merch() {
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'var(--gray-100)';
           }}
+          title="Back"
         >
-          <ArrowLeft size={16} />
-          Back
+          <ArrowLeft size={18} />
         </button>
       )}
 
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{
-          fontSize: '2rem',
-          fontWeight: 700,
-          color: 'var(--text-primary)',
-          marginBottom: '0.5rem'
-        }}>
-          Greet-Me Merchandise
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '0.5rem' }}>
+          <h1 style={{
+            fontSize: '2rem',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            margin: 0
+          }}>
+            Greet-Me Merchandise
+          </h1>
+          {/* Gifts / Merch Toggle */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            background: 'var(--gray-100)',
+            borderRadius: '9999px',
+            padding: '0.25rem'
+          }}>
+            <button
+              onClick={() => navigate('/dashboard/gifts')}
+              style={{
+                padding: '0.5rem 1rem',
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                border: 'none',
+                borderRadius: '9999px',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit'
+              }}
+            >
+              Gifts
+            </button>
+            <button
+              style={{
+                padding: '0.5rem 1rem',
+                background: 'var(--primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '9999px',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit'
+              }}
+            >
+              Merch
+            </button>
+          </div>
+        </div>
         <p style={{
           fontSize: '1rem',
           color: 'var(--text-secondary)'

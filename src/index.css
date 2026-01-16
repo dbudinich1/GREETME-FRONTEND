@@ -342,7 +342,7 @@ input::placeholder, textarea::placeholder {
 
 /* Brand Tagline */
 .tagline {
-  font-style: italic;
+  font-style: italic !important;
 }
 
 /* Utility Classes */

@@ -532,8 +532,29 @@ export default function DashboardHome() {
         alignItems: 'center',
         justifyContent: 'center',
         gap: isNarrow ? '0.75rem' : '1rem',
-        flexWrap: 'wrap'
+        flexWrap: 'wrap',
+        position: 'relative'
       }}>
+        {/* G1G1 Badge */}
+        <div style={{
+          position: 'absolute',
+          right: isNarrow ? '0.5rem' : '1rem',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: isNarrow ? '2rem' : '2.5rem',
+          height: isNarrow ? '2rem' : '2.5rem',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: isNarrow ? '0.5rem' : '0.625rem',
+          fontWeight: 700,
+          color: '#000',
+          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)'
+        }}>
+          G1G1
+        </div>
         <div style={{ textAlign: 'center' }}>
           <h2 style={{
             fontSize: isNarrow ? '0.875rem' : '1rem',

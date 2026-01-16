@@ -244,145 +244,7 @@ export default function HeroProgram() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '1.5rem'
         }}>
-          {/* Card 1: Corporate Bundles / Image Bank - Clickable */}
-          <div
-            onClick={() => setShowImageBankModal(true)}
-            style={{
-              background: 'var(--bg-primary)',
-              borderRadius: 'var(--radius-xl)',
-              padding: '2rem',
-              border: '2px solid var(--border)',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-              textAlign: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#667eea';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.2)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border)';
-              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            <div style={{
-              width: '4rem',
-              height: '4rem',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 1rem',
-              fontSize: '1.5rem'
-            }}>
-              <Building2 size={28} style={{ color: 'white' }} />
-            </div>
-            <h3 style={{
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              marginBottom: '0.5rem'
-            }}>Image Bank</h3>
-            <p style={{
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)',
-              lineHeight: 1.6
-            }}>
-              Purchase image credits to send premium greeting cards. Click to view packages and pricing.
-            </p>
-            <div style={{
-              marginTop: '1rem',
-              padding: '0.5rem 1rem',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              display: 'inline-block'
-            }}>
-              Buy Credits →
-            </div>
-          </div>
-
-          {/* Card 2: Branded Merch */}
-          <div style={{
-            background: 'var(--bg-primary)',
-            borderRadius: 'var(--radius-xl)',
-            padding: '2rem',
-            border: '1px solid var(--border)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              width: '4rem',
-              height: '4rem',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 1rem',
-              fontSize: '1.75rem'
-            }}>
-              <ShoppingCart size={28} style={{ color: 'white' }} />
-            </div>
-            <h3 style={{
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              marginBottom: '0.5rem'
-            }}>Branded Merchandise</h3>
-            <p style={{
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)',
-              lineHeight: 1.6
-            }}>
-              Custom apparel, drinkware, and accessories with your branding. Build your brand while showing appreciation.
-            </p>
-          </div>
-
-          {/* Card 3: Make It Meaningful */}
-          <div style={{
-            background: 'var(--bg-primary)',
-            borderRadius: 'var(--radius-xl)',
-            padding: '2rem',
-            border: '1px solid var(--border)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              width: '4rem',
-              height: '4rem',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 1rem',
-              fontSize: '1.5rem'
-            }}>
-              <Award size={28} style={{ color: 'white' }} />
-            </div>
-            <h3 style={{
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              marginBottom: '0.5rem'
-            }}>Make It Meaningful</h3>
-            <p style={{
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)',
-              lineHeight: 1.6
-            }}>
-              Add gifts from our American Marketplace to your greetings, supporting American makers while spreading joy.
-            </p>
-          </div>
-
-          {/* Card 4: Recognition & Impact */}
+          {/* Card 1: Recognition & Impact (FIRST) */}
           <div style={{
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
@@ -416,6 +278,255 @@ export default function HeroProgram() {
               lineHeight: 1.6
             }}>
               10% of qualifying corporate program proceeds support veterans and first responders. Track your impact with leaderboard rankings and earn permanent Hall of Heroes recognition.
+            </p>
+          </div>
+
+          {/* Card 2: Hero™ Marketplace Partners */}
+          <div style={{
+            background: 'var(--bg-primary)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '2rem',
+            border: '1px solid var(--border)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              fontSize: '1.5rem'
+            }}>
+              <Building2 size={28} style={{ color: 'white' }} />
+            </div>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem'
+            }}>Hero™ Marketplace Partners</h3>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6
+            }}>
+              Curated vendors who stand with Greet-Me to honor our heroes. Shop from partners committed to quality and purpose-driven giving.
+            </p>
+          </div>
+
+          {/* Card 3: Branded Merch */}
+          <div style={{
+            background: 'var(--bg-primary)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '2rem',
+            border: '1px solid var(--border)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              fontSize: '1.75rem'
+            }}>
+              <ShoppingCart size={28} style={{ color: 'white' }} />
+            </div>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem'
+            }}>Branded Merch</h3>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6
+            }}>
+              Custom apparel, drinkware, and accessories with your branding. Build your brand while showing appreciation.
+            </p>
+          </div>
+
+          {/* Card 4: Give-Away Value-Add Bundles */}
+          <div style={{
+            background: 'var(--bg-primary)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '2rem',
+            border: '1px solid var(--border)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              fontSize: '1.5rem'
+            }}>
+              <Gift size={28} style={{ color: 'white' }} />
+            </div>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem'
+            }}>Give-Away Value-Add Bundles</h3>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6
+            }}>
+              Pre-packaged gift bundles perfect for events, promotions, and client appreciation. Ready to give, easy to customize.
+            </p>
+          </div>
+
+          {/* Card 5: White Glove Service */}
+          <div style={{
+            background: 'var(--bg-primary)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '2rem',
+            border: '1px solid var(--border)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              fontSize: '1.5rem'
+            }}>
+              <Award size={28} style={{ color: 'white' }} />
+            </div>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem'
+            }}>White Glove Service</h3>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6
+            }}>
+              Full-service concierge support for enterprise clients. We handle everything from curation to delivery.
+            </p>
+          </div>
+
+          {/* Card 6: Subscriptions */}
+          <div
+            onClick={() => setShowImageBankModal(true)}
+            style={{
+              background: 'var(--bg-primary)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '2rem',
+              border: '2px solid var(--border)',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+              textAlign: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#667eea';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.2)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border)';
+              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              fontSize: '1.5rem'
+            }}>
+              <Image size={28} style={{ color: 'white' }} />
+            </div>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem'
+            }}>Subscriptions</h3>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6
+            }}>
+              Purchase image credits to send premium greeting cards. Click to view packages and pricing.
+            </p>
+            <div style={{
+              marginTop: '1rem',
+              padding: '0.5rem 1rem',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              display: 'inline-block'
+            }}>
+              Buy Credits →
+            </div>
+          </div>
+
+          {/* Card 7: Bundles (LAST) */}
+          <div style={{
+            background: 'var(--bg-primary)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '2rem',
+            border: '1px solid var(--border)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              fontSize: '1.5rem'
+            }}>
+              <Gift size={28} style={{ color: 'white' }} />
+            </div>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem'
+            }}>Bundles</h3>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6
+            }}>
+              Curated gift collections combining the best of Greet-Me. Perfect for bulk purchases and corporate gifting programs.
             </p>
           </div>
         </div>

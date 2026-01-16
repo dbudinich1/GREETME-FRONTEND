@@ -35,6 +35,14 @@ const getInitialFormData = () => ({
     budgetCap: '',
     giftingMode: 'always',
   },
+  shippingAddress: {
+    line1: '',
+    line2: '',
+    city: '',
+    state: '',
+    zip: '',
+    country: 'United States',
+  },
 });
 
 export default function ContactForm({ contact, onSubmit, onCancel }) {
@@ -45,9 +53,12 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
   const [submitting, setSubmitting] = useState(false);
   const [culturalSectionExpanded, setCulturalSectionExpanded] = useState(false);
   const [secularExpanded, setSecularExpanded] = useState(false);
+  const [faithSectionExpanded, setFaithSectionExpanded] = useState(false);
 
   // Ref for the form container - used for scroll restoration
   const formRef = useRef(null);
+  // Ref for the first input field - used for auto-focus
+  const nameInputRef = useRef(null);
 
   const occasionCategories = getOccasionsByCategory();
 
@@ -130,6 +141,14 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         }
         // Clear after restoring
         sessionStorage.removeItem(FORM_SCROLL_KEY);
+      } else {
+        // No saved scroll = fresh open. Auto-focus the name input and scroll to form.
+        setTimeout(() => {
+          if (nameInputRef.current) {
+            nameInputRef.current.focus();
+            nameInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
       }
     } catch (e) {
       console.warn('Could not restore scroll position:', e);
@@ -235,9 +254,11 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
     }));
   };
 
-  // Gift settings helper - default: { type: "none", requireConfirm: true }
+  // Gift settings helper - default: { type: "none", autoGift: false }
+  // autoGift: false = Manual Selection (user must confirm 10 days before)
+  // autoGift: true = Auto-Gift Enabled (gift sends automatically)
   const getOccasionGiftSetting = (occasionValue) => {
-    return formData.occasionGiftSettings?.[occasionValue] || { type: 'none', requireConfirm: true };
+    return formData.occasionGiftSettings?.[occasionValue] || { type: 'none', autoGift: false };
   };
 
   const handleOccasionGiftChange = (occasionValue, field, value) => {
@@ -389,6 +410,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               Name <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <input
+              ref={nameInputRef}
               type="text"
               name="name"
               value={formData.name}
@@ -1383,11 +1405,39 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                             }}
                           >
                             <option value="none">None</option>
-                            <option value="qrcash">QR Cash</option>
-                            <option value="merch">Greet-Me Merch</option>
-                            <option value="subscription">Subscription</option>
+                            <option value="qrcash">QR Cash™</option>
+                            <option value="merch">Merch</option>
+                            <option value="curated">Let Greet-Me select a gift</option>
+                            <option value="marketplace">Browse Marketplace</option>
                           </select>
                         </div>
+
+                        {/* Curated gift max spend selector */}
+                        {giftSetting.type === 'curated' && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <DollarSign size={14} style={{ color: '#667eea' }} />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Max:</span>
+                            <select
+                              value={giftSetting.maxSpend || 50}
+                              onChange={(e) => handleOccasionGiftChange(occasion.value, 'maxSpend', parseInt(e.target.value))}
+                              style={{
+                                padding: '0.375rem 0.625rem',
+                                border: '1px solid #667eea',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit',
+                                background: '#f0f4ff',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value={25}>$25</option>
+                              <option value={50}>$50</option>
+                              <option value={75}>$75</option>
+                              <option value={100}>$100</option>
+                              <option value={150}>$150</option>
+                            </select>
+                          </div>
+                        )}
 
                         {/* QR Cash amount selector */}
                         {giftSetting.type === 'qrcash' && (
@@ -1439,7 +1489,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                             type="button"
                             onClick={() => {
                               saveScrollPosition();
-                              navigate(`/dashboard/gifts?category=${giftSetting.type}`);
+                              navigate(giftSetting.type === 'merch' ? '/dashboard/merch?category=merch' : `/dashboard/gifts?category=${giftSetting.type}`);
                             }}
                             style={{
                               padding: '0.375rem 0.75rem',
@@ -1462,25 +1512,183 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                         )}
                       </div>
 
-                      {/* Require confirmation checkbox - only when gift is selected */}
+                      {/* Auto-Gift toggle with badge - only when gift is selected */}
                       {giftSetting.type !== 'none' && (
-                        <label style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          marginTop: '0.625rem',
-                          cursor: 'pointer'
+                        <div style={{ marginTop: '0.625rem' }}>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '0.5rem'
+                          }}>
+                            <label style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              cursor: 'pointer'
+                            }}>
+                              <input
+                                type="checkbox"
+                                checked={giftSetting.autoGift === true}
+                                onChange={(e) => handleOccasionGiftChange(occasion.value, 'autoGift', e.target.checked)}
+                                style={{ width: '0.875rem', height: '0.875rem', accentColor: '#667eea' }}
+                              />
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                Enable Auto-Gift
+                              </span>
+                            </label>
+                            <span style={{
+                              fontSize: '0.625rem',
+                              fontWeight: 600,
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '9999px',
+                              background: giftSetting.autoGift ? 'rgba(102, 126, 234, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                              color: giftSetting.autoGift ? '#667eea' : 'var(--text-tertiary)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.025em'
+                            }}>
+                              {giftSetting.autoGift ? 'Auto-Gift Enabled' : 'Manual Selection'}
+                            </span>
+                          </div>
+                          <p style={{
+                            fontSize: '0.6875rem',
+                            color: 'var(--text-tertiary)',
+                            marginTop: '0.375rem',
+                            marginLeft: '1.375rem'
+                          }}>
+                            {giftSetting.autoGift
+                              ? 'Gift will be sent automatically on the occasion date.'
+                              : 'You\'ll receive a reminder 10 days before to confirm.'}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Shipping Address - only for curated gift option */}
+                      {giftSetting.type === 'curated' && (
+                        <div style={{
+                          marginTop: '1rem',
+                          padding: '1rem',
+                          background: 'rgba(102, 126, 234, 0.05)',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid rgba(102, 126, 234, 0.2)'
                         }}>
-                          <input
-                            type="checkbox"
-                            checked={giftSetting.requireConfirm !== false}
-                            onChange={(e) => handleOccasionGiftChange(occasion.value, 'requireConfirm', e.target.checked)}
-                            style={{ width: '0.875rem', height: '0.875rem', accentColor: '#10b981' }}
-                          />
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            Require confirmation before sending gift
-                          </span>
-                        </label>
+                          <h4 style={{
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            color: '#667eea',
+                            marginBottom: '0.75rem'
+                          }}>
+                            Shipping Address
+                          </h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <input
+                              type="text"
+                              placeholder="Address Line 1 *"
+                              value={formData.shippingAddress?.line1 || ''}
+                              onChange={(e) => setFormData(prev => ({
+                                ...prev,
+                                shippingAddress: { ...prev.shippingAddress, line1: e.target.value }
+                              }))}
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit'
+                              }}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Address Line 2"
+                              value={formData.shippingAddress?.line2 || ''}
+                              onChange={(e) => setFormData(prev => ({
+                                ...prev,
+                                shippingAddress: { ...prev.shippingAddress, line2: e.target.value }
+                              }))}
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit'
+                              }}
+                            />
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <input
+                                type="text"
+                                placeholder="City *"
+                                value={formData.shippingAddress?.city || ''}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  shippingAddress: { ...prev.shippingAddress, city: e.target.value }
+                                }))}
+                                style={{
+                                  flex: 2,
+                                  padding: '0.5rem',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit'
+                                }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="State *"
+                                value={formData.shippingAddress?.state || ''}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  shippingAddress: { ...prev.shippingAddress, state: e.target.value }
+                                }))}
+                                style={{
+                                  flex: 1,
+                                  padding: '0.5rem',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit'
+                                }}
+                              />
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <input
+                                type="text"
+                                placeholder="ZIP Code *"
+                                value={formData.shippingAddress?.zip || ''}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  shippingAddress: { ...prev.shippingAddress, zip: e.target.value }
+                                }))}
+                                style={{
+                                  flex: 1,
+                                  padding: '0.5rem',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit'
+                                }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Country *"
+                                value={formData.shippingAddress?.country || 'United States'}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  shippingAddress: { ...prev.shippingAddress, country: e.target.value }
+                                }))}
+                                style={{
+                                  flex: 1,
+                                  padding: '0.5rem',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit'
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}
@@ -1680,11 +1888,39 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                             }}
                           >
                             <option value="none">None</option>
-                            <option value="qrcash">QR Cash</option>
-                            <option value="merch">Greet-Me Merch</option>
-                            <option value="subscription">Subscription</option>
+                            <option value="qrcash">QR Cash™</option>
+                            <option value="merch">Merch</option>
+                            <option value="curated">Let Greet-Me select a gift</option>
+                            <option value="marketplace">Browse Marketplace</option>
                           </select>
                         </div>
+
+                        {/* Curated gift max spend selector */}
+                        {giftSetting.type === 'curated' && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <DollarSign size={14} style={{ color: '#667eea' }} />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Max:</span>
+                            <select
+                              value={giftSetting.maxSpend || 50}
+                              onChange={(e) => handleOccasionGiftChange(occasion.value, 'maxSpend', parseInt(e.target.value))}
+                              style={{
+                                padding: '0.375rem 0.625rem',
+                                border: '1px solid #667eea',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit',
+                                background: '#f0f4ff',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value={25}>$25</option>
+                              <option value={50}>$50</option>
+                              <option value={75}>$75</option>
+                              <option value={100}>$100</option>
+                              <option value={150}>$150</option>
+                            </select>
+                          </div>
+                        )}
 
                         {/* QR Cash amount selector */}
                         {giftSetting.type === 'qrcash' && (
@@ -1736,7 +1972,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                             type="button"
                             onClick={() => {
                               saveScrollPosition();
-                              navigate(`/dashboard/gifts?category=${giftSetting.type}`);
+                              navigate(giftSetting.type === 'merch' ? '/dashboard/merch?category=merch' : `/dashboard/gifts?category=${giftSetting.type}`);
                             }}
                             style={{
                               padding: '0.375rem 0.75rem',
@@ -1759,25 +1995,183 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                         )}
                       </div>
 
-                      {/* Require confirmation checkbox - only when gift is selected */}
+                      {/* Auto-Gift toggle with badge - only when gift is selected */}
                       {giftSetting.type !== 'none' && (
-                        <label style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          marginTop: '0.625rem',
-                          cursor: 'pointer'
+                        <div style={{ marginTop: '0.625rem' }}>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '0.5rem'
+                          }}>
+                            <label style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              cursor: 'pointer'
+                            }}>
+                              <input
+                                type="checkbox"
+                                checked={giftSetting.autoGift === true}
+                                onChange={(e) => handleOccasionGiftChange(occasion.value, 'autoGift', e.target.checked)}
+                                style={{ width: '0.875rem', height: '0.875rem', accentColor: '#667eea' }}
+                              />
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                Enable Auto-Gift
+                              </span>
+                            </label>
+                            <span style={{
+                              fontSize: '0.625rem',
+                              fontWeight: 600,
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '9999px',
+                              background: giftSetting.autoGift ? 'rgba(102, 126, 234, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                              color: giftSetting.autoGift ? '#667eea' : 'var(--text-tertiary)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.025em'
+                            }}>
+                              {giftSetting.autoGift ? 'Auto-Gift Enabled' : 'Manual Selection'}
+                            </span>
+                          </div>
+                          <p style={{
+                            fontSize: '0.6875rem',
+                            color: 'var(--text-tertiary)',
+                            marginTop: '0.375rem',
+                            marginLeft: '1.375rem'
+                          }}>
+                            {giftSetting.autoGift
+                              ? 'Gift will be sent automatically on the occasion date.'
+                              : 'You\'ll receive a reminder 10 days before to confirm.'}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Shipping Address - only for curated gift option */}
+                      {giftSetting.type === 'curated' && (
+                        <div style={{
+                          marginTop: '1rem',
+                          padding: '1rem',
+                          background: 'rgba(102, 126, 234, 0.05)',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid rgba(102, 126, 234, 0.2)'
                         }}>
-                          <input
-                            type="checkbox"
-                            checked={giftSetting.requireConfirm !== false}
-                            onChange={(e) => handleOccasionGiftChange(occasion.value, 'requireConfirm', e.target.checked)}
-                            style={{ width: '0.875rem', height: '0.875rem', accentColor: '#10b981' }}
-                          />
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            Require confirmation before sending gift
-                          </span>
-                        </label>
+                          <h4 style={{
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            color: '#667eea',
+                            marginBottom: '0.75rem'
+                          }}>
+                            Shipping Address
+                          </h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <input
+                              type="text"
+                              placeholder="Address Line 1 *"
+                              value={formData.shippingAddress?.line1 || ''}
+                              onChange={(e) => setFormData(prev => ({
+                                ...prev,
+                                shippingAddress: { ...prev.shippingAddress, line1: e.target.value }
+                              }))}
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit'
+                              }}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Address Line 2"
+                              value={formData.shippingAddress?.line2 || ''}
+                              onChange={(e) => setFormData(prev => ({
+                                ...prev,
+                                shippingAddress: { ...prev.shippingAddress, line2: e.target.value }
+                              }))}
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit'
+                              }}
+                            />
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <input
+                                type="text"
+                                placeholder="City *"
+                                value={formData.shippingAddress?.city || ''}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  shippingAddress: { ...prev.shippingAddress, city: e.target.value }
+                                }))}
+                                style={{
+                                  flex: 2,
+                                  padding: '0.5rem',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit'
+                                }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="State *"
+                                value={formData.shippingAddress?.state || ''}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  shippingAddress: { ...prev.shippingAddress, state: e.target.value }
+                                }))}
+                                style={{
+                                  flex: 1,
+                                  padding: '0.5rem',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit'
+                                }}
+                              />
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <input
+                                type="text"
+                                placeholder="ZIP Code *"
+                                value={formData.shippingAddress?.zip || ''}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  shippingAddress: { ...prev.shippingAddress, zip: e.target.value }
+                                }))}
+                                style={{
+                                  flex: 1,
+                                  padding: '0.5rem',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit'
+                                }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Country *"
+                                value={formData.shippingAddress?.country || 'United States'}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  shippingAddress: { ...prev.shippingAddress, country: e.target.value }
+                                }))}
+                                style={{
+                                  flex: 1,
+                                  padding: '0.5rem',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit'
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}
@@ -1789,12 +2183,77 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           )}
         </div>
 
-        {/* Faith-Based Occasions - New Clean Interface */}
-        <div>
-          <FaithBasedOccasionSelector
-            selectedFaiths={selectedFaiths}
-            onChange={handleFaithSelectionChange}
-          />
+        {/* Faith-Based Occasions - Collapsible Section */}
+        <div style={{
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          overflow: 'hidden'
+        }}>
+          {/* Collapse Header */}
+          <button
+            type="button"
+            onClick={() => setFaithSectionExpanded(!faithSectionExpanded)}
+            style={{
+              width: '100%',
+              padding: '1rem',
+              background: faithSectionExpanded ? 'rgba(99, 102, 241, 0.05)' : 'var(--gray-50)',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontFamily: 'inherit'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                type="checkbox"
+                checked={faithSectionExpanded}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setFaithSectionExpanded(e.target.checked);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  width: '1rem',
+                  height: '1rem',
+                  cursor: 'pointer',
+                  accentColor: 'var(--primary)'
+                }}
+              />
+              <span style={{
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)'
+              }}>
+                Faith-Based Holidays
+              </span>
+              <span style={{
+                fontSize: '0.75rem',
+                color: 'var(--text-tertiary)'
+              }}>
+                (Optional)
+              </span>
+            </div>
+            <span style={{
+              fontSize: '1rem',
+              color: 'var(--text-tertiary)',
+              transition: 'transform 0.2s',
+              transform: faithSectionExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
+            }}>
+              ▼
+            </span>
+          </button>
+
+          {/* Collapsible Content */}
+          {faithSectionExpanded && (
+            <div style={{ padding: '1rem', borderTop: '1px solid var(--border)' }}>
+              <FaithBasedOccasionSelector
+                selectedFaiths={selectedFaiths}
+                onChange={handleFaithSelectionChange}
+              />
+            </div>
+          )}
         </div>
 
         {/* Date entry for faith-based occasions that need dates */}
