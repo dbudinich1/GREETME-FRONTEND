@@ -551,24 +551,6 @@ export default function DashboardHome() {
             Every subscription includes one for a loved one
           </p>
         </div>
-        <button
-          onClick={() => navigate('/dashboard/hero')}
-          style={{
-            padding: '0.375rem 0.875rem',
-            background: 'white',
-            color: '#10b981',
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-            fontFamily: 'inherit'
-          }}
-        >
-          Learn More
-        </button>
       </div>
 
       {/* QR Cash - Compact Card */}
