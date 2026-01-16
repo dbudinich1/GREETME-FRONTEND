@@ -72,7 +72,10 @@ export default function ForBusiness() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%)'
+      background: 'linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%)',
+      width: '100%',
+      maxWidth: '100%',
+      overflowX: 'hidden'
     }}>
       {/* Back Button */}
       <div style={{
@@ -174,10 +177,12 @@ export default function ForBusiness() {
       <section style={{
         maxWidth: '1200px',
         margin: '0 auto',
-        padding: '4rem 2rem',
+        padding: '4rem 1rem',
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        gap: '2rem'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+        gap: '1.5rem',
+        width: '100%',
+        boxSizing: 'border-box'
       }}>
         {/* 1. Branded Merchandise */}
         <div style={{
