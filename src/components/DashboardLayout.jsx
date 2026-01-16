@@ -108,6 +108,7 @@ export default function DashboardLayout() {
         }}>
           {/* Hamburger Menu Button - Mobile Only */}
           {isNarrow && (
+            <div style={{ minWidth: '2rem', flexShrink: 0 }}>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               style={{
@@ -141,6 +142,7 @@ export default function DashboardLayout() {
                 </div>
               )}
             </button>
+            </div>
           )}
 
           {/* G1G1 Gold Foil Seal with Star-Point Edge - Hide on mobile */}
@@ -324,7 +326,7 @@ export default function DashboardLayout() {
           </div>
 
           {/* Right side - Image Bank, Cart, User icon */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: isNarrow ? '0.125rem' : '0.25rem', justifyContent: 'flex-end', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isNarrow ? '0.25rem' : '0.5rem', justifyContent: 'flex-end', flexShrink: 0, minWidth: isNarrow ? '6rem' : 'auto' }}>
             {/* Image Bank - for tracking images */}
             <button
               onClick={() => navigate('/dashboard/animations')}
