@@ -389,6 +389,14 @@ if (typeof window !== "undefined") {
               errors.contactId ? 'border-red-500' : 'border-gray-300'
             }`}
             disabled={contacts.length === 0}
+            style={{
+              WebkitAppearance: 'menulist',
+              appearance: 'menulist',
+              cursor: 'pointer',
+              touchAction: 'manipulation',
+              position: 'relative',
+              zIndex: 1
+            }}
           >
             <option value="">Choose a recipient...</option>
             {contacts.map((contact) => (
