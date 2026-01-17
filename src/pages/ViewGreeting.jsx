@@ -143,14 +143,16 @@ export default function ViewGreeting() {
     );
   }
 
-  // Convert greeting to multi-page format for card viewer
-  const cardPages = convertToMultiPageFormat({
+  // Convert greeting to canonical format for card viewer
+  const canonicalGreeting = convertToMultiPageFormat({
+    senderName: greeting.senderName,
+    recipientName: greeting.recipientName,
+    occasionType: greeting.occasionType,
+    message: greeting.message,
     photoUrl: greeting.photoUrl,
     videoUrl: greeting.videoUrl,
     voiceUrl: greeting.voiceUrl,
-    message: greeting.message,
-    senderName: greeting.senderName,
-    occasionType: greeting.occasionType,
+    photos: greeting.photos,
   });
 
   // Build gift object if QR Cash is included
@@ -181,14 +183,11 @@ export default function ViewGreeting() {
           <GreetMeLogo size="medium" clickable={false} />
         </div>
 
-        {/* Greeting Card Viewer (LOCKED CONTRACT) */}
+        {/* Greeting Card Viewer (LOCKED CANONICAL CONTRACT) */}
         <GreetingCardViewer
-          pages={cardPages}
+          greeting={canonicalGreeting}
           gift={giftData}
           greetingId={id}
-          senderName={greeting.senderName}
-          recipientName={greeting.recipientName || 'Friend'}
-          occasionType={greeting.occasionType || 'greeting'}
           onComplete={() => setCardCompleted(true)}
           onGiftReveal={() => setGiftRevealed(true)}
         />
