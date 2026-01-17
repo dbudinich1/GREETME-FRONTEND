@@ -1,11 +1,13 @@
 // src/pages/ViewGreeting.jsx
 // Public greeting viewer for recipients (no account required)
+// Uses LOCKED Card Interaction Contract via GreetingCardViewer
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Heart, Gift, Play, AlertCircle } from 'lucide-react';
+import { Heart, AlertCircle } from 'lucide-react';
 import GreetMeLogo from '../components/GreetMeLogo';
 import ThankYouModal from '../components/ThankYouModal';
+import GreetingCardViewer, { convertToMultiPageFormat } from '../components/GreetingCardViewer';
 import { hasThankYouBeenSent } from '../utils/thankYou';
 
 // Mobile detection
@@ -19,6 +21,8 @@ export default function ViewGreeting() {
   const [error, setError] = useState(null);
   const [showThankYouModal, setShowThankYouModal] = useState(false);
   const [thankYouSent, setThankYouSent] = useState(false);
+  const [cardCompleted, setCardCompleted] = useState(false);
+  const [giftRevealed, setGiftRevealed] = useState(false);
 
   useEffect(() => {
     loadGreeting();
@@ -139,6 +143,23 @@ export default function ViewGreeting() {
     );
   }
 
+  // Convert greeting to multi-page format for card viewer
+  const cardPages = convertToMultiPageFormat({
+    photoUrl: greeting.photoUrl,
+    videoUrl: greeting.videoUrl,
+    voiceUrl: greeting.voiceUrl,
+    message: greeting.message,
+    senderName: greeting.senderName,
+    occasionType: greeting.occasionType,
+  });
+
+  // Build gift object if QR Cash is included
+  const giftData = greeting.qrCashAmount ? {
+    type: 'qr_cash',
+    amount: greeting.qrCashAmount,
+    onClaim: () => navigate(`/redeem/qr-cash/${greeting.qrCashId || id}`),
+  } : null;
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -160,137 +181,27 @@ export default function ViewGreeting() {
           <GreetMeLogo size="medium" clickable={false} />
         </div>
 
-        {/* Greeting Card */}
-        <div style={{
-          background: 'white',
-          borderRadius: 'var(--radius-xl)',
-          overflow: 'hidden',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.25)',
-        }}>
-          {/* Card Header */}
+        {/* Greeting Card Viewer (LOCKED CONTRACT) */}
+        <GreetingCardViewer
+          pages={cardPages}
+          gift={giftData}
+          greetingId={id}
+          senderName={greeting.senderName}
+          recipientName={greeting.recipientName || 'Friend'}
+          occasionType={greeting.occasionType || 'greeting'}
+          onComplete={() => setCardCompleted(true)}
+          onGiftReveal={() => setGiftRevealed(true)}
+        />
+
+        {/* Thank You CTA - Only visible after card completion */}
+        {cardCompleted && (
           <div style={{
-            background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 100%)',
+            marginTop: '1.5rem',
+            background: 'white',
+            borderRadius: 'var(--radius-xl)',
             padding: isMobile ? '1.25rem' : '1.5rem',
-            textAlign: 'center',
-            color: 'white',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
           }}>
-            <p style={{
-              fontSize: '0.875rem',
-              opacity: 0.9,
-              marginBottom: '0.25rem',
-            }}>
-              A greeting for you from
-            </p>
-            <h1 style={{
-              fontSize: isMobile ? '1.5rem' : '1.75rem',
-              fontWeight: 700,
-              margin: 0,
-            }}>
-              {greeting.senderName}
-            </h1>
-          </div>
-
-          {/* Video/Photo Section (if available) */}
-          {greeting.videoUrl && (
-            <div style={{
-              background: '#000',
-              position: 'relative',
-            }}>
-              <video
-                src={greeting.videoUrl}
-                controls
-                poster={greeting.photoUrl}
-                style={{
-                  width: '100%',
-                  display: 'block',
-                }}
-              />
-            </div>
-          )}
-
-          {/* Message Section */}
-          <div style={{
-            padding: isMobile ? '1.25rem' : '1.5rem',
-          }}>
-            {/* Greeting Message */}
-            <div style={{
-              background: 'var(--gray-50)',
-              borderRadius: 'var(--radius-lg)',
-              padding: isMobile ? '1rem' : '1.25rem',
-              marginBottom: '1.25rem',
-              borderLeft: '4px solid #ec4899',
-            }}>
-              <p style={{
-                fontSize: isMobile ? '1rem' : '1.0625rem',
-                color: 'var(--text-primary)',
-                lineHeight: 1.7,
-                margin: 0,
-                fontStyle: 'italic',
-              }}>
-                "{greeting.message}"
-              </p>
-            </div>
-
-            {/* QR Cash Section (if included) */}
-            {greeting.qrCashAmount && (
-              <div style={{
-                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '1rem',
-                marginBottom: '1.25rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-              }}>
-                <div style={{
-                  width: '3rem',
-                  height: '3rem',
-                  borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Gift size={24} style={{ color: 'white' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{
-                    fontSize: '0.8125rem',
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    margin: 0,
-                    marginBottom: '0.125rem',
-                  }}>
-                    Cash gift included
-                  </p>
-                  <p style={{
-                    fontSize: '1.5rem',
-                    fontWeight: 700,
-                    color: 'white',
-                    margin: 0,
-                  }}>
-                    ${greeting.qrCashAmount}
-                  </p>
-                </div>
-                <button
-                  onClick={() => navigate(`/redeem/qr-cash/${greeting.qrCashId || id}`)}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: 'white',
-                    color: '#f59e0b',
-                    border: 'none',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.8125rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  Claim
-                </button>
-              </div>
-            )}
-
-            {/* Thank You CTA */}
             <button
               onClick={handleThankYouClick}
               disabled={thankYouSent}
@@ -342,23 +253,7 @@ export default function ViewGreeting() {
               </p>
             )}
           </div>
-
-          {/* Footer */}
-          <div style={{
-            borderTop: '1px solid var(--border)',
-            padding: '0.75rem',
-            textAlign: 'center',
-            background: 'var(--gray-50)',
-          }}>
-            <p style={{
-              fontSize: '0.6875rem',
-              color: 'var(--text-tertiary)',
-              margin: 0,
-            }}>
-              Sent via <strong>Greet-Me</strong> • Share meaningful moments
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Create Your Own CTA */}
         <div style={{
