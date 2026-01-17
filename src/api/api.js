@@ -170,7 +170,7 @@ class ApiService {
   // Public Greeting View (no auth required)
   // --------------------
   getPublicGreeting(greetingId) {
-    return this.request(`/api/greetings/public/${greetingId}`);
+    return this.request(`/api/public/greetings/${greetingId}`);
   }
 
   // --------------------

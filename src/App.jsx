@@ -29,6 +29,7 @@ import ForBusiness from "./pages/ForBusiness";
 import Rewards from "./pages/Rewards";
 import Notifications from "./pages/Notifications";
 import RecipientGreeting from "./pages/RecipientGreeting";
+import PublicGreetingCard from "./pages/PublicGreetingCard";
 
 export default function App() {
   return (
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/redeem/qr-cash/:id" element={<RedeemQRCash />} />
           <Route path="/greeting/:greetingId" element={<RecipientGreeting />} />
+          <Route path="/g/:jobId" element={<PublicGreetingCard />} />
 
           {/* Protected Routes */}
           <Route
