@@ -1,28 +1,40 @@
 // src/components/GreetingCardViewer.jsx
 // ═══════════════════════════════════════════════════════════════════════════════
-// GREET-ME™ — PREMIUM PACKAGING MASTER SPEC
+// GREET-ME™ — PREMIUM PACKAGING MASTER SPEC (FINAL / LOCKED)
 // Status: CANONICAL · FINAL · LOCKED
 // Creative Discretion: NONE
 // Scope Expansion: FORBIDDEN
 // Interpretation: LITERAL ONLY
 // ═══════════════════════════════════════════════════════════════════════════════
 //
-// FOUNDATIONAL INTENT:
-// Greet-Me™ is a premium emotional keepsake, not a digital message or UI flow.
-// This system must compete directly with real physical greeting cards by replacing
-// physical friction with visible ceremony, restraint, and intention.
+// FOUNDATIONAL INTENT (ABSOLUTE):
+// Greet-Me™ is a premium emotional keepsake competing directly with real physical
+// greeting cards. Digital convenience is a liability, not a benefit.
+//
+// If something becomes faster, easier, clearer, more flexible, or more "usable"
+// it is WRONG unless it simultaneously increases ceremony, restraint, and
+// perceived effort.
 //
 // DO NOT MODIFY without explicit approval.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Volume2, VolumeX, RotateCcw } from 'lucide-react';
+import { Volume2 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS — LOCKED
 // ═══════════════════════════════════════════════════════════════════════════════
 const COMPLETION_STORAGE_KEY = 'greetme_card_completions';
 const ENVELOPE_OPENED_KEY = 'greetme_envelope_opened';
+const CUSTODY_RELEASE_KEY = 'greetme_custody_released';
+
+// PRE-OCCASION CUSTODY (LOCKED - Section 4)
+// Applies to: Christmas, major holidays, milestone occasions only
+const CUSTODY_OCCASIONS = {
+  christmas: { releaseDate: '12-25', copy: 'For Christmas morning.' },
+  holiday: { releaseDate: null, copy: null }, // Generic holidays don't have custody
+  // Future: new_year: { releaseDate: '01-01', copy: 'For New Year\'s Day.' },
+};
 
 // LOCKED TIMING CONTRACT
 const TIMING = {
@@ -64,6 +76,12 @@ const OCCASION_STYLES = {
     coverBase: '#FFF5F5',
     openingTint: 'rgba(255, 180, 180, 0.10)',
     animationType: 'heart-bokeh',
+  },
+  christmas: {
+    name: 'Christmas Morning',
+    coverBase: '#F8FBF5',
+    openingTint: 'rgba(200, 220, 200, 0.10)',
+    animationType: 'ambient',
   },
   holiday: {
     name: 'Seasonal Refinement',
@@ -120,25 +138,26 @@ export default function GreetingCardViewer({
   // STATE
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // Pre-Occasion Custody state (LOCKED: Section 4)
+  const [inCustody, setInCustody] = useState(false);
+  const [custodyCopy, setCustodyCopy] = useState(null);
+
   // Envelope state (LOCKED: Envelope Moment)
   const [envelopeState, setEnvelopeState] = useState('sealed'); // sealed | opening | opened
   const [openingProgress, setOpeningProgress] = useState(0);
-  const [hasOpenedBefore, setHasOpenedBefore] = useState(false);
 
   // Card state
   const [currentPage, setCurrentPage] = useState(0);
   const [hasCompletedOnce, setHasCompletedOnce] = useState(false);
   const [pagesViewed, setPagesViewed] = useState(new Set([0]));
   const [canNavigate, setCanNavigate] = useState(false);
-  const [pageEnteredAt, setPageEnteredAt] = useState(Date.now());
 
   // Audio state
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [isAudioMuted] = useState(false); // LOCKED: No mute control exposed
 
   // Animation state
   const [animationActive, setAnimationActive] = useState(false);
-  const [isReplayMode, setIsReplayMode] = useState(false);
 
   // Gift state
   const [showGift, setShowGift] = useState(false);
@@ -201,7 +220,7 @@ export default function GreetingCardViewer({
   const currentPageData = pages[currentPage] || {};
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PERSISTENCE CHECK
+  // PERSISTENCE CHECK & CUSTODY (LOCKED)
   // ═══════════════════════════════════════════════════════════════════════════
   useEffect(() => {
     if (greetingId) {
@@ -212,14 +231,38 @@ export default function GreetingCardViewer({
         setPagesViewed(new Set(Array.from({ length: totalPages }, (_, i) => i)));
       }
 
-      // Check if envelope was opened before (RE-ENTRY MODE)
+      // Check if envelope was opened before (RE-ENTRY MODE - Section 16)
+      // LOCKED: No envelope on re-entry, card already open, objecthood preserved
       const envelopeOpened = JSON.parse(localStorage.getItem(ENVELOPE_OPENED_KEY) || '{}');
       if (envelopeOpened[greetingId]) {
-        setHasOpenedBefore(true);
         setEnvelopeState('opened');
       }
+
+      // PRE-OCCASION CUSTODY CHECK (LOCKED - Section 4)
+      // Applies to Christmas, major holidays, milestone occasions only
+      const custodyConfig = CUSTODY_OCCASIONS[occasionType];
+      if (custodyConfig?.releaseDate && custodyConfig?.copy) {
+        const today = new Date();
+        const [releaseMonth, releaseDay] = custodyConfig.releaseDate.split('-').map(Number);
+        const releaseDate = new Date(today.getFullYear(), releaseMonth - 1, releaseDay);
+
+        // Check if already released for this greeting
+        const released = JSON.parse(localStorage.getItem(CUSTODY_RELEASE_KEY) || '{}');
+
+        if (!released[greetingId] && today < releaseDate) {
+          // LOCKED: Envelope visible, no opening affordance, no sound, no animation
+          // No explanation, no feedback on interaction
+          setInCustody(true);
+          setCustodyCopy(custodyConfig.copy);
+        } else if (today >= releaseDate && !released[greetingId]) {
+          // On the date: opening affordance silently appears, copy disappears
+          // No announcement - custody must feel human, not scheduled
+          released[greetingId] = { releasedAt: new Date().toISOString() };
+          localStorage.setItem(CUSTODY_RELEASE_KEY, JSON.stringify(released));
+        }
+      }
     }
-  }, [greetingId, totalPages]);
+  }, [greetingId, totalPages, occasionType]);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // COMPLETION TRACKING
@@ -251,15 +294,15 @@ export default function GreetingCardViewer({
   }, [allPagesViewed, isOnFinalPage, hasCompletedOnce, gift, greetingId, onComplete, onGiftReveal, envelopeState]);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // MINIMUM DWELL TIME PER PAGE (LOCKED)
+  // MINIMUM DWELL TIME PER PAGE (LOCKED - Section 8)
+  // Pages are surfaces, not slides - minimum dwell time enforced
   // ═══════════════════════════════════════════════════════════════════════════
   useEffect(() => {
     if (envelopeState !== 'opened') return;
 
     setCanNavigate(false);
-    setPageEnteredAt(Date.now());
 
-    // After first completion, no dwell time required
+    // After first completion, no dwell time required (LOCKED - Section 16: Aftercare)
     if (hasCompletedOnce) {
       setCanNavigate(true);
       return;
@@ -275,15 +318,18 @@ export default function GreetingCardViewer({
   }, [currentPage, envelopeState, hasCompletedOnce]);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ENVELOPE MOMENT (LOCKED)
-  // One centered object in space
-  // No interaction initially — must communicate: this is complete, prepared, singular
+  // ENVELOPE MOMENT (LOCKED - Section 5)
+  // Single object, centered, silent, no branding, no sender name
+  // No interaction initially — must communicate: this exists, this is finished, this is waiting
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // ACT OF OPENING (LOCKED)
-  // Sustained, deliberate action — cannot be accidental, rushed, or replayed
-  // 800-1200ms total
-  const handleEnvelopeMouseDown = (e) => {
+  // ACT OF OPENING (LOCKED - Section 6)
+  // One deliberate, irreversible gesture
+  // Resisted, cannot be accidental, 800-1200ms total
+  // Sound only at release (≤1s, paper/fiber)
+  const handleEnvelopeMouseDown = () => {
+    // LOCKED: No interaction during custody (Section 4)
+    if (inCustody) return;
     if (envelopeState !== 'sealed') return;
 
     openingStartRef.current = Date.now();
@@ -468,25 +514,8 @@ export default function GreetingCardViewer({
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // CONTROLS
+  // AUDIO HANDLERS (LOCKED - Section 10 & 11)
   // ═══════════════════════════════════════════════════════════════════════════
-  const toggleMute = () => {
-    setIsAudioMuted(!isAudioMuted);
-    if (audioRef.current) {
-      audioRef.current.muted = !isAudioMuted;
-    }
-  };
-
-  const handleReplay = () => {
-    if (!hasCompletedOnce) return;
-    setIsReplayMode(true);
-    setCurrentPage(0);
-    setShowGift(false);
-    setAnimationActive(false);
-    timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
-  };
-
   const handleAudioEnded = () => {
     setIsAudioPlaying(false);
     // Taper animation (LOCKED: intensity tapers quickly)
@@ -509,9 +538,10 @@ export default function GreetingCardViewer({
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 480;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // RENDER: ENVELOPE MOMENT (LOCKED)
-  // One centered object in space
-  // No text, no branding, no sender name, no sound, no motion, no instructions
+  // RENDER: ENVELOPE MOMENT (LOCKED - Section 5)
+  // Single object, centered, silent, no branding, no sender name
+  // No sound, no motion, no instructions
+  // Must communicate: this exists, this is finished, this is waiting
   // ═══════════════════════════════════════════════════════════════════════════
   if (envelopeState === 'sealed' || envelopeState === 'opening') {
     return (
@@ -524,15 +554,35 @@ export default function GreetingCardViewer({
           margin: '0 auto',
           minHeight: '400px',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           userSelect: 'none',
         }}
       >
-        {/* Hidden audio for opening sound */}
+        {/* Hidden audio for opening sound - plays only at release */}
         <audio ref={openingSoundRef} src="/assets/sounds/paper-open.mp3" preload="auto" />
 
-        {/* ENVELOPE (LOCKED: one centered object, no text/branding) */}
+        {/* PRE-OCCASION CUSTODY COPY (LOCKED - Section 4)
+            Exact copy only: "For Christmas morning."
+            No variations. No emojis. No instructions. */}
+        {inCustody && custodyCopy && (
+          <p style={{
+            position: 'absolute',
+            top: '15%',
+            fontSize: '1rem',
+            fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
+            fontStyle: 'italic',
+            color: '#666',
+            margin: 0,
+            letterSpacing: '0.02em',
+          }}>
+            {custodyCopy}
+          </p>
+        )}
+
+        {/* ENVELOPE (LOCKED - Section 5: one centered object, no text/branding)
+            No interaction initially during custody */}
         <div
           onMouseDown={handleEnvelopeMouseDown}
           onMouseUp={handleEnvelopeMouseUp}
@@ -543,7 +593,8 @@ export default function GreetingCardViewer({
             width: '280px',
             height: '180px',
             position: 'relative',
-            cursor: envelopeState === 'sealed' ? 'pointer' : 'default',
+            // LOCKED: No cursor affordance - envelope must feel like an object, not a button
+            cursor: inCustody ? 'default' : 'default',
             transform: envelopeState === 'opening'
               ? `scale(${1 + openingProgress * 0.05})`
               : 'scale(1)',
@@ -587,7 +638,8 @@ export default function GreetingCardViewer({
             }} />
           </div>
 
-          {/* Wax seal (LOCKED: Red wax seal with embossed "G") */}
+          {/* Wax seal (LOCKED - Section 12 & 13: Red wax seal with embossed "G")
+              Gold foil on "G": embossed feel, warm muted gold, no glow/shimmer/animation */}
           <div style={{
             position: 'absolute',
             top: '50%',
@@ -608,16 +660,20 @@ export default function GreetingCardViewer({
             opacity: 1 - openingProgress,
             transition: 'transform 0.1s ease-out, opacity 0.1s ease-out',
           }}>
+            {/* LOCKED - Section 13: Gold foil "G"
+                Embossed feel, warm muted gold (#C9A227), no glow/shimmer
+                Gold must be discovered, not noticed */}
             <span style={{
               fontSize: '1.5rem',
               fontWeight: 700,
-              color: '#ffd700',
+              color: '#C9A227', // Warm muted gold
               fontFamily: 'Georgia, serif',
-              textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+              textShadow: '0 1px 1px rgba(0, 0, 0, 0.4), 0 -1px 0 rgba(255, 255, 255, 0.1)',
+              // Embossed feel through shadow layering
             }}>G</span>
           </div>
 
-          {/* Light bloom on opening (LOCKED: warm, subtle) */}
+          {/* Light bloom on opening (LOCKED - Section 6 & 9: warm, subtle, one-time only) */}
           {envelopeState === 'opening' && (
             <div style={{
               position: 'absolute',
@@ -685,7 +741,8 @@ export default function GreetingCardViewer({
         }}>
 
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* PAGE 1: COVER */}
+          {/* PAGE 1: COVER (LOCKED - Section 12) */}
+          {/* Occasion expressed visually first, no Greet-Me branding */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'cover' && (
             <div style={{
@@ -698,6 +755,17 @@ export default function GreetingCardViewer({
               position: 'relative',
               padding: '2.5rem',
             }}>
+              {/* INSET BORDER (LOCKED - Section 13)
+                  Hairline thin, warm gray, never animated, never decorative
+                  Purpose: imply thick stock */}
+              <div style={{
+                position: 'absolute',
+                inset: '12px',
+                border: '1px solid rgba(180, 170, 160, 0.3)',
+                borderRadius: '2px',
+                pointerEvents: 'none',
+              }} />
+
               {/* Paper texture */}
               <div style={{
                 position: 'absolute',
@@ -706,7 +774,7 @@ export default function GreetingCardViewer({
                 pointerEvents: 'none',
               }} />
 
-              {/* Occasion visual (LOCKED: occasion expressed visually first) */}
+              {/* Occasion visual (LOCKED - Section 12: occasion expressed visually first) */}
               <div style={{
                 fontSize: '3.5rem',
                 marginBottom: '2rem',
@@ -716,6 +784,7 @@ export default function GreetingCardViewer({
                 {occasionType === 'anniversary' && '💕'}
                 {occasionType === 'valentine' && '💝'}
                 {occasionType === 'holiday' && '✨'}
+                {occasionType === 'christmas' && '🎄'}
                 {occasionType === 'mothers_day' && '🌸'}
                 {(occasionType === 'just_because' || occasionType === 'greeting') && '💌'}
               </div>
@@ -729,7 +798,9 @@ export default function GreetingCardViewer({
                 For {recipientName}
               </p>
 
-              {/* Wax seal on cover (LOCKED: Red wax seal with embossed "G" on every cover) */}
+              {/* Wax seal on cover (LOCKED - Section 12 & 13)
+                  Red wax seal with embossed "G" on every cover
+                  Gold foil: warm muted gold, embossed feel, no glow/shimmer */}
               <div style={{
                 position: 'absolute',
                 bottom: '2rem',
@@ -746,16 +817,17 @@ export default function GreetingCardViewer({
                 <span style={{
                   fontSize: '1.5rem',
                   fontWeight: 700,
-                  color: '#ffd700',
+                  color: '#C9A227', // Warm muted gold (LOCKED - Section 13)
                   fontFamily: 'Georgia, serif',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                  textShadow: '0 1px 1px rgba(0, 0, 0, 0.4), 0 -1px 0 rgba(255, 255, 255, 0.1)',
                 }}>G</span>
               </div>
             </div>
           )}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* PAGE 2: TRADITIONAL GREETING */}
+          {/* PAGE 2: TRADITIONAL GREETING (LOCKED - Section 2) */}
+          {/* Handwritten + printed, no UI elements */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'traditional' && (
             <div style={{
@@ -763,7 +835,17 @@ export default function GreetingCardViewer({
               background: '#FFFEF8',
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
+              position: 'relative',
             }}>
+              {/* INSET BORDER (LOCKED - Section 13) */}
+              <div style={{
+                position: 'absolute',
+                inset: '12px',
+                border: '1px solid rgba(180, 170, 160, 0.25)',
+                borderRadius: '2px',
+                pointerEvents: 'none',
+              }} />
+
               {/* Left: Handwritten (LOCKED: cursive, imperfect ink feel) */}
               <div style={{
                 padding: isMobile ? '1.75rem' : '2.5rem',
@@ -820,7 +902,7 @@ export default function GreetingCardViewer({
                   pointerEvents: 'none',
                   overflow: 'hidden',
                 }}>
-                  {renderOccasionAnimation(style, isReplayMode)}
+                  {renderOccasionAnimation(style)}
                 </div>
               )}
 
@@ -1063,75 +1145,9 @@ export default function GreetingCardViewer({
           )}
         </div>
 
-        {/* Navigation Footer (LOCKED: minimal, no buttons) */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '10px 16px',
-          borderTop: '1px solid rgba(0, 0, 0, 0.06)',
-          background: '#fafafa',
-          gap: '12px',
-        }}>
-          {/* Audio control (only on moment page) */}
-          {currentPageData.type === 'moment' && currentPageData.voiceUrl && (
-            <button
-              onClick={toggleMute}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: '6px',
-                cursor: 'pointer',
-                color: isAudioPlaying ? '#6366f1' : '#999',
-                display: 'flex',
-              }}
-              aria-label={isAudioMuted ? 'Unmute' : 'Mute'}
-            >
-              {isAudioMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-            </button>
-          )}
-
-          {/* Replay (only after completion) */}
-          {hasCompletedOnce && (
-            <button
-              onClick={handleReplay}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: '6px',
-                cursor: 'pointer',
-                color: '#999',
-                display: 'flex',
-              }}
-              aria-label="Replay"
-            >
-              <RotateCcw size={16} />
-            </button>
-          )}
-        </div>
-
-        {/* Page indicator (LOCKED: minimal dots, no thumbnails) */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '6px',
-          padding: '10px',
-          background: '#f5f5f5',
-        }}>
-          {pages.map((_, index) => (
-            <div
-              key={index}
-              style={{
-                width: index === currentPage ? '18px' : '6px',
-                height: '6px',
-                borderRadius: '3px',
-                background: pagesViewed.has(index) ? '#6366f1' : '#ddd',
-                opacity: index === currentPage ? 1 : 0.6,
-                transition: 'all 0.4s ease',
-              }}
-            />
-          ))}
-        </div>
+        {/* LOCKED - Section 8: No UI elements on pages
+            Pages are surfaces, not slides
+            No navigation footer, no page indicators, no thumbnails */}
       </div>
 
       {/* CSS Animations */}
@@ -1177,6 +1193,7 @@ function getDefaultPrintedGreeting(occasionType) {
     birthday: 'May this day bring you countless moments of joy, and may the year ahead be filled with beautiful surprises and cherished memories.',
     anniversary: 'Celebrating the beautiful journey you\'ve shared together, and wishing you many more years of love and happiness.',
     valentine: 'Love is the greatest gift of all. May your heart be full today and always.',
+    christmas: 'May the magic of Christmas fill your heart with warmth, your home with love, and your life with joy.',
     holiday: 'Wishing you warmth, peace, and joy during this special season.',
     mothers_day: 'For all the love you\'ve given and all the sacrifices you\'ve made, thank you for being extraordinary.',
     just_because: 'Sometimes the best moments are the unexpected ones. Thinking of you today.',
@@ -1190,6 +1207,7 @@ function getOccasionTitle(occasionType) {
     birthday: 'Happy Birthday!',
     anniversary: 'Happy Anniversary!',
     valentine: 'Happy Valentine\'s Day!',
+    christmas: 'Merry Christmas!',
     holiday: 'Happy Holidays!',
     mothers_day: 'Happy Mother\'s Day!',
     just_because: 'Thinking of You!',
@@ -1198,10 +1216,10 @@ function getOccasionTitle(occasionType) {
   return titles[occasionType] || titles.greeting;
 }
 
-function renderOccasionAnimation(style, isReplayMode) {
-  // LOCKED: Animation supports voice, never competes
+function renderOccasionAnimation(style) {
+  // LOCKED - Section 11: Animation supports voice, never competes
   // Intensity tapers quickly, never loops
-  const intensity = isReplayMode ? 0.4 : 0.8;
+  const intensity = 0.8;
 
   switch (style.animationType) {
     case 'confetti':
