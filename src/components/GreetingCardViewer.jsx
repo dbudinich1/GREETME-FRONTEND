@@ -1,110 +1,93 @@
 // src/components/GreetingCardViewer.jsx
 // ═══════════════════════════════════════════════════════════════════════════════
-// GREET-ME™ PREMIUM GREETING CARD SYSTEM — CANONICAL SPEC (V1)
-// Status: FINAL · LOCKED · IMPLEMENTATION-READY
+// GREET-ME™ — PREMIUM PACKAGING MASTER SPEC
+// Status: CANONICAL · FINAL · LOCKED
+// Creative Discretion: NONE
+// Scope Expansion: FORBIDDEN
+// Interpretation: LITERAL ONLY
 // ═══════════════════════════════════════════════════════════════════════════════
 //
-// LOCKED CONTRACTS:
-// 1. CARD INTERACTION: Swipe-only, no tap-to-skip, no thumbnails, no fast-forward
-// 2. OPENING EFFECT: One-time paper-opening sound, warm light bloom, seal highlight
-// 3. VOICE PRESENTATION: 1-2s silence after swipe, animation, then voice 300-500ms later
-// 4. ANIMATION: Opens the door, voice delivers emotion. Occasion-mapped, never competes.
+// FOUNDATIONAL INTENT:
+// Greet-Me™ is a premium emotional keepsake, not a digital message or UI flow.
+// This system must compete directly with real physical greeting cards by replacing
+// physical friction with visible ceremony, restraint, and intention.
 //
 // DO NOT MODIFY without explicit approval.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Volume2, VolumeX, RotateCcw } from 'lucide-react';
+import { Volume2, VolumeX, RotateCcw } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS — LOCKED
 // ═══════════════════════════════════════════════════════════════════════════════
-const SWIPE_THRESHOLD = 50;
 const COMPLETION_STORAGE_KEY = 'greetme_card_completions';
-const OPENING_EFFECT_KEY = 'greetme_card_opened';
+const ENVELOPE_OPENED_KEY = 'greetme_envelope_opened';
 
 // LOCKED TIMING CONTRACT
 const TIMING = {
-  OPENING_EFFECT_DURATION: 1000,    // ≤ 1 second
-  SILENCE_AFTER_SWIPE: 1500,        // 1-2 seconds silence
-  ANIMATION_START_DELAY: 0,         // Animation starts immediately after silence
-  VOICE_AFTER_ANIMATION: 400,       // 300-500ms after animation begins
-  PAGE_TRANSITION: 300,
+  // Envelope opening: 800-1200ms total
+  OPENING_GESTURE_MIN: 800,
+  OPENING_GESTURE_MAX: 1200,
+  OPENING_SOUND_DURATION: 1000,    // ≤1 second
+
+  // Voice presentation
+  SILENCE_BEFORE_VOICE: 1500,      // 1-2 seconds silence
+  VOICE_AFTER_ANIMATION: 400,      // 300-500ms after animation
+
+  // Page turns
+  PAGE_TURN_DURATION: 400,         // Weighted, resisted
+  MIN_DWELL_TIME: 2000,            // Minimum time per page
+
+  // Swipe detection
+  SWIPE_THRESHOLD: 60,             // Higher threshold = more deliberate
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// STYLE TOKENS — OCCASION THEMING
+// OCCASION STYLE TOKENS — LOCKED
 // ═══════════════════════════════════════════════════════════════════════════════
 const OCCASION_STYLES = {
   birthday: {
     name: 'Celebratory Classic',
-    coverBase: '#FFFBF5',           // Warm ivory
-    coverAccent: '#D4AF37',         // Gold accent
-    coverTexture: 'tone-on-tone confetti emboss',
-    sealPosition: 'lower-right',
-    openingTint: 'rgba(255, 200, 100, 0.15)', // Warmer glow
+    coverBase: '#FFFBF5',
+    openingTint: 'rgba(255, 200, 100, 0.12)',
     animationType: 'confetti',
-    animationIntensity: 'gentle',
   },
   anniversary: {
     name: 'Intimate Elegance',
-    coverBase: '#FFF8F5',           // Cream / blush
-    coverAccent: '#C9A0A0',         // Rose gold
-    coverTexture: 'linen',
-    sealPosition: 'bottom-center',
-    openingTint: 'rgba(255, 220, 200, 0.12)',
+    coverBase: '#FFF8F5',
+    openingTint: 'rgba(255, 220, 200, 0.10)',
     animationType: 'shimmer',
-    animationIntensity: 'soft',
   },
   valentine: {
     name: 'Romantic Keepsake',
-    coverBase: '#FFF5F5',           // Soft blush
-    coverAccent: '#E8B4B4',         // Muted rose
-    coverTexture: 'smooth cotton',
-    sealPosition: 'bottom-center',
-    openingTint: 'rgba(255, 180, 180, 0.12)', // Blush warmth
+    coverBase: '#FFF5F5',
+    openingTint: 'rgba(255, 180, 180, 0.10)',
     animationType: 'heart-bokeh',
-    animationIntensity: 'subtle',
   },
   holiday: {
     name: 'Seasonal Refinement',
-    coverBase: '#F5F8F5',           // Evergreen undertone
-    coverAccent: '#1E3A2F',         // Deep green
-    coverTexture: 'subtle seasonal pattern',
-    sealPosition: 'lower-right',
-    openingTint: 'rgba(200, 220, 200, 0.1)', // Seasonal tone
+    coverBase: '#F5F8F5',
+    openingTint: 'rgba(200, 220, 200, 0.08)',
     animationType: 'ambient',
-    animationIntensity: 'restrained',
   },
   mothers_day: {
     name: 'Nurturing Warmth',
     coverBase: '#FFF8F8',
-    coverAccent: '#E8A0B0',
-    coverTexture: 'soft petal',
-    sealPosition: 'bottom-center',
-    openingTint: 'rgba(255, 200, 210, 0.12)',
+    openingTint: 'rgba(255, 200, 210, 0.10)',
     animationType: 'petal-drift',
-    animationIntensity: 'gentle',
   },
   just_because: {
     name: 'Pure Sentiment',
-    coverBase: '#FFFDF8',           // Warm neutral
-    coverAccent: '#B8A080',         // Muted gold
-    coverTexture: 'visible paper grain',
-    sealPosition: 'center',
-    openingTint: 'rgba(255, 245, 220, 0.1)', // Neutral warmth
+    coverBase: '#FFFDF8',
+    openingTint: 'rgba(255, 245, 220, 0.08)',
     animationType: 'glow',
-    animationIntensity: 'barely-perceptible',
   },
   greeting: {
     name: 'Classic Elegance',
     coverBase: '#FFFCF5',
-    coverAccent: '#C4A052',
-    coverTexture: 'cotton cardstock',
-    sealPosition: 'lower-right',
-    openingTint: 'rgba(255, 240, 200, 0.1)',
+    openingTint: 'rgba(255, 240, 200, 0.08)',
     animationType: 'glow',
-    animationIntensity: 'soft',
   },
 };
 
@@ -131,23 +114,37 @@ export default function GreetingCardViewer({
     scriptText = '',
   } = greeting;
 
-  // Get occasion style
   const style = OCCASION_STYLES[occasionType] || OCCASION_STYLES.greeting;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STATE
   // ═══════════════════════════════════════════════════════════════════════════
+
+  // Envelope state (LOCKED: Envelope Moment)
+  const [envelopeState, setEnvelopeState] = useState('sealed'); // sealed | opening | opened
+  const [openingProgress, setOpeningProgress] = useState(0);
+  const [hasOpenedBefore, setHasOpenedBefore] = useState(false);
+
+  // Card state
   const [currentPage, setCurrentPage] = useState(0);
   const [hasCompletedOnce, setHasCompletedOnce] = useState(false);
   const [pagesViewed, setPagesViewed] = useState(new Set([0]));
+  const [canNavigate, setCanNavigate] = useState(false);
+  const [pageEnteredAt, setPageEnteredAt] = useState(Date.now());
+
+  // Audio state
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
-  const [showGift, setShowGift] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [showOpeningEffect, setShowOpeningEffect] = useState(false);
-  const [hasPlayedOpeningEffect, setHasPlayedOpeningEffect] = useState(false);
+
+  // Animation state
   const [animationActive, setAnimationActive] = useState(false);
   const [isReplayMode, setIsReplayMode] = useState(false);
+
+  // Gift state
+  const [showGift, setShowGift] = useState(false);
+
+  // Transition state
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // REFS
@@ -156,11 +153,12 @@ export default function GreetingCardViewer({
   const audioRef = useRef(null);
   const openingSoundRef = useRef(null);
   const timersRef = useRef([]);
-  const touchStartRef = useRef({ x: 0, y: 0 });
-  const touchMoveRef = useRef({ x: 0, y: 0 });
+  const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
+  const holdTimerRef = useRef(null);
+  const openingStartRef = useRef(null);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // BUILD CANONICAL 5-PAGE STRUCTURE
+  // BUILD CANONICAL 5-PAGE STRUCTURE (LOCKED)
   // ═══════════════════════════════════════════════════════════════════════════
   const pages = [];
 
@@ -170,11 +168,11 @@ export default function GreetingCardViewer({
   // Page 2: Traditional Greeting (ALWAYS)
   pages.push({
     type: 'traditional',
-    cursiveMessage: personalMessage || `Wishing you the very best on this special day.`,
+    cursiveMessage: personalMessage || 'Wishing you the very best on this special day.',
     printedGreeting: printedGreeting || getDefaultPrintedGreeting(occasionType),
   });
 
-  // Page 3: THE MOMENT - Animated + Voice (if photo/video/voice exists)
+  // Page 3: THE MOMENT - Animated + Voice
   if (photoUrl || videoUrl || voiceUrl) {
     pages.push({
       type: 'moment',
@@ -185,7 +183,7 @@ export default function GreetingCardViewer({
     });
   }
 
-  // Page 4: Memory Layer - Optional photo album
+  // Page 4: Memory Layer (Optional)
   if (photos && photos.length > 0) {
     pages.push({
       type: 'memory',
@@ -193,7 +191,7 @@ export default function GreetingCardViewer({
     });
   }
 
-  // Page 5: Final/Gift Reveal (ALWAYS - last page)
+  // Page 5: Final/Gift Reveal (ALWAYS)
   pages.push({
     type: 'final',
     hasGift: !!gift,
@@ -203,30 +201,34 @@ export default function GreetingCardViewer({
   const currentPageData = pages[currentPage] || {};
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // COMPLETION TRACKING
+  // PERSISTENCE CHECK
   // ═══════════════════════════════════════════════════════════════════════════
   useEffect(() => {
     if (greetingId) {
+      // Check completion
       const completions = JSON.parse(localStorage.getItem(COMPLETION_STORAGE_KEY) || '{}');
       if (completions[greetingId]) {
         setHasCompletedOnce(true);
         setPagesViewed(new Set(Array.from({ length: totalPages }, (_, i) => i)));
       }
-      // Check if opening effect was played
-      const opened = JSON.parse(localStorage.getItem(OPENING_EFFECT_KEY) || '{}');
-      if (opened[greetingId]) {
-        setHasPlayedOpeningEffect(true);
+
+      // Check if envelope was opened before (RE-ENTRY MODE)
+      const envelopeOpened = JSON.parse(localStorage.getItem(ENVELOPE_OPENED_KEY) || '{}');
+      if (envelopeOpened[greetingId]) {
+        setHasOpenedBefore(true);
+        setEnvelopeState('opened');
       }
     }
   }, [greetingId, totalPages]);
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COMPLETION TRACKING
+  // ═══════════════════════════════════════════════════════════════════════════
   const allPagesViewed = pagesViewed.size >= totalPages;
   const isOnFinalPage = currentPage === totalPages - 1;
-  const canShowGift = hasCompletedOnce || (allPagesViewed && isOnFinalPage);
 
-  // Mark completion
   useEffect(() => {
-    if (allPagesViewed && isOnFinalPage && !hasCompletedOnce) {
+    if (allPagesViewed && isOnFinalPage && !hasCompletedOnce && envelopeState === 'opened') {
       setHasCompletedOnce(true);
 
       if (greetingId) {
@@ -237,100 +239,165 @@ export default function GreetingCardViewer({
 
       onComplete?.();
 
+      // Gift reveal (LOCKED: appears only after full completion, still, quiet, centered)
       if (gift) {
         const timer = setTimeout(() => {
           setShowGift(true);
           onGiftReveal?.();
-        }, 500);
+        }, 800);
         timersRef.current.push(timer);
       }
     }
-  }, [allPagesViewed, isOnFinalPage, hasCompletedOnce, gift, greetingId, onComplete, onGiftReveal]);
+  }, [allPagesViewed, isOnFinalPage, hasCompletedOnce, gift, greetingId, onComplete, onGiftReveal, envelopeState]);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // OPENING EFFECT (LOCKED: one-time, before Page 2, ≤1 second)
+  // MINIMUM DWELL TIME PER PAGE (LOCKED)
   // ═══════════════════════════════════════════════════════════════════════════
-  const playOpeningEffect = useCallback(() => {
-    if (hasPlayedOpeningEffect) return;
+  useEffect(() => {
+    if (envelopeState !== 'opened') return;
 
-    setShowOpeningEffect(true);
+    setCanNavigate(false);
+    setPageEnteredAt(Date.now());
 
-    // Play soft paper-opening sound (if available)
+    // After first completion, no dwell time required
+    if (hasCompletedOnce) {
+      setCanNavigate(true);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCanNavigate(true);
+    }, TIMING.MIN_DWELL_TIME);
+
+    timersRef.current.push(timer);
+
+    return () => clearTimeout(timer);
+  }, [currentPage, envelopeState, hasCompletedOnce]);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ENVELOPE MOMENT (LOCKED)
+  // One centered object in space
+  // No interaction initially — must communicate: this is complete, prepared, singular
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ACT OF OPENING (LOCKED)
+  // Sustained, deliberate action — cannot be accidental, rushed, or replayed
+  // 800-1200ms total
+  const handleEnvelopeMouseDown = (e) => {
+    if (envelopeState !== 'sealed') return;
+
+    openingStartRef.current = Date.now();
+    setEnvelopeState('opening');
+
+    // Start tracking hold duration
+    const updateProgress = () => {
+      if (!openingStartRef.current) return;
+
+      const elapsed = Date.now() - openingStartRef.current;
+      const progress = Math.min(elapsed / TIMING.OPENING_GESTURE_MIN, 1);
+      setOpeningProgress(progress);
+
+      if (elapsed < TIMING.OPENING_GESTURE_MIN) {
+        holdTimerRef.current = requestAnimationFrame(updateProgress);
+      }
+    };
+
+    holdTimerRef.current = requestAnimationFrame(updateProgress);
+  };
+
+  const handleEnvelopeMouseUp = () => {
+    if (envelopeState !== 'opening') return;
+
+    if (holdTimerRef.current) {
+      cancelAnimationFrame(holdTimerRef.current);
+    }
+
+    const elapsed = openingStartRef.current ? Date.now() - openingStartRef.current : 0;
+
+    // Must hold for minimum duration (LOCKED: sustained, deliberate)
+    if (elapsed >= TIMING.OPENING_GESTURE_MIN) {
+      // Complete opening
+      completeOpening();
+    } else {
+      // Failed attempt — reset
+      setEnvelopeState('sealed');
+      setOpeningProgress(0);
+    }
+
+    openingStartRef.current = null;
+  };
+
+  const completeOpening = () => {
+    setEnvelopeState('opened');
+    setOpeningProgress(1);
+
+    // Play opening sound (LOCKED: ≤1 second, paper/fiber cue)
     if (openingSoundRef.current) {
-      openingSoundRef.current.volume = 0.15; // Very subtle
+      openingSoundRef.current.volume = 0.2;
       openingSoundRef.current.play().catch(() => {});
     }
 
-    // Mark as played
-    setHasPlayedOpeningEffect(true);
+    // Persist envelope opened state (LOCKED: irreversible)
     if (greetingId) {
-      const opened = JSON.parse(localStorage.getItem(OPENING_EFFECT_KEY) || '{}');
-      opened[greetingId] = true;
-      localStorage.setItem(OPENING_EFFECT_KEY, JSON.stringify(opened));
+      const envelopeOpened = JSON.parse(localStorage.getItem(ENVELOPE_OPENED_KEY) || '{}');
+      envelopeOpened[greetingId] = { openedAt: new Date().toISOString() };
+      localStorage.setItem(ENVELOPE_OPENED_KEY, JSON.stringify(envelopeOpened));
     }
-
-    // Hide effect after duration
-    const timer = setTimeout(() => {
-      setShowOpeningEffect(false);
-    }, TIMING.OPENING_EFFECT_DURATION);
-    timersRef.current.push(timer);
-  }, [hasPlayedOpeningEffect, greetingId]);
+  };
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // VOICE PLAYBACK (LOCKED: 1-2s silence, animation, voice 300-500ms after)
+  // VOICE PRESENTATION (LOCKED)
+  // Voice plays only on Page 3
+  // 1-2s silence before voice
+  // Voice starts 300-500ms after animation
   // ═══════════════════════════════════════════════════════════════════════════
   const playMomentSequence = useCallback((pageData) => {
     if (!pageData.voiceUrl || isAudioMuted) return;
 
-    // 1. Silence period
     const silenceTimer = setTimeout(() => {
-      // 2. Start animation
       setAnimationActive(true);
 
-      // 3. Voice starts 300-500ms after animation
       const voiceTimer = setTimeout(() => {
         if (audioRef.current) {
           audioRef.current.src = pageData.voiceUrl;
-          audioRef.current.play().catch(() => {
-            console.log('Audio autoplay blocked');
-          });
+          audioRef.current.play().catch(() => {});
         }
       }, TIMING.VOICE_AFTER_ANIMATION);
       timersRef.current.push(voiceTimer);
-    }, TIMING.SILENCE_AFTER_SWIPE);
+    }, TIMING.SILENCE_BEFORE_VOICE);
     timersRef.current.push(silenceTimer);
   }, [isAudioMuted]);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // NAVIGATION (LOCKED: swipe-only, sequential on first experience)
+  // PAGE NAVIGATION (LOCKED: swipe-only, weighted, resisted)
   // ═══════════════════════════════════════════════════════════════════════════
   const navigateToPage = useCallback((targetPage, direction = 'next') => {
+    if (envelopeState !== 'opened') return;
     if (targetPage < 0 || targetPage >= totalPages) return;
     if (isTransitioning) return;
 
-    // LOCKED CONTRACT: First experience = sequential only
+    // Check dwell time (LOCKED: minimum time per page)
+    if (!hasCompletedOnce && !canNavigate) return;
+
+    // LOCKED: First experience = sequential only, no skipping
     if (!hasCompletedOnce) {
       if (direction === 'next' && targetPage !== currentPage + 1) return;
       if (direction === 'prev' && targetPage !== currentPage - 1) return;
       if (direction === 'prev' && !pagesViewed.has(targetPage)) return;
     }
 
-    // Clear any pending timers
+    // Clear pending timers
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
 
-    // Stop current audio
+    // Stop audio
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
     setAnimationActive(false);
 
-    // Trigger opening effect when leaving cover (Page 1 → Page 2)
-    if (currentPage === 0 && targetPage === 1 && !hasPlayedOpeningEffect) {
-      playOpeningEffect();
-    }
-
+    // LOCKED: Weighted, resisted page turn
     setIsTransitioning(true);
     setPagesViewed(prev => new Set([...prev, targetPage]));
 
@@ -338,63 +405,66 @@ export default function GreetingCardViewer({
       setCurrentPage(targetPage);
       setIsTransitioning(false);
 
-      // If navigating to THE MOMENT page, trigger sequence
       const newPageData = pages[targetPage];
       if (newPageData?.type === 'moment') {
         playMomentSequence(newPageData);
       }
-    }, TIMING.PAGE_TRANSITION);
+    }, TIMING.PAGE_TURN_DURATION);
     timersRef.current.push(transitionTimer);
-  }, [currentPage, totalPages, hasCompletedOnce, pagesViewed, isTransitioning, hasPlayedOpeningEffect, playOpeningEffect, playMomentSequence, pages]);
+  }, [envelopeState, currentPage, totalPages, hasCompletedOnce, pagesViewed, isTransitioning, canNavigate, playMomentSequence, pages]);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SWIPE HANDLERS (LOCKED: swipe-only navigation)
+  // SWIPE HANDLERS (LOCKED: swipe-only, no taps, no buttons)
   // ═══════════════════════════════════════════════════════════════════════════
   const handleTouchStart = (e) => {
+    if (envelopeState !== 'opened') return;
     touchStartRef.current = {
       x: e.touches[0].clientX,
-      y: e.touches[0].clientY
+      y: e.touches[0].clientY,
+      time: Date.now(),
     };
-    touchMoveRef.current = { x: 0, y: 0 };
   };
 
   const handleTouchMove = (e) => {
-    touchMoveRef.current = {
-      x: e.touches[0].clientX - touchStartRef.current.x,
-      y: e.touches[0].clientY - touchStartRef.current.y
-    };
+    // Prevent default to avoid scroll interference
+    if (envelopeState === 'opened') {
+      e.preventDefault();
+    }
   };
 
-  const handleTouchEnd = () => {
-    const deltaX = touchMoveRef.current.x;
-    const deltaY = touchMoveRef.current.y;
+  const handleTouchEnd = (e) => {
+    if (envelopeState !== 'opened') return;
 
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SWIPE_THRESHOLD) {
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+
+    // LOCKED: Higher threshold for more deliberate gesture
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > TIMING.SWIPE_THRESHOLD) {
       if (deltaX < 0) {
         navigateToPage(currentPage + 1, 'next');
       } else {
         navigateToPage(currentPage - 1, 'prev');
       }
     }
-
-    touchStartRef.current = { x: 0, y: 0 };
-    touchMoveRef.current = { x: 0, y: 0 };
   };
 
   const handleMouseDown = (e) => {
-    touchStartRef.current = { x: e.clientX, y: e.clientY };
+    if (envelopeState !== 'opened') return;
+    touchStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
   };
 
   const handleMouseUp = (e) => {
+    if (envelopeState !== 'opened') return;
+
     const deltaX = e.clientX - touchStartRef.current.x;
-    if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
+    if (Math.abs(deltaX) > TIMING.SWIPE_THRESHOLD) {
       if (deltaX < 0) {
         navigateToPage(currentPage + 1, 'next');
       } else {
         navigateToPage(currentPage - 1, 'prev');
       }
     }
-    touchStartRef.current = { x: 0, y: 0 };
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -419,7 +489,7 @@ export default function GreetingCardViewer({
 
   const handleAudioEnded = () => {
     setIsAudioPlaying(false);
-    // Taper animation after voice ends
+    // Taper animation (LOCKED: intensity tapers quickly)
     const taperTimer = setTimeout(() => {
       setAnimationActive(false);
     }, 3000);
@@ -430,13 +500,141 @@ export default function GreetingCardViewer({
   useEffect(() => {
     return () => {
       timersRef.current.forEach(clearTimeout);
+      if (holdTimerRef.current) {
+        cancelAnimationFrame(holdTimerRef.current);
+      }
     };
   }, []);
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 480;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // RENDER
+  // RENDER: ENVELOPE MOMENT (LOCKED)
+  // One centered object in space
+  // No text, no branding, no sender name, no sound, no motion, no instructions
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (envelopeState === 'sealed' || envelopeState === 'opening') {
+    return (
+      <div
+        ref={containerRef}
+        style={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: '500px',
+          margin: '0 auto',
+          minHeight: '400px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          userSelect: 'none',
+        }}
+      >
+        {/* Hidden audio for opening sound */}
+        <audio ref={openingSoundRef} src="/assets/sounds/paper-open.mp3" preload="auto" />
+
+        {/* ENVELOPE (LOCKED: one centered object, no text/branding) */}
+        <div
+          onMouseDown={handleEnvelopeMouseDown}
+          onMouseUp={handleEnvelopeMouseUp}
+          onMouseLeave={handleEnvelopeMouseUp}
+          onTouchStart={handleEnvelopeMouseDown}
+          onTouchEnd={handleEnvelopeMouseUp}
+          style={{
+            width: '280px',
+            height: '180px',
+            position: 'relative',
+            cursor: envelopeState === 'sealed' ? 'pointer' : 'default',
+            transform: envelopeState === 'opening'
+              ? `scale(${1 + openingProgress * 0.05})`
+              : 'scale(1)',
+            transition: 'transform 0.1s ease-out',
+          }}
+        >
+          {/* Envelope body */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(180deg, #F5F0E8 0%, #EDE5D8 100%)',
+            borderRadius: '4px',
+            boxShadow: `
+              0 ${8 + openingProgress * 8}px ${24 + openingProgress * 16}px rgba(0, 0, 0, ${0.15 + openingProgress * 0.1}),
+              0 2px 4px rgba(0, 0, 0, 0.08)
+            `,
+          }}>
+            {/* Paper texture */}
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.04\'/%3E%3C/svg%3E")',
+              borderRadius: '4px',
+              pointerEvents: 'none',
+            }} />
+
+            {/* Envelope flap */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: '50%',
+              transform: `translateX(-50%) rotateX(${openingProgress * 60}deg)`,
+              transformOrigin: 'top center',
+              width: 0,
+              height: 0,
+              borderLeft: '140px solid transparent',
+              borderRight: '140px solid transparent',
+              borderTop: '90px solid #E8E0D0',
+              filter: `brightness(${1 - openingProgress * 0.1})`,
+              transition: 'transform 0.1s ease-out',
+            }} />
+          </div>
+
+          {/* Wax seal (LOCKED: Red wax seal with embossed "G") */}
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: `translate(-50%, -50%) scale(${1 - openingProgress * 0.3})`,
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            background: 'linear-gradient(145deg, #c41e3a 0%, #8b0000 100%)',
+            boxShadow: `
+              0 3px 8px rgba(139, 0, 0, 0.5),
+              inset 0 2px 4px rgba(255, 255, 255, 0.2),
+              inset 0 -2px 4px rgba(0, 0, 0, 0.2)
+            `,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: 1 - openingProgress,
+            transition: 'transform 0.1s ease-out, opacity 0.1s ease-out',
+          }}>
+            <span style={{
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              color: '#ffd700',
+              fontFamily: 'Georgia, serif',
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+            }}>G</span>
+          </div>
+
+          {/* Light bloom on opening (LOCKED: warm, subtle) */}
+          {envelopeState === 'opening' && (
+            <div style={{
+              position: 'absolute',
+              inset: '-50%',
+              background: `radial-gradient(ellipse at center, ${style.openingTint} 0%, transparent 60%)`,
+              opacity: openingProgress,
+              pointerEvents: 'none',
+            }} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER: OPENED CARD (LOCKED: Objecthood preserved)
+  // Card exists within the screen, visible margins, clear edges, soft depth
   // ═══════════════════════════════════════════════════════════════════════════
   return (
     <div
@@ -446,8 +644,9 @@ export default function GreetingCardViewer({
         width: '100%',
         maxWidth: '500px',
         margin: '0 auto',
+        padding: '16px', // LOCKED: Visible margins on all sides
         userSelect: 'none',
-        touchAction: 'pan-y pinch-zoom',
+        touchAction: 'none',
       }}
     >
       {/* Hidden Audio Elements */}
@@ -457,21 +656,8 @@ export default function GreetingCardViewer({
         onPlay={() => setIsAudioPlaying(true)}
         onPause={() => setIsAudioPlaying(false)}
       />
-      <audio ref={openingSoundRef} src="/assets/sounds/paper-open.mp3" preload="auto" />
 
-      {/* Opening Effect Overlay (LOCKED: one-time, ≤1s) */}
-      {showOpeningEffect && (
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          zIndex: 100,
-          pointerEvents: 'none',
-          background: `radial-gradient(ellipse at center, ${style.openingTint} 0%, transparent 70%)`,
-          animation: 'openingBloom 1s ease-out forwards',
-        }} />
-      )}
-
-      {/* Card Container */}
+      {/* Card Container (LOCKED: clear edges, soft depth, fixed proportions) */}
       <div
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -480,32 +666,39 @@ export default function GreetingCardViewer({
         onMouseUp={handleMouseUp}
         style={{
           background: style.coverBase,
-          borderRadius: '16px',
+          borderRadius: '12px',
           overflow: 'hidden',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2), 0 8px 24px rgba(0, 0, 0, 0.15)',
+          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.12)',
           cursor: 'grab',
-          transition: isTransitioning ? 'opacity 0.3s ease' : 'none',
-          opacity: isTransitioning ? 0.7 : 1,
+          // LOCKED: Weighted, dampened movement
+          transition: isTransitioning
+            ? `opacity ${TIMING.PAGE_TURN_DURATION}ms ease-out`
+            : 'box-shadow 0.3s ease',
+          opacity: isTransitioning ? 0.6 : 1,
         }}
       >
         {/* Page Content */}
-        <div style={{ minHeight: '400px', position: 'relative' }}>
+        <div style={{
+          minHeight: '420px',
+          position: 'relative',
+          // LOCKED: Pages are turned into, one page visible at a time
+        }}>
 
           {/* ═══════════════════════════════════════════════════════════════ */}
           {/* PAGE 1: COVER */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'cover' && (
             <div style={{
-              minHeight: '400px',
+              minHeight: '420px',
               background: style.coverBase,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               position: 'relative',
-              padding: '2rem',
+              padding: '2.5rem',
             }}>
-              {/* Paper texture overlay */}
+              {/* Paper texture */}
               <div style={{
                 position: 'absolute',
                 inset: 0,
@@ -513,38 +706,11 @@ export default function GreetingCardViewer({
                 pointerEvents: 'none',
               }} />
 
-              {/* Wax Seal */}
+              {/* Occasion visual (LOCKED: occasion expressed visually first) */}
               <div style={{
-                position: 'absolute',
-                ...(style.sealPosition === 'bottom-center'
-                  ? { bottom: '2rem', left: '50%', transform: 'translateX(-50%)' }
-                  : style.sealPosition === 'center'
-                  ? { bottom: '50%', left: '50%', transform: 'translate(-50%, 50%)' }
-                  : { bottom: '2rem', right: '2rem' }
-                ),
-                width: '64px',
-                height: '64px',
-                borderRadius: '50%',
-                background: 'linear-gradient(145deg, #c41e3a 0%, #8b0000 100%)',
-                boxShadow: '0 4px 12px rgba(139, 0, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <span style={{
-                  fontSize: '1.75rem',
-                  fontWeight: 700,
-                  color: '#ffd700',
-                  fontFamily: 'Georgia, serif',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-                }}>G</span>
-              </div>
-
-              {/* Cover visual cue (occasion-based, subtle) */}
-              <div style={{
-                fontSize: '3rem',
-                marginBottom: '1.5rem',
-                opacity: 0.8,
+                fontSize: '3.5rem',
+                marginBottom: '2rem',
+                opacity: 0.85,
               }}>
                 {occasionType === 'birthday' && '🎂'}
                 {occasionType === 'anniversary' && '💕'}
@@ -555,29 +721,35 @@ export default function GreetingCardViewer({
               </div>
 
               <p style={{
-                fontSize: '0.875rem',
-                color: '#666',
-                marginBottom: '0.5rem',
+                fontSize: '1rem',
+                color: '#555',
                 fontStyle: 'italic',
+                marginBottom: '0',
               }}>
                 For {recipientName}
               </p>
 
-              {/* Swipe hint */}
+              {/* Wax seal on cover (LOCKED: Red wax seal with embossed "G" on every cover) */}
               <div style={{
                 position: 'absolute',
-                bottom: '1rem',
-                left: '50%',
-                transform: 'translateX(-50%)',
+                bottom: '2rem',
+                right: '2rem',
+                width: '52px',
+                height: '52px',
+                borderRadius: '50%',
+                background: 'linear-gradient(145deg, #c41e3a 0%, #8b0000 100%)',
+                boxShadow: '0 3px 10px rgba(139, 0, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.15)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
-                fontSize: '0.75rem',
-                color: '#999',
+                justifyContent: 'center',
               }}>
-                <ChevronLeft size={14} />
-                <span>Swipe to open</span>
-                <ChevronRight size={14} />
+                <span style={{
+                  fontSize: '1.5rem',
+                  fontWeight: 700,
+                  color: '#ffd700',
+                  fontFamily: 'Georgia, serif',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                }}>G</span>
               </div>
             </div>
           )}
@@ -587,45 +759,43 @@ export default function GreetingCardViewer({
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'traditional' && (
             <div style={{
-              minHeight: '400px',
+              minHeight: '420px',
               background: '#FFFEF8',
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
-              gap: 0,
             }}>
-              {/* Left: Cursive/Handwritten Message */}
+              {/* Left: Handwritten (LOCKED: cursive, imperfect ink feel) */}
               <div style={{
-                padding: isMobile ? '1.5rem' : '2rem',
-                borderRight: '1px solid rgba(0, 0, 0, 0.05)',
+                padding: isMobile ? '1.75rem' : '2.5rem',
+                borderRight: '1px solid rgba(0, 0, 0, 0.04)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
               }}>
                 <p style={{
                   fontFamily: "'Brush Script MT', 'Segoe Script', cursive",
-                  fontSize: isMobile ? '1.125rem' : '1.375rem',
-                  lineHeight: 1.8,
+                  fontSize: isMobile ? '1.25rem' : '1.5rem',
+                  lineHeight: 1.9,
                   color: '#2c1810',
                   margin: 0,
-                  // Imperfect ink feel
-                  textShadow: '0.5px 0.5px 0 rgba(0, 0, 0, 0.1)',
+                  textShadow: '0.5px 0.5px 0 rgba(0, 0, 0, 0.08)',
                 }}>
                   {currentPageData.cursiveMessage}
                 </p>
               </div>
 
-              {/* Right: Printed Greeting */}
+              {/* Right: Printed (LOCKED: classic, premium, serif or refined script) */}
               <div style={{
-                padding: isMobile ? '1.5rem' : '2rem',
+                padding: isMobile ? '1.75rem' : '2.5rem',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
-                background: 'rgba(0, 0, 0, 0.01)',
+                background: 'rgba(0, 0, 0, 0.008)',
               }}>
                 <p style={{
                   fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
-                  fontSize: isMobile ? '0.9375rem' : '1.0625rem',
-                  lineHeight: 1.9,
+                  fontSize: isMobile ? '1rem' : '1.125rem',
+                  lineHeight: 2,
                   color: '#1a1a1a',
                   margin: 0,
                   fontStyle: 'italic',
@@ -640,8 +810,8 @@ export default function GreetingCardViewer({
           {/* PAGE 3: THE MOMENT (Animated + Voice) */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'moment' && (
-            <div style={{ position: 'relative', minHeight: '400px' }}>
-              {/* Animation Overlay (occasion-mapped) */}
+            <div style={{ position: 'relative', minHeight: '420px' }}>
+              {/* Animation Overlay (LOCKED: supports voice, never competes) */}
               {animationActive && (
                 <div style={{
                   position: 'absolute',
@@ -650,7 +820,7 @@ export default function GreetingCardViewer({
                   pointerEvents: 'none',
                   overflow: 'hidden',
                 }}>
-                  {renderOccasionAnimation(occasionType, style, isReplayMode)}
+                  {renderOccasionAnimation(style, isReplayMode)}
                 </div>
               )}
 
@@ -666,25 +836,25 @@ export default function GreetingCardViewer({
                     width: '100%',
                     height: 'auto',
                     display: 'block',
-                    minHeight: '250px',
+                    minHeight: '280px',
                     objectFit: 'cover',
                   }}
                 />
               ) : currentPageData.photoUrl ? (
                 <img
                   src={currentPageData.photoUrl}
-                  alt="Greeting moment"
+                  alt=""
                   style={{
                     width: '100%',
                     height: 'auto',
                     display: 'block',
-                    minHeight: '250px',
+                    minHeight: '280px',
                     objectFit: 'cover',
                   }}
                 />
               ) : (
                 <div style={{
-                  minHeight: '250px',
+                  minHeight: '280px',
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   display: 'flex',
                   alignItems: 'center',
@@ -694,16 +864,16 @@ export default function GreetingCardViewer({
                 </div>
               )}
 
-              {/* Script/Message Display */}
+              {/* Script text */}
               {currentPageData.scriptText && (
                 <div style={{
-                  padding: isMobile ? '1rem' : '1.25rem',
-                  background: 'rgba(255, 255, 255, 0.95)',
-                  borderTop: '1px solid rgba(0, 0, 0, 0.05)',
+                  padding: isMobile ? '1.25rem' : '1.5rem',
+                  background: 'rgba(255, 255, 255, 0.97)',
+                  borderTop: '1px solid rgba(0, 0, 0, 0.04)',
                 }}>
                   <p style={{
-                    fontSize: isMobile ? '1rem' : '1.0625rem',
-                    lineHeight: 1.7,
+                    fontSize: isMobile ? '1.0625rem' : '1.125rem',
+                    lineHeight: 1.8,
                     color: '#333',
                     fontStyle: 'italic',
                     margin: 0,
@@ -720,31 +890,31 @@ export default function GreetingCardViewer({
                   position: 'absolute',
                   top: '1rem',
                   right: '1rem',
-                  background: 'rgba(0, 0, 0, 0.6)',
+                  background: 'rgba(0, 0, 0, 0.5)',
                   borderRadius: '50%',
-                  width: '40px',
-                  height: '40px',
+                  width: '36px',
+                  height: '36px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <Volume2 size={20} color="white" />
+                  <Volume2 size={18} color="white" />
                 </div>
               )}
             </div>
           )}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* PAGE 4: MEMORY LAYER (Optional Photo Album) */}
+          {/* PAGE 4: MEMORY LAYER */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'memory' && (
             <div style={{
-              minHeight: '400px',
+              minHeight: '420px',
               background: '#1a1a1a',
-              padding: '1rem',
+              padding: '1.25rem',
               display: 'grid',
               gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '0.5rem',
+              gap: '0.75rem',
             }}>
               {currentPageData.photos?.slice(0, 4).map((photo, idx) => (
                 <div
@@ -753,16 +923,14 @@ export default function GreetingCardViewer({
                     position: 'relative',
                     overflow: 'hidden',
                     borderRadius: '8px',
-                    // Ken-Burns style subtle motion
-                    animation: animationActive ? `kenBurns${idx % 2} 8s ease-in-out infinite` : 'none',
                   }}
                 >
                   <img
                     src={typeof photo === 'string' ? photo : photo.url}
-                    alt={`Memory ${idx + 1}`}
+                    alt=""
                     style={{
                       width: '100%',
-                      height: '150px',
+                      height: '160px',
                       objectFit: 'cover',
                     }}
                   />
@@ -776,49 +944,48 @@ export default function GreetingCardViewer({
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'final' && (
             <div style={{
-              minHeight: '400px',
+              minHeight: '420px',
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '2rem',
+              padding: '2.5rem',
               textAlign: 'center',
+              position: 'relative',
             }}>
-              {/* Gift Reveal (LOCKED: only after full completion, dignified) */}
-              {canShowGift && gift && showGift ? (
+              {/* Gift Reveal (LOCKED: still, quiet, centered, no celebration) */}
+              {showGift && gift ? (
                 <div style={{
                   background: 'white',
                   borderRadius: '16px',
-                  padding: '2rem',
-                  maxWidth: '320px',
+                  padding: '2.5rem',
+                  maxWidth: '300px',
                   boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
                 }}>
                   {gift.type === 'qr_cash' ? (
                     <>
-                      <div style={{
-                        fontSize: '2.5rem',
-                        marginBottom: '0.75rem',
-                      }}>💵</div>
+                      {/* LOCKED: Treated as object, not amount-first */}
+                      <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>💵</div>
                       <p style={{
                         fontSize: '0.875rem',
                         color: '#666',
-                        marginBottom: '0.5rem',
+                        marginBottom: '0.75rem',
                       }}>
-                        A cash gift for you
+                        A gift for you
                       </p>
                       <p style={{
-                        fontSize: '2.5rem',
+                        fontSize: '2.25rem',
                         fontWeight: 700,
                         color: '#059669',
-                        marginBottom: '1rem',
+                        marginBottom: '1.5rem',
                       }}>
                         ${gift.amount}
                       </p>
                       <button
                         onClick={gift.onClaim}
                         style={{
-                          padding: '0.75rem 2rem',
+                          padding: '0.875rem 2rem',
                           background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
                           color: 'white',
                           border: 'none',
@@ -829,15 +996,12 @@ export default function GreetingCardViewer({
                           fontFamily: 'inherit',
                         }}
                       >
-                        Claim Gift
+                        Claim
                       </button>
                     </>
                   ) : gift.type === 'physical' ? (
                     <>
-                      <div style={{
-                        fontSize: '2.5rem',
-                        marginBottom: '0.75rem',
-                      }}>🎁</div>
+                      <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🎁</div>
                       <p style={{
                         fontSize: '1.125rem',
                         fontWeight: 600,
@@ -846,24 +1010,17 @@ export default function GreetingCardViewer({
                       }}>
                         Something special is on its way
                       </p>
-                      <p style={{
-                        fontSize: '0.875rem',
-                        color: '#666',
-                      }}>
-                        {gift.message || 'A gift has been sent to you!'}
+                      <p style={{ fontSize: '0.875rem', color: '#666' }}>
+                        {gift.message || 'A gift has been sent to you'}
                       </p>
                     </>
                   ) : (
                     <>
-                      <div style={{
-                        fontSize: '2.5rem',
-                        marginBottom: '0.75rem',
-                      }}>💐</div>
+                      <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>💐</div>
                       <p style={{
                         fontSize: '1.125rem',
                         fontWeight: 600,
                         color: '#333',
-                        marginBottom: '0.5rem',
                       }}>
                         {gift.name || 'A special gift awaits'}
                       </p>
@@ -872,36 +1029,32 @@ export default function GreetingCardViewer({
                 </div>
               ) : (
                 <>
-                  <div style={{
-                    fontSize: '3rem',
-                    marginBottom: '1rem',
-                  }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '1.25rem' }}>
                     {occasionType === 'birthday' ? '🎉' : '💝'}
                   </div>
                   <h3 style={{
-                    fontSize: '1.5rem',
+                    fontSize: '1.625rem',
                     fontWeight: 700,
                     color: 'white',
-                    marginBottom: '0.5rem',
+                    marginBottom: '0.75rem',
                   }}>
                     {getOccasionTitle(occasionType)}
                   </h3>
                   <p style={{
-                    fontSize: '1rem',
+                    fontSize: '1.0625rem',
                     color: 'rgba(255, 255, 255, 0.9)',
-                    marginBottom: '2rem',
                   }}>
                     With love, {senderName}
                   </p>
                 </>
               )}
 
-              {/* Brand Signature (LOCKED: final page only, small, refined) */}
+              {/* Brand Signature (LOCKED: final page only, small, understated) */}
               <p style={{
                 position: 'absolute',
-                bottom: '1rem',
+                bottom: '1.25rem',
                 fontSize: '0.6875rem',
-                color: 'rgba(255, 255, 255, 0.6)',
+                color: 'rgba(255, 255, 255, 0.5)',
                 fontStyle: 'italic',
               }}>
                 Lovingly powered by Greet-Me™
@@ -910,98 +1063,71 @@ export default function GreetingCardViewer({
           )}
         </div>
 
-        {/* Navigation Footer */}
+        {/* Navigation Footer (LOCKED: minimal, no buttons) */}
         <div style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'center',
           alignItems: 'center',
-          padding: '12px 16px',
-          borderTop: '1px solid rgba(0, 0, 0, 0.08)',
+          padding: '10px 16px',
+          borderTop: '1px solid rgba(0, 0, 0, 0.06)',
           background: '#fafafa',
+          gap: '12px',
         }}>
-          {/* Left: Previous hint */}
-          <div style={{
-            opacity: currentPage > 0 && (hasCompletedOnce || pagesViewed.has(currentPage - 1)) ? 0.6 : 0.2,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '0.75rem',
-            color: '#666',
-          }}>
-            <ChevronLeft size={16} />
-            {currentPage > 0 && (hasCompletedOnce || pagesViewed.has(currentPage - 1)) && 'Previous'}
-          </div>
+          {/* Audio control (only on moment page) */}
+          {currentPageData.type === 'moment' && currentPageData.voiceUrl && (
+            <button
+              onClick={toggleMute}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: '6px',
+                cursor: 'pointer',
+                color: isAudioPlaying ? '#6366f1' : '#999',
+                display: 'flex',
+              }}
+              aria-label={isAudioMuted ? 'Unmute' : 'Mute'}
+            >
+              {isAudioMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+          )}
 
-          {/* Center: Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {currentPageData.type === 'moment' && currentPageData.voiceUrl && (
-              <button
-                onClick={toggleMute}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: '4px',
-                  cursor: 'pointer',
-                  color: isAudioPlaying ? '#6366f1' : '#999',
-                  display: 'flex',
-                }}
-                aria-label={isAudioMuted ? 'Unmute' : 'Mute'}
-              >
-                {isAudioMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-              </button>
-            )}
-
-            {hasCompletedOnce && (
-              <button
-                onClick={handleReplay}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: '4px',
-                  cursor: 'pointer',
-                  color: '#999',
-                  display: 'flex',
-                }}
-                title="Replay"
-                aria-label="Replay from start"
-              >
-                <RotateCcw size={16} />
-              </button>
-            )}
-          </div>
-
-          {/* Right: Next hint */}
-          <div style={{
-            opacity: currentPage < totalPages - 1 ? 0.6 : 0.2,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '0.75rem',
-            color: '#666',
-          }}>
-            {currentPage < totalPages - 1 && 'Next'}
-            <ChevronRight size={16} />
-          </div>
+          {/* Replay (only after completion) */}
+          {hasCompletedOnce && (
+            <button
+              onClick={handleReplay}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: '6px',
+                cursor: 'pointer',
+                color: '#999',
+                display: 'flex',
+              }}
+              aria-label="Replay"
+            >
+              <RotateCcw size={16} />
+            </button>
+          )}
         </div>
 
-        {/* Page indicator dots */}
+        {/* Page indicator (LOCKED: minimal dots, no thumbnails) */}
         <div style={{
           display: 'flex',
           justifyContent: 'center',
           gap: '6px',
-          padding: '8px',
+          padding: '10px',
           background: '#f5f5f5',
         }}>
           {pages.map((_, index) => (
             <div
               key={index}
               style={{
-                width: index === currentPage ? '20px' : '6px',
+                width: index === currentPage ? '18px' : '6px',
                 height: '6px',
                 borderRadius: '3px',
                 background: pagesViewed.has(index) ? '#6366f1' : '#ddd',
-                opacity: index === currentPage ? 1 : 0.7,
-                transition: 'all 0.3s ease',
+                opacity: index === currentPage ? 1 : 0.6,
+                transition: 'all 0.4s ease',
               }}
             />
           ))}
@@ -1010,59 +1136,32 @@ export default function GreetingCardViewer({
 
       {/* CSS Animations */}
       <style>{`
-        @keyframes openingBloom {
-          0% { opacity: 0; transform: scale(0.8); }
-          50% { opacity: 1; }
-          100% { opacity: 0; transform: scale(1.2); }
-        }
-
         @keyframes confettiFloat {
           0% { transform: translateY(-10px) rotate(0deg); opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
+          10% { opacity: 0.8; }
+          90% { opacity: 0.8; }
           100% { transform: translateY(300px) rotate(360deg); opacity: 0; }
         }
-
         @keyframes shimmer {
-          0% { opacity: 0.3; }
-          50% { opacity: 0.6; }
-          100% { opacity: 0.3; }
-        }
-
-        @keyframes gentleGlow {
           0% { opacity: 0.2; }
-          50% { opacity: 0.4; }
+          50% { opacity: 0.5; }
           100% { opacity: 0.2; }
         }
-
-        @keyframes heartFloat {
-          0% { transform: translateY(0) scale(1); opacity: 0.3; }
-          50% { transform: translateY(-20px) scale(1.1); opacity: 0.5; }
-          100% { transform: translateY(0) scale(1); opacity: 0.3; }
+        @keyframes gentleGlow {
+          0% { opacity: 0.15; }
+          50% { opacity: 0.3; }
+          100% { opacity: 0.15; }
         }
-
+        @keyframes heartFloat {
+          0% { transform: translateY(0) scale(1); opacity: 0.25; }
+          50% { transform: translateY(-15px) scale(1.08); opacity: 0.4; }
+          100% { transform: translateY(0) scale(1); opacity: 0.25; }
+        }
         @keyframes petalDrift {
           0% { transform: translateY(-10px) translateX(0) rotate(0deg); opacity: 0; }
-          20% { opacity: 0.6; }
-          80% { opacity: 0.6; }
-          100% { transform: translateY(300px) translateX(30px) rotate(180deg); opacity: 0; }
-        }
-
-        @keyframes kenBurns0 {
-          0% { transform: scale(1) translate(0, 0); }
-          50% { transform: scale(1.05) translate(-1%, -1%); }
-          100% { transform: scale(1) translate(0, 0); }
-        }
-
-        @keyframes kenBurns1 {
-          0% { transform: scale(1.05) translate(-1%, 0); }
-          50% { transform: scale(1) translate(0, -1%); }
-          100% { transform: scale(1.05) translate(-1%, 0); }
-        }
-
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
+          20% { opacity: 0.5; }
+          80% { opacity: 0.5; }
+          100% { transform: translateY(300px) translateX(25px) rotate(180deg); opacity: 0; }
         }
       `}</style>
     </div>
@@ -1099,32 +1198,30 @@ function getOccasionTitle(occasionType) {
   return titles[occasionType] || titles.greeting;
 }
 
-function renderOccasionAnimation(occasionType, style, isReplayMode) {
+function renderOccasionAnimation(style, isReplayMode) {
   // LOCKED: Animation supports voice, never competes
-  // Intensity tapers after first 3-5 seconds
-  // Replay mode = reduced intensity
-
-  const intensity = isReplayMode ? 0.5 : 1;
+  // Intensity tapers quickly, never loops
+  const intensity = isReplayMode ? 0.4 : 0.8;
 
   switch (style.animationType) {
     case 'confetti':
-      // Birthday: Gentle confetti (slow, sparse), 1-2 soft balloons max
+      // Birthday: gentle confetti, minimal balloons (LOCKED: restrained)
       return (
         <>
-          {[...Array(6)].map((_, i) => (
+          {[...Array(5)].map((_, i) => (
             <div
               key={i}
               style={{
                 position: 'absolute',
                 top: '-10px',
-                left: `${15 + i * 14}%`,
-                width: '8px',
-                height: '8px',
-                background: ['#FFD700', '#FF69B4', '#87CEEB', '#98FB98', '#DDA0DD', '#F0E68C'][i],
+                left: `${18 + i * 16}%`,
+                width: '7px',
+                height: '7px',
+                background: ['#FFD700', '#FF69B4', '#87CEEB', '#98FB98', '#DDA0DD'][i],
                 borderRadius: i % 2 === 0 ? '50%' : '2px',
-                animation: `confettiFloat ${4 + i * 0.5}s ease-in-out infinite`,
-                animationDelay: `${i * 0.3}s`,
-                opacity: intensity,
+                animation: `confettiFloat ${4.5 + i * 0.4}s ease-in-out infinite`,
+                animationDelay: `${i * 0.35}s`,
+                opacity: intensity * 0.8,
               }}
             />
           ))}
@@ -1132,35 +1229,35 @@ function renderOccasionAnimation(occasionType, style, isReplayMode) {
       );
 
     case 'shimmer':
-      // Anniversary: Soft shimmer, ambient glow
+      // Anniversary: soft shimmer/glow (LOCKED: restrained)
       return (
         <div style={{
           position: 'absolute',
           inset: 0,
-          background: 'radial-gradient(ellipse at 30% 30%, rgba(255, 215, 180, 0.15) 0%, transparent 50%)',
-          animation: 'shimmer 3s ease-in-out infinite',
+          background: 'radial-gradient(ellipse at 30% 30%, rgba(255, 215, 180, 0.12) 0%, transparent 50%)',
+          animation: 'shimmer 3.5s ease-in-out infinite',
           opacity: intensity,
         }} />
       );
 
     case 'heart-bokeh':
-      // Valentine: Abstract heart bokeh (very subtle)
+      // Valentine: abstract heart bokeh (LOCKED: very subtle)
       return (
         <>
-          {[...Array(4)].map((_, i) => (
+          {[...Array(3)].map((_, i) => (
             <div
               key={i}
               style={{
                 position: 'absolute',
-                top: `${20 + i * 15}%`,
-                left: `${10 + i * 20}%`,
-                width: '20px',
-                height: '20px',
-                background: 'radial-gradient(circle, rgba(236, 72, 153, 0.3) 0%, transparent 70%)',
+                top: `${25 + i * 18}%`,
+                left: `${15 + i * 25}%`,
+                width: '18px',
+                height: '18px',
+                background: 'radial-gradient(circle, rgba(236, 72, 153, 0.25) 0%, transparent 70%)',
                 borderRadius: '50%',
-                animation: `heartFloat ${3 + i * 0.5}s ease-in-out infinite`,
-                animationDelay: `${i * 0.4}s`,
-                opacity: intensity * 0.4,
+                animation: `heartFloat ${3.5 + i * 0.5}s ease-in-out infinite`,
+                animationDelay: `${i * 0.5}s`,
+                opacity: intensity * 0.35,
               }}
             />
           ))}
@@ -1168,23 +1265,23 @@ function renderOccasionAnimation(occasionType, style, isReplayMode) {
       );
 
     case 'petal-drift':
-      // Mother's Day: Gentle petal drift
+      // Mother's Day: petals or bloom (LOCKED: gentle)
       return (
         <>
-          {[...Array(4)].map((_, i) => (
+          {[...Array(3)].map((_, i) => (
             <div
               key={i}
               style={{
                 position: 'absolute',
-                top: '-20px',
-                left: `${20 + i * 20}%`,
-                width: '12px',
-                height: '12px',
+                top: '-15px',
+                left: `${25 + i * 22}%`,
+                width: '10px',
+                height: '10px',
                 background: 'linear-gradient(135deg, #FFB6C1 0%, #FFC0CB 100%)',
                 borderRadius: '50% 0 50% 50%',
-                animation: `petalDrift ${5 + i * 0.8}s ease-in-out infinite`,
-                animationDelay: `${i * 0.6}s`,
-                opacity: intensity * 0.6,
+                animation: `petalDrift ${5.5 + i * 0.7}s ease-in-out infinite`,
+                animationDelay: `${i * 0.7}s`,
+                opacity: intensity * 0.5,
               }}
             />
           ))}
@@ -1192,27 +1289,27 @@ function renderOccasionAnimation(occasionType, style, isReplayMode) {
       );
 
     case 'ambient':
-      // Holiday: Seasonal ambient (extremely restrained)
+      // Holiday: ambient seasonal cues (LOCKED: extremely restrained)
       return (
         <div style={{
           position: 'absolute',
           inset: 0,
-          background: 'radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.08) 0%, transparent 40%)',
-          animation: 'gentleGlow 4s ease-in-out infinite',
+          background: 'radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.06) 0%, transparent 40%)',
+          animation: 'gentleGlow 4.5s ease-in-out infinite',
           opacity: intensity,
         }} />
       );
 
     case 'glow':
     default:
-      // Just Because / Default: Barely perceptible glow
+      // Just Because: near-still glow (LOCKED: barely perceptible)
       return (
         <div style={{
           position: 'absolute',
           inset: 0,
-          background: 'radial-gradient(ellipse at center, rgba(255, 245, 200, 0.08) 0%, transparent 60%)',
-          animation: 'gentleGlow 5s ease-in-out infinite',
-          opacity: intensity * 0.5,
+          background: 'radial-gradient(ellipse at center, rgba(255, 245, 200, 0.05) 0%, transparent 60%)',
+          animation: 'gentleGlow 6s ease-in-out infinite',
+          opacity: intensity * 0.4,
         }} />
       );
   }
@@ -1222,7 +1319,6 @@ function renderOccasionAnimation(occasionType, style, isReplayMode) {
 // LEGACY CONVERTER
 // ═══════════════════════════════════════════════════════════════════════════════
 export const convertToMultiPageFormat = (legacyGreeting) => {
-  // Convert legacy single-object greeting to canonical format
   return {
     senderName: legacyGreeting.senderName || 'Someone Special',
     recipientName: legacyGreeting.recipientName || 'Friend',
