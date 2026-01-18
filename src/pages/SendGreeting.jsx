@@ -386,6 +386,7 @@ if (typeof window !== "undefined") {
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
         {errors.submit && <Alert type="error" message={errors.submit} />}
+        {errors.photo && <Alert type="error" message={errors.photo} />}
 
         {/* Select Contact */}
         <div className="mb-8">
