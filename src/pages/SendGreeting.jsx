@@ -122,15 +122,16 @@ export default function SendGreeting() {
       newErrors.occasionType = 'Please select an occasion';
     }
 
-    // Validate user has uploaded a real photo (block placeholder patterns)
-    const photoUrl = user?.photoUrl || '';
+    // Validate user has uploaded a real photo - check localStorage (Media Library) first, then user profile
+    const localStoragePhoto = localStorage.getItem('greetme_photo_file') || '';
+    const photoUrl = localStoragePhoto || user?.photoUrl || '';
     const isPlaceholder = !photoUrl ||
       photoUrl.includes('placeholder.com') ||
       photoUrl.includes('placehold.co') ||
       photoUrl.includes('placekitten.com') ||
       photoUrl.includes('dummyimage.com');
     if (isPlaceholder) {
-      newErrors.photo = 'Please upload a profile photo before sending greetings';
+      newErrors.photo = 'Please upload a profile photo before sending greetings. Go to Media Library and set a default photo.';
     }
 
     setErrors(newErrors);
@@ -148,13 +149,17 @@ export default function SendGreeting() {
     setSending(true);
     setJobStatus(null);
   try {
+    // Get photo from localStorage (Media Library) first, then fallback to user profile
+    const localStoragePhoto = localStorage.getItem('greetme_photo_file') || '';
+    const effectivePhotoUrl = localStoragePhoto || user?.photoUrl || '';
+
     const greetingData = {
       userId: user?.id || user?.email || '',
       recipientName: selectedContact.name,
       recipientEmail: selectedContact.email,
       greetingText: formData.customMessage || '',
       voiceId: user?.voiceId || '',
-      photoUrl: user?.photoUrl || '',
+      photoUrl: effectivePhotoUrl,
       occasionKey: formData.occasionType,
       relationshipKey: selectedContact.relationship || 'friend',
       relationshipNote: '',
