@@ -122,8 +122,14 @@ export default function SendGreeting() {
       newErrors.occasionType = 'Please select an occasion';
     }
 
-    // Validate user has uploaded a real photo
-    if (!user?.photoUrl || user.photoUrl.includes('placeholder.com')) {
+    // Validate user has uploaded a real photo (block placeholder patterns)
+    const photoUrl = user?.photoUrl || '';
+    const isPlaceholder = !photoUrl ||
+      photoUrl.includes('placeholder.com') ||
+      photoUrl.includes('placehold.co') ||
+      photoUrl.includes('placekitten.com') ||
+      photoUrl.includes('dummyimage.com');
+    if (isPlaceholder) {
       newErrors.photo = 'Please upload a profile photo before sending greetings';
     }
 
