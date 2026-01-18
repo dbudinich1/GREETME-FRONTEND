@@ -40,6 +40,27 @@ class ApiService {
     return data;
   }
 
+  // HTTP convenience methods
+  get(endpoint) {
+    return this.request(endpoint, { method: "GET" });
+  }
+
+  post(endpoint, body) {
+    return this.request(endpoint, { method: "POST", body: JSON.stringify(body) });
+  }
+
+  put(endpoint, body) {
+    return this.request(endpoint, { method: "PUT", body: JSON.stringify(body) });
+  }
+
+  patch(endpoint, body) {
+    return this.request(endpoint, { method: "PATCH", body: JSON.stringify(body) });
+  }
+
+  delete(endpoint) {
+    return this.request(endpoint, { method: "DELETE" });
+  }
+
   // --------------------
   // Dashboard
   // --------------------
