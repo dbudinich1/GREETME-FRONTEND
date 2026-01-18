@@ -252,7 +252,7 @@ export const convertDraftToSendFormat = (draft, contact, userProfile) => {
       recipientEmail: contact.email,
       greetingText: page.scriptText || draft.customMessage || '',
       voiceId: page.useDefaultVoice ? (userProfile?.voiceId || '') : (page.voiceId || ''),
-      photoUrl: page.photoUrl || userProfile?.photoUrl || 'https://via.placeholder.com/512',
+      photoUrl: page.photoUrl || userProfile?.photoUrl || '',
       occasionKey: draft.occasionType,
       relationshipKey: contact.relationship || 'friend',
       relationshipNote: contact.relationshipContext || '',

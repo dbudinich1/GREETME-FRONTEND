@@ -122,6 +122,11 @@ export default function SendGreeting() {
       newErrors.occasionType = 'Please select an occasion';
     }
 
+    // Validate user has uploaded a real photo
+    if (!user?.photoUrl || user.photoUrl.includes('placeholder.com')) {
+      newErrors.photo = 'Please upload a profile photo before sending greetings';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -143,7 +148,7 @@ export default function SendGreeting() {
       recipientEmail: selectedContact.email,
       greetingText: formData.customMessage || '',
       voiceId: user?.voiceId || '',
-      photoUrl: user?.photoUrl || 'https://via.placeholder.com/512',
+      photoUrl: user?.photoUrl || '',
       occasionKey: formData.occasionType,
       relationshipKey: selectedContact.relationship || 'friend',
       relationshipNote: '',

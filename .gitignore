@@ -2,12 +2,10 @@ node_modules/
 .env
 .env.local
 dist/
+dist.zip
+frontend-deploy.zip
 .DS_Store
 .vscode/
 coverage/
 *.log
-dist.zip
-dist/
-
-frontend-deploy.zip
-# Deployment trigger
+*.swp
