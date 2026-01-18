@@ -1,5 +1,5 @@
 // src/context/AuthContext.jsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -38,17 +38,8 @@ export const AuthProvider = ({ children }) => {
       setUser(data.user);
       return { success: true };
     } catch (error) {
-      // Development mode: If backend is unavailable, create a mock user
-      console.log('Backend unavailable, using development mode');
-      const mockUser = {
-        id: 'dev-user-123',
-        name: 'Development User',
-        email: email,
-      };
-      localStorage.setItem('token', 'dev-token-123');
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      setUser(mockUser);
-      return { success: true };
+      console.error('Login error:', error);
+      return { success: false, error: error.message || 'Login failed' };
     }
   };
 
@@ -66,17 +57,8 @@ export const AuthProvider = ({ children }) => {
       setUser(data.user);
       return { success: true };
     } catch (error) {
-      // Development mode: If backend is unavailable, create a mock user
-      console.log('Backend unavailable, using development mode');
-      const mockUser = {
-        id: 'dev-user-123',
-        name: name,
-        email: email,
-      };
-      localStorage.setItem('token', 'dev-token-123');
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      setUser(mockUser);
-      return { success: true };
+      console.error('Register error:', error);
+      return { success: false, error: error.message || 'Registration failed' };
     }
   };
 
