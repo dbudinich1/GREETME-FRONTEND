@@ -122,16 +122,20 @@ export default function SendGreeting() {
       newErrors.occasionType = 'Please select an occasion';
     }
 
-    // Validate user has uploaded a real photo - check localStorage (Media Library) first, then user profile
-    const localStoragePhoto = localStorage.getItem('greetme_photo_file') || '';
-    const photoUrl = localStoragePhoto || user?.photoUrl || '';
+    // Validate user has a REAL photo URL (https://...), not a data URL or placeholder
+    // Order of preference: user.photoUrl from backend profile (real Azure Blob URL)
+    const photoUrl = user?.photoUrl || '';
+
+    // Reject if empty, is a data URL, or is a placeholder domain
+    const isDataUrl = photoUrl.startsWith('data:');
     const isPlaceholder = !photoUrl ||
       photoUrl.includes('placeholder.com') ||
       photoUrl.includes('placehold.co') ||
       photoUrl.includes('placekitten.com') ||
       photoUrl.includes('dummyimage.com');
-    if (isPlaceholder) {
-      newErrors.photo = 'Please upload a profile photo before sending greetings. Go to Media Library and set a default photo.';
+
+    if (isDataUrl || isPlaceholder) {
+      newErrors.photo = 'Please upload a profile photo in your Profile settings before sending greetings.';
     }
 
     setErrors(newErrors);
@@ -149,9 +153,9 @@ export default function SendGreeting() {
     setSending(true);
     setJobStatus(null);
   try {
-    // Get photo from localStorage (Media Library) first, then fallback to user profile
-    const localStoragePhoto = localStorage.getItem('greetme_photo_file') || '';
-    const effectivePhotoUrl = localStoragePhoto || user?.photoUrl || '';
+    // Use user.photoUrl from backend profile (real Azure Blob URL)
+    // Do NOT use localStorage data URLs - they cannot be fetched by the worker
+    const effectivePhotoUrl = user?.photoUrl || '';
 
     const greetingData = {
       userId: user?.id || user?.email || '',
