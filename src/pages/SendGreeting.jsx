@@ -139,13 +139,19 @@ export default function SendGreeting() {
     }
 
     setErrors(newErrors);
+    console.log("🔴 validate() newErrors:", newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("🔴 handleSubmit FIRED", { formData, user });
 
-    if (!validate()) return;
+    if (!validate()) {
+      console.log("🔴 validate() returned FALSE - check newErrors above");
+      return;
+    }
+    console.log("🔴 validate() PASSED, proceeding to send");
 
     const selectedContact = contacts.find(c => c.id === formData.contactId);
     if (!selectedContact) return;
