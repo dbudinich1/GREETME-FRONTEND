@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Send, CheckCircle, XCircle, Loader, Edit3, Gift, ArrowLeft, Camera } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
+import GiftSelectorModal from '../components/GiftSelectorModal';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import GreetingDraftEditor from '../components/GreetingDraftEditor';
@@ -43,6 +44,16 @@ export default function SendGreeting() {
     giftAmount: '',
   });
   const [errors, setErrors] = useState({});
+
+  // Gift modal state
+  const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
+  const [giftSettings, setGiftSettings] = useState({
+    type: 'none',
+    amount: 25,
+    customAmount: '',
+    maxSpend: 50,
+    autoGift: false
+  });
 
   useEffect(() => {
     fetchContacts();
@@ -701,7 +712,7 @@ if (typeof window !== "undefined") {
           </div>
         </div>
 
-        {/* Add a Gift - Live Button */}
+        {/* Add a Gift - Modal Button */}
         <div className="mb-8">
           <label className="block text-sm font-medium text-gray-700 mb-3">
             Add a Gift (Optional)
@@ -736,83 +747,72 @@ if (typeof window !== "undefined") {
                   fontWeight: 600,
                   color: '#1f2937',
                   marginBottom: '0.25rem'
-                }}>QR Cash™ — Send Cash by QR</h3>
+                }}>Make it Extra Special</h3>
                 <p style={{
                   fontSize: '0.875rem',
                   color: '#6b7280'
-                }}>Add real cash to your greeting — Send · Scan · Spend</p>
+                }}>Add QR Cash, curated gifts, or browse our marketplace</p>
               </div>
             </div>
 
-            {/* Gift Amount Options */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '0.5rem',
-              marginBottom: '1rem'
-            }}>
-              {['5', '10', '25', 'Custom'].map((amt) => (
-                <button
-                  key={amt}
-                  type="button"
-                  onClick={() => {
-                    if (amt === 'Custom') {
-                      const custom = prompt('Enter custom amount:');
-                      if (custom) {
-                        setFormData(prev => ({ ...prev, giftAmount: custom }));
-                      }
-                    } else {
-                      setFormData(prev => ({ ...prev, giftAmount: amt }));
-                    }
-                  }}
-                  style={{
-                    padding: '0.75rem',
-                    background: formData.giftAmount === amt ? '#f59e0b' : 'white',
-                    color: formData.giftAmount === amt ? 'white' : '#1f2937',
-                    border: `2px solid ${formData.giftAmount === amt ? '#f59e0b' : '#e5e7eb'}`,
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    fontFamily: 'inherit'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (formData.giftAmount !== amt) {
-                      e.currentTarget.style.borderColor = '#f59e0b';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (formData.giftAmount !== amt) {
-                      e.currentTarget.style.borderColor = '#e5e7eb';
-                    }
-                  }}
-                >
-                  {amt === 'Custom' ? amt : `$${amt}`}
-                </button>
-              ))}
-            </div>
-
-            {formData.giftAmount && (
-              <div style={{
+            {/* Add/Edit Gift Button */}
+            <button
+              type="button"
+              onClick={() => setIsGiftModalOpen(true)}
+              style={{
+                width: '100%',
+                padding: '0.875rem 1.5rem',
+                background: giftSettings.type !== 'none' ? '#10b981' : '#f59e0b',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.5rem',
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <Gift size={18} />
+              {giftSettings.type !== 'none' ? 'Edit Gift' : 'Add a Gift (Optional)'}
+            </button>
+
+            {/* Gift Summary */}
+            {giftSettings.type !== 'none' && (
+              <div style={{
+                marginTop: '0.75rem',
                 padding: '0.75rem 1rem',
                 background: '#dcfce7',
                 borderRadius: '0.5rem',
-                marginBottom: '0.75rem'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
               }}>
                 <span style={{
                   fontSize: '0.875rem',
-                  fontWeight: 600,
+                  fontWeight: 500,
                   color: '#16a34a'
                 }}>
-                  💵 ${formData.giftAmount} QR Cash will be included
+                  {giftSettings.type === 'qrcash' && (
+                    <>Gift: QR Cash (${giftSettings.amount === 0 ? giftSettings.customAmount || '0' : giftSettings.amount})</>
+                  )}
+                  {giftSettings.type === 'curated' && (
+                    <>Gift: Curated (Max ${giftSettings.maxSpend})</>
+                  )}
+                  {giftSettings.type === 'merch' && (
+                    <>Gift: Merch</>
+                  )}
+                  {giftSettings.type === 'marketplace' && (
+                    <>Gift: American Marketplace</>
+                  )}
                 </span>
                 <button
                   type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, giftAmount: '' }))}
+                  onClick={() => setGiftSettings(prev => ({ ...prev, type: 'none' }))}
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -827,14 +827,6 @@ if (typeof window !== "undefined") {
                 </button>
               </div>
             )}
-
-            <p style={{
-              fontSize: '0.75rem',
-              color: '#6b7280',
-              textAlign: 'center'
-            }}>
-              QR Cash prints inside the card so the recipient can deposit it like cash
-            </p>
           </div>
         </div>
 
@@ -872,6 +864,19 @@ if (typeof window !== "undefined") {
           </div>
         </div>
       </form>
+
+      {/* Gift Selector Modal */}
+      <GiftSelectorModal
+        isOpen={isGiftModalOpen}
+        onClose={() => setIsGiftModalOpen(false)}
+        occasions={[{ type: 'just_because', date: new Date().toISOString().split('T')[0] }]}
+        occasionGiftSettings={{ just_because: giftSettings }}
+        onGiftChange={(occasionType, field, value) => {
+          setGiftSettings(prev => ({ ...prev, [field]: value }));
+        }}
+        getOccasionLabel={() => 'Just Because'}
+        getOccasionEmoji={() => '💝'}
+      />
     </div>
   );
 }
