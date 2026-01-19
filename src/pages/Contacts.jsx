@@ -661,18 +661,19 @@ export default function Recipients() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  padding: '14px 24px',
+                  padding: isMobile ? '14px 24px' : '10px 16px',
                   background: 'var(--gray-100)',
                   color: 'var(--text-primary)',
                   border: 'none',
                   borderRadius: 'var(--radius-lg)',
-                  fontSize: '0.9375rem',
+                  fontSize: isMobile ? '0.9375rem' : '0.875rem',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  fontFamily: 'inherit'
+                  fontFamily: 'inherit',
+                  width: isMobile ? '100%' : 'auto'
                 }}
               >
-                <Upload size={18} />
+                <Upload size={isMobile ? 18 : 16} />
                 Import CSV
               </button>
               <button
@@ -685,19 +686,20 @@ export default function Recipients() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  padding: '14px 24px',
+                  padding: isMobile ? '14px 24px' : '10px 16px',
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   color: 'white',
                   border: 'none',
                   borderRadius: 'var(--radius-lg)',
-                  fontSize: '0.9375rem',
+                  fontSize: isMobile ? '0.9375rem' : '0.875rem',
                   fontWeight: 600,
                   cursor: 'pointer',
                   fontFamily: 'inherit',
-                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                  width: isMobile ? '100%' : 'auto'
                 }}
               >
-                <Plus size={18} />
+                <Plus size={isMobile ? 18 : 16} />
                 Add Recipient
               </button>
             </div>
