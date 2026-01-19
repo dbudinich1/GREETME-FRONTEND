@@ -371,6 +371,7 @@ if (typeof window !== "undefined") {
     <div className="max-w-2xl mx-auto">
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
         <button
+          type="button"
           onClick={() => navigate('/dashboard')}
           style={{
             display: 'flex',
@@ -563,6 +564,7 @@ if (typeof window !== "undefined") {
               </div>
               <button
                 type="button"
+                onClick={() => alert('Photo upload coming soon!')}
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -584,6 +586,7 @@ if (typeof window !== "undefined") {
               </button>
               <button
                 type="button"
+                onClick={() => navigate('/dashboard/media-library?select=photo')}
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -657,6 +660,7 @@ if (typeof window !== "undefined") {
               </div>
               <button
                 type="button"
+                onClick={() => alert('Memory photos upload coming soon!')}
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -678,6 +682,7 @@ if (typeof window !== "undefined") {
               </button>
               <button
                 type="button"
+                onClick={() => navigate('/dashboard/media-library?select=memories')}
                 style={{
                   width: '100%',
                   padding: '0.75rem',
