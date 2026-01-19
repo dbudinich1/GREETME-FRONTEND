@@ -70,9 +70,16 @@ export const AuthProvider = ({ children }) => {
 
   const updateUser = (updates) => {
     if (!user) return;
+
     const updatedUser = { ...user, ...updates };
-    setUser(updatedUser);
     localStorage.setItem('user', JSON.stringify(updatedUser));
+
+    try {
+      const rehydrated = JSON.parse(localStorage.getItem('user'));
+      setUser(rehydrated);
+    } catch (e) {
+      setUser(updatedUser);
+    }
   };
 
   const getToken = () => localStorage.getItem('token');
