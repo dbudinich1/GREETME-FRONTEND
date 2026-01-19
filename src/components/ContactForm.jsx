@@ -1014,75 +1014,6 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         )}
       </div>
 
-      {/* Default Photo (user's greeting photo) */}
-      <div style={{
-        background: 'var(--bg-primary)',
-        borderRadius: 'var(--radius-xl)',
-        border: '1px solid var(--border)',
-        padding: '1rem 1.25rem',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem'
-      }}>
-        {user?.photoUrl ? (
-          <img
-            src={user.photoUrl}
-            alt="Default Photo"
-            style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              objectFit: 'cover',
-              border: '2px solid var(--border)',
-              flexShrink: 0
-            }}
-          />
-        ) : (
-          <div style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            background: 'var(--gray-100)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
-          }}>
-            <Camera size={24} style={{ color: 'var(--gray-400)' }} />
-          </div>
-        )}
-        <div>
-          <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-            Default Photo
-          </p>
-          {user?.photoUrl ? (
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 0' }}>
-              This photo will appear in greetings you send.
-            </p>
-          ) : (
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 0' }}>
-              No default photo yet.{' '}
-              <button
-                type="button"
-                onClick={() => navigate('/media-library')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#3b82f6',
-                  cursor: 'pointer',
-                  padding: 0,
-                  fontSize: '0.75rem',
-                  textDecoration: 'underline'
-                }}
-              >
-                Upload one
-              </button>
-            </p>
-          )}
-        </div>
-      </div>
-
       {/* Memory Photos - Media Library Style */}
       <div style={{
         background: 'var(--bg-primary)',
@@ -1110,6 +1041,74 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         }}>
           Add photos for this recipient. The first photo becomes the default.
         </p>
+
+        {/* Default Photo (user's greeting photo) */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          padding: '0.75rem',
+          background: 'var(--gray-50)',
+          borderRadius: 'var(--radius-md)',
+          marginBottom: '1rem',
+          border: '1px solid var(--border)'
+        }}>
+          {user?.photoUrl ? (
+            <img
+              src={user.photoUrl}
+              alt="Default Photo"
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                objectFit: 'cover',
+                border: '2px solid var(--border)',
+                flexShrink: 0
+              }}
+            />
+          ) : (
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              background: 'var(--gray-200)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <Camera size={20} style={{ color: 'var(--gray-400)' }} />
+            </div>
+          )}
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+              Default Photo
+            </p>
+            {user?.photoUrl ? (
+              <p style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '0.125rem 0 0 0' }}>
+                Appears in greetings you send
+              </p>
+            ) : (
+              <p style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '0.125rem 0 0 0' }}>
+                <button
+                  type="button"
+                  onClick={() => navigate('/media-library')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#3b82f6',
+                    cursor: 'pointer',
+                    padding: 0,
+                    fontSize: '0.6875rem',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Upload one
+                </button>
+              </p>
+            )}
+          </div>
+        </div>
 
         {/* Photo Grid - Media Library Layout */}
         <div style={{
