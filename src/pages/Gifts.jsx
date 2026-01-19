@@ -136,8 +136,9 @@ export default function Gifts() {
     ? giftProducts
     : giftProducts.filter(gift => gift.category === selectedCategory);
 
-  // Check if user came from recipient form (has category param)
-  const cameFromRecipientForm = searchParams.has('category');
+  // Check if user came from recipient form (has category param or returnRecipientId)
+  const returnRecipientId = searchParams.get('returnRecipientId');
+  const cameFromRecipientForm = searchParams.has('category') || !!returnRecipientId;
 
   const handleAddToCart = (gift, e) => {
     e.stopPropagation();
@@ -182,6 +183,17 @@ export default function Gifts() {
   const handleGoToCheckout = () => {
     setShowCartModal(false);
     navigate('/dashboard/cart');
+  };
+
+  const handleReturnToRecipient = () => {
+    setShowCartModal(false);
+    if (returnRecipientId) {
+      // Navigate to contacts with state to auto-open the edit modal
+      navigate('/dashboard/contacts', { state: { openEditRecipientId: returnRecipientId } });
+    } else {
+      // Fallback: just go to contacts page
+      navigate('/dashboard/contacts');
+    }
   };
 
   return (
@@ -578,6 +590,8 @@ export default function Gifts() {
         item={lastAddedItem}
         onContinueShopping={handleContinueShopping}
         onGoToCheckout={handleGoToCheckout}
+        onReturnToRecipient={handleReturnToRecipient}
+        showReturnToRecipient={!!returnRecipientId}
       />
 
       {/* How QR Cash Works Modal */}

@@ -1,7 +1,7 @@
 // src/components/AddToCartModal.jsx
-import { Check, ShoppingCart, ArrowRight } from 'lucide-react';
+import { Check, ShoppingCart, ArrowRight, ArrowLeft } from 'lucide-react';
 
-export default function AddToCartModal({ isOpen, onClose, item, onContinueShopping, onGoToCheckout }) {
+export default function AddToCartModal({ isOpen, onClose, item, onContinueShopping, onGoToCheckout, onReturnToRecipient, showReturnToRecipient }) {
   if (!isOpen) return null;
 
   return (
@@ -167,6 +167,39 @@ export default function AddToCartModal({ isOpen, onClose, item, onContinueShoppi
             Go to Checkout
             <ArrowRight size={18} />
           </button>
+
+          {/* Return to Recipient Settings Button - only show if came from recipient form */}
+          {showReturnToRecipient && onReturnToRecipient && (
+            <button
+              onClick={onReturnToRecipient}
+              style={{
+                width: '100%',
+                padding: '0.875rem 1.5rem',
+                background: '#f3f4f6',
+                color: '#374151',
+                border: 'none',
+                borderRadius: '0.75rem',
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#e5e7eb';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#f3f4f6';
+              }}
+            >
+              <ArrowLeft size={18} />
+              Return to Recipient Settings
+            </button>
+          )}
         </div>
       </div>
     </div>

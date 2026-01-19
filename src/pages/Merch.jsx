@@ -112,8 +112,9 @@ export default function Merch() {
   const [showCartModal, setShowCartModal] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState(null);
 
-  // Check if user came from recipient form (has category param)
-  const cameFromRecipientForm = searchParams.has('category');
+  // Check if user came from recipient form (has category param or returnRecipientId)
+  const returnRecipientId = searchParams.get('returnRecipientId');
+  const cameFromRecipientForm = searchParams.has('category') || !!returnRecipientId;
 
   // Handle category from URL query param
   useEffect(() => {
@@ -180,6 +181,17 @@ export default function Merch() {
   const handleGoToCheckout = () => {
     setShowCartModal(false);
     navigate('/dashboard/cart');
+  };
+
+  const handleReturnToRecipient = () => {
+    setShowCartModal(false);
+    if (returnRecipientId) {
+      // Navigate to contacts with state to auto-open the edit modal
+      navigate('/dashboard/contacts', { state: { openEditRecipientId: returnRecipientId } });
+    } else {
+      // Fallback: just go to contacts page
+      navigate('/dashboard/contacts');
+    }
   };
 
   // Filter items by category
@@ -787,6 +799,8 @@ export default function Merch() {
         item={lastAddedItem}
         onContinueShopping={handleContinueShopping}
         onGoToCheckout={handleGoToCheckout}
+        onReturnToRecipient={handleReturnToRecipient}
+        showReturnToRecipient={!!returnRecipientId}
       />
     </div>
   );

@@ -1590,7 +1590,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                             type="button"
                             onClick={() => {
                               saveScrollPosition();
-                              navigate(giftSetting.type === 'merch' ? '/dashboard/merch?category=merch' : `/dashboard/gifts?category=${giftSetting.type}`);
+                              const returnParam = contact?.id ? `&returnRecipientId=${contact.id}` : '';
+                              navigate(giftSetting.type === 'merch' ? `/dashboard/merch?category=merch${returnParam}` : `/dashboard/gifts?category=${giftSetting.type}${returnParam}`);
                             }}
                             style={{
                               padding: '0.375rem 0.75rem',
@@ -2073,7 +2074,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                             type="button"
                             onClick={() => {
                               saveScrollPosition();
-                              navigate(giftSetting.type === 'merch' ? '/dashboard/merch?category=merch' : `/dashboard/gifts?category=${giftSetting.type}`);
+                              const returnParam = contact?.id ? `&returnRecipientId=${contact.id}` : '';
+                              navigate(giftSetting.type === 'merch' ? `/dashboard/merch?category=merch${returnParam}` : `/dashboard/gifts?category=${giftSetting.type}${returnParam}`);
                             }}
                             style={{
                               padding: '0.375rem 0.75rem',
@@ -2468,7 +2470,11 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         </div>
         <button
           type="button"
-          onClick={() => navigate('/dashboard/gifts')}
+          onClick={() => {
+            saveScrollPosition();
+            const returnParam = contact?.id ? `?returnRecipientId=${contact.id}` : '';
+            navigate(`/dashboard/gifts${returnParam}`);
+          }}
           style={{
             padding: '0.5rem 1rem',
             background: '#d97706',
