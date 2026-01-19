@@ -1493,34 +1493,63 @@ export default function DashboardHome() {
         border: '1px solid var(--border)',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: isNarrow ? 'column' : 'row', alignItems: isNarrow ? 'stretch' : 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: isNarrow ? '0.75rem' : '0' }}>
           <h2 style={{
             fontSize: '1.25rem',
             fontWeight: 700,
             color: 'var(--text-primary)',
             margin: 0
           }}>Coming Up <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>(Next 30 Days)</span></h2>
-          <button
-            onClick={() => navigate('/dashboard/contacts')}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#667eea',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              transition: 'all 0.2s',
-              fontFamily: 'inherit'
-            }}
-          >
-            <Plus size={16} />
-            Add Recipient
-          </button>
+          {/* Desktop: inline button in header */}
+          {!isNarrow && (
+            <button
+              onClick={() => navigate('/dashboard/contacts')}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#667eea',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-lg)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit'
+              }}
+            >
+              <Plus size={16} />
+              Add Recipient
+            </button>
+          )}
+          {/* Mobile: full-width button under title */}
+          {isNarrow && (
+            <button
+              onClick={() => navigate('/dashboard/contacts')}
+              style={{
+                width: '100%',
+                padding: '0.625rem 1rem',
+                background: '#667eea',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-lg)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit'
+              }}
+            >
+              <Plus size={16} />
+              Add Recipient
+            </button>
+          )}
         </div>
 
         {/* Table Header */}
