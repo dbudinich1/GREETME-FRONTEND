@@ -1,6 +1,7 @@
 // src/components/DashboardWidgets.jsx
 import React from 'react';
-import { Users, Mail, Calendar, TrendingUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, Mail, Calendar, TrendingUp, Pencil } from 'lucide-react';
 import { getDaysUntil, formatDate, getOccasionIcon, getOccasionLabel, getTimeAgo } from '../utils/helpers';
 
 export function StatsWidget({ stats }) {
@@ -54,6 +55,14 @@ export function StatsWidget({ stats }) {
 }
 
 export function UpcomingOccasionsWidget({ occasions }) {
+  const navigate = useNavigate();
+
+  const handleEditRecipient = (contactId) => {
+    if (contactId) {
+      navigate('/dashboard/contacts', { state: { openEditRecipientId: contactId } });
+    }
+  };
+
   if (!occasions || occasions.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -93,17 +102,26 @@ export function UpcomingOccasionsWidget({ occasions }) {
                   <p className="text-sm text-gray-600">{getOccasionLabel(occasion.type)}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">
-                  {formatDate(occasion.date)}
-                </p>
-                <p className={`text-xs ${
-                  isToday ? 'text-red-600 font-semibold' :
-                  isTomorrow ? 'text-yellow-600 font-semibold' :
-                  'text-gray-500'
-                }`}>
-                  {isToday ? 'Today!' : isTomorrow ? 'Tomorrow' : `in ${daysUntil} days`}
-                </p>
+              <div className="flex items-center space-x-3">
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-900">
+                    {formatDate(occasion.date)}
+                  </p>
+                  <p className={`text-xs ${
+                    isToday ? 'text-red-600 font-semibold' :
+                    isTomorrow ? 'text-yellow-600 font-semibold' :
+                    'text-gray-500'
+                  }`}>
+                    {isToday ? 'Today!' : isTomorrow ? 'Tomorrow' : `in ${daysUntil} days`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleEditRecipient(occasion.contactId)}
+                  title="Edit recipient"
+                  className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors"
+                >
+                  <Pencil size={16} />
+                </button>
               </div>
             </div>
           );
