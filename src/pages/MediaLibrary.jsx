@@ -1,25 +1,28 @@
 // src/pages/MediaLibrary.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Trash2, Play, Pause, Image as ImageIcon, Mic, ArrowLeft, Smartphone, QrCode, Video, Star, CheckCircle } from 'lucide-react';
+import { Upload, Trash2, Play, Pause, Image as ImageIcon, Mic, ArrowLeft, Smartphone, QrCode, Video, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function MediaLibrary() {
   const navigate = useNavigate();
+  const { user, updateUser, getToken } = useAuth();
   const [voices, setVoices] = useState([]);
-  const [photos, setPhotos] = useState([]);
   const [activeVoice, setActiveVoice] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [defaultPhotoId, setDefaultPhotoId] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const audioRef = useRef(null);
   const voiceInputRef = useRef(null);
   const photoInputRef = useRef(null);
+
+  const API_URL = import.meta.env.VITE_API_BASE || 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
 
   useEffect(() => {
     loadMedia();
   }, []);
 
   const loadMedia = () => {
-    // Load saved voice
+    // Load saved voice from localStorage (voice still uses localStorage)
     const savedVoice = localStorage.getItem('greetme_voice_file');
     if (savedVoice) {
       setVoices([{
@@ -29,45 +32,7 @@ export default function MediaLibrary() {
         date: new Date().toLocaleDateString()
       }]);
     }
-
-    // Load saved photos (new multi-photo structure)
-    const savedPhotos = localStorage.getItem('greetme_photos');
-    if (savedPhotos) {
-      try {
-        const parsedPhotos = JSON.parse(savedPhotos);
-        setPhotos(parsedPhotos);
-      } catch (error) {
-        console.error('Error loading photos:', error);
-      }
-    } else {
-      // Fallback to old single photo storage for backward compatibility
-      const savedPhoto = localStorage.getItem('greetme_photo_file');
-      if (savedPhoto) {
-        setPhotos([{
-          id: 'main-photo',
-          name: 'My Profile Photo',
-          dataUrl: savedPhoto,
-          date: new Date().toLocaleDateString()
-        }]);
-      }
-    }
-
-    // Load default photo ID
-    const savedDefaultPhotoId = localStorage.getItem('greetme_default_photo_id');
-    if (savedDefaultPhotoId) {
-      setDefaultPhotoId(savedDefaultPhotoId);
-    }
-  };
-
-  const setAsDefaultPhoto = (photoId) => {
-    const photo = photos.find(p => p.id === photoId);
-    if (photo) {
-      // Save as default photo for greetings
-      localStorage.setItem('greetme_default_photo_id', photoId);
-      localStorage.setItem('greetme_photo_file', photo.dataUrl);
-      setDefaultPhotoId(photoId);
-      alert('Photo set as default for greetings!');
-    }
+    // Photo comes from user.photoUrl (AuthContext / backend)
   };
 
   const fileToDataUrl = (file) => {
@@ -104,51 +69,51 @@ export default function MediaLibrary() {
     }
   };
 
+  // Upload photo to backend (POST /api/profile/photo)
   const handlePhotoUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    // Validate all files first
-    for (const file of files) {
-      if (!file.type.startsWith('image/')) {
-        alert(`${file.name} is not an image file. Only images are allowed.`);
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        alert(`${file.name} is too large. Images must be less than 5MB.`);
-        return;
-      }
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
     }
 
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setUploadingPhoto(true);
     try {
-      // Get existing photos from localStorage
-      const existingPhotos = JSON.parse(localStorage.getItem('greetme_photos') || '[]');
-
-      // Process each file
-      for (const file of files) {
-        const dataUrl = await fileToDataUrl(file);
-        const newPhoto = {
-          id: Date.now() + Math.random(),
-          name: file.name,
-          dataUrl: dataUrl,
-          date: new Date().toLocaleDateString()
-        };
-        existingPhotos.push(newPhoto);
+      const token = getToken();
+      if (!token) {
+        alert('Please log in to upload a photo');
+        return;
       }
 
-      // Save back to localStorage
-      localStorage.setItem('greetme_photos', JSON.stringify(existingPhotos));
+      const form = new FormData();
+      form.append('photo', file);
 
-      // Also keep the old single photo storage for backward compatibility
-      if (existingPhotos.length > 0) {
-        localStorage.setItem('greetme_photo_file', existingPhotos[0].dataUrl);
+      const res = await fetch(`${API_URL}/api/profile/photo`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'Upload failed');
       }
 
-      loadMedia();
-      alert(`${files.length} photo(s) uploaded successfully!`);
+      // Update AuthContext with new photoUrl from backend
+      updateUser({ photoUrl: data.photoUrl });
+      alert('Photo uploaded successfully!');
     } catch (error) {
       console.error('Photo upload error:', error);
-      alert('Failed to upload photos.');
+      alert('Failed to upload photo. Please try again.');
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -158,29 +123,6 @@ export default function MediaLibrary() {
       setVoices([]);
       setActiveVoice(null);
       setIsPlaying(false);
-    }
-  };
-
-  const deletePhoto = (id) => {
-    if (confirm('Are you sure you want to delete this photo?')) {
-      // Get current photos
-      const savedPhotos = JSON.parse(localStorage.getItem('greetme_photos') || '[]');
-
-      // Remove the photo with matching id
-      const updatedPhotos = savedPhotos.filter(photo => photo.id !== id);
-
-      // Save updated list
-      localStorage.setItem('greetme_photos', JSON.stringify(updatedPhotos));
-
-      // Update backward compatibility storage
-      if (updatedPhotos.length > 0) {
-        localStorage.setItem('greetme_photo_file', updatedPhotos[0].dataUrl);
-      } else {
-        localStorage.removeItem('greetme_photo_file');
-      }
-
-      // Update state
-      setPhotos(updatedPhotos);
     }
   };
 
@@ -237,7 +179,7 @@ export default function MediaLibrary() {
       <p style={{
         color: 'var(--text-secondary)',
         marginBottom: '2rem'
-      }}>Manage your voice recordings and photos</p>
+      }}>Manage your voice recordings and default photo</p>
 
       {/* Demo Video Section */}
       <div style={{
@@ -567,7 +509,7 @@ export default function MediaLibrary() {
         )}
       </div>
 
-      {/* Photos Section */}
+      {/* Default Photo Section (Single Photo from Backend) */}
       <div style={{
         background: 'white',
         border: '2px solid var(--border)',
@@ -599,27 +541,27 @@ export default function MediaLibrary() {
             flex: '1 1 auto'
           }}>
             <ImageIcon size={20} style={{ flexShrink: 0 }} />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Photos</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Default Photo</span>
           </h2>
           <input
             ref={photoInputRef}
             type="file"
             accept="image/*"
-            multiple
             onChange={handlePhotoUpload}
             style={{ display: 'none' }}
           />
           <button
             onClick={() => photoInputRef.current?.click()}
+            disabled={uploadingPhoto}
             style={{
               padding: '0.625rem 1.25rem',
-              background: '#667eea',
-              color: 'white',
+              background: uploadingPhoto ? '#e5e7eb' : '#667eea',
+              color: uploadingPhoto ? '#9ca3af' : 'white',
               border: 'none',
               borderRadius: 'var(--radius-lg)',
               fontSize: '0.875rem',
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: uploadingPhoto ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
@@ -627,168 +569,92 @@ export default function MediaLibrary() {
               flexShrink: 0,
               whiteSpace: 'nowrap'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#5568d3'}
-            onMouseLeave={(e) => e.currentTarget.style.background = '#667eea'}
+            onMouseEnter={(e) => { if (!uploadingPhoto) e.currentTarget.style.background = '#5568d3'; }}
+            onMouseLeave={(e) => { if (!uploadingPhoto) e.currentTarget.style.background = '#667eea'; }}
           >
             <Upload size={16} />
-            Upload Photos
+            {uploadingPhoto ? 'Uploading...' : (user?.photoUrl ? 'Replace Photo' : 'Upload Photo')}
           </button>
         </div>
 
-        {photos.length === 0 ? (
+        {!user?.photoUrl ? (
           <div style={{
             textAlign: 'center',
             padding: '3rem',
             color: 'var(--text-secondary)'
           }}>
             <ImageIcon size={48} style={{ color: 'var(--gray-300)', margin: '0 auto 1rem' }} />
-            <p>No photos yet</p>
-            <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Upload your first photo to get started</p>
+            <p>No default photo yet</p>
+            <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Upload your photo to use in greetings</p>
           </div>
         ) : (
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-            gap: '1rem'
+            display: 'flex',
+            justifyContent: 'center'
           }}>
-            {photos.map(photo => {
-              const isDefault = defaultPhotoId === photo.id || (defaultPhotoId === null && photos.indexOf(photo) === 0);
-              return (
-                <div
-                  key={photo.id}
-                  style={{
-                    position: 'relative',
-                    border: isDefault ? '3px solid #22c55e' : '2px solid var(--border)',
-                    borderRadius: 'var(--radius-lg)',
-                    overflow: 'hidden',
-                    background: 'white',
-                    boxShadow: isDefault ? '0 4px 12px rgba(34, 197, 94, 0.2)' : 'none'
-                  }}
-                >
-                  {/* Default Badge */}
-                  {isDefault && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '0.5rem',
-                      left: '0.5rem',
-                      padding: '0.25rem 0.5rem',
-                      background: '#22c55e',
-                      color: 'white',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.6875rem',
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.25rem',
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-                      zIndex: 10
-                    }}>
-                      <Star size={12} fill="currentColor" />
-                      DEFAULT
-                    </div>
-                  )}
-                  <img
-                    src={photo.dataUrl}
-                    alt={photo.name}
-                    style={{
-                      width: '100%',
-                      height: '200px',
-                      objectFit: 'cover'
-                    }}
-                  />
-                  <div style={{
-                    padding: '0.75rem',
-                    borderTop: '1px solid var(--border)'
-                  }}>
-                    <h3 style={{
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      marginBottom: '0.25rem'
-                    }}>{photo.name}</h3>
-                    <p style={{
-                      fontSize: '0.75rem',
-                      color: 'var(--text-secondary)',
-                      marginBottom: '0.5rem'
-                    }}>Uploaded {photo.date}</p>
-                    {/* Set as Default Button */}
-                    {!isDefault && (
-                      <button
-                        onClick={() => setAsDefaultPhoto(photo.id)}
-                        style={{
-                          width: '100%',
-                          padding: '0.5rem',
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: 'var(--radius-md)',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.375rem',
-                          transition: 'all 0.2s',
-                          fontFamily: 'inherit'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-1px)';
-                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.4)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = 'none';
-                        }}
-                      >
-                        <CheckCircle size={14} />
-                        Set as Default for Greetings
-                      </button>
-                    )}
-                    {isDefault && (
-                      <div style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        background: '#dcfce7',
-                        color: '#15803d',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.375rem'
-                      }}>
-                        <CheckCircle size={14} />
-                        Used for Greetings
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => deletePhoto(photo.id)}
-                    style={{
-                      position: 'absolute',
-                      top: '0.5rem',
-                      right: '0.5rem',
-                      padding: '0.5rem',
-                      background: 'rgba(255, 255, 255, 0.9)',
-                      color: '#dc2626',
-                      border: 'none',
-                      borderRadius: '50%',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#fee2e2'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)'}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+            <div
+              style={{
+                position: 'relative',
+                border: '3px solid #22c55e',
+                borderRadius: 'var(--radius-lg)',
+                overflow: 'hidden',
+                background: 'white',
+                boxShadow: '0 4px 12px rgba(34, 197, 94, 0.2)',
+                maxWidth: '300px',
+                width: '100%'
+              }}
+            >
+              {/* Default Badge */}
+              <div style={{
+                position: 'absolute',
+                top: '0.5rem',
+                left: '0.5rem',
+                padding: '0.25rem 0.5rem',
+                background: '#22c55e',
+                color: 'white',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.6875rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                zIndex: 10
+              }}>
+                <CheckCircle size={12} />
+                DEFAULT
+              </div>
+              <img
+                src={user.photoUrl}
+                alt="Default greeting photo"
+                style={{
+                  width: '100%',
+                  height: '250px',
+                  objectFit: 'cover'
+                }}
+              />
+              <div style={{
+                padding: '0.75rem',
+                borderTop: '1px solid var(--border)'
+              }}>
+                <div style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  background: '#dcfce7',
+                  color: '#15803d',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.375rem'
+                }}>
+                  <CheckCircle size={14} />
+                  Used for Greetings
                 </div>
-              );
-            })}
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -85,18 +85,25 @@ export default function DashboardHome() {
     setRewardsBalance(getRewardsBalance());
   }, []);
 
-  // Load persisted media from localStorage
+  // Sync photoUploaded state when user.photoUrl changes (e.g., after hydration)
+  useEffect(() => {
+    if (user?.photoUrl) {
+      setPhotoUploaded(true);
+    }
+  }, [user?.photoUrl]);
+
+  // Load persisted media from localStorage (voice only; photo comes from user.photoUrl)
   const loadPersistedMedia = () => {
     try {
       const savedVoice = localStorage.getItem('greetme_voice_file');
-      const savedPhoto = localStorage.getItem('greetme_photo_file');
 
       if (savedVoice) {
         setVoiceFileUrl(savedVoice);
         setVoiceRecorded(true);
       }
 
-      if (savedPhoto) {
+      // Photo status from backend via AuthContext (user.photoUrl)
+      if (user?.photoUrl) {
         setPhotoUploaded(true);
       }
 

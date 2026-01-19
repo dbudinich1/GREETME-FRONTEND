@@ -26,26 +26,28 @@ export default function Profile() {
     try {
       setLoading(true);
       const response = await api.getProfile();
-      setProfile(response.data);
+      // Backend returns { ok: true, profile: {...} }
+      const profileData = response.profile || response.data;
+      setProfile(profileData);
 
       // Simulate voice and photo files (in production, fetch from backend)
-      if (response.data?.voiceId) {
+      if (profileData?.voiceId) {
         setVoiceFiles([
           {
-            id: response.data.voiceId,
+            id: profileData.voiceId,
             name: 'My Voice',
             uploadedAt: new Date().toISOString(),
             isDefault: true,
-            url: response.data.voiceUrl || '#',
+            url: profileData.voiceUrl || '#',
           }
         ]);
       }
 
-      if (response.data?.photoUrl) {
+      if (profileData?.photoUrl) {
         setPhotoFiles([
           {
             id: '1',
-            url: response.data.photoUrl,
+            url: profileData.photoUrl,
             uploadedAt: new Date().toISOString(),
             isDefault: true,
           }

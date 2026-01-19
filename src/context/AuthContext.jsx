@@ -9,20 +9,42 @@ export const AuthProvider = ({ children }) => {
 
   const API_URL = import.meta.env.VITE_API_BASE || 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
 
-  useEffect(() => {
-  const token = localStorage.getItem('token');
-  const userData = localStorage.getItem('user');
-  if (token && userData && userData !== 'undefined') {
+  // Fetch profile to hydrate photoUrl (safe: does not block login if fails)
+  const fetchAndHydrateProfile = async (token, currentUser) => {
     try {
-      setUser(JSON.parse(userData));
-    } catch (error) {
-      console.error('Failed to parse user data:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      const res = await fetch(`${API_URL}/api/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const photoUrl = data.profile?.photoUrl || null;
+      const voiceId = data.profile?.voiceId || null;
+      const voiceUrl = data.profile?.voiceUrl || null;
+      const updatedUser = { ...currentUser, photoUrl, voiceId, voiceUrl };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+    } catch (err) {
+      // Silent fail: do not break login flow
     }
-  }
-  setLoading(false);
-}, []);
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    if (token && userData && userData !== 'undefined') {
+      try {
+        const parsed = JSON.parse(userData);
+        setUser(parsed);
+        // Hydrate profile (photoUrl) from backend
+        fetchAndHydrateProfile(token, parsed);
+      } catch (error) {
+        console.error('Failed to parse user data:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    }
+    setLoading(false);
+  }, []);
 
   const login = async (email, password) => {
     try {
@@ -36,6 +58,8 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       setUser(data.user);
+      // Hydrate photoUrl from backend profile (fire-and-forget)
+      fetchAndHydrateProfile(data.token, data.user);
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
@@ -55,6 +79,8 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       setUser(data.user);
+      // Hydrate photoUrl from backend profile (fire-and-forget)
+      fetchAndHydrateProfile(data.token, data.user);
       return { success: true };
     } catch (error) {
       console.error('Register error:', error);
