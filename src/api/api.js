@@ -203,6 +203,15 @@ class ApiService {
       body: JSON.stringify(payload),
     });
   }
+
+  // --------------------
+  // Onboarding
+  // --------------------
+  completeOnboarding() {
+    return this.request("/api/onboarding/complete", {
+      method: "POST",
+    });
+  }
 }
 
 const api = new ApiService();

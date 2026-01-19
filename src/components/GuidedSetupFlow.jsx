@@ -298,6 +298,10 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   };
 
   const handleComplete = () => {
+    // Fire-and-forget: call backend to send onboarding email (idempotent)
+    api.completeOnboarding().catch((err) => {
+      console.warn('Onboarding completion email failed:', err);
+    });
     updateSetupState({ onboardingCompleted: true });
     onComplete?.();
   };
