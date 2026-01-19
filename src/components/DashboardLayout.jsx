@@ -434,10 +434,19 @@ export default function DashboardLayout() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  transition: 'all 0.2s',
                   color: 'white',
                   fontWeight: 600,
                   fontSize: isNarrow ? '0.875rem' : '1rem',
                   padding: 0
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.9';
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                  e.currentTarget.style.transform = 'scale(1)';
                 }}
                 title={user?.name || 'User'}
               >
