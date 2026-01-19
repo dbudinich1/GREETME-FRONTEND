@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { validateEmail, getOccasionsByCategory, calculateVaryingOccasionDate } from '../utils/helpers';
 import Alert from './Alert';
 import FaithBasedOccasionSelector from './FaithBasedOccasionSelector';
-import { Heart, User, Mail, Info, Plus, Camera, X, Gift, ChevronDown, ChevronUp, DollarSign, ExternalLink } from 'lucide-react';
+import { Heart, User, Mail, Info, Plus, Camera, X, Gift, ChevronDown, ChevronUp, DollarSign, ExternalLink, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 // Session storage key for preserving form data during gift selection navigation
@@ -1164,22 +1164,34 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                 onClick={() => setFormData(prev => ({ ...prev, avatar: '' }))}
                 style={{
                   position: 'absolute',
-                  top: '-6px',
-                  right: '-6px',
-                  width: '20px',
-                  height: '20px',
-                  background: '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '50%',
+                  top: '4px',
+                  right: '4px',
+                  width: '24px',
+                  height: '24px',
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  color: 'var(--gray-500)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                  transition: 'all 0.15s ease'
                 }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#fee2e2';
+                  e.currentTarget.style.color = '#ef4444';
+                  e.currentTarget.style.borderColor = '#ef4444';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
+                  e.currentTarget.style.color = 'var(--gray-500)';
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                }}
+                title="Remove photo"
               >
-                <X size={12} />
+                <Trash2 size={14} />
               </button>
             </div>
           ) : (
@@ -1297,22 +1309,34 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                 }}
                 style={{
                   position: 'absolute',
-                  top: '-6px',
-                  right: '-6px',
-                  width: '20px',
-                  height: '20px',
-                  background: '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '50%',
+                  top: '4px',
+                  right: '4px',
+                  width: '24px',
+                  height: '24px',
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  color: 'var(--gray-500)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                  transition: 'all 0.15s ease'
                 }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#fee2e2';
+                  e.currentTarget.style.color = '#ef4444';
+                  e.currentTarget.style.borderColor = '#ef4444';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
+                  e.currentTarget.style.color = 'var(--gray-500)';
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                }}
+                title="Remove photo"
               >
-                <X size={12} />
+                <Trash2 size={14} />
               </button>
             </div>
           ))}
