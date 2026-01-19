@@ -438,8 +438,8 @@ if (typeof window !== "undefined") {
           Back
         </button>
       </div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">Send a Greeting Just Because!</h1>
-      <p className="text-gray-600 mb-8">
+      <h1 className="text-3xl font-bold text-gray-900 mt-2">Send a Greeting Just Because!</h1>
+      <p className="text-gray-600 mt-2 mb-6">
         Create and send a one-off personalized greeting to one of your recipients.
       </p>
 
@@ -450,12 +450,12 @@ if (typeof window !== "undefined") {
         />
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-10">
         {errors.submit && <Alert type="error" message={errors.submit} />}
         {errors.photo && <Alert type="error" message={errors.photo} />}
 
         {/* Select Contact */}
-        <div className="mb-8">
+        <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Select Recipient <span className="text-red-500">*</span>
           </label>
@@ -487,7 +487,7 @@ if (typeof window !== "undefined") {
         </div>
 
         {/* Occasion - Free Text Input */}
-        <div className="mb-8">
+        <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Occasion <span className="text-red-500">*</span>
           </label>
@@ -508,8 +508,8 @@ if (typeof window !== "undefined") {
         </div>
 
         {/* Add a Gift - Modal Button */}
-        <div className="mb-8">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
+        <div className="mt-10 mb-10">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Add a Gift (Optional)
           </label>
           <div style={{
@@ -626,8 +626,8 @@ if (typeof window !== "undefined") {
         </div>
 
         {/* Photo Section - Responsive Grid */}
-        <div className="mb-8">
-          <label className="block text-sm font-medium text-gray-700 mb-4 text-center">
+        <div className="mt-10 mb-10">
+          <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
             Photos
           </label>
           {/* Hidden file inputs */}
@@ -646,30 +646,29 @@ if (typeof window !== "undefined") {
             style={{ display: 'none' }}
           />
           {/* Responsive grid: stacked on mobile, side-by-side on md+ */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
             {/* Default Photo Pane */}
             <div style={{
               display: 'flex',
               flexDirection: 'column',
-              border: '2px solid #e5e7eb',
-              borderRadius: '0.75rem',
-              padding: '1.5rem',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.5rem',
+              padding: '1.25rem',
               background: 'white',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-              minHeight: '320px'
+              minHeight: '260px'
             }}>
               {/* Panel Header - Centered */}
               <div style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                marginBottom: '1rem'
+                marginBottom: '0.5rem'
               }}>
                 <h4 style={{
-                  fontSize: '0.9375rem',
+                  fontSize: '0.8125rem',
                   fontWeight: 600,
                   color: '#1f2937',
-                  marginBottom: '0.5rem'
+                  marginBottom: '0.25rem'
                 }}>Default Photo</h4>
                 {defaultPhoto && (
                   <span style={{
@@ -689,8 +688,8 @@ if (typeof window !== "undefined") {
               {/* Panel Content - centered photo viewer */}
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{
-                  width: '160px',
-                  height: '160px',
+                  width: '140px',
+                  height: '140px',
                   background: defaultPhoto ? 'transparent' : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
                   borderRadius: '0.5rem',
                   display: 'flex',
@@ -735,26 +734,26 @@ if (typeof window !== "undefined") {
                       </button>
                     </>
                   ) : (
-                    <Camera size={48} style={{ color: '#9ca3af' }} />
+                    <Camera size={20} style={{ color: '#9ca3af' }} />
                   )}
                 </div>
               </div>
               {/* Panel Buttons - pinned to bottom */}
-              <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
+              <div style={{ marginTop: 'auto', paddingTop: '0.75rem' }}>
                 <button
                   type="button"
                   onClick={() => defaultPhotoInputRef.current?.click()}
                   style={{
                     width: '100%',
-                    padding: '0.75rem',
+                    padding: '0.5rem',
                     background: '#22c55e',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
+                    borderRadius: '0.375rem',
+                    fontSize: '0.75rem',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    marginBottom: '0.5rem',
+                    marginBottom: '0.375rem',
                     fontFamily: 'inherit',
                     transition: 'all 0.2s'
                   }}
@@ -768,12 +767,12 @@ if (typeof window !== "undefined") {
                   onClick={() => navigate('/dashboard/media-library?select=photo')}
                   style={{
                     width: '100%',
-                    padding: '0.75rem',
+                    padding: '0.5rem',
                     background: 'white',
                     color: '#667eea',
                     border: '1px solid #667eea',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
+                    borderRadius: '0.375rem',
+                    fontSize: '0.75rem',
                     fontWeight: 600,
                     cursor: 'pointer',
                     fontFamily: 'inherit',
@@ -788,7 +787,7 @@ if (typeof window !== "undefined") {
                     e.currentTarget.style.color = '#667eea';
                   }}
                 >
-                  Select from Media Library
+                  Media Library
                 </button>
               </div>
             </div>
@@ -797,22 +796,21 @@ if (typeof window !== "undefined") {
             <div style={{
               display: 'flex',
               flexDirection: 'column',
-              border: '2px solid #e5e7eb',
-              borderRadius: '0.75rem',
-              padding: '1.5rem',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.5rem',
+              padding: '1.25rem',
               background: 'white',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-              minHeight: '320px'
+              minHeight: '260px'
             }}>
               {/* Panel Header */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginBottom: '1rem'
+                marginBottom: '0.5rem'
               }}>
                 <h4 style={{
-                  fontSize: '0.9375rem',
+                  fontSize: '0.8125rem',
                   fontWeight: 600,
                   color: '#1f2937'
                 }}>Memory Photos</h4>
@@ -828,7 +826,7 @@ if (typeof window !== "undefined") {
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '0.5rem'
+                  gap: '0.375rem'
                 }}>
                   {/* Always render 4 tiles */}
                   {[0, 1, 2, 3].map((index) => {
@@ -840,7 +838,7 @@ if (typeof window !== "undefined") {
                           key={index}
                           style={{
                             aspectRatio: '1',
-                            borderRadius: '0.5rem',
+                            borderRadius: '0.375rem',
                             overflow: 'hidden',
                             position: 'relative'
                           }}
@@ -859,10 +857,10 @@ if (typeof window !== "undefined") {
                             onClick={() => handleRemoveMemoryPhoto(index)}
                             style={{
                               position: 'absolute',
-                              top: '0.25rem',
-                              right: '0.25rem',
-                              width: '1.5rem',
-                              height: '1.5rem',
+                              top: '0.125rem',
+                              right: '0.125rem',
+                              width: '1.25rem',
+                              height: '1.25rem',
                               borderRadius: '50%',
                               background: 'rgba(0,0,0,0.6)',
                               color: 'white',
@@ -874,7 +872,7 @@ if (typeof window !== "undefined") {
                               padding: 0
                             }}
                           >
-                            <X size={12} />
+                            <X size={10} />
                           </button>
                         </div>
                       );
@@ -888,12 +886,12 @@ if (typeof window !== "undefined") {
                           style={{
                             aspectRatio: '1',
                             background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-                            borderRadius: '0.5rem',
+                            borderRadius: '0.375rem',
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            border: '2px dashed #d1d5db',
+                            border: '1px dashed #d1d5db',
                             cursor: 'pointer',
                             transition: 'all 0.2s'
                           }}
@@ -906,7 +904,7 @@ if (typeof window !== "undefined") {
                             e.currentTarget.style.background = 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
                           }}
                         >
-                          <Plus size={24} style={{ color: '#9ca3af' }} />
+                          <Plus size={18} style={{ color: '#9ca3af' }} />
                         </button>
                       );
                     } else {
@@ -917,49 +915,37 @@ if (typeof window !== "undefined") {
                           style={{
                             aspectRatio: '1',
                             background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
-                            borderRadius: '0.5rem',
+                            borderRadius: '0.375rem',
                             border: '1px solid #e5e7eb',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}
                         >
-                          <Camera size={24} style={{ color: '#d1d5db' }} />
+                          <Camera size={18} style={{ color: '#d1d5db' }} />
                         </div>
                       );
                     }
                   })}
                 </div>
-                <p style={{
-                  marginTop: '0.75rem',
-                  fontSize: '0.75rem',
-                  color: '#6b7280',
-                  textAlign: 'center'
-                }}>
-                  {memoryPhotos.length === 0
-                    ? 'Add up to 4 memory photos'
-                    : memoryPhotos.length >= 4
-                      ? 'All slots filled'
-                      : `${4 - memoryPhotos.length} slots remaining`}
-                </p>
               </div>
               {/* Panel Buttons - pinned to bottom */}
-              <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
+              <div style={{ marginTop: 'auto', paddingTop: '0.75rem' }}>
                 <button
                   type="button"
                   onClick={() => memoryPhotoInputRef.current?.click()}
                   disabled={memoryPhotos.length >= MAX_MEMORY_PHOTOS}
                   style={{
                     width: '100%',
-                    padding: '0.75rem',
+                    padding: '0.5rem',
                     background: memoryPhotos.length >= MAX_MEMORY_PHOTOS ? '#9ca3af' : '#22c55e',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
+                    borderRadius: '0.375rem',
+                    fontSize: '0.75rem',
                     fontWeight: 600,
                     cursor: memoryPhotos.length >= MAX_MEMORY_PHOTOS ? 'not-allowed' : 'pointer',
-                    marginBottom: '0.5rem',
+                    marginBottom: '0.375rem',
                     fontFamily: 'inherit',
                     transition: 'all 0.2s'
                   }}
@@ -974,19 +960,19 @@ if (typeof window !== "undefined") {
                     }
                   }}
                 >
-                  Add Memory Photos
+                  Add Photos
                 </button>
                 <button
                   type="button"
                   onClick={() => navigate('/dashboard/media-library?select=memories')}
                   style={{
                     width: '100%',
-                    padding: '0.75rem',
+                    padding: '0.5rem',
                     background: 'white',
                     color: '#667eea',
                     border: '1px solid #667eea',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
+                    borderRadius: '0.375rem',
+                    fontSize: '0.75rem',
                     fontWeight: 600,
                     cursor: 'pointer',
                     fontFamily: 'inherit',
@@ -1001,7 +987,7 @@ if (typeof window !== "undefined") {
                     e.currentTarget.style.color = '#667eea';
                   }}
                 >
-                  Select from Media Library
+                  Media Library
                 </button>
               </div>
             </div>
@@ -1009,7 +995,7 @@ if (typeof window !== "undefined") {
         </div>
 
         {/* Submit */}
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center pt-10">
           {/* Advanced Editor Toggle */}
           {formData.contactId && formData.occasionType && (
             <button
