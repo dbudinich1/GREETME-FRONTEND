@@ -504,28 +504,25 @@ if (typeof window !== "undefined") {
           </p>
         </div>
 
-        {/* Photo Section - Side by Side Centered Panes */}
+        {/* Photo Section - Responsive Grid */}
         <div className="mb-8">
           <label className="block text-sm font-medium text-gray-700 mb-4 text-center">
             Photos
           </label>
-          <div style={{
-            display: 'flex',
-            gap: '2rem',
-            justifyContent: 'center',
-            maxWidth: '700px',
-            margin: '0 auto'
-          }}>
+          {/* Responsive grid: stacked on mobile, side-by-side on md+ */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
             {/* Default Photo Pane */}
             <div style={{
-              flex: 1,
-              maxWidth: '300px',
+              display: 'flex',
+              flexDirection: 'column',
               border: '2px solid #e5e7eb',
               borderRadius: '0.75rem',
               padding: '1.5rem',
               background: 'white',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+              minHeight: '320px'
             }}>
+              {/* Panel Header */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -550,169 +547,184 @@ if (typeof window !== "undefined") {
                   ✓ Default
                 </span>
               </div>
-              <div style={{
-                aspectRatio: '1',
-                background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-                borderRadius: '0.5rem',
-                marginBottom: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px dashed #d1d5db'
-              }}>
-                <Camera size={48} style={{ color: '#9ca3af' }} />
+              {/* Panel Content - grows to fill space */}
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  aspectRatio: '1',
+                  background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                  borderRadius: '0.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px dashed #d1d5db',
+                  maxHeight: '160px'
+                }}>
+                  <Camera size={48} style={{ color: '#9ca3af' }} />
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => alert('Photo upload coming soon!')}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  background: '#22c55e',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  marginBottom: '0.5rem',
-                  fontFamily: 'inherit',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#16a34a'}
-                onMouseLeave={(e) => e.currentTarget.style.background = '#22c55e'}
-              >
-                Upload Photo
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/dashboard/media-library?select=photo')}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  background: 'white',
-                  color: '#667eea',
-                  border: '1px solid #667eea',
-                  borderRadius: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#667eea';
-                  e.currentTarget.style.color = 'white';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'white';
-                  e.currentTarget.style.color = '#667eea';
-                }}
-              >
-                Select from Media Library
-              </button>
+              {/* Panel Buttons - pinned to bottom */}
+              <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => alert('Photo upload coming soon!')}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    background: '#22c55e',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    marginBottom: '0.5rem',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#16a34a'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#22c55e'}
+                >
+                  Upload Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/dashboard/media-library?select=photo')}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    background: 'white',
+                    color: '#667eea',
+                    border: '1px solid #667eea',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#667eea';
+                    e.currentTarget.style.color = 'white';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'white';
+                    e.currentTarget.style.color = '#667eea';
+                  }}
+                >
+                  Select from Media Library
+                </button>
+              </div>
             </div>
 
             {/* Memory Photos Pane */}
             <div style={{
-              flex: 1,
-              maxWidth: '300px',
+              display: 'flex',
+              flexDirection: 'column',
               border: '2px solid #e5e7eb',
               borderRadius: '0.75rem',
               padding: '1.5rem',
               background: 'white',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+              minHeight: '320px'
             }}>
+              {/* Panel Header */}
               <h4 style={{
                 fontSize: '0.9375rem',
                 fontWeight: 600,
                 color: '#1f2937',
                 marginBottom: '1rem'
               }}>Memory Photos</h4>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '0.5rem',
-                marginBottom: '1rem'
-              }}>
+              {/* Panel Content - grows to fill space */}
+              <div style={{ flex: 1 }}>
                 <div style={{
-                  aspectRatio: '1',
-                  background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-                  borderRadius: '0.375rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '2px dashed #d1d5db'
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '0.5rem'
                 }}>
-                  <Camera size={24} style={{ color: '#9ca3af' }} />
+                  <div style={{
+                    aspectRatio: '1',
+                    background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                    borderRadius: '0.375rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '2px dashed #d1d5db',
+                    maxHeight: '75px'
+                  }}>
+                    <Camera size={24} style={{ color: '#9ca3af' }} />
+                  </div>
+                  <div style={{
+                    aspectRatio: '1',
+                    background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                    borderRadius: '0.375rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '2px dashed #d1d5db',
+                    maxHeight: '75px'
+                  }}>
+                    <Camera size={24} style={{ color: '#9ca3af' }} />
+                  </div>
                 </div>
-                <div style={{
-                  aspectRatio: '1',
-                  background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-                  borderRadius: '0.375rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '2px dashed #d1d5db'
-                }}>
-                  <Camera size={24} style={{ color: '#9ca3af' }} />
-                </div>
+                <p style={{
+                  marginTop: '0.75rem',
+                  fontSize: '0.75rem',
+                  color: '#6b7280',
+                  textAlign: 'center'
+                }}>Upload multiple photos to create a memory album</p>
               </div>
-              <button
-                type="button"
-                onClick={() => alert('Memory photos upload coming soon!')}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  background: '#22c55e',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  marginBottom: '0.5rem',
-                  fontFamily: 'inherit',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#16a34a'}
-                onMouseLeave={(e) => e.currentTarget.style.background = '#22c55e'}
-              >
-                Add Memory Photos
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/dashboard/media-library?select=memories')}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  background: 'white',
-                  color: '#667eea',
-                  border: '1px solid #667eea',
-                  borderRadius: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#667eea';
-                  e.currentTarget.style.color = 'white';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'white';
-                  e.currentTarget.style.color = '#667eea';
-                }}
-              >
-                Select from Media Library
-              </button>
-              <p style={{
-                marginTop: '0.75rem',
-                fontSize: '0.75rem',
-                color: '#6b7280',
-                textAlign: 'center'
-              }}>Upload multiple photos to create a memory album</p>
+              {/* Panel Buttons - pinned to bottom */}
+              <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => alert('Memory photos upload coming soon!')}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    background: '#22c55e',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    marginBottom: '0.5rem',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#16a34a'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#22c55e'}
+                >
+                  Add Memory Photos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/dashboard/media-library?select=memories')}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    background: 'white',
+                    color: '#667eea',
+                    border: '1px solid #667eea',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#667eea';
+                    e.currentTarget.style.color = 'white';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'white';
+                    e.currentTarget.style.color = '#667eea';
+                  }}
+                >
+                  Select from Media Library
+                </button>
+              </div>
             </div>
           </div>
         </div>
