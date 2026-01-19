@@ -1,13 +1,13 @@
 // src/components/GiftSelectorModal.jsx
 import Modal from './Modal';
-import { DollarSign, Check } from 'lucide-react';
+import { DollarSign } from 'lucide-react';
 
 const GIFT_OPTIONS = [
-  { value: 'none', label: 'None', description: 'No gift for this occasion' },
-  { value: 'qrcash', label: 'QR Cash\u2122', description: 'Send digital cash they can redeem' },
-  { value: 'curated', label: 'Let Greet-Me select', description: 'We\'ll pick a thoughtful gift' },
-  { value: 'merch', label: 'Merch', description: 'Choose from our merchandise' },
-  { value: 'marketplace', label: 'Browse Marketplace', description: 'Explore gift options' }
+  { value: 'none', label: 'None', description: 'No gift for now' },
+  { value: 'qrcash', label: 'QR Cash\u2122', description: 'Send cash they can scan and spend' },
+  { value: 'curated', label: 'Let Greet-Me Select', description: 'We\'ll select something thoughtful within your limit' },
+  { value: 'merch', label: 'Merch', description: 'Greet-Me merch & keepsakes' },
+  { value: 'marketplace', label: 'American Marketplace', description: 'Browse made-in-USA gifts' }
 ];
 
 const QR_CASH_PRESETS = [10, 25, 50, 100];
@@ -30,23 +30,28 @@ export default function GiftSelectorModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Add Gift to Occasions"
+      title="Choose a Gift (Optional)"
       size="md"
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        {/* Instructions */}
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
-          Select a gift type for each occasion. Your selections will be saved when you close this modal.
+        {/* Subtitle */}
+        <p style={{
+          fontSize: '0.875rem',
+          color: 'var(--text-secondary)',
+          margin: 0,
+          lineHeight: 1.5
+        }}>
+          Pick one option for each occasion. You can edit later.
         </p>
 
         {/* No occasions selected message */}
         {(!occasions || occasions.length === 0) && (
           <div style={{
-            padding: '2rem',
+            padding: '2.5rem 2rem',
             textAlign: 'center',
-            background: 'rgba(107, 114, 128, 0.05)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px dashed var(--border)'
+            background: 'var(--bg-secondary, #f9fafb)',
+            borderRadius: '0.75rem',
+            border: '1px dashed var(--border, #e5e7eb)'
           }}>
             <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
               No occasions selected yet. Add occasions first, then come back to configure gifts.
@@ -56,7 +61,7 @@ export default function GiftSelectorModal({
 
         {/* Occasion Gift Settings */}
         {occasions && occasions.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {occasions.map((occ) => {
               const giftSetting = getGiftSetting(occ.type);
 
@@ -64,11 +69,11 @@ export default function GiftSelectorModal({
                 <div
                   key={occ.type}
                   style={{
-                    padding: '1rem',
-                    background: 'white',
-                    borderRadius: 'var(--radius-lg)',
-                    border: '1px solid var(--border)',
-                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+                    padding: '1.25rem',
+                    background: 'var(--bg-primary, white)',
+                    borderRadius: '0.75rem',
+                    border: '1px solid var(--border, #e5e7eb)',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
                   }}
                 >
                   {/* Occasion Header */}
@@ -76,89 +81,128 @@ export default function GiftSelectorModal({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.75rem',
-                    marginBottom: '1rem',
-                    paddingBottom: '0.75rem',
-                    borderBottom: '1px solid var(--border)'
+                    marginBottom: '1.25rem',
+                    paddingBottom: '1rem',
+                    borderBottom: '1px solid var(--border, #e5e7eb)'
                   }}>
-                    <span style={{ fontSize: '1.25rem' }}>{getOccasionEmoji(occ.type)}</span>
+                    <span style={{ fontSize: '1.5rem' }}>{getOccasionEmoji(occ.type)}</span>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      <h4 style={{
+                        margin: 0,
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        color: 'var(--text-primary, #111827)'
+                      }}>
                         {getOccasionLabel(occ.type)}
                       </h4>
                       {occ.date && (
-                        <p style={{ margin: '0.125rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                          {new Date(occ.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        <p style={{
+                          margin: '0.25rem 0 0 0',
+                          fontSize: '0.8125rem',
+                          color: 'var(--text-tertiary, #9ca3af)'
+                        }}>
+                          {new Date(occ.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  {/* Gift Type Selection - Radio Buttons */}
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>
-                      Gift Type
-                    </label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {GIFT_OPTIONS.map((option) => (
+                  {/* Gift Type Selection - Card-style Radio Options */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                    {GIFT_OPTIONS.map((option) => {
+                      const isSelected = giftSetting.type === option.value;
+                      return (
                         <label
                           key={option.value}
                           style={{
                             display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: '0.75rem',
-                            padding: '0.75rem',
-                            borderRadius: 'var(--radius-md)',
-                            border: `1px solid ${giftSetting.type === option.value ? '#667eea' : 'var(--border)'}`,
-                            background: giftSetting.type === option.value ? 'rgba(102, 126, 234, 0.05)' : 'white',
+                            alignItems: 'center',
+                            gap: '0.875rem',
+                            padding: '1rem 1.125rem',
+                            borderRadius: '0.625rem',
+                            border: isSelected
+                              ? '2px solid #667eea'
+                              : '1px solid var(--border, #e5e7eb)',
+                            background: isSelected
+                              ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.06) 0%, rgba(102, 126, 234, 0.02) 100%)'
+                              : 'var(--bg-primary, white)',
                             cursor: 'pointer',
-                            transition: 'all 0.15s'
+                            transition: 'all 0.15s ease',
+                            marginLeft: isSelected ? '-1px' : '0',
+                            marginRight: isSelected ? '-1px' : '0'
                           }}
                         >
                           <input
                             type="radio"
                             name={`gift-type-${occ.type}`}
                             value={option.value}
-                            checked={giftSetting.type === option.value}
+                            checked={isSelected}
                             onChange={() => onGiftChange(occ.type, 'type', option.value)}
-                            style={{ marginTop: '0.125rem', accentColor: '#667eea' }}
+                            style={{
+                              width: '1.125rem',
+                              height: '1.125rem',
+                              accentColor: '#667eea',
+                              flexShrink: 0
+                            }}
                           />
-                          <div>
-                            <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{
+                              fontSize: '0.9375rem',
+                              fontWeight: isSelected ? 600 : 500,
+                              color: isSelected ? '#667eea' : 'var(--text-primary, #111827)',
+                              display: 'block'
+                            }}>
                               {option.label}
                             </span>
-                            <p style={{ margin: '0.125rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                            <p style={{
+                              margin: '0.25rem 0 0 0',
+                              fontSize: '0.8125rem',
+                              color: 'var(--text-tertiary, #9ca3af)',
+                              lineHeight: 1.4
+                            }}>
                               {option.description}
                             </p>
                           </div>
                         </label>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
 
                   {/* QR Cash Amount Selector */}
                   {giftSetting.type === 'qrcash' && (
                     <div style={{
-                      padding: '1rem',
-                      background: '#fffbeb',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid #fbbf24'
+                      marginTop: '1rem',
+                      padding: '1.125rem',
+                      background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+                      borderRadius: '0.625rem',
+                      border: '1px solid #fcd34d'
                     }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#92400e', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                      <label style={{
+                        fontSize: '0.8125rem',
+                        fontWeight: 600,
+                        color: '#92400e',
+                        marginBottom: '0.625rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.375rem'
+                      }}>
                         <DollarSign size={14} />
-                        Amount
+                        Select Amount
                       </label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
                         <select
                           value={giftSetting.amount || 25}
                           onChange={(e) => onGiftChange(occ.type, 'amount', parseInt(e.target.value))}
                           style={{
-                            padding: '0.5rem 0.75rem',
+                            padding: '0.625rem 1rem',
                             border: '1px solid #fbbf24',
-                            borderRadius: 'var(--radius-md)',
-                            fontSize: '0.875rem',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.9375rem',
                             fontFamily: 'inherit',
+                            fontWeight: 500,
                             background: 'white',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            minWidth: '120px'
                           }}
                         >
                           {QR_CASH_PRESETS.map((amt) => (
@@ -167,20 +211,20 @@ export default function GiftSelectorModal({
                           <option value={0}>Custom</option>
                         </select>
                         {giftSetting.amount === 0 && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <span style={{ color: '#92400e' }}>$</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            <span style={{ color: '#92400e', fontWeight: 500 }}>$</span>
                             <input
                               type="number"
                               min="1"
-                              placeholder="Enter amount"
+                              placeholder="Amount"
                               value={giftSetting.customAmount || ''}
                               onChange={(e) => onGiftChange(occ.type, 'customAmount', parseInt(e.target.value))}
                               style={{
                                 width: '100px',
-                                padding: '0.5rem 0.75rem',
+                                padding: '0.625rem 0.75rem',
                                 border: '1px solid #fbbf24',
-                                borderRadius: 'var(--radius-md)',
-                                fontSize: '0.875rem',
+                                borderRadius: '0.5rem',
+                                fontSize: '0.9375rem',
                                 fontFamily: 'inherit',
                                 background: 'white'
                               }}
@@ -194,12 +238,21 @@ export default function GiftSelectorModal({
                   {/* Curated Gift Max Spend Selector */}
                   {giftSetting.type === 'curated' && (
                     <div style={{
-                      padding: '1rem',
-                      background: '#f0f4ff',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid #667eea'
+                      marginTop: '1rem',
+                      padding: '1.125rem',
+                      background: 'linear-gradient(135deg, #f0f4ff 0%, #e8ecff 100%)',
+                      borderRadius: '0.625rem',
+                      border: '1px solid #a5b4fc'
                     }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4338ca', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                      <label style={{
+                        fontSize: '0.8125rem',
+                        fontWeight: 600,
+                        color: '#4338ca',
+                        marginBottom: '0.625rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.375rem'
+                      }}>
                         <DollarSign size={14} />
                         Maximum Budget
                       </label>
@@ -207,17 +260,19 @@ export default function GiftSelectorModal({
                         value={giftSetting.maxSpend || 50}
                         onChange={(e) => onGiftChange(occ.type, 'maxSpend', parseInt(e.target.value))}
                         style={{
-                          padding: '0.5rem 0.75rem',
-                          border: '1px solid #667eea',
-                          borderRadius: 'var(--radius-md)',
-                          fontSize: '0.875rem',
+                          padding: '0.625rem 1rem',
+                          border: '1px solid #818cf8',
+                          borderRadius: '0.5rem',
+                          fontSize: '0.9375rem',
                           fontFamily: 'inherit',
+                          fontWeight: 500,
                           background: 'white',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          minWidth: '120px'
                         }}
                       >
                         {CURATED_MAX_TIERS.map((amt) => (
-                          <option key={amt} value={amt}>${amt}</option>
+                          <option key={amt} value={amt}>Up to ${amt}</option>
                         ))}
                       </select>
                     </div>
@@ -225,40 +280,57 @@ export default function GiftSelectorModal({
 
                   {/* Auto-Gift Toggle */}
                   {giftSetting.type !== 'none' && (
-                    <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px dashed var(--border)' }}>
+                    <div style={{
+                      marginTop: '1.25rem',
+                      paddingTop: '1rem',
+                      borderTop: '1px dashed var(--border, #e5e7eb)'
+                    }}>
                       <label style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         cursor: 'pointer'
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                           <input
                             type="checkbox"
                             checked={giftSetting.autoGift === true}
                             onChange={(e) => onGiftChange(occ.type, 'autoGift', e.target.checked)}
-                            style={{ width: '1rem', height: '1rem', accentColor: '#667eea' }}
+                            style={{
+                              width: '1.125rem',
+                              height: '1.125rem',
+                              accentColor: '#667eea',
+                              borderRadius: '0.25rem'
+                            }}
                           />
-                          <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+                          <span style={{
+                            fontSize: '0.9375rem',
+                            fontWeight: 500,
+                            color: 'var(--text-primary, #111827)'
+                          }}>
                             Enable Auto-Gift
                           </span>
                         </div>
                         <span style={{
-                          fontSize: '0.625rem',
+                          fontSize: '0.6875rem',
                           fontWeight: 600,
-                          padding: '0.25rem 0.5rem',
+                          padding: '0.3125rem 0.625rem',
                           borderRadius: '9999px',
-                          background: giftSetting.autoGift ? 'rgba(102, 126, 234, 0.1)' : 'rgba(107, 114, 128, 0.1)',
-                          color: giftSetting.autoGift ? '#667eea' : 'var(--text-tertiary)',
-                          textTransform: 'uppercase'
+                          background: giftSetting.autoGift
+                            ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(102, 126, 234, 0.1) 100%)'
+                            : 'rgba(107, 114, 128, 0.1)',
+                          color: giftSetting.autoGift ? '#667eea' : 'var(--text-tertiary, #9ca3af)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.03em'
                         }}>
                           {giftSetting.autoGift ? 'Auto' : 'Manual'}
                         </span>
                       </label>
                       <p style={{
-                        fontSize: '0.75rem',
-                        color: 'var(--text-tertiary)',
-                        margin: '0.5rem 0 0 1.5rem'
+                        fontSize: '0.8125rem',
+                        color: 'var(--text-tertiary, #9ca3af)',
+                        margin: '0.625rem 0 0 1.75rem',
+                        lineHeight: 1.4
                       }}>
                         {giftSetting.autoGift
                           ? 'Gift will be sent automatically on the occasion date.'
@@ -276,29 +348,48 @@ export default function GiftSelectorModal({
         <div style={{
           display: 'flex',
           justifyContent: 'flex-end',
-          gap: '0.75rem',
-          paddingTop: '1rem',
-          borderTop: '1px solid var(--border)'
+          alignItems: 'center',
+          gap: '0.875rem',
+          paddingTop: '1.25rem',
+          borderTop: '1px solid var(--border, #e5e7eb)'
         }}>
           <button
             type="button"
             onClick={onClose}
             style={{
-              padding: '0.75rem 1.5rem',
-              background: '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.875rem',
-              fontWeight: 600,
+              padding: '0.75rem 1.25rem',
+              background: 'transparent',
+              color: 'var(--text-secondary, #6b7280)',
+              border: '1px solid var(--border, #e5e7eb)',
+              borderRadius: '0.5rem',
+              fontSize: '0.9375rem',
+              fontWeight: 500,
               cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
+              transition: 'all 0.15s ease',
+              fontFamily: 'inherit'
             }}
           >
-            <Check size={16} />
-            Done
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn-primary"
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: 'linear-gradient(135deg, #667eea 0%, #5a67d8 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.5rem',
+              fontSize: '0.9375rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              fontFamily: 'inherit',
+              boxShadow: '0 2px 4px rgba(102, 126, 234, 0.25)'
+            }}
+          >
+            Continue
           </button>
         </div>
       </div>
