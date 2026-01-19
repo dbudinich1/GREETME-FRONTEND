@@ -1,7 +1,8 @@
 // src/pages/SendGreeting.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, CheckCircle, XCircle, Loader, Edit3, Gift, ArrowLeft, Camera } from 'lucide-react';
+import { Send, CheckCircle, XCircle, Loader, Edit3, Gift, ArrowLeft, Camera, Plus, X } from 'lucide-react';
+import { useRef } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import GiftSelectorModal from '../components/GiftSelectorModal';
@@ -54,6 +55,44 @@ export default function SendGreeting() {
     maxSpend: 50,
     autoGift: false
   });
+
+  // Photo state
+  const [defaultPhoto, setDefaultPhoto] = useState(null);
+  const [memoryPhotos, setMemoryPhotos] = useState([]);
+  const MAX_MEMORY_PHOTOS = 8;
+  const defaultPhotoInputRef = useRef(null);
+  const memoryPhotoInputRef = useRef(null);
+
+  // Handle default photo selection
+  const handleDefaultPhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setDefaultPhoto(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle memory photo addition
+  const handleMemoryPhotoAdd = (e) => {
+    const file = e.target.files?.[0];
+    if (file && memoryPhotos.length < MAX_MEMORY_PHOTOS) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setMemoryPhotos(prev => [...prev, reader.result]);
+      };
+      reader.readAsDataURL(file);
+    }
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  };
+
+  // Remove a memory photo
+  const handleRemoveMemoryPhoto = (index) => {
+    setMemoryPhotos(prev => prev.filter((_, i) => i !== index));
+  };
 
   useEffect(() => {
     fetchContacts();
@@ -509,6 +548,21 @@ if (typeof window !== "undefined") {
           <label className="block text-sm font-medium text-gray-700 mb-4 text-center">
             Photos
           </label>
+          {/* Hidden file inputs */}
+          <input
+            type="file"
+            ref={defaultPhotoInputRef}
+            onChange={handleDefaultPhotoChange}
+            accept="image/*"
+            style={{ display: 'none' }}
+          />
+          <input
+            type="file"
+            ref={memoryPhotoInputRef}
+            onChange={handleMemoryPhotoAdd}
+            accept="image/*"
+            style={{ display: 'none' }}
+          />
           {/* Responsive grid: stacked on mobile, side-by-side on md+ */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
             {/* Default Photo Pane */}
@@ -522,51 +576,92 @@ if (typeof window !== "undefined") {
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
               minHeight: '320px'
             }}>
-              {/* Panel Header */}
+              {/* Panel Header - Centered */}
               <div style={{
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'space-between',
                 marginBottom: '1rem'
               }}>
                 <h4 style={{
                   fontSize: '0.9375rem',
                   fontWeight: 600,
-                  color: '#1f2937'
+                  color: '#1f2937',
+                  marginBottom: '0.5rem'
                 }}>Default Photo</h4>
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  padding: '0.25rem 0.625rem',
-                  borderRadius: '9999px',
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
-                  background: '#dcfce7',
-                  color: '#16a34a'
-                }}>
-                  ✓ Default
-                </span>
+                {defaultPhoto && (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '0.25rem 0.625rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    background: '#dcfce7',
+                    color: '#16a34a'
+                  }}>
+                    ✓ Photo Set
+                  </span>
+                )}
               </div>
-              {/* Panel Content - grows to fill space */}
-              <div style={{ flex: 1 }}>
+              {/* Panel Content - centered photo viewer */}
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{
-                  aspectRatio: '1',
-                  background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                  width: '160px',
+                  height: '160px',
+                  background: defaultPhoto ? 'transparent' : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
                   borderRadius: '0.5rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  border: '2px dashed #d1d5db',
-                  maxHeight: '160px'
+                  border: defaultPhoto ? 'none' : '2px dashed #d1d5db',
+                  overflow: 'hidden',
+                  position: 'relative'
                 }}>
-                  <Camera size={48} style={{ color: '#9ca3af' }} />
+                  {defaultPhoto ? (
+                    <>
+                      <img
+                        src={defaultPhoto}
+                        alt="Default"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          borderRadius: '0.5rem'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setDefaultPhoto(null)}
+                        style={{
+                          position: 'absolute',
+                          top: '0.25rem',
+                          right: '0.25rem',
+                          width: '1.5rem',
+                          height: '1.5rem',
+                          borderRadius: '50%',
+                          background: 'rgba(0,0,0,0.6)',
+                          color: 'white',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <X size={12} />
+                      </button>
+                    </>
+                  ) : (
+                    <Camera size={48} style={{ color: '#9ca3af' }} />
+                  )}
                 </div>
               </div>
               {/* Panel Buttons - pinned to bottom */}
               <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
                 <button
                   type="button"
-                  onClick={() => alert('Photo upload coming soon!')}
+                  onClick={() => defaultPhotoInputRef.current?.click()}
                   style={{
                     width: '100%',
                     padding: '0.75rem',
@@ -584,7 +679,7 @@ if (typeof window !== "undefined") {
                   onMouseEnter={(e) => e.currentTarget.style.background = '#16a34a'}
                   onMouseLeave={(e) => e.currentTarget.style.background = '#22c55e'}
                 >
-                  Upload Photo
+                  {defaultPhoto ? 'Change Photo' : 'Upload Photo'}
                 </button>
                 <button
                   type="button"
@@ -628,72 +723,148 @@ if (typeof window !== "undefined") {
               minHeight: '320px'
             }}>
               {/* Panel Header */}
-              <h4 style={{
-                fontSize: '0.9375rem',
-                fontWeight: 600,
-                color: '#1f2937',
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
                 marginBottom: '1rem'
-              }}>Memory Photos</h4>
-              {/* Panel Content - grows to fill space */}
+              }}>
+                <h4 style={{
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  color: '#1f2937'
+                }}>Memory Photos</h4>
+                <span style={{
+                  fontSize: '0.75rem',
+                  color: '#6b7280'
+                }}>
+                  {memoryPhotos.length}/{MAX_MEMORY_PHOTOS}
+                </span>
+              </div>
+              {/* Panel Content - progressive tiles */}
               <div style={{ flex: 1 }}>
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
                   gap: '0.5rem'
                 }}>
-                  <div style={{
-                    aspectRatio: '1',
-                    background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-                    borderRadius: '0.375rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '2px dashed #d1d5db',
-                    maxHeight: '75px'
-                  }}>
-                    <Camera size={24} style={{ color: '#9ca3af' }} />
-                  </div>
-                  <div style={{
-                    aspectRatio: '1',
-                    background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-                    borderRadius: '0.375rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '2px dashed #d1d5db',
-                    maxHeight: '75px'
-                  }}>
-                    <Camera size={24} style={{ color: '#9ca3af' }} />
-                  </div>
+                  {/* Existing memory photos */}
+                  {memoryPhotos.map((photo, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        aspectRatio: '1',
+                        borderRadius: '0.375rem',
+                        overflow: 'hidden',
+                        position: 'relative'
+                      }}
+                    >
+                      <img
+                        src={photo}
+                        alt={`Memory ${index + 1}`}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMemoryPhoto(index)}
+                        style={{
+                          position: 'absolute',
+                          top: '0.125rem',
+                          right: '0.125rem',
+                          width: '1.25rem',
+                          height: '1.25rem',
+                          borderRadius: '50%',
+                          background: 'rgba(0,0,0,0.6)',
+                          color: 'white',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 0
+                        }}
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
+                  {/* Add tile - only show if under max */}
+                  {memoryPhotos.length < MAX_MEMORY_PHOTOS && (
+                    <button
+                      type="button"
+                      onClick={() => memoryPhotoInputRef.current?.click()}
+                      style={{
+                        aspectRatio: '1',
+                        background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                        borderRadius: '0.375rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '2px dashed #d1d5db',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#667eea';
+                        e.currentTarget.style.background = 'rgba(102, 126, 234, 0.05)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#d1d5db';
+                        e.currentTarget.style.background = 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
+                      }}
+                    >
+                      <Plus size={20} style={{ color: '#9ca3af' }} />
+                    </button>
+                  )}
                 </div>
                 <p style={{
                   marginTop: '0.75rem',
                   fontSize: '0.75rem',
                   color: '#6b7280',
                   textAlign: 'center'
-                }}>Upload multiple photos to create a memory album</p>
+                }}>
+                  {memoryPhotos.length === 0
+                    ? 'Add photos to create a memory album'
+                    : memoryPhotos.length >= MAX_MEMORY_PHOTOS
+                      ? 'Maximum photos reached'
+                      : 'Click + to add more photos'}
+                </p>
               </div>
               {/* Panel Buttons - pinned to bottom */}
               <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
                 <button
                   type="button"
-                  onClick={() => alert('Memory photos upload coming soon!')}
+                  onClick={() => memoryPhotoInputRef.current?.click()}
+                  disabled={memoryPhotos.length >= MAX_MEMORY_PHOTOS}
                   style={{
                     width: '100%',
                     padding: '0.75rem',
-                    background: '#22c55e',
+                    background: memoryPhotos.length >= MAX_MEMORY_PHOTOS ? '#9ca3af' : '#22c55e',
                     color: 'white',
                     border: 'none',
                     borderRadius: '0.5rem',
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    cursor: 'pointer',
+                    cursor: memoryPhotos.length >= MAX_MEMORY_PHOTOS ? 'not-allowed' : 'pointer',
                     marginBottom: '0.5rem',
                     fontFamily: 'inherit',
                     transition: 'all 0.2s'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#16a34a'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#22c55e'}
+                  onMouseEnter={(e) => {
+                    if (memoryPhotos.length < MAX_MEMORY_PHOTOS) {
+                      e.currentTarget.style.background = '#16a34a';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (memoryPhotos.length < MAX_MEMORY_PHOTOS) {
+                      e.currentTarget.style.background = '#22c55e';
+                    }
+                  }}
                 >
                   Add Memory Photos
                 </button>
