@@ -556,28 +556,8 @@ export default function DashboardHome() {
         alignItems: 'center',
         justifyContent: 'center',
         gap: isNarrow ? '0.75rem' : '1rem',
-        flexWrap: 'wrap',
-        position: 'relative'
+        flexWrap: 'wrap'
       }}>
-        {/* G1G1 Badge */}
-        <div style={{
-          position: 'absolute',
-          right: isNarrow ? '0.375rem' : '0.5rem',
-          top: isNarrow ? '0.375rem' : '0.5rem',
-          width: isNarrow ? '1.75rem' : '2rem',
-          height: isNarrow ? '1.75rem' : '2rem',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: isNarrow ? '0.4375rem' : '0.5rem',
-          fontWeight: 700,
-          color: '#000',
-          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)'
-        }}>
-          G1G1
-        </div>
         <div style={{ textAlign: 'center' }}>
           <h2 style={{
             fontSize: isNarrow ? '0.875rem' : '1rem',
@@ -592,59 +572,64 @@ export default function DashboardHome() {
             opacity: 0.9,
             margin: 0
           }}>
-            Every subscription includes one for a loved one
+            Every subscription includes one for you — and one for a loved one.
           </p>
         </div>
       </div>
 
-      {/* QR Cash - Compact Card */}
+      {/* QR Cash + Rewards - Two Equal Cards */}
       <div style={{
-        background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-        borderRadius: 'var(--radius-lg)',
-        padding: isNarrow ? '0.75rem 1rem' : '0.875rem 1.25rem',
-        marginBottom: isNarrow ? '1rem' : '1.5rem',
-        color: 'white',
-        boxShadow: '0 2px 8px rgba(251, 191, 36, 0.2)',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        display: 'grid',
+        gridTemplateColumns: isNarrow ? '1fr' : '1fr 1fr',
         gap: '1rem',
-        flexWrap: 'wrap'
+        marginBottom: isNarrow ? '1rem' : '1.5rem'
       }}>
-          <div>
-            <h3 style={{
-              fontSize: isNarrow ? '0.8125rem' : '0.875rem',
-              fontWeight: 700,
-              marginBottom: '0.125rem'
-            }}>
-              QR Cash™
-            </h3>
+        {/* QR Cash Card */}
+        <div style={{
+          background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+          borderRadius: 'var(--radius-lg)',
+          padding: isNarrow ? '1rem' : '1.25rem',
+          color: 'white',
+          boxShadow: '0 2px 8px rgba(251, 191, 36, 0.2)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.75rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <h3 style={{
+                fontSize: isNarrow ? '0.875rem' : '1rem',
+                fontWeight: 700,
+                marginBottom: '0.125rem'
+              }}>
+                QR Cash™
+              </h3>
+              <p style={{
+                fontSize: isNarrow ? '0.6875rem' : '0.75rem',
+                opacity: 0.9
+              }}>
+                Send · Scan · Spend
+              </p>
+            </div>
             <p style={{
-              fontSize: isNarrow ? '0.625rem' : '0.6875rem',
-              opacity: 0.9,
-              marginBottom: '0.25rem',
+              fontSize: isNarrow ? '1.25rem' : '1.5rem',
+              fontWeight: 700
             }}>
-              Send · Scan · Spend
+              $0.00
             </p>
           </div>
-          <p style={{
-            fontSize: isNarrow ? '1.125rem' : '1.25rem',
-            fontWeight: 700,
-            marginBottom: '0.5rem',
-          }}>
-            $0.00
-          </p>
-          <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
               onClick={() => setShowQRCashModal(true)}
               style={{
-                padding: isNarrow ? '0.375rem 0.625rem' : '0.375rem 0.75rem',
+                flex: 1,
+                padding: '0.5rem 0.75rem',
                 background: 'white',
                 color: '#f59e0b',
                 border: 'none',
                 borderRadius: 'var(--radius-md)',
-                fontSize: isNarrow ? '0.6875rem' : '0.75rem',
+                fontSize: isNarrow ? '0.75rem' : '0.8125rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
@@ -656,12 +641,13 @@ export default function DashboardHome() {
             <button
               onClick={() => setShowHowItWorksModal(true)}
               style={{
-                padding: isNarrow ? '0.375rem 0.625rem' : '0.375rem 0.75rem',
+                flex: 1,
+                padding: '0.5rem 0.75rem',
                 background: 'rgba(255, 255, 255, 0.2)',
                 color: 'white',
                 border: 'none',
                 borderRadius: 'var(--radius-md)',
-                fontSize: isNarrow ? '0.6875rem' : '0.75rem',
+                fontSize: isNarrow ? '0.75rem' : '0.8125rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
@@ -671,6 +657,82 @@ export default function DashboardHome() {
               How?
             </button>
           </div>
+        </div>
+
+        {/* Rewards Program Card */}
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: 'var(--radius-lg)',
+          padding: isNarrow ? '1rem' : '1.25rem',
+          color: 'white',
+          boxShadow: '0 2px 8px rgba(102, 126, 234, 0.2)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.75rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <h3 style={{
+                fontSize: isNarrow ? '0.875rem' : '1rem',
+                fontWeight: 700,
+                marginBottom: '0.125rem'
+              }}>
+                Rewards
+              </h3>
+              <p style={{
+                fontSize: isNarrow ? '0.6875rem' : '0.75rem',
+                opacity: 0.9
+              }}>
+                Earn · Redeem · Enjoy
+              </p>
+            </div>
+            <p style={{
+              fontSize: isNarrow ? '1.25rem' : '1.5rem',
+              fontWeight: 700
+            }}>
+              {rewardsBalance} pts
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              onClick={() => navigate('/dashboard/rewards')}
+              style={{
+                flex: 1,
+                padding: '0.5rem 0.75rem',
+                background: 'white',
+                color: '#667eea',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: isNarrow ? '0.75rem' : '0.8125rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit'
+              }}
+            >
+              View
+            </button>
+            <button
+              onClick={() => navigate('/dashboard/rewards')}
+              style={{
+                flex: 1,
+                padding: '0.5rem 0.75rem',
+                background: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: isNarrow ? '0.75rem' : '0.8125rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit'
+              }}
+            >
+              Redeem
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Two Column Layout */}
