@@ -661,11 +661,11 @@ export default function DashboardHome() {
 
         {/* Rewards Program Card */}
         <div style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
           borderRadius: 'var(--radius-lg)',
           padding: isNarrow ? '1rem' : '1.25rem',
           color: 'white',
-          boxShadow: '0 2px 8px rgba(102, 126, 234, 0.2)',
+          boxShadow: '0 2px 8px rgba(236, 72, 153, 0.2)',
           border: '1px solid rgba(255, 255, 255, 0.15)',
           display: 'flex',
           flexDirection: 'column',
@@ -701,7 +701,7 @@ export default function DashboardHome() {
                 flex: 1,
                 padding: '0.5rem 0.75rem',
                 background: 'white',
-                color: '#667eea',
+                color: '#be185d',
                 border: 'none',
                 borderRadius: 'var(--radius-md)',
                 fontSize: isNarrow ? '0.75rem' : '0.8125rem',
