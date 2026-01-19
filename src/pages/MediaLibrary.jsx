@@ -1,13 +1,15 @@
 // src/pages/MediaLibrary.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Trash2, Play, Pause, Image as ImageIcon, Mic, ArrowLeft, Smartphone, QrCode, Video, CheckCircle } from 'lucide-react';
+import { Upload, Trash2, Play, Pause, Image as ImageIcon, Mic, ArrowLeft, Smartphone, QrCode, Video, CheckCircle, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getMediaLibraryItems, removeFromMediaLibrary } from '../utils/mediaLibrary';
 
 export default function MediaLibrary() {
   const navigate = useNavigate();
   const { user, updateUser, getToken } = useAuth();
   const [voices, setVoices] = useState([]);
+  const [recipientPhotos, setRecipientPhotos] = useState([]);
   const [activeVoice, setActiveVoice] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -33,6 +35,17 @@ export default function MediaLibrary() {
       }]);
     }
     // Photo comes from user.photoUrl (AuthContext / backend)
+
+    // Load recipient photos from media library
+    const libraryItems = getMediaLibraryItems();
+    setRecipientPhotos(libraryItems.filter(item => item.type === 'photo'));
+  };
+
+  const handleDeleteRecipientPhoto = (id) => {
+    if (confirm('Remove this photo from your media library?')) {
+      removeFromMediaLibrary(id);
+      loadMedia(); // Refresh the list
+    }
   };
 
   const fileToDataUrl = (file) => {
@@ -515,6 +528,7 @@ export default function MediaLibrary() {
         border: '2px solid var(--border)',
         borderRadius: 'var(--radius-lg)',
         padding: '1.5rem',
+        marginBottom: '2rem',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
         width: '100%',
         overflow: 'hidden'
@@ -655,6 +669,141 @@ export default function MediaLibrary() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Recipient Photos Section (Auto-added from recipients) */}
+      <div style={{
+        background: 'white',
+        border: '2px solid var(--border)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '1.5rem',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+        width: '100%',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '0.75rem',
+          marginBottom: '1.5rem',
+          paddingBottom: '1rem',
+          borderBottom: '2px solid var(--border)',
+          width: '100%'
+        }}>
+          <h2 style={{
+            fontSize: '1.25rem',
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            minWidth: 0,
+            flex: '1 1 auto'
+          }}>
+            <Users size={20} style={{ flexShrink: 0 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Recipient Photos</span>
+          </h2>
+          <span style={{
+            fontSize: '0.75rem',
+            color: 'var(--text-secondary)',
+            background: 'var(--gray-100)',
+            padding: '0.25rem 0.75rem',
+            borderRadius: 'var(--radius-md)'
+          }}>
+            Auto-added from recipients
+          </span>
+        </div>
+
+        {recipientPhotos.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '3rem',
+            color: 'var(--text-secondary)'
+          }}>
+            <Users size={48} style={{ color: 'var(--gray-300)', margin: '0 auto 1rem' }} />
+            <p>No recipient photos yet</p>
+            <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Photos you add to recipients will appear here automatically</p>
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+            gap: '1rem'
+          }}>
+            {recipientPhotos.map(photo => (
+              <div
+                key={photo.id}
+                style={{
+                  position: 'relative',
+                  borderRadius: 'var(--radius-lg)',
+                  overflow: 'hidden',
+                  border: '1px solid var(--border)',
+                  background: 'white'
+                }}
+              >
+                <img
+                  src={photo.url}
+                  alt="Recipient photo"
+                  style={{
+                    width: '100%',
+                    height: '150px',
+                    objectFit: 'cover'
+                  }}
+                />
+                {/* Source badge */}
+                <div style={{
+                  position: 'absolute',
+                  top: '0.375rem',
+                  left: '0.375rem',
+                  padding: '0.125rem 0.375rem',
+                  background: photo.source === 'recipient-avatar' ? '#3b82f6' : '#8b5cf6',
+                  color: 'white',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.5625rem',
+                  fontWeight: 600,
+                  textTransform: 'uppercase'
+                }}>
+                  {photo.source === 'recipient-avatar' ? 'Avatar' : 'Memory'}
+                </div>
+                {/* Delete button */}
+                <button
+                  onClick={() => handleDeleteRecipientPhoto(photo.id)}
+                  style={{
+                    position: 'absolute',
+                    top: '0.375rem',
+                    right: '0.375rem',
+                    padding: '0.25rem',
+                    background: 'rgba(220, 38, 38, 0.9)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#dc2626'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(220, 38, 38, 0.9)'}
+                >
+                  <Trash2 size={12} />
+                </button>
+                {/* Date added */}
+                <div style={{
+                  padding: '0.5rem',
+                  fontSize: '0.6875rem',
+                  color: 'var(--text-secondary)',
+                  borderTop: '1px solid var(--border)',
+                  textAlign: 'center'
+                }}>
+                  Added {new Date(photo.addedAt).toLocaleDateString()}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

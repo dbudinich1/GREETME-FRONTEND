@@ -9,6 +9,7 @@ import CSVImport from '../components/CSVImport';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import { getOccasionIcon, getOccasionLabel } from '../utils/helpers';
+import { autoAddRecipientPhotosToLibrary } from '../utils/mediaLibrary';
 
 // Session storage key (must match ContactForm.jsx)
 const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
@@ -113,6 +114,9 @@ export default function Recipients() {
         return updated;
       });
 
+      // Auto-add recipient photos to media library
+      autoAddRecipientPhotosToLibrary(contactData);
+
       showAlertMessage('success', 'Recipient added successfully');
       setShowAddModal(false);
 
@@ -134,6 +138,9 @@ export default function Recipients() {
         return updated;
       });
 
+      // Auto-add recipient photos to media library (even in offline mode)
+      autoAddRecipientPhotosToLibrary(contactData);
+
       showAlertMessage('success', 'Recipient added (stored locally - backend unavailable)');
       setShowAddModal(false);
     }
@@ -142,6 +149,10 @@ export default function Recipients() {
   const handleEditRecipient = async (contactData) => {
     try {
       await api.updateContact(editingContact.id, contactData);
+
+      // Auto-add any new recipient photos to media library
+      autoAddRecipientPhotosToLibrary(contactData);
+
       showAlertMessage('success', 'Recipient updated successfully');
       setShowEditModal(false);
       setEditingContact(null);
