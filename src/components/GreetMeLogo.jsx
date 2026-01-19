@@ -7,7 +7,8 @@ export default function GreetMeLogo({ size = 'medium', clickable = true, variant
   const sizes = {
     small: { width: 100, height: 32, fontSize: '1rem', tagline: '0.5rem' },
     medium: { width: 140, height: 44, fontSize: '1.375rem', tagline: '0.625rem' },
-    large: { width: 180, height: 56, fontSize: '1.75rem', tagline: '0.75rem' }
+    large: { width: 180, height: 56, fontSize: '1.75rem', tagline: '0.75rem' },
+    xlarge: { width: 220, height: 68, fontSize: '2.125rem', tagline: '0.875rem' }
   };
 
   const s = sizes[size] || sizes.medium;

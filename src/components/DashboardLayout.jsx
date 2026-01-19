@@ -145,9 +145,9 @@ export default function DashboardLayout() {
             </div>
           )}
 
-          {/* G1G1 Gold Foil Seal with Star-Point Edge - Hide on mobile */}
+          {/* G1G1 Gold Foil Seal with Star-Point Edge - Static Decorative (Hide on mobile) */}
           {!isNarrow && (
-        <div style={{ width: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <div style={{ position: 'relative', width: '90px', height: '90px' }}>
             {/* Star-point notched edge layer - 24 points around the circle */}
             {[...Array(24)].map((_, i) => {
@@ -173,9 +173,8 @@ export default function DashboardLayout() {
               );
             })}
 
-            {/* Main seal button */}
-            <button
-              onClick={() => navigate('/dashboard/hero')}
+            {/* Main seal - Static decorative (no click) */}
+            <div
               style={{
                 position: 'absolute',
                 top: '50%',
@@ -194,8 +193,7 @@ export default function DashboardLayout() {
                   '0 12px 32px rgba(139,105,20,0.3),' +
                   'inset 0 2px 4px rgba(255,255,255,0.4),' +
                   'inset 0 -2px 4px rgba(0,0,0,0.2)',
-                cursor: 'pointer',
-                transition: 'all 0.25s ease',
+                cursor: 'default',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -204,23 +202,6 @@ export default function DashboardLayout() {
                 fontFamily: 'inherit',
                 zIndex: 10
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.parentElement.style.transform = 'scale(1.05) rotate(2deg)';
-                e.currentTarget.style.boxShadow =
-                  '0 8px 24px rgba(0,0,0,0.3),' +
-                  '0 16px 48px rgba(139,105,20,0.4),' +
-                  'inset 0 2px 4px rgba(255,255,255,0.5),' +
-                  'inset 0 -2px 4px rgba(0,0,0,0.25)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.parentElement.style.transform = 'scale(1) rotate(0deg)';
-                e.currentTarget.style.boxShadow =
-                  '0 6px 16px rgba(0,0,0,0.25),' +
-                  '0 12px 32px rgba(139,105,20,0.3),' +
-                  'inset 0 2px 4px rgba(255,255,255,0.4),' +
-                  'inset 0 -2px 4px rgba(0,0,0,0.2)';
-              }}
-              title="Greet-Me Hero™"
             >
               {/* Faint G watermark - more visible */}
               <div style={{
@@ -300,12 +281,12 @@ export default function DashboardLayout() {
                   <div>Give One™</div>
                 </div>
               </div>
-            </button>
+            </div>
           </div>
         </div>
           )}
 
-          {/* Centered Logo and Title */}
+          {/* Centered Logo and Tagline */}
           <div style={{
             textAlign: 'center',
             display: 'flex',
@@ -315,18 +296,11 @@ export default function DashboardLayout() {
             justifyContent: 'center',
             minWidth: 0
           }}>
-            <GreetMeLogo size={isNarrow ? 'small' : 'large'} clickable={true} />
-            {!isNarrow && (
-              <p style={{
-                fontSize: '0.875rem',
-                color: 'var(--text-secondary)',
-                margin: '0.5rem 0 0 0'
-              }}>Welcome back, {user?.name?.split(' ')[0] || 'User'}!</p>
-            )}
+            <GreetMeLogo size={isNarrow ? 'small' : 'xlarge'} clickable={true} />
           </div>
 
-          {/* Right side - Image Bank, Cart, User icon */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: isNarrow ? '0.25rem' : '0.5rem', justifyContent: 'flex-end', flexShrink: 0, minWidth: isNarrow ? '6rem' : 'auto' }}>
+          {/* Right side - Image Bank, Cart, User icon (equal spacing) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: isNarrow ? '0.5rem' : '1rem', justifyContent: 'flex-end', flexShrink: 0, minWidth: isNarrow ? '6rem' : '120px' }}>
             {/* Image Bank - for tracking images */}
             <button
               onClick={() => navigate('/dashboard/animations')}
@@ -804,6 +778,15 @@ export default function DashboardLayout() {
       {/* Main Content */}
       <main style={{ flex: 1, padding: isNarrow ? '1rem' : '2rem', overflowY: 'auto', background: 'var(--bg-secondary)' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          {/* Page-level Welcome greeting */}
+          <p style={{
+            fontSize: '0.875rem',
+            color: 'var(--text-tertiary)',
+            margin: '0 0 1.5rem 0',
+            fontWeight: 500
+          }}>
+            Welcome back, {user?.name?.split(' ')[0] || 'User'}!
+          </p>
           <Outlet />
         </div>
       </main>
