@@ -198,35 +198,50 @@ export default function Gifts() {
 
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
-      {/* Back Button - only show when came from recipient form */}
-      {cameFromRecipientForm && (
-        <button
-          onClick={() => navigate('/dashboard/contacts')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '2rem',
-            height: '2rem',
-            padding: 0,
-            background: 'var(--gray-100)',
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-            marginBottom: '1rem',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--gray-200)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--gray-100)';
-          }}
-          title="Back"
-        >
-          <ArrowLeft size={18} />
-        </button>
+      {/* Recipient Gift Session Header - show when in recipient context */}
+      {returnRecipientId && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0.75rem 1rem',
+          background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(102, 126, 234, 0.05) 100%)',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid rgba(102, 126, 234, 0.2)',
+          marginBottom: '1.5rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1rem' }}>🎁</span>
+            <span style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: '#667eea'
+            }}>
+              Shopping for Recipient
+            </span>
+          </div>
+          <button
+            onClick={handleReturnToRecipient}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.5rem 1rem',
+              background: '#667eea',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'all 0.2s'
+            }}
+          >
+            <ArrowLeft size={14} />
+            Return to Recipient Settings
+          </button>
+        </div>
       )}
 
       {/* Header */}
@@ -271,7 +286,13 @@ export default function Gifts() {
               Gifts
             </button>
             <button
-              onClick={() => navigate('/dashboard/merch')}
+              onClick={() => {
+                // Preserve returnRecipientId when toggling to Merch
+                const merchUrl = returnRecipientId
+                  ? `/dashboard/merch?returnRecipientId=${returnRecipientId}`
+                  : '/dashboard/merch';
+                navigate(merchUrl);
+              }}
               style={{
                 padding: '0.5rem 1rem',
                 background: 'transparent',
