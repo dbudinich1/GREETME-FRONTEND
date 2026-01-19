@@ -1235,7 +1235,7 @@ export default function DashboardHome() {
                     cursor: 'pointer',
                     transition: 'all 0.2s'
                   }}
-                  onClick={() => navigate('/dashboard/contacts')}
+                  onClick={() => navigate('/dashboard/contacts', { state: { openEditRecipientId: contact.id } })}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'var(--gray-50)';
                   }}
@@ -1332,7 +1332,7 @@ export default function DashboardHome() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate('/dashboard/contacts');
+                        navigate('/dashboard/contacts', { state: { openEditRecipientId: contact.id } });
                       }}
                       style={{
                         background: 'transparent',

@@ -1,7 +1,7 @@
 // src/pages/Contacts.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Upload, Search, Edit, Trash2, ArrowLeft, Users, Calendar, Gift, Clock } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from "../api/api";
 import Modal from '../components/Modal';
 import ContactForm from '../components/ContactForm';
@@ -15,6 +15,7 @@ const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
 
 export default function Recipients() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [recipients, setRecipients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,6 +27,7 @@ export default function Recipients() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [viewMode, setViewMode] = useState('recipients');
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const hasAutoOpenedRef = useRef(false);
 
   // Handle resize for responsive layout
   useEffect(() => {
@@ -53,6 +55,21 @@ export default function Recipients() {
       console.warn('Could not check form draft:', e);
     }
   }, []);
+
+  // Handle deep link from Dashboard to auto-open Edit Recipient modal
+  useEffect(() => {
+    const editId = location.state?.openEditRecipientId;
+    if (editId && recipients.length > 0 && !hasAutoOpenedRef.current) {
+      const target = recipients.find(r => r.id === editId);
+      if (target) {
+        hasAutoOpenedRef.current = true;
+        setEditingContact(target);
+        setShowEditModal(true);
+        // Clear the state so refresh doesn't re-open
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    }
+  }, [recipients, location.state, navigate, location.pathname]);
 
   const fetchRecipients = async () => {
     try {
