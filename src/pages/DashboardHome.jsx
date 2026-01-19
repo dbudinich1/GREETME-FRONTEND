@@ -1,7 +1,7 @@
 // src/pages/DashboardHome.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square, CheckCircle, Copy, Image as ImageIcon, Smartphone, QrCode, DollarSign, X, Send, Gift, CreditCard } from 'lucide-react';
+import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square, CheckCircle, Copy, Image as ImageIcon, Smartphone, QrCode, DollarSign, X, Send, Gift, CreditCard, Pencil } from 'lucide-react';
 import api from "../api/api";
 import { getOccasionIcon } from '../utils/helpers';
 import { getRewardsBalance, getRemainingDailyHearts } from '../utils/rewards';
@@ -1527,7 +1527,7 @@ export default function DashboardHome() {
         {!isNarrow && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '2fr 1fr 2fr 1fr',
+          gridTemplateColumns: '2fr 1fr 2fr 1fr auto',
           padding: '0.75rem 1rem',
           borderBottom: '1px solid var(--border)',
           fontSize: '0.8125rem',
@@ -1540,6 +1540,7 @@ export default function DashboardHome() {
           <div>ICONS</div>
           <div>OCCASIONS</div>
           <div style={{ textAlign: 'right' }}>DATE</div>
+          <div style={{ width: '2rem' }}></div>
         </div>
         )}
 
@@ -1551,7 +1552,7 @@ export default function DashboardHome() {
               style={{
                 display: isNarrow ? 'flex' : 'grid',
                 flexDirection: isNarrow ? 'column' : undefined,
-                gridTemplateColumns: isNarrow ? undefined : '2fr 1fr 2fr 1fr',
+                gridTemplateColumns: isNarrow ? undefined : '2fr 1fr 2fr 1fr auto',
                 padding: isNarrow ? '0.75rem' : '1rem',
                 gap: isNarrow ? '0.5rem' : undefined,
                 borderBottom: index < comingUpOccasions.length - 1 ? '1px solid var(--border)' : 'none',
@@ -1638,6 +1639,36 @@ export default function DashboardHome() {
                 {item.date}
               </div>
               )}
+              {/* Edit Pencil Icon */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate('/dashboard/contacts', { state: { openEditRecipientId: item.id } });
+                }}
+                title="Edit recipient"
+                style={{
+                  padding: '0.375rem',
+                  background: 'transparent',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer',
+                  color: '#9ca3af',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#374151';
+                  e.currentTarget.style.background = '#e5e7eb';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#9ca3af';
+                  e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <Pencil size={16} />
+              </button>
             </div>
           ))}
         </div>
