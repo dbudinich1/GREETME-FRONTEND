@@ -5,6 +5,7 @@ import { validateEmail, getOccasionsByCategory, calculateVaryingOccasionDate } f
 import Alert from './Alert';
 import FaithBasedOccasionSelector from './FaithBasedOccasionSelector';
 import { Heart, User, Mail, Info, Plus, Camera, X, Gift, ChevronDown, ChevronUp, DollarSign, ExternalLink } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 // Session storage key for preserving form data during gift selection navigation
 const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
@@ -47,6 +48,7 @@ const getInitialFormData = () => ({
 
 export default function ContactForm({ contact, onSubmit, onCancel }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [formData, setFormData] = useState(getInitialFormData());
   const [selectedFaiths, setSelectedFaiths] = useState([]);
   const [errors, setErrors] = useState({});
@@ -1010,6 +1012,75 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Default Photo (user's greeting photo) */}
+      <div style={{
+        background: 'var(--bg-primary)',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid var(--border)',
+        padding: '1rem 1.25rem',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '1rem'
+      }}>
+        {user?.photoUrl ? (
+          <img
+            src={user.photoUrl}
+            alt="Default Photo"
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              objectFit: 'cover',
+              border: '2px solid var(--border)',
+              flexShrink: 0
+            }}
+          />
+        ) : (
+          <div style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            background: 'var(--gray-100)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            <Camera size={24} style={{ color: 'var(--gray-400)' }} />
+          </div>
+        )}
+        <div>
+          <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+            Default Photo
+          </p>
+          {user?.photoUrl ? (
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 0' }}>
+              This photo will appear in greetings you send.
+            </p>
+          ) : (
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 0' }}>
+              No default photo yet.{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/media-library')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#3b82f6',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontSize: '0.75rem',
+                  textDecoration: 'underline'
+                }}
+              >
+                Upload one
+              </button>
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Memory Photos - Media Library Style */}
