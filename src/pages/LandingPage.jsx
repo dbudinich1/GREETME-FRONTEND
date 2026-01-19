@@ -114,7 +114,7 @@ export default function LandingPage() {
             marginBottom: '1.5rem',
             lineHeight: 1.1,
             fontStyle: 'italic',
-            transform: 'skewX(-8deg)',
+            transform: 'skewX(-12deg)',
             display: 'inline-block'
           }}>
             Forget Them Not!

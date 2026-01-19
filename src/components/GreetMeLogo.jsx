@@ -136,7 +136,8 @@ export default function GreetMeLogo({ size = 'medium', clickable = true, variant
             </span>
             <span style={{
               fontStyle: 'italic',
-              transform: 'skewX(-8deg)',
+              fontWeight: 700,
+              transform: 'skewX(-12deg)',
               display: 'inline-block'
             }}>Forget Them Not!</span>
           </span>
