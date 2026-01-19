@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { validateEmail, getOccasionsByCategory, calculateVaryingOccasionDate } from '../utils/helpers';
 import Alert from './Alert';
 import FaithBasedOccasionSelector from './FaithBasedOccasionSelector';
+import GiftSelectorModal from './GiftSelectorModal';
 import { Heart, User, Mail, Info, Plus, Camera, X, Gift, ChevronDown, ChevronUp, DollarSign, ExternalLink, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -56,6 +57,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
   const [culturalSectionExpanded, setCulturalSectionExpanded] = useState(false);
   const [secularExpanded, setSecularExpanded] = useState(false);
   const [faithSectionExpanded, setFaithSectionExpanded] = useState(false);
+  const [giftModalOpen, setGiftModalOpen] = useState(false);
 
   // Ref for the form container - used for scroll restoration
   const formRef = useRef(null);
@@ -377,6 +379,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
   const selectedOccasions = formData.occasions?.map(o => o.type) || [];
 
   return (
+    <>
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
       {errors.submit && <Alert type="error" message={errors.submit} />}
 
@@ -2470,11 +2473,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         </div>
         <button
           type="button"
-          onClick={() => {
-            saveScrollPosition();
-            const returnParam = contact?.id ? `?returnRecipientId=${contact.id}` : '';
-            navigate(`/dashboard/gifts${returnParam}`);
-          }}
+          onClick={() => setGiftModalOpen(true)}
           style={{
             padding: '0.5rem 1rem',
             background: '#d97706',
@@ -2511,5 +2510,37 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         </button>
       </div>
     </form>
+
+      {/* Gift Selector Modal */}
+      <GiftSelectorModal
+        isOpen={giftModalOpen}
+        onClose={() => setGiftModalOpen(false)}
+        occasions={formData.occasions}
+        occasionGiftSettings={formData.occasionGiftSettings}
+        onGiftChange={handleOccasionGiftChange}
+        getOccasionLabel={(type) => {
+          const allOccasions = [
+            ...occasionCategories.personal,
+            ...occasionCategories.christian,
+            ...occasionCategories.jewish,
+            ...occasionCategories.muslim,
+            ...occasionCategories.secular
+          ];
+          const occ = allOccasions.find(o => o.value === type);
+          return occ?.label || type;
+        }}
+        getOccasionEmoji={(type) => {
+          const allOccasions = [
+            ...occasionCategories.personal,
+            ...occasionCategories.christian,
+            ...occasionCategories.jewish,
+            ...occasionCategories.muslim,
+            ...occasionCategories.secular
+          ];
+          const occ = allOccasions.find(o => o.value === type);
+          return occ?.emoji || '🎉';
+        }}
+      />
+    </>
   );
 }
