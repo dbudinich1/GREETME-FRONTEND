@@ -525,22 +525,122 @@ if (typeof window !== "undefined") {
           </p>
         </div>
 
-        {/* Custom Message */}
+        {/* Add a Gift - Modal Button */}
         <div className="mb-8">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Custom Message (Optional)
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Add a Gift (Optional)
           </label>
-          <textarea
-            name="customMessage"
-            value={formData.customMessage}
-            onChange={handleChange}
-            rows="4"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Add a personal touch to your greeting..."
-          />
-          <p className="mt-2 text-xs text-gray-500">
-            This will be incorporated into the AI-generated message
-          </p>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%)',
+            border: '2px solid rgba(251, 191, 36, 0.3)',
+            borderRadius: '0.75rem',
+            padding: '1.5rem'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              marginBottom: '1rem'
+            }}>
+              <div style={{
+                width: '3rem',
+                height: '3rem',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(251, 191, 36, 0.3)'
+              }}>
+                <Gift size={24} style={{ color: 'white' }} />
+              </div>
+              <div>
+                <h3 style={{
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: '#1f2937',
+                  marginBottom: '0.25rem'
+                }}>Make it Extra Special</h3>
+                <p style={{
+                  fontSize: '0.875rem',
+                  color: '#6b7280'
+                }}>Add QR Cash, curated gifts, or browse our marketplace</p>
+              </div>
+            </div>
+
+            {/* Add/Edit Gift Button */}
+            <button
+              type="button"
+              onClick={() => setIsGiftModalOpen(true)}
+              style={{
+                width: '100%',
+                padding: '0.875rem 1.5rem',
+                background: giftSettings.type !== 'none' ? '#10b981' : '#f59e0b',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.5rem',
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <Gift size={18} />
+              {giftSettings.type !== 'none' ? 'Edit Gift' : 'Add a Gift (Optional)'}
+            </button>
+
+            {/* Gift Summary */}
+            {giftSettings.type !== 'none' && (
+              <div style={{
+                marginTop: '0.75rem',
+                padding: '0.75rem 1rem',
+                background: '#dcfce7',
+                borderRadius: '0.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <span style={{
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: '#16a34a'
+                }}>
+                  {giftSettings.type === 'qrcash' && (
+                    <>Gift: QR Cash (${giftSettings.amount === 0 ? giftSettings.customAmount || '0' : giftSettings.amount})</>
+                  )}
+                  {giftSettings.type === 'curated' && (
+                    <>Gift: Curated (Max ${giftSettings.maxSpend})</>
+                  )}
+                  {giftSettings.type === 'merch' && (
+                    <>Gift: Merch</>
+                  )}
+                  {giftSettings.type === 'marketplace' && (
+                    <>Gift: American Marketplace</>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setGiftSettings(prev => ({ ...prev, type: 'none' }))}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#dc2626',
+                    fontSize: '0.8125rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit'
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Photo Section - Responsive Grid */}
@@ -897,124 +997,6 @@ if (typeof window !== "undefined") {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Add a Gift - Modal Button */}
-        <div className="mb-8">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Add a Gift (Optional)
-          </label>
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%)',
-            border: '2px solid rgba(251, 191, 36, 0.3)',
-            borderRadius: '0.75rem',
-            padding: '1.5rem'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              marginBottom: '1rem'
-            }}>
-              <div style={{
-                width: '3rem',
-                height: '3rem',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(251, 191, 36, 0.3)'
-              }}>
-                <Gift size={24} style={{ color: 'white' }} />
-              </div>
-              <div>
-                <h3 style={{
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  color: '#1f2937',
-                  marginBottom: '0.25rem'
-                }}>Make it Extra Special</h3>
-                <p style={{
-                  fontSize: '0.875rem',
-                  color: '#6b7280'
-                }}>Add QR Cash, curated gifts, or browse our marketplace</p>
-              </div>
-            </div>
-
-            {/* Add/Edit Gift Button */}
-            <button
-              type="button"
-              onClick={() => setIsGiftModalOpen(true)}
-              style={{
-                width: '100%',
-                padding: '0.875rem 1.5rem',
-                background: giftSettings.type !== 'none' ? '#10b981' : '#f59e0b',
-                color: 'white',
-                border: 'none',
-                borderRadius: '0.5rem',
-                fontSize: '0.9375rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              <Gift size={18} />
-              {giftSettings.type !== 'none' ? 'Edit Gift' : 'Add a Gift (Optional)'}
-            </button>
-
-            {/* Gift Summary */}
-            {giftSettings.type !== 'none' && (
-              <div style={{
-                marginTop: '0.75rem',
-                padding: '0.75rem 1rem',
-                background: '#dcfce7',
-                borderRadius: '0.5rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}>
-                <span style={{
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: '#16a34a'
-                }}>
-                  {giftSettings.type === 'qrcash' && (
-                    <>Gift: QR Cash (${giftSettings.amount === 0 ? giftSettings.customAmount || '0' : giftSettings.amount})</>
-                  )}
-                  {giftSettings.type === 'curated' && (
-                    <>Gift: Curated (Max ${giftSettings.maxSpend})</>
-                  )}
-                  {giftSettings.type === 'merch' && (
-                    <>Gift: Merch</>
-                  )}
-                  {giftSettings.type === 'marketplace' && (
-                    <>Gift: American Marketplace</>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setGiftSettings(prev => ({ ...prev, type: 'none' }))}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#dc2626',
-                    fontSize: '0.8125rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit'
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
