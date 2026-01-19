@@ -542,38 +542,58 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      {/* Greet One, Give One™ Banner - Compact */}
+      {/* Dashboard Cards - All same height */}
+      {/* Green G1G1 Card - Full Width */}
       <div style={{
         background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
         borderRadius: 'var(--radius-lg)',
-        padding: isNarrow ? '0.75rem 1rem' : '0.875rem 1.25rem',
+        padding: isNarrow ? '1rem' : '1.25rem',
         marginBottom: '1rem',
-        textAlign: 'center',
         color: 'white',
         boxShadow: '0 2px 8px rgba(16, 185, 129, 0.2)',
         border: '1px solid rgba(255, 255, 255, 0.15)',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: isNarrow ? '0.75rem' : '1rem',
-        flexWrap: 'wrap'
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        minHeight: isNarrow ? 'auto' : '120px'
       }}>
-        <div style={{ textAlign: 'center' }}>
-          <h2 style={{
-            fontSize: isNarrow ? '0.875rem' : '1rem',
-            fontWeight: 700,
-            margin: 0,
-            marginBottom: '0.25rem'
-          }}>
-            Greet One, Give One™
-          </h2>
-          <p style={{
-            fontSize: isNarrow ? '0.6875rem' : '0.75rem',
-            opacity: 0.9,
-            margin: 0
-          }}>
-            Every subscription includes one for you — and one for a loved one.
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h3 style={{
+              fontSize: isNarrow ? '0.875rem' : '1rem',
+              fontWeight: 700,
+              marginBottom: '0.125rem'
+            }}>
+              Greet One, Give One™
+            </h3>
+            <p style={{
+              fontSize: isNarrow ? '0.6875rem' : '0.75rem',
+              opacity: 0.9
+            }}>
+              Every subscription includes one for you — and one for a loved one.
+            </p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+          <button
+            onClick={() => navigate('/dashboard/hero')}
+            style={{
+              flex: 1,
+              maxWidth: '200px',
+              padding: '0.5rem 0.75rem',
+              background: 'white',
+              color: '#059669',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              fontSize: isNarrow ? '0.75rem' : '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              fontFamily: 'inherit'
+            }}
+          >
+            Learn More
+          </button>
         </div>
       </div>
 
@@ -594,7 +614,8 @@ export default function DashboardHome() {
           border: '1px solid rgba(255, 255, 255, 0.15)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.75rem'
+          justifyContent: 'space-between',
+          minHeight: isNarrow ? 'auto' : '120px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
@@ -619,7 +640,7 @@ export default function DashboardHome() {
               $0.00
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
             <button
               onClick={() => setShowQRCashModal(true)}
               style={{
@@ -669,7 +690,8 @@ export default function DashboardHome() {
           border: '1px solid rgba(255, 255, 255, 0.15)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.75rem'
+          justifyContent: 'space-between',
+          minHeight: isNarrow ? 'auto' : '120px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
@@ -694,7 +716,7 @@ export default function DashboardHome() {
               {rewardsBalance} pts
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
             <button
               onClick={() => navigate('/dashboard/rewards')}
               style={{
