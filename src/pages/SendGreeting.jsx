@@ -507,24 +507,6 @@ if (typeof window !== "undefined") {
           </p>
         </div>
 
-        {/* AI Context */}
-        <div className="mb-8">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            AI Context (Optional)
-          </label>
-          <textarea
-            name="aiContext"
-            value={formData.aiContext}
-            onChange={handleChange}
-            rows="3"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Add context to help AI personalize your greeting (e.g., 'They just got promoted' or 'We met at a conference')..."
-          />
-          <p className="mt-2 text-xs text-gray-500">
-            Help AI generate a more personalized greeting
-          </p>
-        </div>
-
         {/* Add a Gift - Modal Button */}
         <div className="mb-8">
           <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -614,13 +596,13 @@ if (typeof window !== "undefined") {
                     <>Gift: QR Cash (${giftSettings.amount === 0 ? giftSettings.customAmount || '0' : giftSettings.amount})</>
                   )}
                   {giftSettings.type === 'curated' && (
-                    <>Gift: Curated (Max ${giftSettings.maxSpend})</>
+                    <>Gift: Curated (Max ${giftSettings.maxSpend}){giftSettings.qrCashAddOn && ` + QR Cash ($${giftSettings.qrCashAddOnAmount === 0 ? giftSettings.qrCashAddOnCustomAmount || '0' : giftSettings.qrCashAddOnAmount || 25})`}</>
                   )}
                   {giftSettings.type === 'merch' && (
-                    <>Gift: Merch</>
+                    <>Gift: Merch{giftSettings.qrCashAddOn && ` + QR Cash ($${giftSettings.qrCashAddOnAmount === 0 ? giftSettings.qrCashAddOnCustomAmount || '0' : giftSettings.qrCashAddOnAmount || 25})`}</>
                   )}
                   {giftSettings.type === 'marketplace' && (
-                    <>Gift: American Marketplace</>
+                    <>Gift: American Marketplace{giftSettings.qrCashAddOn && ` + QR Cash ($${giftSettings.qrCashAddOnAmount === 0 ? giftSettings.qrCashAddOnCustomAmount || '0' : giftSettings.qrCashAddOnAmount || 25})`}</>
                   )}
                 </span>
                 <button
@@ -841,86 +823,112 @@ if (typeof window !== "undefined") {
                   {memoryPhotos.length}/{MAX_MEMORY_PHOTOS}
                 </span>
               </div>
-              {/* Panel Content - progressive tiles */}
+              {/* Panel Content - 4 tile grid */}
               <div style={{ flex: 1 }}>
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
                   gap: '0.5rem'
                 }}>
-                  {/* Existing memory photos */}
-                  {memoryPhotos.map((photo, index) => (
-                    <div
-                      key={index}
-                      style={{
-                        aspectRatio: '1',
-                        borderRadius: '0.375rem',
-                        overflow: 'hidden',
-                        position: 'relative'
-                      }}
-                    >
-                      <img
-                        src={photo}
-                        alt={`Memory ${index + 1}`}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover'
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveMemoryPhoto(index)}
-                        style={{
-                          position: 'absolute',
-                          top: '0.125rem',
-                          right: '0.125rem',
-                          width: '1.25rem',
-                          height: '1.25rem',
-                          borderRadius: '50%',
-                          background: 'rgba(0,0,0,0.6)',
-                          color: 'white',
-                          border: 'none',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: 0
-                        }}
-                      >
-                        <X size={10} />
-                      </button>
-                    </div>
-                  ))}
-                  {/* Add tile - only show if under max */}
-                  {memoryPhotos.length < MAX_MEMORY_PHOTOS && (
-                    <button
-                      type="button"
-                      onClick={() => memoryPhotoInputRef.current?.click()}
-                      style={{
-                        aspectRatio: '1',
-                        background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-                        borderRadius: '0.375rem',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '2px dashed #d1d5db',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = '#667eea';
-                        e.currentTarget.style.background = 'rgba(102, 126, 234, 0.05)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = '#d1d5db';
-                        e.currentTarget.style.background = 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
-                      }}
-                    >
-                      <Plus size={20} style={{ color: '#9ca3af' }} />
-                    </button>
-                  )}
+                  {/* Always render 4 tiles */}
+                  {[0, 1, 2, 3].map((index) => {
+                    const photo = memoryPhotos[index];
+                    if (photo) {
+                      // Filled tile with photo
+                      return (
+                        <div
+                          key={index}
+                          style={{
+                            aspectRatio: '1',
+                            borderRadius: '0.5rem',
+                            overflow: 'hidden',
+                            position: 'relative'
+                          }}
+                        >
+                          <img
+                            src={photo}
+                            alt={`Memory ${index + 1}`}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover'
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMemoryPhoto(index)}
+                            style={{
+                              position: 'absolute',
+                              top: '0.25rem',
+                              right: '0.25rem',
+                              width: '1.5rem',
+                              height: '1.5rem',
+                              borderRadius: '50%',
+                              background: 'rgba(0,0,0,0.6)',
+                              color: 'white',
+                              border: 'none',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: 0
+                            }}
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      );
+                    } else if (index === memoryPhotos.length && memoryPhotos.length < MAX_MEMORY_PHOTOS) {
+                      // Add button tile (first empty slot)
+                      return (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => memoryPhotoInputRef.current?.click()}
+                          style={{
+                            aspectRatio: '1',
+                            background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                            borderRadius: '0.5rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '2px dashed #d1d5db',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = '#667eea';
+                            e.currentTarget.style.background = 'rgba(102, 126, 234, 0.05)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = '#d1d5db';
+                            e.currentTarget.style.background = 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
+                          }}
+                        >
+                          <Plus size={24} style={{ color: '#9ca3af' }} />
+                        </button>
+                      );
+                    } else {
+                      // Empty placeholder tile
+                      return (
+                        <div
+                          key={index}
+                          style={{
+                            aspectRatio: '1',
+                            background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
+                            borderRadius: '0.5rem',
+                            border: '1px solid #e5e7eb',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <Camera size={24} style={{ color: '#d1d5db' }} />
+                        </div>
+                      );
+                    }
+                  })}
                 </div>
                 <p style={{
                   marginTop: '0.75rem',
@@ -929,10 +937,10 @@ if (typeof window !== "undefined") {
                   textAlign: 'center'
                 }}>
                   {memoryPhotos.length === 0
-                    ? 'Add photos to create a memory album'
-                    : memoryPhotos.length >= MAX_MEMORY_PHOTOS
-                      ? 'Maximum photos reached'
-                      : 'Click + to add more photos'}
+                    ? 'Add up to 4 memory photos'
+                    : memoryPhotos.length >= 4
+                      ? 'All slots filled'
+                      : `${4 - memoryPhotos.length} slots remaining`}
                 </p>
               </div>
               {/* Panel Buttons - pinned to bottom */}

@@ -278,6 +278,106 @@ export default function GiftSelectorModal({
                     </div>
                   )}
 
+                  {/* QR Cash Add-On - Show for non-none and non-qrcash types */}
+                  {giftSetting.type !== 'none' && giftSetting.type !== 'qrcash' && (
+                    <div style={{
+                      marginTop: '1rem',
+                      padding: '1.125rem',
+                      background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+                      borderRadius: '0.625rem',
+                      border: '1px solid #fcd34d'
+                    }}>
+                      <label style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.625rem',
+                        cursor: 'pointer',
+                        marginBottom: giftSetting.qrCashAddOn ? '0.75rem' : 0
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={giftSetting.qrCashAddOn === true}
+                          onChange={(e) => onGiftChange(occ.type, 'qrCashAddOn', e.target.checked)}
+                          style={{
+                            width: '1.125rem',
+                            height: '1.125rem',
+                            accentColor: '#f59e0b',
+                            borderRadius: '0.25rem'
+                          }}
+                        />
+                        <span style={{
+                          fontSize: '0.9375rem',
+                          fontWeight: 600,
+                          color: '#92400e'
+                        }}>
+                          Include QR Cash with this card
+                        </span>
+                      </label>
+                      {giftSetting.qrCashAddOn && (
+                        <div style={{
+                          marginLeft: '1.75rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.625rem',
+                          flexWrap: 'wrap'
+                        }}>
+                          <label style={{
+                            fontSize: '0.8125rem',
+                            fontWeight: 500,
+                            color: '#92400e',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.375rem'
+                          }}>
+                            <DollarSign size={14} />
+                            Amount:
+                          </label>
+                          <select
+                            value={giftSetting.qrCashAddOnAmount || 25}
+                            onChange={(e) => onGiftChange(occ.type, 'qrCashAddOnAmount', parseInt(e.target.value))}
+                            style={{
+                              padding: '0.5rem 0.75rem',
+                              border: '1px solid #fbbf24',
+                              borderRadius: '0.5rem',
+                              fontSize: '0.875rem',
+                              fontFamily: 'inherit',
+                              fontWeight: 500,
+                              background: 'white',
+                              cursor: 'pointer',
+                              minWidth: '100px'
+                            }}
+                          >
+                            {QR_CASH_PRESETS.map((amt) => (
+                              <option key={amt} value={amt}>${amt}</option>
+                            ))}
+                            <option value={0}>Custom</option>
+                          </select>
+                          {giftSetting.qrCashAddOnAmount === 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                              <span style={{ color: '#92400e', fontWeight: 500 }}>$</span>
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="Amount"
+                                value={giftSetting.qrCashAddOnCustomAmount || ''}
+                                onChange={(e) => onGiftChange(occ.type, 'qrCashAddOnCustomAmount', parseInt(e.target.value))}
+                                style={{
+                                  width: '80px',
+                                  padding: '0.5rem 0.625rem',
+                                  border: '1px solid #fbbf24',
+                                  borderRadius: '0.5rem',
+                                  fontSize: '0.875rem',
+                                  fontFamily: 'inherit',
+                                  background: 'white'
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Auto-Gift Toggle */}
                   {giftSetting.type !== 'none' && (
                     <div style={{
