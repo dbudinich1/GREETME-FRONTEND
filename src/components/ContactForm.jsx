@@ -7,6 +7,8 @@ import FaithBasedOccasionSelector from './FaithBasedOccasionSelector';
 import GiftSelectorModal from './GiftSelectorModal';
 import { Heart, User, Mail, Info, Plus, Camera, X, Gift, ChevronDown, ChevronUp, DollarSign, ExternalLink, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { showManualToast } from '../utils/notify';
+import { COMMS_CATEGORIES } from '../utils/commsCatalog';
 
 // Session storage key for preserving form data during gift selection navigation
 const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
@@ -369,6 +371,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
       await onSubmit(formData);
       // Clear draft on successful submission
       clearFormDraft();
+      // Show saved toast
+      showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
     } catch (error) {
       setErrors({ submit: error.message });
     } finally {
