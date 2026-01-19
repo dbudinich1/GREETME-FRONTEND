@@ -9,9 +9,11 @@ import { pushInApp } from '../utils/notify';
 import { COMMS_EVENTS } from '../utils/commsCatalog';
 import OnboardingTour from '../components/OnboardingTour';
 import QRCashGiftModal from '../components/QRCashGiftModal';
+import { useAuth } from '../context/AuthContext';
 
 export default function DashboardHome() {
   const navigate = useNavigate();
+  const { user, updateUser, getToken } = useAuth();
 
   // Refs
   const voiceInputRef = useRef(null);
@@ -349,11 +351,26 @@ export default function DashboardHome() {
 
     setUploadingPhoto(true);
     try {
-      // Convert file to base64 data URL for persistence
-      const dataUrl = await fileToDataUrl(file);
+      // Upload to backend /api/profile/photo
+      const form = new FormData();
+      form.append('photo', file);
 
-      // Save to localStorage for persistence
-      localStorage.setItem('greetme_photo_file', dataUrl);
+      const token = getToken();
+      const API_URL = import.meta.env.VITE_API_BASE || 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
+
+      const res = await fetch(`${API_URL}/api/profile/photo`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'Upload failed');
+      }
+
+      // Update AuthContext with real photoUrl from backend
+      updateUser({ photoUrl: data.photoUrl });
 
       setPhotoUploaded(true);
       pushInApp(COMMS_EVENTS.PHOTO_UPLOADED);

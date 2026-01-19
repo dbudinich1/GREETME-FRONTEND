@@ -135,7 +135,7 @@ export default function SendGreeting() {
       photoUrl.includes('dummyimage.com');
 
     if (isDataUrl || isPlaceholder) {
-      newErrors.photo = 'Please upload a profile photo in your Profile settings before sending greetings.';
+      newErrors.photo = 'Please upload a Default Greeting Photo in the Your Presence section on the Dashboard.';
     }
 
     setErrors(newErrors);
