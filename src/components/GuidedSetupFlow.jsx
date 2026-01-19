@@ -32,6 +32,14 @@ export function updateSetupState(updates) {
 
 // Check if guided setup should show
 export function shouldShowGuidedSetup() {
+  // Flag-based: VITE_FORCE_ONBOARDING=true forces onboarding on every login
+  // Disable by setting VITE_FORCE_ONBOARDING=false or removing the env var
+  const forceOnboarding = import.meta.env.VITE_FORCE_ONBOARDING === 'true';
+
+  if (forceOnboarding) {
+    return true;
+  }
+
   const state = getSetupState();
   if (state.onboardingDismissed || state.onboardingCompleted) return false;
   if (state.voiceDone && state.photoDone && state.firstGreetingSent) return false;
