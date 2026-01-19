@@ -113,7 +113,9 @@ export default function LandingPage() {
             color: 'white',
             marginBottom: '1.5rem',
             lineHeight: 1.1,
-            fontStyle: 'italic'
+            fontStyle: 'italic',
+            transform: 'skewX(-8deg)',
+            display: 'inline-block'
           }}>
             Forget Them Not!
           </h1>

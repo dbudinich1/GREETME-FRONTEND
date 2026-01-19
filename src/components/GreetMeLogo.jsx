@@ -93,7 +93,6 @@ export default function GreetMeLogo({ size = 'medium', clickable = true, variant
               fontSize: s.tagline,
               color: isLight ? 'rgba(255,255,255,0.9)' : 'var(--text-secondary)',
               fontWeight: 500,
-              fontStyle: 'italic',
               letterSpacing: '0.5px',
               marginTop: '-2px',
               display: 'flex',
@@ -135,7 +134,11 @@ export default function GreetMeLogo({ size = 'medium', clickable = true, variant
                 zIndex: 1
               }} />
             </span>
-            Forget Them Not!
+            <span style={{
+              fontStyle: 'italic',
+              transform: 'skewX(-8deg)',
+              display: 'inline-block'
+            }}>Forget Them Not!</span>
           </span>
         </div>
       </div>
