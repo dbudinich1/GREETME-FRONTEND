@@ -20,7 +20,8 @@ export default function GiftSelectorModal({
   occasionGiftSettings,
   onGiftChange,
   getOccasionLabel,
-  getOccasionEmoji
+  getOccasionEmoji,
+  context = 'recipient' // 'recipient' (full options) or 'oneoff' (no auto/scheduling)
 }) {
   const getGiftSetting = (occasionValue) => {
     return occasionGiftSettings?.[occasionValue] || { type: 'none', autoGift: false };
@@ -378,8 +379,8 @@ export default function GiftSelectorModal({
                     </div>
                   )}
 
-                  {/* Auto-Gift Toggle */}
-                  {giftSetting.type !== 'none' && (
+                  {/* Auto-Gift Toggle - Only show in recipient context (not one-off) */}
+                  {context !== 'oneoff' && giftSetting.type !== 'none' && (
                     <div style={{
                       marginTop: '1.25rem',
                       paddingTop: '1rem',
