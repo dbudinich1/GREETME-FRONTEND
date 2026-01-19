@@ -112,7 +112,8 @@ export default function LandingPage() {
             fontWeight: 800,
             color: 'white',
             marginBottom: '1.5rem',
-            lineHeight: 1.1
+            lineHeight: 1.1,
+            fontStyle: 'italic'
           }}>
             Forget Them Not!
           </h1>
