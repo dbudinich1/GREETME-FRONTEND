@@ -10,6 +10,7 @@ import GreetingCardViewer from '../components/GreetingCardViewer';
 export default function PublicGreetingCard() {
   console.log('PUBLIC_GREETING_BUILD', 'v20260120-debug');
   const { jobId } = useParams();
+  console.log('PublicGreetingCard mounted', jobId);
 
   const [greeting, setGreeting] = useState(null);
   const [loading, setLoading] = useState(true);
