@@ -1163,28 +1163,45 @@ export default function GreetingCardViewer({
                 </>
               )}
 
-              {/* Phase 9: Memory Album Affordance (post-completion only, structure only)
-                  Neutral noun only — no verbs, no invitation. Group 6 adds framing. */}
+              {/* Phase 9 Group 6: Memory Album Invitation & Framing
+                  Framing line: "When you're ready." — pure restraint, postscript feel
+                  Label: "Memories" — neutral noun, no verbs */}
               {hasCompletedOnce && hasMemoryPhotos && !showMemoryAlbum && (
-                <button
-                  onClick={() => setShowMemoryAlbum(true)}
-                  style={{
-                    position: 'absolute',
-                    bottom: '3rem',
-                    padding: '0.625rem 1.25rem',
-                    background: 'rgba(255, 255, 255, 0.15)',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: '8px',
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    fontSize: '0.875rem',
+                <div style={{
+                  position: 'absolute',
+                  bottom: '2.75rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}>
+                  <p style={{
+                    fontSize: '0.75rem',
+                    color: 'rgba(255, 255, 255, 0.6)',
                     fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
                     fontStyle: 'italic',
-                    cursor: 'pointer',
-                    backdropFilter: 'blur(4px)',
-                  }}
-                >
-                  Memories
-                </button>
+                    margin: 0,
+                  }}>
+                    When you're ready.
+                  </p>
+                  <button
+                    onClick={() => setShowMemoryAlbum(true)}
+                    style={{
+                      padding: '0.5rem 1.25rem',
+                      background: 'rgba(255, 255, 255, 0.12)',
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      borderRadius: '8px',
+                      color: 'rgba(255, 255, 255, 0.85)',
+                      fontSize: '0.8125rem',
+                      fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
+                      fontStyle: 'italic',
+                      cursor: 'pointer',
+                      backdropFilter: 'blur(4px)',
+                    }}
+                  >
+                    Memories
+                  </button>
+                </div>
               )}
 
               {/* Brand Signature (LOCKED: final page only, small, understated) */}
