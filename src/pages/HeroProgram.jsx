@@ -201,8 +201,9 @@ export default function HeroProgram() {
               View Hall of Heroes
             </button>
             {/* Be a Hero - Yellow */}
+            {/* Phase 8.4: Replaced alert() with scroll to "Many Ways" section */}
             <button
-              onClick={() => alert('Become a Hero Sponsor form - Integration coming soon')}
+              onClick={() => document.getElementById('many-ways-to-be-a-greet-me-hero')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
               style={{
                 padding: '0.875rem 2rem',
                 background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
@@ -505,18 +506,19 @@ export default function HeroProgram() {
             }}>
               <Image size={28} style={{ color: 'white' }} />
             </div>
+            {/* Phase 8.4: Renamed from "Subscriptions" to match actual product */}
             <h3 style={{
               fontSize: '1.25rem',
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.5rem'
-            }}>Subscriptions</h3>
+            }}>Image Credits</h3>
             <p style={{
               fontSize: '0.875rem',
               color: 'var(--text-secondary)',
               lineHeight: 1.6
             }}>
-              Purchase image credits to send premium greeting cards. Click to view packages and pricing.
+              Purchase credits to unlock premium greeting card images. Click to view packages and pricing.
             </p>
             <div style={{
               marginTop: '1rem',
@@ -763,20 +765,21 @@ export default function HeroProgram() {
             marginBottom: '1rem',
             color: '#000000'
           }}>Hall of Heroes™</h2>
+          {/* Phase 8.4: Clarified eligibility - enterprise-credible, no invented thresholds */}
           <p style={{
             fontSize: '1.125rem',
             marginBottom: '1rem',
             lineHeight: 1.6,
             color: '#000000'
           }}>
-            Permanent, invite-only recognition for corporate sponsors who achieve benchmark impact milestones.
+            Permanent, invite-only recognition reserved for top-tier corporate sponsors.
           </p>
           <p style={{
             fontSize: '1rem',
             marginBottom: '1.5rem',
             color: '#000000'
           }}>
-            Hall of Heroes status is <strong>permanent and badge-worthy</strong> — once earned, you keep it forever. This is separate from the dynamic leaderboard rankings.
+            Hall of Heroes status is <strong>permanent</strong> — once earned, you keep it forever. Not every sponsor qualifies. Eligibility is based on gifted subscription volume and corporate impact milestones. We'll notify you when you qualify.
           </p>
           <div style={{
             background: 'rgba(0, 0, 0, 0.1)',
@@ -797,7 +800,7 @@ export default function HeroProgram() {
             lineHeight: 1.6,
             color: '#000000'
           }}>
-            <strong>Hall of Heroes:</strong> Benchmark-based permanent recognition. Invitation only. Badge displayed forever across your profile and marketing materials.
+            <strong>Hall of Heroes:</strong> Invitation-only permanent recognition for high-impact sponsors. Your badge is displayed across your profile and marketing materials.
           </div>
         </div>
       </div>
