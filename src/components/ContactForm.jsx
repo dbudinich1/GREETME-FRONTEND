@@ -1396,10 +1396,10 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                   try {
                     const result = await api.uploadContactMemoryPhoto(contactId, file);
                     if (result.ok && result.blobUrl) {
-                      // Store the blob URL (not base64) in memoryPhotos
+                      // Store as object with url property (required by sanitizer)
                       setFormData(prev => ({
                         ...prev,
-                        memoryPhotos: [...prev.memoryPhotos, result.blobUrl]
+                        memoryPhotos: [...prev.memoryPhotos, { url: result.blobUrl }]
                       }));
                     } else {
                       showManualToast('Upload failed', 'Could not upload photo', COMMS_CATEGORIES.PROFILE);
