@@ -169,6 +169,9 @@ export default function GreetingCardViewer({
   // Gift state
   const [showGift, setShowGift] = useState(false);
 
+  // Phase 9: Memory album state (separate from swipe flow, available post-completion)
+  const [showMemoryAlbum, setShowMemoryAlbum] = useState(false);
+
   // Transition state
   const [isTransitioning, setIsTransitioning] = useState(false);
 
@@ -209,13 +212,9 @@ export default function GreetingCardViewer({
     });
   }
 
-  // Page 4: Memory Layer (Optional)
-  if (photos && photos.length > 0) {
-    pages.push({
-      type: 'memory',
-      photos,
-    });
-  }
+  // Phase 9: Memory photos stored separately for post-completion album access
+  // Memory is no longer part of the swipe sequence — it's a separate gift
+  const hasMemoryPhotos = photos && photos.length > 0;
 
   // Page 5: Final/Gift Reveal (ALWAYS)
   pages.push({
@@ -1051,40 +1050,8 @@ export default function GreetingCardViewer({
             </div>
           )}
 
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* PAGE 4: MEMORY LAYER */}
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {currentPageData.type === 'memory' && (
-            <div style={{
-              minHeight: '420px',
-              background: '#1a1a1a',
-              padding: '1.25rem',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '0.75rem',
-            }}>
-              {currentPageData.photos?.slice(0, 4).map((photo, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    position: 'relative',
-                    overflow: 'hidden',
-                    borderRadius: '8px',
-                  }}
-                >
-                  <img
-                    src={typeof photo === 'string' ? photo : photo.url}
-                    alt=""
-                    style={{
-                      width: '100%',
-                      height: '160px',
-                      objectFit: 'cover',
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Phase 9: Memory page removed from swipe sequence
+              Memory is now a separate gift, accessed via album overlay post-completion */}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
           {/* PAGE 5: FINAL / GIFT REVEAL */}
@@ -1196,6 +1163,30 @@ export default function GreetingCardViewer({
                 </>
               )}
 
+              {/* Phase 9: Memory Album Affordance (post-completion only, structure only)
+                  No invitation copy yet — that's Group 6 */}
+              {hasCompletedOnce && hasMemoryPhotos && !showMemoryAlbum && (
+                <button
+                  onClick={() => setShowMemoryAlbum(true)}
+                  style={{
+                    position: 'absolute',
+                    bottom: '3rem',
+                    padding: '0.625rem 1.25rem',
+                    background: 'rgba(255, 255, 255, 0.15)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '8px',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    fontSize: '0.875rem',
+                    fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
+                    fontStyle: 'italic',
+                    cursor: 'pointer',
+                    backdropFilter: 'blur(4px)',
+                  }}
+                >
+                  View memories
+                </button>
+              )}
+
               {/* Brand Signature (LOCKED: final page only, small, understated) */}
               <p style={{
                 position: 'absolute',
@@ -1214,6 +1205,72 @@ export default function GreetingCardViewer({
             Pages are surfaces, not slides
             No navigation footer, no page indicators, no thumbnails */}
       </div>
+
+      {/* Phase 9: Memory Album Overlay (post-completion, separate from card flow)
+          Structure only — no invitation/framing copy (Group 6) */}
+      {showMemoryAlbum && hasMemoryPhotos && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.95)',
+          zIndex: 1000,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem',
+        }}>
+          {/* Close button */}
+          <button
+            onClick={() => setShowMemoryAlbum(false)}
+            style={{
+              position: 'absolute',
+              top: '1rem',
+              right: '1rem',
+              padding: '0.5rem 1rem',
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '6px',
+              color: 'rgba(255, 255, 255, 0.8)',
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+            }}
+          >
+            Close
+          </button>
+
+          {/* Photo grid */}
+          <div style={{
+            maxWidth: '600px',
+            width: '100%',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '0.75rem',
+          }}>
+            {photos.slice(0, 4).map((photo, idx) => (
+              <div
+                key={idx}
+                style={{
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: '8px',
+                  aspectRatio: '1',
+                }}
+              >
+                <img
+                  src={typeof photo === 'string' ? photo : photo.url}
+                  alt=""
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* CSS Animations */}
       <style>{`
