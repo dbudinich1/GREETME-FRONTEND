@@ -216,17 +216,19 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
             style={{
               background: 'rgba(255, 255, 255, 0.2)',
               border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: '50%',
-              width: '2.5rem',
-              height: '2.5rem',
+              borderRadius: '9999px',
+              padding: '0.5rem 1rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: '0.375rem',
               cursor: 'pointer',
               transition: 'all 0.2s',
               color: 'white',
               fontFamily: 'inherit',
-              flexShrink: 0
+              flexShrink: 0,
+              fontSize: '0.875rem',
+              fontWeight: 600
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
@@ -236,7 +238,8 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
             }}
             title="Close"
           >
-            <X size={20} />
+            <X size={16} />
+            Close
           </button>
         </div>
 

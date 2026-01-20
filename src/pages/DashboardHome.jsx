@@ -554,10 +554,12 @@ export default function DashboardHome() {
         border: '1px solid rgba(255, 255, 255, 0.15)',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
-        minHeight: isNarrow ? 'auto' : '120px'
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: isNarrow ? 'auto' : '120px',
+        textAlign: 'center'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div>
             <h3 style={{
               fontSize: isNarrow ? '0.875rem' : '1rem',
@@ -574,12 +576,10 @@ export default function DashboardHome() {
             </p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', justifyContent: 'center' }}>
           <button
             onClick={() => navigate('/dashboard/hero')}
             style={{
-              flex: 1,
-              maxWidth: '200px',
               padding: '0.5rem 0.75rem',
               background: 'white',
               color: '#059669',
@@ -2184,17 +2184,20 @@ export default function DashboardHome() {
                 style={{
                   background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
                   border: '2px solid white',
-                  borderRadius: '50%',
-                  width: '2.5rem',
-                  height: '2.5rem',
+                  borderRadius: '9999px',
+                  padding: '0.5rem 1rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  gap: '0.375rem',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
                   color: 'white',
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-                  flexShrink: 0
+                  flexShrink: 0,
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  fontFamily: 'inherit'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'scale(1.05)';
@@ -2204,7 +2207,8 @@ export default function DashboardHome() {
                 }}
                 title="Close"
               >
-                <X size={20} strokeWidth={3} />
+                <X size={16} strokeWidth={3} />
+                Close
               </button>
             </div>
 

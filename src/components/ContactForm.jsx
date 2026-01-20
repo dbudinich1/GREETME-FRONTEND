@@ -1245,7 +1245,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                   padding: '0.5rem'
                 }}>
                   <Camera size={24} style={{ marginBottom: '0.25rem', opacity: 0.5 }} />
-                  <span style={{ fontSize: '0.625rem', fontWeight: 500, lineHeight: 1.2 }}>Your photo here</span>
+                  <span style={{ fontSize: '0.625rem', fontWeight: 500, lineHeight: 1.2 }}>Recipient photo here</span>
                 </div>
               </div>
             </label>
