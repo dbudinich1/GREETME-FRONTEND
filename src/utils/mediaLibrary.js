@@ -2,6 +2,20 @@
 // Utility functions for Media Library auto-add functionality
 
 const MEDIA_LIBRARY_KEY = 'greetme_media_library';
+const MAX_MEDIA_ITEMS = 50; // Prevent unbounded growth
+
+/**
+ * Check if URL is safe to store (not a huge base64 data URL)
+ * @param {string} url
+ * @returns {boolean}
+ */
+function isSafeToStore(url) {
+  if (!url || typeof url !== 'string') return false;
+  // Skip base64 data URLs - they're huge and cause quota issues
+  // Only store blob URLs and https URLs (which are small string references)
+  if (url.startsWith('data:')) return false;
+  return url.startsWith('blob:') || url.startsWith('http');
+}
 
 /**
  * Get all items from the media library
@@ -24,10 +38,14 @@ export function getMediaLibraryItems() {
  * @returns {boolean} - True if added, false if already exists
  */
 export function addToMediaLibrary(photoUrl, source = 'recipient') {
-  if (!photoUrl || typeof photoUrl !== 'string') return false;
+  // Skip if not a safe URL (base64 data URLs are too large)
+  if (!isSafeToStore(photoUrl)) {
+    console.log('Skipping media library add - URL not safe to store (base64 or invalid)');
+    return false;
+  }
 
   try {
-    const items = getMediaLibraryItems();
+    let items = getMediaLibraryItems();
 
     // De-dupe: Check if this exact URL already exists
     const exists = items.some(item => item.url === photoUrl);
@@ -38,7 +56,7 @@ export function addToMediaLibrary(photoUrl, source = 'recipient') {
 
     // Create new media item
     const newItem = {
-      id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `media_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
       url: photoUrl,
       type: 'photo',
       source,
@@ -46,10 +64,29 @@ export function addToMediaLibrary(photoUrl, source = 'recipient') {
     };
 
     items.push(newItem);
+
+    // Enforce max items limit - remove oldest if over limit
+    if (items.length > MAX_MEDIA_ITEMS) {
+      items = items.slice(-MAX_MEDIA_ITEMS);
+    }
+
     localStorage.setItem(MEDIA_LIBRARY_KEY, JSON.stringify(items));
     console.log('Photo added to media library:', source);
     return true;
   } catch (e) {
+    // Handle quota exceeded errors gracefully
+    if (e.name === 'QuotaExceededError' || e.code === 22) {
+      console.warn('localStorage quota exceeded, clearing old media items');
+      try {
+        // Try to recover by keeping only recent items
+        const items = getMediaLibraryItems();
+        const reduced = items.slice(-10);
+        localStorage.setItem(MEDIA_LIBRARY_KEY, JSON.stringify(reduced));
+      } catch {
+        // If still failing, clear entirely
+        localStorage.removeItem(MEDIA_LIBRARY_KEY);
+      }
+    }
     console.error('Error adding to media library:', e);
     return false;
   }

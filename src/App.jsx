@@ -20,6 +20,7 @@ import LandingPage from "./pages/LandingPage";
 import Pricing from "./pages/Pricing";
 import Gifts from "./pages/Gifts";
 import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
 import Merch from "./pages/Merch";
 import HeroProgram from "./pages/HeroProgram";
 import AnimationBank from "./pages/AnimationBank";
@@ -64,6 +65,7 @@ export default function App() {
             <Route path="sent" element={<SentGreetings />} />
             <Route path="media" element={<MediaLibrary />} />
             <Route path="cart" element={<Cart />} />
+            <Route path="checkout" element={<Checkout />} />
             <Route path="merch" element={<Merch />} />
             <Route path="gifts" element={<Gifts />} />
             <Route path="hero" element={<HeroProgram />} />

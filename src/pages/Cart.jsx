@@ -41,8 +41,7 @@ export default function Cart() {
   };
 
   const handleCheckout = () => {
-    // TODO: Implement checkout integration
-    window.alert('Checkout integration coming soon! Your items will be processed securely.');
+    navigate('/dashboard/checkout');
   };
 
   // Empty cart state
