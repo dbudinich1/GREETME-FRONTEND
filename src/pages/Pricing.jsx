@@ -5,6 +5,7 @@ import { Check, CreditCard, Lock, CheckCircle } from 'lucide-react';
 import GreetMeLogo from '../components/GreetMeLogo';
 import { useAuth } from '../context/AuthContext';
 
+// Phase 8.3: Features grouped into sections for scannability
 const personalPlans = {
   founders: [
     {
@@ -13,14 +14,10 @@ const personalPlans = {
       price: 9.99,
       period: 'year',
       description: 'Perfect for immediate family',
-      features: [
-        'Up to 5 recipients',
-        'Greet One, Give One™ included',
-        'American Marketplace',
-        'Voice + Photo greetings',
-        'Automated scheduled occasions',
-        'Just Because greetings',
-        'Email delivery'
+      featureGroups: [
+        { section: 'Core', features: ['Up to 5 recipients', 'Greet One, Give One™ included', 'American Marketplace'] },
+        { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings'] },
+        { section: 'Delivery', features: ['Email delivery'] }
       ]
     },
     {
@@ -29,15 +26,10 @@ const personalPlans = {
       price: 19.99,
       period: 'year',
       description: 'For friends and extended family',
-      features: [
-        'Up to 25 recipients',
-        'Greet One, Give One™ included',
-        'American Marketplace',
-        'Voice + Photo greetings',
-        'Automated scheduled occasions',
-        'Just Because greetings',
-        'Priority email delivery',
-        'Premium templates'
+      featureGroups: [
+        { section: 'Core', features: ['Up to 25 recipients', 'Greet One, Give One™ included', 'American Marketplace'] },
+        { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Premium templates'] },
+        { section: 'Delivery', features: ['Priority email delivery'] }
       ]
     },
     {
@@ -46,17 +38,10 @@ const personalPlans = {
       price: 39.99,
       period: 'year',
       description: 'For the ultimate connector',
-      features: [
-        'Unlimited recipients',
-        'Greet One, Give One™ included',
-        'American Marketplace',
-        'Voice + Photo greetings',
-        'Automated scheduled occasions',
-        'Just Because greetings',
-        'Priority support',
-        'Advanced AI personalization',
-        'Video greetings',
-        'Gift add-ons available'
+      featureGroups: [
+        { section: 'Core', features: ['Unlimited recipients', 'Greet One, Give One™ included', 'American Marketplace'] },
+        { section: 'Greetings', features: ['Voice + Photo greetings', 'Video greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Advanced AI personalization'] },
+        { section: 'Delivery & Support', features: ['Priority support', 'Gift add-ons available'] }
       ],
       highlight: true
     }
@@ -68,14 +53,10 @@ const personalPlans = {
       price: 19.99,
       period: 'year',
       description: 'Perfect for immediate family',
-      features: [
-        'Up to 5 recipients',
-        'Greet One, Give One™ included',
-        'American Marketplace',
-        'Voice + Photo greetings',
-        'Automated scheduled occasions',
-        'Just Because greetings',
-        'Email delivery'
+      featureGroups: [
+        { section: 'Core', features: ['Up to 5 recipients', 'Greet One, Give One™ included', 'American Marketplace'] },
+        { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings'] },
+        { section: 'Delivery', features: ['Email delivery'] }
       ]
     },
     {
@@ -84,15 +65,10 @@ const personalPlans = {
       price: 39.99,
       period: 'year',
       description: 'For friends and extended family',
-      features: [
-        'Up to 25 recipients',
-        'Greet One, Give One™ included',
-        'American Marketplace',
-        'Voice + Photo greetings',
-        'Automated scheduled occasions',
-        'Just Because greetings',
-        'Priority email delivery',
-        'Premium templates'
+      featureGroups: [
+        { section: 'Core', features: ['Up to 25 recipients', 'Greet One, Give One™ included', 'American Marketplace'] },
+        { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Premium templates'] },
+        { section: 'Delivery', features: ['Priority email delivery'] }
       ]
     },
     {
@@ -101,23 +77,17 @@ const personalPlans = {
       price: 79.99,
       period: 'year',
       description: 'For the ultimate connector',
-      features: [
-        'Unlimited recipients',
-        'Greet One, Give One™ included',
-        'American Marketplace',
-        'Voice + Photo greetings',
-        'Automated scheduled occasions',
-        'Just Because greetings',
-        'Priority support',
-        'Advanced AI personalization',
-        'Video greetings',
-        'Gift add-ons available'
+      featureGroups: [
+        { section: 'Core', features: ['Unlimited recipients', 'Greet One, Give One™ included', 'American Marketplace'] },
+        { section: 'Greetings', features: ['Voice + Photo greetings', 'Video greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Advanced AI personalization'] },
+        { section: 'Delivery & Support', features: ['Priority support', 'Gift add-ons available'] }
       ],
       highlight: true
     }
   ]
 };
 
+// Phase 8.3: Business plans with grouped features for scannability
 const businessPlans = {
   founders: [
     {
@@ -126,14 +96,10 @@ const businessPlans = {
       price: 99,
       period: 'year',
       description: 'Up to 25 Employees',
-      features: [
-        'Up to 25 employee recipients',
-        'Branding + templates',
-        'Hero impact reporting (coming soon)',
-        'American Marketplace',
-        'Bulk greeting sending',
-        'Email support',
-        'Team dashboard'
+      featureGroups: [
+        { section: 'Core', features: ['Up to 25 employee recipients', 'American Marketplace', 'Team dashboard'] },
+        { section: 'Branding', features: ['Branding + templates', 'Bulk greeting sending'] },
+        { section: 'Support & Reporting', features: ['Email support', 'Hero impact reporting (coming soon)'] }
       ]
     },
     {
@@ -142,14 +108,10 @@ const businessPlans = {
       price: 149,
       period: 'year',
       description: 'Up to 50 Employees',
-      features: [
-        'Up to 50 employee recipients',
-        'Advanced branding options',
-        'Hero impact reporting (coming soon)',
-        'American Marketplace',
-        'Analytics & reporting',
-        'Priority support',
-        'Team collaboration tools'
+      featureGroups: [
+        { section: 'Core', features: ['Up to 50 employee recipients', 'American Marketplace', 'Team collaboration tools'] },
+        { section: 'Branding', features: ['Advanced branding options', 'Analytics & reporting'] },
+        { section: 'Support & Reporting', features: ['Priority support', 'Hero impact reporting (coming soon)'] }
       ],
       highlight: true
     },
@@ -159,15 +121,10 @@ const businessPlans = {
       price: 'Contact Sales',
       period: '',
       description: 'Custom enterprise solution',
-      features: [
-        'Unlimited employees',
-        'White-label platform option',
-        'Custom integrations',
-        'Hero impact reporting (coming soon)',
-        'American Marketplace',
-        'Dedicated account manager',
-        'API access',
-        'Custom SLA agreements'
+      featureGroups: [
+        { section: 'Core', features: ['Unlimited employees', 'American Marketplace', 'API access'] },
+        { section: 'Customization', features: ['White-label platform option', 'Custom integrations', 'Custom SLA agreements'] },
+        { section: 'Support & Reporting', features: ['Dedicated account manager', 'Hero impact reporting (coming soon)'] }
       ]
     }
   ],
@@ -178,14 +135,10 @@ const businessPlans = {
       price: 149,
       period: 'year',
       description: 'Up to 25 Employees',
-      features: [
-        'Up to 25 employee recipients',
-        'Branding + templates',
-        'Hero impact reporting (coming soon)',
-        'American Marketplace',
-        'Bulk greeting sending',
-        'Email support',
-        'Team dashboard'
+      featureGroups: [
+        { section: 'Core', features: ['Up to 25 employee recipients', 'American Marketplace', 'Team dashboard'] },
+        { section: 'Branding', features: ['Branding + templates', 'Bulk greeting sending'] },
+        { section: 'Support & Reporting', features: ['Email support', 'Hero impact reporting (coming soon)'] }
       ]
     },
     {
@@ -194,14 +147,10 @@ const businessPlans = {
       price: 299,
       period: 'year',
       description: 'Up to 50 Employees',
-      features: [
-        'Up to 50 employee recipients',
-        'Advanced branding options',
-        'Hero impact reporting (coming soon)',
-        'American Marketplace',
-        'Analytics & reporting',
-        'Priority support',
-        'Team collaboration tools'
+      featureGroups: [
+        { section: 'Core', features: ['Up to 50 employee recipients', 'American Marketplace', 'Team collaboration tools'] },
+        { section: 'Branding', features: ['Advanced branding options', 'Analytics & reporting'] },
+        { section: 'Support & Reporting', features: ['Priority support', 'Hero impact reporting (coming soon)'] }
       ],
       highlight: true
     },
@@ -211,15 +160,10 @@ const businessPlans = {
       price: 'Contact Sales',
       period: '',
       description: 'Custom enterprise solution',
-      features: [
-        'Unlimited employees',
-        'White-label platform option',
-        'Custom integrations',
-        'Hero impact reporting (coming soon)',
-        'American Marketplace',
-        'Dedicated account manager',
-        'API access',
-        'Custom SLA agreements'
+      featureGroups: [
+        { section: 'Core', features: ['Unlimited employees', 'American Marketplace', 'API access'] },
+        { section: 'Customization', features: ['White-label platform option', 'Custom integrations', 'Custom SLA agreements'] },
+        { section: 'Support & Reporting', features: ['Dedicated account manager', 'Hero impact reporting (coming soon)'] }
       ]
     }
   ]
@@ -487,6 +431,16 @@ export default function Pricing() {
             }}>
               {isNarrow ? 'Lock in lifetime discounted pricing!' : 'Founders get the same features at a lifetime discounted rate.'}
             </p>
+            {/* Phase 8.3: Founders pricing explanation - neutral, factual */}
+            <p style={{
+              fontSize: isNarrow ? '0.8125rem' : '0.875rem',
+              opacity: 0.9,
+              marginBottom: '1rem',
+              fontStyle: 'italic'
+            }}>
+              Founders pricing is early-access pricing, locked for the lifetime of your subscription.
+            </p>
+
             <div style={{
               display: 'flex',
               flexDirection: isNarrow ? 'column' : 'row',
@@ -563,20 +517,36 @@ export default function Pricing() {
                   height: '100%'
                 }}
               >
+                {/* Phase 8.3: Enhanced featured tier badge with value sub-label */}
                 {plan.highlight && (
                   <div style={{
                     position: 'absolute',
                     top: '-0.75rem',
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    background: 'var(--primary)',
-                    color: 'white',
-                    padding: '0.25rem 1rem',
-                    borderRadius: '9999px',
-                    fontSize: '0.75rem',
-                    fontWeight: 700
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.25rem'
                   }}>
-                    MOST POPULAR
+                    <div style={{
+                      background: 'var(--primary)',
+                      color: 'white',
+                      padding: '0.25rem 1rem',
+                      borderRadius: '9999px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700
+                    }}>
+                      MOST POPULAR
+                    </div>
+                    <div style={{
+                      fontSize: '0.6875rem',
+                      color: 'var(--primary)',
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap'
+                    }}>
+                      Best value for most users
+                    </div>
                   </div>
                 )}
 
@@ -770,7 +740,7 @@ export default function Pricing() {
                   {plan.price === 'Contact Sales' ? 'Contact Sales' : 'Get Started'}
                 </button>
 
-                {/* Features */}
+                {/* Features - Phase 8.3: Grouped into sections for scannability */}
                 <div style={{
                   borderTop: '1px solid var(--border)',
                   paddingTop: '1.5rem',
@@ -786,29 +756,46 @@ export default function Pricing() {
                   }}>
                     What's included:
                   </p>
-                  <ul style={{
-                    listStyle: 'none',
-                    padding: 0,
-                    margin: 0,
-                    flex: 1
-                  }}>
-                    {plan.features.map((feature, index) => (
-                      <li
-                        key={index}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: '0.75rem',
-                          marginBottom: '0.75rem',
-                          fontSize: '0.875rem',
-                          color: 'var(--text-secondary)'
-                        }}
-                      >
-                        <Check size={18} style={{ color: 'var(--success)', flexShrink: 0, marginTop: '0.125rem' }} />
-                        <span>{feature}</span>
-                      </li>
+                  <div style={{ flex: 1 }}>
+                    {plan.featureGroups.map((group, groupIndex) => (
+                      <div key={groupIndex} style={{ marginBottom: groupIndex < plan.featureGroups.length - 1 ? '1rem' : 0 }}>
+                        {/* Section header */}
+                        <p style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          color: 'var(--text-tertiary)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.025em',
+                          marginBottom: '0.5rem'
+                        }}>
+                          {group.section}
+                        </p>
+                        {/* Features in this section */}
+                        <ul style={{
+                          listStyle: 'none',
+                          padding: 0,
+                          margin: 0
+                        }}>
+                          {group.features.map((feature, featureIndex) => (
+                            <li
+                              key={featureIndex}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: '0.75rem',
+                                marginBottom: '0.5rem',
+                                fontSize: '0.875rem',
+                                color: 'var(--text-secondary)'
+                              }}
+                            >
+                              <Check size={16} style={{ color: 'var(--success)', flexShrink: 0, marginTop: '0.125rem' }} />
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               </div>
             );
