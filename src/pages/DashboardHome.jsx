@@ -606,14 +606,14 @@ export default function DashboardHome() {
         gap: '1rem',
         marginBottom: isNarrow ? '1rem' : '1.5rem'
       }}>
-        {/* QR Cash Card */}
+        {/* QR Cash Card - PHASE 8.1: Primary visual weight */}
         <div style={{
           background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
           borderRadius: 'var(--radius-lg)',
-          padding: isNarrow ? '1rem' : '1.25rem',
+          padding: isNarrow ? '1.125rem' : '1.375rem',
           color: 'white',
-          boxShadow: '0 2px 8px rgba(251, 191, 36, 0.2)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
+          boxShadow: '0 4px 12px rgba(251, 191, 36, 0.25)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
@@ -621,26 +621,47 @@ export default function DashboardHome() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <h3 style={{
-                fontSize: isNarrow ? '0.875rem' : '1rem',
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                <h3 style={{
+                  fontSize: isNarrow ? '0.9375rem' : '1.0625rem',
+                  fontWeight: 700,
+                  marginBottom: '0.125rem'
+                }}>
+                  QR Cash™
+                </h3>
+                <span
+                  title="QR Cash can be sent as a gift or used toward purchases."
+                  style={{
+                    cursor: 'help',
+                    opacity: 0.85,
+                    fontSize: '0.75rem',
+                    marginBottom: '0.125rem'
+                  }}
+                >ⓘ</span>
+              </div>
+              <p style={{
+                fontSize: isNarrow ? '0.6875rem' : '0.75rem',
+                opacity: 0.9,
+                letterSpacing: '0.025em'
+              }}>
+                Send • Spend • Gift
+              </p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{
+                fontSize: isNarrow ? '1.25rem' : '1.5rem',
                 fontWeight: 700,
                 marginBottom: '0.125rem'
               }}>
-                QR Cash™
-              </h3>
+                $0.00
+              </p>
               <p style={{
-                fontSize: isNarrow ? '0.6875rem' : '0.75rem',
-                opacity: 0.9
+                fontSize: isNarrow ? '0.625rem' : '0.6875rem',
+                opacity: 0.8
               }}>
-                Send · Scan · Spend
+                Available balance
               </p>
             </div>
-            <p style={{
-              fontSize: isNarrow ? '1.25rem' : '1.5rem',
-              fontWeight: 700
-            }}>
-              $0.00
-            </p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
             <button
@@ -656,7 +677,9 @@ export default function DashboardHome() {
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                fontFamily: 'inherit'
+                fontFamily: 'inherit',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
               }}
             >
               Send
@@ -674,22 +697,24 @@ export default function DashboardHome() {
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                fontFamily: 'inherit'
+                fontFamily: 'inherit',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
               }}
             >
-              How?
+              Learn
             </button>
           </div>
         </div>
 
-        {/* Rewards Program Card */}
+        {/* Rewards Program Card - PHASE 8.1: Secondary visual weight */}
         <div style={{
           background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
           borderRadius: 'var(--radius-lg)',
           padding: isNarrow ? '1rem' : '1.25rem',
           color: 'white',
-          boxShadow: '0 2px 8px rgba(236, 72, 153, 0.2)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
+          boxShadow: '0 2px 8px rgba(236, 72, 153, 0.15)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
@@ -699,16 +724,16 @@ export default function DashboardHome() {
             <div>
               <h3 style={{
                 fontSize: isNarrow ? '0.875rem' : '1rem',
-                fontWeight: 700,
+                fontWeight: 600,
                 marginBottom: '0.125rem'
               }}>
                 Rewards
               </h3>
               <p style={{
                 fontSize: isNarrow ? '0.6875rem' : '0.75rem',
-                opacity: 0.9
+                opacity: 0.85
               }}>
-                Earn · Redeem · Enjoy
+                Earn • Redeem • Enjoy
               </p>
             </div>
             <p style={{
@@ -732,7 +757,9 @@ export default function DashboardHome() {
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                fontFamily: 'inherit'
+                fontFamily: 'inherit',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
               }}
             >
               View
@@ -750,7 +777,9 @@ export default function DashboardHome() {
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                fontFamily: 'inherit'
+                fontFamily: 'inherit',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
               }}
             >
               Redeem
