@@ -28,6 +28,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Force re-hydrate profile from backend (call after photo/voice upload)
+  const refreshProfile = async () => {
+    const token = localStorage.getItem('token');
+    if (!token || !user) return;
+    await fetchAndHydrateProfile(token, user);
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
@@ -111,7 +118,7 @@ export const AuthProvider = ({ children }) => {
   const getToken = () => localStorage.getItem('token');
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser, getToken, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser, getToken, refreshProfile, isAuthenticated: !!user }}>
       {!loading && children}
     </AuthContext.Provider>
   );

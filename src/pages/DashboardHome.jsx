@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function DashboardHome() {
   const navigate = useNavigate();
-  const { user, updateUser, getToken } = useAuth();
+  const { user, getToken, refreshProfile } = useAuth();
 
   // Refs
   const voiceInputRef = useRef(null);
@@ -376,8 +376,8 @@ export default function DashboardHome() {
         throw new Error(data.error || 'Upload failed');
       }
 
-      // Update AuthContext with real photoUrl from backend
-      updateUser({ photoUrl: data.photoUrl });
+      // Force re-hydrate profile from backend to ensure photoUrl is current
+      await refreshProfile();
 
       setPhotoUploaded(true);
       pushInApp(COMMS_EVENTS.PHOTO_UPLOADED);
