@@ -432,11 +432,13 @@ export default function Pricing() {
               {isNarrow ? 'Lock in lifetime discounted pricing!' : 'Founders get the same features at a lifetime discounted rate.'}
             </p>
             {/* Phase 8.3: Founders pricing explanation - neutral, factual */}
+            {/* Phase 8.3B: Added lineHeight for mobile readability */}
             <p style={{
               fontSize: isNarrow ? '0.8125rem' : '0.875rem',
               opacity: 0.9,
               marginBottom: '1rem',
-              fontStyle: 'italic'
+              fontStyle: 'italic',
+              lineHeight: 1.4
             }}>
               Founders pricing is early-access pricing, locked for the lifetime of your subscription.
             </p>
@@ -494,11 +496,12 @@ export default function Pricing() {
         margin: '0 auto 4rem',
         padding: isNarrow ? '0 1rem' : '0 2rem'
       }}>
+        {/* Phase 8.3B: alignItems: 'stretch' for equal card heights */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: isNarrow ? '1fr' : 'repeat(3, 1fr)',
           gap: isNarrow ? '1.5rem' : '2rem',
-          alignItems: 'start'
+          alignItems: 'stretch'
         }}>
           {currentPlans.map((plan) => {
             return (
@@ -518,10 +521,11 @@ export default function Pricing() {
                 }}
               >
                 {/* Phase 8.3: Enhanced featured tier badge with value sub-label */}
+                {/* Phase 8.3B: Adjusted top offset for sub-label breathing room */}
                 {plan.highlight && (
                   <div style={{
                     position: 'absolute',
-                    top: '-0.75rem',
+                    top: '-1rem',
                     left: '50%',
                     transform: 'translateX(-50%)',
                     display: 'flex',
