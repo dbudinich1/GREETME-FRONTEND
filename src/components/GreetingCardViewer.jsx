@@ -1164,7 +1164,7 @@ export default function GreetingCardViewer({
               )}
 
               {/* Phase 9: Memory Album Affordance (post-completion only, structure only)
-                  No invitation copy yet — that's Group 6 */}
+                  Neutral noun only — no verbs, no invitation. Group 6 adds framing. */}
               {hasCompletedOnce && hasMemoryPhotos && !showMemoryAlbum && (
                 <button
                   onClick={() => setShowMemoryAlbum(true)}
@@ -1183,7 +1183,7 @@ export default function GreetingCardViewer({
                     backdropFilter: 'blur(4px)',
                   }}
                 >
-                  View memories
+                  Memories
                 </button>
               )}
 
@@ -1204,73 +1204,70 @@ export default function GreetingCardViewer({
         {/* LOCKED - Section 8: No UI elements on pages
             Pages are surfaces, not slides
             No navigation footer, no page indicators, no thumbnails */}
-      </div>
 
-      {/* Phase 9: Memory Album Overlay (post-completion, separate from card flow)
-          Structure only — no invitation/framing copy (Group 6) */}
-      {showMemoryAlbum && hasMemoryPhotos && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.95)',
-          zIndex: 1000,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '1rem',
-        }}>
-          {/* Close button */}
-          <button
-            onClick={() => setShowMemoryAlbum(false)}
-            style={{
-              position: 'absolute',
-              top: '1rem',
-              right: '1rem',
-              padding: '0.5rem 1rem',
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '6px',
-              color: 'rgba(255, 255, 255, 0.8)',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-            }}
-          >
-            Close
-          </button>
-
-          {/* Photo grid */}
+        {/* Phase 9: Memory Album Surface (in-card postscript, not overlay)
+            Feels like turning to the back of the letter — same world, same object
+            Structure only — no invitation/framing copy (Group 6) */}
+        {showMemoryAlbum && hasMemoryPhotos && (
           <div style={{
-            maxWidth: '600px',
-            width: '100%',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '0.75rem',
+            background: '#1a1a1a',
+            borderRadius: '12px',
+            marginTop: '1rem',
+            padding: '1.25rem',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
           }}>
-            {photos.slice(0, 4).map((photo, idx) => (
-              <div
-                key={idx}
-                style={{
-                  position: 'relative',
-                  overflow: 'hidden',
-                  borderRadius: '8px',
-                  aspectRatio: '1',
-                }}
-              >
-                <img
-                  src={typeof photo === 'string' ? photo : photo.url}
-                  alt=""
+            {/* Photo grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '0.75rem',
+            }}>
+              {photos.slice(0, 4).map((photo, idx) => (
+                <div
+                  key={idx}
                   style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    borderRadius: '8px',
+                    aspectRatio: '1',
                   }}
-                />
-              </div>
-            ))}
+                >
+                  <img
+                    src={typeof photo === 'string' ? photo : photo.url}
+                    alt=""
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* In-world back affordance */}
+            <button
+              onClick={() => setShowMemoryAlbum(false)}
+              style={{
+                marginTop: '1rem',
+                padding: '0.5rem 1rem',
+                background: 'transparent',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '6px',
+                color: 'rgba(255, 255, 255, 0.7)',
+                fontSize: '0.8125rem',
+                fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
+                fontStyle: 'italic',
+                cursor: 'pointer',
+                display: 'block',
+                width: '100%',
+              }}
+            >
+              Back
+            </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* CSS Animations */}
       <style>{`
