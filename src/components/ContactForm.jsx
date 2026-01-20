@@ -1471,6 +1471,59 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         </p>
       </div>
 
+      {/* Gift Reminder Banner - Moved below Memory Photos */}
+      <div style={{
+        marginTop: '1rem',
+        padding: '0.875rem 1rem',
+        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+        borderRadius: 'var(--radius-lg)',
+        border: '1px solid #fbbf24',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '1rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <Gift size={20} style={{ color: '#d97706', flexShrink: 0 }} />
+          <div>
+            <p style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: '#78350f',
+              margin: 0
+            }}>
+              Don't forget to add a gift
+            </p>
+            <p style={{
+              fontSize: '0.75rem',
+              color: '#92400e',
+              margin: '0.125rem 0 0 0'
+            }}>
+              Make the moment complete.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setGiftModalOpen(true)}
+          style={{
+            padding: '0.5rem 1rem',
+            background: '#d97706',
+            color: 'white',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            whiteSpace: 'nowrap',
+            flexShrink: 0
+          }}
+        >
+          Add Gift
+        </button>
+      </div>
+
       {/* Occasions */}
       <div className="card space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Special Occasions</h3>
@@ -2500,59 +2553,6 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         )}
 
         {errors.occasions && <p className="mt-2 text-sm text-red-500">{errors.occasions}</p>}
-      </div>
-
-      {/* Gift Reminder Banner */}
-      <div style={{
-        marginTop: '1rem',
-        padding: '0.875rem 1rem',
-        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-        borderRadius: 'var(--radius-lg)',
-        border: '1px solid #fbbf24',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '1rem'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Gift size={20} style={{ color: '#d97706', flexShrink: 0 }} />
-          <div>
-            <p style={{
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              color: '#78350f',
-              margin: 0
-            }}>
-              Don't forget to add a gift
-            </p>
-            <p style={{
-              fontSize: '0.75rem',
-              color: '#92400e',
-              margin: '0.125rem 0 0 0'
-            }}>
-              Make occasions even more special with thoughtful gifts.
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => setGiftModalOpen(true)}
-          style={{
-            padding: '0.5rem 1rem',
-            background: '#d97706',
-            color: 'white',
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            fontSize: '0.8125rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            whiteSpace: 'nowrap',
-            flexShrink: 0
-          }}
-        >
-          Add Gift
-        </button>
       </div>
 
       {/* Actions */}

@@ -202,19 +202,6 @@ export default function Recipients() {
     return <LoadingSpinner text="Loading recipients..." />;
   }
 
-  // Calculate stats
-  const upcomingCount = recipients.reduce((count, contact) => {
-    const upcoming = (contact.occasions || []).filter(occ => {
-      if (!occ.date) return false;
-      const occDate = new Date(occ.date);
-      const now = new Date();
-      const thirtyDaysFromNow = new Date();
-      thirtyDaysFromNow.setDate(now.getDate() + 30);
-      return occDate >= now && occDate <= thirtyDaysFromNow;
-    });
-    return count + upcoming.length;
-  }, 0);
-
   // Example placeholder data for empty state
   const placeholderRecipients = [
     { name: 'Mom', relationship: 'Parent', occasions: [{ type: 'birthday' }], hasGift: true },
@@ -283,12 +270,27 @@ export default function Recipients() {
             margin: 0,
             lineHeight: 1.2,
             width: '100%',
-            textAlign: 'center'
-          }}>Recipients</h1>
+            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}>
+            Recipients
+            <span style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              background: 'rgba(255, 255, 255, 0.25)',
+              padding: '2px 10px',
+              borderRadius: '9999px',
+              minWidth: '24px',
+              textAlign: 'center'
+            }}>{recipients.length}</span>
+          </h1>
         </div>
 
-        {/* Subtitle - Justified */}
-        <div style={{ textAlign: 'justify' }}>
+        {/* Subtitle - Centered on desktop, justified on mobile */}
+        <div style={{ textAlign: isMobile ? 'justify' : 'center' }}>
           <p style={{
             color: 'rgba(255, 255, 255, 0.9)',
             fontSize: isMobile ? '0.8125rem' : '0.9375rem',
@@ -301,38 +303,6 @@ export default function Recipients() {
             lineHeight: 1.4,
             marginBottom: '0'
           }}>Gifts are optional and never auto-sent unless you enable Auto-Gift for a specific occasion.</p>
-        </div>
-
-        {/* Stats Chips - Centered */}
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '12px' }}>
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            background: 'rgba(255, 255, 255, 0.2)',
-            borderRadius: '9999px',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            color: 'white'
-          }}>
-            <Users size={12} />
-            {recipients.length} Recipient{recipients.length !== 1 ? 's' : ''}
-          </span>
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            background: 'rgba(255, 255, 255, 0.2)',
-            borderRadius: '9999px',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            color: 'white'
-          }}>
-            <Clock size={12} />
-            {upcomingCount} Upcoming
-          </span>
         </div>
 
         {/* Centered Action Buttons */}
@@ -363,7 +333,9 @@ export default function Recipients() {
               cursor: 'pointer',
               transition: 'all 0.2s',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-              fontFamily: 'inherit'
+              fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateY(-2px)';
@@ -392,7 +364,9 @@ export default function Recipients() {
               fontWeight: 600,
               cursor: 'pointer',
               transition: 'all 0.2s',
-              fontFamily: 'inherit'
+              fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
             }}
             onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
             onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
@@ -400,6 +374,48 @@ export default function Recipients() {
             Import Contacts
           </button>
         </div>
+      </div>
+
+      {/* Gift Reminder Banner - Canonical Layout: Icons left+right, subtext below */}
+      <div style={{
+        marginTop: '1.5rem',
+        marginBottom: '1.5rem',
+        padding: '0.875rem 1rem',
+        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+        borderRadius: 'var(--radius-lg)',
+        border: '1px solid #fbbf24',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '0.25rem'
+      }}>
+        {/* Row 1: Icon + Headline + Icon */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.625rem'
+        }}>
+          <Gift size={16} style={{ color: '#d97706', flexShrink: 0, opacity: 0.8 }} />
+          <span style={{
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            color: '#78350f'
+          }}>
+            Don't forget to add a gift
+          </span>
+          <Gift size={16} style={{ color: '#d97706', flexShrink: 0, opacity: 0.8 }} />
+        </div>
+        {/* Row 2: Subtext */}
+        <p style={{
+          fontSize: '0.75rem',
+          color: '#92400e',
+          margin: 0,
+          opacity: 0.85,
+          textAlign: 'center'
+        }}>
+          Make the moment complete.
+        </p>
       </div>
 
       {/* Alert */}
@@ -707,7 +723,9 @@ export default function Recipients() {
                   cursor: 'pointer',
                   fontFamily: 'inherit',
                   boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
-                  width: isMobile ? '100%' : 'auto'
+                  width: isMobile ? '100%' : 'auto',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
                 }}
               >
                 <Plus size={isMobile ? 18 : 16} />
@@ -935,6 +953,72 @@ export default function Recipients() {
               </div>
             ))
           )}
+
+          {/* Upcoming Occasions Section */}
+          <div style={{
+            marginTop: '24px',
+            padding: '20px',
+            background: 'var(--bg-primary)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--border)'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '16px'
+            }}>
+              <Clock size={18} style={{ color: '#667eea', flexShrink: 0 }} />
+              <h3 style={{
+                fontSize: '1rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                margin: 0
+              }}>Upcoming Occasions</h3>
+            </div>
+
+            {allOccasions.filter(occ => occ.date).slice(0, 5).length === 0 ? (
+              <p style={{
+                color: 'var(--text-secondary)',
+                fontSize: '0.875rem',
+                margin: 0,
+                textAlign: 'center',
+                padding: '12px 0'
+              }}>No upcoming occasions yet.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {allOccasions.filter(occ => occ.date).slice(0, 5).map((occ, idx) => (
+                  <div
+                    key={`upcoming-${occ.contactId}-${occ.type}-${idx}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 12px',
+                      background: 'white',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--gray-200)'
+                    }}
+                  >
+                    <span style={{
+                      fontWeight: 500,
+                      color: 'var(--text-primary)',
+                      fontSize: '0.875rem'
+                    }}>{occ.recipientName}</span>
+                    <span style={{
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.8125rem'
+                    }}>{getOccasionLabel(occ.type)}</span>
+                    <span style={{
+                      color: 'var(--text-tertiary)',
+                      fontSize: '0.75rem',
+                      fontWeight: 500
+                    }}>{new Date(occ.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         /* Occasions Card List */
