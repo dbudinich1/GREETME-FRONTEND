@@ -8,6 +8,7 @@ import api from '../api/api';
 import GreetingCardViewer from '../components/GreetingCardViewer';
 
 export default function PublicGreetingCard() {
+  console.log('PUBLIC_GREETING_BUILD', 'v20260120-debug');
   const { jobId } = useParams();
 
   const [greeting, setGreeting] = useState(null);
