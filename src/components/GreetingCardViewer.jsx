@@ -159,6 +159,9 @@ export default function GreetingCardViewer({
   // Animation state
   const [animationActive, setAnimationActive] = useState(false);
 
+  // Phase 9: Media reveal state (face/video soft resolve)
+  const [mediaRevealed, setMediaRevealed] = useState(false);
+
   // Gift state
   const [showGift, setShowGift] = useState(false);
 
@@ -316,6 +319,26 @@ export default function GreetingCardViewer({
 
     return () => clearTimeout(timer);
   }, [currentPage, envelopeState, hasCompletedOnce]);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Phase 9: MEDIA REVEAL (soft resolve for face/video)
+  // Media starts hidden, then resolves — feels like materialization, not animation
+  // ═══════════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const currentPageData = pages[currentPage];
+    if (currentPageData?.type === 'moment' && envelopeState === 'opened') {
+      // Start hidden
+      setMediaRevealed(false);
+      // Resolve after brief delay (allows DOM to render at 0 opacity first)
+      const revealTimer = setTimeout(() => {
+        setMediaRevealed(true);
+      }, 50);
+      return () => clearTimeout(revealTimer);
+    } else {
+      // Reset when leaving moment page
+      setMediaRevealed(false);
+    }
+  }, [currentPage, envelopeState, pages]);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ENVELOPE MOMENT (LOCKED - Section 5)
@@ -903,7 +926,7 @@ export default function GreetingCardViewer({
                 </div>
               )}
 
-              {/* Photo/Video */}
+              {/* Photo/Video — Phase 9: soft resolve (opacity transition) */}
               {currentPageData.videoUrl ? (
                 <video
                   src={currentPageData.videoUrl}
@@ -917,6 +940,8 @@ export default function GreetingCardViewer({
                     display: 'block',
                     minHeight: '280px',
                     objectFit: 'cover',
+                    opacity: mediaRevealed ? 1 : 0,
+                    transition: 'opacity 0.6s ease-in-out',
                   }}
                 />
               ) : currentPageData.photoUrl ? (
@@ -929,6 +954,8 @@ export default function GreetingCardViewer({
                     display: 'block',
                     minHeight: '280px',
                     objectFit: 'cover',
+                    opacity: mediaRevealed ? 1 : 0,
+                    transition: 'opacity 0.6s ease-in-out',
                   }}
                 />
               ) : (
@@ -938,6 +965,8 @@ export default function GreetingCardViewer({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  opacity: mediaRevealed ? 1 : 0,
+                  transition: 'opacity 0.6s ease-in-out',
                 }}>
                   <span style={{ fontSize: '4rem' }}>💝</span>
                 </div>
