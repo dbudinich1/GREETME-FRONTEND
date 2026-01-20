@@ -124,8 +124,12 @@ export function autoAddRecipientPhotosToLibrary(contactData) {
   }
 
   // Add memory photos if present
+  // Handle both legacy string[] format and new {url: string}[] format
   if (contactData.memoryPhotos && Array.isArray(contactData.memoryPhotos)) {
-    addMultipleToMediaLibrary(contactData.memoryPhotos, 'recipient-memory');
+    const urls = contactData.memoryPhotos.map(photo =>
+      typeof photo === 'object' ? photo.url : photo
+    ).filter(Boolean);
+    addMultipleToMediaLibrary(urls, 'recipient-memory');
   }
 }
 
