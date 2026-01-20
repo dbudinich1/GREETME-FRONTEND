@@ -645,7 +645,7 @@ export default function GreetingCardViewer({
             transition: 'transform 0.1s ease-out',
           }}
         >
-          {/* Envelope body */}
+          {/* Envelope body — Phase 9.5: tactile paper stock with fold definition */}
           <div style={{
             position: 'absolute',
             inset: 0,
@@ -656,12 +656,49 @@ export default function GreetingCardViewer({
               0 2px 4px rgba(0, 0, 0, 0.08)
             `,
           }}>
-            {/* Paper texture */}
+            {/* Phase 9.5: Paper texture — low-contrast noise, no visible repetition */}
             <div style={{
               position: 'absolute',
               inset: 0,
-              background: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.04\'/%3E%3C/svg%3E")',
+              background: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'paper\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'4\' seed=\'15\' stitchTiles=\'stitch\'/%3E%3CfeColorMatrix type=\'saturate\' values=\'0\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23paper)\' opacity=\'0.045\'/%3E%3C/svg%3E")',
               borderRadius: '4px',
+              pointerEvents: 'none',
+              mixBlendMode: 'multiply',
+            }} />
+
+            {/* Phase 9.5: Envelope fold edge definitions — micro shadows suggesting paper folds */}
+            {/* Bottom fold line */}
+            <div style={{
+              position: 'absolute',
+              bottom: '35%',
+              left: '8%',
+              right: '8%',
+              height: '1px',
+              background: 'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.04) 20%, rgba(0,0,0,0.06) 50%, rgba(0,0,0,0.04) 80%, transparent 100%)',
+              pointerEvents: 'none',
+            }} />
+            {/* Left diagonal fold */}
+            <div style={{
+              position: 'absolute',
+              top: '0',
+              left: '0',
+              width: '50%',
+              height: '65%',
+              borderRight: '1px solid rgba(0,0,0,0.035)',
+              borderBottom: '1px solid rgba(0,0,0,0.025)',
+              borderBottomRightRadius: '2px',
+              pointerEvents: 'none',
+            }} />
+            {/* Right diagonal fold */}
+            <div style={{
+              position: 'absolute',
+              top: '0',
+              right: '0',
+              width: '50%',
+              height: '65%',
+              borderLeft: '1px solid rgba(0,0,0,0.035)',
+              borderBottom: '1px solid rgba(0,0,0,0.025)',
+              borderBottomLeftRadius: '2px',
               pointerEvents: 'none',
             }} />
 
@@ -682,36 +719,76 @@ export default function GreetingCardViewer({
             }} />
           </div>
 
-          {/* Wax seal (Phase 9: Deep crimson matte, recessed "G")
-              Gold must be discovered, not noticed — no glow/shimmer/animation */}
+          {/* Phase 9.5: Wax seal — pressed-wax treatment, organic edges, debossed G
+              Material: deep crimson matte with subtle internal marbling
+              Edge: slight organic irregularity (not SVG-perfect circle)
+              Contact shadow where seal meets paper */}
           <div style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
             transform: `translate(-50%, -50%) scale(${1 - openingProgress * 0.3})`,
-            width: '48px',
-            height: '48px',
-            borderRadius: '50%',
-            background: '#8b1a1a', // Phase 9: Deep crimson matte (no gradient)
-            boxShadow: `
-              0 3px 8px rgba(139, 0, 0, 0.5),
-              inset 0 1px 2px rgba(0, 0, 0, 0.3)
-            `,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            width: '52px',
+            height: '52px',
             opacity: 1 - openingProgress,
             transition: 'transform 0.1s ease-out, opacity 0.1s ease-out',
           }}>
-            {/* Phase 9: Recessed "G" — gold discovered through shadow, not prominence */}
-            <span style={{
-              fontSize: '1.5rem',
-              fontWeight: 700,
-              color: '#a08050', // Subdued gold — discovered, not noticed
-              fontFamily: 'Georgia, serif',
-              textShadow: '0 1px 2px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(0, 0, 0, 0.2)',
-              opacity: 0.85, // Recessed feel
-            }}>G</span>
+            {/* Contact shadow — where wax meets paper */}
+            <div style={{
+              position: 'absolute',
+              inset: '-2px',
+              borderRadius: '50% 48% 52% 50% / 50% 52% 48% 50%',
+              boxShadow: '0 2px 6px rgba(60, 20, 20, 0.35)',
+              pointerEvents: 'none',
+            }} />
+            {/* Wax body — organic edge, internal marbling */}
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: '52% 48% 50% 50% / 48% 52% 48% 52%', // Organic, not perfect
+              background: `
+                radial-gradient(ellipse 120% 80% at 35% 25%, rgba(160, 40, 40, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse 80% 100% at 70% 70%, rgba(80, 15, 15, 0.12) 0%, transparent 45%),
+                #8b1a1a
+              `,
+              boxShadow: `
+                inset 0 2px 4px rgba(180, 60, 60, 0.2),
+                inset 0 -2px 6px rgba(50, 10, 10, 0.35),
+                inset 1px 0 2px rgba(0, 0, 0, 0.1),
+                inset -1px 0 2px rgba(0, 0, 0, 0.1)
+              `,
+            }}>
+              {/* Subtle wax surface variation */}
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: 'inherit',
+                background: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 64 64\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'wax\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.5\' numOctaves=\'2\' seed=\'42\'/%3E%3CfeColorMatrix type=\'saturate\' values=\'0\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23wax)\' opacity=\'0.06\'/%3E%3C/svg%3E")',
+                mixBlendMode: 'overlay',
+                pointerEvents: 'none',
+              }} />
+            </div>
+            {/* Debossed "G" — recessed into wax via shadow/highlight, not color */}
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <span style={{
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                fontFamily: 'Georgia, serif',
+                color: '#7a4a30', // Subdued — gold discovered through light catching the recess
+                textShadow: `
+                  0 -1px 1px rgba(0, 0, 0, 0.4),
+                  0 1px 1px rgba(200, 150, 100, 0.15),
+                  0 0 0 transparent
+                `,
+                opacity: 0.75,
+              }}>G</span>
+            </div>
           </div>
 
           {/* Light bloom on opening (LOCKED - Section 6 & 9: warm, subtle, one-time only) */}
@@ -839,29 +916,69 @@ export default function GreetingCardViewer({
                 For {recipientName}
               </p>
 
-              {/* Wax seal on cover (Phase 9: Deep crimson matte, recessed "G")
-                  Gold must be discovered, not noticed — no glow/shimmer */}
+              {/* Phase 9.5: Wax seal on cover — pressed-wax treatment, matches envelope seal */}
               <div style={{
                 position: 'absolute',
                 bottom: '2rem',
                 right: '2rem',
                 width: '52px',
                 height: '52px',
-                borderRadius: '50%',
-                background: '#8b1a1a', // Phase 9: Deep crimson matte (no gradient)
-                boxShadow: '0 3px 10px rgba(139, 0, 0, 0.4), inset 0 1px 2px rgba(0, 0, 0, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
               }}>
-                <span style={{
-                  fontSize: '1.5rem',
-                  fontWeight: 700,
-                  color: '#a08050', // Subdued gold — discovered, not noticed
-                  fontFamily: 'Georgia, serif',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(0, 0, 0, 0.2)',
-                  opacity: 0.85, // Recessed feel
-                }}>G</span>
+                {/* Contact shadow */}
+                <div style={{
+                  position: 'absolute',
+                  inset: '-2px',
+                  borderRadius: '50% 48% 52% 50% / 50% 52% 48% 50%',
+                  boxShadow: '0 2px 8px rgba(60, 20, 20, 0.3)',
+                  pointerEvents: 'none',
+                }} />
+                {/* Wax body — organic edge, internal marbling */}
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: '52% 48% 50% 50% / 48% 52% 48% 52%',
+                  background: `
+                    radial-gradient(ellipse 120% 80% at 35% 25%, rgba(160, 40, 40, 0.15) 0%, transparent 50%),
+                    radial-gradient(ellipse 80% 100% at 70% 70%, rgba(80, 15, 15, 0.12) 0%, transparent 45%),
+                    #8b1a1a
+                  `,
+                  boxShadow: `
+                    inset 0 2px 4px rgba(180, 60, 60, 0.2),
+                    inset 0 -2px 6px rgba(50, 10, 10, 0.35),
+                    inset 1px 0 2px rgba(0, 0, 0, 0.1),
+                    inset -1px 0 2px rgba(0, 0, 0, 0.1)
+                  `,
+                }}>
+                  {/* Wax surface variation */}
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: 'inherit',
+                    background: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 64 64\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'wax\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.5\' numOctaves=\'2\' seed=\'42\'/%3E%3CfeColorMatrix type=\'saturate\' values=\'0\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23wax)\' opacity=\'0.06\'/%3E%3C/svg%3E")',
+                    mixBlendMode: 'overlay',
+                    pointerEvents: 'none',
+                  }} />
+                </div>
+                {/* Debossed "G" */}
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <span style={{
+                    fontSize: '1.5rem',
+                    fontWeight: 700,
+                    fontFamily: 'Georgia, serif',
+                    color: '#7a4a30',
+                    textShadow: `
+                      0 -1px 1px rgba(0, 0, 0, 0.4),
+                      0 1px 1px rgba(200, 150, 100, 0.15)
+                    `,
+                    opacity: 0.75,
+                  }}>G</span>
+                </div>
               </div>
             </div>
           )}
