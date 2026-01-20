@@ -19,7 +19,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Volume2 } from 'lucide-react';
+// Phase 9: Volume2 import removed — voice indicator UI removed per doctrine ("no UI on pages")
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS — LOCKED
@@ -963,23 +963,8 @@ export default function GreetingCardViewer({
                 </div>
               )}
 
-              {/* Voice indicator */}
-              {isAudioPlaying && (
-                <div style={{
-                  position: 'absolute',
-                  top: '1rem',
-                  right: '1rem',
-                  background: 'rgba(0, 0, 0, 0.5)',
-                  borderRadius: '50%',
-                  width: '36px',
-                  height: '36px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Volume2 size={18} color="white" />
-                </div>
-              )}
+              {/* Phase 9: Voice indicator removed — "no UI elements on pages" per doctrine
+                  Audio state (isAudioPlaying) preserved for internal logic */}
             </div>
           )}
 
