@@ -759,7 +759,7 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      {/* Two Column Layout - PHASE 3: Fixed heights, no layout shift */}
+      {/* Two Column Layout - PHASE 7: Locked heights, stretch alignment */}
       <div
         className="dashboard-grid"
         style={{
@@ -767,17 +767,17 @@ export default function DashboardHome() {
           gridTemplateColumns: isNarrow ? '1fr' : '1fr 1fr',
           gap: '1.5rem',
           marginBottom: '2rem',
-          alignItems: 'start',
+          alignItems: 'stretch',
+          height: isNarrow ? 'auto' : '600px',
           width: '100%',
           maxWidth: '100%',
           overflow: 'hidden'
         }}>
-        {/* Left Column - Your Presence */}
+        {/* Left Column - Your Presence - PHASE 7: Height from parent, pinned footer */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: isNarrow ? 'none' : '600px',
-          minHeight: isNarrow ? 'auto' : '400px'
+          overflow: 'hidden'
         }}>
           <div style={{
             background: 'var(--bg-primary)',
@@ -788,7 +788,9 @@ export default function DashboardHome() {
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            height: '100%',
+            minHeight: 0
           }}>
             <div style={{
               display: 'flex',
@@ -1029,43 +1031,8 @@ export default function DashboardHome() {
               </button>
             </div>
 
-            {/* Photo Section */}
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{
-                  width: '4rem',
-                  height: '4rem',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden'
-                }}>
-                  <Camera size={24} style={{ color: 'white' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{
-                    fontSize: '1rem',
-                    fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    marginBottom: '0.25rem'
-                  }}>Photo</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <div style={{
-                      width: '0.5rem',
-                      height: '0.5rem',
-                      borderRadius: '50%',
-                      background: photoUploaded ? '#22c55e' : '#dc2626'
-                    }}></div>
-                    <span style={{
-                      fontSize: '0.875rem',
-                      color: photoUploaded ? '#22c55e' : '#dc2626',
-                      fontWeight: 500
-                    }}>{photoUploaded ? 'Uploaded' : 'Not Uploaded'}</span>
-                  </div>
-                </div>
-              </div>
+            {/* Photo Section - PHASE 7.4: Grows to fill, buttons pinned to bottom */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <input
                 ref={photoInputRef}
                 type="file"
@@ -1073,8 +1040,44 @@ export default function DashboardHome() {
                 onChange={handlePhotoUpload}
                 style={{ display: 'none' }}
               />
-              {/* Stacked photo buttons */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {/* Photo header + buttons - PHASE 7.4: Pinned to bottom */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: 'auto', flexShrink: 0 }}>
+                {/* Photo icon and status */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
+                  <div style={{
+                    width: '4rem',
+                    height: '4rem',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden'
+                  }}>
+                    <Camera size={24} style={{ color: 'white' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.25rem'
+                    }}>Photo</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{
+                        width: '0.5rem',
+                        height: '0.5rem',
+                        borderRadius: '50%',
+                        background: photoUploaded ? '#22c55e' : '#dc2626'
+                      }}></div>
+                      <span style={{
+                        fontSize: '0.875rem',
+                        color: photoUploaded ? '#22c55e' : '#dc2626',
+                        fontWeight: 500
+                      }}>{photoUploaded ? 'Uploaded' : 'Not Uploaded'}</span>
+                    </div>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => photoInputRef.current?.click()}
@@ -1179,12 +1182,11 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        {/* Right Column - Recipients & Occasions - PHASE 3: Fixed max-height with internal scroll */}
+        {/* Right Column - Recipients & Occasions - PHASE 7: Height from parent, internal scroll */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: isNarrow ? 'none' : '600px',
-          minHeight: isNarrow ? 'auto' : '400px'
+          overflow: 'hidden'
         }}>
           <div style={{
             background: 'var(--bg-primary)',
