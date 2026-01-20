@@ -423,7 +423,7 @@ export default function DashboardHome() {
   );
 
   return (
-    <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
+    <div style={{ maxWidth: '100%', overflow: 'hidden', overflowX: 'hidden' }}>
       {/* First-time user onboarding tour */}
       <OnboardingTour />
 
@@ -494,7 +494,8 @@ export default function DashboardHome() {
             transition: 'all 0.2s',
             boxShadow: '0 2px 4px rgba(102, 126, 234, 0.2)',
             fontFamily: 'inherit',
-            flex: isNarrow ? 1 : 'none'
+            flex: isNarrow ? 1 : 'none',
+            whiteSpace: 'nowrap'
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = '#5568d3';
@@ -505,7 +506,7 @@ export default function DashboardHome() {
             e.currentTarget.style.boxShadow = '0 2px 4px rgba(102, 126, 234, 0.2)';
           }}
         >
-          <Plus size={isNarrow ? 16 : 18} />
+          <Plus size={isNarrow ? 16 : 18} style={{ flexShrink: 0 }} />
           Add Recipient
         </button>
         <button
@@ -522,6 +523,7 @@ export default function DashboardHome() {
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
+            whiteSpace: 'nowrap',
             transition: 'all 0.2s',
             boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)',
             fontFamily: 'inherit',
@@ -536,7 +538,7 @@ export default function DashboardHome() {
             e.currentTarget.style.boxShadow = '0 2px 4px rgba(34, 197, 94, 0.2)';
           }}
         >
-          <Send size={isNarrow ? 14 : 16} />
+          <Send size={isNarrow ? 14 : 16} style={{ flexShrink: 0 }} />
           Just Because
         </button>
         </div>
@@ -757,28 +759,36 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      {/* Two Column Layout */}
+      {/* Two Column Layout - PHASE 3: Fixed heights, no layout shift */}
       <div
         className="dashboard-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr',
+          gridTemplateColumns: isNarrow ? '1fr' : '1fr 1fr',
           gap: '1.5rem',
           marginBottom: '2rem',
-          alignItems: 'stretch',
+          alignItems: 'start',
           width: '100%',
           maxWidth: '100%',
           overflow: 'hidden'
         }}>
         {/* Left Column - Your Presence */}
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: isNarrow ? 'none' : '600px',
+          minHeight: isNarrow ? 'auto' : '400px'
+        }}>
           <div style={{
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
             padding: '1.5rem',
             border: '2px solid var(--border)',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-            flex: 1
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
           }}>
             <div style={{
               display: 'flex',
@@ -1169,15 +1179,23 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        {/* Right Column - Recipients & Occasions */}
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        {/* Right Column - Recipients & Occasions - PHASE 3: Fixed max-height with internal scroll */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: isNarrow ? 'none' : '600px',
+          minHeight: isNarrow ? 'auto' : '400px'
+        }}>
           <div style={{
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
             padding: '1.5rem',
             border: '2px solid var(--border)',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-            flex: 1
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '2px solid var(--border)' }}>
               <h2 style={{
@@ -1294,9 +1312,16 @@ export default function DashboardHome() {
               />
             </div>
 
-            {/* Contact List - By Recipient */}
+            {/* Contact List - By Recipient - PHASE 3: Internal scroll container */}
             {viewMode === 'recipients' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+              flex: 1,
+              overflowY: 'auto',
+              minHeight: 0
+            }}>
               {filteredContacts.length === 0 && searchTerm ? (
                 <div style={{
                   textAlign: 'center',
@@ -1438,9 +1463,16 @@ export default function DashboardHome() {
             </div>
             )}
 
-            {/* Occasions List - By Occasion */}
+            {/* Occasions List - By Occasion - PHASE 3: Internal scroll container */}
             {viewMode === 'occasions' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+              flex: 1,
+              overflowY: 'auto',
+              minHeight: 0
+            }}>
               {(() => {
                 // Gather all unique occasions from contacts
                 const occasionMap = {};

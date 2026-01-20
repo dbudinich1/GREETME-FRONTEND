@@ -1137,11 +1137,14 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           </div>
         </div>
 
-        {/* Photo Grid - Media Library Layout */}
+        {/* Photo Grid - Media Library Layout - PHASE 3: Fixed size grid with internal scroll */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
-          gap: '0.75rem'
+          gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
+          gap: '0.75rem',
+          maxHeight: '240px',
+          overflowY: 'auto',
+          padding: '0.25rem'
         }}>
           {/* Default Photo Slot (first photo or placeholder) */}
           {formData.avatar ? (
@@ -1282,7 +1285,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                 border: '1px solid var(--border)'
               }}>
                 <img
-                  src={photo}
+                  src={typeof photo === 'object' ? photo.url : photo}
                   alt={`Memory ${index + 1}`}
                   style={{
                     position: 'absolute',
@@ -1293,7 +1296,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                     objectFit: 'cover',
                     cursor: 'pointer'
                   }}
-                  onClick={() => window.open(photo, '_blank')}
+                  onClick={() => window.open(typeof photo === 'object' ? photo.url : photo, '_blank')}
                   title="Click to enlarge"
                 />
                 {/* Set as default button on hover */}
@@ -1302,9 +1305,10 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
+                      const photoUrl = typeof photo === 'object' ? photo.url : photo;
                       setFormData(prev => ({
                         ...prev,
-                        avatar: photo,
+                        avatar: photoUrl,
                         memoryPhotos: prev.memoryPhotos.filter((_, i) => i !== index)
                       }));
                     }}
