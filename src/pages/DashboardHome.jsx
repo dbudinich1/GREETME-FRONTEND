@@ -1,7 +1,7 @@
 // src/pages/DashboardHome.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square, CheckCircle, Copy, Image as ImageIcon, Smartphone, QrCode, DollarSign, X, Send, Gift, CreditCard, Pencil } from 'lucide-react';
+import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square, CheckCircle, Copy, Image as ImageIcon, Smartphone, QrCode, DollarSign, X, Send, Gift, CreditCard, Pencil, Heart } from 'lucide-react';
 import api from "../api/api";
 import { getOccasionIcon } from '../utils/helpers';
 import { getRewardsBalance, getRemainingDailyHearts } from '../utils/rewards';
@@ -722,16 +722,20 @@ export default function DashboardHome() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <h3 style={{
-                fontSize: isNarrow ? '0.875rem' : '1rem',
-                fontWeight: 600,
-                marginBottom: '0.125rem'
-              }}>
-                Rewards
-              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                <Heart size={isNarrow ? 14 : 16} style={{ fill: 'white', color: 'white', opacity: 0.85 }} />
+                <h3 style={{
+                  fontSize: isNarrow ? '0.875rem' : '1rem',
+                  fontWeight: 600,
+                  marginBottom: 0
+                }}>
+                  Rewards
+                </h3>
+              </div>
               <p style={{
                 fontSize: isNarrow ? '0.6875rem' : '0.75rem',
-                opacity: 0.85
+                opacity: 0.85,
+                marginTop: '0.125rem'
               }}>
                 Earn • Redeem • Enjoy
               </p>

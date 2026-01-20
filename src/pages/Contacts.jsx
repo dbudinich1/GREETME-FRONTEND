@@ -376,7 +376,7 @@ export default function Recipients() {
         </div>
       </div>
 
-      {/* Gift Reminder Banner - Canonical Layout: Icons left+right, subtext below */}
+      {/* Gift Reminder Banner - Phase 8.2: Actionable CTA, matches ContactForm banner */}
       <div style={{
         marginTop: '1.5rem',
         marginBottom: '1.5rem',
@@ -385,37 +385,49 @@ export default function Recipients() {
         borderRadius: 'var(--radius-lg)',
         border: '1px solid #fbbf24',
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
-        gap: '0.25rem'
+        justifyContent: 'space-between',
+        gap: '1rem'
       }}>
-        {/* Row 1: Icon + Headline + Icon */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.625rem'
-        }}>
-          <Gift size={16} style={{ color: '#d97706', flexShrink: 0, opacity: 0.8 }} />
-          <span style={{
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            color: '#78350f'
-          }}>
-            Don't forget to add a gift
-          </span>
-          <Gift size={16} style={{ color: '#d97706', flexShrink: 0, opacity: 0.8 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <Gift size={20} style={{ color: '#d97706', flexShrink: 0 }} />
+          <div>
+            <p style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: '#78350f',
+              margin: 0
+            }}>
+              Don't forget to add a gift
+            </p>
+            <p style={{
+              fontSize: '0.75rem',
+              color: '#92400e',
+              margin: '0.125rem 0 0 0'
+            }}>
+              Make the moment complete.
+            </p>
+          </div>
         </div>
-        {/* Row 2: Subtext */}
-        <p style={{
-          fontSize: '0.75rem',
-          color: '#92400e',
-          margin: 0,
-          opacity: 0.85,
-          textAlign: 'center'
-        }}>
-          Make the moment complete.
-        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/dashboard/gifts')}
+          style={{
+            padding: '0.5rem 1rem',
+            background: '#d97706',
+            color: 'white',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            whiteSpace: 'nowrap',
+            flexShrink: 0
+          }}
+        >
+          Add Gift
+        </button>
       </div>
 
       {/* Alert */}
