@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart, Film, X, Image as ImageIcon } from 'lucide-react';
+import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart, Film, X, Image as ImageIcon, QrCode } from 'lucide-react';
 import GreetMeLogo from './GreetMeLogo';
 import NotificationBell from './NotificationBell';
 import GuidedSetupFlow, { shouldShowGuidedSetup } from './GuidedSetupFlow';
@@ -81,6 +81,7 @@ export default function DashboardLayout() {
     { name: 'For Business', path: '/business', icon: null },
     { name: 'Merch', path: '/dashboard/merch', icon: ShoppingBag },
     { name: 'American Marketplace', path: '/dashboard/gifts', icon: Gift },
+    { name: 'QR Cash', path: '/dashboard', icon: QrCode },
     { name: '❤️ Rewards', path: '/dashboard/rewards', icon: null },
     { name: '🥇 Greet-Me Hero™', path: '/dashboard/hero', icon: null },
   ];
