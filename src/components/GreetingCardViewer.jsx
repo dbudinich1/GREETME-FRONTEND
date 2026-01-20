@@ -156,6 +156,10 @@ export default function GreetingCardViewer({
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [isAudioMuted] = useState(false); // LOCKED: No mute control exposed
 
+  // Phase 9: Voice consent state (session-only, not persisted)
+  // Voice must not auto-play — requires explicit user action
+  const [voiceConsentGiven, setVoiceConsentGiven] = useState(false);
+
   // Animation state
   const [animationActive, setAnimationActive] = useState(false);
 
@@ -438,6 +442,26 @@ export default function GreetingCardViewer({
   }, [isAudioMuted]);
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // Phase 9: VOICE CONSENT HANDLER
+  // Voice requires explicit user action — "Play message" triggers the sequence
+  // ═══════════════════════════════════════════════════════════════════════════
+  const handleVoiceConsent = useCallback(() => {
+    const currentPageData = pages[currentPage];
+    if (currentPageData?.type === 'moment' && !voiceConsentGiven) {
+      setVoiceConsentGiven(true);
+      playMomentSequence(currentPageData);
+    }
+  }, [currentPage, pages, voiceConsentGiven, playMomentSequence]);
+
+  // Reset voice consent when leaving Moment page (session-only behavior)
+  useEffect(() => {
+    const currentPageData = pages[currentPage];
+    if (currentPageData?.type !== 'moment') {
+      setVoiceConsentGiven(false);
+    }
+  }, [currentPage, pages]);
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // PAGE NAVIGATION (LOCKED: swipe-only, weighted, resisted)
   // ═══════════════════════════════════════════════════════════════════════════
   const navigateToPage = useCallback((targetPage, direction = 'next') => {
@@ -474,13 +498,11 @@ export default function GreetingCardViewer({
       setCurrentPage(targetPage);
       setIsTransitioning(false);
 
-      const newPageData = pages[targetPage];
-      if (newPageData?.type === 'moment') {
-        playMomentSequence(newPageData);
-      }
+      // Phase 9: Voice no longer auto-triggers on page arrival
+      // playMomentSequence is now called only via explicit consent action
     }, TIMING.PAGE_TURN_DURATION);
     timersRef.current.push(transitionTimer);
-  }, [envelopeState, currentPage, totalPages, hasCompletedOnce, pagesViewed, isTransitioning, canNavigate, playMomentSequence, pages]);
+  }, [envelopeState, currentPage, totalPages, hasCompletedOnce, pagesViewed, isTransitioning, canNavigate, pages]);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SWIPE HANDLERS (LOCKED: swipe-only, no taps, no buttons)
@@ -992,8 +1014,40 @@ export default function GreetingCardViewer({
                 </div>
               )}
 
-              {/* Phase 9: Voice indicator removed — "no UI elements on pages" per doctrine
-                  Audio state (isAudioPlaying) preserved for internal logic */}
+              {/* Phase 9: Voice consent control — appears only before consent given
+                  Text-only, centered, calm. Disappears once playback begins. */}
+              {currentPageData.voiceUrl && !voiceConsentGiven && (
+                <div style={{
+                  padding: '1.5rem',
+                  textAlign: 'center',
+                }}>
+                  <button
+                    onClick={handleVoiceConsent}
+                    style={{
+                      padding: '0.875rem 2rem',
+                      background: 'transparent',
+                      border: '1px solid rgba(0, 0, 0, 0.15)',
+                      borderRadius: '8px',
+                      color: '#555',
+                      fontSize: '1rem',
+                      fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
+                      fontStyle: 'italic',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(0, 0, 0, 0.03)';
+                      e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.25)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.15)';
+                    }}
+                  >
+                    Play message
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
