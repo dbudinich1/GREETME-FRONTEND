@@ -261,6 +261,46 @@ class ApiService {
   }
 
   // --------------------
+  // Contact Memory Photo Upload (FormData)
+  // --------------------
+  /**
+   * Upload a memory photo for a contact
+   * @param {string|null} contactId - Contact ID (null for new contacts)
+   * @param {File} file - The image file to upload
+   * @returns {Promise<{ok: boolean, url: string, blobUrl: string}>}
+   */
+  async uploadContactMemoryPhoto(contactId, file) {
+    const token = localStorage.getItem("token");
+    const formData = new FormData();
+    formData.append("photo", file);
+
+    // Use different endpoint for new vs existing contacts
+    const endpoint = contactId
+      ? `${API_BASE}/api/contacts/${contactId}/memory-photo`
+      : `${API_BASE}/api/contacts/memory-photo`;
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    if (res.status === 401) return { ok: false, status: 401 };
+    if (res.status === 404) return { ok: false, status: 404 };
+
+    let data = {};
+    try {
+      data = await res.json();
+    } catch {}
+
+    if (!res.ok) {
+      throw new Error(data?.error || `HTTP ${res.status}`);
+    }
+
+    return data;
+  }
+
+  // --------------------
   // Profile (JSON)
   // --------------------
   getProfile() {

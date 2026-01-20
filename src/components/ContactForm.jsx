@@ -5,10 +5,11 @@ import { validateEmail, getOccasionsByCategory, calculateVaryingOccasionDate } f
 import Alert from './Alert';
 import FaithBasedOccasionSelector from './FaithBasedOccasionSelector';
 import GiftSelectorModal from './GiftSelectorModal';
-import { Heart, User, Mail, Info, Plus, Camera, X, Gift, ChevronDown, ChevronUp, DollarSign, ExternalLink, Trash2 } from 'lucide-react';
+import { Heart, User, Mail, Info, Plus, Camera, X, Gift, ChevronDown, ChevronUp, DollarSign, ExternalLink, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { showManualToast } from '../utils/notify';
 import { COMMS_CATEGORIES } from '../utils/commsCatalog';
+import api from '../api/api';
 
 // Session storage key for preserving form data during gift selection navigation
 const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
@@ -60,6 +61,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
   const [secularExpanded, setSecularExpanded] = useState(false);
   const [faithSectionExpanded, setFaithSectionExpanded] = useState(false);
   const [giftModalOpen, setGiftModalOpen] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(0); // Track number of photos currently uploading
 
   // Ref for the form container - used for scroll restoration
   const formRef = useRef(null);
@@ -69,16 +71,31 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
   const occasionCategories = getOccasionsByCategory();
 
   // Save form data to sessionStorage for persistence during navigation
+  // IMPORTANT: Strip memoryPhotos and avatar to prevent quota errors (they can be base64/blob URLs)
   const saveFormDraft = useCallback((data, faiths) => {
     try {
+      // Create a safe copy without large binary data
+      const safeDraftData = {
+        ...data,
+        memoryPhotos: [], // Never store photos in draft - they're uploaded to Blob already
+        avatar: data.avatar?.startsWith('http') ? data.avatar : '', // Only keep HTTPS URLs
+      };
       sessionStorage.setItem(FORM_DRAFT_KEY, JSON.stringify({
-        formData: data,
+        formData: safeDraftData,
         selectedFaiths: faiths,
         timestamp: Date.now(),
         isEditing: !!contact
       }));
     } catch (e) {
-      console.warn('Could not save form draft:', e);
+      // Handle quota exceeded by clearing and retrying
+      if (e.name === 'QuotaExceededError' || e.code === 22) {
+        console.warn('sessionStorage quota exceeded, clearing draft');
+        try {
+          sessionStorage.removeItem(FORM_DRAFT_KEY);
+        } catch {}
+      } else {
+        console.warn('Could not save form draft:', e);
+      }
     }
   }, [contact]);
 
@@ -115,9 +132,12 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           // Only restore if draft is less than 30 minutes old and wasn't for editing
           if (draft.timestamp && Date.now() - draft.timestamp < 30 * 60 * 1000 && !draft.isEditing && draft.formData) {
             // Merge with initial form data to ensure all required nested objects exist
+            // Note: memoryPhotos intentionally not restored (they're in Blob storage, not draft)
             const restoredData = {
               ...getInitialFormData(),
               ...draft.formData,
+              memoryPhotos: [], // Never restore photos from draft - they should be empty
+              avatar: draft.formData.avatar?.startsWith('http') ? draft.formData.avatar : '', // Only restore HTTPS URLs
               culturalContext: {
                 ...getInitialFormData().culturalContext,
                 ...(draft.formData.culturalContext || {})
@@ -1349,38 +1369,62 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           ))}
 
           {/* Add More Photos Button */}
-          <label style={{ cursor: 'pointer' }}>
+          <label style={{ cursor: uploadingPhotos > 0 ? 'wait' : 'pointer' }}>
             <input
               type="file"
               accept="image/*"
               multiple
               style={{ display: 'none' }}
-              onChange={(e) => {
+              disabled={uploadingPhotos > 0}
+              onChange={async (e) => {
                 const files = Array.from(e.target.files);
-                files.forEach(file => {
+                if (files.length === 0) return;
+
+                // Validate all files first
+                for (const file of files) {
                   if (file.size > 5 * 1024 * 1024) {
-                    alert('Each image must be less than 5MB');
+                    showManualToast('Error', 'Each image must be less than 5MB', COMMS_CATEGORIES.PROFILE);
                     return;
                   }
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setFormData(prev => ({
-                      ...prev,
-                      memoryPhotos: [...prev.memoryPhotos, reader.result]
-                    }));
-                  };
-                  reader.readAsDataURL(file);
-                });
+                }
+
+                // Upload each file to Blob storage
+                setUploadingPhotos(files.length);
+                const contactId = contact?.id || null;
+
+                for (const file of files) {
+                  try {
+                    const result = await api.uploadContactMemoryPhoto(contactId, file);
+                    if (result.ok && result.blobUrl) {
+                      // Store the blob URL (not base64) in memoryPhotos
+                      setFormData(prev => ({
+                        ...prev,
+                        memoryPhotos: [...prev.memoryPhotos, result.blobUrl]
+                      }));
+                    } else {
+                      showManualToast('Upload failed', 'Could not upload photo', COMMS_CATEGORIES.PROFILE);
+                    }
+                  } catch (err) {
+                    console.error('Photo upload error:', err);
+                    showManualToast('Upload failed', err.message || 'Could not upload photo', COMMS_CATEGORIES.PROFILE);
+                  } finally {
+                    setUploadingPhotos(prev => Math.max(0, prev - 1));
+                  }
+                }
+
+                // Clear the input so the same file can be selected again
+                e.target.value = '';
               }}
             />
             <div style={{
               position: 'relative',
               paddingBottom: '100%',
               borderRadius: 'var(--radius-md)',
-              border: '2px dashed #3b82f6',
-              background: '#eff6ff',
+              border: `2px dashed ${uploadingPhotos > 0 ? '#9ca3af' : '#3b82f6'}`,
+              background: uploadingPhotos > 0 ? '#f3f4f6' : '#eff6ff',
               overflow: 'hidden',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              opacity: uploadingPhotos > 0 ? 0.7 : 1
             }}>
               <div style={{
                 position: 'absolute',
@@ -1392,10 +1436,21 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#3b82f6'
+                color: uploadingPhotos > 0 ? '#9ca3af' : '#3b82f6'
               }}>
-                <Plus size={24} />
-                <span style={{ fontSize: '0.625rem', fontWeight: 600, marginTop: '0.125rem' }}>Add</span>
+                {uploadingPhotos > 0 ? (
+                  <>
+                    <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
+                    <span style={{ fontSize: '0.625rem', fontWeight: 600, marginTop: '0.125rem' }}>
+                      {uploadingPhotos > 1 ? `${uploadingPhotos}...` : 'Uploading...'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Plus size={24} />
+                    <span style={{ fontSize: '0.625rem', fontWeight: 600, marginTop: '0.125rem' }}>Add</span>
+                  </>
+                )}
               </div>
             </div>
           </label>
@@ -2508,9 +2563,9 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         <button
           type="submit"
           className="btn-primary px-8 py-3 font-semibold disabled:opacity-50"
-          disabled={submitting}
+          disabled={submitting || uploadingPhotos > 0}
         >
-          {submitting ? 'Saving...' : contact ? 'Update Recipient' : 'Add Recipient'}
+          {submitting ? 'Saving...' : uploadingPhotos > 0 ? 'Uploading photos...' : contact ? 'Update Recipient' : 'Add Recipient'}
         </button>
       </div>
     </form>
