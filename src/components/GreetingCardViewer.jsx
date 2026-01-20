@@ -638,8 +638,8 @@ export default function GreetingCardViewer({
             }} />
           </div>
 
-          {/* Wax seal (LOCKED - Section 12 & 13: Red wax seal with embossed "G")
-              Gold foil on "G": embossed feel, warm muted gold, no glow/shimmer/animation */}
+          {/* Wax seal (Phase 9: Deep crimson matte, recessed "G")
+              Gold must be discovered, not noticed — no glow/shimmer/animation */}
           <div style={{
             position: 'absolute',
             top: '50%',
@@ -648,11 +648,10 @@ export default function GreetingCardViewer({
             width: '48px',
             height: '48px',
             borderRadius: '50%',
-            background: 'linear-gradient(145deg, #c41e3a 0%, #8b0000 100%)',
+            background: '#8b1a1a', // Phase 9: Deep crimson matte (no gradient)
             boxShadow: `
               0 3px 8px rgba(139, 0, 0, 0.5),
-              inset 0 2px 4px rgba(255, 255, 255, 0.2),
-              inset 0 -2px 4px rgba(0, 0, 0, 0.2)
+              inset 0 1px 2px rgba(0, 0, 0, 0.3)
             `,
             display: 'flex',
             alignItems: 'center',
@@ -660,16 +659,14 @@ export default function GreetingCardViewer({
             opacity: 1 - openingProgress,
             transition: 'transform 0.1s ease-out, opacity 0.1s ease-out',
           }}>
-            {/* LOCKED - Section 13: Gold foil "G"
-                Embossed feel, warm muted gold (#C9A227), no glow/shimmer
-                Gold must be discovered, not noticed */}
+            {/* Phase 9: Recessed "G" — gold discovered through shadow, not prominence */}
             <span style={{
               fontSize: '1.5rem',
               fontWeight: 700,
-              color: '#C9A227', // Warm muted gold
+              color: '#a08050', // Subdued gold — discovered, not noticed
               fontFamily: 'Georgia, serif',
-              textShadow: '0 1px 1px rgba(0, 0, 0, 0.4), 0 -1px 0 rgba(255, 255, 255, 0.1)',
-              // Embossed feel through shadow layering
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(0, 0, 0, 0.2)',
+              opacity: 0.85, // Recessed feel
             }}>G</span>
           </div>
 
@@ -798,9 +795,8 @@ export default function GreetingCardViewer({
                 For {recipientName}
               </p>
 
-              {/* Wax seal on cover (LOCKED - Section 12 & 13)
-                  Red wax seal with embossed "G" on every cover
-                  Gold foil: warm muted gold, embossed feel, no glow/shimmer */}
+              {/* Wax seal on cover (Phase 9: Deep crimson matte, recessed "G")
+                  Gold must be discovered, not noticed — no glow/shimmer */}
               <div style={{
                 position: 'absolute',
                 bottom: '2rem',
@@ -808,8 +804,8 @@ export default function GreetingCardViewer({
                 width: '52px',
                 height: '52px',
                 borderRadius: '50%',
-                background: 'linear-gradient(145deg, #c41e3a 0%, #8b0000 100%)',
-                boxShadow: '0 3px 10px rgba(139, 0, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.15)',
+                background: '#8b1a1a', // Phase 9: Deep crimson matte (no gradient)
+                boxShadow: '0 3px 10px rgba(139, 0, 0, 0.4), inset 0 1px 2px rgba(0, 0, 0, 0.3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -817,9 +813,10 @@ export default function GreetingCardViewer({
                 <span style={{
                   fontSize: '1.5rem',
                   fontWeight: 700,
-                  color: '#C9A227', // Warm muted gold (LOCKED - Section 13)
+                  color: '#a08050', // Subdued gold — discovered, not noticed
                   fontFamily: 'Georgia, serif',
-                  textShadow: '0 1px 1px rgba(0, 0, 0, 0.4), 0 -1px 0 rgba(255, 255, 255, 0.1)',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(0, 0, 0, 0.2)',
+                  opacity: 0.85, // Recessed feel
                 }}>G</span>
               </div>
             </div>
