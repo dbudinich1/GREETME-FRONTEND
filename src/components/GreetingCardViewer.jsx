@@ -143,8 +143,11 @@ export default function GreetingCardViewer({
   const [custodyCopy, setCustodyCopy] = useState(null);
 
   // Envelope state (LOCKED: Envelope Moment)
-  const [envelopeState, setEnvelopeState] = useState('sealed'); // sealed | opening | opened
-  const [openingProgress, setOpeningProgress] = useState(0);
+  // Simplified: sealed | opened (no 'opening' state - single click destroys)
+  const [envelopeState, setEnvelopeState] = useState('sealed');
+
+  // Envelope error state (for failure message)
+  const [envelopeError, setEnvelopeError] = useState(false);
 
   // Card state
   const [currentPage, setCurrentPage] = useState(0);
@@ -180,11 +183,8 @@ export default function GreetingCardViewer({
   // ═══════════════════════════════════════════════════════════════════════════
   const containerRef = useRef(null);
   const audioRef = useRef(null);
-  const openingSoundRef = useRef(null);
   const timersRef = useRef([]);
   const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
-  const holdTimerRef = useRef(null);
-  const openingStartRef = useRef(null);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // BUILD CANONICAL 5-PAGE STRUCTURE (LOCKED)
@@ -345,75 +345,30 @@ export default function GreetingCardViewer({
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ENVELOPE MOMENT (LOCKED - Section 5)
-  // Single object, centered, silent, no branding, no sender name
-  // No interaction initially — must communicate: this exists, this is finished, this is waiting
+  // Single object, below center, silent, no branding, no sender name
+  // Seal is the only clickable element — single click destroys envelope
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // ACT OF OPENING (LOCKED - Section 6)
-  // One deliberate, irreversible gesture
-  // Resisted, cannot be accidental, 800-1200ms total
-  // Sound only at release (≤1s, paper/fiber)
-  const handleEnvelopeMouseDown = () => {
+  // ACT OF OPENING — Single click on seal destroys envelope, reveals card
+  // No hold gesture, no animation, no sound — instant replacement
+  const handleSealClick = () => {
     // LOCKED: No interaction during custody (Section 4)
     if (inCustody) return;
     if (envelopeState !== 'sealed') return;
 
-    openingStartRef.current = Date.now();
-    setEnvelopeState('opening');
+    try {
+      // Destroy envelope, reveal card
+      setEnvelopeState('opened');
 
-    // Start tracking hold duration
-    const updateProgress = () => {
-      if (!openingStartRef.current) return;
-
-      const elapsed = Date.now() - openingStartRef.current;
-      const progress = Math.min(elapsed / TIMING.OPENING_GESTURE_MIN, 1);
-      setOpeningProgress(progress);
-
-      if (elapsed < TIMING.OPENING_GESTURE_MIN) {
-        holdTimerRef.current = requestAnimationFrame(updateProgress);
+      // Persist envelope opened state (LOCKED: irreversible)
+      if (greetingId) {
+        const envelopeOpened = JSON.parse(localStorage.getItem(ENVELOPE_OPENED_KEY) || '{}');
+        envelopeOpened[greetingId] = { openedAt: new Date().toISOString() };
+        localStorage.setItem(ENVELOPE_OPENED_KEY, JSON.stringify(envelopeOpened));
       }
-    };
-
-    holdTimerRef.current = requestAnimationFrame(updateProgress);
-  };
-
-  const handleEnvelopeMouseUp = () => {
-    if (envelopeState !== 'opening') return;
-
-    if (holdTimerRef.current) {
-      cancelAnimationFrame(holdTimerRef.current);
-    }
-
-    const elapsed = openingStartRef.current ? Date.now() - openingStartRef.current : 0;
-
-    // Must hold for minimum duration (LOCKED: sustained, deliberate)
-    if (elapsed >= TIMING.OPENING_GESTURE_MIN) {
-      // Complete opening
-      completeOpening();
-    } else {
-      // Failed attempt — reset
-      setEnvelopeState('sealed');
-      setOpeningProgress(0);
-    }
-
-    openingStartRef.current = null;
-  };
-
-  const completeOpening = () => {
-    setEnvelopeState('opened');
-    setOpeningProgress(1);
-
-    // Play opening sound (LOCKED: ≤1 second, paper/fiber cue)
-    if (openingSoundRef.current) {
-      openingSoundRef.current.volume = 0.2;
-      openingSoundRef.current.play().catch(() => {});
-    }
-
-    // Persist envelope opened state (LOCKED: irreversible)
-    if (greetingId) {
-      const envelopeOpened = JSON.parse(localStorage.getItem(ENVELOPE_OPENED_KEY) || '{}');
-      envelopeOpened[greetingId] = { openedAt: new Date().toISOString() };
-      localStorage.setItem(ENVELOPE_OPENED_KEY, JSON.stringify(envelopeOpened));
+    } catch {
+      // Failure state
+      setEnvelopeError(true);
     }
   };
 
@@ -573,21 +528,52 @@ export default function GreetingCardViewer({
   useEffect(() => {
     return () => {
       timersRef.current.forEach(clearTimeout);
-      if (holdTimerRef.current) {
-        cancelAnimationFrame(holdTimerRef.current);
-      }
     };
   }, []);
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 480;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // RENDER: ENVELOPE MOMENT (LOCKED - Section 5)
-  // Single object, centered, silent, no branding, no sender name
-  // No sound, no motion, no instructions
-  // Must communicate: this exists, this is finished, this is waiting
+  // RENDER: ENVELOPE MOMENT (LOCKED - Envelope Contract)
+  // Single object, below center, silent, no branding, no sender name
+  // Seal is the ONLY clickable element — single click destroys envelope
+  // No sound, no animation, no hover effects
   // ═══════════════════════════════════════════════════════════════════════════
-  if (envelopeState === 'sealed' || envelopeState === 'opening') {
+  if (envelopeState === 'sealed') {
+    // Failure state
+    if (envelopeError) {
+      return (
+        <div
+          ref={containerRef}
+          style={{
+            position: 'relative',
+            width: '100%',
+            maxWidth: '500px',
+            margin: '0 auto',
+            minHeight: '400px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '2rem',
+            userSelect: 'none',
+          }}
+        >
+          <p style={{
+            fontSize: '1rem',
+            fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
+            fontStyle: 'italic',
+            color: '#666',
+            textAlign: 'center',
+            lineHeight: 1.6,
+          }}>
+            This was prepared with care.<br />
+            Please try again in a moment.
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div
         ref={containerRef}
@@ -600,13 +586,12 @@ export default function GreetingCardViewer({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
+          // LOCKED: Below center, not centered
+          justifyContent: 'flex-start',
+          paddingTop: '55%',
           userSelect: 'none',
         }}
       >
-        {/* Hidden audio for opening sound - plays only at release */}
-        <audio ref={openingSoundRef} src="/assets/sounds/paper-open.mp3" preload="auto" />
-
         {/* PRE-OCCASION CUSTODY COPY (LOCKED - Section 4)
             Exact copy only: "For Christmas morning."
             No variations. No emojis. No instructions. */}
@@ -625,24 +610,15 @@ export default function GreetingCardViewer({
           </p>
         )}
 
-        {/* ENVELOPE (LOCKED - Section 5: one centered object, no text/branding)
-            No interaction initially during custody */}
+        {/* ENVELOPE (LOCKED: one object, below center, no text/branding)
+            No click handlers on envelope body — seal is the only interactive element */}
         <div
-          onMouseDown={handleEnvelopeMouseDown}
-          onMouseUp={handleEnvelopeMouseUp}
-          onMouseLeave={handleEnvelopeMouseUp}
-          onTouchStart={handleEnvelopeMouseDown}
-          onTouchEnd={handleEnvelopeMouseUp}
           style={{
             width: '280px',
             height: '180px',
             position: 'relative',
-            // LOCKED: No cursor affordance - envelope must feel like an object, not a button
-            cursor: inCustody ? 'default' : 'default',
-            transform: envelopeState === 'opening'
-              ? `scale(${1 + openingProgress * 0.05})`
-              : 'scale(1)',
-            transition: 'transform 0.1s ease-out',
+            // LOCKED: cursor remains default everywhere
+            cursor: 'default',
           }}
         >
           {/* Envelope body — Phase 9.5: tactile paper stock with fold definition */}
@@ -651,10 +627,7 @@ export default function GreetingCardViewer({
             inset: 0,
             background: 'linear-gradient(180deg, #F5F0E8 0%, #EDE5D8 100%)',
             borderRadius: '4px',
-            boxShadow: `
-              0 ${8 + openingProgress * 8}px ${24 + openingProgress * 16}px rgba(0, 0, 0, ${0.15 + openingProgress * 0.1}),
-              0 2px 4px rgba(0, 0, 0, 0.08)
-            `,
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.08)',
           }}>
             {/* Phase 9.5: Paper texture — low-contrast noise, no visible repetition */}
             <div style={{
@@ -734,37 +707,37 @@ export default function GreetingCardViewer({
               pointerEvents: 'none',
             }} />
 
-            {/* Envelope flap */}
+            {/* Envelope flap — static, no animation */}
             <div style={{
               position: 'absolute',
               top: 0,
               left: '50%',
-              transform: `translateX(-50%) rotateX(${openingProgress * 60}deg)`,
+              transform: 'translateX(-50%)',
               transformOrigin: 'top center',
               width: 0,
               height: 0,
               borderLeft: '140px solid transparent',
               borderRight: '140px solid transparent',
               borderTop: '90px solid #E8E0D0',
-              filter: `brightness(${1 - openingProgress * 0.1})`,
-              transition: 'transform 0.1s ease-out',
             }} />
           </div>
 
-          {/* Phase 9.5: Wax seal — pressed-wax treatment, organic edges, debossed G
-              Material: deep crimson matte with subtle internal marbling
-              Edge: slight organic irregularity (not SVG-perfect circle)
-              Contact shadow where seal meets paper */}
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: `translate(-50%, -50%) scale(${1 - openingProgress * 0.3})`,
-            width: '52px',
-            height: '52px',
-            opacity: 1 - openingProgress,
-            transition: 'transform 0.1s ease-out, opacity 0.1s ease-out',
-          }}>
+          {/* WAX SEAL — THE ONLY CLICKABLE ELEMENT
+              Single click destroys envelope, reveals card
+              No hover effects, cursor remains default */}
+          <div
+            onClick={handleSealClick}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '52px',
+              height: '52px',
+              // LOCKED: cursor remains default, no hover affordance
+              cursor: inCustody ? 'default' : 'default',
+            }}
+          >
             {/* Contact shadow — where wax meets paper */}
             <div style={{
               position: 'absolute',
@@ -777,7 +750,7 @@ export default function GreetingCardViewer({
             <div style={{
               position: 'absolute',
               inset: 0,
-              borderRadius: '52% 48% 50% 50% / 48% 52% 48% 52%', // Organic, not perfect
+              borderRadius: '52% 48% 50% 50% / 48% 52% 48% 52%',
               background: `
                 radial-gradient(ellipse 120% 80% at 35% 25%, rgba(160, 40, 40, 0.15) 0%, transparent 50%),
                 radial-gradient(ellipse 80% 100% at 70% 70%, rgba(80, 15, 15, 0.12) 0%, transparent 45%),
@@ -807,12 +780,13 @@ export default function GreetingCardViewer({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              pointerEvents: 'none',
             }}>
               <span style={{
                 fontSize: '1.5rem',
                 fontWeight: 700,
                 fontFamily: 'Georgia, serif',
-                color: '#7a4a30', // Subdued — gold discovered through light catching the recess
+                color: '#7a4a30',
                 textShadow: `
                   0 -1px 1px rgba(0, 0, 0, 0.4),
                   0 1px 1px rgba(200, 150, 100, 0.15),
@@ -822,17 +796,6 @@ export default function GreetingCardViewer({
               }}>G</span>
             </div>
           </div>
-
-          {/* Light bloom on opening (LOCKED - Section 6 & 9: warm, subtle, one-time only) */}
-          {envelopeState === 'opening' && (
-            <div style={{
-              position: 'absolute',
-              inset: '-50%',
-              background: `radial-gradient(ellipse at center, ${style.openingTint} 0%, transparent 60%)`,
-              opacity: openingProgress,
-              pointerEvents: 'none',
-            }} />
-          )}
         </div>
       </div>
     );
