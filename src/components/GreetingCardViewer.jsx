@@ -110,6 +110,27 @@ const OCCASION_STYLES = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// PAPER FILAMENT OVERLAY — CSS-only cotton fiber simulation
+// Red/blue fibers embedded in paper stock, opacity ≤ 0.12
+// ═══════════════════════════════════════════════════════════════════════════════
+const PAPER_FILAMENT_STYLE = {
+  position: 'absolute',
+  inset: 0,
+  pointerEvents: 'none',
+  opacity: 0.11,
+  background: `
+    linear-gradient(14deg, rgba(180,45,45,.32) 0 1px, transparent 1px 100%),
+    linear-gradient(-19deg, rgba(45,75,180,.32) 0 1px, transparent 1px 100%),
+    linear-gradient(37deg, rgba(175,50,50,.22) 0 1px, transparent 1px 100%),
+    linear-gradient(-43deg, rgba(50,70,175,.22) 0 1px, transparent 1px 100%),
+    linear-gradient(8deg, rgba(170,55,55,.18) 0 1px, transparent 1px 100%),
+    linear-gradient(-31deg, rgba(55,80,170,.18) 0 1px, transparent 1px 100%)
+  `,
+  backgroundSize: '210px 210px, 255px 255px, 290px 290px, 335px 335px, 180px 180px, 310px 310px',
+  mixBlendMode: 'multiply',
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function GreetingCardViewer({
@@ -639,37 +660,8 @@ export default function GreetingCardViewer({
               mixBlendMode: 'multiply',
             }} />
 
-            {/* Micro cotton filaments — sparse, embedded in paper
-                Colors: muted brick-red + desaturated navy
-                Density: 5 total fibers, hairline thickness
-                Blurred to sit inside paper, not on surface */}
-            <svg
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                borderRadius: '4px',
-                pointerEvents: 'none',
-                mixBlendMode: 'multiply',
-              }}
-              viewBox="0 0 280 180"
-              preserveAspectRatio="none"
-            >
-              <defs>
-                <filter id="filamentBlur" x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur in="SourceGraphic" stdDeviation="0.3" />
-                </filter>
-              </defs>
-              {/* Brick-red filaments (oxide/terracotta) */}
-              <line x1="45" y1="72" x2="58" y2="78" stroke="#8b5a4a" strokeWidth="0.6" opacity="0.035" filter="url(#filamentBlur)" />
-              <line x1="182" y1="118" x2="191" y2="112" stroke="#7a4d3c" strokeWidth="0.5" opacity="0.03" filter="url(#filamentBlur)" />
-              {/* Desaturated navy filaments */}
-              <line x1="95" y1="135" x2="107" y2="138" stroke="#4a5568" strokeWidth="0.5" opacity="0.025" filter="url(#filamentBlur)" />
-              <line x1="218" y1="58" x2="225" y2="64" stroke="#3d4a5c" strokeWidth="0.6" opacity="0.03" filter="url(#filamentBlur)" />
-              {/* Partial/faded fiber */}
-              <line x1="140" y1="95" x2="146" y2="92" stroke="#6b5a50" strokeWidth="0.4" opacity="0.02" filter="url(#filamentBlur)" />
-            </svg>
+            {/* Cotton filament overlay — CSS gradient-based red/blue fibers */}
+            <div style={{ ...PAPER_FILAMENT_STYLE, borderRadius: '4px' }} />
 
             {/* Phase 9.5: Envelope fold edge definitions — micro shadows suggesting paper folds */}
             {/* Bottom fold line */}
@@ -887,6 +879,9 @@ export default function GreetingCardViewer({
                 pointerEvents: 'none',
               }} />
 
+              {/* Cotton filament overlay — CSS gradient-based red/blue fibers */}
+              <div style={PAPER_FILAMENT_STYLE} />
+
               {/* Occasion visual (LOCKED - Section 12: occasion expressed visually first) */}
               <div style={{
                 fontSize: '3.5rem',
@@ -998,6 +993,9 @@ export default function GreetingCardViewer({
                 borderRadius: '2px',
                 pointerEvents: 'none',
               }} />
+
+              {/* Cotton filament overlay — CSS gradient-based red/blue fibers */}
+              <div style={PAPER_FILAMENT_STYLE} />
 
               {/* Left: Handwritten (LOCKED: cursive, imperfect ink feel) */}
               <div style={{
