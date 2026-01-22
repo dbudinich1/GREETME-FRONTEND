@@ -1,6 +1,16 @@
 // src/components/GreetingDraftEditor.jsx
 // Multi-page greeting draft editor with animated and slideshow page support
 
+// Helper: normalize photo to URL string (supports object shapes)
+const getPhotoSrc = (photo) => {
+  if (!photo) return "";
+  if (typeof photo === "string") return photo;
+  if (typeof photo === "object") {
+    return photo.sasUrl || photo.url || photo.src || "";
+  }
+  return "";
+};
+
 import { useState, useEffect } from 'react';
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Play, Image, Music,
@@ -392,7 +402,7 @@ export default function GreetingDraftEditor({
                             })}
                           >
                             <img
-                              src={photo}
+                              src={getPhotoSrc(photo)}
                               alt={`Memory ${idx + 1}`}
                               className="w-full h-full object-cover rounded-lg"
                             />
@@ -482,7 +492,7 @@ export default function GreetingDraftEditor({
                           onClick={() => addPhotoToSlideshowPage(selectedPageIndex, photo, 'contact_memory')}
                         >
                           <img
-                            src={photo}
+                            src={getPhotoSrc(photo)}
                             alt={`Memory ${idx + 1}`}
                             className="w-full h-full object-cover rounded-lg"
                           />
