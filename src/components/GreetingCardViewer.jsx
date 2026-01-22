@@ -68,6 +68,53 @@ const CARD_FRAME = {
   borderRadius: '12px',
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// SPREAD FRAME WRAPPER — Shared sizing for all spreads
+// Ensures consistent card dimensions across cover and all spreads
+// ═══════════════════════════════════════════════════════════════════════════════
+const SpreadFrame = ({ children, isSinglePage = false }) => (
+  <div style={{
+    minHeight: CARD_FRAME.minHeight,
+    width: '100%',
+    display: isSinglePage ? 'block' : 'grid',
+    gridTemplateColumns: isSinglePage ? undefined : '1fr 1fr',
+    position: 'relative',
+  }}>
+    {children}
+  </div>
+);
+
+// Left page panel for spreads
+const LeftPage = ({ children, style = {} }) => (
+  <div style={{
+    minHeight: CARD_FRAME.minHeight,
+    borderRight: '1px solid rgba(0, 0, 0, 0.08)',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    padding: '2rem',
+    position: 'relative',
+    ...style,
+  }}>
+    {children}
+  </div>
+);
+
+// Right page panel for spreads
+const RightPage = ({ children, style = {} }) => (
+  <div style={{
+    minHeight: CARD_FRAME.minHeight,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    padding: '2rem',
+    position: 'relative',
+    ...style,
+  }}>
+    {children}
+  </div>
+);
+
 const COMPLETION_STORAGE_KEY = 'greetme_card_completions';
 const ENVELOPE_OPENED_KEY = 'greetme_envelope_opened';
 const CUSTODY_RELEASE_KEY = 'greetme_custody_released';
@@ -313,28 +360,27 @@ export default function GreetingCardViewer({
   }, []);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // BUILD CANONICAL 8-PAGE SPREAD STRUCTURE (LOCKED)
-  // Index 0: Envelope (sealed state, not in pages array)
-  // Index 0: Cover (pages 1-2 front)
-  // Index 1: Intro Spread (pages 1-2 interior)
-  // Index 2: Featured Spread (pages 3-4) - video left, album right
-  // Index 3: Sign-off Spread (pages 5-6)
-  // Index 4: Gift/QR Spread (pages 7-8)
+  // BUILD CANONICAL STEP-BASED STRUCTURE (LOCKED)
+  // Step 0: Envelope (sealed state, handled separately)
+  // Step 1: Cover (single-page frame)
+  // Step 2: Intro Spread (left: handwritten, right: printed greeting)
+  // Step 3: Featured Spread (left: video/photo, right: album)
+  // Step 4: Final Spread (left: sign-off, right: gift/QR)
   // ═══════════════════════════════════════════════════════════════════════════
   const hasMemoryPhotos = photos && photos.length > 0;
 
   const pages = [
-    // Page 0: Cover
+    // Step 1: Cover (single-page frame, same outer sizing)
     { type: 'cover' },
 
-    // Page 1: Intro Spread (Traditional Greeting)
+    // Step 2: Intro Spread (two panels side-by-side)
     {
-      type: 'traditional',
+      type: 'intro',
       cursiveMessage: personalMessage || 'Wishing you the very best on this special day.',
       printedGreeting: printedGreeting || getDefaultPrintedGreeting(occasionType),
     },
 
-    // Page 2: Featured Spread (Video + Album)
+    // Step 3: Featured Spread (two panels side-by-side)
     {
       type: 'featured',
       photoUrl,
@@ -345,14 +391,9 @@ export default function GreetingCardViewer({
       albumPhotos: photos,
     },
 
-    // Page 3: Sign-off Spread
+    // Step 4: Final Spread (two panels side-by-side: sign-off left, gift right)
     {
-      type: 'signoff',
-    },
-
-    // Page 4: Gift/QR Spread (ALWAYS - shows QR Cash or fallback)
-    {
-      type: 'gift',
+      type: 'final',
       hasGift: !!gift,
     },
   ];
@@ -1005,83 +1046,76 @@ export default function GreetingCardViewer({
         }}>
 
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* PAGE 1: COVER (LOCKED)
+          {/* STEP 1: COVER (single-page frame, same outer sizing)
               Uses card-cover.jpeg as background
               Occasion title in Great Vibes, recipient name in Playfair Display
               Text overlaid inside card frame (never below) */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'cover' && (
-            <div style={{
-              position: 'relative',
-              width: '100%',
-              minHeight: CARD_FRAME.minHeight,
-              overflow: 'hidden',
-            }}>
-              <img
-                src={cardCoverImg}
-                alt=""
-                style={{
+            <SpreadFrame isSinglePage>
+              <div style={{
+                position: 'relative',
+                width: '100%',
+                minHeight: CARD_FRAME.minHeight,
+                overflow: 'hidden',
+              }}>
+                <img
+                  src={cardCoverImg}
+                  alt=""
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    minHeight: CARD_FRAME.minHeight,
+                    objectFit: 'cover',
+                    display: 'block',
+                  }}
+                />
+
+                {/* Occasion title - positioned overlay */}
+                <div style={{
+                  position: 'absolute',
+                  top: '18%',
                   width: '100%',
-                  height: '100%',
-                  minHeight: CARD_FRAME.minHeight,
-                  objectFit: 'cover',
-                  display: 'block',
-                }}
-              />
+                  textAlign: 'center',
+                  fontFamily: FONTS.title,
+                  fontSize: isMobile ? '2.5rem' : '3.5rem',
+                  color: '#2b1b12',
+                  textShadow: '0 1px 0 rgba(255, 255, 255, 0.35)',
+                }}>
+                  {getOccasionTitle(occasionType)}
+                </div>
 
-              {/* Occasion title - positioned overlay */}
-              <div style={{
-                position: 'absolute',
-                top: '18%',
-                width: '100%',
-                textAlign: 'center',
-                fontFamily: FONTS.title,
-                fontSize: isMobile ? '2.5rem' : '3.5rem',
-                color: '#2b1b12',
-                textShadow: '0 1px 0 rgba(255, 255, 255, 0.35)',
-              }}>
-                {getOccasionTitle(occasionType)}
+                {/* Recipient name - positioned overlay */}
+                <div style={{
+                  position: 'absolute',
+                  top: '33%',
+                  width: '100%',
+                  textAlign: 'center',
+                  fontFamily: FONTS.brand,
+                  fontSize: isMobile ? '1.25rem' : '1.5rem',
+                  letterSpacing: '0.06em',
+                  color: '#2b1b12',
+                  opacity: 0.9,
+                }}>
+                  For {recipientName}
+                </div>
               </div>
-
-              {/* Recipient name - positioned overlay */}
-              <div style={{
-                position: 'absolute',
-                top: '33%',
-                width: '100%',
-                textAlign: 'center',
-                fontFamily: FONTS.brand,
-                fontSize: isMobile ? '1.25rem' : '1.5rem',
-                letterSpacing: '0.06em',
-                color: '#2b1b12',
-                opacity: 0.9,
-              }}>
-                For {recipientName}
-              </div>
-            </div>
+            </SpreadFrame>
           )}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* INTRO SPREAD (Pages 1-2): TRADITIONAL GREETING
+          {/* STEP 2: INTRO SPREAD (two panels side-by-side)
               Uses card-interior.png as background
               Left: Handwritten in Tangerine, Right: Printed in Cormorant Garamond */}
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {currentPageData.type === 'traditional' && (
-            <div style={{
-              minHeight: CARD_FRAME.minHeight,
-              backgroundImage: `url(${cardInteriorImg})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              position: 'relative',
-            }}>
-              {/* Left: Handwritten message in Tangerine */}
-              <div style={{
+          {currentPageData.type === 'intro' && (
+            <SpreadFrame>
+              {/* LEFT PAGE: Handwritten message in Tangerine */}
+              <LeftPage style={{
+                backgroundImage: `url(${cardInteriorImg})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'left center',
                 padding: isMobile ? '2rem' : '3rem',
-                borderRight: '1px solid rgba(0, 0, 0, 0.06)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
               }}>
                 <p style={{
                   fontFamily: FONTS.handwritten,
@@ -1093,14 +1127,14 @@ export default function GreetingCardViewer({
                 }}>
                   {currentPageData.cursiveMessage}
                 </p>
-              </div>
+              </LeftPage>
 
-              {/* Right: Printed greeting in Cormorant Garamond */}
-              <div style={{
+              {/* RIGHT PAGE: Printed greeting in Cormorant Garamond */}
+              <RightPage style={{
+                backgroundImage: `url(${cardInteriorImg})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'right center',
                 padding: isMobile ? '2rem' : '3rem',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
               }}>
                 <p style={{
                   fontFamily: FONTS.body,
@@ -1112,143 +1146,140 @@ export default function GreetingCardViewer({
                 }}>
                   {currentPageData.printedGreeting}
                 </p>
-              </div>
-            </div>
+              </RightPage>
+            </SpreadFrame>
           )}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* FEATURED SPREAD (Pages 3-4): VIDEO LEFT + ALBUM RIGHT
-              Two-column layout: video/photo on left, album grid on right
+          {/* STEP 3: FEATURED SPREAD (two panels side-by-side)
+              Left: Video/photo, Right: Album grid
               Album disabled during greeting focus period */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'featured' && (
-            <div style={{
-              position: 'relative',
-              minHeight: CARD_FRAME.minHeight,
-              backgroundImage: `url(${cardInteriorImg})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              padding: '1.5rem',
-            }}>
-              {/* Animation Overlay (LOCKED: supports voice, never competes) */}
-              {animationActive && (
-                <div style={{
-                  position: 'absolute',
-                  inset: 0,
-                  zIndex: 10,
-                  pointerEvents: 'none',
-                  overflow: 'hidden',
-                }}>
-                  {renderOccasionAnimation(style)}
-                </div>
-              )}
-
-              {/* Two-column layout: Video Left + Album Right */}
-              <div style={{
-                display: 'flex',
-                gap: '18px',
-                width: '100%',
-                height: '100%',
-                minHeight: '450px',
+            <SpreadFrame>
+              {/* LEFT PAGE: Video/Photo */}
+              <LeftPage style={{
+                backgroundImage: `url(${cardInteriorImg})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'left center',
+                padding: '1.5rem',
+                alignItems: 'center',
               }}>
-                {/* LEFT — VIDEO/PHOTO */}
-                <div style={{
-                  flex: currentPageData.hasAlbum ? '1 1 55%' : '1 1 100%',
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                  background: 'rgba(0, 0, 0, 0.08)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                }}>
-                  {currentPageData.videoUrl ? (
-                    <video
-                      ref={videoRef}
-                      src={currentPageData.videoUrl}
-                      autoPlay={false}
-                      controls={greetingCompleted || hasCompletedOnce}
-                      muted={false}
-                      playsInline
-                      onEnded={handleVideoEnded}
-                      onTimeUpdate={handleVideoTimeUpdate}
-                      style={{
-                        width: '100%',
-                        maxWidth: '100%',
-                        height: 'auto',
-                        display: 'block',
-                        borderRadius: '12px',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-                        opacity: videoFadedIn || hasCompletedOnce ? 1 : 0,
-                        transition: 'opacity 1.2s ease-in-out',
-                      }}
-                    />
-                  ) : currentPageData.photoUrl ? (
-                    <img
-                      src={currentPageData.photoUrl}
-                      alt=""
-                      style={{
-                        width: '100%',
-                        maxWidth: '100%',
-                        height: 'auto',
-                        display: 'block',
-                        borderRadius: '12px',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-                        opacity: mediaRevealed ? 1 : 0,
-                        transition: 'opacity 0.8s ease-in-out',
-                      }}
-                    />
-                  ) : (
-                    <div style={{
+                {/* Animation Overlay (LOCKED: supports voice, never competes) */}
+                {animationActive && (
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    zIndex: 10,
+                    pointerEvents: 'none',
+                    overflow: 'hidden',
+                  }}>
+                    {renderOccasionAnimation(style)}
+                  </div>
+                )}
+
+                {currentPageData.videoUrl ? (
+                  <video
+                    ref={videoRef}
+                    src={currentPageData.videoUrl}
+                    autoPlay={false}
+                    controls={greetingCompleted || hasCompletedOnce}
+                    muted={false}
+                    playsInline
+                    onEnded={handleVideoEnded}
+                    onTimeUpdate={handleVideoTimeUpdate}
+                    style={{
                       width: '100%',
-                      minHeight: '280px',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      maxWidth: '100%',
+                      height: 'auto',
+                      display: 'block',
                       borderRadius: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                      opacity: videoFadedIn || hasCompletedOnce ? 1 : 0,
+                      transition: 'opacity 1.2s ease-in-out',
+                    }}
+                  />
+                ) : currentPageData.photoUrl ? (
+                  <img
+                    src={currentPageData.photoUrl}
+                    alt=""
+                    style={{
+                      width: '100%',
+                      maxWidth: '100%',
+                      height: 'auto',
+                      display: 'block',
+                      borderRadius: '12px',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
                       opacity: mediaRevealed ? 1 : 0,
                       transition: 'opacity 0.8s ease-in-out',
-                    }}>
-                      <span style={{ fontSize: '4rem' }}>💝</span>
-                    </div>
-                  )}
-
-                  {/* Voice consent control */}
-                  {currentPageData.voiceUrl && !voiceConsentGiven && !greetingFocusActive && (
-                    <button
-                      onClick={handleVoiceConsent}
-                      style={{
-                        marginTop: '1rem',
-                        padding: '0.75rem 1.5rem',
-                        background: 'rgba(255, 255, 255, 0.9)',
-                        border: '1px solid rgba(0, 0, 0, 0.15)',
-                        borderRadius: '8px',
-                        color: '#555',
-                        fontSize: '0.9rem',
-                        fontFamily: FONTS.body,
-                        fontStyle: 'italic',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Play message
-                    </button>
-                  )}
-                </div>
-
-                {/* RIGHT — ALBUM (only if has photos, disabled during focus) */}
-                {currentPageData.hasAlbum && (
+                    }}
+                  />
+                ) : (
                   <div style={{
-                    flex: '1 1 45%',
-                    borderRadius: '16px',
-                    overflow: 'hidden',
-                    background: 'rgba(255, 255, 255, 0.35)',
-                    padding: '1rem',
-                    opacity: greetingFocusActive && !hasCompletedOnce ? 0.3 : 1,
-                    transition: 'opacity 0.5s ease',
-                    pointerEvents: greetingFocusActive && !hasCompletedOnce ? 'none' : 'auto',
+                    width: '100%',
+                    minHeight: '280px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: mediaRevealed ? 1 : 0,
+                    transition: 'opacity 0.8s ease-in-out',
                   }}>
+                    <span style={{ fontSize: '4rem' }}>💝</span>
+                  </div>
+                )}
+
+                {/* Voice consent control */}
+                {currentPageData.voiceUrl && !voiceConsentGiven && !greetingFocusActive && (
+                  <button
+                    onClick={handleVoiceConsent}
+                    style={{
+                      marginTop: '1rem',
+                      padding: '0.75rem 1.5rem',
+                      background: 'rgba(255, 255, 255, 0.9)',
+                      border: '1px solid rgba(0, 0, 0, 0.15)',
+                      borderRadius: '8px',
+                      color: '#555',
+                      fontSize: '0.9rem',
+                      fontFamily: FONTS.body,
+                      fontStyle: 'italic',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Play message
+                  </button>
+                )}
+
+                {/* Focus period indicator (subtle) */}
+                {greetingFocusActive && !hasCompletedOnce && (
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '1rem',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    fontSize: '0.75rem',
+                    fontFamily: FONTS.body,
+                    fontStyle: 'italic',
+                    color: 'rgba(0, 0, 0, 0.4)',
+                  }}>
+                    {Math.ceil((TIMING.FEATURED_MIN_DURATION - greetingElapsedMs) / 1000)}s
+                  </div>
+                )}
+              </LeftPage>
+
+              {/* RIGHT PAGE: Album (or placeholder if no photos) */}
+              <RightPage style={{
+                backgroundImage: `url(${cardInteriorImg})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'right center',
+                padding: '1.5rem',
+                opacity: greetingFocusActive && !hasCompletedOnce ? 0.3 : 1,
+                transition: 'opacity 0.5s ease',
+                pointerEvents: greetingFocusActive && !hasCompletedOnce ? 'none' : 'auto',
+              }}>
+                {currentPageData.hasAlbum ? (
+                  <>
                     <p style={{
                       fontFamily: FONTS.body,
                       fontSize: '0.875rem',
@@ -1287,217 +1318,199 @@ export default function GreetingCardViewer({
                         </div>
                       ))}
                     </div>
+                  </>
+                ) : (
+                  /* Placeholder when no album photos */
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%',
+                    textAlign: 'center',
+                  }}>
+                    <p style={{
+                      fontFamily: FONTS.body,
+                      fontSize: '1rem',
+                      fontStyle: 'italic',
+                      color: '#4a3c35',
+                      opacity: 0.6,
+                    }}>
+                      A moment to cherish
+                    </p>
                   </div>
                 )}
-              </div>
-
-              {/* Focus period indicator (subtle) */}
-              {greetingFocusActive && !hasCompletedOnce && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: '1rem',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  fontSize: '0.75rem',
-                  fontFamily: FONTS.body,
-                  fontStyle: 'italic',
-                  color: 'rgba(0, 0, 0, 0.4)',
-                }}>
-                  {Math.ceil((TIMING.FEATURED_MIN_DURATION - greetingElapsedMs) / 1000)}s
-                </div>
-              )}
-            </div>
+              </RightPage>
+            </SpreadFrame>
           )}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* SIGN-OFF SPREAD (Pages 5-6): CLOSING MESSAGE
-              Personal sign-off from sender */}
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {currentPageData.type === 'signoff' && (
-            <div style={{
-              minHeight: CARD_FRAME.minHeight,
-              backgroundImage: `url(${cardInteriorImg})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '3rem',
-              textAlign: 'center',
-              position: 'relative',
-            }}>
-              <h3 style={{
-                fontSize: isMobile ? '2rem' : '2.5rem',
-                fontFamily: FONTS.title,
-                color: '#2c1810',
-                marginBottom: '1.5rem',
-              }}>
-                {getOccasionTitle(occasionType)}
-              </h3>
-              <p style={{
-                fontSize: '1.25rem',
-                fontFamily: FONTS.body,
-                fontStyle: 'italic',
-                color: '#4a3c35',
-                marginBottom: '2rem',
-              }}>
-                With love, {senderName}
-              </p>
-
-              {/* Brand Signature */}
-              <p style={{
-                position: 'absolute',
-                bottom: '1.25rem',
-                fontSize: '0.75rem',
-                fontFamily: FONTS.brand,
-                color: 'rgba(44, 24, 16, 0.35)',
-                fontStyle: 'italic',
-              }}>
-                Greet-Me
-              </p>
-            </div>
-          )}
-
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* GIFT/QR SPREAD (Pages 7-8): QR CASH OR GIFT REVEAL
+          {/* STEP 4: FINAL SPREAD (two panels side-by-side)
+              Left: Sign-off with sender name
+              Right: Gift/QR reveal
               LOCKED COPY:
               - With amount: "Just a little something for you."
               - Without amount: "$5 credit toward any subscription." */}
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {currentPageData.type === 'gift' && (
-            <div style={{
-              minHeight: CARD_FRAME.minHeight,
-              backgroundImage: `url(${cardInteriorImg})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '3rem',
-              textAlign: 'center',
-              position: 'relative',
-            }}>
-              {/* Gift Reveal (LOCKED: still, quiet, centered, no celebration) */}
-              {gift ? (
-                <div style={{
-                  background: 'rgba(255, 255, 255, 0.95)',
-                  borderRadius: '16px',
-                  padding: '2.5rem',
-                  maxWidth: '320px',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+          {currentPageData.type === 'final' && (
+            <SpreadFrame>
+              {/* LEFT PAGE: Sign-off */}
+              <LeftPage style={{
+                backgroundImage: `url(${cardInteriorImg})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'left center',
+                padding: '3rem',
+                textAlign: 'center',
+                alignItems: 'center',
+              }}>
+                <h3 style={{
+                  fontSize: isMobile ? '2rem' : '2.5rem',
+                  fontFamily: FONTS.title,
+                  color: '#2c1810',
+                  marginBottom: '1.5rem',
                 }}>
-                  {gift.type === 'qr_cash' ? (
-                    <>
-                      {/* LOCKED: QR Cash copy per spec */}
+                  {getOccasionTitle(occasionType)}
+                </h3>
+                <p style={{
+                  fontSize: '1.25rem',
+                  fontFamily: FONTS.body,
+                  fontStyle: 'italic',
+                  color: '#4a3c35',
+                  marginBottom: '2rem',
+                }}>
+                  With love, {senderName}
+                </p>
+
+                {/* Brand Signature */}
+                <p style={{
+                  position: 'absolute',
+                  bottom: '1.25rem',
+                  fontSize: '0.75rem',
+                  fontFamily: FONTS.brand,
+                  color: 'rgba(44, 24, 16, 0.35)',
+                  fontStyle: 'italic',
+                }}>
+                  Greet-Me
+                </p>
+              </LeftPage>
+
+              {/* RIGHT PAGE: Gift/QR reveal */}
+              <RightPage style={{
+                backgroundImage: `url(${cardInteriorImg})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'right center',
+                padding: '2rem',
+                textAlign: 'center',
+                alignItems: 'center',
+              }}>
+                {/* Gift Reveal (LOCKED: still, quiet, centered, no celebration) */}
+                {gift ? (
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: '16px',
+                    padding: '2rem',
+                    maxWidth: '280px',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+                  }}>
+                    {gift.type === 'qr_cash' ? (
+                      <>
+                        {/* LOCKED: QR Cash copy per spec */}
+                        <p style={{
+                          fontFamily: FONTS.body,
+                          fontSize: '1rem',
+                          fontStyle: 'italic',
+                          color: '#4a3c35',
+                          marginBottom: '1.25rem',
+                        }}>
+                          {gift.amount ? 'Just a little something for you.' : '$5 credit toward any subscription.'}
+                        </p>
+                        {gift.amount && (
+                          <p style={{
+                            fontSize: '2rem',
+                            fontWeight: 700,
+                            color: '#059669',
+                            marginBottom: '1.25rem',
+                            fontFamily: FONTS.title,
+                          }}>
+                            ${gift.amount}
+                          </p>
+                        )}
+                        <button
+                          onClick={gift.onClaim}
+                          style={{
+                            padding: '0.75rem 1.5rem',
+                            background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '0.9rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            fontFamily: FONTS.body,
+                          }}
+                        >
+                          Claim
+                        </button>
+                      </>
+                    ) : gift.type === 'physical' ? (
+                      <>
+                        <p style={{
+                          fontFamily: FONTS.body,
+                          fontSize: '1.125rem',
+                          fontStyle: 'italic',
+                          color: '#4a3c35',
+                          marginBottom: '0.5rem',
+                        }}>
+                          Something special is on its way
+                        </p>
+                        <p style={{
+                          fontFamily: FONTS.body,
+                          fontSize: '0.9rem',
+                          color: '#666',
+                        }}>
+                          {gift.message || 'A gift has been sent to you'}
+                        </p>
+                      </>
+                    ) : (
                       <p style={{
                         fontFamily: FONTS.body,
                         fontSize: '1.125rem',
                         fontStyle: 'italic',
                         color: '#4a3c35',
-                        marginBottom: '1.5rem',
                       }}>
-                        {gift.amount ? 'Just a little something for you.' : '$5 credit toward any subscription.'}
+                        {gift.name || 'A special gift awaits'}
                       </p>
-                      {gift.amount && (
-                        <p style={{
-                          fontSize: '2.5rem',
-                          fontWeight: 700,
-                          color: '#059669',
-                          marginBottom: '1.5rem',
-                          fontFamily: FONTS.title,
-                        }}>
-                          ${gift.amount}
-                        </p>
-                      )}
-                      <button
-                        onClick={gift.onClaim}
-                        style={{
-                          padding: '0.875rem 2rem',
-                          background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontSize: '1rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          fontFamily: FONTS.body,
-                        }}
-                      >
-                        Claim
-                      </button>
-                    </>
-                  ) : gift.type === 'physical' ? (
-                    <>
-                      <p style={{
-                        fontFamily: FONTS.body,
-                        fontSize: '1.25rem',
-                        fontStyle: 'italic',
-                        color: '#4a3c35',
-                        marginBottom: '0.5rem',
-                      }}>
-                        Something special is on its way
-                      </p>
-                      <p style={{
-                        fontFamily: FONTS.body,
-                        fontSize: '1rem',
-                        color: '#666',
-                      }}>
-                        {gift.message || 'A gift has been sent to you'}
-                      </p>
-                    </>
-                  ) : (
+                    )}
+                  </div>
+                ) : (
+                  /* Fallback when no gift - show $5 credit offer */
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: '16px',
+                    padding: '2rem',
+                    maxWidth: '280px',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+                  }}>
                     <p style={{
                       fontFamily: FONTS.body,
-                      fontSize: '1.25rem',
+                      fontSize: '1rem',
                       fontStyle: 'italic',
                       color: '#4a3c35',
+                      marginBottom: '1rem',
                     }}>
-                      {gift.name || 'A special gift awaits'}
+                      $5 credit toward any subscription.
                     </p>
-                  )}
-                </div>
-              ) : (
-                /* Fallback when no gift - show $5 credit offer */
-                <div style={{
-                  background: 'rgba(255, 255, 255, 0.95)',
-                  borderRadius: '16px',
-                  padding: '2.5rem',
-                  maxWidth: '320px',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
-                }}>
-                  <p style={{
-                    fontFamily: FONTS.body,
-                    fontSize: '1.125rem',
-                    fontStyle: 'italic',
-                    color: '#4a3c35',
-                    marginBottom: '1rem',
-                  }}>
-                    $5 credit toward any subscription.
-                  </p>
-                  <p style={{
-                    fontFamily: FONTS.body,
-                    fontSize: '0.875rem',
-                    color: '#666',
-                  }}>
-                    Thank you for being part of Greet-Me
-                  </p>
-                </div>
-              )}
-
-              {/* Brand Signature */}
-              <p style={{
-                position: 'absolute',
-                bottom: '1.25rem',
-                fontSize: '0.75rem',
-                fontFamily: FONTS.brand,
-                color: 'rgba(44, 24, 16, 0.35)',
-                fontStyle: 'italic',
-              }}>
-                Greet-Me
-              </p>
-            </div>
+                    <p style={{
+                      fontFamily: FONTS.body,
+                      fontSize: '0.875rem',
+                      color: '#666',
+                    }}>
+                      Thank you for being part of Greet-Me
+                    </p>
+                  </div>
+                )}
+              </RightPage>
+            </SpreadFrame>
           )}
         </div>
 
