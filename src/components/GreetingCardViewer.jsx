@@ -337,22 +337,30 @@ export default function GreetingCardViewer({
       const el = audioRefEl?.current;
       if (!el) return;
 
-      // Always restart cue
-      el.currentTime = 0;
+      // Cancel prior hard-stop for this element (prevents timer stacking)
+      if (el.__cueTimerId) {
+        window.clearTimeout(el.__cueTimerId);
+        el.__cueTimerId = null;
+      }
 
-      // Attempt play, but do not block UI if it fails
+      // Always restart cue (more reliable than currentTime alone)
+      try { el.pause(); } catch {}
+      try { el.currentTime = 0; } catch {}
+
       const p = el.play();
-      if (p && typeof p.catch === 'function') p.catch(() => {});
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          // Hard stop window (guaranteed stop)
+          const t = window.setTimeout(() => {
+            try { el.pause(); } catch {}
+            try { el.currentTime = 0; } catch {}
+            el.__cueTimerId = null;
+          }, ms);
 
-      // Stop after cue window, track timer for cleanup
-      const t = window.setTimeout(() => {
-        try {
-          el.pause();
-          el.currentTime = 0;
-        } catch {}
-      }, ms);
-
-      cueTimersRef.current.push(t);
+          el.__cueTimerId = t;
+          cueTimersRef.current.push(t);
+        }).catch(() => {});
+      }
     } catch {}
   }, []);
 
@@ -365,6 +373,16 @@ export default function GreetingCardViewer({
       } catch {}
     };
   }, []);
+
+  // Wax crackle sound — plays AFTER envelope state commits to 'opened'
+  useEffect(() => {
+    if (envelopeState !== 'opened') return;
+
+    // Play AFTER the state transition commits
+    requestAnimationFrame(() => {
+      playCue(waxAudioRef, 650);
+    });
+  }, [envelopeState, playCue]);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // BUILD CANONICAL STEP-BASED STRUCTURE (LOCKED)
@@ -651,14 +669,12 @@ export default function GreetingCardViewer({
         envelopeOpened[greetingId] = { openedAt: new Date().toISOString() };
         localStorage.setItem(ENVELOPE_OPENED_KEY, JSON.stringify(envelopeOpened));
       }
-
-      // 3) Audio cue AFTER state (non-blocking)
-      playCue(waxAudioRef, 650);
-    } catch {
-      // Failure state
-      setEnvelopeError(true);
-    }
-  }, [inCustody, envelopeState, greetingId, playCue]);
+      // Audio cue moved to useEffect (post-commit guarantee)
+      } catch {
+        // Failure state
+        setEnvelopeError(true);
+      }
+  }, [inCustody, envelopeState, greetingId]);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // VOICE PRESENTATION (LOCKED)
@@ -922,7 +938,10 @@ export default function GreetingCardViewer({
             height: '100%',
             transformStyle: 'preserve-3d',
             transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: envelopeFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+           transform: envelopeFlipped
+              ? 'rotateY(180deg) rotateZ(2deg)'
+              : 'rotateY(0deg) rotateZ(-2deg)',
+
           }}>
             {/* FRONT FACE - Envelope with wax seal */}
             <div style={{
@@ -944,19 +963,20 @@ export default function GreetingCardViewer({
                   pointerEvents: 'none',
                 }}
               />
-              {/* RECIPIENT NAME — lower-right, elegant, muted ink */}
+             {/* RECIPIENT NAME — centered on envelope, handwritten style */}
               <div style={{
-                position: 'absolute',
-                bottom: '10%',
-                right: '12%',
-                fontFamily: FONTS.body,
-                fontSize: '0.9rem',
-                fontWeight: 400,
-                fontStyle: 'italic',
-                color: '#2a3f55',
-                letterSpacing: '0.04em',
-                pointerEvents: 'none',
-              }}>
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  fontFamily: FONTS.handwritten,
+                  fontSize: '1.75rem',
+                  fontWeight: 700,
+                  color: '#2a3f55',
+                  letterSpacing: '0.02em',
+                  pointerEvents: 'none',
+                  zIndex: 10,
+                }}>
                 {recipientName}
               </div>
               {/* WAX SEAL OVERLAY — clickable, centered on image seal position */}
@@ -1053,9 +1073,7 @@ export default function GreetingCardViewer({
           overflow: 'hidden',
           boxShadow: '0 12px 40px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.12)',
           cursor: 'grab',
-          // Subtle continuous float animation
-          animation: 'cardFloat 12s ease-in-out infinite',
-          // LOCKED: Weighted, dampened movement
+          // LOCKED: No ambient motion — movement only on user interaction
           transition: isTransitioning
             ? `opacity ${TIMING.PAGE_TURN_DURATION}ms ease-out`
             : 'box-shadow 0.3s ease',
