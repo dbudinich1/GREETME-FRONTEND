@@ -842,63 +842,69 @@ export default function GreetingCardViewer({
   // Hover flips front↔back, seal click destroys envelope
   // Audio on flip (paper-slide) and seal break (wax-crackle)
   // ═══════════════════════════════════════════════════════════════════════════
-  if (envelopeState === 'sealed') {
-    // Failure state
-    if (envelopeError) {
-      return (
-        <div
-          ref={containerRef}
-          style={{
-            position: 'relative',
-            width: '100%',
-            maxWidth: '500px',
-            margin: '0 auto',
-            minHeight: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '2rem',
-            userSelect: 'none',
-            background: '#f5f3f0',
-          }}
-        >
-          <p style={{
-            fontSize: '1.125rem',
-            fontFamily: FONTS.body,
-            fontStyle: 'italic',
-            color: '#666',
-            textAlign: 'center',
-            lineHeight: 1.6,
-          }}>
-            This was prepared with care.<br />
-            Please try again in a moment.
-          </p>
-        </div>
-      );
-    }
-
+  // Failure state (early return)
+  if (envelopeState === 'sealed' && envelopeError) {
     return (
       <div
         ref={containerRef}
         style={{
           position: 'relative',
-          width: '100vw',
-          height: '100vh',
-          overflow: 'hidden',
+          width: '100%',
+          maxWidth: '500px',
+          margin: '0 auto',
+          minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          // LOCKED: Below center, not centered
-          justifyContent: 'flex-start',
-          paddingTop: '25vh',
+          justifyContent: 'center',
+          padding: '2rem',
           userSelect: 'none',
           background: '#f5f3f0',
         }}
       >
-        {/* Hidden Audio Elements for envelope sounds */}
-        <audio ref={paperAudioRef} src={AUDIO.paperSlide} preload="auto" />
-        <audio ref={waxAudioRef} src={AUDIO.waxCrackle} preload="auto" />
+        <p style={{
+          fontSize: '1.125rem',
+          fontFamily: FONTS.body,
+          fontStyle: 'italic',
+          color: '#666',
+          textAlign: 'center',
+          lineHeight: 1.6,
+        }}>
+          This was prepared with care.<br />
+          Please try again in a moment.
+        </p>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SINGLE RETURN — Audio elements always mounted (refs never duplicate)
+  // ═══════════════════════════════════════════════════════════════════════════
+  return (
+    <>
+      {/* Hidden Audio Elements — ALWAYS MOUNTED (single instance per ref) */}
+      <audio ref={paperAudioRef} src={AUDIO.paperSlide} preload="auto" />
+      <audio ref={waxAudioRef} src={AUDIO.waxCrackle} preload="auto" />
+      <audio ref={audioRef} onEnded={handleAudioEnded} />
+
+      {envelopeState === 'sealed' ? (
+        <div
+          ref={containerRef}
+          style={{
+            position: 'relative',
+            width: '100vw',
+            height: '100vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            // LOCKED: Below center, not centered
+            justifyContent: 'flex-start',
+            paddingTop: '25vh',
+            userSelect: 'none',
+            background: '#f5f3f0',
+          }}
+        >
 
         {/* PRE-OCCASION CUSTODY COPY (LOCKED - Section 4)
             Exact copy only: "For Christmas morning."
@@ -1031,21 +1037,18 @@ export default function GreetingCardViewer({
             color: 'rgba(0, 0, 0, 0.4)',
             textAlign: 'center',
           }}>
-            {envelopeFlipped ? 'Flip back to open' : 'Hover to turn over'}
+            {envelopeFlipped ? 'Tap again to open' : 'Tap to turn over'}
           </p>
         )}
-      </div>
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // RENDER: OPENED CARD (LOCKED: Objecthood preserved)
-  // Card exists within the screen, visible margins, clear edges, soft depth
-  // ═══════════════════════════════════════════════════════════════════════════
-  return (
-    <div
-      ref={containerRef}
-      style={{
+        </div>
+      ) : (
+        // ═══════════════════════════════════════════════════════════════════════════
+        // RENDER: OPENED CARD (LOCKED: Objecthood preserved)
+        // Card exists within the screen, visible margins, clear edges, soft depth
+        // ═══════════════════════════════════════════════════════════════════════════
+        <div
+          ref={containerRef}
+          style={{
         position: 'relative',
         width: '100%',
         maxWidth: '500px',
@@ -1053,14 +1056,9 @@ export default function GreetingCardViewer({
         padding: '8px', // Reduced to show deckled paper edges
         userSelect: 'none',
         touchAction: 'none',
-      }}
-    >
-      {/* Hidden Audio Elements */}
-      <audio ref={audioRef} onEnded={handleAudioEnded} />
-      <audio ref={paperAudioRef} src={AUDIO.paperSlide} preload="auto" />
-      <audio ref={waxAudioRef} src={AUDIO.waxCrackle} preload="auto" />
-
-      {/* Card Container (LOCKED: clear edges, soft depth, fixed proportions) */}
+          }}
+        >
+          {/* Card Container (LOCKED: clear edges, soft depth, fixed proportions) */}
       <div
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -1634,7 +1632,9 @@ export default function GreetingCardViewer({
           100% { transform: translateY(300px) translateX(25px) rotate(180deg); opacity: 0; }
         }
       `}</style>
-    </div>
+        </div>
+      )}
+    </>
   );
 }
 
