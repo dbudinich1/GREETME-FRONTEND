@@ -260,12 +260,14 @@ export default function GreetingCardViewer({
   const paperAudioRef = useRef(null);
   const waxAudioRef = useRef(null);
   const timersRef = useRef([]);
+  const cueTimersRef = useRef([]);
   const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
   const greetingStartTimeRef = useRef(null);
   const greetingIntervalRef = useRef(null);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // AUDIO CUE HELPER — plays short tactile cue then stops
+  // Tracks timers for cleanup on unmount (no leaks)
   // ═══════════════════════════════════════════════════════════════════════════
   const playCue = useCallback((audioRefEl, ms = 600) => {
     try {
@@ -279,14 +281,26 @@ export default function GreetingCardViewer({
       const p = el.play();
       if (p && typeof p.catch === 'function') p.catch(() => {});
 
-      // Stop after cue window
-      window.setTimeout(() => {
+      // Stop after cue window, track timer for cleanup
+      const t = window.setTimeout(() => {
         try {
           el.pause();
           el.currentTime = 0;
         } catch {}
       }, ms);
+
+      cueTimersRef.current.push(t);
     } catch {}
+  }, []);
+
+  // Cleanup cue timers on unmount
+  useEffect(() => {
+    return () => {
+      try {
+        cueTimersRef.current.forEach((t) => clearTimeout(t));
+        cueTimersRef.current = [];
+      } catch {}
+    };
   }, []);
 
   // ═══════════════════════════════════════════════════════════════════════════
