@@ -257,10 +257,37 @@ export default function GreetingCardViewer({
   const containerRef = useRef(null);
   const audioRef = useRef(null);
   const videoRef = useRef(null);
+  const paperAudioRef = useRef(null);
+  const waxAudioRef = useRef(null);
   const timersRef = useRef([]);
   const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
   const greetingStartTimeRef = useRef(null);
   const greetingIntervalRef = useRef(null);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AUDIO CUE HELPER — plays short tactile cue then stops
+  // ═══════════════════════════════════════════════════════════════════════════
+  const playCue = useCallback((audioRefEl, ms = 600) => {
+    try {
+      const el = audioRefEl?.current;
+      if (!el) return;
+
+      // Always restart cue
+      el.currentTime = 0;
+
+      // Attempt play, but do not block UI if it fails
+      const p = el.play();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+
+      // Stop after cue window
+      window.setTimeout(() => {
+        try {
+          el.pause();
+          el.currentTime = 0;
+        } catch {}
+      }, ms);
+    } catch {}
+  }, []);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // BUILD CANONICAL 5-PAGE STRUCTURE (LOCKED)
@@ -507,21 +534,6 @@ export default function GreetingCardViewer({
   }, []);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // AUDIO HELPERS (graceful failure if files missing)
-  // ═══════════════════════════════════════════════════════════════════════════
-  const playSound = useCallback((src) => {
-    try {
-      const audio = new Audio(src);
-      audio.volume = 0.4;
-      audio.play().catch(() => {
-        // Graceful failure - audio files may not exist yet
-      });
-    } catch {
-      // Graceful failure
-    }
-  }, []);
-
-  // ═══════════════════════════════════════════════════════════════════════════
   // ENVELOPE MOMENT (LOCKED - Section 5)
   // Single object, below center, silent, no branding, no sender name
   // Seal is the only clickable element — single click destroys envelope
@@ -532,40 +544,41 @@ export default function GreetingCardViewer({
   const handleEnvelopeMouseEnter = useCallback(() => {
     if (envelopeState !== 'sealed' || inCustody) return;
     setEnvelopeFlipped(true);
-    playSound(AUDIO.paperSlide);
-  }, [envelopeState, inCustody, playSound]);
+    playCue(paperAudioRef, 550);
+  }, [envelopeState, inCustody, playCue]);
 
   const handleEnvelopeMouseLeave = useCallback(() => {
     if (envelopeState !== 'sealed') return;
     setEnvelopeFlipped(false);
-    playSound(AUDIO.paperSlide);
-  }, [envelopeState, playSound]);
+    playCue(paperAudioRef, 550);
+  }, [envelopeState, playCue]);
 
   // ACT OF OPENING — Single click on seal destroys envelope, reveals card
   // No hold gesture, no animation — instant replacement with wax crackle sound
-  const handleSealClick = () => {
+  // KEY: State transition FIRST (never blocked), audio second (non-blocking)
+  const handleSealClick = useCallback(() => {
     // LOCKED: No interaction during custody (Section 4)
     if (inCustody) return;
     if (envelopeState !== 'sealed') return;
 
     try {
-      // Play wax crackle sound
-      playSound(AUDIO.waxCrackle);
-
-      // Destroy envelope, reveal card
+      // 1) State transition FIRST (never blocked)
       setEnvelopeState('opened');
 
-      // Persist envelope opened state (LOCKED: irreversible)
+      // 2) Persist envelope opened state (LOCKED: irreversible)
       if (greetingId) {
         const envelopeOpened = JSON.parse(localStorage.getItem(ENVELOPE_OPENED_KEY) || '{}');
         envelopeOpened[greetingId] = { openedAt: new Date().toISOString() };
         localStorage.setItem(ENVELOPE_OPENED_KEY, JSON.stringify(envelopeOpened));
       }
+
+      // 3) Audio cue AFTER state (non-blocking)
+      playCue(waxAudioRef, 650);
     } catch {
       // Failure state
       setEnvelopeError(true);
     }
-  };
+  }, [inCustody, envelopeState, greetingId, playCue]);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // VOICE PRESENTATION (LOCKED)
@@ -774,8 +787,9 @@ export default function GreetingCardViewer({
         ref={containerRef}
         style={{
           position: 'relative',
-          width: '100%',
-          minHeight: '100vh',
+          width: '100vw',
+          height: '100vh',
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -786,6 +800,10 @@ export default function GreetingCardViewer({
           background: '#f5f3f0',
         }}
       >
+        {/* Hidden Audio Elements for envelope sounds */}
+        <audio ref={paperAudioRef} src={AUDIO.paperSlide} preload="auto" />
+        <audio ref={waxAudioRef} src={AUDIO.waxCrackle} preload="auto" />
+
         {/* PRE-OCCASION CUSTODY COPY (LOCKED - Section 4)
             Exact copy only: "For Christmas morning."
             No variations. No emojis. No instructions. */}
@@ -842,6 +860,8 @@ export default function GreetingCardViewer({
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
+                  display: 'block',
+                  pointerEvents: 'none',
                 }}
               />
               {/* WAX SEAL OVERLAY — clickable, centered on image seal position */}
@@ -849,15 +869,17 @@ export default function GreetingCardViewer({
                 onClick={handleSealClick}
                 style={{
                   position: 'absolute',
-                  top: '50%',
+                  top: '55%',
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
-                  width: '80px',
-                  height: '80px',
+                  width: '90px',
+                  height: '90px',
                   cursor: inCustody ? 'default' : 'pointer',
                   borderRadius: '50%',
-                  // Invisible clickable area over the seal in the image
+                  zIndex: 50,
+                  pointerEvents: 'auto',
                 }}
+                aria-label="Open envelope"
               />
             </div>
 
@@ -918,11 +940,10 @@ export default function GreetingCardViewer({
         touchAction: 'none',
       }}
     >
-      {/* Hidden Audio Element for voice playback */}
-      <audio
-        ref={audioRef}
-        onEnded={handleAudioEnded}
-      />
+      {/* Hidden Audio Elements */}
+      <audio ref={audioRef} onEnded={handleAudioEnded} />
+      <audio ref={paperAudioRef} src={AUDIO.paperSlide} preload="auto" />
+      <audio ref={waxAudioRef} src={AUDIO.waxCrackle} preload="auto" />
 
       {/* Card Container (LOCKED: clear edges, soft depth, fixed proportions) */}
       <div
@@ -954,43 +975,56 @@ export default function GreetingCardViewer({
           {/* ═══════════════════════════════════════════════════════════════ */}
           {/* PAGE 1: COVER (LOCKED)
               Uses card-cover.jpeg as background
-              Occasion title in Great Vibes, recipient name in Cormorant Garamond */}
+              Occasion title in Great Vibes, recipient name in Playfair Display
+              Text overlaid inside card frame (never below) */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'cover' && (
             <div style={{
-              minHeight: '500px',
-              backgroundImage: `url(${cardCoverImg})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
               position: 'relative',
-              padding: '3rem',
+              width: '100%',
+              minHeight: '500px',
+              overflow: 'hidden',
             }}>
-              {/* Occasion title in Great Vibes */}
-              <h1 style={{
-                fontSize: isMobile ? '2.5rem' : '3.5rem',
-                fontFamily: FONTS.title,
-                color: '#2c1810',
-                marginBottom: '1.5rem',
+              <img
+                src={cardCoverImg}
+                alt=""
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  minHeight: '500px',
+                  objectFit: 'cover',
+                  display: 'block',
+                }}
+              />
+
+              {/* Occasion title - positioned overlay */}
+              <div style={{
+                position: 'absolute',
+                top: '18%',
+                width: '100%',
                 textAlign: 'center',
-                textShadow: '0 1px 2px rgba(255, 255, 255, 0.5)',
+                fontFamily: FONTS.title,
+                fontSize: isMobile ? '2.5rem' : '3.5rem',
+                color: '#2b1b12',
+                textShadow: '0 1px 0 rgba(255, 255, 255, 0.35)',
               }}>
                 {getOccasionTitle(occasionType)}
-              </h1>
+              </div>
 
-              <p style={{
-                fontSize: isMobile ? '1.25rem' : '1.5rem',
-                fontFamily: FONTS.body,
-                fontStyle: 'italic',
-                color: '#4a3c35',
-                marginBottom: '0',
+              {/* Recipient name - positioned overlay */}
+              <div style={{
+                position: 'absolute',
+                top: '33%',
+                width: '100%',
                 textAlign: 'center',
+                fontFamily: FONTS.brand,
+                fontSize: isMobile ? '1.25rem' : '1.5rem',
+                letterSpacing: '0.06em',
+                color: '#2b1b12',
+                opacity: 0.9,
               }}>
                 For {recipientName}
-              </p>
+              </div>
             </div>
           )}
 
