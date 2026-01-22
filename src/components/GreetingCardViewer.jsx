@@ -944,17 +944,17 @@ export default function GreetingCardViewer({
                   pointerEvents: 'none',
                 }}
               />
-              {/* RECIPIENT NAME — centered in lower third, blue ink tone */}
+              {/* RECIPIENT NAME — lower-right, elegant, muted ink */}
               <div style={{
                 position: 'absolute',
-                bottom: '12%',
-                width: '100%',
-                textAlign: 'center',
+                bottom: '10%',
+                right: '12%',
                 fontFamily: FONTS.body,
-                fontSize: '1.125rem',
-                fontWeight: 600,
-                color: '#1f4e8c',
-                letterSpacing: '0.08em',
+                fontSize: '0.9rem',
+                fontWeight: 400,
+                fontStyle: 'italic',
+                color: '#2a3f55',
+                letterSpacing: '0.04em',
                 pointerEvents: 'none',
               }}>
                 {recipientName}
@@ -1030,7 +1030,7 @@ export default function GreetingCardViewer({
         width: '100%',
         maxWidth: '500px',
         margin: '0 auto',
-        padding: '16px', // LOCKED: Visible margins on all sides
+        padding: '8px', // Reduced to show deckled paper edges
         userSelect: 'none',
         touchAction: 'none',
       }}
@@ -1053,6 +1053,8 @@ export default function GreetingCardViewer({
           overflow: 'hidden',
           boxShadow: '0 12px 40px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.12)',
           cursor: 'grab',
+          // Subtle continuous float animation
+          animation: 'cardFloat 12s ease-in-out infinite',
           // LOCKED: Weighted, dampened movement
           transition: isTransitioning
             ? `opacity ${TIMING.PAGE_TURN_DURATION}ms ease-out`
@@ -1582,6 +1584,10 @@ export default function GreetingCardViewer({
 
       {/* CSS Animations */}
       <style>{`
+        @keyframes cardFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
         @keyframes confettiFloat {
           0% { transform: translateY(-10px) rotate(0deg); opacity: 0; }
           10% { opacity: 0.8; }
