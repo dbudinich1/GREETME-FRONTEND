@@ -22,6 +22,42 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 // Phase 9: Volume2 import removed — voice indicator UI removed per doctrine ("no UI on pages")
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CARD STOCK ASSETS — CANONICAL (LOCKED)
+// ═══════════════════════════════════════════════════════════════════════════════
+import envelopeFrontImg from '../assets/card/envelope-front.jpeg';
+import envelopeBackImg from '../assets/card/envelope-back.jpeg';
+import cardCoverImg from '../assets/card/card-cover.jpeg';
+import cardInteriorImg from '../assets/card/card-interior.png';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GOOGLE FONTS — GLOBAL TYPOGRAPHY LOCK
+// Great Vibes: Titles, occasion headers
+// Tangerine: Handwritten messages
+// Cormorant Garamond: Body text, poems, formal copy
+// Playfair Display: Brand signature, subtle branding
+// ═══════════════════════════════════════════════════════════════════════════════
+const GOOGLE_FONTS_URL = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Great+Vibes&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Tangerine:wght@400;700&display=swap';
+
+// Inject Google Fonts on mount (idempotent)
+if (typeof document !== 'undefined') {
+  const existingLink = document.querySelector(`link[href="${GOOGLE_FONTS_URL}"]`);
+  if (!existingLink) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = GOOGLE_FONTS_URL;
+    document.head.appendChild(link);
+  }
+}
+
+// Typography constants
+const FONTS = {
+  title: "'Great Vibes', cursive",
+  handwritten: "'Tangerine', cursive",
+  body: "'Cormorant Garamond', serif",
+  brand: "'Playfair Display', serif",
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS — LOCKED
 // ═══════════════════════════════════════════════════════════════════════════════
 const COMPLETION_STORAGE_KEY = 'greetme_card_completions';
@@ -53,6 +89,22 @@ const TIMING = {
 
   // Swipe detection
   SWIPE_THRESHOLD: 60,             // Higher threshold = more deliberate
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FEATURED GREETING DURATION LOCK (LOCKED)
+  // Greeting video: 15-20 seconds total
+  // - If video < 15s: hold on freeze frame until 15s elapsed
+  // - If video ≥ 20s: stop at 20s, freeze frame
+  // ═══════════════════════════════════════════════════════════════════════════
+  FEATURED_MIN_DURATION: 15000,    // 15 seconds minimum
+  FEATURED_MAX_DURATION: 20000,    // 20 seconds maximum
+  VIDEO_FADE_IN_DELAY: 2500,       // Video fades in after 2.5s (Focus + Surprise)
+};
+
+// Audio file paths (graceful failure if missing)
+const AUDIO = {
+  paperSlide: '/assets/sounds/paper-slide.mp3',
+  waxCrackle: '/assets/sounds/wax-crackle.mp3',
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -109,26 +161,7 @@ const OCCASION_STYLES = {
   },
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// PAPER FILAMENT OVERLAY — CSS-only cotton fiber simulation
-// Red/blue fibers embedded in paper stock, opacity ≤ 0.12
-// ═══════════════════════════════════════════════════════════════════════════════
-const PAPER_FILAMENT_STYLE = {
-  position: 'absolute',
-  inset: 0,
-  pointerEvents: 'none',
-  opacity: 0.11,
-  background: `
-    linear-gradient(14deg, rgba(180,45,45,.32) 0 1px, transparent 1px 100%),
-    linear-gradient(-19deg, rgba(45,75,180,.32) 0 1px, transparent 1px 100%),
-    linear-gradient(37deg, rgba(175,50,50,.22) 0 1px, transparent 1px 100%),
-    linear-gradient(-43deg, rgba(50,70,175,.22) 0 1px, transparent 1px 100%),
-    linear-gradient(8deg, rgba(170,55,55,.18) 0 1px, transparent 1px 100%),
-    linear-gradient(-31deg, rgba(55,80,170,.18) 0 1px, transparent 1px 100%)
-  `,
-  backgroundSize: '210px 210px, 255px 255px, 290px 290px, 335px 335px, 180px 180px, 310px 310px',
-  mixBlendMode: 'multiply',
-};
+// PAPER_FILAMENT_STYLE removed - now using image-based card stock backgrounds
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -167,8 +200,28 @@ export default function GreetingCardViewer({
   // Simplified: sealed | opened (no 'opening' state - single click destroys)
   const [envelopeState, setEnvelopeState] = useState('sealed');
 
+  // Envelope flip state (LOCKED: hover flips front↔back)
+  const [envelopeFlipped, setEnvelopeFlipped] = useState(false);
+
   // Envelope error state (for failure message)
   const [envelopeError, setEnvelopeError] = useState(false);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FEATURED GREETING STATE (LOCKED: Focus + Surprise Rule)
+  // During greeting focus period:
+  // - Video fades in after 2.5s
+  // - Memory album disabled
+  // - Navigation disabled
+  // - Final spread blurred
+  // After completion:
+  // - Freeze frame shown
+  // - Album/navigation enabled
+  // - Final spread revealed
+  // ═══════════════════════════════════════════════════════════════════════════
+  const [greetingFocusActive, setGreetingFocusActive] = useState(false);
+  const [greetingCompleted, setGreetingCompleted] = useState(false);
+  const [videoFadedIn, setVideoFadedIn] = useState(false);
+  const [greetingElapsedMs, setGreetingElapsedMs] = useState(0);
 
   // Card state
   const [currentPage, setCurrentPage] = useState(0);
@@ -177,7 +230,6 @@ export default function GreetingCardViewer({
   const [canNavigate, setCanNavigate] = useState(false);
 
   // Audio state
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [isAudioMuted] = useState(false); // LOCKED: No mute control exposed
 
   // Phase 9: Voice consent state (session-only, not persisted)
@@ -204,8 +256,11 @@ export default function GreetingCardViewer({
   // ═══════════════════════════════════════════════════════════════════════════
   const containerRef = useRef(null);
   const audioRef = useRef(null);
+  const videoRef = useRef(null);
   const timersRef = useRef([]);
   const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
+  const greetingStartTimeRef = useRef(null);
+  const greetingIntervalRef = useRef(null);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // BUILD CANONICAL 5-PAGE STRUCTURE (LOCKED)
@@ -365,19 +420,138 @@ export default function GreetingCardViewer({
   }, [currentPage, envelopeState, pages]);
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // FEATURED GREETING DURATION GATING (LOCKED)
+  // 15-20s focus period with video fade-in at 2.5s
+  // Navigation/album disabled during focus, final spread blurred
+  // ═══════════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const currentPageData = pages[currentPage];
+    const isFeaturedPage = currentPageData?.type === 'moment' && envelopeState === 'opened';
+
+    if (isFeaturedPage && !greetingCompleted && !hasCompletedOnce) {
+      // Start greeting focus period
+      setGreetingFocusActive(true);
+      setVideoFadedIn(false);
+      setGreetingElapsedMs(0);
+      greetingStartTimeRef.current = Date.now();
+
+      // Video fade-in after 2.5s
+      const fadeInTimer = setTimeout(() => {
+        setVideoFadedIn(true);
+        // Auto-play video if present
+        if (videoRef.current) {
+          videoRef.current.play().catch(() => {});
+        }
+      }, TIMING.VIDEO_FADE_IN_DELAY);
+
+      // Track elapsed time
+      greetingIntervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - greetingStartTimeRef.current;
+        setGreetingElapsedMs(elapsed);
+
+        // Stop at max duration (20s)
+        if (elapsed >= TIMING.FEATURED_MAX_DURATION) {
+          if (videoRef.current) {
+            videoRef.current.pause();
+          }
+          clearInterval(greetingIntervalRef.current);
+
+          // Complete greeting after min duration met
+          setGreetingCompleted(true);
+          setGreetingFocusActive(false);
+        }
+      }, 100);
+
+      return () => {
+        clearTimeout(fadeInTimer);
+        clearInterval(greetingIntervalRef.current);
+      };
+    } else if (!isFeaturedPage) {
+      // Left the featured page - check if min duration was met
+      if (greetingFocusActive && greetingElapsedMs < TIMING.FEATURED_MIN_DURATION) {
+        // Did not complete minimum - reset for next visit
+        setGreetingFocusActive(false);
+        setVideoFadedIn(false);
+      }
+    }
+  }, [currentPage, envelopeState, pages, greetingCompleted, hasCompletedOnce, greetingFocusActive, greetingElapsedMs]);
+
+  // Handle video ended - complete greeting if min duration met
+  const handleVideoEnded = useCallback(() => {
+    const elapsed = Date.now() - (greetingStartTimeRef.current || Date.now());
+
+    if (elapsed >= TIMING.FEATURED_MIN_DURATION) {
+      setGreetingCompleted(true);
+      setGreetingFocusActive(false);
+    } else {
+      // Hold on freeze frame until min duration
+      const remainingMs = TIMING.FEATURED_MIN_DURATION - elapsed;
+      const holdTimer = setTimeout(() => {
+        setGreetingCompleted(true);
+        setGreetingFocusActive(false);
+      }, remainingMs);
+      timersRef.current.push(holdTimer);
+    }
+  }, []);
+
+  // Handle video time update - enforce max duration
+  const handleVideoTimeUpdate = useCallback(() => {
+    if (videoRef.current) {
+      const currentTimeMs = videoRef.current.currentTime * 1000;
+      if (currentTimeMs >= TIMING.FEATURED_MAX_DURATION) {
+        videoRef.current.pause();
+        setGreetingCompleted(true);
+        setGreetingFocusActive(false);
+      }
+    }
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AUDIO HELPERS (graceful failure if files missing)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const playSound = useCallback((src) => {
+    try {
+      const audio = new Audio(src);
+      audio.volume = 0.4;
+      audio.play().catch(() => {
+        // Graceful failure - audio files may not exist yet
+      });
+    } catch {
+      // Graceful failure
+    }
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // ENVELOPE MOMENT (LOCKED - Section 5)
   // Single object, below center, silent, no branding, no sender name
   // Seal is the only clickable element — single click destroys envelope
+  // Hover flips front↔back, audio on flip/seal break
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // Envelope hover handler — flip front↔back
+  const handleEnvelopeMouseEnter = useCallback(() => {
+    if (envelopeState !== 'sealed' || inCustody) return;
+    setEnvelopeFlipped(true);
+    playSound(AUDIO.paperSlide);
+  }, [envelopeState, inCustody, playSound]);
+
+  const handleEnvelopeMouseLeave = useCallback(() => {
+    if (envelopeState !== 'sealed') return;
+    setEnvelopeFlipped(false);
+    playSound(AUDIO.paperSlide);
+  }, [envelopeState, playSound]);
+
   // ACT OF OPENING — Single click on seal destroys envelope, reveals card
-  // No hold gesture, no animation, no sound — instant replacement
+  // No hold gesture, no animation — instant replacement with wax crackle sound
   const handleSealClick = () => {
     // LOCKED: No interaction during custody (Section 4)
     if (inCustody) return;
     if (envelopeState !== 'sealed') return;
 
     try {
+      // Play wax crackle sound
+      playSound(AUDIO.waxCrackle);
+
       // Destroy envelope, reveal card
       setEnvelopeState('opened');
 
@@ -537,7 +711,6 @@ export default function GreetingCardViewer({
   // AUDIO HANDLERS (LOCKED - Section 10 & 11)
   // ═══════════════════════════════════════════════════════════════════════════
   const handleAudioEnded = () => {
-    setIsAudioPlaying(false);
     // Taper animation (LOCKED: intensity tapers quickly)
     const taperTimer = setTimeout(() => {
       setAnimationActive(false);
@@ -556,9 +729,9 @@ export default function GreetingCardViewer({
 
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER: ENVELOPE MOMENT (LOCKED - Envelope Contract)
-  // Single object, below center, silent, no branding, no sender name
-  // Seal is the ONLY clickable element — single click destroys envelope
-  // No sound, no animation, no hover effects
+  // Uses actual envelope images with hover flip behavior
+  // Hover flips front↔back, seal click destroys envelope
+  // Audio on flip (paper-slide) and seal break (wax-crackle)
   // ═══════════════════════════════════════════════════════════════════════════
   if (envelopeState === 'sealed') {
     // Failure state
@@ -571,18 +744,19 @@ export default function GreetingCardViewer({
             width: '100%',
             maxWidth: '500px',
             margin: '0 auto',
-            minHeight: '400px',
+            minHeight: '100vh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '2rem',
             userSelect: 'none',
+            background: '#f5f3f0',
           }}
         >
           <p style={{
-            fontSize: '1rem',
-            fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
+            fontSize: '1.125rem',
+            fontFamily: FONTS.body,
             fontStyle: 'italic',
             color: '#666',
             textAlign: 'center',
@@ -601,16 +775,15 @@ export default function GreetingCardViewer({
         style={{
           position: 'relative',
           width: '100%',
-          maxWidth: '500px',
-          margin: '0 auto',
-          minHeight: '400px',
+          minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           // LOCKED: Below center, not centered
           justifyContent: 'flex-start',
-          paddingTop: '55%',
+          paddingTop: '25vh',
           userSelect: 'none',
+          background: '#f5f3f0',
         }}
       >
         {/* PRE-OCCASION CUSTODY COPY (LOCKED - Section 4)
@@ -619,9 +792,9 @@ export default function GreetingCardViewer({
         {inCustody && custodyCopy && (
           <p style={{
             position: 'absolute',
-            top: '15%',
-            fontSize: '1rem',
-            fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
+            top: '12%',
+            fontSize: '1.125rem',
+            fontFamily: FONTS.body,
             fontStyle: 'italic',
             color: '#666',
             margin: 0,
@@ -631,164 +804,99 @@ export default function GreetingCardViewer({
           </p>
         )}
 
-        {/* ENVELOPE (LOCKED: one object, below center, no text/branding)
-            No click handlers on envelope body — seal is the only interactive element */}
+        {/* ENVELOPE WITH FLIP (LOCKED: hover flips front↔back)
+            Uses actual envelope images from assets
+            Perspective container for 3D flip effect */}
         <div
+          onMouseEnter={handleEnvelopeMouseEnter}
+          onMouseLeave={handleEnvelopeMouseLeave}
           style={{
-            width: '280px',
-            height: '180px',
-            position: 'relative',
-            // LOCKED: cursor remains default everywhere
+            width: '320px',
+            height: '220px',
+            perspective: '1000px',
             cursor: 'default',
           }}
         >
-          {/* Envelope body — Phase 9.5: tactile paper stock with fold definition */}
+          {/* Flip container - rotates on hover */}
           <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(180deg, #F5F0E8 0%, #EDE5D8 100%)',
-            borderRadius: '4px',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.08)',
+            position: 'relative',
+            width: '100%',
+            height: '100%',
+            transformStyle: 'preserve-3d',
+            transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+            transform: envelopeFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
           }}>
-            {/* Phase 9.5: Paper texture — low-contrast noise, no visible repetition */}
+            {/* FRONT FACE - Envelope with wax seal */}
             <div style={{
               position: 'absolute',
               inset: 0,
-              background: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'paper\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'4\' seed=\'15\' stitchTiles=\'stitch\'/%3E%3CfeColorMatrix type=\'saturate\' values=\'0\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23paper)\' opacity=\'0.045\'/%3E%3C/svg%3E")',
-              borderRadius: '4px',
-              pointerEvents: 'none',
-              mixBlendMode: 'multiply',
-            }} />
-
-            {/* Cotton filament overlay — CSS gradient-based red/blue fibers */}
-            <div style={{ ...PAPER_FILAMENT_STYLE, borderRadius: '4px' }} />
-
-            {/* Phase 9.5: Envelope fold edge definitions — micro shadows suggesting paper folds */}
-            {/* Bottom fold line */}
-            <div style={{
-              position: 'absolute',
-              bottom: '35%',
-              left: '8%',
-              right: '8%',
-              height: '1px',
-              background: 'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.04) 20%, rgba(0,0,0,0.06) 50%, rgba(0,0,0,0.04) 80%, transparent 100%)',
-              pointerEvents: 'none',
-            }} />
-            {/* Left diagonal fold */}
-            <div style={{
-              position: 'absolute',
-              top: '0',
-              left: '0',
-              width: '50%',
-              height: '65%',
-              borderRight: '1px solid rgba(0,0,0,0.035)',
-              borderBottom: '1px solid rgba(0,0,0,0.025)',
-              borderBottomRightRadius: '2px',
-              pointerEvents: 'none',
-            }} />
-            {/* Right diagonal fold */}
-            <div style={{
-              position: 'absolute',
-              top: '0',
-              right: '0',
-              width: '50%',
-              height: '65%',
-              borderLeft: '1px solid rgba(0,0,0,0.035)',
-              borderBottom: '1px solid rgba(0,0,0,0.025)',
-              borderBottomLeftRadius: '2px',
-              pointerEvents: 'none',
-            }} />
-
-            {/* Envelope flap — static, no animation */}
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              transformOrigin: 'top center',
-              width: 0,
-              height: 0,
-              borderLeft: '140px solid transparent',
-              borderRight: '140px solid transparent',
-              borderTop: '90px solid #E8E0D0',
-            }} />
-          </div>
-
-          {/* WAX SEAL — THE ONLY CLICKABLE ELEMENT
-              Single click destroys envelope, reveals card
-              No hover effects, cursor remains default */}
-          <div
-            onClick={handleSealClick}
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '52px',
-              height: '52px',
-              // LOCKED: cursor remains default, no hover affordance
-              cursor: inCustody ? 'default' : 'default',
-            }}
-          >
-            {/* Contact shadow — where wax meets paper */}
-            <div style={{
-              position: 'absolute',
-              inset: '-2px',
-              borderRadius: '50% 48% 52% 50% / 50% 52% 48% 50%',
-              boxShadow: '0 2px 6px rgba(60, 20, 20, 0.35)',
-              pointerEvents: 'none',
-            }} />
-            {/* Wax body — organic edge, internal marbling */}
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: '52% 48% 50% 50% / 48% 52% 48% 52%',
-              background: `
-                radial-gradient(ellipse 120% 80% at 35% 25%, rgba(160, 40, 40, 0.15) 0%, transparent 50%),
-                radial-gradient(ellipse 80% 100% at 70% 70%, rgba(80, 15, 15, 0.12) 0%, transparent 45%),
-                #8b1a1a
-              `,
-              boxShadow: `
-                inset 0 2px 4px rgba(180, 60, 60, 0.2),
-                inset 0 -2px 6px rgba(50, 10, 10, 0.35),
-                inset 1px 0 2px rgba(0, 0, 0, 0.1),
-                inset -1px 0 2px rgba(0, 0, 0, 0.1)
-              `,
+              backfaceVisibility: 'hidden',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              boxShadow: '0 12px 40px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.1)',
             }}>
-              {/* Subtle wax surface variation */}
-              <div style={{
-                position: 'absolute',
-                inset: 0,
-                borderRadius: 'inherit',
-                background: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 64 64\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'wax\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.5\' numOctaves=\'2\' seed=\'42\'/%3E%3CfeColorMatrix type=\'saturate\' values=\'0\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23wax)\' opacity=\'0.06\'/%3E%3C/svg%3E")',
-                mixBlendMode: 'overlay',
-                pointerEvents: 'none',
-              }} />
+              <img
+                src={envelopeFrontImg}
+                alt=""
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+              />
+              {/* WAX SEAL OVERLAY — clickable, centered on image seal position */}
+              <div
+                onClick={handleSealClick}
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '80px',
+                  height: '80px',
+                  cursor: inCustody ? 'default' : 'pointer',
+                  borderRadius: '50%',
+                  // Invisible clickable area over the seal in the image
+                }}
+              />
             </div>
-            {/* Debossed "G" — recessed into wax via shadow/highlight, not color */}
+
+            {/* BACK FACE - Envelope back (flipped) */}
             <div style={{
               position: 'absolute',
               inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'none',
+              backfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg)',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              boxShadow: '0 12px 40px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.1)',
             }}>
-              <span style={{
-                fontSize: '1.5rem',
-                fontWeight: 700,
-                fontFamily: 'Georgia, serif',
-                color: '#7a4a30',
-                textShadow: `
-                  0 -1px 1px rgba(0, 0, 0, 0.4),
-                  0 1px 1px rgba(200, 150, 100, 0.15),
-                  0 0 0 transparent
-                `,
-                opacity: 0.75,
-              }}>G</span>
+              <img
+                src={envelopeBackImg}
+                alt=""
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+              />
             </div>
           </div>
         </div>
+
+        {/* Subtle instruction - only shows when not in custody */}
+        {!inCustody && (
+          <p style={{
+            marginTop: '2rem',
+            fontSize: '0.875rem',
+            fontFamily: FONTS.body,
+            fontStyle: 'italic',
+            color: 'rgba(0, 0, 0, 0.4)',
+            textAlign: 'center',
+          }}>
+            {envelopeFlipped ? 'Flip back to open' : 'Hover to turn over'}
+          </p>
+        )}
       </div>
     );
   }
@@ -810,12 +918,10 @@ export default function GreetingCardViewer({
         touchAction: 'none',
       }}
     >
-      {/* Hidden Audio Elements */}
+      {/* Hidden Audio Element for voice playback */}
       <audio
         ref={audioRef}
         onEnded={handleAudioEnded}
-        onPlay={() => setIsAudioPlaying(true)}
-        onPause={() => setIsAudioPlaying(false)}
       />
 
       {/* Card Container (LOCKED: clear edges, soft depth, fixed proportions) */}
@@ -846,189 +952,94 @@ export default function GreetingCardViewer({
         }}>
 
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* PAGE 1: COVER (LOCKED - Section 12) */}
-          {/* Occasion expressed visually first, no Greet-Me branding */}
+          {/* PAGE 1: COVER (LOCKED)
+              Uses card-cover.jpeg as background
+              Occasion title in Great Vibes, recipient name in Cormorant Garamond */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'cover' && (
             <div style={{
-              minHeight: '420px',
-              background: style.coverBase,
+              minHeight: '500px',
+              backgroundImage: `url(${cardCoverImg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               position: 'relative',
-              padding: '2.5rem',
+              padding: '3rem',
             }}>
-              {/* INSET BORDER (LOCKED - Section 13)
-                  Hairline thin, warm gray, never animated, never decorative
-                  Purpose: imply thick stock */}
-              <div style={{
-                position: 'absolute',
-                inset: '12px',
-                border: '1px solid rgba(180, 170, 160, 0.3)',
-                borderRadius: '2px',
-                pointerEvents: 'none',
-              }} />
-
-              {/* Paper texture */}
-              <div style={{
-                position: 'absolute',
-                inset: 0,
-                background: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.03\'/%3E%3C/svg%3E")',
-                pointerEvents: 'none',
-              }} />
-
-              {/* Cotton filament overlay — CSS gradient-based red/blue fibers */}
-              <div style={PAPER_FILAMENT_STYLE} />
-
-              {/* Occasion visual (LOCKED - Section 12: occasion expressed visually first) */}
-              <div style={{
-                fontSize: '3.5rem',
-                marginBottom: '2rem',
-                opacity: 0.85,
+              {/* Occasion title in Great Vibes */}
+              <h1 style={{
+                fontSize: isMobile ? '2.5rem' : '3.5rem',
+                fontFamily: FONTS.title,
+                color: '#2c1810',
+                marginBottom: '1.5rem',
+                textAlign: 'center',
+                textShadow: '0 1px 2px rgba(255, 255, 255, 0.5)',
               }}>
-                {occasionType === 'birthday' && '🎂'}
-                {occasionType === 'anniversary' && '💕'}
-                {occasionType === 'valentine' && '💝'}
-                {occasionType === 'holiday' && '✨'}
-                {occasionType === 'christmas' && '🎄'}
-                {occasionType === 'mothers_day' && '🌸'}
-                {(occasionType === 'just_because' || occasionType === 'greeting') && '💌'}
-              </div>
+                {getOccasionTitle(occasionType)}
+              </h1>
 
               <p style={{
-                fontSize: '1rem',
-                color: '#555',
+                fontSize: isMobile ? '1.25rem' : '1.5rem',
+                fontFamily: FONTS.body,
                 fontStyle: 'italic',
+                color: '#4a3c35',
                 marginBottom: '0',
+                textAlign: 'center',
               }}>
                 For {recipientName}
               </p>
-
-              {/* Phase 9.5: Wax seal on cover — pressed-wax treatment, matches envelope seal */}
-              <div style={{
-                position: 'absolute',
-                bottom: '2rem',
-                right: '2rem',
-                width: '52px',
-                height: '52px',
-              }}>
-                {/* Contact shadow */}
-                <div style={{
-                  position: 'absolute',
-                  inset: '-2px',
-                  borderRadius: '50% 48% 52% 50% / 50% 52% 48% 50%',
-                  boxShadow: '0 2px 8px rgba(60, 20, 20, 0.3)',
-                  pointerEvents: 'none',
-                }} />
-                {/* Wax body — organic edge, internal marbling */}
-                <div style={{
-                  position: 'absolute',
-                  inset: 0,
-                  borderRadius: '52% 48% 50% 50% / 48% 52% 48% 52%',
-                  background: `
-                    radial-gradient(ellipse 120% 80% at 35% 25%, rgba(160, 40, 40, 0.15) 0%, transparent 50%),
-                    radial-gradient(ellipse 80% 100% at 70% 70%, rgba(80, 15, 15, 0.12) 0%, transparent 45%),
-                    #8b1a1a
-                  `,
-                  boxShadow: `
-                    inset 0 2px 4px rgba(180, 60, 60, 0.2),
-                    inset 0 -2px 6px rgba(50, 10, 10, 0.35),
-                    inset 1px 0 2px rgba(0, 0, 0, 0.1),
-                    inset -1px 0 2px rgba(0, 0, 0, 0.1)
-                  `,
-                }}>
-                  {/* Wax surface variation */}
-                  <div style={{
-                    position: 'absolute',
-                    inset: 0,
-                    borderRadius: 'inherit',
-                    background: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 64 64\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'wax\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.5\' numOctaves=\'2\' seed=\'42\'/%3E%3CfeColorMatrix type=\'saturate\' values=\'0\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23wax)\' opacity=\'0.06\'/%3E%3C/svg%3E")',
-                    mixBlendMode: 'overlay',
-                    pointerEvents: 'none',
-                  }} />
-                </div>
-                {/* Debossed "G" */}
-                <div style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <span style={{
-                    fontSize: '1.5rem',
-                    fontWeight: 700,
-                    fontFamily: 'Georgia, serif',
-                    color: '#7a4a30',
-                    textShadow: `
-                      0 -1px 1px rgba(0, 0, 0, 0.4),
-                      0 1px 1px rgba(200, 150, 100, 0.15)
-                    `,
-                    opacity: 0.75,
-                  }}>G</span>
-                </div>
-              </div>
             </div>
           )}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* PAGE 2: TRADITIONAL GREETING (LOCKED - Section 2) */}
-          {/* Handwritten + printed, no UI elements */}
+          {/* INTRO SPREAD (Pages 1-2): TRADITIONAL GREETING
+              Uses card-interior.png as background
+              Left: Handwritten in Tangerine, Right: Printed in Cormorant Garamond */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'traditional' && (
             <div style={{
-              minHeight: '420px',
-              background: '#FFFEF8',
+              minHeight: '500px',
+              backgroundImage: `url(${cardInteriorImg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
               position: 'relative',
             }}>
-              {/* INSET BORDER (LOCKED - Section 13) */}
+              {/* Left: Handwritten message in Tangerine */}
               <div style={{
-                position: 'absolute',
-                inset: '12px',
-                border: '1px solid rgba(180, 170, 160, 0.25)',
-                borderRadius: '2px',
-                pointerEvents: 'none',
-              }} />
-
-              {/* Cotton filament overlay — CSS gradient-based red/blue fibers */}
-              <div style={PAPER_FILAMENT_STYLE} />
-
-              {/* Left: Handwritten (LOCKED: cursive, imperfect ink feel) */}
-              <div style={{
-                padding: isMobile ? '1.75rem' : '2.5rem',
-                borderRight: '1px solid rgba(0, 0, 0, 0.04)',
+                padding: isMobile ? '2rem' : '3rem',
+                borderRight: '1px solid rgba(0, 0, 0, 0.06)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
               }}>
                 <p style={{
-                  fontFamily: "'Brush Script MT', 'Segoe Script', cursive",
-                  fontSize: isMobile ? '1.25rem' : '1.5rem',
-                  lineHeight: 1.9,
+                  fontFamily: FONTS.handwritten,
+                  fontSize: isMobile ? '1.75rem' : '2.25rem',
+                  fontWeight: 700,
+                  lineHeight: 1.6,
                   color: '#2c1810',
                   margin: 0,
-                  textShadow: '0.5px 0.5px 0 rgba(0, 0, 0, 0.08)',
                 }}>
                   {currentPageData.cursiveMessage}
                 </p>
               </div>
 
-              {/* Right: Printed (LOCKED: classic, premium, serif or refined script) */}
+              {/* Right: Printed greeting in Cormorant Garamond */}
               <div style={{
-                padding: isMobile ? '1.75rem' : '2.5rem',
+                padding: isMobile ? '2rem' : '3rem',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
-                background: 'rgba(0, 0, 0, 0.008)',
               }}>
                 <p style={{
-                  fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
-                  fontSize: isMobile ? '1rem' : '1.125rem',
-                  lineHeight: 2,
+                  fontFamily: FONTS.body,
+                  fontSize: isMobile ? '1.125rem' : '1.25rem',
+                  lineHeight: 1.9,
                   color: '#1a1a1a',
                   margin: 0,
                   fontStyle: 'italic',
@@ -1040,10 +1051,19 @@ export default function GreetingCardViewer({
           )}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* PAGE 3: THE MOMENT (Animated + Voice) */}
+          {/* FEATURED GREETING SPREAD (Pages 3-4): THE MOMENT
+              Video with 15-20s duration gating
+              Focus + Surprise: video fades in after 2.5s
+              Navigation disabled during focus period */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'moment' && (
-            <div style={{ position: 'relative', minHeight: '420px' }}>
+            <div style={{
+              position: 'relative',
+              minHeight: '500px',
+              backgroundImage: `url(${cardInteriorImg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}>
               {/* Animation Overlay (LOCKED: supports voice, never competes) */}
               {animationActive && (
                 <div style={{
@@ -1057,106 +1077,130 @@ export default function GreetingCardViewer({
                 </div>
               )}
 
-              {/* Photo/Video — Phase 9: soft resolve (opacity transition) */}
-              {currentPageData.videoUrl ? (
-                <video
-                  src={currentPageData.videoUrl}
-                  autoPlay={false}
-                  controls={hasCompletedOnce}
-                  muted={!hasCompletedOnce}
-                  playsInline
-                  style={{
+              {/* Video/Photo container with Focus + Surprise fade-in */}
+              <div style={{
+                padding: '2rem',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '400px',
+              }}>
+                {currentPageData.videoUrl ? (
+                  <video
+                    ref={videoRef}
+                    src={currentPageData.videoUrl}
+                    autoPlay={false}
+                    controls={greetingCompleted || hasCompletedOnce}
+                    muted={false}
+                    playsInline
+                    onEnded={handleVideoEnded}
+                    onTimeUpdate={handleVideoTimeUpdate}
+                    style={{
+                      width: '100%',
+                      maxWidth: '400px',
+                      height: 'auto',
+                      display: 'block',
+                      borderRadius: '12px',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                      // Focus + Surprise: fade in after 2.5s
+                      opacity: videoFadedIn || hasCompletedOnce ? 1 : 0,
+                      transition: 'opacity 1.2s ease-in-out',
+                    }}
+                  />
+                ) : currentPageData.photoUrl ? (
+                  <img
+                    src={currentPageData.photoUrl}
+                    alt=""
+                    style={{
+                      width: '100%',
+                      maxWidth: '400px',
+                      height: 'auto',
+                      display: 'block',
+                      borderRadius: '12px',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                      opacity: mediaRevealed ? 1 : 0,
+                      transition: 'opacity 0.8s ease-in-out',
+                    }}
+                  />
+                ) : (
+                  <div style={{
                     width: '100%',
-                    height: 'auto',
-                    display: 'block',
+                    maxWidth: '400px',
                     minHeight: '280px',
-                    objectFit: 'cover',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     opacity: mediaRevealed ? 1 : 0,
-                    transition: 'opacity 0.6s ease-in-out',
-                  }}
-                />
-              ) : currentPageData.photoUrl ? (
-                <img
-                  src={currentPageData.photoUrl}
-                  alt=""
-                  style={{
-                    width: '100%',
-                    height: 'auto',
-                    display: 'block',
-                    minHeight: '280px',
-                    objectFit: 'cover',
-                    opacity: mediaRevealed ? 1 : 0,
-                    transition: 'opacity 0.6s ease-in-out',
-                  }}
-                />
-              ) : (
-                <div style={{
-                  minHeight: '280px',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: mediaRevealed ? 1 : 0,
-                  transition: 'opacity 0.6s ease-in-out',
-                }}>
-                  <span style={{ fontSize: '4rem' }}>💝</span>
-                </div>
-              )}
-
-              {/* Script text */}
-              {currentPageData.scriptText && (
-                <div style={{
-                  padding: isMobile ? '1.25rem' : '1.5rem',
-                  background: 'rgba(255, 255, 255, 0.97)',
-                  borderTop: '1px solid rgba(0, 0, 0, 0.04)',
-                }}>
-                  <p style={{
-                    fontSize: isMobile ? '1.0625rem' : '1.125rem',
-                    lineHeight: 1.8,
-                    color: '#333',
-                    fontStyle: 'italic',
-                    margin: 0,
-                    textAlign: 'center',
+                    transition: 'opacity 0.8s ease-in-out',
                   }}>
-                    "{currentPageData.scriptText}"
-                  </p>
-                </div>
-              )}
+                    <span style={{ fontSize: '4rem' }}>💝</span>
+                  </div>
+                )}
 
-              {/* Phase 9: Voice consent control — appears only before consent given
-                  Text-only, centered, calm. Disappears once playback begins. */}
-              {currentPageData.voiceUrl && !voiceConsentGiven && (
-                <div style={{
-                  padding: '1.5rem',
-                  textAlign: 'center',
-                }}>
+                {/* Script text in Cormorant Garamond */}
+                {currentPageData.scriptText && (
+                  <div style={{
+                    marginTop: '1.5rem',
+                    padding: '1rem 1.5rem',
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    borderRadius: '8px',
+                    maxWidth: '400px',
+                  }}>
+                    <p style={{
+                      fontFamily: FONTS.body,
+                      fontSize: isMobile ? '1.125rem' : '1.25rem',
+                      lineHeight: 1.8,
+                      color: '#333',
+                      fontStyle: 'italic',
+                      margin: 0,
+                      textAlign: 'center',
+                    }}>
+                      "{currentPageData.scriptText}"
+                    </p>
+                  </div>
+                )}
+
+                {/* Voice consent control */}
+                {currentPageData.voiceUrl && !voiceConsentGiven && !greetingFocusActive && (
                   <button
                     onClick={handleVoiceConsent}
                     style={{
+                      marginTop: '1.5rem',
                       padding: '0.875rem 2rem',
-                      background: 'transparent',
+                      background: 'rgba(255, 255, 255, 0.9)',
                       border: '1px solid rgba(0, 0, 0, 0.15)',
                       borderRadius: '8px',
                       color: '#555',
                       fontSize: '1rem',
-                      fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
+                      fontFamily: FONTS.body,
                       fontStyle: 'italic',
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(0, 0, 0, 0.03)';
-                      e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.25)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.15)';
-                    }}
                   >
                     Play message
                   </button>
-                </div>
-              )}
+                )}
+
+                {/* Focus period indicator (subtle) */}
+                {greetingFocusActive && !hasCompletedOnce && (
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '1rem',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    fontSize: '0.75rem',
+                    fontFamily: FONTS.body,
+                    fontStyle: 'italic',
+                    color: 'rgba(0, 0, 0, 0.4)',
+                  }}>
+                    {Math.ceil((TIMING.FEATURED_MIN_DURATION - greetingElapsedMs) / 1000)}s
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1164,48 +1208,60 @@ export default function GreetingCardViewer({
               Memory is now a separate gift, accessed via album overlay post-completion */}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* PAGE 5: FINAL / GIFT REVEAL */}
+          {/* FINAL SPREAD (Pages 7-8): SIGNATURE & GIFT
+              Focus + Surprise: blurred during greeting focus period
+              Uses card-interior.png as background
+              Typography: Great Vibes for title, Cormorant Garamond for body */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'final' && (
             <div style={{
-              minHeight: '420px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              minHeight: '500px',
+              backgroundImage: `url(${cardInteriorImg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '2.5rem',
+              padding: '3rem',
               textAlign: 'center',
               position: 'relative',
+              // Focus + Surprise: blur during greeting focus period
+              filter: greetingFocusActive && !hasCompletedOnce ? 'blur(8px)' : 'none',
+              transition: 'filter 0.8s ease-out',
             }}>
               {/* Gift Reveal (LOCKED: still, quiet, centered, no celebration) */}
               {showGift && gift ? (
                 <div style={{
-                  background: 'white',
+                  background: 'rgba(255, 255, 255, 0.95)',
                   borderRadius: '16px',
                   padding: '2.5rem',
-                  maxWidth: '300px',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                  maxWidth: '320px',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
                 }}>
                   {gift.type === 'qr_cash' ? (
                     <>
-                      {/* LOCKED: Treated as object, not amount-first */}
-                      <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>💵</div>
+                      {/* LOCKED: QR Cash copy per spec */}
                       <p style={{
-                        fontSize: '0.875rem',
-                        color: '#666',
-                        marginBottom: '0.75rem',
-                      }}>
-                        A gift for you
-                      </p>
-                      <p style={{
-                        fontSize: '2.25rem',
-                        fontWeight: 700,
-                        color: '#059669',
+                        fontFamily: FONTS.body,
+                        fontSize: '1.125rem',
+                        fontStyle: 'italic',
+                        color: '#4a3c35',
                         marginBottom: '1.5rem',
                       }}>
-                        ${gift.amount}
+                        {gift.amount ? 'Just a little something for you.' : '$5 credit toward any subscription.'}
                       </p>
+                      {gift.amount && (
+                        <p style={{
+                          fontSize: '2.5rem',
+                          fontWeight: 700,
+                          color: '#059669',
+                          marginBottom: '1.5rem',
+                          fontFamily: FONTS.title,
+                        }}>
+                          ${gift.amount}
+                        </p>
+                      )}
                       <button
                         onClick={gift.onClaim}
                         style={{
@@ -1217,7 +1273,7 @@ export default function GreetingCardViewer({
                           fontSize: '1rem',
                           fontWeight: 600,
                           cursor: 'pointer',
-                          fontFamily: 'inherit',
+                          fontFamily: FONTS.body,
                         }}
                       >
                         Claim
@@ -1225,70 +1281,70 @@ export default function GreetingCardViewer({
                     </>
                   ) : gift.type === 'physical' ? (
                     <>
-                      <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🎁</div>
                       <p style={{
-                        fontSize: '1.125rem',
-                        fontWeight: 600,
-                        color: '#333',
+                        fontFamily: FONTS.body,
+                        fontSize: '1.25rem',
+                        fontStyle: 'italic',
+                        color: '#4a3c35',
                         marginBottom: '0.5rem',
                       }}>
                         Something special is on its way
                       </p>
-                      <p style={{ fontSize: '0.875rem', color: '#666' }}>
+                      <p style={{
+                        fontFamily: FONTS.body,
+                        fontSize: '1rem',
+                        color: '#666',
+                      }}>
                         {gift.message || 'A gift has been sent to you'}
                       </p>
                     </>
                   ) : (
-                    <>
-                      <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>💐</div>
-                      <p style={{
-                        fontSize: '1.125rem',
-                        fontWeight: 600,
-                        color: '#333',
-                      }}>
-                        {gift.name || 'A special gift awaits'}
-                      </p>
-                    </>
+                    <p style={{
+                      fontFamily: FONTS.body,
+                      fontSize: '1.25rem',
+                      fontStyle: 'italic',
+                      color: '#4a3c35',
+                    }}>
+                      {gift.name || 'A special gift awaits'}
+                    </p>
                   )}
                 </div>
               ) : (
                 <>
-                  <div style={{ fontSize: '3rem', marginBottom: '1.25rem' }}>
-                    {occasionType === 'birthday' ? '🎉' : '💝'}
-                  </div>
                   <h3 style={{
-                    fontSize: '1.625rem',
-                    fontWeight: 700,
-                    color: 'white',
-                    marginBottom: '0.75rem',
+                    fontSize: isMobile ? '2rem' : '2.5rem',
+                    fontFamily: FONTS.title,
+                    color: '#2c1810',
+                    marginBottom: '1rem',
                   }}>
                     {getOccasionTitle(occasionType)}
                   </h3>
                   <p style={{
-                    fontSize: '1.0625rem',
-                    color: 'rgba(255, 255, 255, 0.9)',
+                    fontSize: '1.25rem',
+                    fontFamily: FONTS.body,
+                    fontStyle: 'italic',
+                    color: '#4a3c35',
                   }}>
                     With love, {senderName}
                   </p>
                 </>
               )}
 
-              {/* Phase 9 Group 6: Memory Album Invitation & Framing
-                  Framing line: "When you're ready." — pure restraint, postscript feel
-                  Label: "Memories" — neutral noun, no verbs */}
-              {hasCompletedOnce && hasMemoryPhotos && !showMemoryAlbum && (
+              {/* Memory Album Invitation (post-completion only)
+                  Disabled during greeting focus period */}
+              {hasCompletedOnce && hasMemoryPhotos && !showMemoryAlbum && !greetingFocusActive && (
                 <div style={{
                   position: 'absolute',
-                  bottom: '2.75rem',
+                  bottom: '3.5rem',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   gap: '0.5rem',
                 }}>
                   <p style={{
-                    fontSize: '0.75rem',
-                    color: 'rgba(255, 255, 255, 0.6)',
-                    fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
+                    fontSize: '0.875rem',
+                    color: 'rgba(44, 24, 16, 0.5)',
+                    fontFamily: FONTS.body,
                     fontStyle: 'italic',
                     margin: 0,
                   }}>
@@ -1298,15 +1354,14 @@ export default function GreetingCardViewer({
                     onClick={() => setShowMemoryAlbum(true)}
                     style={{
                       padding: '0.5rem 1.25rem',
-                      background: 'rgba(255, 255, 255, 0.12)',
-                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      background: 'rgba(44, 24, 16, 0.08)',
+                      border: '1px solid rgba(44, 24, 16, 0.2)',
                       borderRadius: '8px',
-                      color: 'rgba(255, 255, 255, 0.85)',
-                      fontSize: '0.8125rem',
-                      fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
+                      color: 'rgba(44, 24, 16, 0.7)',
+                      fontSize: '0.875rem',
+                      fontFamily: FONTS.body,
                       fontStyle: 'italic',
                       cursor: 'pointer',
-                      backdropFilter: 'blur(4px)',
                     }}
                   >
                     Memories
@@ -1314,15 +1369,16 @@ export default function GreetingCardViewer({
                 </div>
               )}
 
-              {/* Brand Signature (LOCKED: final page only, small, understated) */}
+              {/* Brand Signature in Playfair Display */}
               <p style={{
                 position: 'absolute',
                 bottom: '1.25rem',
-                fontSize: '0.6875rem',
-                color: 'rgba(255, 255, 255, 0.5)',
+                fontSize: '0.75rem',
+                fontFamily: FONTS.brand,
+                color: 'rgba(44, 24, 16, 0.35)',
                 fontStyle: 'italic',
               }}>
-                Lovingly powered by Greet-Me™
+                Greet-Me
               </p>
             </div>
           )}
@@ -1332,16 +1388,15 @@ export default function GreetingCardViewer({
             Pages are surfaces, not slides
             No navigation footer, no page indicators, no thumbnails */}
 
-        {/* Phase 9: Memory Album Surface (in-card postscript, not overlay)
-            Feels like turning to the back of the letter — same world, same object
-            Structure only — no invitation/framing copy (Group 6) */}
-        {showMemoryAlbum && hasMemoryPhotos && (
+        {/* Memory Album Surface (in-card postscript)
+            First image + peek edges, disabled during video, hover transitions after video */}
+        {showMemoryAlbum && hasMemoryPhotos && !greetingFocusActive && (
           <div style={{
-            background: '#1a1a1a',
+            background: 'rgba(44, 24, 16, 0.95)',
             borderRadius: '12px',
             marginTop: '1rem',
-            padding: '1.25rem',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+            padding: '1.5rem',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
           }}>
             {/* Photo grid */}
             <div style={{
@@ -1357,6 +1412,7 @@ export default function GreetingCardViewer({
                     overflow: 'hidden',
                     borderRadius: '8px',
                     aspectRatio: '1',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
                   }}
                 >
                   <img
@@ -1372,18 +1428,18 @@ export default function GreetingCardViewer({
               ))}
             </div>
 
-            {/* In-world back affordance */}
+            {/* Back button */}
             <button
               onClick={() => setShowMemoryAlbum(false)}
               style={{
                 marginTop: '1rem',
                 padding: '0.5rem 1rem',
                 background: 'transparent',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
                 borderRadius: '6px',
-                color: 'rgba(255, 255, 255, 0.7)',
-                fontSize: '0.8125rem',
-                fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
+                color: 'rgba(255, 255, 255, 0.8)',
+                fontSize: '0.875rem',
+                fontFamily: FONTS.body,
                 fontStyle: 'italic',
                 cursor: 'pointer',
                 display: 'block',
