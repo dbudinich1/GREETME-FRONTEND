@@ -24,6 +24,18 @@ function sanitizeMemoryPhotos(photos) {
   const sanitized = [];
 
   for (const photo of photos) {
+    // Allow string URLs (backend can return SAS URLs as strings)
+    if (typeof photo === "string") {
+      const s = photo.trim();
+      if (s.startsWith("http://") || s.startsWith("https://")) {
+        // Normalize to object shape so downstream code stays consistent
+        sanitized.push({ url: s });
+        continue;
+      }
+      hadUnsafe = true;
+      continue;
+    }
+
     // Skip non-objects
     if (!photo || typeof photo !== 'object') {
       hadUnsafe = true;
