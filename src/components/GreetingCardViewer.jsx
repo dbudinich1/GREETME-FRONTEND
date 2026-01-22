@@ -60,6 +60,14 @@ const FONTS = {
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS — LOCKED
 // ═══════════════════════════════════════════════════════════════════════════════
+
+// CANONICAL CARD FRAME SIZING (LOCKED)
+// All pages MUST use these dimensions for consistent card feel
+const CARD_FRAME = {
+  minHeight: '500px',
+  borderRadius: '12px',
+};
+
 const COMPLETION_STORAGE_KEY = 'greetme_card_completions';
 const ENVELOPE_OPENED_KEY = 'greetme_envelope_opened';
 const CUSTODY_RELEASE_KEY = 'greetme_custody_released';
@@ -175,7 +183,7 @@ export default function GreetingCardViewer({
 }) {
   const {
     senderName = 'Someone Special',
-    recipientName = 'Friend',
+    recipientName: rawRecipientName = '',
     occasionType = 'greeting',
     personalMessage = '',
     printedGreeting = '',
@@ -185,6 +193,9 @@ export default function GreetingCardViewer({
     photos = [],
     scriptText = '',
   } = greeting;
+
+  // Recipient name with fallback for testing
+  const recipientName = (rawRecipientName && rawRecipientName.trim()) ? rawRecipientName : 'Danny';
 
   const style = OCCASION_STYLES[occasionType] || OCCASION_STYLES.greeting;
 
@@ -242,11 +253,9 @@ export default function GreetingCardViewer({
   // Phase 9: Media reveal state (face/video soft resolve)
   const [mediaRevealed, setMediaRevealed] = useState(false);
 
-  // Gift state
+  // Gift state (retained for future gift reveal animation)
   const [showGift, setShowGift] = useState(false);
-
-  // Phase 9: Memory album state (separate from swipe flow, available post-completion)
-  const [showMemoryAlbum, setShowMemoryAlbum] = useState(false);
+  void showGift; // Retained for gift reveal animation timing
 
   // Transition state
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -304,42 +313,51 @@ export default function GreetingCardViewer({
   }, []);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // BUILD CANONICAL 5-PAGE STRUCTURE (LOCKED)
+  // BUILD CANONICAL 8-PAGE SPREAD STRUCTURE (LOCKED)
+  // Index 0: Envelope (sealed state, not in pages array)
+  // Index 0: Cover (pages 1-2 front)
+  // Index 1: Intro Spread (pages 1-2 interior)
+  // Index 2: Featured Spread (pages 3-4) - video left, album right
+  // Index 3: Sign-off Spread (pages 5-6)
+  // Index 4: Gift/QR Spread (pages 7-8)
   // ═══════════════════════════════════════════════════════════════════════════
-  const pages = [];
+  const hasMemoryPhotos = photos && photos.length > 0;
 
-  // Page 1: Cover (ALWAYS)
-  pages.push({ type: 'cover' });
+  const pages = [
+    // Page 0: Cover
+    { type: 'cover' },
 
-  // Page 2: Traditional Greeting (ALWAYS)
-  pages.push({
-    type: 'traditional',
-    cursiveMessage: personalMessage || 'Wishing you the very best on this special day.',
-    printedGreeting: printedGreeting || getDefaultPrintedGreeting(occasionType),
-  });
+    // Page 1: Intro Spread (Traditional Greeting)
+    {
+      type: 'traditional',
+      cursiveMessage: personalMessage || 'Wishing you the very best on this special day.',
+      printedGreeting: printedGreeting || getDefaultPrintedGreeting(occasionType),
+    },
 
-  // Page 3: THE MOMENT - Animated + Voice
-  if (photoUrl || videoUrl || voiceUrl) {
-    pages.push({
-      type: 'moment',
+    // Page 2: Featured Spread (Video + Album)
+    {
+      type: 'featured',
       photoUrl,
       videoUrl,
       voiceUrl,
       scriptText: scriptText || personalMessage,
-    });
-  }
+      hasAlbum: hasMemoryPhotos,
+      albumPhotos: photos,
+    },
 
-  // Phase 9: Memory photos stored separately for post-completion album access
-  // Memory is no longer part of the swipe sequence — it's a separate gift
-  const hasMemoryPhotos = photos && photos.length > 0;
+    // Page 3: Sign-off Spread
+    {
+      type: 'signoff',
+    },
 
-  // Page 5: Final/Gift Reveal (ALWAYS)
-  pages.push({
-    type: 'final',
-    hasGift: !!gift,
-  });
+    // Page 4: Gift/QR Spread (ALWAYS - shows QR Cash or fallback)
+    {
+      type: 'gift',
+      hasGift: !!gift,
+    },
+  ];
 
-  const totalPages = pages.length;
+  const TOTAL_PAGES = pages.length;
   const currentPageData = pages[currentPage] || {};
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -351,7 +369,7 @@ export default function GreetingCardViewer({
       const completions = JSON.parse(localStorage.getItem(COMPLETION_STORAGE_KEY) || '{}');
       if (completions[greetingId]) {
         setHasCompletedOnce(true);
-        setPagesViewed(new Set(Array.from({ length: totalPages }, (_, i) => i)));
+        setPagesViewed(new Set(Array.from({ length: TOTAL_PAGES }, (_, i) => i)));
       }
 
       // Check if envelope was opened before (RE-ENTRY MODE - Section 16)
@@ -385,13 +403,13 @@ export default function GreetingCardViewer({
         }
       }
     }
-  }, [greetingId, totalPages, occasionType]);
+  }, [greetingId, TOTAL_PAGES, occasionType]);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // COMPLETION TRACKING
   // ═══════════════════════════════════════════════════════════════════════════
-  const allPagesViewed = pagesViewed.size >= totalPages;
-  const isOnFinalPage = currentPage === totalPages - 1;
+  const allPagesViewed = pagesViewed.size >= TOTAL_PAGES;
+  const isOnFinalPage = currentPage === TOTAL_PAGES - 1;
 
   useEffect(() => {
     if (allPagesViewed && isOnFinalPage && !hasCompletedOnce && envelopeState === 'opened') {
@@ -642,7 +660,7 @@ export default function GreetingCardViewer({
   // ═══════════════════════════════════════════════════════════════════════════
   const navigateToPage = useCallback((targetPage, direction = 'next') => {
     if (envelopeState !== 'opened') return;
-    if (targetPage < 0 || targetPage >= totalPages) return;
+    if (targetPage < 0 || targetPage >= TOTAL_PAGES) return;
     if (isTransitioning) return;
 
     // Check dwell time (LOCKED: minimum time per page)
@@ -678,7 +696,7 @@ export default function GreetingCardViewer({
       // playMomentSequence is now called only via explicit consent action
     }, TIMING.PAGE_TURN_DURATION);
     timersRef.current.push(transitionTimer);
-  }, [envelopeState, currentPage, totalPages, hasCompletedOnce, pagesViewed, isTransitioning, canNavigate, pages]);
+  }, [envelopeState, currentPage, TOTAL_PAGES, hasCompletedOnce, pagesViewed, isTransitioning, canNavigate, pages]);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SWIPE HANDLERS (LOCKED: swipe-only, no taps, no buttons)
@@ -996,7 +1014,7 @@ export default function GreetingCardViewer({
             <div style={{
               position: 'relative',
               width: '100%',
-              minHeight: '500px',
+              minHeight: CARD_FRAME.minHeight,
               overflow: 'hidden',
             }}>
               <img
@@ -1005,7 +1023,7 @@ export default function GreetingCardViewer({
                 style={{
                   width: '100%',
                   height: '100%',
-                  minHeight: '500px',
+                  minHeight: CARD_FRAME.minHeight,
                   objectFit: 'cover',
                   display: 'block',
                 }}
@@ -1049,7 +1067,7 @@ export default function GreetingCardViewer({
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'traditional' && (
             <div style={{
-              minHeight: '500px',
+              minHeight: CARD_FRAME.minHeight,
               backgroundImage: `url(${cardInteriorImg})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
@@ -1099,18 +1117,18 @@ export default function GreetingCardViewer({
           )}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* FEATURED GREETING SPREAD (Pages 3-4): THE MOMENT
-              Video with 15-20s duration gating
-              Focus + Surprise: video fades in after 2.5s
-              Navigation disabled during focus period */}
+          {/* FEATURED SPREAD (Pages 3-4): VIDEO LEFT + ALBUM RIGHT
+              Two-column layout: video/photo on left, album grid on right
+              Album disabled during greeting focus period */}
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {currentPageData.type === 'moment' && (
+          {currentPageData.type === 'featured' && (
             <div style={{
               position: 'relative',
-              minHeight: '500px',
+              minHeight: CARD_FRAME.minHeight,
               backgroundImage: `url(${cardInteriorImg})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
+              padding: '1.5rem',
             }}>
               {/* Animation Overlay (LOCKED: supports voice, never competes) */}
               {animationActive && (
@@ -1125,145 +1143,179 @@ export default function GreetingCardViewer({
                 </div>
               )}
 
-              {/* Video/Photo container with Focus + Surprise fade-in */}
+              {/* Two-column layout: Video Left + Album Right */}
               <div style={{
-                padding: '2rem',
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: '400px',
+                gap: '18px',
+                width: '100%',
+                height: '100%',
+                minHeight: '450px',
               }}>
-                {currentPageData.videoUrl ? (
-                  <video
-                    ref={videoRef}
-                    src={currentPageData.videoUrl}
-                    autoPlay={false}
-                    controls={greetingCompleted || hasCompletedOnce}
-                    muted={false}
-                    playsInline
-                    onEnded={handleVideoEnded}
-                    onTimeUpdate={handleVideoTimeUpdate}
-                    style={{
+                {/* LEFT — VIDEO/PHOTO */}
+                <div style={{
+                  flex: currentPageData.hasAlbum ? '1 1 55%' : '1 1 100%',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                  background: 'rgba(0, 0, 0, 0.08)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '1rem',
+                }}>
+                  {currentPageData.videoUrl ? (
+                    <video
+                      ref={videoRef}
+                      src={currentPageData.videoUrl}
+                      autoPlay={false}
+                      controls={greetingCompleted || hasCompletedOnce}
+                      muted={false}
+                      playsInline
+                      onEnded={handleVideoEnded}
+                      onTimeUpdate={handleVideoTimeUpdate}
+                      style={{
+                        width: '100%',
+                        maxWidth: '100%',
+                        height: 'auto',
+                        display: 'block',
+                        borderRadius: '12px',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                        opacity: videoFadedIn || hasCompletedOnce ? 1 : 0,
+                        transition: 'opacity 1.2s ease-in-out',
+                      }}
+                    />
+                  ) : currentPageData.photoUrl ? (
+                    <img
+                      src={currentPageData.photoUrl}
+                      alt=""
+                      style={{
+                        width: '100%',
+                        maxWidth: '100%',
+                        height: 'auto',
+                        display: 'block',
+                        borderRadius: '12px',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                        opacity: mediaRevealed ? 1 : 0,
+                        transition: 'opacity 0.8s ease-in-out',
+                      }}
+                    />
+                  ) : (
+                    <div style={{
                       width: '100%',
-                      maxWidth: '400px',
-                      height: 'auto',
-                      display: 'block',
+                      minHeight: '280px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                       borderRadius: '12px',
-                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-                      // Focus + Surprise: fade in after 2.5s
-                      opacity: videoFadedIn || hasCompletedOnce ? 1 : 0,
-                      transition: 'opacity 1.2s ease-in-out',
-                    }}
-                  />
-                ) : currentPageData.photoUrl ? (
-                  <img
-                    src={currentPageData.photoUrl}
-                    alt=""
-                    style={{
-                      width: '100%',
-                      maxWidth: '400px',
-                      height: 'auto',
-                      display: 'block',
-                      borderRadius: '12px',
-                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       opacity: mediaRevealed ? 1 : 0,
                       transition: 'opacity 0.8s ease-in-out',
-                    }}
-                  />
-                ) : (
-                  <div style={{
-                    width: '100%',
-                    maxWidth: '400px',
-                    minHeight: '280px',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: mediaRevealed ? 1 : 0,
-                    transition: 'opacity 0.8s ease-in-out',
-                  }}>
-                    <span style={{ fontSize: '4rem' }}>💝</span>
-                  </div>
-                )}
+                    }}>
+                      <span style={{ fontSize: '4rem' }}>💝</span>
+                    </div>
+                  )}
 
-                {/* Script text in Cormorant Garamond */}
-                {currentPageData.scriptText && (
+                  {/* Voice consent control */}
+                  {currentPageData.voiceUrl && !voiceConsentGiven && !greetingFocusActive && (
+                    <button
+                      onClick={handleVoiceConsent}
+                      style={{
+                        marginTop: '1rem',
+                        padding: '0.75rem 1.5rem',
+                        background: 'rgba(255, 255, 255, 0.9)',
+                        border: '1px solid rgba(0, 0, 0, 0.15)',
+                        borderRadius: '8px',
+                        color: '#555',
+                        fontSize: '0.9rem',
+                        fontFamily: FONTS.body,
+                        fontStyle: 'italic',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Play message
+                    </button>
+                  )}
+                </div>
+
+                {/* RIGHT — ALBUM (only if has photos, disabled during focus) */}
+                {currentPageData.hasAlbum && (
                   <div style={{
-                    marginTop: '1.5rem',
-                    padding: '1rem 1.5rem',
-                    background: 'rgba(255, 255, 255, 0.9)',
-                    borderRadius: '8px',
-                    maxWidth: '400px',
+                    flex: '1 1 45%',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    background: 'rgba(255, 255, 255, 0.35)',
+                    padding: '1rem',
+                    opacity: greetingFocusActive && !hasCompletedOnce ? 0.3 : 1,
+                    transition: 'opacity 0.5s ease',
+                    pointerEvents: greetingFocusActive && !hasCompletedOnce ? 'none' : 'auto',
                   }}>
                     <p style={{
                       fontFamily: FONTS.body,
-                      fontSize: isMobile ? '1.125rem' : '1.25rem',
-                      lineHeight: 1.8,
-                      color: '#333',
+                      fontSize: '0.875rem',
+                      color: '#4a3c35',
+                      marginBottom: '0.75rem',
                       fontStyle: 'italic',
-                      margin: 0,
                       textAlign: 'center',
                     }}>
-                      "{currentPageData.scriptText}"
+                      Memories
                     </p>
-                  </div>
-                )}
-
-                {/* Voice consent control */}
-                {currentPageData.voiceUrl && !voiceConsentGiven && !greetingFocusActive && (
-                  <button
-                    onClick={handleVoiceConsent}
-                    style={{
-                      marginTop: '1.5rem',
-                      padding: '0.875rem 2rem',
-                      background: 'rgba(255, 255, 255, 0.9)',
-                      border: '1px solid rgba(0, 0, 0, 0.15)',
-                      borderRadius: '8px',
-                      color: '#555',
-                      fontSize: '1rem',
-                      fontFamily: FONTS.body,
-                      fontStyle: 'italic',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    Play message
-                  </button>
-                )}
-
-                {/* Focus period indicator (subtle) */}
-                {greetingFocusActive && !hasCompletedOnce && (
-                  <div style={{
-                    position: 'absolute',
-                    bottom: '1rem',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    fontSize: '0.75rem',
-                    fontFamily: FONTS.body,
-                    fontStyle: 'italic',
-                    color: 'rgba(0, 0, 0, 0.4)',
-                  }}>
-                    {Math.ceil((TIMING.FEATURED_MIN_DURATION - greetingElapsedMs) / 1000)}s
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: '0.5rem',
+                    }}>
+                      {currentPageData.albumPhotos?.slice(0, 4).map((photo, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            position: 'relative',
+                            overflow: 'hidden',
+                            borderRadius: '8px',
+                            aspectRatio: '1',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                          }}
+                        >
+                          <img
+                            src={typeof photo === 'string' ? photo : photo.url}
+                            alt=""
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
+
+              {/* Focus period indicator (subtle) */}
+              {greetingFocusActive && !hasCompletedOnce && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: '1rem',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  fontSize: '0.75rem',
+                  fontFamily: FONTS.body,
+                  fontStyle: 'italic',
+                  color: 'rgba(0, 0, 0, 0.4)',
+                }}>
+                  {Math.ceil((TIMING.FEATURED_MIN_DURATION - greetingElapsedMs) / 1000)}s
+                </div>
+              )}
             </div>
           )}
 
-          {/* Phase 9: Memory page removed from swipe sequence
-              Memory is now a separate gift, accessed via album overlay post-completion */}
-
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* FINAL SPREAD (Pages 7-8): SIGNATURE & GIFT
-              Focus + Surprise: blurred during greeting focus period
-              Uses card-interior.png as background
-              Typography: Great Vibes for title, Cormorant Garamond for body */}
+          {/* SIGN-OFF SPREAD (Pages 5-6): CLOSING MESSAGE
+              Personal sign-off from sender */}
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {currentPageData.type === 'final' && (
+          {currentPageData.type === 'signoff' && (
             <div style={{
-              minHeight: '500px',
+              minHeight: CARD_FRAME.minHeight,
               backgroundImage: `url(${cardInteriorImg})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
@@ -1274,12 +1326,61 @@ export default function GreetingCardViewer({
               padding: '3rem',
               textAlign: 'center',
               position: 'relative',
-              // Focus + Surprise: blur during greeting focus period
-              filter: greetingFocusActive && !hasCompletedOnce ? 'blur(8px)' : 'none',
-              transition: 'filter 0.8s ease-out',
+            }}>
+              <h3 style={{
+                fontSize: isMobile ? '2rem' : '2.5rem',
+                fontFamily: FONTS.title,
+                color: '#2c1810',
+                marginBottom: '1.5rem',
+              }}>
+                {getOccasionTitle(occasionType)}
+              </h3>
+              <p style={{
+                fontSize: '1.25rem',
+                fontFamily: FONTS.body,
+                fontStyle: 'italic',
+                color: '#4a3c35',
+                marginBottom: '2rem',
+              }}>
+                With love, {senderName}
+              </p>
+
+              {/* Brand Signature */}
+              <p style={{
+                position: 'absolute',
+                bottom: '1.25rem',
+                fontSize: '0.75rem',
+                fontFamily: FONTS.brand,
+                color: 'rgba(44, 24, 16, 0.35)',
+                fontStyle: 'italic',
+              }}>
+                Greet-Me
+              </p>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════════ */}
+          {/* GIFT/QR SPREAD (Pages 7-8): QR CASH OR GIFT REVEAL
+              LOCKED COPY:
+              - With amount: "Just a little something for you."
+              - Without amount: "$5 credit toward any subscription." */}
+          {/* ═══════════════════════════════════════════════════════════════ */}
+          {currentPageData.type === 'gift' && (
+            <div style={{
+              minHeight: CARD_FRAME.minHeight,
+              backgroundImage: `url(${cardInteriorImg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '3rem',
+              textAlign: 'center',
+              position: 'relative',
             }}>
               {/* Gift Reveal (LOCKED: still, quiet, centered, no celebration) */}
-              {showGift && gift ? (
+              {gift ? (
                 <div style={{
                   background: 'rgba(255, 255, 255, 0.95)',
                   borderRadius: '16px',
@@ -1358,66 +1459,34 @@ export default function GreetingCardViewer({
                   )}
                 </div>
               ) : (
-                <>
-                  <h3 style={{
-                    fontSize: isMobile ? '2rem' : '2.5rem',
-                    fontFamily: FONTS.title,
-                    color: '#2c1810',
-                    marginBottom: '1rem',
-                  }}>
-                    {getOccasionTitle(occasionType)}
-                  </h3>
-                  <p style={{
-                    fontSize: '1.25rem',
-                    fontFamily: FONTS.body,
-                    fontStyle: 'italic',
-                    color: '#4a3c35',
-                  }}>
-                    With love, {senderName}
-                  </p>
-                </>
-              )}
-
-              {/* Memory Album Invitation (post-completion only)
-                  Disabled during greeting focus period */}
-              {hasCompletedOnce && hasMemoryPhotos && !showMemoryAlbum && !greetingFocusActive && (
+                /* Fallback when no gift - show $5 credit offer */
                 <div style={{
-                  position: 'absolute',
-                  bottom: '3.5rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '0.5rem',
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  borderRadius: '16px',
+                  padding: '2.5rem',
+                  maxWidth: '320px',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
                 }}>
                   <p style={{
-                    fontSize: '0.875rem',
-                    color: 'rgba(44, 24, 16, 0.5)',
                     fontFamily: FONTS.body,
+                    fontSize: '1.125rem',
                     fontStyle: 'italic',
-                    margin: 0,
+                    color: '#4a3c35',
+                    marginBottom: '1rem',
                   }}>
-                    When you're ready.
+                    $5 credit toward any subscription.
                   </p>
-                  <button
-                    onClick={() => setShowMemoryAlbum(true)}
-                    style={{
-                      padding: '0.5rem 1.25rem',
-                      background: 'rgba(44, 24, 16, 0.08)',
-                      border: '1px solid rgba(44, 24, 16, 0.2)',
-                      borderRadius: '8px',
-                      color: 'rgba(44, 24, 16, 0.7)',
-                      fontSize: '0.875rem',
-                      fontFamily: FONTS.body,
-                      fontStyle: 'italic',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Memories
-                  </button>
+                  <p style={{
+                    fontFamily: FONTS.body,
+                    fontSize: '0.875rem',
+                    color: '#666',
+                  }}>
+                    Thank you for being part of Greet-Me
+                  </p>
                 </div>
               )}
 
-              {/* Brand Signature in Playfair Display */}
+              {/* Brand Signature */}
               <p style={{
                 position: 'absolute',
                 bottom: '1.25rem',
@@ -1434,70 +1503,8 @@ export default function GreetingCardViewer({
 
         {/* LOCKED - Section 8: No UI elements on pages
             Pages are surfaces, not slides
-            No navigation footer, no page indicators, no thumbnails */}
-
-        {/* Memory Album Surface (in-card postscript)
-            First image + peek edges, disabled during video, hover transitions after video */}
-        {showMemoryAlbum && hasMemoryPhotos && !greetingFocusActive && (
-          <div style={{
-            background: 'rgba(44, 24, 16, 0.95)',
-            borderRadius: '12px',
-            marginTop: '1rem',
-            padding: '1.5rem',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
-          }}>
-            {/* Photo grid */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '0.75rem',
-            }}>
-              {photos.slice(0, 4).map((photo, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    position: 'relative',
-                    overflow: 'hidden',
-                    borderRadius: '8px',
-                    aspectRatio: '1',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                  }}
-                >
-                  <img
-                    src={typeof photo === 'string' ? photo : photo.url}
-                    alt=""
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-
-            {/* Back button */}
-            <button
-              onClick={() => setShowMemoryAlbum(false)}
-              style={{
-                marginTop: '1rem',
-                padding: '0.5rem 1rem',
-                background: 'transparent',
-                border: '1px solid rgba(255, 255, 255, 0.25)',
-                borderRadius: '6px',
-                color: 'rgba(255, 255, 255, 0.8)',
-                fontSize: '0.875rem',
-                fontFamily: FONTS.body,
-                fontStyle: 'italic',
-                cursor: 'pointer',
-                display: 'block',
-                width: '100%',
-              }}
-            >
-              Back
-            </button>
-          </div>
-        )}
+            No navigation footer, no page indicators, no thumbnails
+            Album now integrated into Featured Spread (page 2) */}
       </div>
 
       {/* CSS Animations */}
