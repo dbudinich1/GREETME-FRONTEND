@@ -62,9 +62,11 @@ const FONTS = {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // CANONICAL CARD FRAME SIZING (LOCKED)
-// All pages MUST use these dimensions for consistent card feel
+// Consistent aspect ratio across envelope, cover, and all spreads
 const CARD_FRAME = {
-  minHeight: '500px',
+  width: 'min(1200px, 94vw)',
+  aspectRatio: '3 / 2',
+  maxHeight: '86vh',
   borderRadius: '12px',
 };
 
@@ -74,11 +76,14 @@ const CARD_FRAME = {
 // ═══════════════════════════════════════════════════════════════════════════════
 const SpreadFrame = ({ children, isSinglePage = false }) => (
   <div style={{
-    minHeight: CARD_FRAME.minHeight,
-    width: '100%',
+    width: CARD_FRAME.width,
+    aspectRatio: CARD_FRAME.aspectRatio,
+    maxHeight: CARD_FRAME.maxHeight,
+    overflow: 'hidden',
     display: isSinglePage ? 'block' : 'grid',
     gridTemplateColumns: isSinglePage ? undefined : '1fr 1fr',
     position: 'relative',
+    margin: '0 auto',
   }}>
     {children}
   </div>
@@ -87,13 +92,14 @@ const SpreadFrame = ({ children, isSinglePage = false }) => (
 // Left page panel for spreads
 const LeftPage = ({ children, style = {} }) => (
   <div style={{
-    minHeight: CARD_FRAME.minHeight,
+    height: '100%',
     borderRight: '1px solid rgba(0, 0, 0, 0.08)',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
     padding: '2rem',
     position: 'relative',
+    overflow: 'hidden',
     ...style,
   }}>
     {children}
@@ -103,12 +109,13 @@ const LeftPage = ({ children, style = {} }) => (
 // Right page panel for spreads
 const RightPage = ({ children, style = {} }) => (
   <div style={{
-    minHeight: CARD_FRAME.minHeight,
+    height: '100%',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
     padding: '2rem',
     position: 'relative',
+    overflow: 'hidden',
     ...style,
   }}>
     {children}
@@ -937,6 +944,21 @@ export default function GreetingCardViewer({
                   pointerEvents: 'none',
                 }}
               />
+              {/* RECIPIENT NAME — centered in lower third, blue ink tone */}
+              <div style={{
+                position: 'absolute',
+                bottom: '12%',
+                width: '100%',
+                textAlign: 'center',
+                fontFamily: FONTS.body,
+                fontSize: '1.125rem',
+                fontWeight: 600,
+                color: '#1f4e8c',
+                letterSpacing: '0.08em',
+                pointerEvents: 'none',
+              }}>
+                {recipientName}
+              </div>
               {/* WAX SEAL OVERLAY — clickable, centered on image seal position */}
               <div
                 onClick={handleSealClick}
@@ -1056,7 +1078,7 @@ export default function GreetingCardViewer({
               <div style={{
                 position: 'relative',
                 width: '100%',
-                minHeight: CARD_FRAME.minHeight,
+                height: '100%',
                 overflow: 'hidden',
               }}>
                 <img
@@ -1065,7 +1087,6 @@ export default function GreetingCardViewer({
                   style={{
                     width: '100%',
                     height: '100%',
-                    minHeight: CARD_FRAME.minHeight,
                     objectFit: 'cover',
                     display: 'block',
                   }}
@@ -1268,7 +1289,7 @@ export default function GreetingCardViewer({
                 )}
               </LeftPage>
 
-              {/* RIGHT PAGE: Album (or placeholder if no photos) */}
+              {/* RIGHT PAGE: Album stack (peek-a-boo style) */}
               <RightPage style={{
                 backgroundImage: `url(${cardInteriorImg})`,
                 backgroundSize: 'cover',
@@ -1277,6 +1298,7 @@ export default function GreetingCardViewer({
                 opacity: greetingFocusActive && !hasCompletedOnce ? 0.3 : 1,
                 transition: 'opacity 0.5s ease',
                 pointerEvents: greetingFocusActive && !hasCompletedOnce ? 'none' : 'auto',
+                alignItems: 'center',
               }}>
                 {currentPageData.hasAlbum ? (
                   <>
@@ -1284,39 +1306,74 @@ export default function GreetingCardViewer({
                       fontFamily: FONTS.body,
                       fontSize: '0.875rem',
                       color: '#4a3c35',
-                      marginBottom: '0.75rem',
+                      marginBottom: '1rem',
                       fontStyle: 'italic',
                       textAlign: 'center',
                     }}>
                       Memories
                     </p>
+                    {/* Stacked photo peek-a-boo container */}
                     <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(2, 1fr)',
-                      gap: '0.5rem',
+                      position: 'relative',
+                      width: '85%',
+                      maxWidth: '280px',
+                      aspectRatio: '4 / 3',
                     }}>
-                      {currentPageData.albumPhotos?.slice(0, 4).map((photo, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            position: 'relative',
-                            overflow: 'hidden',
-                            borderRadius: '8px',
-                            aspectRatio: '1',
-                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-                          }}
-                        >
-                          <img
-                            src={typeof photo === 'string' ? photo : photo.url}
-                            alt=""
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover',
-                            }}
-                          />
+                      {/* Back cards (peek-a-boo effect) */}
+                      <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: '#f5f0e8',
+                        borderRadius: '8px',
+                        transform: 'translate(8px, 8px) rotate(3deg)',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
+                      }} />
+                      <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: '#faf7f2',
+                        borderRadius: '8px',
+                        transform: 'translate(4px, 4px) rotate(-2deg)',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                      }} />
+                      {/* Top card with photo grid */}
+                      <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: '#fff',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                        overflow: 'hidden',
+                        padding: '0.5rem',
+                      }}>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(2, 1fr)',
+                          gap: '0.35rem',
+                          height: '100%',
+                        }}>
+                          {currentPageData.albumPhotos?.slice(0, 4).map((photo, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                position: 'relative',
+                                overflow: 'hidden',
+                                borderRadius: '4px',
+                              }}
+                            >
+                              <img
+                                src={typeof photo === 'string' ? photo : photo.url}
+                                alt=""
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover',
+                                }}
+                              />
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      </div>
                     </div>
                   </>
                 ) : (
@@ -1371,12 +1428,15 @@ export default function GreetingCardViewer({
                 }}>
                   {getOccasionTitle(occasionType)}
                 </h3>
+                {/* Signature — blue ink with slight rotation */}
                 <p style={{
-                  fontSize: '1.25rem',
-                  fontFamily: FONTS.body,
-                  fontStyle: 'italic',
-                  color: '#4a3c35',
+                  fontSize: '1.5rem',
+                  fontFamily: FONTS.handwritten,
+                  fontWeight: 700,
+                  color: '#1f4e8c',
                   marginBottom: '2rem',
+                  transform: 'rotate(-4deg)',
+                  transformOrigin: 'center center',
                 }}>
                   With love, {senderName}
                 </p>
