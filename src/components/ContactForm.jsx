@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { validateEmail, getOccasionsByCategory, calculateVaryingOccasionDate } from '../utils/helpers';
+import { getPhotoSrc } from '../utils/getPhotoSrc';
 import Alert from './Alert';
 import FaithBasedOccasionSelector from './FaithBasedOccasionSelector';
 import GiftSelectorModal from './GiftSelectorModal';
@@ -1285,7 +1286,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                 border: '1px solid var(--border)'
               }}>
                 <img
-                  src={typeof photo === 'object' ? photo.url : photo}
+                  src={getPhotoSrc(photo)}
                   alt={`Memory ${index + 1}`}
                   style={{
                     position: 'absolute',
@@ -1296,7 +1297,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                     objectFit: 'cover',
                     cursor: 'pointer'
                   }}
-                  onClick={() => window.open(typeof photo === 'object' ? photo.url : photo, '_blank')}
+                  onClick={() => window.open(getPhotoSrc(photo), '_blank')}
                   title="Click to enlarge"
                 />
                 {/* Set as default button on hover */}
@@ -1305,10 +1306,9 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      const photoUrl = typeof photo === 'object' ? photo.url : photo;
                       setFormData(prev => ({
                         ...prev,
-                        avatar: photoUrl,
+                        avatar: getPhotoSrc(photo),
                         memoryPhotos: prev.memoryPhotos.filter((_, i) => i !== index)
                       }));
                     }}

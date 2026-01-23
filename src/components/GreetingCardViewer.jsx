@@ -19,6 +19,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { getPhotoSrc } from '../utils/getPhotoSrc';
 // Phase 9: Volume2 import removed — voice indicator UI removed per doctrine ("no UI on pages")
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1380,7 +1381,7 @@ export default function GreetingCardViewer({
                               }}
                             >
                               <img
-                                src={typeof photo === 'string' ? photo : photo.url}
+                                src={getPhotoSrc(photo)}
                                 alt=""
                                 style={{
                                   width: '100%',

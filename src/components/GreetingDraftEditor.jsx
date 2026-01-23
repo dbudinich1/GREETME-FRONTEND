@@ -1,17 +1,8 @@
 // src/components/GreetingDraftEditor.jsx
 // Multi-page greeting draft editor with animated and slideshow page support
 
-// Helper: normalize photo to URL string (supports object shapes)
-const getPhotoSrc = (photo) => {
-  if (!photo) return "";
-  if (typeof photo === "string") return photo;
-  if (typeof photo === "object") {
-    return photo.sasUrl || photo.url || photo.src || "";
-  }
-  return "";
-};
-
 import { useState, useEffect } from 'react';
+import { getPhotoSrc } from '../utils/getPhotoSrc';
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Play, Image, Music,
   Mic, Type, Sparkles, Save, Send, X, Star, Camera

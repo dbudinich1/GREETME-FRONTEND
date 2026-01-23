@@ -1,16 +1,7 @@
 // src/pages/SendGreeting.jsx
 
-// Helper: normalize photo to URL string (supports object shapes)
-const getPhotoSrc = (photo) => {
-  if (!photo) return "";
-  if (typeof photo === "string") return photo;
-  if (typeof photo === "object") {
-    return photo.sasUrl || photo.url || photo.src || "";
-  }
-  return "";
-};
-
 import { useState, useEffect } from 'react';
+import { getPhotoSrc } from '../utils/getPhotoSrc';
 import { useNavigate } from 'react-router-dom';
 import { Send, CheckCircle, XCircle, Loader, Edit3, Gift, ArrowLeft, Camera, Plus, X } from 'lucide-react';
 import { useRef } from 'react';
