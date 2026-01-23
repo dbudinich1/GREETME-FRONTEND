@@ -315,6 +315,9 @@ export default function GreetingCardViewer({
   // Transition state
   const [isTransitioning, setIsTransitioning] = useState(false);
 
+  // Album slideshow state
+  const [albumPhotoIndex, setAlbumPhotoIndex] = useState(0);
+
   // ═══════════════════════════════════════════════════════════════════════════
   // REFS
   // ═══════════════════════════════════════════════════════════════════════════
@@ -328,12 +331,13 @@ export default function GreetingCardViewer({
   const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
   const greetingStartTimeRef = useRef(null);
   const greetingIntervalRef = useRef(null);
+  const albumIntervalRef = useRef(null);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // AUDIO CUE HELPER — plays short tactile cue then stops
   // Tracks timers for cleanup on unmount (no leaks)
   // ═══════════════════════════════════════════════════════════════════════════
-  const playCue = useCallback((audioRefEl, ms = 600) => {
+  const playCue = useCallback((audioRefEl, ms = 600, volume = 0.5) => {
     try {
       const el = audioRefEl?.current;
       if (!el) return;
@@ -347,6 +351,9 @@ export default function GreetingCardViewer({
       // Always restart cue (more reliable than currentTime alone)
       try { el.pause(); } catch {}
       try { el.currentTime = 0; } catch {}
+
+      // Set volume (0.0 to 1.0)
+      try { el.volume = volume; } catch {}
 
       const p = el.play();
       if (p && typeof p.then === 'function') {
@@ -602,6 +609,37 @@ export default function GreetingCardViewer({
     }
   }, [currentPage, envelopeState, pages, greetingCompleted, hasCompletedOnce, greetingFocusActive, greetingElapsedMs]);
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ALBUM AUTO-ADVANCE (Phase F)
+  // Photos cycle every 3.5s with smooth crossfade
+  // Only active when on featured page and greeting focus is complete
+  // ═══════════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const currentPageData = pages[currentPage];
+    const isFeaturedPage = currentPageData?.type === 'featured';
+    const albumPhotos = currentPageData?.albumPhotos || [];
+    const canAutoAdvance = isFeaturedPage && albumPhotos.length > 1 &&
+      (greetingCompleted || hasCompletedOnce) && !greetingFocusActive;
+
+    if (canAutoAdvance) {
+      albumIntervalRef.current = setInterval(() => {
+        setAlbumPhotoIndex(prev => (prev + 1) % albumPhotos.length);
+      }, 3500); // 3.5 seconds per photo
+
+      return () => {
+        if (albumIntervalRef.current) {
+          clearInterval(albumIntervalRef.current);
+          albumIntervalRef.current = null;
+        }
+      };
+    } else {
+      // Reset to first photo when leaving page
+      if (!isFeaturedPage) {
+        setAlbumPhotoIndex(0);
+      }
+    }
+  }, [currentPage, pages, greetingCompleted, hasCompletedOnce, greetingFocusActive]);
+
   // Handle video ended - complete greeting if min duration met
   const handleVideoEnded = useCallback(() => {
     const elapsed = Date.now() - (greetingStartTimeRef.current || Date.now());
@@ -643,13 +681,13 @@ export default function GreetingCardViewer({
   const handleEnvelopeMouseEnter = useCallback(() => {
     if (envelopeState !== 'sealed' || inCustody) return;
     setEnvelopeFlipped(true);
-    playCue(paperAudioRef, 550);
+    playCue(paperAudioRef, 550, 0.7); // Paper-slide: 40% louder
   }, [envelopeState, inCustody, playCue]);
 
   const handleEnvelopeMouseLeave = useCallback(() => {
     if (envelopeState !== 'sealed') return;
     setEnvelopeFlipped(false);
-    playCue(paperAudioRef, 550);
+    playCue(paperAudioRef, 550, 0.7); // Paper-slide: 40% louder
   }, [envelopeState, playCue]);
 
   // ACT OF OPENING — Single click on seal destroys envelope, reveals card
@@ -884,7 +922,9 @@ export default function GreetingCardViewer({
   return (
     <>
       {/* Hidden Audio Elements — ALWAYS MOUNTED (single instance per ref) */}
+      {/* Paper-slide: envelope flip / card turn (volume set in playCue) */}
       <audio ref={paperAudioRef} src={AUDIO.paperSlide} preload="auto" />
+      {/* Wax-crackle: seal break ONLY (volume set in playCue) */}
       <audio ref={waxAudioRef} src={AUDIO.waxCrackle} preload="auto" />
       <audio ref={audioRef} onEnded={handleAudioEnded} />
 
@@ -970,19 +1010,21 @@ export default function GreetingCardViewer({
                   pointerEvents: 'none',
                 }}
               />
-             {/* RECIPIENT NAME — centered on envelope, handwritten style */}
+             {/* RECIPIENT NAME — centered on envelope, handwritten style, dominant and elegant */}
               <div style={{
                   position: 'absolute',
-                  top: '50%',
+                  top: '48%',
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
                   fontFamily: FONTS.handwritten,
-                  fontSize: '1.75rem',
+                  fontSize: '2.5rem',
                   fontWeight: 700,
-                  color: '#2a3f55',
-                  letterSpacing: '0.02em',
+                  color: '#000000',
+                  letterSpacing: '0.03em',
                   pointerEvents: 'none',
                   zIndex: 10,
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+                  padding: '0.5rem 1rem',
                 }}>
                 {recipientName}
               </div>
@@ -1331,7 +1373,7 @@ export default function GreetingCardViewer({
                     }}>
                       Memories
                     </p>
-                    {/* Stacked photo peek-a-boo container */}
+                    {/* Stacked photo slideshow container */}
                     <div style={{
                       position: 'relative',
                       width: '85%',
@@ -1355,7 +1397,7 @@ export default function GreetingCardViewer({
                         transform: 'translate(4px, 4px) rotate(-2deg)',
                         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
                       }} />
-                      {/* Top card with photo grid */}
+                      {/* Top card with auto-advancing slideshow */}
                       <div style={{
                         position: 'absolute',
                         inset: 0,
@@ -1363,35 +1405,51 @@ export default function GreetingCardViewer({
                         borderRadius: '8px',
                         boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
                         overflow: 'hidden',
-                        padding: '0.5rem',
                       }}>
-                        <div style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(2, 1fr)',
-                          gap: '0.35rem',
-                          height: '100%',
-                        }}>
-                          {currentPageData.albumPhotos?.slice(0, 4).map((photo, idx) => (
-                            <div
-                              key={idx}
-                              style={{
-                                position: 'relative',
-                                overflow: 'hidden',
-                                borderRadius: '4px',
-                              }}
-                            >
-                              <img
-                                src={getPhotoSrc(photo)}
-                                alt=""
+                        {/* Crossfade slideshow - all photos stacked, opacity controls visibility */}
+                        {currentPageData.albumPhotos?.map((photo, idx) => (
+                          <img
+                            key={idx}
+                            src={getPhotoSrc(photo)}
+                            alt=""
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              opacity: idx === albumPhotoIndex ? 1 : 0,
+                              transition: 'opacity 0.8s ease-in-out',
+                            }}
+                          />
+                        ))}
+                        {/* Photo counter dots */}
+                        {currentPageData.albumPhotos?.length > 1 && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '8px',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            display: 'flex',
+                            gap: '6px',
+                          }}>
+                            {currentPageData.albumPhotos.map((_, idx) => (
+                              <div
+                                key={idx}
                                 style={{
-                                  width: '100%',
-                                  height: '100%',
-                                  objectFit: 'cover',
+                                  width: '6px',
+                                  height: '6px',
+                                  borderRadius: '50%',
+                                  background: idx === albumPhotoIndex
+                                    ? 'rgba(255, 255, 255, 0.95)'
+                                    : 'rgba(255, 255, 255, 0.4)',
+                                  transition: 'background 0.3s ease',
+                                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
                                 }}
                               />
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </>
@@ -1447,15 +1505,17 @@ export default function GreetingCardViewer({
                 }}>
                   {getOccasionTitle(occasionType)}
                 </h3>
-                {/* Signature — blue ink with slight rotation */}
+                {/* Signature — fountain pen ink with bleed effect */}
                 <p style={{
-                  fontSize: '1.5rem',
+                  fontSize: '1.75rem',
                   fontFamily: FONTS.handwritten,
                   fontWeight: 700,
-                  color: '#1f4e8c',
+                  color: '#0a1f44',
                   marginBottom: '2rem',
                   transform: 'rotate(-4deg)',
                   transformOrigin: 'center center',
+                  textShadow: '0 0 1px rgba(10, 31, 68, 0.4), 0 0 2px rgba(10, 31, 68, 0.2)',
+                  letterSpacing: '0.02em',
                 }}>
                   With love, {senderName}
                 </p>
