@@ -1214,11 +1214,14 @@ export default function GreetingCardViewer({
           {/* ═══════════════════════════════════════════════════════════════ */}
           {currentPageData.type === 'cover' && (
             <SpreadFrame isSinglePage>
+              {/* Phase I: Cover edge reveal — midnight blue bleed with paper edges visible */}
               <div style={{
                 position: 'relative',
                 width: '100%',
                 height: '100%',
-                overflow: 'hidden',
+                padding: '14px',
+                background: '#0b1324',
+                boxSizing: 'border-box',
               }}>
                 <img
                   src={cardCoverImg}
@@ -1226,8 +1229,9 @@ export default function GreetingCardViewer({
                   style={{
                     width: '100%',
                     height: '100%',
-                    objectFit: 'cover',
+                    objectFit: 'contain',
                     display: 'block',
+                    borderRadius: '6px',
                   }}
                 />
 
