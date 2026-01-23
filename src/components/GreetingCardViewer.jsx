@@ -974,7 +974,7 @@ export default function GreetingCardViewer({
           justifyContent: 'center',
           padding: '2rem',
           userSelect: 'none',
-          background: PAPER_TONE,
+          background: `radial-gradient(circle at center, ${PAPER_TONE} 0%, #eae3d6 70%, #0b1324 100%)`,
         }}
       >
         <p style={{
@@ -1019,7 +1019,7 @@ export default function GreetingCardViewer({
             justifyContent: 'flex-start',
             paddingTop: '25vh',
             userSelect: 'none',
-            background: PAPER_TONE,
+            background: `radial-gradient(circle at center, ${PAPER_TONE} 0%, #eae3d6 70%, #0b1324 100%)`,
           }}
         >
 
