@@ -341,6 +341,46 @@ export default function GreetingCardViewer({
   const greetingIntervalRef = useRef(null);
   const albumIntervalRef = useRef(null);
   const albumHoveredRef = useRef(false); // Phase F-P1: pause-on-hover guard
+  const audioUnlockedRef = useRef(false); // Phase H: audio context unlock flag
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AUDIO CONTEXT UNLOCK (Phase H)
+  // Mobile browsers require user interaction before audio can play
+  // ═══════════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (audioUnlockedRef.current) return;
+      audioUnlockedRef.current = true;
+
+      // Unlock paper audio
+      if (paperAudioRef.current) {
+        paperAudioRef.current.play().then(() => {
+          paperAudioRef.current.pause();
+          paperAudioRef.current.currentTime = 0;
+        }).catch(() => {});
+      }
+
+      // Unlock wax audio
+      if (waxAudioRef.current) {
+        waxAudioRef.current.play().then(() => {
+          waxAudioRef.current.pause();
+          waxAudioRef.current.currentTime = 0;
+        }).catch(() => {});
+      }
+
+      // Remove listeners after unlock
+      document.removeEventListener('pointerdown', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    };
+
+    document.addEventListener('pointerdown', unlockAudio, { once: true });
+    document.addEventListener('click', unlockAudio, { once: true });
+
+    return () => {
+      document.removeEventListener('pointerdown', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    };
+  }, []);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // AUDIO CUE HELPER — plays short tactile cue then stops
