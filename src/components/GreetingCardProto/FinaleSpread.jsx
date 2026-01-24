@@ -1,6 +1,7 @@
 /**
  * FinaleSpread.jsx
  * Screen 5: Closing + Gift
+ * GS-06: Updated CTA text, removed "All my love", logo matches stamp brown
  */
 
 import React from 'react';
@@ -9,7 +10,7 @@ import cardInteriorImg from '../../assets/card/card-interior.png';
 export default function FinaleSpread({ greeting }) {
   return (
     <div className="gc-spread-wrapper">
-      <div 
+      <div
         className="gc-spread gc-finale-spread"
         style={{ backgroundImage: `url(${cardInteriorImg})` }}
       >
@@ -22,18 +23,14 @@ export default function FinaleSpread({ greeting }) {
             <p className="gc-closing-note">
               Don't forget to check the gift... I picked it just for you!
             </p>
-            <div className="gc-final-signature">
-              <span className="gc-signature-text">All my love,</span>
-              <span className="gc-signature-name">♥</span>
-            </div>
           </div>
         </div>
 
         {/* Right Page */}
         <div className="gc-page gc-page-right">
           <div className="gc-page-content gc-gift-content">
-            <h3 className="gc-gift-title">A Little Something Extra</h3>
-            
+            <h3 className="gc-gift-title">Scan and redeem</h3>
+
             <div className="gc-qr-frame">
               <div className="gc-qr-code">
                 <svg viewBox="0 0 100 100" className="gc-qr-placeholder">
@@ -49,20 +46,16 @@ export default function FinaleSpread({ greeting }) {
                 </svg>
               </div>
             </div>
-            
+
             <p className="gc-gift-instruction">
-              Scan to redeem your gift —<br/>
-              treat yourself to something<br/>
-              that makes you smile!
+              Treat yourself to something<br/>
+              that makes you smile
             </p>
 
             <div className="gc-branding">
               <span className="gc-brand-logo">G</span>
               <span className="gc-brand-name">Greet-Me</span>
             </div>
-            <p className="gc-brand-tagline">
-              This moment was lovingly prepared for you
-            </p>
           </div>
         </div>
       </div>

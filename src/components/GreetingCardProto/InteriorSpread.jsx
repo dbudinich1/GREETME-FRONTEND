@@ -14,8 +14,12 @@ Another year of dreams,
 May happiness find you always
 In everything, it seems.`;
 
-export default function InteriorSpread({ recipientName, message, onClick }) {
-  const displayMessage = message || 'Wishing you all the best on this special day. May it bring you joy and wonderful memories.';
+const DEFAULT_MESSAGE = 'Wishing you all the best on this special day. May it bring you joy and wonderful memories.';
+
+export default function InteriorSpread({ recipientName, message, senderName, onClick }) {
+  // GS-03: Never render empty - always use placeholder if missing
+  const displayMessage = message?.trim() || DEFAULT_MESSAGE;
+  const displaySender = senderName?.trim() || 'With love';
   
   return (
     <div 
@@ -39,7 +43,7 @@ export default function InteriorSpread({ recipientName, message, onClick }) {
             <p className="gc-greeting-message">
               {displayMessage}
             </p>
-            <p className="gc-signature">Dan</p>
+            <p className="gc-signature">{displaySender}</p>
             
           </div>
         </div>

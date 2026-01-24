@@ -8,6 +8,12 @@ import React, { useState, useRef } from 'react';
 import envelopeFrontImg from '../../assets/card/envelope-front.jpeg';
 import envelopeBackImg from '../../assets/card/envelope-back.jpeg';
 
+// Capitalize first letter of name
+const capitalize = (str) => {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
 export default function Envelope({ recipientName, onSealClick }) {
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -65,11 +71,11 @@ export default function Envelope({ recipientName, onSealClick }) {
         onMouseDown={handleMouseDown}
       >
         {/* Front */}
-        <div 
+        <div
           className="gc-envelope-face gc-envelope-front"
           style={{ backgroundImage: `url(${envelopeFrontImg})` }}
         >
-          <span className="gc-recipient-name">{recipientName || 'Friend'}</span>
+          <span className="gc-recipient-name">{capitalize(recipientName) || 'Friend'}</span>
         </div>
 
         {/* Back */}
@@ -88,7 +94,7 @@ export default function Envelope({ recipientName, onSealClick }) {
       </div>
       
       <p className="gc-hint">
-        {showingBack ? 'Click the seal to open' : 'Drag to flip the envelope'}
+        {showingBack ? 'Click the seal to open' : 'Drag to flip'}
       </p>
     </div>
   );
