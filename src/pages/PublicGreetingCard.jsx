@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../api/api';
 import GreetingCardViewer from '../components/GreetingCardViewer';
-
+import { GreetingCard as GreetingCardProto } from '../components/GreetingCardProto';
 export default function PublicGreetingCard() {
   const { jobId } = useParams();
 
@@ -140,14 +140,7 @@ export default function PublicGreetingCard() {
 
   // Render the premium greeting card experience
   return (
-    <GreetingCardViewer
-      recipientName={greeting.recipientName}
-      greetingMessage={greeting.greetingText}
-      videoUrl={greeting.videoUrl}
-      occasionKey={greeting.occasionKey}
-      onClose={() => {
-        // No close action for public view - just stay on page
-      }}
-    />
+  <GreetingCardProto greeting={greeting} />
   );
 }
+    
