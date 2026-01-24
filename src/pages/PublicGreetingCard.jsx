@@ -29,11 +29,13 @@ export default function PublicGreetingCard() {
         const g = response.greeting;
         setGreeting({
           jobId: g.jobId || jobId,
-          recipientName: g.recipientName || '',
+          recipientName: g.recipientName || 'Friend',
+          senderName: g.senderName || 'Dan',
           greetingText: g.greetingText || '',
           occasionKey: g.occasionKey || 'general',
           relationshipKey: g.relationshipKey || '',
           videoUrl: g.videoUrl || null,
+          photos: g.photos || [],
           status: g.status || 'done',
         });
       } else {
