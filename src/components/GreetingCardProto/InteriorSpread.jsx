@@ -14,11 +14,11 @@ Another year of dreams,
 May happiness find you always
 In everything, it seems.`;
 
-const DEFAULT_MESSAGE = `I wanted to take a moment to tell you how much you mean to me. Your kindness, your warmth, and your spirit light up every room you enter.
+const DEFAULT_MESSAGE = `I wanted to take a moment to tell you how much you mean to me. Your kindness, your warmth, and your spirit light up every room you enter. The way you care for others, the joy you bring to every moment — these are gifts that touch everyone around you.
 
-On this special day, I hope you feel as loved and cherished as you make everyone around you feel. You deserve all the happiness in the world.
+On this special day, I hope you feel as loved and cherished as you make everyone around you feel. You deserve all the happiness in the world, and so much more.
 
-Here's to celebrating you today and always.`;
+Through all of life's seasons, know that you are treasured beyond measure. Here's to celebrating you today and always — for the remarkable person you are and the light you bring to this world.`;
 
 export default function InteriorSpread({ recipientName, message, senderName, onClick }) {
   // GS-03: Never render empty - always use placeholder if missing

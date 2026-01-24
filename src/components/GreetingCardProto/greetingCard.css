@@ -11,7 +11,7 @@
   /* Colors */
   --gc-bg-navy: #1a1a2e;
   --gc-bg-navy-light: #2a2a5a;
-  --gc-bg-navy-lighter: #3a3a6a;
+  --gc-bg-navy-lighter: #5a5a8a;
   --gc-paper-cream: #f4f1e8;
   --gc-text-brown: #3d2314;
   --gc-text-brown-light: #5d4e37;
@@ -309,7 +309,7 @@
   font-weight: 700;
   color: var(--gc-signature-blue);
   margin-top: auto;
-  padding-top: 20px;
+  padding-top: 40px;
   align-self: flex-end;
   transform: rotate(-5deg);
   text-shadow:
@@ -333,14 +333,15 @@
 .gc-featured-spread .gc-video-page {
   justify-content: center;
   align-items: center;
-  flex: 1;
+  flex: 0.9;
   background: var(--gc-bg-navy-lighter);
-  margin: 0;
+  margin: 20px 0 20px 20px;
   padding: 40px;
+  border-radius: 4px;
 }
 
 .gc-featured-spread .gc-album-page {
-  flex: 1;
+  flex: 1.1;
   justify-content: flex-start;
   align-items: center;
   background: transparent;
@@ -516,18 +517,18 @@
 
 /* ===== FINALE SPREAD ===== */
 .gc-closing-message {
-  font-family: var(--gc-font-body);
-  font-size: 26px;
+  font-family: var(--gc-font-handwritten);
+  font-size: 36px;
   color: var(--gc-text-brown);
-  line-height: 1.7;
-  margin: 0 0 24px 0;
+  line-height: 1.8;
+  margin: 0 0 28px 0;
 }
 
 .gc-closing-note {
-  font-family: var(--gc-font-body);
-  font-style: italic;
-  font-size: 22px;
+  font-family: var(--gc-font-handwritten);
+  font-size: 32px;
   color: var(--gc-text-gold-dark);
+  line-height: 1.7;
   margin: 0;
 }
 
@@ -539,6 +540,8 @@
   justify-content: center;
   align-items: center;
   text-align: center;
+  padding: 30px;
+  overflow: visible;
 }
 
 .gc-gift-title {
@@ -550,13 +553,13 @@
 }
 
 .gc-qr-frame {
-  width: 140px;
-  height: 140px;
+  width: 180px;
+  height: 180px;
   background: white;
   border: 4px solid var(--gc-gold-frame);
   border-radius: 12px;
-  padding: 8px;
-  margin-bottom: 16px;
+  padding: 12px;
+  margin-bottom: 20px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
@@ -591,8 +594,8 @@
 }
 
 .gc-brand-logo {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   background: var(--gc-text-brown);
   color: white;
   border-radius: 50%;
@@ -601,12 +604,12 @@
   align-items: center;
   font-family: var(--gc-font-brand);
   font-weight: bold;
-  font-size: 16px;
+  font-size: 24px;
 }
 
 .gc-brand-name {
   font-family: var(--gc-font-brand);
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 600;
   color: var(--gc-text-brown);
 }
