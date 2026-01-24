@@ -225,15 +225,15 @@
   width: 90vw;
   max-width: 1100px;
   height: auto;
-  aspect-ratio: 900 / 560;
+  aspect-ratio: 891 / 586;
   background-size: 100% 100%;
   background-repeat: no-repeat;
-  background-position: center center;
+  background-position: 0 0;
   border-radius: 0;
   filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.4));
   position: relative;
   cursor: pointer;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .gc-page {
@@ -328,19 +328,22 @@
   background-position: center;
 }
 
+/* ===== FEATURED SPREAD ===== */
+.gc-featured-spread {
+  background-size: 100% 100%;
+}
+
 .gc-featured-spread .gc-video-page {
   background: var(--gc-bg-navy);
   justify-content: center;
   align-items: center;
-  flex: 0 0 50%;
-  padding: 30px;
+  flex: 1;
 }
 
 .gc-featured-spread .gc-album-page {
-  flex: 0 0 50%;
-  justify-content: flex-start;
+  flex: 1;
+  justify-content: center;
   align-items: center;
-  padding-top: 30px;
   background: transparent;
 }
 
