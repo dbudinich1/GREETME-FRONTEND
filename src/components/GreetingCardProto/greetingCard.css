@@ -11,6 +11,7 @@
   /* Colors */
   --gc-bg-navy: #1a1a2e;
   --gc-bg-navy-light: #2a2a5a;
+  --gc-bg-navy-lighter: #3a3a6a;
   --gc-paper-cream: #f4f1e8;
   --gc-text-brown: #3d2314;
   --gc-text-brown-light: #5d4e37;
@@ -20,14 +21,19 @@
   --gc-seal-red-dark: #5c0000;
   --gc-ribbon-red: #b22222;
   --gc-gold-frame: #d4af37;
-  --gc-signature-blue: #2563eb;
-  
+  --gc-signature-blue: #1a3a6b;
+
   /* Fonts */
   --gc-font-title: 'Great Vibes', cursive;
   --gc-font-handwritten: 'Tangerine', cursive;
   --gc-font-body: 'Cormorant Garamond', serif;
   --gc-font-brand: 'Playfair Display', serif;
-  
+
+  /* Global Scale */
+  --gc-spread-max-width: 1300px;
+  --gc-video-size: 320px;
+  --gc-album-size: 320px;
+
   /* Spacing */
   --gc-page-padding: 50px;
 }
@@ -63,15 +69,14 @@
 }
 
 .gc-envelope {
-  width: 550px;
-  height: 385px;
-  max-width: 80vw;
-  max-height: 55vh;
+  width: 730px;
+  height: 510px;
+  max-width: 90vw;
+  max-height: 65vh;
   position: relative;
   cursor: grab;
   transform-style: preserve-3d;
   transition: transform 0.05s ease-out;
-  
 }
 
 .gc-envelope:active {
@@ -105,7 +110,7 @@
 
 .gc-recipient-name {
   font-family: 'Pinyon Script', cursive;
-  font-size: 110px;
+  font-size: 130px;
   font-weight: 700;
   color: #000000;
   text-align: center;
@@ -113,11 +118,7 @@
 }
 
 .gc-hint {
-  margin-top: 24px;
-  font-family: var(--gc-font-body);
-  font-style: italic;
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.6);
+  display: none;
 }
 
 /* Wax Seal */
@@ -222,8 +223,8 @@
 
 .gc-spread {
   display: flex;
-  width: 90vw;
-  max-width: 1100px;
+  width: 95vw;
+  max-width: var(--gc-spread-max-width);
   height: auto;
   aspect-ratio: 891 / 586;
   background-size: 100% 100%;
@@ -261,18 +262,19 @@
 /* ===== INTERIOR SPREAD ===== */
 .gc-greeting-salutation {
   font-family: var(--gc-font-title);
-  font-size: 42px;
+  font-size: 52px;
   font-weight: 400;
   color: var(--gc-text-brown);
-  margin: 0 0 24px 0;
-  line-height: 1.2;
+  margin: 0 0 28px 0;
+  line-height: 1.3;
+  letter-spacing: 1px;
 }
 
 .gc-greeting-message {
   font-family: var(--gc-font-handwritten);
-  font-size: 36px;
+  font-size: 44px;
   color: var(--gc-text-brown);
-  line-height: 1.7;
+  line-height: 1.6;
   margin: 0;
   flex-grow: 1;
 }
@@ -286,16 +288,16 @@
 .gc-poem {
   font-family: var(--gc-font-body);
   font-style: italic;
-  font-size: 30px;
+  font-size: 36px;
   color: var(--gc-text-brown-light);
-  line-height: 1.9;
+  line-height: 1.8;
   margin: 0 0 30px 0;
   white-space: pre-line;
 }
 
 .gc-warm-wishes {
   font-family: var(--gc-font-title);
-  font-size: 36px;
+  font-size: 42px;
   font-weight: 400;
   color: var(--gc-text-gold);
   margin: 0;
@@ -303,21 +305,21 @@
 
 .gc-signature {
   font-family: var(--gc-font-handwritten);
-  font-size: 52px;
+  font-size: 64px;
   font-weight: 700;
-  color: #1a3a6b;
+  color: var(--gc-signature-blue);
   margin-top: auto;
   padding-top: 20px;
   align-self: flex-end;
   transform: rotate(-5deg);
-  text-shadow: 
-    0 0 2px rgba(26, 58, 107, 0.9),
-    0 0 4px rgba(26, 58, 107, 0.5),
-    1px 1px 2px rgba(26, 58, 107, 0.4),
-    -1px 0 1px rgba(26, 58, 107, 0.2);
-  filter: blur(0.4px);
-  opacity: 0.85;
-  letter-spacing: 1px;
+  text-shadow:
+    0 0 3px rgba(26, 58, 107, 0.9),
+    0 0 6px rgba(26, 58, 107, 0.5),
+    2px 2px 3px rgba(26, 58, 107, 0.4),
+    -1px 0 2px rgba(26, 58, 107, 0.3);
+  filter: blur(0.3px);
+  opacity: 0.9;
+  letter-spacing: 2px;
 }
 
 
@@ -332,14 +334,17 @@
   justify-content: center;
   align-items: center;
   flex: 1;
-  background: transparent;
+  background: var(--gc-bg-navy-lighter);
+  margin: 0;
+  padding: 40px;
 }
 
 .gc-featured-spread .gc-album-page {
   flex: 1;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   background: transparent;
+  padding-top: 40px;
 }
 
 /* GS-04: Video fade-in after pause */
@@ -372,8 +377,8 @@
 }
 
 .gc-video-frame {
-  width: 220px;
-  height: 280px;
+  width: var(--gc-video-size);
+  height: calc(var(--gc-video-size) * 1.28);
   border: 4px solid var(--gc-gold-frame);
   border-radius: 8px;
   background: var(--gc-bg-navy-light);
@@ -431,13 +436,13 @@
 }
 
 .gc-album-frame {
-  width: 220px;
-  height: 280px;
+  width: var(--gc-album-size);
+  height: calc(var(--gc-album-size) * 1.28);
   border: 4px solid var(--gc-gold-frame);
   border-radius: 8px;
   overflow: hidden;
   position: relative;
-  box-shadow: 
+  box-shadow:
     8px 8px 0 rgba(0, 0, 0, 0.15),
     16px 16px 0 rgba(0, 0, 0, 0.1);
   background: #eee;
@@ -512,7 +517,7 @@
 /* ===== FINALE SPREAD ===== */
 .gc-closing-message {
   font-family: var(--gc-font-body);
-  font-size: 20px;
+  font-size: 26px;
   color: var(--gc-text-brown);
   line-height: 1.7;
   margin: 0 0 24px 0;
@@ -521,47 +526,13 @@
 .gc-closing-note {
   font-family: var(--gc-font-body);
   font-style: italic;
-  font-size: 18px;
+  font-size: 22px;
   color: var(--gc-text-gold-dark);
   margin: 0;
 }
 
-.gc-final-signature {
-  margin-top: auto;
-  padding-top: 30px;
-}
 
 
-
-.gc-signature {
-  font-family: var(--gc-font-handwritten);
-  font-size: 52px;
-  font-weight: 700;
-  color: #1a3a6b;
-  margin-top: auto;
-  padding-top: 20px;
-  text-shadow: 
-    0 0 1px rgba(26, 58, 107, 0.8),
-    0 0 2px rgba(26, 58, 107, 0.4),
-    1px 1px 1px rgba(26, 58, 107, 0.3);
-  filter: blur(0.3px);
-  opacity: 0.9;
-}
-
-.gc-signature-text {
-  display: block;
-  font-family: var(--gc-font-handwritten);
-  font-size: 60px;
-  color: var(--gc-signature-blue);
-  line-height: 1.4;
-}
-
-.gc-signature-name {
-  display: block;
-  font-family: var(--gc-font-handwritten);
-  font-size: 48px;
-  color: var(--gc-signature-blue);
-}
 
 /* Gift Section */
 .gc-gift-content {

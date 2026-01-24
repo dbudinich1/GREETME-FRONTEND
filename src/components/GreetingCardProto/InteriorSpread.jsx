@@ -14,12 +14,17 @@ Another year of dreams,
 May happiness find you always
 In everything, it seems.`;
 
-const DEFAULT_MESSAGE = 'Wishing you all the best on this special day. May it bring you joy and wonderful memories.';
+const DEFAULT_MESSAGE = `I wanted to take a moment to tell you how much you mean to me. Your kindness, your warmth, and your spirit light up every room you enter.
+
+On this special day, I hope you feel as loved and cherished as you make everyone around you feel. You deserve all the happiness in the world.
+
+Here's to celebrating you today and always.`;
 
 export default function InteriorSpread({ recipientName, message, senderName, onClick }) {
   // GS-03: Never render empty - always use placeholder if missing
   const displayMessage = message?.trim() || DEFAULT_MESSAGE;
-  const displaySender = senderName?.trim() || 'With love';
+  // Signature: name only, no "With love" or similar
+  const displaySender = senderName?.trim() || 'Dan';
   
   return (
     <div 
@@ -38,7 +43,7 @@ export default function InteriorSpread({ recipientName, message, senderName, onC
         <div className="gc-page gc-page-left">
           <div className="gc-page-content">
             <h2 className="gc-greeting-salutation">
-              Dearest {recipientName || 'Friend'},
+              Dear {recipientName || 'Friend'},
             </h2>
             <p className="gc-greeting-message">
               {displayMessage}

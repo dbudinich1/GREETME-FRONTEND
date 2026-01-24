@@ -18,10 +18,10 @@ export default function FinaleSpread({ greeting }) {
         <div className="gc-page gc-page-left">
           <div className="gc-page-content">
             <p className="gc-closing-message">
-              I hope you loved this special greeting — these are precious moments worth cherishing, and I wanted you to have them always.
+              I hope this greeting brought a smile to your face and warmth to your heart. These moments we share are what life is all about — the connections, the memories, the love that binds us together.
             </p>
             <p className="gc-closing-note">
-              Don't forget to check the gift... I picked it just for you!
+              May you carry this feeling with you always, and know that you are treasured beyond words.
             </p>
           </div>
         </div>
@@ -29,7 +29,7 @@ export default function FinaleSpread({ greeting }) {
         {/* Right Page */}
         <div className="gc-page gc-page-right">
           <div className="gc-page-content gc-gift-content">
-            <h3 className="gc-gift-title">Scan and redeem</h3>
+            <h3 className="gc-gift-title">A little something extra</h3>
 
             <div className="gc-qr-frame">
               <div className="gc-qr-code">
@@ -48,13 +48,13 @@ export default function FinaleSpread({ greeting }) {
             </div>
 
             <p className="gc-gift-instruction">
-              Treat yourself to something<br/>
-              that makes you smile
+              Scan to redeem<br/>
+              Treat yourself to something that makes you smile
             </p>
 
             <div className="gc-branding">
-              <span className="gc-brand-logo">G</span>
-              <span className="gc-brand-name">Greet-Me</span>
+              <span className="gc-brand-logo">g</span>
+              <span className="gc-brand-name">reet-Me</span>
             </div>
           </div>
         </div>

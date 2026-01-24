@@ -38,7 +38,6 @@ export default function PhotoAlbum({ photos }) {
   if (!hasPhotos) {
     return (
       <div className="gc-photo-album">
-        <h3 className="gc-album-title">Cherished Moments</h3>
         <div className="gc-album-frame gc-album-placeholder">
           <div className="gc-album-placeholder-icon">
             <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
@@ -53,8 +52,6 @@ export default function PhotoAlbum({ photos }) {
 
   return (
     <div className="gc-photo-album">
-      <h3 className="gc-album-title">Cherished Moments</h3>
-      
       <div className="gc-album-frame">
         <img
           src={validPhotos[currentIndex]}
