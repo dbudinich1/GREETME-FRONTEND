@@ -29,10 +29,14 @@
   --gc-font-body: 'Cormorant Garamond', serif;
   --gc-font-brand: 'Playfair Display', serif;
 
-  /* Global Scale - Master Frame */
-  --gc-master-frame: 1400px;
+  /* ===== MASTER FRAME (CANONICAL) ===== */
+  /* Single source of truth for all landscape screens */
+  --gc-master-frame: min(95vw, 1400px);
+  --gc-landscape-ar: 952 / 666;  /* ~1.43 - unified for envelope + spreads */
   --gc-spread-max-width: var(--gc-master-frame);
-  --gc-card-size: 440px;
+
+  /* Internal card sizing (video + album) */
+  --gc-card-size: clamp(280px, 28vw, 440px);
   --gc-video-size: var(--gc-card-size);
   --gc-album-size: var(--gc-card-size);
 
@@ -72,7 +76,7 @@
 
 .gc-envelope {
   width: calc(var(--gc-master-frame) * 0.68);
-  height: calc(var(--gc-master-frame) * 0.68 * 0.7);
+  aspect-ratio: var(--gc-landscape-ar);
   max-width: 90vw;
   max-height: 65vh;
   position: relative;
@@ -225,10 +229,10 @@
 
 .gc-spread {
   display: flex;
-  width: 95vw;
+  width: var(--gc-master-frame);
   max-width: var(--gc-spread-max-width);
   height: auto;
-  aspect-ratio: 891 / 586;
+  aspect-ratio: var(--gc-landscape-ar);
   background-size: 100% 100%;
   background-repeat: no-repeat;
   background-position: 0 0;
@@ -646,19 +650,13 @@
 }
 
 /* ===== RESPONSIVE ===== */
+/* Note: --gc-card-size uses clamp() for automatic responsive sizing */
+
 @media (max-width: 900px) {
-  .gc-spread {
-    flex-direction: column;
-    width: 100%;
-    max-width: 450px;
-    height: auto;
-    min-height: 600px;
-  }
-  
   .gc-page {
     padding: 30px;
   }
-  
+
   .gc-page-left,
   .gc-page-right {
     padding: 30px;
@@ -666,10 +664,6 @@
 }
 
 @media (max-width: 640px) {
-  :root {
-    --gc-card-size: 280px;
-  }
-
   .gc-container {
     padding: 20px 10px;
   }

@@ -55,9 +55,6 @@ export default function GreetingCard({ greeting }) {
     );
   }
 
-  console.log('Greeting object:', greeting);
-  console.log('Photos field:', greeting.photos);
-
   return (
     <div className="gc-container">
       {currentScreen === SCREENS.ENVELOPE && (
