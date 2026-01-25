@@ -275,7 +275,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           recipientName: greetingRecipient.trim(),
           recipientEmail: greetingEmail.trim(),
           message: greetingMessage.trim() || 'Thinking of you',
-          occasion: 'greeting',
+          occasionKey: 'just_because',
         });
       } catch (err) {
         console.warn('Greeting send failed, continuing anyway:', err);
