@@ -535,6 +535,28 @@
   font-size: 14px;
 }
 
+.gc-album-placeholder-title {
+  margin: 12px 0 4px;
+  font-family: var(--gc-font-handwritten);
+  font-size: 20px;
+  color: var(--gc-gold-frame);
+}
+
+.gc-album-placeholder-sub {
+  margin: 0;
+  font-family: var(--gc-font-body);
+  font-size: 13px;
+  color: #7a7067;
+  font-style: italic;
+}
+
+.gc-album-placeholder-cta {
+  margin: 10px 0 0;
+  font-family: var(--gc-font-body);
+  font-size: 11px;
+  color: #9a8a7a;
+}
+
 .gc-album-nav {
   position: absolute;
   top: 50%;

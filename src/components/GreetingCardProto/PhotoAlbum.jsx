@@ -34,27 +34,29 @@ export default function PhotoAlbum({ photos }) {
     setCurrentIndex((prev) => (prev - 1 + validPhotos.length) % validPhotos.length);
   };
 
+  // Prevent clicks from bubbling up to advance page (used in both states)
+  const handleAlbumClick = (e) => {
+    e.stopPropagation();
+  };
+
   if (!hasPhotos) {
     return (
-      <div className="gc-photo-album">
+      <div className="gc-photo-album" onClick={handleAlbumClick}>
         <div className="gc-album-stack">
           <div className="gc-album-frame gc-album-stack-1 gc-album-placeholder">
             <div className="gc-album-placeholder-icon">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="36" height="36">
                 <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
               </svg>
             </div>
-            <p className="gc-album-placeholder-text">Photo Album</p>
+            <p className="gc-album-placeholder-title">Cherished Moments</p>
+            <p className="gc-album-placeholder-sub">No memories added yet.</p>
+            <p className="gc-album-placeholder-cta">Add photos in Contacts → Memories</p>
           </div>
         </div>
       </div>
     );
   }
-
-  // Prevent clicks from bubbling up to advance page
-  const handleAlbumClick = (e) => {
-    e.stopPropagation();
-  };
 
   return (
     <div className="gc-photo-album" onClick={handleAlbumClick}>
