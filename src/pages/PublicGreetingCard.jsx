@@ -105,6 +105,41 @@ export default function PublicGreetingCard() {
     );
   }
 
+  // Failed state - show error instead of spinning forever
+  if (greeting.status === 'failed') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f5f3f0',
+        padding: '2rem',
+      }}>
+        <div style={{
+          maxWidth: '400px',
+          textAlign: 'center',
+        }}>
+          <p style={{
+            fontSize: '1.125rem',
+            color: '#374151',
+            marginBottom: '1rem',
+            fontFamily: 'Georgia, serif',
+          }}>
+            This greeting couldn't be created
+          </p>
+          <p style={{
+            fontSize: '0.875rem',
+            color: '#6b7280',
+            fontFamily: 'Georgia, serif',
+          }}>
+            Please contact the sender to request a new one.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Still processing state
   if (greeting.status !== 'done') {
     return (
