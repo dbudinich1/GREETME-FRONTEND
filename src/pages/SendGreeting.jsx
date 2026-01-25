@@ -226,7 +226,7 @@ export default function SendGreeting() {
       relationshipKey: selectedContact.relationship || 'friend',
       relationshipNote: '',
       personalSentiment: formData.customMessage || '',
-      photos: (selectedContact.memoryPhotos || []).map(p => p?.url).filter(Boolean),
+      photos: (selectedContact.memoryPhotos || []).map(p => typeof p === 'string' ? p : p?.url).filter(Boolean),
 };
       const response = await api.sendGreeting(greetingData);
       setJobId(response.jobId);
