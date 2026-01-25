@@ -257,6 +257,7 @@ export const convertDraftToSendFormat = (draft, contact, userProfile) => {
       relationshipKey: contact.relationship || 'friend',
       relationshipNote: contact.relationshipContext || '',
       personalSentiment: draft.personalSentiment || draft.customMessage || '',
+      photos: (contact.memoryPhotos || []).map(p => p?.url).filter(Boolean),
 
       // New fields for multi-page support
       cardStyle: draft.cardStyle,
@@ -288,7 +289,8 @@ export const convertDraftToSendFormat = (draft, contact, userProfile) => {
 
     // Custom content
     customMessage: draft.customMessage,
-    personalSentiment: draft.personalSentiment
+    personalSentiment: draft.personalSentiment,
+    photos: (contact.memoryPhotos || []).map(p => p?.url).filter(Boolean)
   };
 };
 
