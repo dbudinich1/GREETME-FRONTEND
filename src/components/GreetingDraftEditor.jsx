@@ -13,6 +13,7 @@ import {
 } from '../models/greetingDraft';
 import draftService from '../services/draftService';
 import Alert from './Alert';
+import { normalizeOccasionKey } from '../utils/normalizeOccasionKey';
 
 export default function GreetingDraftEditor({
   contactId,
@@ -112,15 +113,17 @@ export default function GreetingDraftEditor({
   // Generate seed script for D-ID animation when user leaves scriptText empty
   const generateSeedScript = (occasionKey, recipientName, sentiment) => {
     const name = recipientName?.trim() || 'Friend';
-    const occ = (occasionKey || '').toLowerCase().trim();
+    const occ = normalizeOccasionKey(occasionKey) || String(occasionKey || '').toLowerCase().trim();
 
-    // Base line by occasion
+    // Base line by occasion (using normalized key)
     let base;
-    if (occ.includes('birthday')) {
+    if (occ === 'birthday') {
       base = `Hi ${name}. Happy Birthday. I'm thinking of you and sending love.`;
-    } else if (occ.includes('anniversary')) {
+    } else if (occ === 'anniversary') {
       base = `Hi ${name}. Happy Anniversary. I'm thinking of you and sending love.`;
-    } else if (occ.includes('thank')) {
+    } else if (occ === 'congrats' || occ === 'graduation' || occ === 'wedding') {
+      base = `Hi ${name}. Congratulations. I'm so proud of you and happy for you.`;
+    } else if (occ === 'thankyou') {
       base = `Hi ${name}. Thank you so much. I really appreciate you.`;
     } else if (occ.includes('just') || occ.includes('because')) {
       base = `Hi ${name}. Just because—thinking of you today.`;
