@@ -22,7 +22,7 @@ Through all of life's seasons, know that you are treasured beyond measure. Here'
 
 export default function InteriorSpread({ recipientName, message, senderName, onClick }) {
   // GS-03: Never render empty - always use placeholder if missing
-  const displayMessage = message?.trim() || DEFAULT_MESSAGE;
+  const displayMessage = message?.trim() || '';
   // Signature: name only, no "With love" or similar
   const displaySender = senderName?.trim() || 'Dan';
   
