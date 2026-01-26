@@ -5,6 +5,7 @@
 
 import React from 'react';
 import cardCoverImg from '../../assets/card/card-cover.jpeg';
+import { normalizeOccasionKey } from '../../utils/normalizeOccasionKey';
 
 const OCCASION_TITLES = {
   birthday: { title: 'Happy Birthday', subtitle: 'On This Very Special Day' },
@@ -21,11 +22,13 @@ const OCCASION_TITLES = {
   baby: { title: 'Welcome Baby', subtitle: 'A Bundle Of Joy' },
   getwell: { title: 'Get Well Soon', subtitle: 'Thinking Of You' },
   thankyou: { title: 'Thank You', subtitle: 'From The Heart' },
+  congrats: { title: 'Congratulations', subtitle: 'Well Done' },
   default: { title: 'Thinking Of You', subtitle: 'A Special Message' }
 };
 
 export default function Cover({ occasionKey, onClick }) {
-  const occasion = OCCASION_TITLES[occasionKey?.toLowerCase()] || OCCASION_TITLES.default;
+  const normKey = normalizeOccasionKey(occasionKey) || occasionKey?.toLowerCase?.()?.trim?.();
+  const occasion = OCCASION_TITLES[normKey] || OCCASION_TITLES.default;
 
   return (
     <div 
