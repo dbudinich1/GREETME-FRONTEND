@@ -76,6 +76,8 @@ export default function GreetingCard({ greeting }) {
           recipientName={greeting.recipientName}
           message={greeting.greetingText}
           senderName={greeting.senderName}
+          occasionKey={greeting.occasionKey}
+          relationshipKey={greeting.relationshipKey}
           onClick={advanceScreen}
         />
       )}

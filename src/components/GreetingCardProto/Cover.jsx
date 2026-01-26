@@ -25,7 +25,7 @@ const OCCASION_TITLES = {
 };
 
 export default function Cover({ occasionKey, onClick }) {
-  const occasion = OCCASION_TITLES[occasionKey] || OCCASION_TITLES.default;
+  const occasion = OCCASION_TITLES[occasionKey?.toLowerCase()] || OCCASION_TITLES.default;
 
   return (
     <div 

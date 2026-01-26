@@ -20,9 +20,31 @@ On this special day, I hope you feel as loved and cherished as you make everyone
 
 Through all of life's seasons, know that you are treasured beyond measure. Here's to celebrating you today and always — for the remarkable person you are and the light you bring to this world.`;
 
-export default function InteriorSpread({ recipientName, message, senderName, onClick }) {
+export default function InteriorSpread({ recipientName, message, senderName, occasionKey, relationshipKey, onClick }) {
+  const name = (recipientName || "Friend").trim() || "Friend";
+  const rel = (relationshipKey || "").trim();
+  const occ = (occasionKey || "").toLowerCase().trim();
+
+  const autoIntro = () => {
+    const relLine = rel ? `I'm so grateful to have you as my ${rel.replaceAll("_", " ")}.` : `I'm so grateful to have you in my life.`;
+
+    if (occ.includes("birthday")) {
+      return `Dear ${name},\n\nHappy Birthday.\n\n${relLine}\n\nWith love and appreciation,\n\n— Sent via Greet-Me`;
+    }
+    if (occ.includes("anniversary")) {
+      return `Dear ${name},\n\nHappy Anniversary.\n\n${relLine}\n\nWith love and appreciation,\n\n— Sent via Greet-Me`;
+    }
+    if (occ.includes("thank")) {
+      return `Dear ${name},\n\nThank you.\n\n${relLine}\n\nWith love and appreciation,\n\n— Sent via Greet-Me`;
+    }
+    if (occ.includes("just") || occ.includes("because")) {
+      return `Dear ${name},\n\nJust because.\n\n${relLine}\n\nWith love and appreciation,\n\n— Sent via Greet-Me`;
+    }
+    return `Dear ${name},\n\nA special note for you.\n\n${relLine}\n\nWith love and appreciation,\n\n— Sent via Greet-Me`;
+  };
+
   // GS-03: Never render empty - always use placeholder if missing
-  const displayMessage = message?.trim() || '';
+  const displayMessage = message?.trim() || autoIntro();
   // Signature: name only, no "With love" or similar
   const displaySender = senderName?.trim() || 'Dan';
   
