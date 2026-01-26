@@ -109,8 +109,59 @@ export default function GreetingDraftEditor({
     setSelectedPageIndex(toIndex);
   };
 
+  // Generate seed script for D-ID animation when user leaves scriptText empty
+  const generateSeedScript = (occasionKey, recipientName, sentiment) => {
+    const name = recipientName?.trim() || 'Friend';
+    const occ = (occasionKey || '').toLowerCase().trim();
+
+    // Base line by occasion
+    let base;
+    if (occ.includes('birthday')) {
+      base = `Hi ${name}. Happy Birthday. I'm thinking of you and sending love.`;
+    } else if (occ.includes('anniversary')) {
+      base = `Hi ${name}. Happy Anniversary. I'm thinking of you and sending love.`;
+    } else if (occ.includes('thank')) {
+      base = `Hi ${name}. Thank you so much. I really appreciate you.`;
+    } else if (occ.includes('just') || occ.includes('because')) {
+      base = `Hi ${name}. Just because—thinking of you today.`;
+    } else {
+      base = `Hi ${name}. Thinking of you and sending warm wishes.`;
+    }
+
+    // Append personal sentiment if provided
+    const trimmedSentiment = sentiment?.trim();
+    if (trimmedSentiment) {
+      return `${base} ${trimmedSentiment}`;
+    }
+    return base;
+  };
+
+  // Ensure all animated pages have scriptText before validation
+  const ensureAnimatedScripts = () => {
+    const sentiment = draft.personalSentiment || draft.customMessage || '';
+    let updated = false;
+
+    const updatedPages = draft.pages.map(page => {
+      if (page.type === PageType.ANIMATED && !page.scriptText?.trim()) {
+        updated = true;
+        return {
+          ...page,
+          scriptText: generateSeedScript(draft.occasionType, contact?.name, sentiment)
+        };
+      }
+      return page;
+    });
+
+    if (updated) {
+      setDraft(prev => ({ ...prev, pages: updatedPages }));
+      return { ...draft, pages: updatedPages };
+    }
+    return draft;
+  };
+
   const handleSave = async () => {
-    const validation = validateDraft(draft);
+    const preparedDraft = ensureAnimatedScripts();
+    const validation = validateDraft(preparedDraft);
     if (!validation.valid) {
       setErrors({ validation: validation.errors.join(', ') });
       showAlert('error', 'Please fix validation errors before saving');
@@ -119,7 +170,7 @@ export default function GreetingDraftEditor({
 
     try {
       setSaving(true);
-      const savedDraft = draftService.saveDraft(draft);
+      const savedDraft = draftService.saveDraft(preparedDraft);
       showAlert('success', 'Draft saved successfully');
       if (onSave) onSave(savedDraft);
     } catch (error) {
@@ -130,7 +181,8 @@ export default function GreetingDraftEditor({
   };
 
   const handleSend = async () => {
-    const validation = validateDraft(draft);
+    const preparedDraft = ensureAnimatedScripts();
+    const validation = validateDraft(preparedDraft);
     if (!validation.valid) {
       setErrors({ validation: validation.errors.join(', ') });
       showAlert('error', 'Please fix validation errors before sending');
@@ -138,9 +190,9 @@ export default function GreetingDraftEditor({
     }
 
     // Save draft before sending
-    draftService.saveDraft(draft);
+    draftService.saveDraft(preparedDraft);
 
-    if (onSend) onSend(draft);
+    if (onSend) onSend(preparedDraft);
   };
 
   const addPhotoToSlideshowPage = (pageIndex, photoUrl, photoSource) => {
