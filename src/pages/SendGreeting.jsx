@@ -14,6 +14,7 @@ import GreetingDraftEditor from '../components/GreetingDraftEditor';
 import { pushInApp } from '../utils/notify';
 import { COMMS_EVENTS } from '../utils/commsCatalog';
 import { awardGreetingHearts } from '../utils/rewards';
+import { normalizeOccasionKey } from '../utils/normalizeOccasionKey';
 
 // TEMP STUB — models layer intentionally disabled for V1 build safety
 const greetingDraftModel = {
@@ -36,7 +37,7 @@ export default function SendGreeting() {
   const [sending, setSending] = useState(false);
   const [jobId, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
-  const [editorMode, setEditorMode] = useState(false); // Simple form vs advanced editor
+  const [showMoreOptions, setShowMoreOptions] = useState(false); // Inline expand/collapse
   const [formData, setFormData] = useState({
     contactId: '',
     occasionType: '',
@@ -45,6 +46,7 @@ export default function SendGreeting() {
     isRecurring: false,
     aiContext: '',
     giftAmount: '',
+    tone: 'warm',
   });
   const [errors, setErrors] = useState({});
 
@@ -222,12 +224,14 @@ export default function SendGreeting() {
       greetingText: formData.customMessage || '',
       voiceId: user?.voiceId || '',
       photoUrl: effectivePhotoUrl,
-      occasionKey: formData.occasionType,
+      occasionKey: normalizeOccasionKey(formData.occasionType) || formData.occasionType,
+      occasionType: formData.occasionType,
       relationshipKey: selectedContact.relationship || 'friend',
       relationshipNote: '',
       personalSentiment: formData.customMessage || '',
+      tone: formData.tone || 'warm',
       photos: (selectedContact.memoryPhotos || []).map(p => typeof p === 'string' ? p : p?.url).filter(Boolean),
-};
+    };
       const response = await api.sendGreeting(greetingData);
       setJobId(response.jobId);
       setJobStatus('queued');
@@ -243,7 +247,6 @@ export default function SendGreeting() {
 
     setSending(true);
     setJobStatus(null);
-    setEditorMode(false);
 
     try {
       const greetingData = convertDraftToSendFormat(draft, selectedContact, user);
@@ -271,12 +274,13 @@ if (typeof window !== "undefined") {
       isRecurring: false,
       aiContext: '',
       giftAmount: '',
+      tone: 'warm',
     });
     setJobId(null);
     setJobStatus(null);
     setSending(false);
     setErrors({});
-    setEditorMode(false);
+    setShowMoreOptions(false);
   };
 
   if (loading) {
@@ -384,30 +388,6 @@ if (typeof window !== "undefined") {
     );
   }
 
-  // Editor Mode - Multi-page greeting editor
-  if (editorMode && formData.contactId && formData.occasionType) {
-    const selectedContact = contacts.find(c => c.id === formData.contactId);
-
-    return (
-      <div className="max-w-6xl mx-auto">
-        <GreetingDraftEditor
-          contactId={formData.contactId}
-          occasionType={formData.occasionType}
-          contact={selectedContact}
-          userProfile={user}
-          onSave={(draft) => {
-            // Draft saved, show success message
-            alert('Draft saved! You can continue editing or send it.');
-          }}
-          onCancel={() => {
-            setEditorMode(false);
-          }}
-          onSend={handleSendFromEditor}
-        />
-      </div>
-    );
-  }
-
   // Form State
   return (
     <div className="max-w-2xl mx-auto">
@@ -508,6 +488,59 @@ if (typeof window !== "undefined") {
           <p className="mt-2 text-xs text-gray-500">
             Enter any occasion or reason for sending this greeting
           </p>
+        </div>
+
+        {/* More Options - Inline Accordion */}
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={() => setShowMoreOptions(!showMoreOptions)}
+            className="flex items-center gap-2 text-sm font-medium text-purple-700 hover:text-purple-800"
+          >
+            <span>{showMoreOptions ? '▼' : '▶'}</span>
+            <span>More Options</span>
+          </button>
+
+          {showMoreOptions && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+              {/* Tone Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tone
+                </label>
+                <select
+                  name="tone"
+                  value={formData.tone}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="warm">Warm</option>
+                  <option value="funny">Funny</option>
+                  <option value="heartfelt">Heartfelt</option>
+                  <option value="professional">Professional</option>
+                  <option value="casual">Casual</option>
+                </select>
+              </div>
+
+              {/* Personal Sentiment Textarea */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Personal Sentiment (Optional)
+                </label>
+                <textarea
+                  name="customMessage"
+                  value={formData.customMessage}
+                  onChange={handleChange}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Add a personal touch or give Greet-Me a hint about what to say..."
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  This will be included in your greeting message
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Add a Gift - Modal Button */}
@@ -998,20 +1031,8 @@ if (typeof window !== "undefined") {
         </div>
 
         {/* Submit */}
-        <div className="flex justify-between items-center pt-10">
-          {/* Advanced Editor Toggle */}
-          {formData.contactId && formData.occasionType && (
-            <button
-              type="button"
-              onClick={() => setEditorMode(true)}
-              className="px-4 py-2 text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 font-medium flex items-center space-x-2 border-2 border-purple-200"
-            >
-              <Edit3 size={18} />
-              <span>Advanced Editor</span>
-            </button>
-          )}
-
-          <div className="flex space-x-3 ml-auto">
+        <div className="flex justify-end items-center pt-10">
+          <div className="flex space-x-3">
             <button
               type="button"
               onClick={() => alert('Draft saved!')}
