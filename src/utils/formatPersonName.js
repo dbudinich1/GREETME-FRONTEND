@@ -17,7 +17,8 @@
 export function formatPersonName(name) {
   if (!name) return '';
 
-  const trimmed = String(name).trim();
+  // Strip leading dashes, underscores, and whitespace
+  const trimmed = String(name).trim().replace(/^[-_\s]+/, '');
   if (!trimmed) return '';
 
   // Title Case: capitalize first letter of each word

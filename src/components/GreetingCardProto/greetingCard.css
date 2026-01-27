@@ -25,11 +25,11 @@
 
   /* ===== LETTER BLOCK SYSTEM (CANONICAL LOCKS) ===== */
   /* Shared positioning/typography for Intro + Finale spreads */
-  /* FRAME CLAMP: Safe padding to keep text inside paper + away from crease */
-  --gc-letter-frame-top: 40px;
-  --gc-letter-frame-left: 64px;
-  --gc-letter-frame-right: 288px;  /* 3 inches from crease (96dpi) */
-  --gc-letter-frame-bottom: 40px;
+  /* FRAME: 1 inch margin all around (96px at 96dpi) */
+  --gc-letter-frame-top: 96px;
+  --gc-letter-frame-left: 96px;
+  --gc-letter-frame-right: 96px;
+  --gc-letter-frame-bottom: 96px;
   --gc-letter-line-gap: 1.45;           /* Uniform line height (no first-line drift) */
   --gc-letter-ink-color: var(--gc-signature-blue);
   --gc-letter-name-size: 58px;
@@ -319,7 +319,6 @@
   color: var(--gc-letter-ink-color);
   line-height: var(--gc-letter-line-gap);
   margin: 0;
-  flex-grow: 1;
   white-space: pre-line;
   text-indent: 2em;
   overflow: hidden;
@@ -417,19 +416,20 @@
   letter-spacing: 2px;
 }
 
-/* Signature - CANONICAL: Same ink style as message, one line below, inside frame */
+/* Signature - CANONICAL: Same ink style as message, bottom-right of frame */
 .gc-signature {
   font-family: var(--gc-font-handwritten);
   font-size: var(--gc-letter-signature-size);
   font-weight: 700;
   color: var(--gc-letter-ink-color);
   line-height: var(--gc-letter-line-gap);
-  /* Position: one line gap below message, left-aligned (not floating to bottom) */
-  margin-top: calc(var(--gc-letter-body-size) * 0.3);
-  align-self: flex-start;
+  /* Position: absolute bottom-right of page */
+  position: absolute;
+  bottom: var(--gc-letter-frame-bottom);
+  right: var(--gc-letter-frame-right);
+  text-align: right;
   /* CANONICAL: Same ink style as message - no glow, no blur, no rotation */
   text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
-  flex-shrink: 0;
 }
 
 
