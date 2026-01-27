@@ -2,12 +2,29 @@
  * FinaleSpread.jsx
  * Screen 5: Closing + Gift
  * GS-06: Updated CTA text, removed "All my love", logo matches stamp brown
+ *
+ * TODO: G Logo Asset Pending
+ * - When final logo asset is provided, replace LogoPlaceholder component
+ * - Do not recreate, approximate, or substitute the logo
+ * - Current placeholder: Great Vibes "G" in circular brown seal (per reference HTML)
  */
 
-import React from 'react';
 import cardInteriorImg from '../../assets/card/card-interior.png';
 
-export default function FinaleSpread({ greeting }) {
+// Placeholder G logo component - awaiting final asset
+// Style based on reference HTML: circular brown seal with "G"
+const LogoPlaceholder = () => (
+  <div
+    className="gc-logo-seal"
+    aria-label="Greet-Me logo placeholder"
+  >
+    <span>G</span>
+  </div>
+);
+
+export default function FinaleSpread({ greeting, navigation }) {
+  // Navigation available after first pass (for future back/forward UI)
+  const canNavigate = navigation && !navigation.isFirstPass;
   return (
     <div className="gc-spread-wrapper">
       <div
@@ -53,8 +70,9 @@ export default function FinaleSpread({ greeting }) {
             </p>
 
             <div className="gc-branding">
-              <span className="gc-brand-logo">g</span>
-              <span className="gc-brand-name">reet-Me</span>
+              {/* TODO: Replace with final G logo asset when provided */}
+              <LogoPlaceholder />
+              <span className="gc-brand-name">Greet-Me</span>
             </div>
           </div>
         </div>

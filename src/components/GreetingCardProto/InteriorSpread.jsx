@@ -20,33 +20,20 @@ On this special day, I hope you feel as loved and cherished as you make everyone
 
 Through all of life's seasons, know that you are treasured beyond measure. Here's to celebrating you today and always — for the remarkable person you are and the light you bring to this world.`;
 
-export default function InteriorSpread({ recipientName, message, senderName, occasionKey, relationshipKey, onClick }) {
-  const name = (recipientName || "Friend").trim() || "Friend";
-  const rel = (relationshipKey || "").trim();
-  const occ = (occasionKey || "").toLowerCase().trim();
-
-  const autoIntro = () => {
-    const relLine = rel ? `I'm so grateful to have you as my ${rel.replaceAll("_", " ")}.` : `I'm so grateful to have you in my life.`;
-
-    if (occ.includes("birthday")) {
-      return `Dear ${name},\n\nHappy Birthday.\n\n${relLine}\n\nWith love and appreciation,\n\n— Sent via Greet-Me`;
-    }
-    if (occ.includes("anniversary")) {
-      return `Dear ${name},\n\nHappy Anniversary.\n\n${relLine}\n\nWith love and appreciation,\n\n— Sent via Greet-Me`;
-    }
-    if (occ.includes("thank")) {
-      return `Dear ${name},\n\nThank you.\n\n${relLine}\n\nWith love and appreciation,\n\n— Sent via Greet-Me`;
-    }
-    if (occ.includes("just") || occ.includes("because")) {
-      return `Dear ${name},\n\nJust because.\n\n${relLine}\n\nWith love and appreciation,\n\n— Sent via Greet-Me`;
-    }
-    return `Dear ${name},\n\nA special note for you.\n\n${relLine}\n\nWith love and appreciation,\n\n— Sent via Greet-Me`;
-  };
+export default function InteriorSpread({ recipientName, message, senderName, onClick, navigation }) {
+  // Capitalize first name per canonical rule
+  const rawName = (recipientName || "Friend").trim() || "Friend";
+  const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
 
   // GS-03: Never render empty - always use placeholder if missing
-  const displayMessage = message?.trim() || autoIntro();
+  // Note: message comes from writtenIntroText (backend), no personalSentiment
+  const displayMessage = message?.trim() || `I've been thinking about you lately and wanted to reach out.\n\nYou matter to me more than you know.\n\nI hope this message finds you well.\n\nSending you all my best.`;
+
   // Signature: name only, no "With love" or similar
-  const displaySender = senderName?.trim() || 'Dan';
+  const displaySender = senderName?.trim() || '';
+
+  // Navigation available after first pass (for future back/forward UI)
+  const canNavigate = navigation && !navigation.isFirstPass;
   
   return (
     <div 
@@ -65,7 +52,7 @@ export default function InteriorSpread({ recipientName, message, senderName, occ
         <div className="gc-page gc-page-left">
           <div className="gc-page-content">
             <h2 className="gc-greeting-salutation">
-              Dear {recipientName || 'Friend'},
+              Dear {displayName},
             </h2>
             <p className="gc-greeting-message">
               {displayMessage}

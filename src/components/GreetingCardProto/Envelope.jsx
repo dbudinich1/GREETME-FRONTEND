@@ -4,14 +4,31 @@
  * Click wax seal to open
  */
 
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import envelopeFrontImg from '../../assets/card/envelope-front.jpeg';
 import envelopeBackImg from '../../assets/card/envelope-back.jpeg';
+
+// Audio: Wax seal crack sound
+// TODO: Final audio asset pending - currently using placeholder
+const WAX_CRACKLE_SRC = '/assets/sounds/wax-crackle.mp3';
 
 // Capitalize first letter of name
 const capitalize = (str) => {
   if (!str) return '';
   return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
+// Play audio with error handling (fail-silent)
+const playSound = (src, volume = 0.6) => {
+  try {
+    const audio = new Audio(src);
+    audio.volume = volume;
+    audio.play().catch(() => {
+      // Fail silently - audio may be blocked by browser
+    });
+  } catch {
+    // Fail silently
+  }
 };
 
 export default function Envelope({ recipientName, onSealClick }) {
@@ -49,6 +66,8 @@ export default function Envelope({ recipientName, onSealClick }) {
 
   const handleSealClick = (e) => {
     e.stopPropagation();
+    // Play wax seal crack sound
+    playSound(WAX_CRACKLE_SRC, 0.6);
     onSealClick();
   };
 
