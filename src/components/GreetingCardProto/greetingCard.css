@@ -327,6 +327,12 @@
   text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
 }
 
+/* Canon: First line is +2 sizes, but line spacing stays UNIFORM */
+.gc-greeting-message::first-line {
+  font-size: calc(var(--gc-letter-body-size) + 8px);
+  font-weight: 700;
+}
+
 .gc-poem-content {
   justify-content: center;
   align-items: center;
