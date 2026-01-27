@@ -1,10 +1,15 @@
 /**
  * InteriorSpread.jsx
  * Screen 3: Interior Message Spread
+ *
+ * CANONICAL LAYOUT LOCKS:
+ * - Recipient name: top-left, 1.5in from top (via CSS --gc-letter-top-offset)
+ * - Signature: bottom-right, 2.5in from crease (via CSS --gc-letter-crease-offset)
+ * - Name capitalization: Title Case (via formatPersonName helper)
  */
 
-import React from 'react';
 import cardInteriorImg from '../../assets/card/card-interior.png';
+import { formatPersonName } from '../../utils/formatPersonName';
 
 const DEFAULT_POEM = `On your special day, may you be
 surrounded by those who love you most...
@@ -20,20 +25,15 @@ On this special day, I hope you feel as loved and cherished as you make everyone
 
 Through all of life's seasons, know that you are treasured beyond measure. Here's to celebrating you today and always — for the remarkable person you are and the light you bring to this world.`;
 
-export default function InteriorSpread({ recipientName, message, senderName, onClick, navigation }) {
-  // Capitalize first name per canonical rule
-  const rawName = (recipientName || "Friend").trim() || "Friend";
-  const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+export default function InteriorSpread({ recipientName, message, senderName, onClick }) {
+  // CANONICAL: Title Case name via formatPersonName helper
+  const displayName = formatPersonName(recipientName) || 'Friend';
 
   // GS-03: Never render empty - always use placeholder if missing
-  // Note: message comes from writtenIntroText (backend), no personalSentiment
   const displayMessage = message?.trim() || `I've been thinking about you lately and wanted to reach out.\n\nYou matter to me more than you know.\n\nI hope this message finds you well.\n\nSending you all my best.`;
 
-  // Signature: name only, no "With love" or similar
-  const displaySender = senderName?.trim() || '';
-
-  // Navigation available after first pass (for future back/forward UI)
-  const canNavigate = navigation && !navigation.isFirstPass;
+  // CANONICAL: Signature in Title Case (person's name)
+  const displaySender = formatPersonName(senderName);
   
   return (
     <div 

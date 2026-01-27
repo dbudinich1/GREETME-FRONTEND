@@ -23,6 +23,17 @@
   --gc-gold-frame: #d4af37;
   --gc-signature-blue: #1a3a6b;
 
+  /* ===== LETTER BLOCK SYSTEM (CANONICAL LOCKS) ===== */
+  /* Shared positioning/typography for Intro + Finale spreads */
+  --gc-letter-top-offset: 1.5in;        /* Name position from top */
+  --gc-letter-crease-offset: 2.5in;     /* Signature offset from center crease */
+  --gc-letter-line-gap: 1.85;           /* Line height for body text */
+  --gc-letter-ink-color: var(--gc-signature-blue);
+  --gc-letter-name-size: 58px;
+  --gc-letter-body-size: 48px;
+  --gc-letter-signature-size: 64px;
+  --gc-letter-bottom-padding: 40px;
+
   /* Fonts */
   --gc-font-title: 'Great Vibes', cursive;
   --gc-font-handwritten: 'Tangerine', cursive;
@@ -267,32 +278,32 @@
 
 /* ===== INTERIOR SPREAD ===== */
 /* Typography: Blue ink, handwritten aesthetic, generous spacing */
+/* Uses shared letter block CSS variables for consistency */
 .gc-greeting-salutation {
   font-family: var(--gc-font-title);
-  font-size: 58px; /* +6px from 52px */
+  font-size: var(--gc-letter-name-size);
   font-weight: 400;
-  color: var(--gc-signature-blue); /* Blue ink */
-  margin: 0 0 40px 0; /* Double line break after name */
+  color: var(--gc-letter-ink-color);
+  margin: 0 0 40px 0;
   line-height: 1.3;
   letter-spacing: 1px;
 }
 
 .gc-greeting-message {
   font-family: var(--gc-font-handwritten);
-  font-size: 48px; /* +4px from 44px - larger for fullness */
-  color: var(--gc-signature-blue); /* Blue ink aesthetic */
-  line-height: 1.85; /* Increased line spacing */
+  font-size: var(--gc-letter-body-size);
+  color: var(--gc-letter-ink-color);
+  line-height: var(--gc-letter-line-gap);
   margin: 0;
   flex-grow: 1;
-  white-space: pre-line; /* Preserve paragraph breaks */
-  text-indent: 2em; /* Exaggerated first line indentation */
+  white-space: pre-line;
+  text-indent: 2em;
 }
 
-/* Interior spread vertical centering */
+/* Interior spread - letter block positioning */
 .gc-interior-spread .gc-page-left .gc-page-content {
-  justify-content: center;
-  padding-top: 30px;
-  padding-bottom: 30px;
+  padding-top: var(--gc-letter-top-offset);
+  padding-bottom: var(--gc-letter-bottom-padding);
 }
 
 .gc-poem-content {
@@ -319,16 +330,77 @@
   margin: 0;
 }
 
+/* ===== SHARED LETTER BLOCK SYSTEM ===== */
+/* CANONICAL: Used by both InteriorSpread and FinaleSpread */
+/* DO NOT MODIFY without updating both components */
+
+/* Letter block container - positions content relative to page */
+.gc-letter-block {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-top: var(--gc-letter-top-offset);
+  padding-bottom: var(--gc-letter-bottom-padding);
+}
+
+/* Recipient name - top position locked at 1.5in from top */
+.gc-letter-name {
+  font-family: var(--gc-font-title);
+  font-size: var(--gc-letter-name-size);
+  font-weight: 400;
+  color: var(--gc-letter-ink-color);
+  margin: 0 0 40px 0;
+  line-height: 1.3;
+  letter-spacing: 1px;
+}
+
+/* Letter body - consistent line spacing */
+.gc-letter-body {
+  font-family: var(--gc-font-handwritten);
+  font-size: var(--gc-letter-body-size);
+  color: var(--gc-letter-ink-color);
+  line-height: var(--gc-letter-line-gap);
+  margin: 0;
+  flex-grow: 1;
+  white-space: pre-line;
+  text-indent: 2em;
+}
+
+/* Signature - bottom-right, 2.5in from center crease */
+.gc-letter-signature {
+  font-family: var(--gc-font-handwritten);
+  font-size: var(--gc-letter-signature-size);
+  font-weight: 700;
+  color: var(--gc-letter-ink-color);
+  margin-top: auto;
+  padding-top: var(--gc-letter-bottom-padding);
+  /* CANONICAL: Position relative to crease (right edge of left page) */
+  /* 2.5in from crease = align to left with offset */
+  align-self: flex-end;
+  margin-right: var(--gc-letter-crease-offset);
+  transform: rotate(-3deg);
+  text-shadow:
+    0 0 3px rgba(26, 58, 107, 0.9),
+    0 0 6px rgba(26, 58, 107, 0.5),
+    2px 2px 3px rgba(26, 58, 107, 0.4),
+    -1px 0 2px rgba(26, 58, 107, 0.3);
+  filter: blur(0.3px);
+  opacity: 0.9;
+  letter-spacing: 2px;
+}
+
+/* Legacy .gc-signature - redirect to shared system */
 .gc-signature {
   font-family: var(--gc-font-handwritten);
-  font-size: 64px;
+  font-size: var(--gc-letter-signature-size);
   font-weight: 700;
-  color: var(--gc-signature-blue);
+  color: var(--gc-letter-ink-color);
   margin-top: auto;
-  padding-top: 40px;
-  /* Canonical: Move LEFT 1.5 inches from right edge */
-  align-self: flex-start;
-  margin-left: 1.5in;
+  padding-top: var(--gc-letter-bottom-padding);
+  /* CANONICAL: 2.5in from crease (bottom-right of left page) */
+  align-self: flex-end;
+  margin-right: var(--gc-letter-crease-offset);
   transform: rotate(-3deg);
   text-shadow:
     0 0 3px rgba(26, 58, 107, 0.9),
@@ -640,20 +712,53 @@
 }
 
 /* ===== FINALE SPREAD ===== */
+/* CANONICAL: Must match Intro spread typography system */
+/* Uses shared letter block CSS variables for consistency */
+
+/* Finale spread - letter block positioning (same as Intro) */
+.gc-finale-spread .gc-page-left .gc-page-content {
+  padding-top: var(--gc-letter-top-offset);
+  padding-bottom: var(--gc-letter-bottom-padding);
+}
+
 .gc-closing-message {
   font-family: var(--gc-font-handwritten);
-  font-size: 36px;
-  color: var(--gc-text-brown);
-  line-height: 1.8;
+  font-size: var(--gc-letter-body-size);
+  color: var(--gc-letter-ink-color);
+  line-height: var(--gc-letter-line-gap);
   margin: 0 0 28px 0;
+  white-space: pre-line;
+  text-indent: 2em;
 }
 
 .gc-closing-note {
   font-family: var(--gc-font-handwritten);
-  font-size: 32px;
-  color: var(--gc-text-gold-dark);
-  line-height: 1.7;
+  font-size: calc(var(--gc-letter-body-size) - 8px);
+  color: var(--gc-letter-ink-color);
+  line-height: var(--gc-letter-line-gap);
   margin: 0;
+  opacity: 0.85;
+}
+
+/* Finale signature - same positioning as Intro */
+.gc-finale-signature {
+  font-family: var(--gc-font-handwritten);
+  font-size: var(--gc-letter-signature-size);
+  font-weight: 700;
+  color: var(--gc-letter-ink-color);
+  margin-top: auto;
+  padding-top: var(--gc-letter-bottom-padding);
+  align-self: flex-end;
+  margin-right: var(--gc-letter-crease-offset);
+  transform: rotate(-3deg);
+  text-shadow:
+    0 0 3px rgba(26, 58, 107, 0.9),
+    0 0 6px rgba(26, 58, 107, 0.5),
+    2px 2px 3px rgba(26, 58, 107, 0.4),
+    -1px 0 2px rgba(26, 58, 107, 0.3);
+  filter: blur(0.3px);
+  opacity: 0.9;
+  letter-spacing: 2px;
 }
 
 
