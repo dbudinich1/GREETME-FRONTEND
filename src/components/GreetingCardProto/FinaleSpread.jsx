@@ -45,6 +45,9 @@ export default function FinaleSpread() {
             <p className="gc-closing-note">
               May you carry this feeling with you always, and know that you are treasured beyond words.
             </p>
+            <p className="gc-closing-signoff">
+              May your wish come true — and once again, Happy Birthday.
+            </p>
             {/* CANONICAL: No signature on Finale spread */}
           </div>
         </div>

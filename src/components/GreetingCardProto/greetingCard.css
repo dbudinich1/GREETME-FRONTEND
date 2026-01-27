@@ -777,6 +777,18 @@
   text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
 }
 
+.gc-closing-signoff {
+  /* CANONICAL: Final sign-off line - Tangerine font, italicized */
+  font-family: var(--gc-font-handwritten); /* Tangerine */
+  font-size: var(--gc-letter-body-size);
+  font-weight: 700;
+  font-style: italic;
+  color: var(--gc-letter-ink-color);
+  line-height: var(--gc-letter-line-gap);
+  margin: calc(var(--gc-letter-body-size) * 0.5) 0 0 0;
+  text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
+}
+
 /* NOTE: No .gc-finale-signature - signature removed per canonical rule */
 
 
