@@ -25,10 +25,10 @@
 
   /* ===== LETTER BLOCK SYSTEM (CANONICAL LOCKS) ===== */
   /* Shared positioning/typography for Intro + Finale spreads */
-  /* FRAME CLAMP: Safe padding to keep text inside paper */
+  /* FRAME CLAMP: Safe padding to keep text inside paper + away from crease */
   --gc-letter-frame-top: 40px;
-  --gc-letter-frame-left: 50px;
-  --gc-letter-frame-right: 30px;
+  --gc-letter-frame-left: 64px;
+  --gc-letter-frame-right: 120px;  /* Larger inset: protect crease area */
   --gc-letter-frame-bottom: 40px;
   --gc-letter-line-gap: 1.45;           /* Uniform line height (no first-line drift) */
   --gc-letter-ink-color: var(--gc-signature-blue);
@@ -289,7 +289,7 @@
 }
 
 .gc-interior-spread .gc-page-left .gc-page-content {
-  /* FRAME CLAMP: Safe boundaries to keep text inside paper */
+  /* FRAME CLAMP: Safe boundaries to keep text inside paper + away from crease */
   position: absolute;
   top: var(--gc-letter-frame-top);
   left: var(--gc-letter-frame-left);
@@ -298,6 +298,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  word-break: break-word;
 }
 
 .gc-greeting-salutation {
