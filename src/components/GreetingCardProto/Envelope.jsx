@@ -19,13 +19,19 @@ const capitalize = (str) => {
 };
 
 // Play audio with error handling (fail-silent)
-const playSound = (src, volume = 0.6) => {
+// Canon: wax-crackle volume = 0.20, max duration = 200ms
+const playSound = (src, volume = 0.20, maxDuration = 200) => {
   try {
     const audio = new Audio(src);
     audio.volume = volume;
     audio.play().catch(() => {
       // Fail silently - audio may be blocked by browser
     });
+    // Hard-stop at maxDuration (canon restraint)
+    setTimeout(() => {
+      audio.pause();
+      audio.currentTime = 0;
+    }, maxDuration);
   } catch {
     // Fail silently
   }
@@ -66,8 +72,8 @@ export default function Envelope({ recipientName, onSealClick }) {
 
   const handleSealClick = (e) => {
     e.stopPropagation();
-    // Play wax seal crack sound
-    playSound(WAX_CRACKLE_SRC, 0.6);
+    // Play wax seal crack sound (canon: volume 0.20, max 200ms)
+    playSound(WAX_CRACKLE_SRC);
     onSealClick();
   };
 

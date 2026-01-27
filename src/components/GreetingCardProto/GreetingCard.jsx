@@ -23,13 +23,19 @@ import './greetingCard.css';
 const PAPER_SLIDE_SRC = '/assets/sounds/paper-slide.mp3';
 
 // Play audio with error handling (fail-silent)
-const playSound = (src, volume = 0.4) => {
+// Canon: paper-slide volume = 0.25, max duration = 300ms
+const playSound = (src, volume = 0.25, maxDuration = 300) => {
   try {
     const audio = new Audio(src);
     audio.volume = volume;
     audio.play().catch(() => {
       // Fail silently - audio may be blocked by browser
     });
+    // Hard-stop at maxDuration (canon restraint)
+    setTimeout(() => {
+      audio.pause();
+      audio.currentTime = 0;
+    }, maxDuration);
   } catch {
     // Fail silently
   }
@@ -66,7 +72,7 @@ export default function GreetingCard({ greeting }) {
 
     // Play paper slide sound on page turn (not on envelope->cover, seal handles that)
     if (currentIndex > 0) {
-      playSound(PAPER_SLIDE_SRC, 0.4);
+      playSound(PAPER_SLIDE_SRC);
     }
 
     const nextScreen = SCREEN_ORDER[currentIndex + 1];
@@ -84,7 +90,7 @@ export default function GreetingCard({ greeting }) {
     const currentIndex = SCREEN_ORDER.indexOf(currentScreen);
     if (currentIndex <= 1) return; // Don't go back to envelope
 
-    playSound(PAPER_SLIDE_SRC, 0.4);
+    playSound(PAPER_SLIDE_SRC);
     setCurrentScreen(SCREEN_ORDER[currentIndex - 1]);
   }, [currentScreen, hasCompletedFirstPass]);
 
@@ -94,7 +100,7 @@ export default function GreetingCard({ greeting }) {
     const currentIndex = SCREEN_ORDER.indexOf(currentScreen);
     if (currentIndex >= SCREEN_ORDER.length - 1) return;
 
-    playSound(PAPER_SLIDE_SRC, 0.4);
+    playSound(PAPER_SLIDE_SRC);
     setCurrentScreen(SCREEN_ORDER[currentIndex + 1]);
   }, [currentScreen, hasCompletedFirstPass]);
 
