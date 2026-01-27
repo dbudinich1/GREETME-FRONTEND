@@ -28,7 +28,7 @@
   /* FRAME CLAMP: Safe padding to keep text inside paper + away from crease */
   --gc-letter-frame-top: 40px;
   --gc-letter-frame-left: 64px;
-  --gc-letter-frame-right: 120px;  /* Larger inset: protect crease area */
+  --gc-letter-frame-right: 288px;  /* 3 inches from crease (96dpi) */
   --gc-letter-frame-bottom: 40px;
   --gc-letter-line-gap: 1.45;           /* Uniform line height (no first-line drift) */
   --gc-letter-ink-color: var(--gc-signature-blue);
@@ -417,24 +417,18 @@
   letter-spacing: 2px;
 }
 
-/* Signature - bottom area, inside frame */
+/* Signature - CANONICAL: Same ink style as message, one line below, inside frame */
 .gc-signature {
   font-family: var(--gc-font-handwritten);
   font-size: var(--gc-letter-signature-size);
   font-weight: 700;
   color: var(--gc-letter-ink-color);
-  margin-top: auto;
-  padding-top: 20px;
-  align-self: flex-end;
-  transform: rotate(-3deg);
-  text-shadow:
-    0 0 3px rgba(26, 58, 107, 0.9),
-    0 0 6px rgba(26, 58, 107, 0.5),
-    2px 2px 3px rgba(26, 58, 107, 0.4),
-    -1px 0 2px rgba(26, 58, 107, 0.3);
-  filter: blur(0.3px);
-  opacity: 0.9;
-  letter-spacing: 2px;
+  line-height: var(--gc-letter-line-gap);
+  /* Position: one line gap below message, left-aligned (not floating to bottom) */
+  margin-top: calc(var(--gc-letter-body-size) * 0.3);
+  align-self: flex-start;
+  /* CANONICAL: Same ink style as message - no glow, no blur, no rotation */
+  text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
   flex-shrink: 0;
 }
 
