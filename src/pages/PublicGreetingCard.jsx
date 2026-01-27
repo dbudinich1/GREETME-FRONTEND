@@ -32,6 +32,7 @@ export default function PublicGreetingCard() {
           recipientName: g.recipientName || 'Friend',
           senderName: g.senderName || 'Dan',
           greetingText: g.greetingText || '',
+          writtenIntroText: g.writtenIntroText || '',
           occasionKey: g.occasionKey || 'general',
           relationshipKey: g.relationshipKey || '',
           videoUrl: g.videoUrl || null,

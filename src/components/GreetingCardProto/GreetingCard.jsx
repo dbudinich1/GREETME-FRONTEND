@@ -74,7 +74,7 @@ export default function GreetingCard({ greeting }) {
       {currentScreen === SCREENS.INTERIOR && (
         <InteriorSpread
           recipientName={greeting.recipientName}
-          message={greeting.greetingText}
+          message={greeting.writtenIntroText || greeting.greetingText}
           senderName={greeting.senderName}
           occasionKey={greeting.occasionKey}
           relationshipKey={greeting.relationshipKey}
