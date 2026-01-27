@@ -25,9 +25,12 @@
 
   /* ===== LETTER BLOCK SYSTEM (CANONICAL LOCKS) ===== */
   /* Shared positioning/typography for Intro + Finale spreads */
-  --gc-letter-top-offset: 1.5in;        /* Name position from top */
-  --gc-letter-crease-offset: 2.5in;     /* Signature offset from center crease */
-  --gc-letter-line-gap: 1.85;           /* Line height for body text */
+  /* FRAME CLAMP: Safe padding to keep text inside paper */
+  --gc-letter-frame-top: 40px;
+  --gc-letter-frame-left: 50px;
+  --gc-letter-frame-right: 30px;
+  --gc-letter-frame-bottom: 40px;
+  --gc-letter-line-gap: 1.45;           /* Uniform line height (no first-line drift) */
   --gc-letter-ink-color: var(--gc-signature-blue);
   --gc-letter-name-size: 58px;
   --gc-letter-body-size: 48px;
@@ -277,33 +280,50 @@
 }
 
 /* ===== INTERIOR SPREAD ===== */
-/* Typography: Blue ink, handwritten aesthetic, generous spacing */
-/* Uses shared letter block CSS variables for consistency */
+/* Typography: Blue ink, handwritten aesthetic, uniform spacing */
+/* CANONICAL: Uses letter frame clamp to prevent overflow */
+
+/* Interior spread - letter frame positioning */
+.gc-interior-spread .gc-page-left {
+  position: relative;
+}
+
+.gc-interior-spread .gc-page-left .gc-page-content {
+  /* FRAME CLAMP: Safe boundaries to keep text inside paper */
+  position: absolute;
+  top: var(--gc-letter-frame-top);
+  left: var(--gc-letter-frame-left);
+  right: var(--gc-letter-frame-right);
+  bottom: var(--gc-letter-frame-bottom);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .gc-greeting-salutation {
   font-family: var(--gc-font-title);
   font-size: var(--gc-letter-name-size);
   font-weight: 400;
   color: var(--gc-letter-ink-color);
-  margin: 0 0 40px 0;
-  line-height: 1.3;
+  margin: 0 0 30px 0;
+  line-height: var(--gc-letter-line-gap);
   letter-spacing: 1px;
+  flex-shrink: 0;
 }
 
 .gc-greeting-message {
   font-family: var(--gc-font-handwritten);
   font-size: var(--gc-letter-body-size);
+  font-weight: 700; /* Thicker ink weight */
   color: var(--gc-letter-ink-color);
   line-height: var(--gc-letter-line-gap);
   margin: 0;
   flex-grow: 1;
   white-space: pre-line;
   text-indent: 2em;
-}
-
-/* Interior spread - letter block positioning */
-.gc-interior-spread .gc-page-left .gc-page-content {
-  padding-top: var(--gc-letter-top-offset);
-  padding-bottom: var(--gc-letter-bottom-padding);
+  overflow: hidden;
+  /* Subtle ink thickness via text-shadow */
+  text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
 }
 
 .gc-poem-content {
@@ -390,17 +410,15 @@
   letter-spacing: 2px;
 }
 
-/* Legacy .gc-signature - redirect to shared system */
+/* Signature - bottom area, inside frame */
 .gc-signature {
   font-family: var(--gc-font-handwritten);
   font-size: var(--gc-letter-signature-size);
   font-weight: 700;
   color: var(--gc-letter-ink-color);
   margin-top: auto;
-  padding-top: var(--gc-letter-bottom-padding);
-  /* CANONICAL: 2.5in from crease (bottom-right of left page) */
+  padding-top: 20px;
   align-self: flex-end;
-  margin-right: var(--gc-letter-crease-offset);
   transform: rotate(-3deg);
   text-shadow:
     0 0 3px rgba(26, 58, 107, 0.9),
@@ -410,6 +428,7 @@
   filter: blur(0.3px);
   opacity: 0.9;
   letter-spacing: 2px;
+  flex-shrink: 0;
 }
 
 
@@ -712,54 +731,52 @@
 }
 
 /* ===== FINALE SPREAD ===== */
-/* CANONICAL: Must match Intro spread typography system */
-/* Uses shared letter block CSS variables for consistency */
+/* CANONICAL: Uses Tangerine font, frame clamp, NO SIGNATURE */
 
-/* Finale spread - letter block positioning (same as Intro) */
+/* Finale spread - letter frame positioning (same clamp as Intro) */
+.gc-finale-spread .gc-page-left {
+  position: relative;
+}
+
 .gc-finale-spread .gc-page-left .gc-page-content {
-  padding-top: var(--gc-letter-top-offset);
-  padding-bottom: var(--gc-letter-bottom-padding);
+  /* FRAME CLAMP: Safe boundaries to keep text inside paper */
+  position: absolute;
+  top: var(--gc-letter-frame-top);
+  left: var(--gc-letter-frame-left);
+  right: var(--gc-letter-frame-right);
+  bottom: var(--gc-letter-frame-bottom);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .gc-closing-message {
-  font-family: var(--gc-font-handwritten);
+  /* CANONICAL: Tangerine font */
+  font-family: var(--gc-font-handwritten); /* Tangerine */
   font-size: var(--gc-letter-body-size);
+  font-weight: 700;
   color: var(--gc-letter-ink-color);
   line-height: var(--gc-letter-line-gap);
   margin: 0 0 28px 0;
   white-space: pre-line;
   text-indent: 2em;
+  text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
 }
 
 .gc-closing-note {
-  font-family: var(--gc-font-handwritten);
+  /* CANONICAL: Tangerine font */
+  font-family: var(--gc-font-handwritten); /* Tangerine */
   font-size: calc(var(--gc-letter-body-size) - 8px);
+  font-weight: 700;
   color: var(--gc-letter-ink-color);
   line-height: var(--gc-letter-line-gap);
   margin: 0;
   opacity: 0.85;
+  text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
 }
 
-/* Finale signature - same positioning as Intro */
-.gc-finale-signature {
-  font-family: var(--gc-font-handwritten);
-  font-size: var(--gc-letter-signature-size);
-  font-weight: 700;
-  color: var(--gc-letter-ink-color);
-  margin-top: auto;
-  padding-top: var(--gc-letter-bottom-padding);
-  align-self: flex-end;
-  margin-right: var(--gc-letter-crease-offset);
-  transform: rotate(-3deg);
-  text-shadow:
-    0 0 3px rgba(26, 58, 107, 0.9),
-    0 0 6px rgba(26, 58, 107, 0.5),
-    2px 2px 3px rgba(26, 58, 107, 0.4),
-    -1px 0 2px rgba(26, 58, 107, 0.3);
-  filter: blur(0.3px);
-  opacity: 0.9;
-  letter-spacing: 2px;
-}
+/* NOTE: No .gc-finale-signature - signature removed per canonical rule */
 
 
 
@@ -775,7 +792,7 @@
 
 .gc-gift-title {
   font-family: var(--gc-font-title);
-  font-size: 28px;
+  font-size: 36px; /* +2 sizes (was 28px) */
   font-weight: 400;
   color: var(--gc-text-brown);
   margin: 0 0 24px 0;
@@ -809,7 +826,7 @@
 .gc-gift-instruction {
   font-family: var(--gc-font-body);
   font-style: italic;
-  font-size: 14px;
+  font-size: 20px; /* +3 sizes (was 14px) */
   color: var(--gc-text-brown-light);
   line-height: 1.5;
   margin: 0 0 30px 0;
@@ -825,8 +842,8 @@
 /* TODO: G Logo placeholder - replace when final asset provided */
 /* Style per reference HTML: circular brown seal with Great Vibes "G" */
 .gc-logo-seal {
-  width: 34px;
-  height: 34px;
+  width: 50px; /* +4 sizes (was 34px) */
+  height: 50px;
   background: linear-gradient(145deg, #8b4513, #5c2d0e);
   border-radius: 50%;
   display: flex;
@@ -837,7 +854,7 @@
 
 .gc-logo-seal span {
   font-family: var(--gc-font-title); /* Great Vibes */
-  font-size: 20px;
+  font-size: 30px; /* +4 sizes (was 20px) */
   color: #f5f0e6;
 }
 
@@ -859,7 +876,7 @@
 
 .gc-brand-name {
   font-family: var(--gc-font-brand);
-  font-size: 28px;
+  font-size: 36px; /* +2 sizes to match title scale (was 28px) */
   font-weight: 600;
   color: var(--gc-text-brown);
 }

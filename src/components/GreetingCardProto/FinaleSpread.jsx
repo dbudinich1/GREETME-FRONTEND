@@ -4,10 +4,9 @@
  * GS-06: Updated CTA text, removed "All my love", logo matches stamp brown
  *
  * CANONICAL LAYOUT LOCKS:
- * - Typography must match InteriorSpread (same ink color, font sizes, spacing)
- * - Uses shared letter block CSS system
- * - Signature: bottom-right, 2.5in from crease (via CSS --gc-letter-crease-offset)
- * - Name capitalization: Title Case (via formatPersonName helper)
+ * - Typography: Tangerine font, blue ink, frame clamp
+ * - NO SIGNATURE on Finale spread (removed per canonical rule)
+ * - Uses shared letter block CSS system for frame clamp
  *
  * TODO: G Logo Asset Pending
  * - When final logo asset is provided, replace LogoPlaceholder component
@@ -16,7 +15,6 @@
  */
 
 import cardInteriorImg from '../../assets/card/card-interior.png';
-import { formatPersonName } from '../../utils/formatPersonName';
 
 // Placeholder G logo component - awaiting final asset
 // Style based on reference HTML: circular brown seal with "G"
@@ -29,9 +27,8 @@ const LogoPlaceholder = () => (
   </div>
 );
 
-export default function FinaleSpread({ greeting }) {
-  // CANONICAL: Signature in Title Case (person's name)
-  const displaySender = formatPersonName(greeting?.senderName);
+export default function FinaleSpread() {
+  // CANONICAL: NO SIGNATURE on Finale spread (removed per canonical rule)
 
   return (
     <div className="gc-spread-wrapper">
@@ -39,7 +36,7 @@ export default function FinaleSpread({ greeting }) {
         className="gc-spread gc-finale-spread"
         style={{ backgroundImage: `url(${cardInteriorImg})` }}
       >
-        {/* Left Page - CANONICAL: Same typography as InteriorSpread */}
+        {/* Left Page - CANONICAL: Tangerine font, blue ink, NO signature */}
         <div className="gc-page gc-page-left">
           <div className="gc-page-content">
             <p className="gc-closing-message">
@@ -48,10 +45,7 @@ export default function FinaleSpread({ greeting }) {
             <p className="gc-closing-note">
               May you carry this feeling with you always, and know that you are treasured beyond words.
             </p>
-            {/* CANONICAL: Signature at bottom-right, 2.5in from crease */}
-            {displaySender && (
-              <p className="gc-finale-signature">{displaySender}</p>
-            )}
+            {/* CANONICAL: No signature on Finale spread */}
           </div>
         </div>
 

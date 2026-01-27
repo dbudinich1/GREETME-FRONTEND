@@ -7,7 +7,7 @@
  * 2. COVER - Standalone card cover
  * 3. INTERIOR - Message spread
  * 4. FEATURED - Video + Photo album
- * 5. FINALE - Signature + Gift
+ * 5. FINALE - Closing Message + Gift (no signature)
  */
 
 import { useState, useCallback } from 'react';
@@ -155,7 +155,7 @@ export default function GreetingCard({ greeting }) {
       )}
 
       {currentScreen === SCREENS.FINALE && (
-        <FinaleSpread greeting={greeting} navigation={navigation} />
+        <FinaleSpread />
       )}
     </div>
   );
