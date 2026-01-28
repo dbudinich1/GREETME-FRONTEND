@@ -68,6 +68,13 @@
   background: var(--gc-bg-navy);
   padding: 40px 20px;
   box-sizing: border-box;
+  /* Prevent text selection during swipe/drag navigation */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  /* Prevent browser gestures from interfering with swipe */
+  touch-action: pan-y pinch-zoom;
 }
 
 .gc-error {
@@ -537,6 +544,38 @@
   color: var(--gc-bg-navy);
 }
 
+/* Replay overlay - subtle indicator after video ends */
+.gc-video-replay-overlay {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.gc-replay-button {
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.gc-replay-button:hover {
+  opacity: 1;
+}
+
+.gc-replay-button svg {
+  color: var(--gc-bg-navy);
+}
+
 /* Photo Album */
 .gc-photo-album {
   display: grid;
@@ -551,8 +590,8 @@
 
 .gc-album-title {
   font-family: var(--gc-font-title);
-  font-size: 41px;
-  font-weight: 400;
+  font-size: 45px;
+  font-weight: 500;
   color: var(--gc-text-brown);
   margin: 0 0 24px 0;
 }

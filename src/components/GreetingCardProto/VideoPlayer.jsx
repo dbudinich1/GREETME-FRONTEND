@@ -4,23 +4,32 @@
 
 import React, { useRef, useState } from 'react';
 
-export default function VideoPlayer({ videoUrl, onEnded }) {
+export default function VideoPlayer({ videoUrl, onEnded, hasEnded }) {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
 
   const togglePlay = (e) => {
     e.stopPropagation();
-    
+
     if (!videoRef.current) return;
-    
+
     if (isPlaying) {
       videoRef.current.pause();
     } else {
+      // If replaying after ended, reset to start
+      if (hasEnded) {
+        videoRef.current.currentTime = 0;
+      }
       videoRef.current.playbackRate = 0.88; // Slow down tempo
       videoRef.current.play().catch(() => setHasError(true));
     }
     setIsPlaying(!isPlaying);
+  };
+
+  const handleVideoEnd = () => {
+    setIsPlaying(false);
+    onEnded?.();
   };
 
   if (!videoUrl || hasError) {
@@ -46,15 +55,26 @@ export default function VideoPlayer({ videoUrl, onEnded }) {
           src={videoUrl}
           className="gc-video"
           playsInline
-          onEnded={() => { setIsPlaying(false); onEnded?.(); }}
+          onEnded={handleVideoEnd}
           onError={() => setHasError(true)}
         />
         
-        {!isPlaying && (
+        {/* Show play overlay only before first play, not after video ends */}
+        {!isPlaying && !hasEnded && (
           <div className="gc-video-play-overlay">
             <div className="gc-play-button">
               <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
                 <path d="M8 5v14l11-7z"/>
+              </svg>
+            </div>
+          </div>
+        )}
+        {/* Subtle replay indicator after video ends */}
+        {hasEnded && (
+          <div className="gc-video-replay-overlay">
+            <div className="gc-replay-button">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
               </svg>
             </div>
           </div>
