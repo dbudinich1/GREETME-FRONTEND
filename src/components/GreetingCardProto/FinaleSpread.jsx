@@ -74,8 +74,8 @@ export default function FinaleSpread() {
             </div>
 
             <p className="gc-gift-instruction">
-              Scan to redeem<br/>
-              Treat yourself to something that makes you smile
+              Scan to redeem your gift<br/>
+              Treat yourself to something that makes you smile!
             </p>
 
             <div className="gc-branding">
@@ -83,6 +83,7 @@ export default function FinaleSpread() {
               <LogoPlaceholder />
               <span className="gc-brand-name">Greet-Me</span>
             </div>
+            <p className="gc-brand-tagline">This moment was lovingly prepared for you</p>
           </div>
         </div>
       </div>

@@ -19,21 +19,57 @@ Another year of dreams,
 May happiness find you always
 In everything, it seems.`;
 
-const DEFAULT_MESSAGE = `I wanted to take a moment to tell you how much you mean to me. Your kindness, your warmth, and your spirit light up every room you enter. The way you care for others, the joy you bring to every moment — these are gifts that touch everyone around you.
-
-On this special day, I hope you feel as loved and cherished as you make everyone around you feel. You deserve all the happiness in the world, and so much more.
-
-Through all of life's seasons, know that you are treasured beyond measure. Here's to celebrating you today and always — for the remarkable person you are and the light you bring to this world.`;
-
 export default function InteriorSpread({ recipientName, message, senderName, onClick }) {
   // CANONICAL: Title Case name via formatPersonName helper
   const displayName = formatPersonName(recipientName) || 'Friend';
 
   // GS-03: Never render empty - always use placeholder if missing
-  const displayMessage = message?.trim() || `I've been thinking about you lately and wanted to reach out.\n\nYou matter to me more than you know.\n\nI hope this message finds you well.\n\nSending you all my best.`;
+  const rawMessage = message?.trim() || `Happy Birthday!\n\nI've been thinking about you lately and wanted to reach out.\n\nYou matter to me more than you know.\n\nI hope this message finds you well.`;
 
   // CANONICAL: Signature in Title Case (person's name)
   const displaySender = formatPersonName(senderName);
+
+  // Split greeting (first line before \n\n) from body
+  const [greeting, ...bodyParts] = rawMessage.split('\n\n');
+
+  // CANONICAL: Never place text after signature - strip closing phrases and sender name
+  // Common closing phrases that should appear BEFORE signature, not after
+  const CLOSING_PHRASES = [
+    'thinking of you today and always',
+    'thinking of you always',
+    'with all my love',
+    'all my love',
+    'with love always',
+    'love always',
+    'with love',
+    'yours truly',
+    'yours forever',
+    'always yours',
+    'forever yours',
+    'warmly',
+    'fondly',
+    'xoxo',
+  ];
+
+  let bodyMessage = bodyParts.join('\n\n');
+
+  // Strip sender name from end if present
+  if (displaySender && bodyMessage.trim().toLowerCase().endsWith(displaySender.toLowerCase())) {
+    bodyMessage = bodyMessage.slice(0, -displaySender.length).trim();
+  }
+  // Strip trailing punctuation after name removal
+  bodyMessage = bodyMessage.replace(/[,\s]+$/, '');
+
+  // Strip any closing phrases from end of body (they belong before signature, not after)
+  let bodyLower = bodyMessage.trim().toLowerCase();
+  for (const phrase of CLOSING_PHRASES) {
+    if (bodyLower.endsWith(phrase)) {
+      bodyMessage = bodyMessage.slice(0, -phrase.length).trim();
+      bodyLower = bodyMessage.trim().toLowerCase();
+    }
+  }
+  // Strip trailing punctuation after phrase removal
+  bodyMessage = bodyMessage.replace(/[,\s]+$/, '');
   
   return (
     <div 
@@ -54,11 +90,11 @@ export default function InteriorSpread({ recipientName, message, senderName, onC
             <h2 className="gc-greeting-salutation">
               Dear {displayName},
             </h2>
+            <p className="gc-greeting-occasion">{greeting}</p>
             <p className="gc-greeting-message">
-              {displayMessage}
+              {bodyMessage}
             </p>
             <p className="gc-signature">{displaySender}</p>
-            
           </div>
         </div>
 

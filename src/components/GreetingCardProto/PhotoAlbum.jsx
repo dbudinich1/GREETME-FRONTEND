@@ -2,7 +2,7 @@
  * PhotoAlbum.jsx
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 function getPhotoSrc(photo) {
   if (!photo) return null;
@@ -13,28 +13,58 @@ function getPhotoSrc(photo) {
   return null;
 }
 
-export default function PhotoAlbum({ photos }) {
+export default function PhotoAlbum({ photos, disabled = false }) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFading, setIsFading] = useState(false);
+  const isTransitioning = useRef(false);
 
   const validPhotos = (photos || []).map(getPhotoSrc).filter(Boolean);
   const hasPhotos = validPhotos.length > 0;
+  const photoCount = validPhotos.length;
 
-  const goToPhoto = (index, e) => {
-    e?.stopPropagation();
-    setCurrentIndex(index);
+  const changePhoto = (getNewIndex, e) => {
+    // Stop all event propagation
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      e.nativeEvent?.stopImmediatePropagation?.();
+    }
+
+    // Block if disabled or already transitioning
+    if (disabled || isTransitioning.current) {
+      return;
+    }
+
+    isTransitioning.current = true;
+    setIsFading(true);
+
+    setTimeout(() => {
+      setCurrentIndex(prev => {
+        const newIdx = getNewIndex(prev);
+        return newIdx;
+      });
+      setIsFading(false);
+      isTransitioning.current = false;
+    }, 300);
   };
 
-  const nextPhoto = (e) => {
-    e?.stopPropagation();
-    setCurrentIndex((prev) => (prev + 1) % validPhotos.length);
+  const handleNext = (e) => {
+    changePhoto(prev => (prev + 1) % photoCount, e);
   };
 
-  const prevPhoto = (e) => {
-    e?.stopPropagation();
-    setCurrentIndex((prev) => (prev - 1 + validPhotos.length) % validPhotos.length);
+  const handlePrev = (e) => {
+    changePhoto(prev => (prev - 1 + photoCount) % photoCount, e);
   };
 
-  // Prevent clicks from bubbling up to advance page (used in both states)
+  const handleDotClick = (index, e) => {
+    if (index === currentIndex) {
+      e?.stopPropagation();
+      return;
+    }
+    changePhoto(() => index, e);
+  };
+
+  // Prevent clicks from bubbling up to advance page
   const handleAlbumClick = (e) => {
     e.stopPropagation();
   };
@@ -59,51 +89,66 @@ export default function PhotoAlbum({ photos }) {
   }
 
   return (
-    <div className="gc-photo-album" onClick={handleAlbumClick}>
-      {/* Stacked photo effect - show peeking photos behind */}
+    <div
+      className={`gc-photo-album ${disabled ? 'gc-album-disabled' : ''}`}
+      onClick={handleAlbumClick}
+    >
+      {/* Stacked photo effect - decorative frames peeking behind */}
       <div className="gc-album-stack">
-        {validPhotos.length > 2 && (
-          <div className="gc-album-frame gc-album-stack-3">
-            <img
-              src={validPhotos[(currentIndex + 2) % validPhotos.length]}
-              alt="Photo stack"
-              className="gc-album-photo"
-            />
-          </div>
+        {photoCount > 2 && (
+          <div className="gc-album-frame gc-album-stack-3" />
         )}
-        {validPhotos.length > 1 && (
-          <div className="gc-album-frame gc-album-stack-2">
-            <img
-              src={validPhotos[(currentIndex + 1) % validPhotos.length]}
-              alt="Photo stack"
-              className="gc-album-photo"
-            />
-          </div>
+        {photoCount > 1 && (
+          <div className="gc-album-frame gc-album-stack-2" />
         )}
-        <div className="gc-album-frame gc-album-stack-1">
+        <div className={`gc-album-frame gc-album-stack-1 ${isFading ? 'gc-album-fading' : ''}`}>
           <img
             src={validPhotos[currentIndex]}
             alt={`Memory ${currentIndex + 1}`}
             className="gc-album-photo"
+            draggable={false}
             onError={(e) => { e.target.style.display = 'none'; }}
           />
 
-          {validPhotos.length > 1 && (
+          {/* Navigation arrows - inside frame */}
+          {photoCount > 1 && (
             <>
-              <button className="gc-album-nav gc-album-prev" onClick={prevPhoto}>‹</button>
-              <button className="gc-album-nav gc-album-next" onClick={nextPhoto}>›</button>
+              <button
+                type="button"
+                className="gc-album-nav gc-album-prev"
+                onClick={handlePrev}
+                disabled={disabled}
+                aria-label="Previous photo"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                  <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="gc-album-nav gc-album-next"
+                onClick={handleNext}
+                disabled={disabled}
+                aria-label="Next photo"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                  <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                </svg>
+              </button>
             </>
           )}
         </div>
       </div>
 
-      {validPhotos.length > 1 && (
+      {photoCount > 1 && (
         <div className="gc-album-dots">
           {validPhotos.map((_, index) => (
             <button
+              type="button"
               key={index}
               className={`gc-album-dot ${index === currentIndex ? 'active' : ''}`}
-              onClick={(e) => goToPhoto(index, e)}
+              onClick={(e) => handleDotClick(index, e)}
+              disabled={disabled}
             />
           ))}
         </div>

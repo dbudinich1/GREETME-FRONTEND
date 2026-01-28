@@ -4,7 +4,7 @@
 
 import React, { useRef, useState } from 'react';
 
-export default function VideoPlayer({ videoUrl }) {
+export default function VideoPlayer({ videoUrl, onEnded }) {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -17,6 +17,7 @@ export default function VideoPlayer({ videoUrl }) {
     if (isPlaying) {
       videoRef.current.pause();
     } else {
+      videoRef.current.playbackRate = 0.88; // Slow down tempo
       videoRef.current.play().catch(() => setHasError(true));
     }
     setIsPlaying(!isPlaying);
@@ -45,7 +46,7 @@ export default function VideoPlayer({ videoUrl }) {
           src={videoUrl}
           className="gc-video"
           playsInline
-          onEnded={() => setIsPlaying(false)}
+          onEnded={() => { setIsPlaying(false); onEnded?.(); }}
           onError={() => setHasError(true)}
         />
         

@@ -20,7 +20,7 @@
   --gc-seal-red: #8b0000;
   --gc-seal-red-dark: #5c0000;
   --gc-ribbon-red: #b22222;
-  --gc-gold-frame: #d4af37;
+  --gc-gold-frame: #d4872d;
   --gc-signature-blue: #1a3a6b;
 
   /* ===== LETTER BLOCK SYSTEM (CANONICAL LOCKS) ===== */
@@ -306,10 +306,22 @@
   font-size: var(--gc-letter-name-size);
   font-weight: 400;
   color: var(--gc-letter-ink-color);
-  margin: 0 0 30px 0;
+  margin: 0 0 12px 0;
   line-height: var(--gc-letter-line-gap);
   letter-spacing: 1px;
   flex-shrink: 0;
+}
+
+/* Occasion greeting line (e.g., "Happy Birthday!") - centered */
+.gc-greeting-occasion {
+  font-family: var(--gc-font-handwritten);
+  font-size: var(--gc-letter-body-size);
+  font-weight: 700;
+  color: var(--gc-letter-ink-color);
+  line-height: var(--gc-letter-line-gap);
+  margin: 0 0 28px 0;
+  text-align: center;
+  text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
 }
 
 .gc-greeting-message {
@@ -317,19 +329,13 @@
   font-size: var(--gc-letter-body-size);
   font-weight: 700; /* Thicker ink weight */
   color: var(--gc-letter-ink-color);
-  line-height: var(--gc-letter-line-gap);
+  line-height: 1.1;
   margin: 0;
   white-space: pre-line;
-  text-indent: 2em;
+  text-align: left;
   overflow: hidden;
   /* Subtle ink thickness via text-shadow */
   text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
-}
-
-/* Canon: First line is +2 sizes, but line spacing stays UNIFORM */
-.gc-greeting-message::first-line {
-  font-size: calc(var(--gc-letter-body-size) + 8px);
-  font-weight: 700;
 }
 
 .gc-poem-content {
@@ -416,18 +422,16 @@
   letter-spacing: 2px;
 }
 
-/* Signature - CANONICAL: Same ink style as message, bottom-right of frame */
+/* Signature - CANONICAL: Same ink style as message, right-aligned after body */
 .gc-signature {
   font-family: var(--gc-font-handwritten);
   font-size: var(--gc-letter-signature-size);
   font-weight: 700;
   color: var(--gc-letter-ink-color);
   line-height: var(--gc-letter-line-gap);
-  /* Position: absolute bottom-right of page */
-  position: absolute;
-  bottom: var(--gc-letter-frame-bottom);
-  right: var(--gc-letter-frame-right);
   text-align: right;
+  margin-top: 24px;
+  padding-right: 24px;
   /* CANONICAL: Same ink style as message - no glow, no blur, no rotation */
   text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
 }
@@ -456,7 +460,7 @@
   justify-content: flex-start;
   align-items: center;
   background: transparent;
-  padding-top: 40px;
+  padding-top: 80px;
   margin: 24px;
   margin-left: 12px;
 }
@@ -477,7 +481,7 @@
 .gc-video-caption {
   font-family: var(--gc-font-body);
   font-style: italic;
-  font-size: 16px;
+  font-size: 25px;
   color: rgba(255, 255, 255, 0.7);
   margin-top: 16px;
   text-align: center;
@@ -493,7 +497,7 @@
 .gc-video-frame {
   width: var(--gc-video-size);
   height: calc(var(--gc-video-size) * 1.28);
-  border: 4px solid var(--gc-gold-frame);
+  border: 5px solid var(--gc-gold-frame);
   border-radius: 8px;
   background: var(--gc-bg-navy-light);
   overflow: hidden;
@@ -547,7 +551,7 @@
 
 .gc-album-title {
   font-family: var(--gc-font-title);
-  font-size: 32px;
+  font-size: 41px;
   font-weight: 400;
   color: var(--gc-text-brown);
   margin: 0 0 24px 0;
@@ -568,7 +572,7 @@
 .gc-album-frame {
   width: var(--gc-album-size);
   height: calc(var(--gc-album-size) * 1.28);
-  border: 3px solid var(--gc-gold-frame);
+  border: 4px solid var(--gc-gold-frame);
   border-radius: 14px;
   overflow: hidden;
   position: absolute;
@@ -597,6 +601,18 @@
   transform: rotate(0deg);
   z-index: 3;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.gc-album-stack-1.gc-album-fading {
+  opacity: 0;
+}
+
+/* Disabled state - visible but non-interactive */
+.gc-photo-album.gc-album-disabled {
+  pointer-events: none;
+  opacity: 0.5;
 }
 
 /* Hover: tighten stack (reduce offsets/rotation) */
@@ -711,6 +727,12 @@
 .gc-album-prev { left: 8px; }
 .gc-album-next { right: 8px; }
 
+.gc-album-nav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .gc-album-dots {
   display: flex;
   gap: 8px;
@@ -734,59 +756,54 @@
 /* ===== FINALE SPREAD ===== */
 /* CANONICAL: Uses Tangerine font, frame clamp, NO SIGNATURE */
 
-/* Finale spread - letter frame positioning (same clamp as Intro) */
+/* Finale spread - centered content with 1 inch margins */
 .gc-finale-spread .gc-page-left {
-  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 192px 96px 96px 48px; /* shifted left to center */
 }
 
 .gc-finale-spread .gc-page-left .gc-page-content {
-  /* FRAME CLAMP: Safe boundaries to keep text inside paper */
-  position: absolute;
-  top: var(--gc-letter-frame-top);
-  left: var(--gc-letter-frame-left);
-  right: var(--gc-letter-frame-right);
-  bottom: var(--gc-letter-frame-bottom);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  overflow: hidden;
+  /* Content centered within padded area */
+  text-align: center;
 }
 
 .gc-closing-message {
-  /* CANONICAL: Tangerine font */
+  /* CANONICAL: Tangerine font, centered, uniform styling, poem color */
   font-family: var(--gc-font-handwritten); /* Tangerine */
   font-size: var(--gc-letter-body-size);
   font-weight: 700;
-  color: var(--gc-letter-ink-color);
+  color: var(--gc-text-brown-light);
   line-height: var(--gc-letter-line-gap);
   margin: 0 0 28px 0;
   white-space: pre-line;
-  text-indent: 2em;
-  text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
+  text-align: center;
+  text-shadow: 0 0 0.5px var(--gc-text-brown-light);
 }
 
 .gc-closing-note {
-  /* CANONICAL: Tangerine font */
-  font-family: var(--gc-font-handwritten); /* Tangerine */
-  font-size: calc(var(--gc-letter-body-size) - 8px);
-  font-weight: 700;
-  color: var(--gc-letter-ink-color);
-  line-height: var(--gc-letter-line-gap);
-  margin: 0;
-  opacity: 0.85;
-  text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
-}
-
-.gc-closing-signoff {
-  /* CANONICAL: Final sign-off line - Tangerine font, italicized */
+  /* CANONICAL: Tangerine font, centered, uniform styling, poem color */
   font-family: var(--gc-font-handwritten); /* Tangerine */
   font-size: var(--gc-letter-body-size);
   font-weight: 700;
-  font-style: italic;
-  color: var(--gc-letter-ink-color);
+  color: var(--gc-text-brown-light);
+  line-height: var(--gc-letter-line-gap);
+  margin: 0;
+  text-align: center;
+  text-shadow: 0 0 0.5px var(--gc-text-brown-light);
+}
+
+.gc-closing-signoff {
+  /* CANONICAL: Final sign-off line - Tangerine font, centered, uniform styling, poem color */
+  font-family: var(--gc-font-handwritten); /* Tangerine */
+  font-size: var(--gc-letter-body-size);
+  font-weight: 700;
+  color: var(--gc-text-brown-light);
   line-height: var(--gc-letter-line-gap);
   margin: calc(var(--gc-letter-body-size) * 0.5) 0 0 0;
-  text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
+  text-align: center;
+  text-shadow: 0 0 0.5px var(--gc-text-brown-light);
 }
 
 /* NOTE: No .gc-finale-signature - signature removed per canonical rule */
@@ -805,7 +822,7 @@
 
 .gc-gift-title {
   font-family: var(--gc-font-title);
-  font-size: 36px; /* +2 sizes (was 28px) */
+  font-size: 50px;
   font-weight: 400;
   color: var(--gc-text-brown);
   margin: 0 0 24px 0;
@@ -815,7 +832,7 @@
   width: 200px;
   height: 200px;
   background: white;
-  border: 5px solid var(--gc-gold-frame);
+  border: 8px solid var(--gc-gold-frame);
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 24px;
@@ -839,7 +856,7 @@
 .gc-gift-instruction {
   font-family: var(--gc-font-body);
   font-style: italic;
-  font-size: 20px; /* +3 sizes (was 14px) */
+  font-size: 29px; /* +6 sizes (was 14px) */
   color: var(--gc-text-brown-light);
   line-height: 1.5;
   margin: 0 0 30px 0;
@@ -855,8 +872,8 @@
 /* TODO: G Logo placeholder - replace when final asset provided */
 /* Style per reference HTML: circular brown seal with Great Vibes "G" */
 .gc-logo-seal {
-  width: 50px; /* +4 sizes (was 34px) */
-  height: 50px;
+  width: 56px; /* +6 sizes (was 34px) */
+  height: 56px;
   background: linear-gradient(145deg, #8b4513, #5c2d0e);
   border-radius: 50%;
   display: flex;
@@ -867,7 +884,7 @@
 
 .gc-logo-seal span {
   font-family: var(--gc-font-title); /* Great Vibes */
-  font-size: 30px; /* +4 sizes (was 20px) */
+  font-size: 36px; /* +6 sizes (was 20px) */
   color: #f5f0e6;
 }
 
@@ -889,9 +906,18 @@
 
 .gc-brand-name {
   font-family: var(--gc-font-brand);
-  font-size: 36px; /* +2 sizes to match title scale (was 28px) */
+  font-size: 42px; /* +4 sizes to match title scale (was 28px) */
   font-weight: 600;
   color: var(--gc-text-brown);
+}
+
+.gc-brand-tagline {
+  font-family: var(--gc-font-body);
+  font-style: italic;
+  font-size: 21px;
+  color: var(--gc-text-brown-light);
+  margin: 16px 0 0 0;
+  text-align: center;
 }
 
 /* ===== RESPONSIVE ===== */

@@ -12,6 +12,7 @@ import cardInteriorImg from '../../assets/card/card-interior.png';
 
 export default function FeaturedSpread({ videoUrl, photos, onClick }) {
   const [showVideo, setShowVideo] = useState(false);
+  const [videoEnded, setVideoEnded] = useState(false);
 
   // GS-04: 2-second pause before video fades in
   useEffect(() => {
@@ -20,6 +21,10 @@ export default function FeaturedSpread({ videoUrl, photos, onClick }) {
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
+
+  const handleVideoEnd = () => {
+    setVideoEnded(true);
+  };
 
   return (
     <div
@@ -35,11 +40,14 @@ export default function FeaturedSpread({ videoUrl, photos, onClick }) {
         style={{ backgroundImage: `url(${cardInteriorImg})` }}
       >
         {/* Left Page - Video */}
-        <div className="gc-page gc-page-left gc-video-page">
+        <div
+          className="gc-page gc-page-left gc-video-page"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className={`gc-video-container ${showVideo ? 'gc-video-visible' : ''}`}>
             {showVideo && (
               <>
-                <VideoPlayer videoUrl={videoUrl} />
+                <VideoPlayer videoUrl={videoUrl} onEnded={handleVideoEnd} />
                 <p className="gc-video-caption">
                   <em>From the heart, with love</em>
                 </p>
@@ -49,9 +57,12 @@ export default function FeaturedSpread({ videoUrl, photos, onClick }) {
         </div>
 
         {/* Right Page - Photo Album */}
-        <div className="gc-page gc-page-right gc-album-page">
+        <div
+          className="gc-page gc-page-right gc-album-page"
+          onClick={(e) => e.stopPropagation()}
+        >
           <h3 className="gc-album-title">Cherished Moments</h3>
-          <PhotoAlbum photos={photos} />
+          <PhotoAlbum photos={photos} disabled={!videoEnded} />
         </div>
       </div>
     </div>
