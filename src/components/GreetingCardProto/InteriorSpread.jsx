@@ -19,7 +19,7 @@ Another year of dreams,
 May happiness find you always
 In everything, it seems.`;
 
-export default function InteriorSpread({ recipientName, message, senderName, onClick }) {
+export default function InteriorSpread({ recipientName, message, senderName, poemText, onClick }) {
   // CANONICAL: Title Case name via formatPersonName helper
   const displayName = formatPersonName(recipientName) || 'Friend';
 
@@ -102,7 +102,7 @@ export default function InteriorSpread({ recipientName, message, senderName, onC
         <div className="gc-page gc-page-right">
           <div className="gc-page-content gc-poem-content">
             <p className="gc-poem">
-              {DEFAULT_POEM}
+              {poemText || DEFAULT_POEM}
             </p>
             <h3 className="gc-warm-wishes">With Warmest Wishes</h3>
           </div>

@@ -234,6 +234,7 @@ export default function GreetingCard({ greeting }) {
           senderName={greeting.senderName}
           occasionKey={greeting.occasionKey}
           relationshipKey={greeting.relationshipKey}
+          poemText={greeting.poemText}
           onClick={advanceScreen}
         />
       )}
@@ -249,7 +250,7 @@ export default function GreetingCard({ greeting }) {
       )}
 
       {currentScreen === SCREENS.FINALE && (
-        <FinaleSpread />
+        <FinaleSpread finaleText={greeting.finaleText} />
       )}
     </div>
   );

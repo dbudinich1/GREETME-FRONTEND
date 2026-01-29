@@ -27,7 +27,14 @@ const LogoPlaceholder = () => (
   </div>
 );
 
-export default function FinaleSpread() {
+// Default closing message when no finaleText is provided
+const DEFAULT_FINALE = `I hope this greeting brought a smile to your face and warmth to your heart. These moments we share are what life is all about — the connections, the memories, the love that binds us together.
+
+May you carry this feeling with you always, and know that you are treasured beyond words.
+
+May all your Birthday wishes come true.`;
+
+export default function FinaleSpread({ finaleText }) {
   // CANONICAL: NO SIGNATURE on Finale spread (removed per canonical rule)
 
   return (
@@ -39,15 +46,11 @@ export default function FinaleSpread() {
         {/* Left Page - CANONICAL: Tangerine font, blue ink, NO signature */}
         <div className="gc-page gc-page-left">
           <div className="gc-page-content">
-            <p className="gc-closing-message">
-              I hope this greeting brought a smile to your face and warmth to your heart. These moments we share are what life is all about — the connections, the memories, the love that binds us together.
-            </p>
-            <p className="gc-closing-note">
-              May you carry this feeling with you always, and know that you are treasured beyond words.
-            </p>
-            <p className="gc-closing-signoff">
-              May all your Birthday wishes come true.
-            </p>
+            <div className="gc-closing-message">
+              {(finaleText || DEFAULT_FINALE).split('\n\n').map((paragraph, index) => (
+                <p key={index}>{paragraph}</p>
+              ))}
+            </div>
             {/* CANONICAL: No signature on Finale spread */}
           </div>
         </div>

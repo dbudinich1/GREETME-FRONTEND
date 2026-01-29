@@ -33,6 +33,8 @@ export default function PublicGreetingCard() {
           senderName: g.senderName || 'Dan',
           greetingText: g.greetingText || '',
           writtenIntroText: g.writtenIntroText || '',
+          poemText: g.poemText || '',
+          finaleText: g.finaleText || '',
           occasionKey: g.occasionKey || 'general',
           relationshipKey: g.relationshipKey || '',
           videoUrl: g.videoUrl || null,
