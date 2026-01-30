@@ -311,7 +311,7 @@
 .gc-greeting-salutation {
   font-family: var(--gc-font-title);
   font-size: calc(var(--gc-letter-name-size) * 1.1 - 3px); /* Reduced by 3px */
-  font-weight: 400;
+  font-weight: 700; /* CANONICAL: same ink weight as body */
   color: #1a3a6b; /* CANONICAL: exact ink color */
   margin: 0 0 32px 0; /* Breathing room after salutation */
   line-height: 1.6; /* Consistent with body */
