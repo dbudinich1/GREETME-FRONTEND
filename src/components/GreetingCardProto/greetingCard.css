@@ -310,7 +310,7 @@
   font-size: var(--gc-letter-body-size); /* Same as occasion (48px) */
   font-weight: 400; /* Normal weight */
   color: #1a3a6b; /* CANONICAL: exact ink color */
-  margin: 0 0 32px 0; /* Breathing room after salutation */
+  margin: 0 0 12px 0; /* Reduced spacing after salutation */
   line-height: 1.6; /* Consistent with body */
   letter-spacing: 1px;
   flex-shrink: 0;
@@ -461,7 +461,7 @@
 .gc-signature {
   position: absolute;
   bottom: 60px;
-  right: 40px;
+  right: 120px;  /* Moved left from 40px */
   font-family: var(--gc-font-handwritten);
   font-size: 48px;
   color: #1a3a6b;
