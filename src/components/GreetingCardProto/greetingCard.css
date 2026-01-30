@@ -1104,14 +1104,6 @@
     padding: 16px 8px;
   }
 
-  .gc-interior-spread {
-    width: 1400px !important;
-    min-width: 1400px !important;
-    transform: scale(0.27);
-    transform-origin: top center;
-    margin-left: calc(50vw - 700px);  /* Center: 50% viewport minus half of 1400px */
-  }
-
   .gc-envelope-wrapper,
   .gc-cover-wrapper,
   .gc-spread-wrapper {
@@ -1396,14 +1388,6 @@
 
 /* Portrait: Small phones */
 @media (max-width: 380px) and (orientation: portrait) {
-  .gc-interior-spread {
-    width: 1400px !important;
-    min-width: 1400px !important;
-    transform: scale(0.22);
-    transform-origin: top center;
-    margin-left: calc(50vw - 700px);
-  }
-
   .gc-recipient-name {
     font-size: 36px;
   }
