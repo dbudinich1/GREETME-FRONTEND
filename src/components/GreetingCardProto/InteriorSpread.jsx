@@ -94,12 +94,12 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
             <div className="gc-greeting-message">
               {bodyMessage
                 .replace(/\r\n/g, '\n')           // Normalize Windows line endings
-                .replace(/\n{2,}/g, '\n\n')       // Collapse 2+ newlines to exactly 2
-                .split('\n\n')                     // Split on paragraph breaks
-                .map(para => para.replace(/\n/g, ' ').trim())  // Single \n → space
-                .filter(para => para.length > 0)  // Remove empty
-                .map((para, i) => (
-                  <p key={i}>{para}</p>
+                .replace(/\n{2,}/g, '\n')         // Collapse multiple newlines to single
+                .split('\n')                       // Split on every newline
+                .map(line => line.trim())          // Trim whitespace
+                .filter(line => line.length > 0)   // Remove empty lines
+                .map((line, i) => (
+                  <p key={i}>{line}</p>
                 ))
               }
             </div>
