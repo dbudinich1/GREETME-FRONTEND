@@ -1105,14 +1105,13 @@
   }
 
   .gc-interior-spread {
-    transform: scale(0.45);
-    transform-origin: top center;
-    min-width: 900px;  /* Preserve internal width */
-  }
-
-  .gc-interior-spread .gc-poem {
-    width: 100%;
-    min-width: 200px;  /* Prevent collapse */
+    transform: scale(0.5);
+    transform-origin: center center;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-left: -450px;  /* Half of the spread width */
+    margin-top: -300px;   /* Half of the spread height */
   }
 
   .gc-envelope-wrapper,
@@ -1409,9 +1408,7 @@
 /* Portrait: Small phones */
 @media (max-width: 380px) and (orientation: portrait) {
   .gc-interior-spread {
-    transform: scale(0.38);
-    transform-origin: top center;
-    min-width: 900px;  /* Preserve internal width */
+    transform: scale(0.4);
   }
 
   .gc-recipient-name {
