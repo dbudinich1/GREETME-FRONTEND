@@ -52,9 +52,33 @@ const stripSignature = (text) => {
   return cleaned;
 };
 
-export default function FinaleSpread({ finaleText }) {
+// CANONICAL: Birthday greetings always end with this sign-off
+const BIRTHDAY_SIGNOFF = 'May all your birthday wishes come true.';
+
+// Check if occasion is a birthday type
+const isBirthdayOccasion = (occasionKey) => {
+  if (!occasionKey) return false;
+  const key = occasionKey.toLowerCase();
+  return key.includes('birthday') || key === 'bday';
+};
+
+export default function FinaleSpread({ finaleText, occasionKey }) {
   // CANONICAL: NO SIGNATURE on Finale spread - strip any sign-off from AI text
-  const cleanedFinale = stripSignature(finaleText);
+  let cleanedFinale = stripSignature(finaleText);
+
+  // CANONICAL: Birthday greetings MUST end with birthday sign-off
+  if (isBirthdayOccasion(occasionKey)) {
+    // Remove existing birthday sign-off if present (to avoid duplication)
+    if (cleanedFinale) {
+      cleanedFinale = cleanedFinale
+        .replace(/may all your birthday wishes come true\.?\s*$/i, '')
+        .trim();
+    }
+    // Append the canonical birthday sign-off
+    cleanedFinale = cleanedFinale
+      ? `${cleanedFinale}\n\n${BIRTHDAY_SIGNOFF}`
+      : BIRTHDAY_SIGNOFF;
+  }
 
   return (
     <div className="gc-spread-wrapper">

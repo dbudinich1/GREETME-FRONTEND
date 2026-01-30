@@ -250,7 +250,10 @@ export default function GreetingCard({ greeting }) {
       )}
 
       {currentScreen === SCREENS.FINALE && (
-        <FinaleSpread finaleText={greeting.finaleText} />
+        <FinaleSpread
+          finaleText={greeting.finaleText}
+          occasionKey={greeting.occasionKey}
+        />
       )}
     </div>
   );

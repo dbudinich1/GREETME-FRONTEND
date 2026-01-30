@@ -310,8 +310,8 @@
 
 .gc-greeting-salutation {
   font-family: var(--gc-font-title);
-  font-size: calc(var(--gc-letter-name-size) * 1.1 - 3px); /* Reduced by 3px */
-  font-weight: 700; /* CANONICAL: same ink weight as body */
+  font-size: var(--gc-letter-body-size); /* Same as occasion (48px) */
+  font-weight: 400; /* Normal weight */
   color: #1a3a6b; /* CANONICAL: exact ink color */
   margin: 0 0 32px 0; /* Breathing room after salutation */
   line-height: 1.6; /* Consistent with body */
@@ -324,7 +324,7 @@
 .gc-greeting-occasion {
   font-family: var(--gc-font-handwritten);
   font-size: var(--gc-letter-body-size);
-  font-weight: 700;
+  font-weight: 400; /* Normal weight */
   color: #1a3a6b; /* CANONICAL: exact ink color */
   line-height: 1.6; /* Match body line-height */
   margin: 0 0 24px 0; /* More breathing room before body */
@@ -335,7 +335,7 @@
 .gc-greeting-message {
   font-family: var(--gc-font-handwritten);
   font-size: var(--gc-letter-body-size);
-  font-weight: 700; /* Thicker ink weight */
+  font-weight: 400; /* Normal weight */
   color: #1a3a6b; /* CANONICAL: exact ink color */
   line-height: 1.6; /* Uniform spacing */
   margin: 0 0 24px 0; /* Bottom margin for spacing consistency */
@@ -351,6 +351,27 @@
 
 .gc-greeting-message p:last-child {
   margin-bottom: 0;
+}
+
+/* Interior spread - right page (poem) with 2 inch padding */
+.gc-interior-spread .gc-page-right {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.gc-interior-spread .gc-page-right .gc-page-content {
+  /* FRAME CLAMP: 2 inch padding (192px at 96dpi) */
+  padding: 192px 192px 192px 96px; /* top right bottom left (1 inch from crease) */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .gc-poem-content {
@@ -441,7 +462,7 @@
 .gc-signature {
   font-family: var(--gc-font-handwritten);
   font-size: var(--gc-letter-signature-size);
-  font-weight: 700;
+  font-weight: 400; /* Normal weight */
   color: #1a3a6b; /* CANONICAL: exact ink color */
   line-height: 1.6; /* Consistent with body */
   text-align: right;

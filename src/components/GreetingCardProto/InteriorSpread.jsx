@@ -19,6 +19,16 @@ Another year of dreams,
 May happiness find you always
 In everything, it seems.`;
 
+// CANONICAL: Poems must be no more than 10 lines
+const MAX_POEM_LINES = 10;
+
+const limitPoemLines = (poem) => {
+  if (!poem) return poem;
+  const lines = poem.split('\n');
+  if (lines.length <= MAX_POEM_LINES) return poem;
+  return lines.slice(0, MAX_POEM_LINES).join('\n');
+};
+
 export default function InteriorSpread({ recipientName, message, senderName, poemText, onClick }) {
   // CANONICAL: Title Case FIRST NAME only via formatPersonName helper
   const displayName = formatPersonName((recipientName || 'Friend').split(' ')[0]);
@@ -111,7 +121,7 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
         <div className="gc-page gc-page-right">
           <div className="gc-page-content gc-poem-content">
             <p className="gc-poem">
-              {poemText || DEFAULT_POEM}
+              {limitPoemLines(poemText || DEFAULT_POEM)}
             </p>
             <h3 className="gc-warm-wishes">With Warmest Wishes</h3>
           </div>
