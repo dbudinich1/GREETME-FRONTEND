@@ -9,3 +9,4 @@ frontend-deploy.zip
 coverage/
 *.log
 *.swp
+src/components/GreetingCardProto/GREETING_LOCK.md
