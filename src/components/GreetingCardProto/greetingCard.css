@@ -387,14 +387,13 @@
   font-size: 32px;
   color: var(--gc-text-brown-light);
   line-height: 1.6;
-  text-align: center;          /* Center each line */
+  text-align: center;
   margin: 0 0 40px 0;
   padding-left: 40px;          /* Slide right */
   padding-top: 40px;           /* Slide down */
-  max-height: 60%;             /* Constrain height */
-  overflow: hidden;            /* Hide overflow */
-  width: 100%;                 /* Use full width */
+  width: 100%;
   white-space: pre-line;
+  /* No max-height/overflow - 8-line limit enforced by AI prompt + frontend backup */
 }
 
 .gc-warm-wishes {
