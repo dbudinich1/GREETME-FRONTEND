@@ -92,9 +92,16 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
             </h2>
             <p className="gc-greeting-occasion">{greeting}</p>
             <div className="gc-greeting-message">
-              {bodyMessage.split('\n\n').map((para, i) => (
-                <p key={i}>{para.replace(/\n/g, ' ')}</p>
-              ))}
+              {bodyMessage
+                .replace(/\r\n/g, '\n')           // Normalize Windows line endings
+                .replace(/\n{2,}/g, '\n\n')       // Collapse 2+ newlines to exactly 2
+                .split('\n\n')                     // Split on paragraph breaks
+                .map(para => para.replace(/\n/g, ' ').trim())  // Single \n → space
+                .filter(para => para.length > 0)  // Remove empty
+                .map((para, i) => (
+                  <p key={i}>{para}</p>
+                ))
+              }
             </div>
             <p className="gc-signature">{displaySender}</p>
           </div>
