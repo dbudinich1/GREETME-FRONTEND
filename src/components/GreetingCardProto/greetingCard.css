@@ -317,6 +317,7 @@
   line-height: 1.6; /* Consistent with body */
   letter-spacing: 1px;
   flex-shrink: 0;
+  text-shadow: 0 0 0.5px #1a3a6b; /* CANONICAL: same ink style as body */
 }
 
 /* Occasion greeting line (e.g., "Happy Birthday!") - centered */
