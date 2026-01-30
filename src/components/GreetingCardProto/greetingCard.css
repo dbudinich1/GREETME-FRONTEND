@@ -310,10 +310,10 @@
 
 .gc-greeting-salutation {
   font-family: var(--gc-font-title);
-  font-size: var(--gc-letter-name-size);
+  font-size: calc(var(--gc-letter-name-size) * 1.1); /* Slightly larger than body */
   font-weight: 400;
   color: var(--gc-letter-ink-color);
-  margin: 0 0 12px 0;
+  margin: 0 0 24px 0; /* Increased gap after salutation */
   line-height: var(--gc-letter-line-gap);
   letter-spacing: 1px;
   flex-shrink: 0;
@@ -336,7 +336,7 @@
   font-size: var(--gc-letter-body-size);
   font-weight: 700; /* Thicker ink weight */
   color: var(--gc-letter-ink-color);
-  line-height: 1.1;
+  line-height: var(--gc-letter-line-gap); /* Uniform spacing with occasion */
   margin: 0;
   white-space: pre-line;
   text-align: left;
@@ -486,10 +486,10 @@
 }
 
 .gc-video-caption {
-  font-family: var(--gc-font-body);
-  font-style: italic;
-  font-size: 25px;
-  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--gc-font-title); /* Match "Cherished Moments" heading style */
+  font-style: normal;
+  font-size: 28px;
+  color: rgba(255, 255, 255, 0.85);
   margin-top: 16px;
   text-align: center;
 }

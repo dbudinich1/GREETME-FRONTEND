@@ -20,14 +20,14 @@ May happiness find you always
 In everything, it seems.`;
 
 export default function InteriorSpread({ recipientName, message, senderName, poemText, onClick }) {
-  // CANONICAL: Title Case name via formatPersonName helper
-  const displayName = formatPersonName(recipientName) || 'Friend';
+  // CANONICAL: Title Case FIRST NAME only via formatPersonName helper
+  const displayName = formatPersonName((recipientName || 'Friend').split(' ')[0]);
 
   // GS-03: Never render empty - always use placeholder if missing
   const rawMessage = message?.trim() || `Happy Birthday!\n\nI've been thinking about you lately and wanted to reach out.\n\nYou matter to me more than you know.\n\nI hope this message finds you well.`;
 
-  // CANONICAL: Signature in Title Case (person's name)
-  const displaySender = formatPersonName(senderName);
+  // CANONICAL: Signature in Title Case (FIRST NAME only)
+  const displaySender = formatPersonName((senderName || '').split(' ')[0]);
 
   // Split greeting (first line before \n\n) from body
   const [greeting, ...bodyParts] = rawMessage.split('\n\n');

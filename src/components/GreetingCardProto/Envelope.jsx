@@ -100,7 +100,7 @@ export default function Envelope({ recipientName, onSealClick }) {
           className="gc-envelope-face gc-envelope-front"
           style={{ backgroundImage: `url(${envelopeFrontImg})` }}
         >
-          <span className="gc-recipient-name">{capitalize(recipientName) || 'Friend'}</span>
+          <span className="gc-recipient-name">{capitalize((recipientName || 'Friend').split(' ')[0])}</span>
         </div>
 
         {/* Back */}
