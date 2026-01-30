@@ -1104,6 +1104,13 @@
     padding: 16px 8px;
   }
 
+  .gc-interior-spread {
+    width: calc(100vw - 32px);
+    height: auto;
+    aspect-ratio: var(--gc-landscape-ar);
+    margin-left: -8px;
+  }
+
   .gc-envelope-wrapper,
   .gc-cover-wrapper,
   .gc-spread-wrapper {
@@ -1388,6 +1395,13 @@
 
 /* Portrait: Small phones */
 @media (max-width: 380px) and (orientation: portrait) {
+  .gc-interior-spread {
+    width: calc(100vw - 32px);
+    height: auto;
+    aspect-ratio: var(--gc-landscape-ar);
+    margin-left: -8px;
+  }
+
   .gc-recipient-name {
     font-size: 36px;
   }
