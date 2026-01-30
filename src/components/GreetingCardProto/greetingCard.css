@@ -310,9 +310,9 @@
 
 .gc-greeting-salutation {
   font-family: var(--gc-font-title);
-  font-size: calc(var(--gc-letter-name-size) * 1.1); /* Slightly larger than body */
+  font-size: calc(var(--gc-letter-name-size) * 1.1 - 3px); /* Reduced by 3px */
   font-weight: 400;
-  color: var(--gc-letter-ink-color);
+  color: #1a3a6b; /* CANONICAL: exact ink color */
   margin: 0 0 32px 0; /* Breathing room after salutation */
   line-height: 1.6; /* Consistent with body */
   letter-spacing: 1px;
@@ -324,24 +324,24 @@
   font-family: var(--gc-font-handwritten);
   font-size: var(--gc-letter-body-size);
   font-weight: 700;
-  color: var(--gc-letter-ink-color);
+  color: #1a3a6b; /* CANONICAL: exact ink color */
   line-height: 1.6; /* Match body line-height */
-  margin: 0 0 16px 0; /* Reduced - body now has own spacing */
+  margin: 0 0 24px 0; /* More breathing room before body */
   text-align: center;
-  text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
+  text-shadow: 0 0 0.5px #1a3a6b;
 }
 
 .gc-greeting-message {
   font-family: var(--gc-font-handwritten);
   font-size: var(--gc-letter-body-size);
   font-weight: 700; /* Thicker ink weight */
-  color: var(--gc-letter-ink-color);
+  color: #1a3a6b; /* CANONICAL: exact ink color */
   line-height: 1.6; /* Uniform spacing */
   margin: 0 0 24px 0; /* Bottom margin for spacing consistency */
   text-align: left;
   overflow: hidden;
   /* Subtle ink thickness via text-shadow */
-  text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
+  text-shadow: 0 0 0.5px #1a3a6b;
 }
 
 .gc-greeting-message p {
@@ -441,13 +441,13 @@
   font-family: var(--gc-font-handwritten);
   font-size: var(--gc-letter-signature-size);
   font-weight: 700;
-  color: var(--gc-letter-ink-color);
+  color: #1a3a6b; /* CANONICAL: exact ink color */
   line-height: 1.6; /* Consistent with body */
   text-align: right;
   margin-top: 24px;
   padding-right: 24px;
   /* CANONICAL: Same ink style as message - no glow, no blur, no rotation */
-  text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
+  text-shadow: 0 0 0.5px #1a3a6b;
 }
 
 
