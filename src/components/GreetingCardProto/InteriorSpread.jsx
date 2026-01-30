@@ -91,9 +91,11 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
               Dear {displayName},
             </h2>
             <p className="gc-greeting-occasion">{greeting}</p>
-            <p className="gc-greeting-message">
-              {bodyMessage}
-            </p>
+            <div className="gc-greeting-message">
+              {bodyMessage.split('\n\n').map((para, i) => (
+                <p key={i}>{para.replace(/\n/g, ' ')}</p>
+              ))}
+            </div>
             <p className="gc-signature">{displaySender}</p>
           </div>
         </div>

@@ -338,11 +338,18 @@
   color: var(--gc-letter-ink-color);
   line-height: 1.6; /* Uniform spacing */
   margin: 0 0 24px 0; /* Bottom margin for spacing consistency */
-  white-space: pre-line;
   text-align: left;
   overflow: hidden;
   /* Subtle ink thickness via text-shadow */
   text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
+}
+
+.gc-greeting-message p {
+  margin: 0 0 16px 0; /* Uniform paragraph spacing */
+}
+
+.gc-greeting-message p:last-child {
+  margin-bottom: 0;
 }
 
 .gc-poem-content {
