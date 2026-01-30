@@ -508,6 +508,7 @@
   margin: 24px;
   margin-right: 12px;
   padding: 40px;
+  padding-top: 100px;             /* Push video down to align with vignette */
   border-radius: 4px;
 }
 
@@ -535,9 +536,9 @@
 }
 
 .gc-video-caption {
-  font-family: var(--gc-font-title); /* Match "Cherished Moments" heading style */
+  font-family: var(--gc-font-title);
   font-style: normal;
-  font-size: 28px;
+  font-size: 49px;                    /* +2 sizes from 45px */
   color: rgba(255, 255, 255, 0.85);
   margin-top: 16px;
   text-align: center;
@@ -639,7 +640,7 @@
 
 .gc-album-title {
   font-family: var(--gc-font-title);
-  font-size: 45px;
+  font-size: 49px;                    /* +2 sizes from 45px */
   font-weight: 500;
   color: var(--gc-text-brown);
   margin: 0 0 24px 0;
@@ -722,7 +723,37 @@
   object-fit: cover;
   display: block;
   border-radius: 10px;
+  /* Ken Burns animation properties */
+  animation-duration: 6s;
+  animation-fill-mode: forwards;
+  animation-timing-function: ease-out;
 }
+
+/* Ken Burns keyframes - 4 variations */
+@keyframes kenburns-1 {
+  0% { transform: scale(1) translate(0, 0); }
+  100% { transform: scale(1.2) translate(-5%, -5%); }
+}
+
+@keyframes kenburns-2 {
+  0% { transform: scale(1.2) translate(-5%, -5%); }
+  100% { transform: scale(1) translate(0, 0); }
+}
+
+@keyframes kenburns-3 {
+  0% { transform: scale(1) translate(0, 0); }
+  100% { transform: scale(1.2) translate(5%, -3%); }
+}
+
+@keyframes kenburns-4 {
+  0% { transform: scale(1.1) translate(3%, 3%); }
+  100% { transform: scale(1) translate(0, 0); }
+}
+
+.gc-album-photo.kenburns-1 { animation-name: kenburns-1; }
+.gc-album-photo.kenburns-2 { animation-name: kenburns-2; }
+.gc-album-photo.kenburns-3 { animation-name: kenburns-3; }
+.gc-album-photo.kenburns-4 { animation-name: kenburns-4; }
 
 /* Paper edge vignette overlay */
 .gc-album-frame:not(.gc-album-placeholder)::after {
@@ -781,25 +812,7 @@
 }
 
 .gc-album-nav {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 32px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border: 1px solid rgba(212, 175, 55, 0.25);
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 18px;
-  font-weight: 500;
-  color: var(--gc-text-brown);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
+  display: none;  /* Navigation buttons removed */
 }
 
 .gc-album-nav:hover {

@@ -2,7 +2,7 @@
  * PhotoAlbum.jsx
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 function getPhotoSrc(photo) {
   if (!photo) return null;
@@ -21,6 +21,23 @@ export default function PhotoAlbum({ photos, disabled = false }) {
   const validPhotos = (photos || []).map(getPhotoSrc).filter(Boolean);
   const hasPhotos = validPhotos.length > 0;
   const photoCount = validPhotos.length;
+
+  // Auto-advance every 6 seconds when not disabled
+  useEffect(() => {
+    if (disabled || photoCount <= 1) return;
+
+    const timer = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % photoCount);
+    }, 6000);
+
+    return () => clearInterval(timer);
+  }, [disabled, photoCount]);
+
+  // Assign Ken Burns class to each photo (cycles through 4 variations)
+  const getKenBurnsClass = (index) => {
+    const classes = ['kenburns-1', 'kenburns-2', 'kenburns-3', 'kenburns-4'];
+    return classes[index % classes.length];
+  };
 
   const changePhoto = (getNewIndex, e) => {
     // Stop all event propagation
@@ -105,7 +122,7 @@ export default function PhotoAlbum({ photos, disabled = false }) {
           <img
             src={validPhotos[currentIndex]}
             alt={`Memory ${currentIndex + 1}`}
-            className="gc-album-photo"
+            className={`gc-album-photo ${getKenBurnsClass(currentIndex)}`}
             draggable={false}
             onError={(e) => { e.target.style.display = 'none'; }}
           />
