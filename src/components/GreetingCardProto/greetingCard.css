@@ -1109,6 +1109,7 @@
     transform-origin: top center;
     width: 900px !important;
     min-width: 900px !important;
+    margin-left: calc(50vw - 450px);  /* Center the 900px spread */
   }
 
   .gc-envelope-wrapper,
@@ -1421,6 +1422,7 @@
     transform-origin: top center;
     width: 900px !important;
     min-width: 900px !important;
+    margin-left: calc(50vw - 450px);  /* Center the 900px spread */
   }
 
   .gc-recipient-name {
