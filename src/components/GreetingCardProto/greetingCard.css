@@ -1104,6 +1104,11 @@
     padding: 16px 8px;
   }
 
+  .gc-interior-spread {
+    transform: scale(0.45);
+    transform-origin: top center;
+  }
+
   .gc-envelope-wrapper,
   .gc-cover-wrapper,
   .gc-spread-wrapper {
@@ -1397,6 +1402,11 @@
 
 /* Portrait: Small phones */
 @media (max-width: 380px) and (orientation: portrait) {
+  .gc-interior-spread {
+    transform: scale(0.38);
+    transform-origin: top center;
+  }
+
   .gc-recipient-name {
     font-size: 36px;
   }
