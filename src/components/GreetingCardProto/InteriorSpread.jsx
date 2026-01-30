@@ -19,15 +19,48 @@ Another year of dreams,
 May happiness find you always
 In everything, it seems.`;
 
-// CANONICAL: Poems must be no more than 10 lines
-const MAX_POEM_LINES = 10;
+// CANONICAL: Poem fitting rules
+const MAX_POEM_LINES = 8;
+const MAX_CHARS_PER_LINE = 45;
 
-const limitPoemLines = (poem) => {
-  if (!poem) return poem;
-  const lines = poem.split('\n');
-  if (lines.length <= MAX_POEM_LINES) return poem;
-  return lines.slice(0, MAX_POEM_LINES).join('\n');
-};
+// Format poem to fit within frame constraints
+function formatPoemToFit(poemText, maxLines = MAX_POEM_LINES, maxCharsPerLine = MAX_CHARS_PER_LINE) {
+  if (!poemText) return DEFAULT_POEM;
+
+  // Split into lines and remove empty
+  let lines = poemText.split('\n').filter(line => line.trim());
+
+  // Wrap long lines at nearest space
+  const wrappedLines = [];
+  lines.forEach(line => {
+    if (line.length <= maxCharsPerLine) {
+      wrappedLines.push(line);
+    } else {
+      let remaining = line;
+      while (remaining.length > maxCharsPerLine) {
+        let splitIndex = remaining.lastIndexOf(' ', maxCharsPerLine);
+        if (splitIndex === -1) splitIndex = maxCharsPerLine;
+        wrappedLines.push(remaining.substring(0, splitIndex));
+        remaining = remaining.substring(splitIndex).trim();
+      }
+      if (remaining) wrappedLines.push(remaining);
+    }
+  });
+
+  // Truncate to max lines with ellipsis
+  if (wrappedLines.length > maxLines) {
+    return wrappedLines.slice(0, maxLines).join('\n') + '...';
+  }
+
+  return wrappedLines.join('\n');
+}
+
+// Dynamic font size based on line count
+function getPoemFontSize(lineCount) {
+  if (lineCount <= 4) return '42px';
+  if (lineCount <= 6) return '38px';
+  return '34px';
+}
 
 export default function InteriorSpread({ recipientName, message, senderName, poemText, onClick }) {
   // CANONICAL: Title Case FIRST NAME only via formatPersonName helper
@@ -120,9 +153,15 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
         {/* Right Page */}
         <div className="gc-page gc-page-right">
           <div className="gc-page-content gc-poem-content">
-            <p className="gc-poem">
-              {limitPoemLines(poemText || DEFAULT_POEM)}
-            </p>
+            {(() => {
+              const formattedPoem = formatPoemToFit(poemText);
+              const lineCount = formattedPoem.split('\n').length;
+              return (
+                <p className="gc-poem" style={{ fontSize: getPoemFontSize(lineCount) }}>
+                  {formattedPoem}
+                </p>
+              );
+            })()}
             <h3 className="gc-warm-wishes">With Warmest Wishes</h3>
           </div>
         </div>
