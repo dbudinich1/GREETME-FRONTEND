@@ -34,8 +34,27 @@ May you carry this feeling with you always, and know that you are treasured beyo
 
 May all your Birthday wishes come true.`;
 
+// Strip signature/sign-off from end of finaleText
+const stripSignature = (text) => {
+  if (!text) return text;
+
+  // Common sign-off patterns to remove from end
+  const SIGNOFF_PATTERNS = [
+    /,?\s*(with all my love|all my love|with love|love always|yours truly|yours forever|always yours|forever yours|warmly|fondly|xoxo|thinking of you)[,\s]*[\w]+\.?\s*$/i,
+    /,?\s*(with all my love|all my love|with love|love always|yours truly|yours forever|always yours|forever yours|warmly|fondly|xoxo|thinking of you)[,\s]*$/i,
+    /\n+[\w]+\.?\s*$/i, // Standalone name at end after newline
+  ];
+
+  let cleaned = text.trim();
+  for (const pattern of SIGNOFF_PATTERNS) {
+    cleaned = cleaned.replace(pattern, '').trim();
+  }
+  return cleaned;
+};
+
 export default function FinaleSpread({ finaleText }) {
-  // CANONICAL: NO SIGNATURE on Finale spread (removed per canonical rule)
+  // CANONICAL: NO SIGNATURE on Finale spread - strip any sign-off from AI text
+  const cleanedFinale = stripSignature(finaleText);
 
   return (
     <div className="gc-spread-wrapper">
@@ -47,7 +66,7 @@ export default function FinaleSpread({ finaleText }) {
         <div className="gc-page gc-page-left">
           <div className="gc-page-content">
             <div className="gc-closing-message">
-              {(finaleText || DEFAULT_FINALE).split('\n\n').map((paragraph, index) => (
+              {(cleanedFinale || DEFAULT_FINALE).split('\n\n').map((paragraph, index) => (
                 <p key={index}>{paragraph}</p>
               ))}
             </div>

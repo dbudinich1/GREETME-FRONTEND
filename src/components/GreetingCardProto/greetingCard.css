@@ -313,7 +313,7 @@
   font-size: calc(var(--gc-letter-name-size) * 1.1); /* Slightly larger than body */
   font-weight: 400;
   color: var(--gc-letter-ink-color);
-  margin: 0 0 24px 0; /* Increased gap after salutation */
+  margin: 0 0 32px 0; /* Breathing room after salutation */
   line-height: var(--gc-letter-line-gap);
   letter-spacing: 1px;
   flex-shrink: 0;
@@ -325,8 +325,8 @@
   font-size: var(--gc-letter-body-size);
   font-weight: 700;
   color: var(--gc-letter-ink-color);
-  line-height: var(--gc-letter-line-gap);
-  margin: 0 0 28px 0;
+  line-height: 1.6; /* Match body line-height */
+  margin: 0 0 16px 0; /* Reduced - body now has own spacing */
   text-align: center;
   text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
 }
@@ -336,8 +336,8 @@
   font-size: var(--gc-letter-body-size);
   font-weight: 700; /* Thicker ink weight */
   color: var(--gc-letter-ink-color);
-  line-height: var(--gc-letter-line-gap); /* Uniform spacing with occasion */
-  margin: 0;
+  line-height: 1.6; /* Uniform spacing */
+  margin: 0 0 24px 0; /* Bottom margin for spacing consistency */
   white-space: pre-line;
   text-align: left;
   overflow: hidden;
