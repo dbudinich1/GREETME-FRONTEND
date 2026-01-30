@@ -104,6 +104,7 @@
   cursor: grab;
   transform-style: preserve-3d;
   transition: transform 0.05s ease-out;
+  touch-action: none;  /* Enable drag-to-spin on mobile */
 }
 
 .gc-envelope:active {

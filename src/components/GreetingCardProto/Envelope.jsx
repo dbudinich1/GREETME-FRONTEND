@@ -42,31 +42,39 @@ export default function Envelope({ recipientName, onSealClick }) {
   const [isDragging, setIsDragging] = useState(false);
   const lastPos = useRef({ x: 0, y: 0 });
 
-  const handleMouseDown = (e) => {
-    if (e.target.closest('.gc-wax-seal')) return;
-    setIsDragging(true);
-    lastPos.current = { x: e.clientX, y: e.clientY };
+  // Get coordinates from mouse or touch event
+  const getEventCoords = (e) => {
+    if (e.touches && e.touches.length > 0) {
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    return { x: e.clientX, y: e.clientY };
   };
 
-  const handleMouseMove = (e) => {
+  const handleDragStart = (e) => {
+    if (e.target.closest('.gc-wax-seal')) return;
+    setIsDragging(true);
+    lastPos.current = getEventCoords(e);
+  };
+
+  const handleDragMove = (e) => {
     if (!isDragging) return;
-    
-    const deltaX = e.clientX - lastPos.current.x;
-    const deltaY = e.clientY - lastPos.current.y;
-    
+
+    // Prevent page scroll while dragging envelope
+    if (e.cancelable) e.preventDefault();
+
+    const coords = getEventCoords(e);
+    const deltaX = coords.x - lastPos.current.x;
+    const deltaY = coords.y - lastPos.current.y;
+
     setRotation(prev => ({
       x: prev.x - deltaY * 0.5,
       y: prev.y + deltaX * 0.5
     }));
-    
-    lastPos.current = { x: e.clientX, y: e.clientY };
+
+    lastPos.current = coords;
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleMouseLeave = () => {
+  const handleDragEnd = () => {
     setIsDragging(false);
   };
 
@@ -82,18 +90,20 @@ export default function Envelope({ recipientName, onSealClick }) {
   const showingBack = normalizedY > 90 && normalizedY < 270;
 
   return (
-    <div 
+    <div
       className="gc-envelope-wrapper"
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseLeave}
+      onMouseMove={handleDragMove}
+      onMouseUp={handleDragEnd}
+      onMouseLeave={handleDragEnd}
+      onTouchMove={handleDragMove}
+      onTouchEnd={handleDragEnd}
+      onTouchCancel={handleDragEnd}
     >
       <div
         className="gc-envelope"
-        style={{
-          transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`
-        }}
-        onMouseDown={handleMouseDown}
+        style={{ transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)` }}
+        onMouseDown={handleDragStart}
+        onTouchStart={handleDragStart}
       >
         {/* Front */}
         <div
