@@ -314,7 +314,7 @@
   font-weight: 400;
   color: var(--gc-letter-ink-color);
   margin: 0 0 32px 0; /* Breathing room after salutation */
-  line-height: var(--gc-letter-line-gap);
+  line-height: 1.6; /* Consistent with body */
   letter-spacing: 1px;
   flex-shrink: 0;
 }
@@ -435,7 +435,7 @@
   font-size: var(--gc-letter-signature-size);
   font-weight: 700;
   color: var(--gc-letter-ink-color);
-  line-height: var(--gc-letter-line-gap);
+  line-height: 1.6; /* Consistent with body */
   text-align: right;
   margin-top: 24px;
   padding-right: 24px;
