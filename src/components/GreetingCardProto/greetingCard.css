@@ -1105,11 +1105,11 @@
   }
 
   .gc-interior-spread {
-    transform: scale(0.42);
+    width: 1400px !important;
+    min-width: 1400px !important;
+    transform: scale(0.27);
     transform-origin: top center;
-    width: 900px !important;
-    min-width: 900px !important;
-    margin-left: calc(50vw - 450px);  /* Center the 900px spread */
+    margin-left: calc(50vw - 700px);  /* Center: 50% viewport minus half of 1400px */
   }
 
   .gc-envelope-wrapper,
@@ -1155,49 +1155,6 @@
 
   .gc-page-right {
     padding-left: 8px;
-  }
-
-  .gc-interior-spread .gc-page-left .gc-page-content {
-    top: 96px;
-    left: 100px;
-    right: 100px;
-    bottom: 60px;
-    overflow: visible;
-  }
-
-  .gc-interior-spread .gc-page-right .gc-page-content,
-  .gc-interior-spread .gc-poem-content {
-    padding: 60px 80px;
-    width: 100%;
-  }
-
-  /* Left page - intro text */
-  .gc-interior-spread .gc-page-left .gc-greeting-salutation {
-    font-size: 36px;
-  }
-
-  .gc-interior-spread .gc-page-left .gc-greeting-occasion {
-    font-size: 28px;
-  }
-
-  .gc-interior-spread .gc-page-left .gc-greeting-message {
-    font-size: 26px;
-    line-height: 1.4;
-  }
-
-  .gc-interior-spread .gc-page-left .gc-signature {
-    font-size: 32px;
-  }
-
-  /* Right page - poem */
-  .gc-interior-spread .gc-poem {
-    font-size: 24px;
-    line-height: 1.4;
-    min-width: 300px;
-  }
-
-  .gc-interior-spread .gc-warm-wishes {
-    font-size: 28px;
   }
 
   .gc-greeting-salutation {
@@ -1440,11 +1397,11 @@
 /* Portrait: Small phones */
 @media (max-width: 380px) and (orientation: portrait) {
   .gc-interior-spread {
-    transform: scale(0.35);
+    width: 1400px !important;
+    min-width: 1400px !important;
+    transform: scale(0.22);
     transform-origin: top center;
-    width: 900px !important;
-    min-width: 900px !important;
-    margin-left: calc(50vw - 450px);  /* Center the 900px spread */
+    margin-left: calc(50vw - 700px);
   }
 
   .gc-recipient-name {
@@ -1462,17 +1419,6 @@
 
   .gc-cover-subtitle {
     font-size: 12px;
-  }
-
-  .gc-interior-spread .gc-page-left .gc-page-content {
-    top: 96px;
-    left: 100px;
-    right: 100px;
-    bottom: 60px;
-  }
-
-  .gc-interior-spread .gc-poem {
-    font-size: 22px;
   }
 
   .gc-greeting-salutation {
