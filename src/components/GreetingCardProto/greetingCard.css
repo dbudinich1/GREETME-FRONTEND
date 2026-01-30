@@ -324,7 +324,7 @@
   font-weight: 400; /* Normal weight */
   color: #1a3a6b; /* CANONICAL: exact ink color */
   line-height: 1.6; /* Match body line-height */
-  margin: 0 0 24px 0; /* More breathing room before body */
+  margin: 0 0 12px 0; /* Reduced spacing before body */
   text-align: center;
   text-shadow: 0 0 0.5px #1a3a6b;
 }
@@ -373,18 +373,25 @@
 }
 
 .gc-poem-content {
-  justify-content: center;
-  align-items: center;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  text-align: left;
+  height: 100%;
 }
 
 .gc-poem {
   font-family: var(--gc-font-body);
   font-style: italic;
-  font-size: 32px;  /* REDUCED for better fit */
+  font-size: 32px;
   color: var(--gc-text-brown-light);
-  line-height: 1.5;
-  margin: 0 0 40px 0;  /* Space below poem */
+  line-height: 1.6;
+  text-align: left;            /* Left-aligned for poetry */
+  margin: 0 0 40px 0;
+  max-height: 60%;             /* Constrain height */
+  overflow: hidden;            /* Hide overflow */
+  width: 100%;                 /* Use full width */
   white-space: pre-line;
 }
 
@@ -393,8 +400,9 @@
   font-size: 42px;
   font-weight: 400;
   color: var(--gc-text-gold);
-  margin: 30px 0 0 0;  /* Space above */
-  margin-top: auto;  /* Push to bottom of flex container */
+  margin-top: auto;           /* Push to bottom of flex container */
+  padding-top: 20px;          /* Space above */
+  padding-bottom: 60px;       /* Space below for ribbon clearance */
   flex-shrink: 0;
 }
 

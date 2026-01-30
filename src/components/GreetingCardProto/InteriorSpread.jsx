@@ -62,6 +62,16 @@ function getPoemFontSize(lineCount) {
   return '34px';
 }
 
+// CANONICAL: Limit intro message to 8 lines (backup constraint)
+function limitToLines(text, maxLines = 8) {
+  if (!text) return '';
+  const lines = text.split('\n').filter(line => line.trim());
+  if (lines.length > maxLines) {
+    return lines.slice(0, maxLines).join('\n') + '...';
+  }
+  return text;
+}
+
 export default function InteriorSpread({ recipientName, message, senderName, poemText, onClick }) {
   // CANONICAL: Title Case FIRST NAME only via formatPersonName helper
   const displayName = formatPersonName((recipientName || 'Friend').split(' ')[0]);
@@ -114,7 +124,10 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
   }
   // Strip trailing punctuation after phrase removal
   bodyMessage = bodyMessage.replace(/[,\s]+$/, '');
-  
+
+  // CANONICAL: Apply 8-line limit as backup constraint
+  bodyMessage = limitToLines(bodyMessage, 8);
+
   return (
     <div 
       className="gc-spread-wrapper"
