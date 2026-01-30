@@ -326,7 +326,7 @@
   color: #1a3a6b;
   line-height: 1.4;     /* Reduced line-height */
   margin: 0 0 6px 0;    /* Tighter spacing */
-  text-align: left;
+  text-align: center;
   text-shadow: 0 0 0.5px #1a3a6b;
 }
 
@@ -341,6 +341,7 @@
   overflow: hidden; /* CANONICAL: Truncate message, never signature */
   flex: 1; /* Take remaining space, shrink if needed */
   min-height: 0; /* Allow shrinking below content size */
+  max-height: calc(100% - 80px); /* Ensure room for signature */
   /* Subtle ink thickness via text-shadow */
   text-shadow: 0 0 0.5px #1a3a6b;
 }
