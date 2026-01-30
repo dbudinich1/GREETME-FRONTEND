@@ -70,7 +70,8 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
   const rawMessage = message?.trim() || `Happy Birthday!\n\nI've been thinking about you lately and wanted to reach out.\n\nYou matter to me more than you know.\n\nI hope this message finds you well.`;
 
   // CANONICAL: Signature in Title Case (FIRST NAME only)
-  const displaySender = formatPersonName((senderName || '').split(' ')[0]);
+  // Fallback to 'Me' if senderName is missing
+  const displaySender = formatPersonName((senderName || 'Me').split(' ')[0]);
 
   // Split greeting (first line before \n\n) from body
   const [greeting, ...bodyParts] = rawMessage.split('\n\n');

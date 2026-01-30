@@ -296,16 +296,13 @@
 }
 
 .gc-interior-spread .gc-page-left .gc-page-content {
-  /* FRAME CLAMP: Safe boundaries - away from card edge (140px) and ribbon (120px) */
   position: absolute;
   top: 96px;
-  left: 140px;    /* Away from card edge */
-  right: 120px;   /* Away from ribbon */
+  left: 140px;
+  right: 120px;
   bottom: 96px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  word-break: break-word;
 }
 
 .gc-greeting-salutation {
@@ -338,9 +335,11 @@
   font-weight: 400; /* Normal weight */
   color: #1a3a6b; /* CANONICAL: exact ink color */
   line-height: 1.6; /* Uniform spacing */
-  margin: 0 0 24px 0; /* Bottom margin for spacing consistency */
+  margin: 0 0 24px 0; /* Bottom margin for spacing before signature */
   text-align: left;
-  overflow: hidden;
+  overflow: hidden; /* CANONICAL: Truncate message, never signature */
+  flex: 1; /* Take remaining space, shrink if needed */
+  min-height: 0; /* Allow shrinking below content size */
   /* Subtle ink thickness via text-shadow */
   text-shadow: 0 0 0.5px #1a3a6b;
 }
@@ -362,11 +361,10 @@
 }
 
 .gc-interior-spread .gc-page-right .gc-page-content {
-  /* FRAME CLAMP: Away from ribbon (120px left) and card edge (160px right) */
-  padding: 140px 160px 140px 120px; /* top right bottom left */
+  padding: 96px 160px 60px 120px;  /* top matches left page */
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   text-align: center;
   height: 100%;
@@ -383,10 +381,10 @@
 .gc-poem {
   font-family: var(--gc-font-body);
   font-style: italic;
-  font-size: 36px;
+  font-size: 32px;  /* REDUCED for better fit */
   color: var(--gc-text-brown-light);
-  line-height: 1.8;
-  margin: 0 0 30px 0;
+  line-height: 1.5;
+  margin: 0 0 40px 0;  /* Space below poem */
   white-space: pre-line;
 }
 
@@ -395,7 +393,9 @@
   font-size: 42px;
   font-weight: 400;
   color: var(--gc-text-gold);
-  margin: 0;
+  margin: 30px 0 0 0;  /* Space above */
+  margin-top: auto;  /* Push to bottom of flex container */
+  flex-shrink: 0;
 }
 
 /* ===== SHARED LETTER BLOCK SYSTEM ===== */
@@ -458,17 +458,14 @@
   letter-spacing: 2px;
 }
 
-/* Signature - CANONICAL: Same ink style as message, right-aligned after body */
 .gc-signature {
+  position: absolute;
+  bottom: 60px;
+  right: 40px;
   font-family: var(--gc-font-handwritten);
-  font-size: var(--gc-letter-signature-size);
-  font-weight: 400; /* Normal weight */
-  color: #1a3a6b; /* CANONICAL: exact ink color */
-  line-height: 1.6; /* Consistent with body */
+  font-size: 48px;
+  color: #1a3a6b;
   text-align: right;
-  margin-top: 24px;
-  padding-right: 24px;
-  /* CANONICAL: Same ink style as message - no glow, no blur, no rotation */
   text-shadow: 0 0 0.5px #1a3a6b;
 }
 
