@@ -1105,8 +1105,10 @@
   }
 
   .gc-interior-spread {
-    transform: scale(0.5);
+    transform: scale(0.42);
     transform-origin: top center;
+    width: 900px !important;
+    min-width: 900px !important;
   }
 
   .gc-envelope-wrapper,
@@ -1154,13 +1156,25 @@
     padding-left: 8px;
   }
 
-  /* PORTRAIT FIX: Override absolute positioning frame clamp for narrow viewports */
   .gc-interior-spread .gc-page-left .gc-page-content {
-    top: 12px;
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
+    top: 96px;
+    left: 100px;
+    right: 100px;
+    bottom: 60px;
     overflow: visible;
+  }
+
+  .gc-interior-spread .gc-page-right .gc-page-content,
+  .gc-interior-spread .gc-poem-content {
+    padding: 60px 80px;
+    width: 100%;
+  }
+
+  .gc-interior-spread .gc-poem {
+    width: 100%;
+    min-width: 280px;
+    white-space: normal;
+    word-wrap: break-word;
   }
 
   .gc-greeting-salutation {
@@ -1403,8 +1417,10 @@
 /* Portrait: Small phones */
 @media (max-width: 380px) and (orientation: portrait) {
   .gc-interior-spread {
-    transform: scale(0.4);
+    transform: scale(0.35);
     transform-origin: top center;
+    width: 900px !important;
+    min-width: 900px !important;
   }
 
   .gc-recipient-name {
@@ -1424,12 +1440,11 @@
     font-size: 12px;
   }
 
-  /* PORTRAIT FIX: Even tighter frame for very small phones */
   .gc-interior-spread .gc-page-left .gc-page-content {
-    top: 8px;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
+    top: 96px;
+    left: 100px;
+    right: 100px;
+    bottom: 60px;
   }
 
   .gc-greeting-salutation {
