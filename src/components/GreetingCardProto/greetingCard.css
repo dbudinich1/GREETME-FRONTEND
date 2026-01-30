@@ -1093,6 +1093,857 @@
   }
 }
 
+/* =====================================================
+   PORTRAIT MODE - Phone held vertically (narrow width)
+   CANONICAL LOCK - Restored from commit 5b366b3
+   ===================================================== */
+
+/* Portrait: Large phones - keep side-by-side layout, just scale fonts */
+@media (max-width: 500px) and (orientation: portrait) {
+  .gc-container {
+    padding: 16px 8px;
+  }
+
+  .gc-envelope-wrapper,
+  .gc-cover-wrapper,
+  .gc-spread-wrapper {
+    padding: 16px;
+    overflow: hidden;
+  }
+
+  .gc-envelope {
+    width: 90vw;
+  }
+
+  .gc-recipient-name {
+    font-size: 48px;
+  }
+
+  .gc-wax-seal {
+    width: 60px;
+    height: 60px;
+  }
+
+  .gc-cover {
+    width: 80vw;
+    max-width: 320px;
+  }
+
+  .gc-cover-title {
+    font-size: 36px;
+  }
+
+  .gc-cover-subtitle {
+    font-size: 16px;
+  }
+
+  .gc-page {
+    padding: 12px;
+  }
+
+  .gc-page-left {
+    padding-right: 8px;
+  }
+
+  .gc-page-right {
+    padding-left: 8px;
+  }
+
+  /* PORTRAIT FIX: Override absolute positioning frame clamp for narrow viewports */
+  .gc-interior-spread .gc-page-left .gc-page-content {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    overflow: visible;
+  }
+
+  .gc-greeting-salutation {
+    font-family: var(--gc-font-handwritten);
+    font-size: 15px !important;
+    font-weight: 700;
+    white-space: nowrap;
+    margin-bottom: -2px;
+    color: var(--gc-letter-ink-color);
+    text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
+  }
+
+  .gc-greeting-occasion {
+    font-size: 17px !important;
+    margin-top: 4px;
+    margin-bottom: 0;
+  }
+
+  .gc-greeting-message {
+    font-size: 15px !important;
+    line-height: 1.1;
+    margin-top: 4px;
+    margin-bottom: 0;
+  }
+
+  .gc-signature {
+    font-size: 18px !important;
+    margin-top: 8px;
+    padding-right: 8px;
+  }
+
+  /* RIGHT PAGE: Center content vertically */
+  .gc-poem-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .gc-poem {
+    font-size: 15px;
+    line-height: 1.2;
+    margin-top: 8px;
+    margin-bottom: 10px;
+  }
+
+  .gc-warm-wishes {
+    font-size: 17px;
+    margin-top: 4px;
+  }
+
+  /* FEATURED SPREAD: Stacked pages (video page top, album page bottom) */
+  .gc-featured-spread {
+    flex-direction: column !important;
+    height: auto !important;
+    aspect-ratio: unset !important;
+  }
+
+  .gc-featured-spread .gc-video-page {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1.28;
+    margin: 0;
+    padding: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .gc-featured-spread .gc-album-page {
+    width: 100%;
+    height: calc(100vh - 32px);
+    max-height: calc(100vh - 32px);
+    aspect-ratio: unset;
+    margin: 0;
+    padding: 40px 12px 12px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    /* Use card cover stock for Cherished Moments album */
+    background-image: url('../../assets/card/card-cover.jpeg') !important;
+    background-size: cover;
+    background-position: center;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  /* Video/album sizes for stacked pages */
+  .gc-video-frame {
+    width: 70% !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1.28;
+    border-width: 2px;
+  }
+
+  .gc-album-stack {
+    width: 80% !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1.28;
+    margin: 0 12px 0 auto;
+  }
+
+  .gc-album-frame {
+    width: 80% !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1.28;
+    border-width: 2px;
+    border-radius: 6px;
+    margin: 0 12px 0 auto;
+  }
+
+  .gc-album-title {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .gc-video-caption {
+    font-family: var(--gc-font-title);
+    font-size: 28px;
+    font-weight: 500;
+    margin-top: 6px;
+  }
+
+  /* FINALE SPREAD: Same proportions as Interior spread */
+  .gc-finale-spread {
+    width: calc(100vw - 32px);
+    height: auto;
+    aspect-ratio: var(--gc-landscape-ar);
+    margin-left: -8px;
+  }
+
+  .gc-finale-spread .gc-page-left,
+  .gc-finale-spread .gc-page-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+  }
+
+  .gc-finale-spread .gc-page-left .gc-page-content {
+    text-align: center;
+    position: relative;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin-top: 18px;
+  }
+
+  .gc-finale-spread .gc-page-right .gc-page-content {
+    text-align: center;
+    margin-top: 12px;
+  }
+
+  .gc-closing-message,
+  .gc-closing-note,
+  .gc-closing-signoff {
+    font-size: 15px !important;
+    line-height: 1.35;
+    margin-bottom: 4px;
+  }
+
+  .gc-finale-spread .gc-closing-signoff {
+    margin-top: 8px !important;
+  }
+
+  .gc-gift-content {
+    padding: 6px;
+  }
+
+  .gc-gift-title {
+    font-size: 17px;
+    margin-bottom: 3px;
+  }
+
+  .gc-qr-frame {
+    width: 55px;
+    height: 55px;
+    padding: 3px;
+    border-width: 2px;
+    margin-top: 3px;
+    margin-bottom: 8px;
+  }
+
+  .gc-gift-instruction {
+    font-size: 10px;
+    line-height: 1.15;
+  }
+
+  .gc-branding {
+    margin-top: -15px;
+  }
+
+  .gc-logo-seal {
+    width: 24px;
+    height: 24px;
+  }
+
+  .gc-logo-seal span {
+    font-size: 13px;
+  }
+
+  .gc-brand-name {
+    font-size: 13px;
+    margin-top: -3px;
+  }
+
+  .gc-brand-tagline {
+    font-size: 9px;
+    margin-top: 1px;
+  }
+
+  .gc-album-dots {
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .gc-album-dot {
+    width: 5px;
+    height: 5px;
+  }
+
+  .gc-play-button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .gc-replay-button {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Portrait: Small phones */
+@media (max-width: 380px) and (orientation: portrait) {
+  .gc-recipient-name {
+    font-size: 36px;
+  }
+
+  .gc-wax-seal {
+    width: 50px;
+    height: 50px;
+  }
+
+  .gc-cover-title {
+    font-size: 28px;
+  }
+
+  .gc-cover-subtitle {
+    font-size: 12px;
+  }
+
+  /* PORTRAIT FIX: Even tighter frame for very small phones */
+  .gc-interior-spread .gc-page-left .gc-page-content {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+  }
+
+  .gc-greeting-salutation {
+    font-size: 14px !important;
+  }
+
+  .gc-greeting-occasion {
+    font-size: 16px !important;
+  }
+
+  .gc-greeting-message {
+    font-size: 13px !important;
+    line-height: 1.25;
+  }
+
+  .gc-signature {
+    font-size: 16px !important;
+  }
+
+  .gc-poem {
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .gc-warm-wishes {
+    font-size: 15px;
+  }
+
+  .gc-gift-title {
+    font-size: 16px;
+  }
+
+  .gc-qr-frame {
+    width: 60px;
+    height: 60px;
+  }
+
+  .gc-gift-instruction {
+    font-size: 11px;
+  }
+
+  .gc-brand-name {
+    font-size: 14px;
+  }
+
+  .gc-brand-tagline {
+    font-size: 10px;
+  }
+}
+
+/* =====================================================
+   LANDSCAPE MODE - Phone held horizontally (like a card)
+   CANONICAL LOCK - Restored from commit 5b366b3
+   ===================================================== */
+
+/* Landscape: Tablet-sized (~900px width and below) */
+@media (max-width: 900px) and (orientation: landscape) {
+  :root {
+    --gc-letter-frame-top: 48px;
+    --gc-letter-frame-left: 48px;
+    --gc-letter-frame-right: 48px;
+    --gc-letter-frame-bottom: 48px;
+  }
+
+  .gc-page {
+    padding: 30px;
+  }
+
+  .gc-page-left,
+  .gc-page-right {
+    padding: 30px;
+  }
+
+  .gc-greeting-salutation {
+    font-size: 18px !important;
+    white-space: nowrap;
+    margin-bottom: 2px;
+  }
+
+  .gc-greeting-occasion {
+    font-size: 20px !important;
+    margin-bottom: 8px;
+  }
+
+  .gc-greeting-message {
+    font-size: 16px !important;
+    line-height: 1.3;
+  }
+
+  .gc-signature {
+    font-size: 22px !important;
+  }
+
+  .gc-poem {
+    font-size: 18px;
+    line-height: 1.4;
+    margin-bottom: 12px;
+  }
+
+  .gc-warm-wishes {
+    font-size: 22px;
+  }
+
+  .gc-cover-title {
+    margin-bottom: 10px;
+  }
+
+  .gc-cover-flourish {
+    margin: 12px 0;
+  }
+
+  .gc-album-title {
+    font-size: 32px;
+  }
+
+  .gc-video-caption {
+    font-size: 18px;
+  }
+
+  .gc-finale-spread .gc-page-left {
+    padding: 64px 48px 48px 32px;
+  }
+
+  .gc-gift-title {
+    font-size: 36px;
+  }
+
+  .gc-qr-frame {
+    width: 140px;
+    height: 140px;
+    padding: 10px;
+  }
+
+  .gc-gift-instruction {
+    font-size: 18px;
+  }
+
+  .gc-brand-name {
+    font-size: 28px;
+  }
+
+  .gc-brand-tagline {
+    font-size: 15px;
+  }
+}
+
+/* Landscape: Phone-sized (~700px width and below) */
+@media (max-width: 700px) and (orientation: landscape) {
+  :root {
+    --gc-letter-frame-top: 32px;
+    --gc-letter-frame-left: 32px;
+    --gc-letter-frame-right: 32px;
+    --gc-letter-frame-bottom: 32px;
+  }
+
+  .gc-container {
+    padding: 8px;
+    max-height: 100vh;
+    overflow: hidden;
+  }
+
+  .gc-envelope-wrapper,
+  .gc-cover-wrapper,
+  .gc-spread-wrapper {
+    padding: 4px;
+    overflow: hidden;
+    max-height: calc(100vh - 16px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  /* LANDSCAPE FIX: Constrain spread to fit viewport height */
+  .gc-spread {
+    max-height: calc(100vh - 32px);
+    width: auto;
+    height: calc(100vh - 32px);
+    aspect-ratio: var(--gc-landscape-ar);
+    overflow: hidden;
+  }
+
+  .gc-envelope {
+    width: auto;
+    height: calc(100vh - 24px);
+    max-height: 85vh;
+  }
+
+  .gc-recipient-name {
+    font-size: 48px;
+  }
+
+  .gc-wax-seal {
+    width: 60px;
+    height: 60px;
+  }
+
+  .gc-cover {
+    width: 45vw;
+    max-width: 280px;
+  }
+
+  .gc-cover-title {
+    font-size: 36px;
+  }
+
+  .gc-cover-subtitle {
+    font-size: 14px;
+  }
+
+  .gc-page {
+    padding: 16px;
+  }
+
+  .gc-page-left {
+    padding-right: 8px;
+  }
+
+  .gc-page-right {
+    padding-left: 8px;
+  }
+
+  /* LANDSCAPE FIX: Override frame clamp for narrow landscape */
+  .gc-interior-spread .gc-page-left .gc-page-content {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+  }
+
+  .gc-greeting-salutation {
+    font-family: var(--gc-font-handwritten);
+    font-size: 12px !important;
+    font-weight: 700;
+    white-space: nowrap;
+    margin-bottom: 0;
+    color: var(--gc-letter-ink-color);
+    text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
+  }
+
+  .gc-greeting-occasion {
+    font-size: 14px !important;
+    margin-top: 2px;
+    margin-bottom: 0;
+  }
+
+  .gc-greeting-message {
+    font-size: 12px !important;
+    line-height: 1.1;
+    margin-top: 2px;
+    margin-bottom: 0;
+  }
+
+  .gc-signature {
+    font-size: 14px !important;
+    margin-top: 4px;
+    padding-right: 4px;
+  }
+
+  /* RIGHT PAGE: Center content vertically */
+  .gc-poem-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .gc-poem {
+    font-size: 12px;
+    line-height: 1.15;
+    margin-top: 4px;
+    margin-bottom: 6px;
+  }
+
+  .gc-warm-wishes {
+    font-size: 14px;
+    margin-top: 2px;
+  }
+
+  /* FEATURED SPREAD: Constrain video/album to fit within spread */
+  .gc-featured-spread .gc-video-page {
+    margin: 4px;
+    margin-right: 2px;
+    padding: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .gc-featured-spread .gc-album-page {
+    margin: 4px;
+    margin-left: 2px;
+    padding-top: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  /* Shrink video/album sizes for landscape */
+  .gc-video-frame {
+    width: calc(40vh) !important;
+    height: calc(40vh * 1.28) !important;
+    border-width: 2px;
+  }
+
+  .gc-album-stack {
+    width: calc(40vh) !important;
+    height: calc(40vh * 1.28) !important;
+  }
+
+  .gc-album-frame {
+    width: calc(40vh) !important;
+    height: calc(40vh * 1.28) !important;
+    border-width: 2px;
+    border-radius: 6px;
+  }
+
+  .gc-album-title {
+    font-size: 16px;
+    margin-bottom: 6px;
+  }
+
+  .gc-video-caption {
+    font-size: 10px;
+    margin-top: 4px;
+  }
+
+  .gc-play-button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .gc-replay-button {
+    width: 20px;
+    height: 20px;
+  }
+
+  .gc-finale-spread .gc-page-left {
+    padding: 24px 32px 32px 20px;
+  }
+
+  .gc-finale-spread .gc-closing-message,
+  .gc-finale-spread .gc-closing-note,
+  .gc-finale-spread .gc-closing-signoff {
+    font-size: 22px;
+    line-height: 1.2;
+  }
+
+  .gc-finale-spread .gc-closing-message {
+    margin-bottom: 12px;
+  }
+
+  .gc-finale-spread .gc-closing-note {
+    margin-top: -12px;
+    margin-bottom: 0;
+  }
+
+  .gc-finale-spread .gc-closing-signoff {
+    margin-top: 10px;
+  }
+
+  .gc-gift-title {
+    font-size: 21px;
+    font-weight: 800;
+    margin-bottom: 6px;
+  }
+
+  .gc-qr-frame {
+    width: 70px;
+    height: 70px;
+    padding: 4px;
+    border-width: 2px;
+    margin-bottom: 6px;
+  }
+
+  .gc-gift-instruction {
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  .gc-logo-seal {
+    width: 24px;
+    height: 24px;
+  }
+
+  .gc-logo-seal span {
+    font-size: 14px;
+  }
+
+  .gc-brand-name {
+    font-size: 12px;
+  }
+
+  .gc-brand-tagline {
+    font-size: 12px;
+    margin-top: 8px;
+  }
+}
+
+/* Landscape: Small phone (~550px width and below) */
+@media (max-width: 550px) and (orientation: landscape) {
+  .gc-recipient-name {
+    font-size: 36px;
+  }
+
+  .gc-wax-seal {
+    width: 50px;
+    height: 50px;
+  }
+
+  .gc-cover {
+    width: 40vw;
+    max-width: 220px;
+  }
+
+  .gc-cover-title {
+    font-size: 28px;
+  }
+
+  .gc-cover-subtitle {
+    font-size: 12px;
+  }
+
+  .gc-page {
+    padding: 10px;
+  }
+
+  .gc-greeting-salutation {
+    font-size: 12px !important;
+  }
+
+  .gc-greeting-occasion {
+    font-size: 14px !important;
+    margin-bottom: 4px;
+  }
+
+  .gc-greeting-message {
+    font-size: 11px !important;
+    line-height: 1.2;
+  }
+
+  .gc-signature {
+    font-size: 14px !important;
+    margin-top: 6px;
+  }
+
+  .gc-poem {
+    font-size: 11px;
+    line-height: 1.3;
+    margin-bottom: 6px;
+  }
+
+  .gc-warm-wishes {
+    font-size: 14px;
+  }
+
+  .gc-album-title {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+
+  .gc-video-caption {
+    font-size: 10px;
+  }
+
+  .gc-album-dots {
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .gc-album-dot {
+    width: 5px;
+    height: 5px;
+  }
+
+  .gc-finale-spread .gc-page-left {
+    padding: 32px 20px 20px 12px;
+  }
+
+  .gc-gift-content {
+    padding: 12px;
+  }
+
+  .gc-gift-title {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+
+  .gc-qr-frame {
+    width: 80px;
+    height: 80px;
+    padding: 6px;
+    border-width: 3px;
+    margin-bottom: 8px;
+  }
+
+  .gc-gift-instruction {
+    font-size: 11px;
+    line-height: 1.3;
+    margin-bottom: 10px;
+  }
+
+  .gc-logo-seal {
+    width: 28px;
+    height: 28px;
+  }
+
+  .gc-logo-seal span {
+    font-size: 18px;
+  }
+
+  .gc-brand-name {
+    font-size: 18px;
+  }
+
+  .gc-brand-tagline {
+    font-size: 10px;
+    margin-top: 6px;
+  }
+}
+
 /* ===== ACCESSIBILITY ===== */
 @media (prefers-reduced-motion: reduce) {
   .gc-envelope,
