@@ -32,9 +32,9 @@
   --gc-letter-frame-bottom: 96px;
   --gc-letter-line-gap: 1.45;           /* Uniform line height (no first-line drift) */
   --gc-letter-ink-color: var(--gc-signature-blue);
-  --gc-letter-name-size: 58px;
-  --gc-letter-body-size: 48px;
-  --gc-letter-signature-size: 64px;
+  --gc-letter-name-size: 60px;
+  --gc-letter-body-size: 50px;
+  --gc-letter-signature-size: 66px;
   --gc-letter-bottom-padding: 40px;
 
   /* Fonts */
@@ -307,35 +307,36 @@
 
 .gc-greeting-salutation {
   font-family: var(--gc-font-title);
-  font-size: var(--gc-letter-body-size); /* Same as occasion (48px) */
-  font-weight: 400; /* Normal weight */
-  color: #1a3a6b; /* CANONICAL: exact ink color */
-  margin: 0 0 12px 0; /* Reduced spacing after salutation */
-  line-height: 1.6; /* Consistent with body */
+  font-size: var(--gc-letter-body-size);
+  font-weight: 400;
+  color: #1a3a6b;
+  margin: 0 0 6px 0;    /* Tighter spacing */
+  line-height: 1.4;     /* Reduced line-height */
   letter-spacing: 1px;
   flex-shrink: 0;
-  text-shadow: 0 0 0.5px #1a3a6b; /* CANONICAL: same ink style as body */
+  text-align: left;
+  text-shadow: 0 0 0.5px #1a3a6b;
 }
 
-/* Occasion greeting line (e.g., "Happy Birthday!") - centered */
+/* Occasion greeting line (e.g., "Happy Birthday!") */
 .gc-greeting-occasion {
   font-family: var(--gc-font-handwritten);
   font-size: var(--gc-letter-body-size);
-  font-weight: 400; /* Normal weight */
-  color: #1a3a6b; /* CANONICAL: exact ink color */
-  line-height: 1.6; /* Match body line-height */
-  margin: 0 0 12px 0; /* Reduced spacing before body */
-  text-align: center;
+  font-weight: 400;
+  color: #1a3a6b;
+  line-height: 1.4;     /* Reduced line-height */
+  margin: 0 0 6px 0;    /* Tighter spacing */
+  text-align: left;
   text-shadow: 0 0 0.5px #1a3a6b;
 }
 
 .gc-greeting-message {
   font-family: var(--gc-font-handwritten);
   font-size: var(--gc-letter-body-size);
-  font-weight: 400; /* Normal weight */
-  color: #1a3a6b; /* CANONICAL: exact ink color */
-  line-height: 1.6; /* Uniform spacing */
-  margin: 0 0 24px 0; /* Bottom margin for spacing before signature */
+  font-weight: 400;
+  color: #1a3a6b;
+  line-height: 1.4;     /* Reduced line-height */
+  margin: 0 0 12px 0;   /* Tighter spacing */
   text-align: left;
   overflow: hidden; /* CANONICAL: Truncate message, never signature */
   flex: 1; /* Take remaining space, shrink if needed */
@@ -348,11 +349,21 @@
   margin: 0 0 16px 0; /* Uniform paragraph spacing */
 }
 
+.gc-greeting-message p:first-child {
+  text-indent: 2em;   /* Indent first line of first paragraph */
+}
+
 .gc-greeting-message p:last-child {
   margin-bottom: 0;
 }
 
-/* Interior spread - right page (poem) with 2 inch padding */
+/* ===== INTERIOR SPREAD - RIGHT PAGE (POEM) ===== */
+/* CANONICAL LAYOUT LOCKS - DO NOT MODIFY without design approval:
+ * - Page padding: 96px top, 160px right, 60px bottom, 120px left
+ * - Poem: 40px padding-left (slide right), 40px padding-top (slide down)
+ * - Warm wishes: margin-left 40px, pushed to bottom via margin-top: auto
+ * - 8-line max enforced by AI prompt + frontend backup (no CSS overflow)
+ */
 .gc-interior-spread .gc-page-right {
   position: relative;
   display: flex;
@@ -361,10 +372,11 @@
 }
 
 .gc-interior-spread .gc-page-right .gc-page-content {
-  padding: 96px 160px 60px 120px;  /* top matches left page */
+  /* Reduced padding for wider poem container */
+  padding: 60px 40px 40px 40px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
+  justify-content: center;    /* Center vertically */
   align-items: center;
   text-align: center;
   height: 100%;
@@ -375,36 +387,37 @@
 .gc-poem-content {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  text-align: center;
-  height: 100%;
+  justify-content: center;    /* Vertically center poem */
+  align-items: center;        /* Horizontally center */
+  padding: 40px 20px;         /* Reduced padding for more width */
+  margin-top: 140px;          /* Drop down ~7 spaces */
 }
 
 .gc-poem {
   font-family: var(--gc-font-body);
+  font-size: 36px;
   font-style: italic;
-  font-size: 32px;
-  color: var(--gc-text-brown-light);
-  line-height: 1.6;
+  font-weight: 700;
+  line-height: 1.5;
   text-align: center;
-  margin: 0 0 40px 0;
-  padding-left: 40px;          /* Slide right */
-  padding-top: 40px;           /* Slide down */
-  width: 100%;
+  margin: 0 auto 40px auto;   /* Center the block */
+  padding-left: 40px;         /* Bump 2 spaces right */
+  width: 100%;                /* Full width of container */
+  max-width: 100%;            /* Use all available space */
+  color: var(--gc-text-brown-light);
   white-space: pre-line;
-  /* No max-height/overflow - 8-line limit enforced by AI prompt + frontend backup */
 }
 
 .gc-warm-wishes {
   font-family: var(--gc-font-title);
-  font-size: 42px;
+  font-size: 46px;
   font-weight: 400;
   color: var(--gc-text-gold);
-  margin-top: auto;           /* Push to bottom of flex container */
-  margin-left: 40px;          /* Slide right */
-  padding-top: 20px;          /* Space above */
-  padding-bottom: 60px;       /* Space below for ribbon clearance */
+  /* CANONICAL: Warm wishes positioning */
+  margin-top: auto;
+  margin-left: 40px;
+  padding-top: 20px;
+  padding-bottom: 60px;
   flex-shrink: 0;
 }
 
