@@ -16,11 +16,44 @@ function getPhotoSrc(photo) {
 export default function PhotoAlbum({ photos, disabled = false }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFading, setIsFading] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const isTransitioning = useRef(false);
+  const audioRef = useRef(null);
 
   const validPhotos = (photos || []).map(getPhotoSrc).filter(Boolean);
   const hasPhotos = validPhotos.length > 0;
   const photoCount = validPhotos.length;
+
+  // Play background music when album is enabled (video has ended)
+  useEffect(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio('/assets/music/slideshow-music.mp3');
+      audioRef.current.loop = true;
+      audioRef.current.volume = 0.3;
+    }
+
+    if (!disabled && hasPhotos) {
+      audioRef.current.play().catch(() => {});
+    } else {
+      audioRef.current.pause();
+    }
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+    };
+  }, [disabled, hasPhotos]);
+
+  // Toggle mute
+  const toggleMute = (e) => {
+    e.stopPropagation();
+    if (audioRef.current) {
+      audioRef.current.muted = !audioRef.current.muted;
+      setIsMuted(!isMuted);
+    }
+  };
 
   // Auto-advance every 6 seconds when not disabled
   useEffect(() => {
@@ -110,6 +143,18 @@ export default function PhotoAlbum({ photos, disabled = false }) {
       className={`gc-photo-album ${disabled ? 'gc-album-disabled' : ''}`}
       onClick={handleAlbumClick}
     >
+      {/* Mute/unmute button */}
+      {hasPhotos && !disabled && (
+        <button
+          type="button"
+          className="gc-album-mute-btn"
+          onClick={toggleMute}
+          aria-label={isMuted ? 'Unmute' : 'Mute'}
+        >
+          {isMuted ? '🔇' : '🔊'}
+        </button>
+      )}
+
       {/* Stacked photo effect - decorative frames peeking behind */}
       <div className="gc-album-stack">
         {photoCount > 2 && (
