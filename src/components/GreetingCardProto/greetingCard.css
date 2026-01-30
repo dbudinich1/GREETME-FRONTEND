@@ -296,12 +296,12 @@
 }
 
 .gc-interior-spread .gc-page-left .gc-page-content {
-  /* FRAME CLAMP: Safe boundaries to keep text inside paper + away from crease */
+  /* FRAME CLAMP: Safe boundaries - away from card edge (140px) and ribbon (120px) */
   position: absolute;
-  top: var(--gc-letter-frame-top);
-  left: var(--gc-letter-frame-left);
-  right: var(--gc-letter-frame-right);
-  bottom: var(--gc-letter-frame-bottom);
+  top: 96px;
+  left: 140px;    /* Away from card edge */
+  right: 120px;   /* Away from ribbon */
+  bottom: 96px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -362,8 +362,8 @@
 }
 
 .gc-interior-spread .gc-page-right .gc-page-content {
-  /* FRAME CLAMP: 2 inch padding (192px at 96dpi) */
-  padding: 192px 192px 192px 96px; /* top right bottom left (1 inch from crease) */
+  /* FRAME CLAMP: Away from ribbon (120px left) and card edge (160px right) */
+  padding: 140px 160px 140px 120px; /* top right bottom left */
   display: flex;
   flex-direction: column;
   justify-content: center;
