@@ -376,8 +376,8 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  align-items: flex-start;
-  text-align: left;
+  align-items: center;
+  text-align: center;
   height: 100%;
 }
 
@@ -387,7 +387,7 @@
   font-size: 32px;
   color: var(--gc-text-brown-light);
   line-height: 1.6;
-  text-align: left;            /* Left-aligned for poetry */
+  text-align: center;          /* Center each line */
   margin: 0 0 40px 0;
   max-height: 60%;             /* Constrain height */
   overflow: hidden;            /* Hide overflow */
@@ -401,6 +401,7 @@
   font-weight: 400;
   color: var(--gc-text-gold);
   margin-top: auto;           /* Push to bottom of flex container */
+  margin-left: 40px;          /* Slide right */
   padding-top: 20px;          /* Space above */
   padding-bottom: 60px;       /* Space below for ribbon clearance */
   flex-shrink: 0;
