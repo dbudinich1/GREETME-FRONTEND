@@ -1106,12 +1106,7 @@
 
   .gc-interior-spread {
     transform: scale(0.5);
-    transform-origin: center center;
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    margin-left: -450px;  /* Half of the spread width */
-    margin-top: -300px;   /* Half of the spread height */
+    transform-origin: top center;
   }
 
   .gc-envelope-wrapper,
@@ -1409,6 +1404,7 @@
 @media (max-width: 380px) and (orientation: portrait) {
   .gc-interior-spread {
     transform: scale(0.4);
+    transform-origin: top center;
   }
 
   .gc-recipient-name {
