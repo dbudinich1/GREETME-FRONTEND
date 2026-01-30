@@ -1107,6 +1107,12 @@
   .gc-interior-spread {
     transform: scale(0.45);
     transform-origin: top center;
+    min-width: 900px;  /* Preserve internal width */
+  }
+
+  .gc-interior-spread .gc-poem {
+    width: 100%;
+    min-width: 200px;  /* Prevent collapse */
   }
 
   .gc-envelope-wrapper,
@@ -1405,6 +1411,7 @@
   .gc-interior-spread {
     transform: scale(0.38);
     transform-origin: top center;
+    min-width: 900px;  /* Preserve internal width */
   }
 
   .gc-recipient-name {
