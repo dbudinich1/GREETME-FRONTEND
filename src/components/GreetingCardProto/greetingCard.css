@@ -1171,11 +1171,33 @@
     width: 100%;
   }
 
+  /* Left page - intro text */
+  .gc-interior-spread .gc-page-left .gc-greeting-salutation {
+    font-size: 36px;
+  }
+
+  .gc-interior-spread .gc-page-left .gc-greeting-occasion {
+    font-size: 28px;
+  }
+
+  .gc-interior-spread .gc-page-left .gc-greeting-message {
+    font-size: 26px;
+    line-height: 1.4;
+  }
+
+  .gc-interior-spread .gc-page-left .gc-signature {
+    font-size: 32px;
+  }
+
+  /* Right page - poem */
   .gc-interior-spread .gc-poem {
-    width: 100%;
-    min-width: 280px;
-    white-space: normal;
-    word-wrap: break-word;
+    font-size: 24px;
+    line-height: 1.4;
+    min-width: 300px;
+  }
+
+  .gc-interior-spread .gc-warm-wishes {
+    font-size: 28px;
   }
 
   .gc-greeting-salutation {
@@ -1447,6 +1469,10 @@
     left: 100px;
     right: 100px;
     bottom: 60px;
+  }
+
+  .gc-interior-spread .gc-poem {
+    font-size: 22px;
   }
 
   .gc-greeting-salutation {
