@@ -307,7 +307,7 @@
 
 .gc-greeting-salutation {
   font-family: var(--gc-font-title);
-  font-size: var(--gc-letter-body-size);
+  font-size: 48px;                      /* -2 from body size */
   font-weight: 400;
   color: #1a3a6b;
   margin: 0 0 6px 0;    /* Tighter spacing */
@@ -315,7 +315,7 @@
   letter-spacing: 1px;
   flex-shrink: 0;
   text-align: left;
-  text-shadow: 0 0 0.5px #1a3a6b;
+  /* No text-shadow for lighter appearance */
 }
 
 /* Occasion greeting line (e.g., "Happy Birthday!") */
@@ -335,7 +335,7 @@
   font-size: var(--gc-letter-body-size);
   font-weight: 400;
   color: #1a3a6b;
-  line-height: 1.4;     /* Reduced line-height */
+  line-height: 1.2;     /* Tighter line spacing */
   margin: 0 0 12px 0;   /* Tighter spacing */
   text-align: left;
   overflow: hidden; /* CANONICAL: Truncate message, never signature */
@@ -347,11 +347,11 @@
 }
 
 .gc-greeting-message p {
-  margin: 0 0 16px 0; /* Uniform paragraph spacing */
+  margin: 0 0 8px 0; /* Tighter paragraph spacing */
 }
 
 .gc-greeting-message p:first-child {
-  text-indent: 2em;   /* Indent first line of first paragraph */
+  text-indent: 0;     /* No indent on first paragraph */
 }
 
 .gc-greeting-message p:last-child {
@@ -407,13 +407,15 @@
   max-width: 100%;            /* Use all available space */
   color: var(--gc-text-brown-light);
   white-space: pre-line;
+  text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor; /* Simulated bold */
 }
 
 .gc-warm-wishes {
   font-family: var(--gc-font-title);
   font-size: 46px;
-  font-weight: 400;
+  font-weight: 500;
   color: var(--gc-text-gold);
+  text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor; /* Simulated bold */
   /* CANONICAL: Warm wishes positioning */
   margin-top: auto;
   margin-left: 40px;
