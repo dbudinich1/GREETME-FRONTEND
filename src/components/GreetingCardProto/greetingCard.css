@@ -1124,13 +1124,17 @@
     position: relative;
   }
 
+  .gc-interior-spread .gc-page-left {
+    padding: 8px 8px 0 8px !important;
+  }
+
   .gc-interior-spread .gc-page-left .gc-page-content {
     position: relative;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    padding: 8px;
+    padding: 4px;
   }
 
   .gc-interior-spread .gc-greeting-salutation {
@@ -1138,43 +1142,61 @@
   }
 
   .gc-interior-spread .gc-greeting-occasion {
-    font-size: 14px !important;
+    font-size: 17px !important;
+    margin-bottom: 0 !important;
   }
 
   .gc-interior-spread .gc-greeting-message {
-    font-size: 12px !important;
-    line-height: 1.3;
+    font-size: 22px !important;
+    line-height: 0.95 !important;
+    margin-top: -4px !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  .gc-interior-spread .gc-greeting-message p {
+    margin: 0 !important;
+    font-size: 17px !important;
+    line-height: 1.15 !important;
+    font-weight: 500 !important;
   }
 
   .gc-interior-spread .gc-signature {
-    font-size: 16px !important;
+    font-size: 17px !important;
+    position: absolute !important;
+    bottom: 8px !important;
+    right: 20px !important;
   }
 
   .gc-interior-spread .gc-page-right {
-    overflow: visible !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .gc-interior-spread .gc-poem-content {
-    height: auto !important;
-    max-height: 100% !important;
-    overflow: visible !important;
     display: flex !important;
     flex-direction: column !important;
-    justify-content: space-between !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 10px 30px !important;
   }
 
   .gc-interior-spread .gc-poem {
-    font-size: 12px !important;
+    font-size: 15px !important;
     line-height: 1.3;
     padding-left: 0;
-    flex-shrink: 1 !important;
-    max-height: 70% !important;
-    overflow: hidden !important;
+    flex-shrink: 0 !important;
+    max-height: none !important;
+    margin: -70px auto 4px auto !important;
   }
 
   .gc-interior-spread .gc-warm-wishes {
+    font-size: 19px !important;
     flex-shrink: 0 !important;
-    padding: 5px 0 !important;
+    margin: 10px 0 0 0 !important;
   }
 
   .gc-envelope-wrapper,
@@ -1233,16 +1255,20 @@
   }
 
   .gc-greeting-occasion {
-    font-size: 17px !important;
+    font-size: 19px !important;
     margin-top: 4px;
     margin-bottom: 0;
   }
 
   .gc-greeting-message {
-    font-size: 15px !important;
-    line-height: 1.1;
-    margin-top: 4px;
+    font-size: 18px !important;
+    line-height: 0.95 !important;
+    margin-top: -8px !important;
     margin-bottom: 0;
+  }
+
+  .gc-greeting-message p {
+    margin: 0 !important;
   }
 
   .gc-signature {
@@ -1481,6 +1507,10 @@
     position: relative;
   }
 
+  .gc-interior-spread .gc-page-left {
+    padding: 10px 10px 0 10px !important;
+  }
+
   .gc-interior-spread .gc-page-left .gc-page-content {
     position: relative;
     top: 0;
@@ -1491,20 +1521,28 @@
   }
 
   .gc-interior-spread .gc-greeting-salutation {
-    font-size: 16px !important;
+    font-size: 18px !important;
+    font-weight: 400 !important;
   }
 
   .gc-interior-spread .gc-greeting-occasion {
-    font-size: 12px !important;
+    font-size: 18px !important;
+    font-weight: 400 !important;
   }
 
   .gc-interior-spread .gc-greeting-message {
-    font-size: 10px !important;
-    line-height: 1.3;
+    font-size: 18px !important;
+    line-height: 1.15 !important;
+    margin-top: -3px !important;
+    overflow: visible !important;
+    max-height: none !important;
   }
 
   .gc-interior-spread .gc-signature {
-    font-size: 14px !important;
+    font-size: 17px !important;
+    position: absolute !important;
+    bottom: 6px !important;
+    right: 24px !important;
   }
 
   .gc-interior-spread .gc-poem {
@@ -1514,15 +1552,35 @@
     margin-bottom: 8px !important;
   }
 
-  .gc-interior-spread .gc-warm-wishes {
-    font-size: 10px !important;
-    margin-bottom: 12px !important;
-    margin-top: 8px !important;
+  .gc-interior-spread .gc-page-right {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .gc-interior-spread .gc-poem-content {
-    padding-bottom: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
     justify-content: center !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 8px 24px !important;
+  }
+
+  .gc-interior-spread .gc-poem {
+    font-size: 13px !important;
+    line-height: 1.3;
+    padding-left: 0;
+    flex-shrink: 0 !important;
+    max-height: none !important;
+    margin: -45px auto 3px auto !important;
+  }
+
+  .gc-interior-spread .gc-warm-wishes {
+    font-size: 12px !important;
+    flex-shrink: 0 !important;
+    margin: -4px 8px 0 0 !important;
   }
 
   .gc-recipient-name {
@@ -1771,54 +1829,90 @@
 
   .gc-greeting-salutation {
     font-family: var(--gc-font-handwritten);
-    font-size: 12px !important;
+    font-size: 23px !important;
     font-weight: 700;
     white-space: nowrap;
+    margin-top: 8px;
     margin-bottom: 0;
+    margin-left: 16px;
+    text-align: left !important;
     color: var(--gc-letter-ink-color);
     text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
   }
 
   .gc-greeting-occasion {
-    font-size: 14px !important;
-    margin-top: 2px;
+    font-size: 23px !important;
+    margin-top: 8px;
     margin-bottom: 0;
+    text-align: center !important;
+    padding-left: 0 !important;
   }
 
   .gc-greeting-message {
-    font-size: 12px !important;
-    line-height: 1.1;
+    font-size: 25px !important;
+    line-height: 1.15 !important;
     margin-top: 2px;
     margin-bottom: 0;
+    text-align: center !important;
+  }
+
+  .gc-greeting-message p {
+    margin: 0 !important;
+    line-height: 1.15 !important;
   }
 
   .gc-signature {
-    font-size: 14px !important;
-    margin-top: 4px;
-    padding-right: 4px;
+    font-size: 23px !important;
+    position: absolute !important;
+    bottom: 8px !important;
+    right: 32px !important;
   }
 
   /* RIGHT PAGE: Center content vertically */
+  .gc-interior-spread .gc-page-right .gc-page-content {
+    padding: 8px !important;
+  }
+
   .gc-poem-content {
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     height: 100%;
-    padding-top: 0;
-    padding-bottom: 0;
+    padding: 0 12px !important;
+    margin-top: 0 !important;
+  }
+
+  .gc-interior-spread .gc-poem-content {
+    padding: 0 !important;
+    height: 100% !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
   }
 
   .gc-poem {
-    font-size: 12px;
-    line-height: 1.15;
-    margin-top: 4px;
-    margin-bottom: 6px;
+    font-size: 18px !important;
+    line-height: 1.15 !important;
+    margin: 8px 0 0 0 !important;
+    padding-left: 0 !important;
+  }
+
+  .gc-interior-spread .gc-poem {
+    font-size: 21px !important;
+    line-height: 1.05 !important;
+    margin: 53px 0 0 0 !important;
+    padding-left: 0 !important;
+    max-width: 85% !important;
   }
 
   .gc-warm-wishes {
-    font-size: 14px;
-    margin-top: 2px;
+    font-size: 21px !important;
+    margin: 0 !important;
+  }
+
+  .gc-interior-spread .gc-warm-wishes {
+    font-size: 21px !important;
+    margin: 4px 0 0 0 !important;
   }
 
   /* FEATURED SPREAD: Constrain video/album to fit within spread */
