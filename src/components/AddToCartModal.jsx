@@ -1,7 +1,7 @@
 // src/components/AddToCartModal.jsx
 import { Check, ShoppingCart, ArrowRight, ArrowLeft } from 'lucide-react';
 
-export default function AddToCartModal({ isOpen, onClose, item, onContinueShopping, onGoToCheckout, onReturnToRecipient, showReturnToRecipient }) {
+export default function AddToCartModal({ isOpen, onClose, item, onContinueShopping, onGoToCheckout, onReturnToRecipient, showReturnToRecipient, returnToLabel = "Return to Recipient Settings" }) {
   if (!isOpen) return null;
 
   return (
@@ -197,7 +197,7 @@ export default function AddToCartModal({ isOpen, onClose, item, onContinueShoppi
               }}
             >
               <ArrowLeft size={18} />
-              Return to Recipient Settings
+              {returnToLabel}
             </button>
           )}
         </div>

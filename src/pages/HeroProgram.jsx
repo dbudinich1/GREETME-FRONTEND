@@ -1,19 +1,17 @@
 // src/pages/HeroProgram.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, Heart, Gift, Building2, ShoppingCart, X, CreditCard, Check, Image, ArrowLeft } from 'lucide-react';
+import { Award, Heart, Gift, Building2, ShoppingCart, X, Check, Image, ArrowRight } from 'lucide-react';
+import cartService from '../services/cartService';
 
 export default function HeroProgram() {
   const navigate = useNavigate();
+
+  // Image Bank Modal State
   const [showImageBankModal, setShowImageBankModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
-  const [checkoutStep, setCheckoutStep] = useState('select'); // 'select', 'payment', 'success'
-  const [paymentInfo, setPaymentInfo] = useState({
-    cardNumber: '',
-    expiry: '',
-    cvv: '',
-    name: ''
-  });
+  const [imageBankStep, setImageBankStep] = useState('selection'); // 'selection' | 'confirmation'
+  const [lastAddedImagePackage, setLastAddedImagePackage] = useState(null);
 
   const imageBankPackages = [
     { id: 1, images: 3, price: 5, perImage: '1.67', popular: false },
@@ -21,20 +19,107 @@ export default function HeroProgram() {
     { id: 3, images: 10, price: 15, perImage: '1.50', popular: false, bestValue: true }
   ];
 
-  const handlePurchase = () => {
-    if (checkoutStep === 'select' && selectedPackage) {
-      setCheckoutStep('payment');
-    } else if (checkoutStep === 'payment') {
-      // Simulate payment processing
-      setCheckoutStep('success');
-    }
+  const handleAddImageToCart = (pkg) => {
+    const cartItem = {
+      type: 'image-credits',
+      name: `Image Credits - ${pkg.images} Images`,
+      price: pkg.price,
+      quantity: 1,
+      images: pkg.images,
+      packageId: pkg.id,
+      icon: '🖼️'
+    };
+
+    // Use cartService
+    cartService.addItem(cartItem);
+
+    // Trigger cart badge update
+    window.dispatchEvent(new Event('cartUpdated'));
+
+    // Store the added package and transition to confirmation state
+    setLastAddedImagePackage(pkg);
+    setImageBankStep('confirmation');
   };
 
-  const resetModal = () => {
+  const resetImageBankModal = () => {
     setShowImageBankModal(false);
     setSelectedPackage(null);
-    setCheckoutStep('select');
-    setPaymentInfo({ cardNumber: '', expiry: '', cvv: '', name: '' });
+    setImageBankStep('selection');
+    setLastAddedImagePackage(null);
+  };
+
+  // Hero Hearts Modal State
+  const [showHeroHeartsModal, setShowHeroHeartsModal] = useState(false);
+  const [selectedHeroBundle, setSelectedHeroBundle] = useState(null);
+  const [heroHeartsStep, setHeroHeartsStep] = useState('selection'); // 'selection' | 'confirmation'
+  const [lastAddedHeroBundle, setLastAddedHeroBundle] = useState(null);
+
+  // Hero Hearts Bundles - price tiers with bonus hearts
+  const HERO_HEARTS_BUNDLES = [
+    {
+      id: 'bundle-100',
+      name: 'Starter Bundle',
+      price: 100,
+      hearts: 1000,
+      bonusHearts: 200,
+      totalHearts: 1200,
+      perDollar: 12,
+      popular: false,
+      description: 'Perfect for getting started with Hero Hearts'
+    },
+    {
+      id: 'bundle-250',
+      name: 'Growth Bundle',
+      price: 250,
+      hearts: 2500,
+      bonusHearts: 750,
+      totalHearts: 3250,
+      perDollar: 13,
+      popular: true,
+      description: 'Most popular choice - best value for regular gifters'
+    },
+    {
+      id: 'bundle-500',
+      name: 'Hero Bundle',
+      price: 500,
+      hearts: 5000,
+      bonusHearts: 2000,
+      totalHearts: 7000,
+      perDollar: 14,
+      popular: false,
+      bestValue: true,
+      description: 'Maximum impact - double your rewards balance'
+    }
+  ];
+
+  const handleAddToCart = (bundle) => {
+    const cartItem = {
+      type: 'hero-hearts',
+      name: `Hero Hearts - ${bundle.name}`,
+      price: bundle.price,
+      quantity: 1,
+      hearts: bundle.totalHearts,
+      bundleId: bundle.id,
+      icon: '❤️'
+    };
+
+    // Use cartService instead of direct localStorage
+    cartService.addItem(cartItem);
+
+    // Trigger cart badge update in DashboardLayout
+    window.dispatchEvent(new Event('cartUpdated'));
+
+    // Store the added bundle and transition to confirmation state
+    setLastAddedHeroBundle(bundle);
+    setHeroHeartsStep('confirmation');
+  };
+
+  // Reset Hero Hearts modal to initial state
+  const resetHeroHeartsModal = () => {
+    setShowHeroHeartsModal(false);
+    setSelectedHeroBundle(null);
+    setHeroHeartsStep('selection');
+    setLastAddedHeroBundle(null);
   };
 
   // Mock leaderboard data - Top 5 for preview
@@ -48,45 +133,12 @@ export default function HeroProgram() {
 
   return (
     <div>
-      {/* Back Button */}
-      <div style={{ marginBottom: '1rem' }}>
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 1rem',
-            background: 'transparent',
-            color: 'var(--text-secondary)',
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--gray-100)';
-            e.currentTarget.style.color = 'var(--text-primary)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = 'var(--text-secondary)';
-          }}
-        >
-          <ArrowLeft size={16} />
-          Back
-        </button>
-      </div>
-
       {/* Hero Header Card */}
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         borderRadius: 'var(--radius-xl)',
-        padding: '3rem 2rem',
-        marginBottom: '2rem',
+        padding: '1.5rem 2rem',
+        marginBottom: '1.5rem',
         color: '#000000',
         position: 'relative',
         overflow: 'hidden'
@@ -95,10 +147,10 @@ export default function HeroProgram() {
           <div style={{
             display: 'inline-block',
             background: 'rgba(0, 0, 0, 0.1)',
-            padding: '0.5rem 1rem',
+            padding: '0.375rem 0.75rem',
             borderRadius: 'var(--radius-lg)',
-            marginBottom: '1rem',
-            fontSize: '0.875rem',
+            marginBottom: '0.5rem',
+            fontSize: '0.75rem',
             fontWeight: 600,
             color: '#000000'
           }}>
@@ -106,18 +158,18 @@ export default function HeroProgram() {
           </div>
 
           <h1 style={{
-            fontSize: '2.5rem',
+            fontSize: '1.75rem',
             fontWeight: 700,
-            marginBottom: '1rem',
+            marginBottom: '0.5rem',
             color: '#000000'
           }}>
             Greet-Me Hero™
           </h1>
 
           <p style={{
-            fontSize: '1.125rem',
-            marginBottom: '1.5rem',
-            lineHeight: 1.6,
+            fontSize: '0.9375rem',
+            marginBottom: '0.75rem',
+            lineHeight: 1.5,
             color: '#000000'
           }}>
             Our B2B program for meaningful connections at scale—with 10% of proceeds supporting veterans and first responders.
@@ -130,28 +182,28 @@ export default function HeroProgram() {
               background: 'transparent',
               border: 'none',
               color: '#000000',
-              fontSize: '0.875rem',
+              fontSize: '0.8125rem',
               fontWeight: 500,
               cursor: 'pointer',
               textDecoration: 'underline',
-              marginBottom: '1.5rem',
+              marginBottom: '0.75rem',
               fontFamily: 'inherit'
             }}
           >
             Many Ways to Be a Greet-Me Hero
           </button>
 
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             {/* Shop Merch Store - Yellow */}
             <button
               onClick={() => navigate('/dashboard/merch')}
               style={{
-                padding: '0.875rem 2rem',
+                padding: '0.625rem 1.5rem',
                 background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
                 color: '#000000',
                 border: 'none',
                 borderRadius: 'var(--radius-lg)',
-                fontSize: '1rem',
+                fontSize: '0.875rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 boxShadow: '0 4px 12px rgba(251, 191, 36, 0.4)',
@@ -170,19 +222,19 @@ export default function HeroProgram() {
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
               }}
             >
-              <Gift size={20} />
+              <Gift size={18} />
               Visit Gift Shop
             </button>
             {/* View Hall of Heroes - Yellow */}
             <button
               onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
               style={{
-                padding: '0.875rem 2rem',
+                padding: '0.625rem 1.5rem',
                 background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
                 color: '#000000',
                 border: 'none',
                 borderRadius: 'var(--radius-lg)',
-                fontSize: '1rem',
+                fontSize: '0.875rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 boxShadow: '0 4px 12px rgba(251, 191, 36, 0.4)',
@@ -205,12 +257,12 @@ export default function HeroProgram() {
             <button
               onClick={() => document.getElementById('many-ways-to-be-a-greet-me-hero')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
               style={{
-                padding: '0.875rem 2rem',
+                padding: '0.625rem 1.5rem',
                 background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
                 color: '#000000',
                 border: 'none',
                 borderRadius: 'var(--radius-lg)',
-                fontSize: '1rem',
+                fontSize: '0.875rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 boxShadow: '0 4px 12px rgba(251, 191, 36, 0.4)',
@@ -480,7 +532,9 @@ export default function HeroProgram() {
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
               textAlign: 'center',
               cursor: 'pointer',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              display: 'flex',
+              flexDirection: 'column'
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = '#667eea';
@@ -516,7 +570,8 @@ export default function HeroProgram() {
             <p style={{
               fontSize: '0.875rem',
               color: 'var(--text-secondary)',
-              lineHeight: 1.6
+              lineHeight: 1.6,
+              flex: 1
             }}>
               Purchase credits to unlock premium greeting card images. Click to view packages and pricing.
             </p>
@@ -531,6 +586,73 @@ export default function HeroProgram() {
               display: 'inline-block'
             }}>
               Buy Credits →
+            </div>
+          </div>
+
+          {/* Card 8: Hearts For Sale */}
+          <div
+            onClick={() => setShowHeroHeartsModal(true)}
+            style={{
+              background: 'var(--bg-primary)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '2rem',
+              border: '2px solid var(--border)',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+              textAlign: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#ec4899';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(236, 72, 153, 0.2)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border)';
+              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <div style={{
+              width: '4rem',
+              height: '4rem',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              fontSize: '1.75rem'
+            }}>
+              <Heart size={28} style={{ color: 'white' }} />
+            </div>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem'
+            }}>Greet-Me Hero Hearts™</h3>
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6,
+              flex: 1
+            }}>
+              All Rewards Bundle purchases Double the Users Greet-Me Rewards balance and support our heros.
+            </p>
+            <div style={{
+              marginTop: '1rem',
+              padding: '0.5rem 1rem',
+              background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
+              color: 'white',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              display: 'inline-block'
+            }}>
+              Buy Hero Hearts →
             </div>
           </div>
         </div>
@@ -810,7 +932,7 @@ export default function HeroProgram() {
         <>
           {/* Backdrop */}
           <div
-            onClick={resetModal}
+            onClick={resetImageBankModal}
             style={{
               position: 'fixed',
               top: 0,
@@ -858,21 +980,20 @@ export default function HeroProgram() {
                     fontWeight: 700,
                     margin: 0
                   }}>
-                    {checkoutStep === 'success' ? 'Purchase Complete!' : 'Image Bank'}
+                    {imageBankStep === 'confirmation' ? 'Added to Cart!' : 'Image Bank'}
                   </h2>
                   <p style={{
                     fontSize: '0.875rem',
                     opacity: 0.9,
                     margin: 0
                   }}>
-                    {checkoutStep === 'select' && 'Buy image credits for greeting cards'}
-                    {checkoutStep === 'payment' && 'Complete your purchase'}
-                    {checkoutStep === 'success' && 'Your credits have been added'}
+                    {imageBankStep === 'selection' && 'Buy image credits for greeting cards'}
+                    {imageBankStep === 'confirmation' && 'Your item has been added'}
                   </p>
                 </div>
               </div>
               <button
-                onClick={resetModal}
+                onClick={resetImageBankModal}
                 style={{
                   background: 'rgba(255, 255, 255, 0.2)',
                   border: '1px solid rgba(255, 255, 255, 0.3)',
@@ -883,8 +1004,7 @@ export default function HeroProgram() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  color: 'white'
+                  transition: 'all 0.2s'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
@@ -893,14 +1013,14 @@ export default function HeroProgram() {
                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
                 }}
               >
-                <X size={20} />
+                <span style={{ fontSize: '24px', fontWeight: 'bold', color: 'white', lineHeight: 1 }}>×</span>
               </button>
             </div>
 
             {/* Content */}
             <div style={{ padding: '1.5rem' }}>
-              {/* Step 1: Select Package */}
-              {checkoutStep === 'select' && (
+              {/* STATE 1: Selection */}
+              {imageBankStep === 'selection' && (
                 <>
                   <p style={{
                     textAlign: 'center',
@@ -1010,216 +1130,70 @@ export default function HeroProgram() {
                     ))}
                   </div>
 
-                  <button
-                    onClick={handlePurchase}
-                    disabled={!selectedPackage}
-                    style={{
-                      width: '100%',
-                      marginTop: '1.5rem',
-                      padding: '1rem',
-                      background: selectedPackage
-                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                        : 'var(--gray-200)',
-                      color: selectedPackage ? 'white' : 'var(--text-secondary)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-lg)',
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                      cursor: selectedPackage ? 'pointer' : 'not-allowed',
-                      transition: 'all 0.2s',
-                      fontFamily: 'inherit'
-                    }}
-                  >
-                    Continue to Payment →
-                  </button>
-                </>
-              )}
-
-              {/* Step 2: Payment */}
-              {checkoutStep === 'payment' && selectedPackage && (
-                <>
-                  {/* Order Summary */}
+                  {/* Selection State Buttons */}
                   <div style={{
-                    background: 'var(--gray-50)',
-                    borderRadius: 'var(--radius-lg)',
-                    padding: '1rem',
-                    marginBottom: '1.5rem'
+                    display: 'flex',
+                    gap: '0.75rem',
+                    justifyContent: 'space-between',
+                    marginTop: '1.5rem'
                   }}>
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '0.5rem'
-                    }}>
-                      <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                        {selectedPackage.images} Image Credits
-                      </span>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                        ${selectedPackage.price}.00
-                      </span>
-                    </div>
-                    <div style={{
-                      fontSize: '0.8125rem',
-                      color: 'var(--text-secondary)'
-                    }}>
-                      Use for premium greeting card images
-                    </div>
-                  </div>
-
-                  {/* Payment Form */}
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{
-                      display: 'block',
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      marginBottom: '0.5rem'
-                    }}>
-                      <CreditCard size={14} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'middle' }} />
-                      Card Number
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="1234 5678 9012 3456"
-                      value={paymentInfo.cardNumber}
-                      onChange={(e) => setPaymentInfo({ ...paymentInfo, cardNumber: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: '0.875rem',
-                        fontFamily: 'inherit'
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                    <div>
-                      <label style={{
-                        display: 'block',
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        color: 'var(--text-primary)',
-                        marginBottom: '0.5rem'
-                      }}>
-                        Expiry Date
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="MM/YY"
-                        value={paymentInfo.expiry}
-                        onChange={(e) => setPaymentInfo({ ...paymentInfo, expiry: e.target.value })}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem',
-                          border: '1px solid var(--border)',
-                          borderRadius: 'var(--radius-md)',
-                          fontSize: '0.875rem',
-                          fontFamily: 'inherit'
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{
-                        display: 'block',
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        color: 'var(--text-primary)',
-                        marginBottom: '0.5rem'
-                      }}>
-                        CVV
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="123"
-                        value={paymentInfo.cvv}
-                        onChange={(e) => setPaymentInfo({ ...paymentInfo, cvv: e.target.value })}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem',
-                          border: '1px solid var(--border)',
-                          borderRadius: 'var(--radius-md)',
-                          fontSize: '0.875rem',
-                          fontFamily: 'inherit'
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <label style={{
-                      display: 'block',
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      marginBottom: '0.5rem'
-                    }}>
-                      Name on Card
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="John Doe"
-                      value={paymentInfo.name}
-                      onChange={(e) => setPaymentInfo({ ...paymentInfo, name: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: '0.875rem',
-                        fontFamily: 'inherit'
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '1rem' }}>
+                    {/* Cancel - Secondary (outline) - LEFT */}
                     <button
-                      onClick={() => setCheckoutStep('select')}
+                      onClick={resetImageBankModal}
                       style={{
-                        flex: 1,
-                        padding: '1rem',
+                        padding: '0.875rem 1.5rem',
                         background: 'white',
                         color: 'var(--text-primary)',
-                        border: '1px solid var(--border)',
+                        border: '2px solid var(--border)',
                         borderRadius: 'var(--radius-lg)',
-                        fontSize: '1rem',
+                        fontSize: '0.9375rem',
                         fontWeight: 600,
                         cursor: 'pointer',
+                        transition: 'all 0.2s',
                         fontFamily: 'inherit'
                       }}
                     >
-                      ← Back
+                      Cancel
                     </button>
+
+                    {/* Add to Cart - Primary (solid) - RIGHT */}
                     <button
-                      onClick={handlePurchase}
+                      onClick={() => {
+                        if (selectedPackage) {
+                          handleAddImageToCart(selectedPackage);
+                        }
+                      }}
+                      disabled={!selectedPackage}
                       style={{
-                        flex: 2,
-                        padding: '1rem',
-                        background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-                        color: 'white',
+                        padding: '0.875rem 2rem',
+                        background: selectedPackage
+                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                          : 'var(--gray-200)',
+                        color: selectedPackage ? 'white' : 'var(--text-secondary)',
                         border: 'none',
                         borderRadius: 'var(--radius-lg)',
-                        fontSize: '1rem',
+                        fontSize: '0.9375rem',
                         fontWeight: 600,
-                        cursor: 'pointer',
+                        cursor: selectedPackage ? 'pointer' : 'not-allowed',
+                        transition: 'all 0.2s',
                         fontFamily: 'inherit',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.5rem'
+                        gap: '0.5rem',
+                        boxShadow: selectedPackage ? '0 4px 12px rgba(102, 126, 234, 0.3)' : 'none'
                       }}
                     >
-                      <CreditCard size={18} />
-                      Pay ${selectedPackage.price}.00
+                      <ShoppingCart size={18} />
+                      Add to Cart
                     </button>
                   </div>
                 </>
               )}
 
-              {/* Step 3: Success */}
-              {checkoutStep === 'success' && selectedPackage && (
-                <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+              {/* STATE 2: Confirmation */}
+              {imageBankStep === 'confirmation' && lastAddedImagePackage && (
+                <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                  {/* Success Icon */}
                   <div style={{
                     width: '5rem',
                     height: '5rem',
@@ -1228,68 +1202,611 @@ export default function HeroProgram() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    margin: '0 auto 1.5rem'
+                    margin: '0 auto 1.5rem',
+                    boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
                   }}>
                     <Check size={40} style={{ color: 'white' }} />
                   </div>
+
+                  {/* Confirmation Message */}
                   <h3 style={{
                     fontSize: '1.5rem',
                     fontWeight: 700,
                     color: 'var(--text-primary)',
-                    marginBottom: '0.75rem'
+                    marginBottom: '0.5rem'
                   }}>
-                    Thank You!
+                    Added to Cart!
                   </h3>
+
                   <p style={{
                     fontSize: '1rem',
                     color: 'var(--text-secondary)',
-                    marginBottom: '1.5rem',
-                    lineHeight: 1.6
+                    marginBottom: '1.5rem'
                   }}>
-                    <strong>{selectedPackage.images} image credits</strong> have been added to your account.<br />
-                    You can now use them when creating greeting cards.
+                    {lastAddedImagePackage.images} Image Credits
                   </p>
+
+                  {/* Item Summary */}
                   <div style={{
                     background: 'var(--gray-50)',
                     borderRadius: 'var(--radius-lg)',
                     padding: '1rem',
-                    marginBottom: '1.5rem'
+                    marginBottom: '0.75rem',
+                    maxWidth: '320px',
+                    margin: '0 auto 1.5rem'
                   }}>
                     <div style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       marginBottom: '0.5rem'
                     }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Order Total:</span>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>${selectedPackage.price}.00</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{lastAddedImagePackage.images} Images</span>
+                      <span style={{ fontWeight: 600, color: '#667eea' }}>${lastAddedImagePackage.price}</span>
                     </div>
                     <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between'
+                      borderTop: '1px solid var(--border)',
+                      paddingTop: '0.5rem',
+                      fontSize: '0.875rem',
+                      color: 'var(--text-secondary)'
                     }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Credits Added:</span>
-                      <span style={{ fontWeight: 600, color: '#22c55e' }}>{selectedPackage.images} Images</span>
+                      {cartService.getCount()} {cartService.getCount() === 1 ? 'item' : 'items'} in cart
                     </div>
                   </div>
+
+                  {/* Action Buttons */}
+                  <div style={{
+                    display: 'flex',
+                    gap: '0.75rem',
+                    justifyContent: 'center',
+                    maxWidth: '400px',
+                    margin: '0 auto'
+                  }}>
+                    {/* Continue Shopping - Secondary (outline) */}
+                    <button
+                      onClick={resetImageBankModal}
+                      style={{
+                        flex: 1,
+                        padding: '0.875rem 1.5rem',
+                        background: 'white',
+                        color: '#667eea',
+                        border: '2px solid #667eea',
+                        borderRadius: 'var(--radius-lg)',
+                        fontSize: '0.9375rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        fontFamily: 'inherit',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <ShoppingCart size={18} />
+                      Continue Shopping
+                    </button>
+
+                    {/* Checkout - Primary (solid) */}
+                    <button
+                      onClick={() => {
+                        resetImageBankModal();
+                        navigate('/dashboard/cart');
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '0.875rem 1.5rem',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 'var(--radius-lg)',
+                        fontSize: '0.9375rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                        fontFamily: 'inherit',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      Checkout
+                      <ArrowRight size={18} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Hero Hearts Pricing Modal */}
+      {showHeroHeartsModal && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={resetHeroHeartsModal}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 1000
+            }}
+          />
+          {/* Modal */}
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'white',
+            borderRadius: '1rem',
+            width: '90%',
+            maxWidth: '800px',
+            maxHeight: '90vh',
+            zIndex: 1001,
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            {/* Close Button - Fixed to modal frame */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                resetHeroHeartsModal();
+              }}
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                background: '#f3f4f6',
+                border: 'none',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                zIndex: 9999,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#e5e7eb';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#f3f4f6';
+              }}
+            >
+              <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#374151', lineHeight: 1 }}>×</span>
+            </button>
+
+            {/* Scrollable Content */}
+            <div style={{ padding: '2rem', paddingTop: '3rem', overflowY: 'auto', flex: 1 }}>
+
+            {/* Header */}
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <div style={{
+                width: '4rem',
+                height: '4rem',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1rem'
+              }}>
+                <Heart size={28} style={{ color: 'white' }} />
+              </div>
+              <h2 style={{
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                marginBottom: '0.5rem'
+              }}>
+                Greet-Me Hero Hearts™
+              </h2>
+              <p style={{
+                fontSize: '0.9375rem',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.5
+              }}>
+                Double your Rewards balance and support veterans & first responders
+              </p>
+              <div style={{
+                display: 'inline-block',
+                background: 'linear-gradient(135deg, #D4AF37 0%, #8B6914 100%)',
+                color: 'white',
+                padding: '0.375rem 0.75rem',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                marginTop: '0.75rem'
+              }}>
+                🏅 10% of proceeds donated
+              </div>
+            </div>
+
+            {/* STATE 1: Selection */}
+            {heroHeartsStep === 'selection' && (
+              <>
+                {/* Pricing Cards Grid */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: '1rem',
+                  marginBottom: '1.5rem'
+                }}>
+                  {HERO_HEARTS_BUNDLES.map((bundle) => (
+                    <div
+                      key={bundle.id}
+                      onClick={() => setSelectedHeroBundle(bundle.id)}
+                      style={{
+                        position: 'relative',
+                        background: selectedHeroBundle === bundle.id
+                          ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(190, 24, 93, 0.05) 100%)'
+                          : 'white',
+                        border: selectedHeroBundle === bundle.id
+                          ? '2px solid #ec4899'
+                          : bundle.popular
+                            ? '2px solid #ec4899'
+                            : '2px solid var(--border)',
+                        borderRadius: 'var(--radius-xl)',
+                        padding: '1.5rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        transform: selectedHeroBundle === bundle.id ? 'scale(1.02)' : 'scale(1)'
+                      }}
+                    >
+                      {/* Popular Badge */}
+                      {bundle.popular && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '-0.75rem',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
+                          color: 'white',
+                          padding: '0.25rem 0.75rem',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '0.6875rem',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          Most Popular
+                        </div>
+                      )}
+
+                      {/* Best Value Badge */}
+                      {bundle.bestValue && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '-0.75rem',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          background: 'linear-gradient(135deg, #D4AF37 0%, #8B6914 100%)',
+                          color: 'white',
+                          padding: '0.25rem 0.75rem',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '0.6875rem',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          Best Value
+                        </div>
+                      )}
+
+                      {/* Selection Indicator */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '1rem',
+                        right: '1rem',
+                        width: '1.5rem',
+                        height: '1.5rem',
+                        borderRadius: '50%',
+                        border: selectedHeroBundle === bundle.id ? '2px solid #ec4899' : '2px solid var(--border)',
+                        background: selectedHeroBundle === bundle.id ? '#ec4899' : 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s'
+                      }}>
+                        {selectedHeroBundle === bundle.id && (
+                          <Check size={14} style={{ color: 'white' }} />
+                        )}
+                      </div>
+
+                      {/* Bundle Name */}
+                      <h3 style={{
+                        fontSize: '1.125rem',
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                        marginBottom: '0.5rem',
+                        paddingRight: '2rem'
+                      }}>
+                        {bundle.name}
+                      </h3>
+
+                      {/* Price */}
+                      <div style={{
+                        fontSize: '2rem',
+                        fontWeight: 800,
+                        color: '#ec4899',
+                        marginBottom: '0.5rem'
+                      }}>
+                        ${bundle.price}
+                      </div>
+
+                      {/* Hearts Breakdown */}
+                      <div style={{
+                        background: 'var(--gray-50)',
+                        borderRadius: 'var(--radius-lg)',
+                        padding: '0.75rem',
+                        marginBottom: '0.75rem'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: '0.8125rem',
+                          color: 'var(--text-secondary)',
+                          marginBottom: '0.25rem'
+                        }}>
+                          <span>Base Hearts:</span>
+                          <span>{bundle.hearts.toLocaleString()} ❤️</span>
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: '0.8125rem',
+                          color: '#22c55e',
+                          fontWeight: 600,
+                          marginBottom: '0.25rem'
+                        }}>
+                          <span>Bonus Hearts:</span>
+                          <span>+{bundle.bonusHearts.toLocaleString()} ❤️</span>
+                        </div>
+                        <div style={{
+                          borderTop: '1px solid var(--border)',
+                          paddingTop: '0.5rem',
+                          marginTop: '0.25rem',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: '0.9375rem',
+                          fontWeight: 700,
+                          color: '#ec4899'
+                        }}>
+                          <span>Total:</span>
+                          <span>{bundle.totalHearts.toLocaleString()} ❤️</span>
+                        </div>
+                      </div>
+
+                      {/* Per Dollar Value */}
+                      <div style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        textAlign: 'center',
+                        marginBottom: '0.75rem'
+                      }}>
+                        {bundle.perDollar} Hearts per dollar
+                      </div>
+
+                      {/* Description */}
+                      <p style={{
+                        fontSize: '0.8125rem',
+                        color: 'var(--text-secondary)',
+                        lineHeight: 1.5,
+                        textAlign: 'center'
+                      }}>
+                        {bundle.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Selection State Buttons */}
+                <div style={{
+                  display: 'flex',
+                  gap: '0.75rem',
+                  justifyContent: 'space-between'
+                }}>
+                  {/* Cancel - Secondary (outline) - LEFT */}
                   <button
-                    onClick={resetModal}
+                    onClick={resetHeroHeartsModal}
                     style={{
-                      width: '100%',
-                      padding: '1rem',
+                      padding: '0.875rem 1.5rem',
+                      background: 'white',
+                      color: 'var(--text-primary)',
+                      border: '2px solid var(--border)',
+                      borderRadius: 'var(--radius-lg)',
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    Cancel
+                  </button>
+
+                  {/* Add to Cart - Primary (solid) - RIGHT */}
+                  <button
+                    onClick={() => {
+                      const bundle = HERO_HEARTS_BUNDLES.find(b => b.id === selectedHeroBundle);
+                      if (bundle) {
+                        handleAddToCart(bundle);
+                      }
+                    }}
+                    disabled={!selectedHeroBundle}
+                    style={{
+                      padding: '0.875rem 2rem',
+                      background: selectedHeroBundle
+                        ? 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)'
+                        : 'var(--gray-200)',
+                      color: selectedHeroBundle ? 'white' : 'var(--text-secondary)',
+                      border: 'none',
+                      borderRadius: 'var(--radius-lg)',
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      cursor: selectedHeroBundle ? 'pointer' : 'not-allowed',
+                      transition: 'all 0.2s',
+                      fontFamily: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      boxShadow: selectedHeroBundle ? '0 4px 12px rgba(236, 72, 153, 0.3)' : 'none'
+                    }}
+                  >
+                    <ShoppingCart size={18} />
+                    Add to Cart
+                  </button>
+                </div>
+
+                {/* Info Note */}
+                <p style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary)',
+                  textAlign: 'center',
+                  marginTop: '1rem',
+                  fontStyle: 'italic'
+                }}>
+                  Hearts are added to your Rewards balance immediately after purchase. 10% of all Hero Hearts purchases support veterans and first responders.
+                </p>
+              </>
+            )}
+
+            {/* STATE 2: Confirmation */}
+            {heroHeartsStep === 'confirmation' && lastAddedHeroBundle && (
+              <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                {/* Success Icon */}
+                <div style={{
+                  width: '5rem',
+                  height: '5rem',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 1.5rem',
+                  boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
+                }}>
+                  <Check size={40} style={{ color: 'white' }} />
+                </div>
+
+                {/* Confirmation Message */}
+                <h3 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  marginBottom: '0.5rem'
+                }}>
+                  Added to Cart!
+                </h3>
+
+                <p style={{
+                  fontSize: '1rem',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '1.5rem'
+                }}>
+                  {lastAddedHeroBundle.name} ({lastAddedHeroBundle.totalHearts.toLocaleString()} ❤️)
+                </p>
+
+                {/* Item Summary */}
+                <div style={{
+                  background: 'var(--gray-50)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '1rem',
+                  marginBottom: '0.75rem',
+                  maxWidth: '320px',
+                  margin: '0 auto 1.5rem'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginBottom: '0.5rem'
+                  }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Hero Hearts - {lastAddedHeroBundle.name}</span>
+                    <span style={{ fontWeight: 600, color: '#ec4899' }}>${lastAddedHeroBundle.price}</span>
+                  </div>
+                  <div style={{
+                    borderTop: '1px solid var(--border)',
+                    paddingTop: '0.5rem',
+                    fontSize: '0.875rem',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    {cartService.getCount()} {cartService.getCount() === 1 ? 'item' : 'items'} in cart
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{
+                  display: 'flex',
+                  gap: '0.75rem',
+                  justifyContent: 'center',
+                  maxWidth: '400px',
+                  margin: '0 auto'
+                }}>
+                  {/* Continue Shopping - Secondary (outline) */}
+                  <button
+                    onClick={resetHeroHeartsModal}
+                    style={{
+                      flex: 1,
+                      padding: '0.875rem 1.5rem',
+                      background: 'white',
+                      color: '#667eea',
+                      border: '2px solid #667eea',
+                      borderRadius: 'var(--radius-lg)',
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      fontFamily: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <ShoppingCart size={18} />
+                    Continue Shopping
+                  </button>
+
+                  {/* Checkout - Primary (solid) */}
+                  <button
+                    onClick={() => {
+                      resetHeroHeartsModal();
+                      navigate('/dashboard/cart');
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '0.875rem 1.5rem',
                       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                       color: 'white',
                       border: 'none',
                       borderRadius: 'var(--radius-lg)',
-                      fontSize: '1rem',
+                      fontSize: '0.9375rem',
                       fontWeight: 600,
                       cursor: 'pointer',
-                      fontFamily: 'inherit'
+                      transition: 'all 0.2s',
+                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                      fontFamily: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem'
                     }}
                   >
-                    Done
+                    Checkout
+                    <ArrowRight size={18} />
                   </button>
                 </div>
-              )}
+              </div>
+            )}
             </div>
           </div>
         </>
