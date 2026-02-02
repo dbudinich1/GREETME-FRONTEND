@@ -76,12 +76,20 @@ export default function AnimationBank() {
 
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden', padding: '0 1rem' }}>
-      {/* Header Banner */}
+      {/* Main Content Frame - includes banner */}
+      <div style={{
+        background: 'var(--bg-primary)',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid var(--border)',
+        padding: '1.5rem',
+        marginBottom: '1rem'
+      }}>
+      {/* Header Banner - inside frame */}
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         borderRadius: 'var(--radius-lg)',
         padding: '1.5rem 2rem',
-        marginBottom: '1rem',
+        marginBottom: '1.5rem',
         display: 'flex',
         alignItems: 'center',
         gap: '1rem'
@@ -105,15 +113,6 @@ export default function AnimationBank() {
           </p>
         </div>
       </div>
-
-      {/* Main Content Frame */}
-      <div style={{
-        background: 'var(--bg-primary)',
-        borderRadius: 'var(--radius-xl)',
-        border: '1px solid var(--border)',
-        padding: '1.5rem',
-        marginBottom: '1rem'
-      }}>
 
       {/* Total Available - Hero Card */}
       <div style={{
