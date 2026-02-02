@@ -132,7 +132,7 @@ export default function HeroProgram() {
   ];
 
   return (
-    <div>
+    <div style={{ maxWidth: '100%', overflowX: 'hidden', padding: '0 1rem' }}>
       {/* Hero Header Card */}
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -283,6 +283,15 @@ export default function HeroProgram() {
           </div>
         </div>
       </div>
+
+      {/* Main Content Frame */}
+      <div style={{
+        background: 'var(--bg-primary)',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid var(--border)',
+        padding: '1.5rem',
+        marginBottom: '1rem'
+      }}>
 
       {/* Many Ways to Be a Greet-Me Hero Section */}
       <div id="many-ways-to-be-a-greet-me-hero" style={{ marginBottom: '2rem' }}>
@@ -926,6 +935,7 @@ export default function HeroProgram() {
           </div>
         </div>
       </div>
+      </div>{/* End Main Content Frame */}
 
       {/* Image Bank Modal */}
       {showImageBankModal && (

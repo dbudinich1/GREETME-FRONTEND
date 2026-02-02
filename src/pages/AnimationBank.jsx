@@ -9,6 +9,8 @@ export default function AnimationBank() {
   const [bank, setBank] = useState(null);
   const [breakdown, setBreakdown] = useState(null);
   const [showPacksModal, setShowPacksModal] = useState(false);
+  const [packsModalStep, setPacksModalStep] = useState('selection'); // 'selection' | 'confirmation'
+  const [selectedPack, setSelectedPack] = useState(null);
   const [creditsSaved, setCreditsSaved] = useState(0);
 
   useEffect(() => {
@@ -32,12 +34,27 @@ export default function AnimationBank() {
     setCreditsSaved(saved);
   };
 
-  const handlePurchasePack = (packSize, packName, price) => {
+  const handleSelectPack = (pack) => {
+    setSelectedPack(pack);
+    setPacksModalStep('confirmation');
+  };
+
+  const handleConfirmPurchase = () => {
+    if (!selectedPack) return;
     // In production, this would integrate with payment processor
-    animationBankService.addPurchasedPack(packSize, packName);
+    animationBankService.addPurchasedPack(selectedPack.size, `${selectedPack.name} Pack`);
     loadAnimationBank();
+    // Keep modal open to show success, or close after brief delay
+    setTimeout(() => {
+      resetPacksModal();
+    }, 100);
+    alert(`${selectedPack.name} Pack added! You now have ${animationBankService.getTotalAvailable()} Animated Moments.`);
+  };
+
+  const resetPacksModal = () => {
     setShowPacksModal(false);
-    alert(`${packName} added! You now have ${animationBankService.getTotalAvailable()} Animated Moments.`);
+    setPacksModalStep('selection');
+    setSelectedPack(null);
   };
 
   if (!bank || !breakdown) {
@@ -58,32 +75,45 @@ export default function AnimationBank() {
   ];
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-      {/* Header with Gradient */}
+    <div style={{ maxWidth: '100%', overflowX: 'hidden', padding: '0 1rem' }}>
+      {/* Header Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        borderRadius: '1rem',
-        padding: '2.5rem',
-        marginBottom: '2rem',
-        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)',
-        color: 'white',
-        textAlign: 'center'
+        borderRadius: 'var(--radius-lg)',
+        padding: '1.5rem 2rem',
+        marginBottom: '1rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '1rem'
       }}>
-        <Film size={48} style={{ margin: '0 auto 1rem' }} />
-        <h1 style={{
-          fontSize: '2.5rem',
-          fontWeight: 700,
-          marginBottom: '0.5rem'
-        }}>
-          Animation Bank
-        </h1>
-        <p style={{
-          fontSize: '1.125rem',
-          color: 'rgba(255, 255, 255, 0.9)'
-        }}>
-          Your collection of Animated Moments
-        </p>
+        <Film size={32} style={{ color: 'white' }} />
+        <div>
+          <h1 style={{
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            color: 'white',
+            margin: 0
+          }}>
+            Animation Bank
+          </h1>
+          <p style={{
+            fontSize: '0.875rem',
+            color: 'rgba(255, 255, 255, 0.9)',
+            margin: 0
+          }}>
+            Your collection of Animated Moments
+          </p>
+        </div>
       </div>
+
+      {/* Main Content Frame */}
+      <div style={{
+        background: 'var(--bg-primary)',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid var(--border)',
+        padding: '1.5rem',
+        marginBottom: '1rem'
+      }}>
 
       {/* Total Available - Hero Card */}
       <div style={{
@@ -348,19 +378,23 @@ export default function AnimationBank() {
           </div>
         </div>
       </div>
+      </div>{/* End Main Content Frame */}
 
       {/* Packs Modal */}
       {showPacksModal && (
         <>
+          {/* Backdrop */}
           <div
-            onClick={() => setShowPacksModal(false)}
+            onClick={resetPacksModal}
             style={{
               position: 'fixed',
               inset: 0,
               background: 'rgba(0,0,0,0.5)',
-              zIndex: 1000
+              zIndex: 1000,
+              backdropFilter: 'blur(4px)'
             }}
           />
+          {/* Modal */}
           <div style={{
             position: 'fixed',
             top: '50%',
@@ -368,109 +402,268 @@ export default function AnimationBank() {
             transform: 'translate(-50%, -50%)',
             background: 'white',
             borderRadius: '1rem',
-            padding: '2rem',
             maxWidth: '600px',
             width: '90%',
             maxHeight: '90vh',
-            overflowY: 'auto',
             zIndex: 1001,
-            boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
           }}>
-            <h2 style={{
-              fontSize: '1.75rem',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              marginBottom: '1.5rem',
-              textAlign: 'center'
-            }}>
-              Animation Packs
-            </h2>
-            <p style={{
-              fontSize: '0.9375rem',
-              color: 'var(--text-secondary)',
-              marginBottom: '2rem',
-              textAlign: 'center'
-            }}>
-              Add more Animated Moments to your bank. Credits never expire!
-            </p>
+            {/* X Close Button */}
+            <button
+              onClick={resetPacksModal}
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                background: '#f3f4f6',
+                border: 'none',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                zIndex: 10
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#e5e7eb';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#f3f4f6';
+              }}
+            >
+              <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#374151', lineHeight: 1 }}>×</span>
+            </button>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {packs.map(pack => (
-                <div key={pack.name} style={{
-                  border: `2px solid ${pack.color}`,
-                  borderRadius: '0.75rem',
-                  padding: '1.5rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  background: `${pack.color}08`
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{
-                      fontSize: '2.5rem'
-                    }}>
-                      {pack.icon}
-                    </div>
-                    <div>
-                      <h3 style={{
-                        fontSize: '1.25rem',
-                        fontWeight: 700,
-                        color: 'var(--text-primary)',
-                        marginBottom: '0.25rem'
-                      }}>
-                        {pack.name} Pack
-                      </h3>
-                      <p style={{
-                        fontSize: '0.875rem',
-                        color: 'var(--text-secondary)'
-                      }}>
-                        {pack.size} Animated Moments • ${pack.price}
-                      </p>
-                    </div>
+            {/* Content */}
+            <div style={{ padding: '2rem', paddingTop: '3rem', overflowY: 'auto', flex: 1 }}>
+              {/* STATE 1: Selection */}
+              {packsModalStep === 'selection' && (
+                <>
+                  <h2 style={{
+                    fontSize: '1.75rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    marginBottom: '0.5rem',
+                    textAlign: 'center'
+                  }}>
+                    Animation Packs
+                  </h2>
+                  <p style={{
+                    fontSize: '0.9375rem',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '2rem',
+                    textAlign: 'center'
+                  }}>
+                    Add more Animated Moments to your bank. Credits never expire!
+                  </p>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {packs.map(pack => (
+                      <div
+                        key={pack.name}
+                        onClick={() => handleSelectPack(pack)}
+                        style={{
+                          border: `2px solid ${pack.color}`,
+                          borderRadius: '0.75rem',
+                          padding: '1.5rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          background: `${pack.color}08`,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = `0 4px 12px ${pack.color}30`;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{ fontSize: '2.5rem' }}>
+                            {pack.icon}
+                          </div>
+                          <div>
+                            <h3 style={{
+                              fontSize: '1.25rem',
+                              fontWeight: 700,
+                              color: 'var(--text-primary)',
+                              marginBottom: '0.25rem'
+                            }}>
+                              {pack.name} Pack
+                            </h3>
+                            <p style={{
+                              fontSize: '0.875rem',
+                              color: 'var(--text-secondary)'
+                            }}>
+                              {pack.size} Animated Moments
+                            </p>
+                          </div>
+                        </div>
+                        <div style={{
+                          fontSize: '1.25rem',
+                          fontWeight: 700,
+                          color: pack.color
+                        }}>
+                          ${pack.price}
+                        </div>
+                      </div>
+                    ))}
                   </div>
+
+                  {/* Cancel Button */}
                   <button
-                    onClick={() => handlePurchasePack(pack.size, `${pack.name} Pack`, pack.price)}
+                    onClick={resetPacksModal}
                     style={{
-                      padding: '0.625rem 1.25rem',
-                      background: pack.color,
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.875rem',
+                      marginTop: '1.5rem',
+                      width: '100%',
+                      padding: '0.875rem',
+                      background: 'white',
+                      color: '#667eea',
+                      border: '2px solid #667eea',
+                      borderRadius: '0.75rem',
+                      fontSize: '0.9375rem',
                       fontWeight: 600,
                       cursor: 'pointer',
                       transition: 'all 0.2s'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'scale(1.05)';
+                      e.currentTarget.style.background = '#f5f3ff';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.background = 'white';
                     }}
                   >
-                    Add Pack
+                    Cancel
                   </button>
-                </div>
-              ))}
-            </div>
+                </>
+              )}
 
-            <button
-              onClick={() => setShowPacksModal(false)}
-              style={{
-                marginTop: '2rem',
-                width: '100%',
-                padding: '0.75rem',
-                background: 'var(--gray-100)',
-                color: 'var(--text-primary)',
-                border: 'none',
-                borderRadius: '0.5rem',
-                fontSize: '0.9375rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Close
-            </button>
+              {/* STATE 2: Confirmation */}
+              {packsModalStep === 'confirmation' && selectedPack && (
+                <>
+                  {/* Success Icon */}
+                  <div style={{
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '50%',
+                    background: `linear-gradient(135deg, ${selectedPack.color} 0%, ${selectedPack.color}dd 100%)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 1.5rem',
+                    fontSize: '2.5rem',
+                    boxShadow: `0 4px 12px ${selectedPack.color}40`
+                  }}>
+                    {selectedPack.icon}
+                  </div>
+
+                  <h2 style={{
+                    fontSize: '1.5rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    marginBottom: '0.5rem',
+                    textAlign: 'center'
+                  }}>
+                    Confirm Purchase
+                  </h2>
+
+                  {/* Pack Summary */}
+                  <div style={{
+                    background: '#f9fafb',
+                    borderRadius: '0.75rem',
+                    padding: '1.25rem',
+                    marginBottom: '1.5rem',
+                    border: `2px solid ${selectedPack.color}30`
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '0.75rem'
+                    }}>
+                      <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {selectedPack.name} Pack
+                      </span>
+                      <span style={{ fontSize: '1.125rem', fontWeight: 700, color: selectedPack.color }}>
+                        ${selectedPack.price}
+                      </span>
+                    </div>
+                    <p style={{
+                      fontSize: '0.875rem',
+                      color: 'var(--text-secondary)'
+                    }}>
+                      {selectedPack.size} Animated Moments • Never expire
+                    </p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {/* Go Back Button */}
+                    <button
+                      onClick={() => setPacksModalStep('selection')}
+                      style={{
+                        width: '100%',
+                        padding: '0.875rem',
+                        background: 'white',
+                        color: '#667eea',
+                        border: '2px solid #667eea',
+                        borderRadius: '0.75rem',
+                        fontSize: '0.9375rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#f5f3ff';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'white';
+                      }}
+                    >
+                      ← Choose Different Pack
+                    </button>
+
+                    {/* Confirm Purchase Button */}
+                    <button
+                      onClick={handleConfirmPurchase}
+                      style={{
+                        width: '100%',
+                        padding: '0.875rem',
+                        background: `linear-gradient(135deg, ${selectedPack.color} 0%, ${selectedPack.color}dd 100%)`,
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '0.75rem',
+                        fontSize: '0.9375rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        boxShadow: `0 4px 12px ${selectedPack.color}40`
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = `0 6px 16px ${selectedPack.color}50`;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = `0 4px 12px ${selectedPack.color}40`;
+                      }}
+                    >
+                      Purchase ${selectedPack.price}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </>
       )}
