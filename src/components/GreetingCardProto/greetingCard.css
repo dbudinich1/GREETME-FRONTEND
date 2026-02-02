@@ -1,10 +1,16 @@
 /**
  * greetingCard.css
  * Premium styling for Greet-Me greeting cards
+ *
+ * CANONICAL LOCK STATE: See GREETING_LOCK.md for authoritative values
+ * Lock tokens defined in: lockTokens.css
  */
 
-/* ===== GOOGLE FONTS ===== */
+/* ===== LOCK TOKENS (MUST BE FIRST) ===== */
+@import url('./lockTokens.css');
 
+/* ===== GOOGLE FONTS ===== */
+/* NOTE: Consider moving to <link> in index.html for faster loading */
 @import url('https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Alex+Brush&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Great+Vibes&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Tangerine:wght@400;700&display=swap');
 /* ===== CSS VARIABLES ===== */
 :root {
@@ -301,18 +307,18 @@
   top: 96px;
   left: 140px;
   right: 120px;
-  bottom: 140px;  /* INCREASED from 96px - leaves room for signature */
+  bottom: 96px;   /* LOCK STATE */
   display: flex;
   flex-direction: column;
 }
 
 .gc-greeting-salutation {
   font-family: var(--gc-font-title);
-  font-size: 48px;                      /* -2 from body size */
-  font-weight: 400;
+  font-size: 48px;                      /* LOCK STATE: -2 from body size */
+  font-weight: 400;                     /* LOCK STATE: Explicit weight */
   color: #1a3a6b;
-  margin: 0 0 16px 0;   /* GENEROUS spacing below salutation */
-  line-height: 1.6;     /* GENEROUS line-height */
+  margin: 0 0 6px 0;                    /* LOCK STATE */
+  line-height: 1.4;                     /* LOCK STATE */
   letter-spacing: 1px;
   flex-shrink: 0;
   text-align: left;
@@ -322,33 +328,33 @@
 /* Occasion greeting line (e.g., "Happy Birthday!") */
 .gc-greeting-occasion {
   font-family: var(--gc-font-handwritten);
-  font-size: var(--gc-letter-body-size);
-  font-weight: 400;
+  font-size: var(--gc-letter-body-size); /* LOCK STATE: 50px */
+  font-weight: 400;                      /* LOCK STATE: Explicit weight */
   color: #1a3a6b;
-  line-height: 1.6;     /* GENEROUS line-height */
-  margin: 0 0 20px 0;   /* GENEROUS spacing below occasion */
-  text-align: center;
+  line-height: 1.4;                      /* LOCK STATE */
+  margin: 0 0 6px 0;                     /* LOCK STATE */
+  text-align: center;                    /* LOCK STATE */
   text-shadow: 0 0 0.5px #1a3a6b;
 }
 
 .gc-greeting-message {
   font-family: var(--gc-font-handwritten);
-  font-size: var(--gc-letter-body-size);
-  font-weight: 400;
+  font-size: var(--gc-letter-body-size); /* LOCK STATE: 50px */
+  font-weight: 400;                      /* LOCK STATE: Explicit weight */
   color: #1a3a6b;
-  line-height: 1.8;     /* GENEROUS line spacing - never cramped */
-  margin: 0 0 24px 0;   /* GENEROUS bottom margin before signature */
-  text-align: left;
-  overflow: hidden; /* CANONICAL: Truncate message, never signature */
-  flex: 1; /* Take remaining space, shrink if needed */
-  min-height: 0; /* Allow shrinking below content size */
-  max-height: calc(100% - 120px); /* GENEROUS room for signature (was 80px) */
+  line-height: 1.2;                      /* LOCK STATE: Tight line spacing */
+  margin: 0 0 12px 0;                    /* LOCK STATE: Standard margin */
+  text-align: left;                      /* LOCK STATE */
+  overflow: hidden;                      /* CANONICAL: Truncate message, never signature */
+  flex: 1;                               /* Take remaining space, shrink if needed */
+  min-height: 0;                         /* Allow shrinking below content size */
+  max-height: calc(100% - 80px);         /* LOCK STATE: Room for signature */
   /* Subtle ink thickness via text-shadow */
   text-shadow: 0 0 0.5px #1a3a6b;
 }
 
 .gc-greeting-message p {
-  margin: 0 0 20px 0; /* GENEROUS paragraph spacing - never cramped */
+  margin: 0 0 8px 0; /* LOCK STATE: Tight paragraph spacing */
 }
 
 .gc-greeting-message p:first-child {
@@ -487,14 +493,13 @@
 
 .gc-signature {
   position: absolute;
-  bottom: 80px;         /* GENEROUS bottom margin (was 60px) */
-  right: 120px;         /* Moved left from 40px */
+  bottom: 60px;         /* LOCK STATE */
+  right: 120px;
   font-family: var(--gc-font-handwritten);
   font-size: 48px;
   color: #1a3a6b;
   text-align: right;
   text-shadow: 0 0 0.5px #1a3a6b;
-  padding-top: 16px;    /* EXTRA padding above signature */
 }
 
 

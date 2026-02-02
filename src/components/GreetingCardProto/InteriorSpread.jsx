@@ -6,8 +6,11 @@
  * - Recipient name: top-left, 1.5in from top (via CSS --gc-letter-top-offset)
  * - Signature: bottom-right, 2.5in from crease (via CSS --gc-letter-crease-offset)
  * - Name capitalization: Title Case (via formatPersonName helper)
+ *
+ * LOCK STATE: See GREETING_LOCK.md for authoritative CSS values
  */
 
+import { useRef, useEffect } from 'react';
 import cardInteriorImg from '../../assets/card/card-interior.png';
 import { formatPersonName } from '../../utils/formatPersonName';
 
@@ -73,6 +76,47 @@ function limitToLines(text, maxLines = 8) {
 }
 
 export default function InteriorSpread({ recipientName, message, senderName, poemText, onClick }) {
+  // Refs for runtime fit check
+  const messageRef = useRef(null);
+  const signatureRef = useRef(null);
+  const pageContentRef = useRef(null);
+
+  // DEV ONLY: Runtime fit check - warn if message overlaps signature
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+
+    const checkFit = () => {
+      if (!messageRef.current || !signatureRef.current || !pageContentRef.current) return;
+
+      const messageRect = messageRef.current.getBoundingClientRect();
+      const signatureRect = signatureRef.current.getBoundingClientRect();
+      const pageRect = pageContentRef.current.getBoundingClientRect();
+
+      // Check if message bottom overlaps signature top
+      const messageBottom = messageRect.bottom;
+      const signatureTop = signatureRect.top;
+
+      if (messageBottom > signatureTop) {
+        console.warn(
+          `[LAYOUT FIT GATE] Message overlaps signature by ${Math.round(messageBottom - signatureTop)}px. ` +
+          `Message: ${messageRect.height}px, Signature at: ${signatureTop - pageRect.top}px from page top.`
+        );
+      }
+
+      // Check if content exceeds page bounds
+      if (messageRect.bottom > pageRect.bottom || signatureRect.bottom > pageRect.bottom) {
+        console.warn(
+          `[LAYOUT FIT GATE] Content exceeds page bounds. ` +
+          `Page height: ${pageRect.height}px, Content extends: ${Math.max(messageRect.bottom, signatureRect.bottom) - pageRect.top}px`
+        );
+      }
+    };
+
+    // Check on mount and when message changes
+    const timer = setTimeout(checkFit, 100);
+    return () => clearTimeout(timer);
+  }, [message, senderName]);
+
   // CANONICAL: Title Case FIRST NAME only via formatPersonName helper
   const displayName = formatPersonName((recipientName || 'Friend').split(' ')[0]);
 
@@ -143,12 +187,12 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
       >
         {/* Left Page */}
         <div className="gc-page gc-page-left">
-          <div className="gc-page-content">
+          <div className="gc-page-content" ref={pageContentRef}>
             <h2 className="gc-greeting-salutation">
               Dear {displayName},
             </h2>
             <p className="gc-greeting-occasion">{greeting}</p>
-            <div className="gc-greeting-message">
+            <div className="gc-greeting-message" ref={messageRef}>
               {bodyMessage
                 .replace(/\r\n/g, '\n')           // Normalize Windows line endings
                 .replace(/\n{2,}/g, '\n')         // Collapse multiple newlines to single
@@ -161,7 +205,7 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
               }
             </div>
           </div>
-          <p className="gc-signature">{displaySender}</p>
+          <p className="gc-signature" ref={signatureRef}>{displaySender}</p>
         </div>
 
         {/* Right Page */}
