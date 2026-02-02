@@ -116,6 +116,11 @@ export default function Merch() {
   const returnRecipientId = searchParams.get('returnRecipientId');
   const cameFromRecipientForm = searchParams.has('category') || !!returnRecipientId;
 
+  // Check if user came from SendGreeting page (Just Because)
+  const returnTo = searchParams.get('returnTo');
+  const giftType = searchParams.get('giftType');
+  const cameFromSendGreeting = returnTo === 'send';
+
   // Handle category from URL query param
   useEffect(() => {
     const categoryParam = searchParams.get('category');
@@ -194,6 +199,12 @@ export default function Merch() {
     }
   };
 
+  const handleReturnToGreeting = () => {
+    setShowCartModal(false);
+    // Navigate back to SendGreeting page with params to reopen gift modal
+    navigate('/dashboard/send?returnTo=send&giftType=merch');
+  };
+
   // Filter items by category
   const filteredItems = selectedCategory === 'All'
     ? merchItems
@@ -247,202 +258,222 @@ export default function Merch() {
         </div>
       )}
 
-      {/* Header */}
-      <div style={{ marginBottom: '2rem' }}>
-        {/* Title */}
-        <h1 style={{
-          fontSize: isNarrow ? '1.5rem' : '2rem',
-          fontWeight: 700,
-          color: 'var(--text-primary)',
-          margin: 0,
-          marginBottom: '0.75rem',
-          textAlign: 'center'
-        }}>
-          Greet-Me Merchandise
-        </h1>
-        {/* Toggle centered */}
+      {/* SendGreeting Session Header - show when coming from Just Because page */}
+      {cameFromSendGreeting && !returnRecipientId && (
         <div style={{
           display: 'flex',
-          justifyContent: 'center',
-          marginBottom: '0.75rem'
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0.75rem 1rem',
+          background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%)',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid rgba(236, 72, 153, 0.2)',
+          marginBottom: '1.5rem'
         }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1rem' }}>💝</span>
+            <span style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: '#ec4899'
+            }}>
+              Shopping for Your Greeting
+            </span>
+          </div>
+          <button
+            onClick={handleReturnToGreeting}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.5rem 1rem',
+              background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'all 0.2s'
+            }}
+          >
+            <ArrowLeft size={14} />
+            Return to Greeting
+          </button>
+        </div>
+      )}
+
+      {/* Background Frame for Page Body */}
+      <div style={{
+        background: '#f8fafc',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid #e2e8f0',
+        padding: '2rem',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+      }}>
+        {/* Banner Header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '1.5rem 1.5rem',
+          marginBottom: '1.5rem',
+          color: 'white',
+          textAlign: 'center',
+          boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+        }}>
+          <h1 style={{
+            fontSize: isNarrow ? '1.25rem' : '1.5rem',
+            fontWeight: 700,
+            margin: 0,
+            marginBottom: '0.375rem'
+          }}>
+            Greet-Me Merchandise
+          </h1>
+          <p style={{
+            fontSize: '0.8125rem',
+            opacity: 0.9,
+            fontStyle: 'italic',
+            margin: 0,
+            marginBottom: '0.75rem'
+          }}>
+            Show your love for staying connected with branded merch while supporting American providers
+          </p>
+          {/* Crossed flags icon - above toggle inside banner */}
           <div style={{
             display: 'flex',
-            alignItems: 'center',
-            background: 'var(--gray-100)',
-            borderRadius: '9999px',
-            padding: '0.25rem'
+            justifyContent: 'center',
+            marginBottom: '0.75rem'
           }}>
-            <button
-              onClick={() => {
-                // Preserve returnRecipientId when toggling to Gifts
-                const giftsUrl = returnRecipientId
-                  ? `/dashboard/gifts?returnRecipientId=${returnRecipientId}`
-                  : '/dashboard/gifts';
-                navigate(giftsUrl);
-              }}
+            <img
+              src={greetmeFlags}
+              alt="Greet-Me American Made"
               style={{
-                padding: '0.5rem 1rem',
-                background: 'transparent',
-                color: 'var(--text-secondary)',
-                border: 'none',
-                borderRadius: '9999px',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit'
+                height: isNarrow ? '50px' : '60px',
+                width: 'auto',
+                objectFit: 'contain'
               }}
-            >
-              Gifts
-            </button>
-            <button
-              style={{
-                padding: '0.5rem 1rem',
-                background: 'var(--primary)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '9999px',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit'
-              }}
-            >
-              Merch
-            </button>
+            />
+          </div>
+          {/* Toggle centered - inside banner */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: 'rgba(255, 255, 255, 0.2)',
+              borderRadius: '9999px',
+              padding: '0.25rem'
+            }}>
+              <button
+                onClick={() => {
+                  // Preserve returnRecipientId when toggling to Gifts
+                  const giftsUrl = returnRecipientId
+                    ? `/dashboard/gifts?returnRecipientId=${returnRecipientId}`
+                    : '/dashboard/gifts';
+                  navigate(giftsUrl);
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: 'transparent',
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  border: 'none',
+                  borderRadius: '9999px',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit'
+                }}
+              >
+                Gifts
+              </button>
+              <button
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: 'white',
+                  color: '#667eea',
+                  border: 'none',
+                  borderRadius: '9999px',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit'
+                }}
+              >
+                Merch
+              </button>
+            </div>
           </div>
         </div>
-        {/* Crossed flags icon - centered below toggle */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          marginBottom: '0.75rem'
-        }}>
-          <img
-            src={greetmeFlags}
-            alt="Greet-Me American Made"
-            style={{
-              height: isNarrow ? '85px' : '110px',
-              width: 'auto',
-              objectFit: 'contain'
-            }}
-          />
-        </div>
-        <p style={{
-          fontSize: '1rem',
-          color: 'var(--text-secondary)',
-          textAlign: 'center'
-        }}>
-          Show your love for staying connected with branded merch
-        </p>
-      </div>
 
       {/* Corporate White Label Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
-        borderRadius: 'var(--radius-xl)',
-        padding: isNarrow ? '1.25rem' : '2rem',
-        marginBottom: '2rem',
-        color: 'white'
+        borderRadius: 'var(--radius-lg)',
+        padding: '2rem 1.5rem',
+        marginBottom: '1.5rem',
+        color: 'white',
+        textAlign: 'center',
+        boxShadow: '0 4px 12px rgba(30, 58, 138, 0.3)'
       }}>
+        {/* Centered 10% donated badge */}
         <div style={{
-          display: 'flex',
-          flexDirection: isNarrow ? 'column' : 'row',
-          gap: isNarrow ? '1rem' : '2rem',
-          alignItems: isNarrow ? 'flex-start' : 'center'
+          display: 'inline-block',
+          background: 'rgba(0, 0, 0, 0.15)',
+          padding: '0.375rem 0.75rem',
+          borderRadius: 'var(--radius-lg)',
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          color: 'white',
+          marginBottom: '0.75rem'
         }}>
-          <div>
-            {/* Hero Medal Badge */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              marginBottom: isNarrow ? '0.5rem' : '0.75rem'
-            }}>
-              <div style={{
-                display: 'inline-block',
-                background: 'rgba(0, 0, 0, 0.15)',
-                padding: isNarrow ? '0.375rem 0.75rem' : '0.5rem 1rem',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: isNarrow ? '0.75rem' : '0.875rem',
-                fontWeight: 600,
-                color: 'white'
-              }}>
-                🏅 10% donated
-              </div>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              marginBottom: isNarrow ? '0.5rem' : '1rem'
-            }}>
-              <Briefcase size={isNarrow ? 20 : 32} />
-              <h2 style={{
-                fontSize: isNarrow ? '1.125rem' : '1.75rem',
-                fontWeight: 700,
-                margin: 0
-              }}>
-                Corporate White Label Services
-              </h2>
-            </div>
-            <p style={{
-              fontSize: isNarrow ? '0.875rem' : '1.125rem',
-              color: 'black',
-              marginBottom: isNarrow ? '0.75rem' : '1rem',
-              lineHeight: 1.6
-            }}>
-              Mission-driven, branded gifting that supports veterans, law enforcement, and EMS — while recognizing clients and teams with quality gifts they'll truly appreciate.
-            </p>
-            {!isNarrow && (
-              <ul style={{
-                fontSize: '1rem',
-                opacity: 0.9,
-                marginBottom: '1.5rem',
-                paddingLeft: '1.5rem'
-              }}>
-                <li>Minimum order: 25 units per item</li>
-                <li>Custom logo embroidery or printing included</li>
-                <li>Bulk pricing available for 100+ units</li>
-                <li>Perfect for client gifts and employee appreciation</li>
-              </ul>
-            )}
-            <button
-              onClick={() => setShowCorporateModal(true)}
-              style={{
-                padding: isNarrow ? '0.625rem 1.25rem' : '0.875rem 2rem',
-                background: 'white',
-                color: '#1e3a8a',
-                border: 'none',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: isNarrow ? '0.875rem' : '1rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              <Users size={isNarrow ? 16 : 20} />
-              Request Corporate Quote
-            </button>
-          </div>
-          {!isNarrow && (
-            <div style={{
-              width: '8rem',
-              height: '8rem',
-              background: 'white',
-              borderRadius: 'var(--radius-lg)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '4rem'
-            }}>
-              🏢
-            </div>
-          )}
+          🏅 10% donated
         </div>
+        <h2 style={{
+          fontSize: isNarrow ? '1.25rem' : '1.5rem',
+          fontWeight: 700,
+          margin: 0,
+          marginBottom: '0.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem'
+        }}>
+          <Briefcase size={isNarrow ? 20 : 24} />
+          White Label Services
+        </h2>
+        <p style={{
+          fontSize: '0.9375rem',
+          opacity: 0.9,
+          fontStyle: 'italic',
+          margin: 0,
+          marginBottom: '1rem'
+        }}>
+          Mission-driven, branded gifting for clients and teams
+        </p>
+        <button
+          onClick={() => setShowCorporateModal(true)}
+          style={{
+            padding: '0.5rem 1.5rem',
+            background: 'white',
+            color: '#1e3a8a',
+            border: 'none',
+            borderRadius: 'var(--radius-lg)',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}
+        >
+          <Users size={16} />
+          Request Corporate Quote
+        </button>
       </div>
 
       {/* Category Filter Pills */}
@@ -664,6 +695,8 @@ export default function Merch() {
           </div>
         ))}
       </div>
+      </div>
+      {/* End Background Frame */}
 
       {/* Corporate Quote Modal */}
       {showCorporateModal && (
@@ -820,8 +853,9 @@ export default function Merch() {
         item={lastAddedItem}
         onContinueShopping={handleContinueShopping}
         onGoToCheckout={handleGoToCheckout}
-        onReturnToRecipient={handleReturnToRecipient}
-        showReturnToRecipient={!!returnRecipientId}
+        onReturnToRecipient={returnRecipientId ? handleReturnToRecipient : (cameFromSendGreeting ? handleReturnToGreeting : null)}
+        showReturnToRecipient={!!returnRecipientId || cameFromSendGreeting}
+        returnToLabel={cameFromSendGreeting && !returnRecipientId ? "Return to Greeting" : "Return to Recipient Settings"}
       />
     </div>
   );

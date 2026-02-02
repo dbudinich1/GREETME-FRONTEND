@@ -1,8 +1,7 @@
 // src/pages/ForBusiness.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, X, Building2, Users, Mail, Phone, MessageSquare, CreditCard, Check, Play } from 'lucide-react';
-import GreetMeLogo from '../components/GreetMeLogo';
+import { X, Building2, Users, Mail, Phone, MessageSquare, CreditCard, Check, Play } from 'lucide-react';
 
 export default function ForBusiness() {
   const navigate = useNavigate();
@@ -72,112 +71,89 @@ export default function ForBusiness() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%)',
+      background: 'var(--bg-secondary)',
       width: '100%',
       maxWidth: '100%',
-      overflowX: 'hidden'
+      overflowX: 'hidden',
+      padding: '0.5rem'
     }}>
-      {/* Back Button */}
+      {/* Background Frame for Page Body */}
       <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: '1.5rem 2rem 0'
+        maxWidth: '1280px',
+        margin: '0 auto'
       }}>
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.625rem 1rem',
-            background: 'white',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-lg)',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            fontFamily: 'inherit'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--gray-50)';
-            e.currentTarget.style.color = 'var(--text-primary)';
-            e.currentTarget.style.borderColor = 'var(--gray-300)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'white';
-            e.currentTarget.style.color = 'var(--text-secondary)';
-            e.currentTarget.style.borderColor = 'var(--border)';
-          }}
-        >
-          <ArrowLeft size={18} />
-          Back
-        </button>
-      </div>
-
-      {/* Hero Section */}
+        <div style={{
+          background: '#f8fafc',
+          borderRadius: 'var(--radius-xl)',
+          border: '1px solid #e2e8f0',
+          padding: '2rem',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+        }}>
+      {/* Hero Banner */}
       <section style={{
-        maxWidth: '1200px',
+        maxWidth: '100%',
         margin: '0 auto',
-        padding: '4rem 2rem',
-        textAlign: 'center'
+        padding: '0'
       }}>
-        <div style={{ marginBottom: '2rem' }}>
-          <GreetMeLogo size="large" clickable={true} />
-        </div>
-        <h1 style={{
-          fontSize: '3rem',
-          fontWeight: 700,
-          color: 'var(--text-primary)',
-          marginBottom: '1.5rem',
-          lineHeight: 1.2
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: 'var(--radius-xl)',
+          padding: '2.5rem 2rem',
+          textAlign: 'center',
+          color: 'white',
+          boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)'
         }}>
-          Create branded gifts to acknowledge your clients and employees.
-        </h1>
-        <p style={{
-          fontSize: '1.5rem',
-          color: 'var(--text-secondary)',
-          marginBottom: '2.5rem',
-          lineHeight: 1.6,
-          maxWidth: '900px',
-          margin: '0 auto 2.5rem'
-        }}>
-          From branded merchandise to curated American-made gifts and QR Cash, deliver meaningful moments at scale.
-        </p>
-        <button
-          onClick={() => setShowContactForm(true)}
-          style={{
-            padding: '1rem 2.5rem',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            border: 'none',
-            borderRadius: 'var(--radius-lg)',
+          <h1 style={{
+            fontSize: '2.25rem',
+            fontWeight: 700,
+            marginBottom: '1rem',
+            lineHeight: 1.2
+          }}>
+            Create branded gifts to acknowledge your clients and employees.
+          </h1>
+          <p style={{
             fontSize: '1.125rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
-            fontFamily: 'inherit'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-          }}
-        >
-          Contact Sales
-        </button>
+            opacity: 0.95,
+            lineHeight: 1.6,
+            maxWidth: '800px',
+            margin: '0 auto 1.5rem'
+          }}>
+            From branded merchandise to curated American Marketplace gifts and QR Cash, deliver meaningful moments at scale.
+          </p>
+          <button
+            onClick={() => setShowContactForm(true)}
+            style={{
+              padding: '0.875rem 2rem',
+              background: 'white',
+              color: '#667eea',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '1rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              fontFamily: 'inherit'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+            }}
+          >
+            Contact Sales
+          </button>
+        </div>
       </section>
 
       {/* Three Capability Sections */}
       <section style={{
-        maxWidth: '1200px',
+        maxWidth: '100%',
         margin: '0 auto',
-        padding: '4rem 1rem',
+        padding: '1.5rem 0',
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
         gap: '1.5rem',
@@ -224,7 +200,7 @@ export default function ForBusiness() {
           </p>
         </div>
 
-        {/* 2. Value Add Bundled Subscriptions */}
+        {/* 2. Value Add Subscription Bundles */}
         <div style={{
           background: 'white',
           padding: '2rem',
@@ -252,7 +228,7 @@ export default function ForBusiness() {
             color: 'var(--text-primary)',
             marginBottom: '1rem'
           }}>
-            Value Add Bundled Subscriptions
+            Value Add Subscription Bundles
           </h3>
           <p style={{
             fontSize: '1rem',
@@ -408,17 +384,57 @@ export default function ForBusiness() {
             Buy Packs →
           </div>
         </div>
+
+        {/* 6. Hero Status */}
+        <div style={{
+          background: 'white',
+          padding: '2rem',
+          borderRadius: 'var(--radius-xl)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+          border: '1px solid var(--border)',
+          transition: 'all 0.2s'
+        }}>
+          <div style={{
+            width: '3.5rem',
+            height: '3.5rem',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #D4AF37 0%, #8B6914 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '1.5rem',
+            fontSize: '1.75rem'
+          }}>
+            🏅
+          </div>
+          <h3 style={{
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            marginBottom: '1rem'
+          }}>
+            Hero Status
+          </h3>
+          <p style={{
+            fontSize: '1rem',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.7,
+            margin: 0
+          }}>
+            All corporate patronage is automatically Greet-Me Hero eligible.
+          </p>
+        </div>
       </section>
 
       {/* Hero™ Secondary Mention - Centered */}
       <section style={{
-        maxWidth: '800px',
-        margin: '2rem auto 4rem',
-        padding: '3rem 2rem',
+        maxWidth: '100%',
+        margin: '1rem 0 2rem',
+        padding: '2.5rem 2rem',
         textAlign: 'center',
-        background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(139, 105, 20, 0.05) 100%)',
+        background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(139, 105, 20, 0.08) 100%)',
         borderRadius: 'var(--radius-xl)',
-        border: '1px solid rgba(212, 175, 55, 0.2)'
+        border: '1px solid rgba(212, 175, 55, 0.3)'
       }}>
         <h3 style={{
           fontSize: '1.75rem',
@@ -434,7 +450,7 @@ export default function ForBusiness() {
           marginBottom: '1.5rem',
           lineHeight: 1.6
         }}>
-          Through Greet-Me Hero™, we automatically match corporate gifts with donations to veteran support organizations.
+          Through Greet-Me Hero™, we reward corporate patronage with automatic 10% contributions to veteran, law enforcement and EMS organizations and Greet-Me Hero recognition.
         </p>
         <button
           onClick={() => navigate('/dashboard/hero')}
@@ -464,56 +480,69 @@ export default function ForBusiness() {
         </button>
       </section>
 
-      {/* Final CTA */}
+      {/* Final CTA Banner */}
       <section style={{
-        maxWidth: '800px',
-        margin: '0 auto',
-        padding: '4rem 2rem 6rem',
-        textAlign: 'center'
+        maxWidth: '100%',
+        margin: '1rem 0 0',
+        padding: '0'
       }}>
-        <h2 style={{
-          fontSize: '2rem',
-          fontWeight: 700,
-          color: 'var(--text-primary)',
-          marginBottom: '1rem'
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: 'var(--radius-xl)',
+          padding: '2.5rem 2rem',
+          textAlign: 'center',
+          color: 'white',
+          boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)'
         }}>
-          Ready to get started?
-        </h2>
-        <p style={{
-          fontSize: '1.125rem',
-          color: 'var(--text-secondary)',
-          marginBottom: '2rem',
-          lineHeight: 1.6
-        }}>
-          Our team will help you create a gifting program that reflects your brand and values.
-        </p>
-        <button
-          onClick={() => setShowContactForm(true)}
-          style={{
-            padding: '1rem 2.5rem',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            border: 'none',
-            borderRadius: 'var(--radius-lg)',
+          <h2 style={{
+            fontSize: '2rem',
+            fontWeight: 700,
+            marginBottom: '1rem',
+            lineHeight: 1.2
+          }}>
+            Ready to get started?
+          </h2>
+          <p style={{
             fontSize: '1.125rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
-            fontFamily: 'inherit'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-          }}
-        >
-          Contact Sales
-        </button>
+            opacity: 0.95,
+            marginBottom: '1.5rem',
+            lineHeight: 1.6,
+            maxWidth: '600px',
+            margin: '0 auto 1.5rem'
+          }}>
+            Our team will help you create a gifting program that reflects your brand and values.
+          </p>
+          <button
+            onClick={() => setShowContactForm(true)}
+            style={{
+              padding: '0.875rem 2rem',
+              background: 'white',
+              color: '#667eea',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '1rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              fontFamily: 'inherit'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+            }}
+          >
+            Contact Sales
+          </button>
+        </div>
       </section>
+        </div>
+      </div>
+      {/* End Background Frame */}
 
       {/* Contact Sales Form Modal */}
       {showContactForm && (

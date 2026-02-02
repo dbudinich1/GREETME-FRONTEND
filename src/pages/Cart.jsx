@@ -1,7 +1,7 @@
 // src/pages/Cart.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Trash2, ArrowLeft, CreditCard, ShoppingBag, Package } from 'lucide-react';
+import { ShoppingCart, Trash2, ArrowLeft, CreditCard, ShoppingBag, Package, Gift, Mail, Check } from 'lucide-react';
 import cartService from '../services/cartService';
 
 export default function Cart() {
@@ -9,6 +9,14 @@ export default function Cart() {
   const [cartItems, setCartItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
+
+  // G1G1 Gift Subscription State
+  const [g1g1RecipientName, setG1G1RecipientName] = useState('');
+  const [g1g1RecipientEmail, setG1G1RecipientEmail] = useState('');
+  const [receiveGiftLinkViaEmail, setReceiveGiftLinkViaEmail] = useState(false);
+
+  // Check if cart has a subscription (eligible for G1G1)
+  const hasSubscription = cartItems.some(item => item.type === 'subscription');
 
   useEffect(() => {
     loadCart();
@@ -275,7 +283,7 @@ export default function Cart() {
                 key={item.id}
                 style={{
                   padding: '0.5rem 0.75rem',
-                  borderBottom: index < cartItems.length - 1 ? '1px solid var(--border)' : 'none',
+                  borderBottom: (index < cartItems.length - 1 || hasSubscription) ? '1px solid var(--border)' : 'none',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem'
@@ -359,7 +367,261 @@ export default function Cart() {
                 </div>
               </div>
             ))}
+
+            {/* G1G1 Free Gift Subscription Item - shows when cart has a subscription */}
+            {hasSubscription && (
+              <div
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.04) 100%)'
+                }}
+              >
+                {/* Gift Icon */}
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1rem',
+                  flexShrink: 0
+                }}>
+                  🎁
+                </div>
+
+                {/* Item Details */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    color: '#059669',
+                    marginBottom: '0',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>G1G1 Gift Subscription</h3>
+                  <span style={{
+                    fontSize: '0.5625rem',
+                    fontWeight: 500,
+                    color: '#10b981'
+                  }}>1-Year Gift for Someone Special</span>
+                </div>
+
+                {/* Price - FREE */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.375rem',
+                  flexShrink: 0
+                }}>
+                  <span style={{
+                    fontSize: '0.6875rem',
+                    fontWeight: 500,
+                    color: 'var(--text-tertiary)',
+                    textDecoration: 'line-through'
+                  }}>
+                    ${cartItems.find(item => item.type === 'subscription')?.price?.toFixed(2) || '19.99'}
+                  </span>
+                  <div style={{
+                    fontSize: '0.8125rem',
+                    fontWeight: 700,
+                    color: '#10b981',
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    padding: '0.125rem 0.375rem',
+                    borderRadius: 'var(--radius-sm)'
+                  }}>
+                    FREE
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* G1G1 Gift Subscription Section - Only show if cart has a subscription */}
+          {hasSubscription && (
+            <div style={{
+              marginTop: '1rem',
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
+              borderRadius: 'var(--radius-xl)',
+              border: '2px solid #10b981',
+              overflow: 'hidden'
+            }}>
+              {/* G1G1 Header */}
+              <div style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                padding: '0.75rem 1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <Gift size={18} style={{ color: 'white' }} />
+                <div>
+                  <h3 style={{
+                    fontSize: '0.875rem',
+                    fontWeight: 700,
+                    color: 'white',
+                    margin: 0
+                  }}>Greet One, Give One™</h3>
+                  <p style={{
+                    fontSize: '0.6875rem',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    margin: 0
+                  }}>Your subscription includes a free gift subscription!</p>
+                </div>
+              </div>
+
+              {/* G1G1 Content */}
+              <div style={{ padding: '1rem' }}>
+                {/* Checkbox for receiving link via email */}
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.75rem',
+                  cursor: 'pointer',
+                  marginBottom: '1rem',
+                  padding: '0.75rem',
+                  background: receiveGiftLinkViaEmail ? 'rgba(102, 126, 234, 0.1)' : 'white',
+                  borderRadius: 'var(--radius-lg)',
+                  border: receiveGiftLinkViaEmail ? '2px solid #667eea' : '2px solid var(--border)',
+                  transition: 'all 0.2s'
+                }}>
+                  <div style={{
+                    width: '1.25rem',
+                    height: '1.25rem',
+                    borderRadius: '4px',
+                    border: receiveGiftLinkViaEmail ? '2px solid #667eea' : '2px solid var(--border)',
+                    background: receiveGiftLinkViaEmail ? '#667eea' : 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '2px',
+                    transition: 'all 0.2s'
+                  }}>
+                    {receiveGiftLinkViaEmail && <Check size={14} style={{ color: 'white' }} />}
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={receiveGiftLinkViaEmail}
+                    onChange={(e) => setReceiveGiftLinkViaEmail(e.target.checked)}
+                    style={{ display: 'none' }}
+                  />
+                  <div>
+                    <div style={{
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.125rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.375rem'
+                    }}>
+                      <Mail size={14} />
+                      Receive gift link via email
+                    </div>
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--text-secondary)'
+                    }}>
+                      We'll send you a shareable link to give whenever you're ready
+                    </div>
+                  </div>
+                </label>
+
+                {/* Recipient Fields - disabled when checkbox is checked */}
+                <div style={{
+                  opacity: receiveGiftLinkViaEmail ? 0.5 : 1,
+                  pointerEvents: receiveGiftLinkViaEmail ? 'none' : 'auto',
+                  transition: 'opacity 0.2s'
+                }}>
+                  <p style={{
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.375rem'
+                  }}>
+                    <Gift size={14} style={{ color: '#10b981' }} />
+                    Or designate a recipient now:
+                  </p>
+
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: isNarrow ? 'wrap' : 'nowrap' }}>
+                    <div style={{ flex: 1, minWidth: isNarrow ? '100%' : '150px' }}>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.25rem'
+                      }}>
+                        Recipient's Name
+                      </label>
+                      <input
+                        type="text"
+                        value={g1g1RecipientName}
+                        onChange={(e) => setG1G1RecipientName(e.target.value)}
+                        placeholder="Enter their name"
+                        disabled={receiveGiftLinkViaEmail}
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem 0.75rem',
+                          border: '2px solid var(--border)',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '0.8125rem',
+                          fontFamily: 'inherit',
+                          outline: 'none',
+                          transition: 'border-color 0.2s',
+                          boxSizing: 'border-box',
+                          background: receiveGiftLinkViaEmail ? 'var(--gray-100)' : 'white'
+                        }}
+                        onFocus={(e) => !receiveGiftLinkViaEmail && (e.target.style.borderColor = '#10b981')}
+                        onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                      />
+                    </div>
+                    <div style={{ flex: 1, minWidth: isNarrow ? '100%' : '200px' }}>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.25rem'
+                      }}>
+                        Recipient's Email
+                      </label>
+                      <input
+                        type="email"
+                        value={g1g1RecipientEmail}
+                        onChange={(e) => setG1G1RecipientEmail(e.target.value)}
+                        placeholder="Enter their email"
+                        disabled={receiveGiftLinkViaEmail}
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem 0.75rem',
+                          border: '2px solid var(--border)',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '0.8125rem',
+                          fontFamily: 'inherit',
+                          outline: 'none',
+                          transition: 'border-color 0.2s',
+                          boxSizing: 'border-box',
+                          background: receiveGiftLinkViaEmail ? 'var(--gray-100)' : 'white'
+                        }}
+                        onFocus={(e) => !receiveGiftLinkViaEmail && (e.target.style.borderColor = '#10b981')}
+                        onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Order Summary Column */}
@@ -400,6 +662,33 @@ export default function Cart() {
                   <span>Subtotal ({cartItems.length})</span>
                   <span>${total.toFixed(2)}</span>
                 </div>
+
+                {/* G1G1 Free Gift Subscription Deduction - show when cart has subscription */}
+                {hasSubscription && (() => {
+                  const subscriptionItem = cartItems.find(item => item.type === 'subscription');
+                  const subscriptionPrice = subscriptionItem?.price || 19.99;
+                  return (
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '0.125rem',
+                      fontSize: '0.5625rem',
+                      color: '#10b981',
+                      fontWeight: 600,
+                      background: 'rgba(16, 185, 129, 0.1)',
+                      padding: '0.25rem 0.375rem',
+                      borderRadius: 'var(--radius-sm)',
+                      marginLeft: '-0.375rem',
+                      marginRight: '-0.375rem'
+                    }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.125rem' }}>
+                        🎁 G1G1 Gift Sub
+                      </span>
+                      <span>-${subscriptionPrice.toFixed(2)}</span>
+                    </div>
+                  );
+                })()}
+
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',

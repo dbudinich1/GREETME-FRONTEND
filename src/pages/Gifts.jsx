@@ -140,6 +140,11 @@ export default function Gifts() {
   const returnRecipientId = searchParams.get('returnRecipientId');
   const cameFromRecipientForm = searchParams.has('category') || !!returnRecipientId;
 
+  // Check if user came from SendGreeting page (Just Because)
+  const returnTo = searchParams.get('returnTo');
+  const giftType = searchParams.get('giftType');
+  const cameFromSendGreeting = returnTo === 'send';
+
   const handleAddToCart = (gift, e) => {
     e.stopPropagation();
     try {
@@ -196,6 +201,12 @@ export default function Gifts() {
     }
   };
 
+  const handleReturnToGreeting = () => {
+    setShowCartModal(false);
+    // Navigate back to SendGreeting page with params to reopen gift modal
+    navigate('/dashboard/send?returnTo=send&giftType=marketplace');
+  };
+
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
       {/* Recipient Gift Session Header - show when in recipient context */}
@@ -244,37 +255,109 @@ export default function Gifts() {
         </div>
       )}
 
-      {/* Header */}
-      <div style={{ marginBottom: '2rem' }}>
-        {/* Title */}
-        <h1 style={{
-          fontSize: isNarrow ? '1.5rem' : '2rem',
-          fontWeight: 700,
-          color: 'var(--text-primary)',
-          margin: 0,
-          marginBottom: '0.75rem',
-          textAlign: 'center'
-        }}>
-          Gift Add-Ons
-        </h1>
-        {/* Toggle centered */}
+      {/* SendGreeting Session Header - show when coming from Just Because page */}
+      {cameFromSendGreeting && !returnRecipientId && (
         <div style={{
           display: 'flex',
-          justifyContent: 'center',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0.75rem 1rem',
+          background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.05) 100%)',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid rgba(34, 197, 94, 0.2)',
+          marginBottom: '1.5rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1rem' }}>💝</span>
+            <span style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: '#22c55e'
+            }}>
+              Shopping for Your Greeting
+            </span>
+          </div>
+          <button
+            onClick={handleReturnToGreeting}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.5rem 1rem',
+              background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'all 0.2s'
+            }}
+          >
+            <ArrowLeft size={14} />
+            Return to Greeting
+          </button>
+        </div>
+      )}
+
+      {/* Background Frame for Page Body */}
+      <div style={{
+        background: '#f8fafc',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid #e2e8f0',
+        padding: '2rem',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+      }}>
+        {/* Banner Header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '2rem 1.5rem',
+          marginBottom: '1.5rem',
+          color: 'white',
+          textAlign: 'center',
+          boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+        }}>
+          {/* Title */}
+        <h1 style={{
+          fontSize: isNarrow ? '1.25rem' : '1.5rem',
+          fontWeight: 700,
+          margin: 0,
+          marginBottom: '0.375rem'
+        }}>
+          American Marketplace
+        </h1>
+        {/* Subtitle */}
+        <p style={{
+          fontSize: '0.8125rem',
+          fontWeight: 600,
+          opacity: 0.9,
+          fontStyle: 'italic',
+          margin: 0,
           marginBottom: '0.75rem'
+        }}>
+          {cameFromRecipientForm
+            ? 'Select a gift for your recipient'
+            : 'Add a thoughtful gift from our American Marketplace — curated to celebrate life\'s moments while supporting American makers and the values we hold dear.'}
+        </p>
+        {/* Toggle inside banner */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center'
         }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            background: 'var(--gray-100)',
+            background: 'rgba(255, 255, 255, 0.2)',
             borderRadius: '9999px',
             padding: '0.25rem'
           }}>
             <button
               style={{
                 padding: '0.5rem 1rem',
-                background: 'var(--primary)',
-                color: 'white',
+                background: 'white',
+                color: '#667eea',
                 border: 'none',
                 borderRadius: '9999px',
                 fontSize: '0.875rem',
@@ -296,7 +379,7 @@ export default function Gifts() {
               style={{
                 padding: '0.5rem 1rem',
                 background: 'transparent',
-                color: 'var(--text-secondary)',
+                color: 'rgba(255, 255, 255, 0.9)',
                 border: 'none',
                 borderRadius: '9999px',
                 fontSize: '0.875rem',
@@ -309,90 +392,69 @@ export default function Gifts() {
             </button>
           </div>
         </div>
-        {/* Crossed flags icon - centered below toggle */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          marginBottom: '0.75rem'
-        }}>
-          <img
-            src={greetmeFlags}
-            alt="Greet-Me American Made"
-            style={{
-              height: isNarrow ? '85px' : '110px',
-              width: 'auto',
-              objectFit: 'contain'
-            }}
-          />
-        </div>
-        <p style={{
-          fontSize: '1rem',
-          color: 'var(--text-secondary)',
-          lineHeight: 1.6,
-          textAlign: 'center'
-        }}>
-          {cameFromRecipientForm
-            ? 'Select a gift for your recipient'
-            : 'Add a thoughtful gift from the 🇺🇸 American Marketplace — curated to celebrate life\'s moments while supporting American makers and the values we stand for.'}
-        </p>
       </div>
 
-      {/* Digital Cash Gift Option - Featured */}
-      <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        borderRadius: 'var(--radius-xl)',
-        padding: isNarrow ? '1.25rem' : '2rem',
-        marginBottom: isNarrow ? '1.5rem' : '3rem',
-        color: 'white',
-        textAlign: isNarrow ? 'center' : 'left'
-      }}>
-        <h2 style={{
-          fontSize: isNarrow ? '1.125rem' : '1.75rem',
-          fontWeight: 700,
-          marginBottom: isNarrow ? '0.5rem' : '0.75rem'
+        {/* Digital Cash Gift Option - Featured */}
+        <div style={{
+          background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '2rem 1.5rem',
+          marginBottom: '1.5rem',
+          color: 'white',
+          textAlign: 'center',
+          boxShadow: '0 4px 12px rgba(251, 191, 36, 0.3)'
         }}>
-          QR Cash™ — Send · Scan · Spend
-        </h2>
-        <p style={{
-          fontSize: isNarrow ? '0.875rem' : '1.125rem',
-          opacity: 0.95,
-          marginBottom: isNarrow ? '1rem' : '1.5rem'
-        }}>
-          Add real cash to any greeting.
-        </p>
-        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: isNarrow ? 'center' : 'flex-start' }}>
-          <button
-            onClick={() => setShowQRCashModal(true)}
-            style={{
-              padding: isNarrow ? '0.5rem 1rem' : '0.625rem 1.25rem',
-              background: 'white',
-              color: '#667eea',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              fontSize: isNarrow ? '0.8125rem' : '0.875rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit'
-            }}>
-            Send
-          </button>
-          <button
-            onClick={() => setShowHowItWorksModal(true)}
-            style={{
-              padding: isNarrow ? '0.5rem 1rem' : '0.625rem 1.25rem',
-              background: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              fontSize: isNarrow ? '0.8125rem' : '0.875rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit'
-            }}>
-            How?
-          </button>
+          <h2 style={{
+            fontSize: isNarrow ? '1.25rem' : '1.5rem',
+            fontWeight: 700,
+            margin: 0,
+            marginBottom: '0.375rem'
+          }}>
+            QR Cash™ — Send · Scan · Spend
+          </h2>
+          <p style={{
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            opacity: 0.9,
+            fontStyle: 'italic',
+            margin: 0,
+            marginBottom: '0.75rem'
+          }}>
+            Add real cash to any greeting
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+            <button
+              onClick={() => setShowQRCashModal(true)}
+              style={{
+                padding: '0.5rem 1rem',
+                background: 'white',
+                color: '#b45309',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit'
+              }}>
+              Send
+            </button>
+            <button
+              onClick={() => setShowHowItWorksModal(true)}
+              style={{
+                padding: '0.5rem 1rem',
+                background: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit'
+              }}>
+              How?
+            </button>
+          </div>
         </div>
-      </div>
 
       {/* Category Filter Pills */}
       <div style={{
@@ -596,7 +658,9 @@ export default function Gifts() {
             </div>
           </div>
         ))}
+        </div>
       </div>
+      {/* End Background Frame */}
 
       {/* QR Cash Gift Modal */}
       <QRCashGiftModal
@@ -611,8 +675,9 @@ export default function Gifts() {
         item={lastAddedItem}
         onContinueShopping={handleContinueShopping}
         onGoToCheckout={handleGoToCheckout}
-        onReturnToRecipient={handleReturnToRecipient}
-        showReturnToRecipient={!!returnRecipientId}
+        onReturnToRecipient={returnRecipientId ? handleReturnToRecipient : (cameFromSendGreeting ? handleReturnToGreeting : null)}
+        showReturnToRecipient={!!returnRecipientId || cameFromSendGreeting}
+        returnToLabel={cameFromSendGreeting && !returnRecipientId ? "Return to Greeting" : "Return to Recipient Settings"}
       />
 
       {/* How QR Cash Works Modal */}

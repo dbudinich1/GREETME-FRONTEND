@@ -21,7 +21,8 @@ export default function GiftSelectorModal({
   onGiftChange,
   getOccasionLabel,
   getOccasionEmoji,
-  context = 'recipient' // 'recipient' (full options) or 'oneoff' (no auto/scheduling)
+  context = 'recipient', // 'recipient' (full options) or 'oneoff' (no auto/scheduling)
+  onBrowse = null // callback for browsing merch/marketplace: (type) => void
 }) {
   const getGiftSetting = (occasionValue) => {
     return occasionGiftSettings?.[occasionValue] || { type: 'none', autoGift: false };
@@ -276,6 +277,80 @@ export default function GiftSelectorModal({
                           <option key={amt} value={amt}>Up to ${amt}</option>
                         ))}
                       </select>
+                    </div>
+                  )}
+
+                  {/* Merch Browse Button */}
+                  {giftSetting.type === 'merch' && onBrowse && (
+                    <div style={{
+                      marginTop: '1rem',
+                      padding: '1.125rem',
+                      background: 'linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%)',
+                      borderRadius: '0.625rem',
+                      border: '1px solid #e879f9'
+                    }}>
+                      <p style={{
+                        fontSize: '0.8125rem',
+                        color: '#a21caf',
+                        marginBottom: '0.75rem'
+                      }}>
+                        Browse our collection of Greet-Me merch and keepsakes
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => onBrowse('merch')}
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem 1.25rem',
+                          background: 'linear-gradient(135deg, #d946ef 0%, #a21caf 100%)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '0.5rem',
+                          fontSize: '0.9375rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          fontFamily: 'inherit'
+                        }}
+                      >
+                        Browse Merch
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Marketplace Browse Button */}
+                  {giftSetting.type === 'marketplace' && onBrowse && (
+                    <div style={{
+                      marginTop: '1rem',
+                      padding: '1.125rem',
+                      background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+                      borderRadius: '0.625rem',
+                      border: '1px solid #34d399'
+                    }}>
+                      <p style={{
+                        fontSize: '0.8125rem',
+                        color: '#047857',
+                        marginBottom: '0.75rem'
+                      }}>
+                        Explore made-in-USA gifts from the American Marketplace
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => onBrowse('marketplace')}
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem 1.25rem',
+                          background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '0.5rem',
+                          fontSize: '0.9375rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          fontFamily: 'inherit'
+                        }}
+                      >
+                        Browse Marketplace
+                      </button>
                     </div>
                   )}
 

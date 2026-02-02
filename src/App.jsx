@@ -77,8 +77,8 @@ export default function App() {
 
           {/* Public Landing and Pricing */}
           <Route path="/landing" element={<LandingPage />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/business" element={<ForBusiness />} />
+          <Route path="/pricing" element={<DashboardLayout><Pricing /></DashboardLayout>} />
+          <Route path="/business" element={<DashboardLayout><ForBusiness /></DashboardLayout>} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

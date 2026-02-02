@@ -1,6 +1,6 @@
 // src/pages/Contacts.jsx
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Upload, Search, Edit, Trash2, ArrowLeft, Users, Calendar, Gift, Clock } from 'lucide-react';
+import { Plus, Upload, Search, Edit, Trash2, ArrowLeft, Users, Calendar, Gift, Clock, Send } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from "../api/api";
 import Modal from '../components/Modal';
@@ -263,6 +263,40 @@ export default function Recipients() {
           >
             <ArrowLeft size={20} />
           </button>
+          {/* Just Because button - top right */}
+          <button
+            onClick={() => navigate('/dashboard/send')}
+            style={{
+              position: 'absolute',
+              right: 0,
+              padding: isMobile ? '0.5rem 0.75rem' : '0.625rem 1rem',
+              background: '#22c55e',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: isMobile ? '0.75rem' : '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)',
+              fontFamily: 'inherit'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#16a34a';
+              e.currentTarget.style.boxShadow = '0 4px 8px rgba(34, 197, 94, 0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#22c55e';
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(34, 197, 94, 0.2)';
+            }}
+          >
+            <Send size={isMobile ? 12 : 14} style={{ flexShrink: 0 }} />
+            Just Because
+          </button>
           <h1 style={{
             fontSize: isMobile ? '1.5rem' : '1.75rem',
             fontWeight: 700,
@@ -376,7 +410,7 @@ export default function Recipients() {
         </div>
       </div>
 
-      {/* Gift Reminder Banner - Phase 8.2: Actionable CTA, matches ContactForm banner */}
+      {/* Gift Reminder Banner - Phase 8.2: Centered text with symmetric icons */}
       <div style={{
         marginTop: '1.5rem',
         marginBottom: '1.5rem',
@@ -386,48 +420,28 @@ export default function Recipients() {
         border: '1px solid #fbbf24',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '1rem'
+        justifyContent: 'center',
+        gap: '0.75rem'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Gift size={20} style={{ color: '#d97706', flexShrink: 0 }} />
-          <div>
-            <p style={{
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              color: '#78350f',
-              margin: 0
-            }}>
-              Don't forget to add a gift
-            </p>
-            <p style={{
-              fontSize: '0.75rem',
-              color: '#92400e',
-              margin: '0.125rem 0 0 0'
-            }}>
-              Make the moment complete.
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => navigate('/dashboard/gifts')}
-          style={{
-            padding: '0.5rem 1rem',
-            background: '#d97706',
-            color: 'white',
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            fontSize: '0.8125rem',
+        <Gift size={20} style={{ color: '#d97706', flexShrink: 0 }} />
+        <div style={{ textAlign: 'center' }}>
+          <p style={{
+            fontSize: '0.875rem',
             fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            whiteSpace: 'nowrap',
-            flexShrink: 0
-          }}
-        >
-          Add Gift
-        </button>
+            color: '#78350f',
+            margin: 0
+          }}>
+            Don't forget to add a gift
+          </p>
+          <p style={{
+            fontSize: '0.75rem',
+            color: '#92400e',
+            margin: '0.125rem 0 0 0'
+          }}>
+            Make the moment complete.
+          </p>
+        </div>
+        <Gift size={20} style={{ color: '#d97706', flexShrink: 0 }} />
       </div>
 
       {/* Alert */}
@@ -538,215 +552,7 @@ export default function Recipients() {
         </div>
       )}
 
-      {/* Empty State with Placeholder Cards */}
-      {recipients.length === 0 ? (
-        <div style={{
-          background: 'var(--bg-primary)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border)',
-          padding: '24px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-        }}>
-          {/* Placeholder Cards */}
-          <p style={{
-            fontSize: '0.75rem',
-            color: 'var(--text-tertiary)',
-            textAlign: 'center',
-            marginBottom: '16px',
-            fontStyle: 'italic'
-          }}>Examples — your recipients will appear here</p>
-
-          {placeholderRecipients.map((preview, idx) => (
-            <div
-              key={idx}
-              style={{
-                display: 'flex',
-                flexDirection: isMobile ? 'column' : 'row',
-                alignItems: isMobile ? 'stretch' : 'center',
-                justifyContent: 'space-between',
-                padding: '16px 20px',
-                marginBottom: '12px',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-lg)',
-                background: '#fff',
-                opacity: 0.5,
-                pointerEvents: 'none',
-                gap: isMobile ? '12px' : '0'
-              }}
-            >
-              {/* Left: Avatar + Name + Relationship */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                  fontWeight: 700,
-                  fontSize: '1rem'
-                }}>
-                  {preview.name.charAt(0)}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>
-                    {preview.name}
-                  </div>
-                  <span style={{
-                    background: 'linear-gradient(135deg, #ddd6fe 0%, #c7d2fe 100%)',
-                    color: '#5b21b6',
-                    padding: '2px 8px',
-                    borderRadius: '9999px',
-                    fontSize: '0.6875rem',
-                    fontWeight: 600
-                  }}>
-                    {preview.relationship}
-                  </span>
-                </div>
-              </div>
-
-              {/* Middle: Occasions */}
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {preview.occasions.map((occ, i) => (
-                  <span
-                    key={i}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '4px 10px',
-                      background: 'var(--gray-100)',
-                      borderRadius: '9999px',
-                      fontSize: '0.75rem',
-                      color: 'var(--text-secondary)'
-                    }}
-                  >
-                    <span>{getOccasionIcon(occ.type)}</span>
-                    <span>{getOccasionLabel(occ.type)}</span>
-                  </span>
-                ))}
-                {preview.hasGift && (
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '4px 10px',
-                    background: 'linear-gradient(135deg, #fef08a 0%, #fde047 100%)',
-                    borderRadius: '9999px',
-                    fontSize: '0.75rem',
-                    color: '#92400e',
-                    fontWeight: 600
-                  }}>
-                    🎁 Gift
-                  </span>
-                )}
-              </div>
-
-              {/* Right: Actions placeholder */}
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <span style={{
-                  padding: '6px 12px',
-                  background: 'var(--gray-100)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.75rem',
-                  color: 'var(--text-tertiary)'
-                }}>Edit</span>
-              </div>
-            </div>
-          ))}
-
-          {/* CTA */}
-          <div style={{ textAlign: 'center', marginTop: '24px' }}>
-            <div style={{
-              width: '64px',
-              height: '64px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 16px',
-              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
-            }}>
-              <Users size={28} style={{ color: 'white' }} />
-            </div>
-            <h3 style={{
-              fontSize: '1.25rem',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              marginBottom: '8px'
-            }}>Add your first recipient</h3>
-            <p style={{
-              fontSize: '0.9375rem',
-              color: 'var(--text-secondary)',
-              marginBottom: '24px',
-              maxWidth: '400px',
-              margin: '0 auto 24px'
-            }}>
-              Start building your greeting list. Add loved ones manually or import from a CSV file.
-            </p>
-            <div style={{
-              display: 'flex',
-              flexDirection: isMobile ? 'column' : 'row',
-              gap: '12px',
-              justifyContent: 'center'
-            }}>
-              <button
-                onClick={() => setShowImportModal(true)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: isMobile ? '14px 24px' : '10px 16px',
-                  background: 'var(--gray-100)',
-                  color: 'var(--text-primary)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-lg)',
-                  fontSize: isMobile ? '0.9375rem' : '0.875rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  width: isMobile ? '100%' : 'auto'
-                }}
-              >
-                <Upload size={isMobile ? 18 : 16} />
-                Import CSV
-              </button>
-              <button
-                onClick={() => {
-                  try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch (e) {}
-                  setShowAddModal(true);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: isMobile ? '14px 24px' : '10px 16px',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 'var(--radius-lg)',
-                  fontSize: isMobile ? '0.9375rem' : '0.875rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
-                  width: isMobile ? '100%' : 'auto',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0
-                }}
-              >
-                <Plus size={isMobile ? 18 : 16} />
-                Add Recipient
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : viewMode === 'recipients' ? (
+      {viewMode === 'recipients' ? (
         /* Recipients Card List */
         <div>
           {filteredRecipients.length === 0 && searchTerm ? (

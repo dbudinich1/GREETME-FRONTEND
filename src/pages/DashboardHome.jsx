@@ -7,7 +7,6 @@ import { getOccasionIcon } from '../utils/helpers';
 import { getRewardsBalance, getRemainingDailyHearts } from '../utils/rewards';
 import { pushInApp } from '../utils/notify';
 import { COMMS_EVENTS } from '../utils/commsCatalog';
-import OnboardingTour from '../components/OnboardingTour';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 import { useAuth } from '../context/AuthContext';
 
@@ -39,6 +38,7 @@ export default function DashboardHome() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [showQRCashModal, setShowQRCashModal] = useState(false);
   const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
+  const [showG1G1Modal, setShowG1G1Modal] = useState(false);
   const [sentGreetings, setSentGreetings] = useState([]);
   const [qrCashGifts, setQrCashGifts] = useState([]);
   const [rewardsBalance, setRewardsBalance] = useState(0);
@@ -424,9 +424,14 @@ export default function DashboardHome() {
 
   return (
     <div style={{ maxWidth: '100%', overflow: 'hidden', overflowX: 'hidden' }}>
-      {/* First-time user onboarding tour */}
-      <OnboardingTour />
-
+      {/* Background Frame for Page Body */}
+      <div style={{
+        background: '#f8fafc',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid #e2e8f0',
+        padding: '1.5rem',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+      }}>
       {/* Combined Navigation Header */}
       <div style={{
         display: 'flex',
@@ -564,15 +569,16 @@ export default function DashboardHome() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div>
             <h3 style={{
-              fontSize: isNarrow ? '0.875rem' : '1rem',
+              fontSize: isNarrow ? '1.125rem' : '1.375rem',
               fontWeight: 700,
-              marginBottom: '0.125rem'
+              marginBottom: '0.25rem'
             }}>
               Greet One, Give One™
             </h3>
             <p style={{
-              fontSize: isNarrow ? '0.6875rem' : '0.75rem',
-              opacity: 0.9
+              fontSize: isNarrow ? '0.8125rem' : '0.9375rem',
+              fontWeight: 600,
+              opacity: 0.95
             }}>
               Every subscription includes one for you — and one for a loved one.
             </p>
@@ -580,7 +586,7 @@ export default function DashboardHome() {
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', justifyContent: 'center' }}>
           <button
-            onClick={() => navigate('/dashboard/hero')}
+            onClick={() => setShowG1G1Modal(true)}
             style={{
               padding: '0.5rem 0.75rem',
               background: 'white',
@@ -2178,6 +2184,8 @@ export default function DashboardHome() {
           })()}
         </div>
       </div>
+      </div>
+      {/* End Background Frame */}
 
       {/* QR Cash Gift Modal */}
       <QRCashGiftModal
@@ -2475,6 +2483,218 @@ export default function DashboardHome() {
                 <DollarSign size={20} />
                 Send QR Cash Now
               </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Greet One, Give One Modal */}
+      {showG1G1Modal && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setShowG1G1Modal(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 999,
+              backdropFilter: 'blur(4px)'
+            }}
+          />
+
+          {/* Modal */}
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'white',
+            borderRadius: '1rem',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+            zIndex: 1000,
+            width: '90%',
+            maxWidth: '550px',
+            maxHeight: '90vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* Close Button */}
+            <button
+              onClick={() => setShowG1G1Modal(false)}
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                zIndex: 10
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+              }}
+            >
+              <span style={{ fontSize: '24px', fontWeight: 'bold', color: 'white', lineHeight: 1 }}>×</span>
+            </button>
+
+            {/* Header */}
+            <div style={{
+              padding: '1.5rem',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                width: '4rem',
+                height: '4rem',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1rem',
+                fontSize: '2rem'
+              }}>
+                🎁
+              </div>
+              <h2 style={{
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                marginBottom: '0.5rem'
+              }}>
+                Greet One, Give One™
+              </h2>
+              <p style={{
+                fontSize: '0.9375rem',
+                opacity: 0.95
+              }}>
+                Share the joy of connection
+              </p>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
+              {/* How It Works */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '1.25rem',
+                marginBottom: '1.5rem',
+                border: '1px solid rgba(16, 185, 129, 0.2)'
+              }}>
+                <h3 style={{
+                  fontSize: '1.125rem',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  marginBottom: '0.75rem'
+                }}>
+                  How It Works
+                </h3>
+                <p style={{
+                  fontSize: '0.9375rem',
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.6,
+                  marginBottom: '0.75rem'
+                }}>
+                  Every Greet-Me subscription includes <strong>two subscriptions</strong> — one for you and one to gift to someone you care about. It's our way of spreading meaningful connections.
+                </p>
+                <ul style={{
+                  fontSize: '0.9375rem',
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.8,
+                  paddingLeft: '1.25rem',
+                  margin: 0
+                }}>
+                  <li>Your gift subscription has the <strong>same value</strong> as yours</li>
+                  <li>Recipient gets <strong>full access</strong> to all features <strong>free for one year</strong></li>
+                  <li>Gift link never expires — send it when you're ready</li>
+                  <li>At checkout, <strong>designate a recipient</strong> or <strong>receive the gift link via email</strong> — however you prefer</li>
+                </ul>
+              </div>
+
+              {/* Limitations */}
+              <div style={{
+                background: '#fef3c7',
+                borderRadius: 'var(--radius-lg)',
+                padding: '1rem',
+                marginBottom: '1.5rem',
+                border: '1px solid #fcd34d'
+              }}>
+                <p style={{
+                  fontSize: '0.875rem',
+                  color: '#92400e',
+                  margin: 0,
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.5rem'
+                }}>
+                  <span style={{ fontSize: '1rem' }}>⚠️</span>
+                  <span><strong>Note:</strong> Greet One, Give One is available for individual subscriptions only and does not apply to corporate bundles or Hero Program purchases.</span>
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  onClick={() => setShowG1G1Modal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '0.875rem 1.5rem',
+                    background: 'white',
+                    color: 'var(--text-primary)',
+                    border: '2px solid var(--border)',
+                    borderRadius: 'var(--radius-lg)',
+                    fontSize: '0.9375rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    fontFamily: 'inherit'
+                  }}
+                >
+                  Got It
+                </button>
+                <button
+                  onClick={() => {
+                    setShowG1G1Modal(false);
+                    navigate('/pricing');
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '0.875rem 1.5rem',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 'var(--radius-lg)',
+                    fontSize: '0.9375rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    fontFamily: 'inherit',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  View Plans
+                </button>
+              </div>
             </div>
           </div>
         </>

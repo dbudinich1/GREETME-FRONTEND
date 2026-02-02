@@ -1,9 +1,9 @@
 // src/pages/Pricing.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, CreditCard, Lock, CheckCircle } from 'lucide-react';
-import GreetMeLogo from '../components/GreetMeLogo';
+import { Check, CheckCircle, ShoppingCart, X, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import cartService from '../services/cartService';
 
 // Phase 8.3: Features grouped into sections for scannability
 const personalPlans = {
@@ -192,24 +192,19 @@ export default function Pricing() {
     employeeCount: '',
     message: ''
   });
-  const [showCheckout, setShowCheckout] = useState(false);
+  // Pricing Modal State (Cart-based two-state flow)
+  const [showPricingModal, setShowPricingModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
-  const [checkoutStep, setCheckoutStep] = useState('summary'); // 'summary', 'payment', 'complete'
-  const [paymentData, setPaymentData] = useState({
-    cardNumber: '',
-    expiry: '',
-    cvc: '',
-    name: ''
-  });
-  const [processing, setProcessing] = useState(false);
+  const [pricingStep, setPricingStep] = useState('selection'); // 'selection' | 'confirmation'
+  const [lastAddedPlan, setLastAddedPlan] = useState(null);
 
   const handlePlanSelect = (plan) => {
     if (plan.id.includes('enterprise')) {
       setShowEnterpriseForm(true);
     } else {
       setSelectedPlan(plan);
-      setCheckoutStep('summary');
-      setShowCheckout(true);
+      setPricingStep('selection');
+      setShowPricingModal(true);
     }
   };
 
@@ -227,43 +222,34 @@ export default function Pricing() {
     });
   };
 
-  const handleCheckout = (e) => {
-    e.preventDefault();
-    // If user is not logged in, proceed to payment step first
-    if (!user) {
-      setCheckoutStep('payment');
-    } else {
-      // User is already logged in, proceed to payment
-      setCheckoutStep('payment');
-    }
+  const handleAddPlanToCart = (plan) => {
+    const cartItem = {
+      type: 'subscription',
+      name: `${plan.name} Plan`,
+      price: plan.price,
+      quantity: 1,
+      planId: plan.id,
+      period: plan.period,
+      pricingMode: pricingMode,
+      icon: '📋'
+    };
+
+    // Use cartService
+    cartService.addItem(cartItem);
+
+    // Trigger cart badge update
+    window.dispatchEvent(new Event('cartUpdated'));
+
+    // Store the added plan and transition to confirmation state
+    setLastAddedPlan(plan);
+    setPricingStep('confirmation');
   };
 
-  const handlePaymentSubmit = (e) => {
-    e.preventDefault();
-    setProcessing(true);
-
-    // Simulate payment processing
-    setTimeout(() => {
-      setProcessing(false);
-      setCheckoutStep('complete');
-
-      // After 2 seconds, redirect to dashboard or registration
-      setTimeout(() => {
-        setShowCheckout(false);
-        if (user) {
-          navigate('/dashboard');
-        } else {
-          navigate('/register', { state: { plan: selectedPlan } });
-        }
-      }, 2000);
-    }, 2000);
-  };
-
-  const closeCheckout = () => {
-    setShowCheckout(false);
-    setCheckoutStep('summary');
-    setPaymentData({ cardNumber: '', expiry: '', cvc: '', name: '' });
-    setProcessing(false);
+  const resetPricingModal = () => {
+    setShowPricingModal(false);
+    setSelectedPlan(null);
+    setPricingStep('selection');
+    setLastAddedPlan(null);
   };
 
   const currentPlans = viewMode === 'personal'
@@ -272,98 +258,55 @@ export default function Pricing() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)' }}>
-      {/* Top Band - Logo and Back Button */}
+      {/* Background Frame for Page Body */}
       <div style={{
-        background: 'var(--bg-primary)',
-        borderBottom: '1px solid var(--border)',
-        padding: isNarrow ? '1rem' : '1.25rem 2rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50
+        maxWidth: '1280px',
+        margin: '0 auto',
+        padding: isNarrow ? '0.5rem' : '0.5rem'
       }}>
-        {/* Back Button */}
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            padding: isNarrow ? '0.5rem 0.875rem' : '0.625rem 1.25rem',
-            background: 'var(--gray-100)',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-lg)',
-            fontSize: isNarrow ? '0.8125rem' : '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            transition: 'all 0.2s',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--gray-200)';
-            e.currentTarget.style.color = 'var(--text-primary)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--gray-100)';
-            e.currentTarget.style.color = 'var(--text-secondary)';
-          }}
-        >
-          ← Back
-        </button>
-
-        {/* Centered Logo */}
         <div style={{
-          position: 'absolute',
-          left: '50%',
-          transform: 'translateX(-50%)'
+          background: '#f8fafc',
+          borderRadius: 'var(--radius-xl)',
+          border: '1px solid #e2e8f0',
+          padding: isNarrow ? '1rem' : '2rem',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
         }}>
-          <GreetMeLogo size={isNarrow ? 'small' : 'medium'} clickable={true} />
-        </div>
-
-        {/* Spacer for layout balance */}
-        <div style={{ width: isNarrow ? '70px' : '100px' }} />
-      </div>
-
-      {/* Header Banner */}
+      {/* Header Banner with Toggle */}
       <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: isNarrow ? '2rem 1rem' : '3rem 2rem',
-        textAlign: 'center'
+        maxWidth: '100%',
+        margin: '0 auto',
+        padding: '0'
       }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          padding: isNarrow ? '0.75rem 1rem' : '1rem 2rem',
+          textAlign: 'center',
+          borderRadius: isNarrow ? 'var(--radius-lg)' : 'var(--radius-xl)'
+        }}>
         <h1 style={{
-          fontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
+          fontSize: 'clamp(1.25rem, 3vw, 1.75rem)',
           fontWeight: 800,
           color: 'white',
-          marginBottom: '0.5rem'
+          marginBottom: '0.25rem'
         }}>
           Choose Your Plan
         </h1>
         <p style={{
-          fontSize: 'clamp(0.9375rem, 1.5vw, 1.125rem)',
+          fontSize: 'clamp(0.8125rem, 1.25vw, 0.9375rem)',
           color: 'rgba(255, 255, 255, 0.9)',
           maxWidth: '600px',
-          margin: '0 auto'
+          margin: '0 auto 0.5rem auto'
         }}>
           Never forget the ones you love. Start with Founders Pricing or explore business options.
         </p>
-      </div>
 
-      {/* View Mode Toggle - Separate section with breathing room */}
-      <div style={{
-        background: 'var(--bg-secondary)',
-        padding: isNarrow ? '1.5rem 1rem 1rem' : '2rem 2rem 1rem',
-        display: 'flex',
-        justifyContent: 'center'
-      }}>
+        {/* View Mode Toggle */}
         <div style={{
           display: 'inline-flex',
-          background: 'rgba(102, 126, 234, 0.1)',
+          background: 'rgba(255, 255, 255, 0.2)',
           borderRadius: '9999px',
           padding: '0.25rem',
-          border: '1px solid rgba(102, 126, 234, 0.2)'
+          border: '1px solid rgba(255, 255, 255, 0.3)'
         }}>
           <button
             onClick={() => setViewMode('personal')}
@@ -371,7 +314,7 @@ export default function Pricing() {
               padding: isNarrow ? '0.5rem 1rem' : '0.5rem 1.5rem',
               borderRadius: '9999px',
               background: viewMode === 'personal' ? 'white' : 'transparent',
-              color: viewMode === 'personal' ? '#667eea' : 'var(--text-secondary)',
+              color: viewMode === 'personal' ? '#667eea' : 'rgba(255, 255, 255, 0.9)',
               border: 'none',
               fontWeight: 600,
               fontSize: isNarrow ? '0.875rem' : '1rem',
@@ -388,7 +331,7 @@ export default function Pricing() {
               padding: isNarrow ? '0.5rem 1rem' : '0.5rem 1.5rem',
               borderRadius: '9999px',
               background: viewMode === 'business' ? 'white' : 'transparent',
-              color: viewMode === 'business' ? '#667eea' : 'var(--text-secondary)',
+              color: viewMode === 'business' ? '#667eea' : 'rgba(255, 255, 255, 0.9)',
               border: 'none',
               fontWeight: 600,
               fontSize: isNarrow ? '0.875rem' : '1rem',
@@ -397,46 +340,48 @@ export default function Pricing() {
               fontFamily: 'inherit'
             }}
           >
-            {isNarrow ? 'Business' : 'Business / Corporate'}
+            Business
           </button>
+          </div>
         </div>
       </div>
 
       {/* Founders Banner - Show for both Personal and Business */}
       {(
         <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto 2rem',
-          padding: isNarrow ? '0 1rem' : '0 2rem'
+          marginTop: isNarrow ? '0.75rem' : '1rem'
         }}>
           <div style={{
             background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-            borderRadius: 'var(--radius-xl)',
-            padding: isNarrow ? '1.5rem 1rem' : '2rem',
+            padding: isNarrow ? '0.75rem 1rem' : '1rem 2rem',
             textAlign: 'center',
             color: 'white',
-            boxShadow: '0 10px 30px rgba(251, 191, 36, 0.3)'
+            borderRadius: isNarrow ? 'var(--radius-lg)' : 'var(--radius-xl)'
           }}>
+            <div style={{
+              maxWidth: '800px',
+              margin: '0 auto'
+            }}>
             <h2 style={{
-              fontSize: isNarrow ? '1.25rem' : '1.75rem',
+              fontSize: isNarrow ? '1rem' : '1.375rem',
               fontWeight: 700,
-              marginBottom: '0.5rem'
+              marginBottom: '0.25rem'
             }}>
               🎉 {isNarrow ? 'Founders Offer' : 'Founders Offer: Lock in Founders Pricing for a limited time'}
             </h2>
             <p style={{
-              fontSize: isNarrow ? '0.9375rem' : '1.125rem',
+              fontSize: isNarrow ? '0.8125rem' : '0.9375rem',
               opacity: 0.95,
-              marginBottom: '1.5rem'
+              marginBottom: '0.5rem'
             }}>
               {isNarrow ? 'Lock in lifetime discounted pricing!' : 'Founders get the same features at a lifetime discounted rate.'}
             </p>
             {/* Phase 8.3: Founders pricing explanation - neutral, factual */}
             {/* Phase 8.3B: Added lineHeight for mobile readability */}
             <p style={{
-              fontSize: isNarrow ? '0.8125rem' : '0.875rem',
+              fontSize: isNarrow ? '0.6875rem' : '0.75rem',
               opacity: 0.9,
-              marginBottom: '1rem',
+              marginBottom: '0.5rem',
               fontStyle: 'italic',
               lineHeight: 1.4
             }}>
@@ -447,17 +392,17 @@ export default function Pricing() {
               display: 'flex',
               flexDirection: isNarrow ? 'column' : 'row',
               justifyContent: 'center',
-              gap: isNarrow ? '0.75rem' : '1rem'
+              gap: isNarrow ? '0.5rem' : '0.75rem'
             }}>
               <button
                 onClick={() => setPricingMode('founders')}
                 style={{
-                  padding: isNarrow ? '0.75rem 1.5rem' : '0.875rem 2rem',
+                  padding: isNarrow ? '0.5rem 1.25rem' : '0.625rem 1.5rem',
                   background: pricingMode === 'founders' ? 'white' : 'rgba(255, 255, 255, 0.3)',
                   color: pricingMode === 'founders' ? '#f59e0b' : 'white',
                   border: pricingMode === 'founders' ? 'none' : '2px solid white',
                   borderRadius: 'var(--radius-lg)',
-                  fontSize: isNarrow ? '0.9375rem' : '1rem',
+                  fontSize: isNarrow ? '0.8125rem' : '0.875rem',
                   fontWeight: 600,
                   cursor: 'pointer',
                   fontFamily: 'inherit',
@@ -470,12 +415,12 @@ export default function Pricing() {
                 <button
                   onClick={() => setPricingMode('standard')}
                   style={{
-                    padding: isNarrow ? '0.75rem 1.5rem' : '0.875rem 2rem',
+                    padding: isNarrow ? '0.5rem 1.25rem' : '0.625rem 1.5rem',
                     background: 'rgba(255, 255, 255, 0.3)',
                     color: 'white',
                     border: '2px solid white',
                     borderRadius: 'var(--radius-lg)',
-                    fontSize: isNarrow ? '0.9375rem' : '1rem',
+                    fontSize: isNarrow ? '0.8125rem' : '0.875rem',
                     fontWeight: 600,
                     cursor: 'pointer',
                     fontFamily: 'inherit',
@@ -488,21 +433,27 @@ export default function Pricing() {
             </div>
           </div>
         </div>
+        </div>
       )}
 
-      {/* Plans Grid */}
+      {/* Plans Grid - with decorative frame */}
       <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto 4rem',
-        padding: isNarrow ? '0 1rem' : '0 2rem'
+        marginTop: isNarrow ? '1rem' : '1.5rem'
       }}>
-        {/* Phase 8.3B: alignItems: 'stretch' for equal card heights */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: isNarrow ? '1fr' : 'repeat(3, 1fr)',
-          gap: isNarrow ? '1.5rem' : '2rem',
-          alignItems: 'stretch'
+          background: 'white',
+          borderRadius: isNarrow ? 'var(--radius-lg)' : 'var(--radius-xl)',
+          border: '2px solid var(--border)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+          padding: isNarrow ? '1.5rem 1rem' : '2.5rem 2rem'
         }}>
+          {/* Phase 8.3B: alignItems: 'stretch' for equal card heights */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isNarrow ? '1fr' : 'repeat(3, 1fr)',
+            gap: isNarrow ? '1.5rem' : '2rem',
+            alignItems: 'stretch'
+          }}>
           {currentPlans.map((plan) => {
             return (
               <div
@@ -560,16 +511,16 @@ export default function Pricing() {
                     position: 'absolute',
                     top: plan.highlight ? '1.5rem' : '1rem',
                     right: '1rem',
-                    width: plan.highlight ? '40px' : '45px',
-                    height: plan.highlight ? '40px' : '45px',
+                    width: plan.highlight ? '50px' : '55px',
+                    height: plan.highlight ? '50px' : '55px',
                     opacity: 0.9
                   }}>
                     {/* Star-point notched edge layer */}
                     {[...Array(16)].map((_, i) => {
                       const angle = (i * 22.5) - 90;
-                      const radius = plan.highlight ? 20 : 22.5;
-                      const x = (plan.highlight ? 20 : 22.5) + radius * Math.cos(angle * Math.PI / 180);
-                      const y = (plan.highlight ? 20 : 22.5) + radius * Math.sin(angle * Math.PI / 180);
+                      const radius = plan.highlight ? 25 : 27.5;
+                      const x = (plan.highlight ? 25 : 27.5) + radius * Math.cos(angle * Math.PI / 180);
+                      const y = (plan.highlight ? 25 : 27.5) + radius * Math.sin(angle * Math.PI / 180);
                       return (
                         <div
                           key={i}
@@ -577,8 +528,8 @@ export default function Pricing() {
                             position: 'absolute',
                             left: `${x}px`,
                             top: `${y}px`,
-                            width: '3px',
-                            height: '3px',
+                            width: '4px',
+                            height: '4px',
                             background: '#D4AF37',
                             transform: 'translate(-50%, -50%) rotate(45deg)',
                             boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
@@ -594,8 +545,8 @@ export default function Pricing() {
                       top: '50%',
                       left: '50%',
                       transform: 'translate(-50%, -50%)',
-                      width: plan.highlight ? '36px' : '40px',
-                      height: plan.highlight ? '36px' : '40px',
+                      width: plan.highlight ? '46px' : '50px',
+                      height: plan.highlight ? '46px' : '50px',
                       borderRadius: '9999px',
                       border: '1px solid #8B6914',
                       background:
@@ -616,7 +567,7 @@ export default function Pricing() {
                       {/* Faint G watermark */}
                       <div style={{
                         position: 'absolute',
-                        fontSize: plan.highlight ? '1.25rem' : '1.5rem',
+                        fontSize: plan.highlight ? '1.5rem' : '1.75rem',
                         fontWeight: 900,
                         color: 'rgba(139,105,20,0.12)',
                         fontFamily: 'Georgia, serif',
@@ -631,8 +582,8 @@ export default function Pricing() {
                       {/* Star decorations */}
                       <span style={{
                         position: 'absolute',
-                        top: '2px',
-                        fontSize: '5px',
+                        top: '3px',
+                        fontSize: '6px',
                         color: '#8B6914',
                         opacity: 0.8,
                         textShadow: '0 0 1px rgba(255,235,205,0.5)',
@@ -641,8 +592,8 @@ export default function Pricing() {
                       }}>★</span>
                       <span style={{
                         position: 'absolute',
-                        bottom: '2px',
-                        fontSize: '5px',
+                        bottom: '3px',
+                        fontSize: '6px',
                         color: '#8B6914',
                         opacity: 0.8,
                         textShadow: '0 0 1px rgba(255,235,205,0.5)',
@@ -653,7 +604,7 @@ export default function Pricing() {
                       {/* Main content */}
                       <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
                         <div style={{
-                          fontSize: plan.highlight ? '0.5rem' : '0.5625rem',
+                          fontSize: plan.highlight ? '0.625rem' : '0.6875rem',
                           fontWeight: 900,
                           color: '#3D2F0F',
                           letterSpacing: '0.3px',
@@ -661,7 +612,7 @@ export default function Pricing() {
                           marginBottom: '0.5px'
                         }}>G1G1™</div>
                         <div style={{
-                          fontSize: plan.highlight ? '0.25rem' : '0.28rem',
+                          fontSize: plan.highlight ? '0.3125rem' : '0.34rem',
                           fontWeight: 800,
                           color: '#4D3A12',
                           textShadow: '0 0.5px 1px rgba(255,255,255,0.3)',
@@ -675,28 +626,30 @@ export default function Pricing() {
                   </div>
                 )}
 
-                {/* Plan Name */}
-                <h3 style={{
-                  fontSize: '1.5rem',
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  marginBottom: '0.5rem'
-                }}>
-                  {plan.name}
-                </h3>
+                {/* Name + Description wrapper - minHeight ensures uniform price alignment */}
+                <div style={{ minHeight: '95px', marginBottom: '1rem' }}>
+                  {/* Plan Name */}
+                  <h3 style={{
+                    fontSize: '1.5rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    {plan.name}
+                  </h3>
 
-                {/* Description */}
-                <p style={{
-                  fontSize: '0.875rem',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '1.5rem'
-                }}>
-                  {plan.description}
-                </p>
+                  <p style={{
+                    fontSize: '0.875rem',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0'
+                  }}>
+                    {plan.description}
+                  </p>
+                </div>
 
                 {/* Price */}
                 <div style={{
-                  marginBottom: '2rem',
+                  marginBottom: '1rem',
                   color: 'var(--text-primary)',
                   textAlign: 'center'
                 }}>
@@ -705,6 +658,13 @@ export default function Pricing() {
                       <span style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>Custom</span>
                       <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                         Contact us for pricing
+                      </div>
+                    </div>
+                  ) : plan.price === 'Contact Sales' ? (
+                    <div>
+                      <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Contact Sales</span>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                        Custom enterprise pricing
                       </div>
                     </div>
                   ) : (
@@ -747,10 +707,7 @@ export default function Pricing() {
                 {/* Features - Phase 8.3: Grouped into sections for scannability */}
                 <div style={{
                   borderTop: '1px solid var(--border)',
-                  paddingTop: '1.5rem',
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column'
+                  paddingTop: '1.5rem'
                 }}>
                   <p style={{
                     fontSize: '0.875rem',
@@ -760,7 +717,7 @@ export default function Pricing() {
                   }}>
                     What's included:
                   </p>
-                  <div style={{ flex: 1 }}>
+                  <div>
                     {plan.featureGroups.map((group, groupIndex) => (
                       <div key={groupIndex} style={{ marginBottom: groupIndex < plan.featureGroups.length - 1 ? '1rem' : 0 }}>
                         {/* Section header */}
@@ -804,8 +761,12 @@ export default function Pricing() {
               </div>
             );
           })}
+          </div>
         </div>
       </div>
+        </div>
+      </div>
+      {/* End Background Frame */}
 
       {/* Enterprise Contact Form Modal */}
       {showEnterpriseForm && (
@@ -1003,26 +964,35 @@ export default function Pricing() {
         </div>
       )}
 
-      {/* Checkout Modal */}
-      {showCheckout && selectedPlan && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '2rem'
-        }}>
+      {/* Pricing Modal (Cart-based two-state flow) */}
+      {showPricingModal && selectedPlan && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={resetPricingModal}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 1000
+            }}
+          />
+
+          {/* Modal */}
           <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
             background: 'white',
             borderRadius: 'var(--radius-xl)',
             padding: '2rem',
             maxWidth: '450px',
-            width: '100%',
-            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)'
+            width: '90%',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
+            zIndex: 1001
           }}>
+            {/* Header */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -1035,26 +1005,30 @@ export default function Pricing() {
                 color: 'var(--text-primary)',
                 margin: 0
               }}>
-                {checkoutStep === 'summary' && 'Checkout'}
-                {checkoutStep === 'payment' && 'Payment Details'}
-                {checkoutStep === 'complete' && 'Success!'}
+                {pricingStep === 'selection' && 'Add to Cart'}
+                {pricingStep === 'confirmation' && 'Added to Cart!'}
               </h2>
-              {checkoutStep !== 'complete' && (
-                <button
-                  onClick={closeCheckout}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    fontSize: '1.5rem',
-                    cursor: 'pointer',
-                    color: 'var(--text-secondary)'
-                  }}
-                >×</button>
-              )}
+              <button
+                onClick={resetPricingModal}
+                style={{
+                  background: 'var(--gray-100)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '2rem',
+                  height: '2rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <X size={18} />
+              </button>
             </div>
 
-            {/* Step: Order Summary */}
-            {checkoutStep === 'summary' && (
+            {/* STATE 1: Selection */}
+            {pricingStep === 'selection' && (
               <>
                 <div style={{
                   background: 'var(--gray-50)',
@@ -1067,7 +1041,7 @@ export default function Pricing() {
                     fontWeight: 600,
                     color: 'var(--text-primary)',
                     marginBottom: '1rem'
-                  }}>Order Summary</h3>
+                  }}>Plan Summary</h3>
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -1121,210 +1095,74 @@ export default function Pricing() {
                   </div>
                 )}
 
-                <form onSubmit={handleCheckout}>
+                {/* Selection State Buttons */}
+                <div style={{
+                  display: 'flex',
+                  gap: '0.75rem',
+                  justifyContent: 'space-between'
+                }}>
+                  {/* Cancel - Secondary (outline) - LEFT */}
                   <button
-                    type="submit"
+                    onClick={resetPricingModal}
                     style={{
-                      width: '100%',
-                      padding: '0.875rem',
+                      padding: '0.875rem 1.5rem',
+                      background: 'white',
+                      color: 'var(--text-primary)',
+                      border: '2px solid var(--border)',
+                      borderRadius: 'var(--radius-lg)',
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    Cancel
+                  </button>
+
+                  {/* Add to Cart - Primary (solid) - RIGHT */}
+                  <button
+                    onClick={() => handleAddPlanToCart(selectedPlan)}
+                    style={{
+                      padding: '0.875rem 2rem',
                       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                       color: 'white',
                       border: 'none',
                       borderRadius: 'var(--radius-lg)',
-                      fontSize: '1rem',
+                      fontSize: '0.9375rem',
                       fontWeight: 600,
                       cursor: 'pointer',
+                      transition: 'all 0.2s',
                       fontFamily: 'inherit',
-                      marginBottom: '1rem'
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
                     }}
                   >
-                    Continue to Payment
+                    <ShoppingCart size={18} />
+                    Add to Cart
                   </button>
-                  <p style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--text-secondary)',
-                    textAlign: 'center',
-                    margin: 0
-                  }}>
-                    Secure checkout powered by Stripe. Cancel anytime.
-                  </p>
-                </form>
-              </>
-            )}
-
-            {/* Step: Payment Form */}
-            {checkoutStep === 'payment' && (
-              <form onSubmit={handlePaymentSubmit}>
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    marginBottom: '0.5rem'
-                  }}>
-                    <CreditCard size={14} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'middle' }} />
-                    Card Number
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="1234 5678 9012 3456"
-                    value={paymentData.cardNumber}
-                    onChange={(e) => setPaymentData({ ...paymentData, cardNumber: e.target.value })}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.875rem',
-                      fontFamily: 'inherit'
-                    }}
-                  />
                 </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                  <div>
-                    <label style={{
-                      display: 'block',
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      marginBottom: '0.5rem'
-                    }}>Expiry Date</label>
-                    <input
-                      type="text"
-                      placeholder="MM/YY"
-                      value={paymentData.expiry}
-                      onChange={(e) => setPaymentData({ ...paymentData, expiry: e.target.value })}
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: '0.875rem',
-                        fontFamily: 'inherit'
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{
-                      display: 'block',
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      marginBottom: '0.5rem'
-                    }}>CVC</label>
-                    <input
-                      type="text"
-                      placeholder="123"
-                      value={paymentData.cvc}
-                      onChange={(e) => setPaymentData({ ...paymentData, cvc: e.target.value })}
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: '0.875rem',
-                        fontFamily: 'inherit'
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    marginBottom: '0.5rem'
-                  }}>Name on Card</label>
-                  <input
-                    type="text"
-                    placeholder="John Smith"
-                    value={paymentData.name}
-                    onChange={(e) => setPaymentData({ ...paymentData, name: e.target.value })}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.875rem',
-                      fontFamily: 'inherit'
-                    }}
-                  />
-                </div>
-
-                <div style={{
-                  background: 'var(--gray-50)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '0.75rem',
-                  marginBottom: '1rem',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Total</span>
-                  <span style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--primary)' }}>${selectedPlan.price}</span>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={processing}
-                  style={{
-                    width: '100%',
-                    padding: '0.875rem',
-                    background: processing ? 'var(--gray-300)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 'var(--radius-lg)',
-                    fontSize: '1rem',
-                    fontWeight: 600,
-                    cursor: processing ? 'not-allowed' : 'pointer',
-                    fontFamily: 'inherit',
-                    marginBottom: '1rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem'
-                  }}
-                >
-                  {processing ? (
-                    <>Processing...</>
-                  ) : (
-                    <>
-                      <Lock size={16} />
-                      Pay ${selectedPlan.price}
-                    </>
-                  )}
-                </button>
 
                 <p style={{
                   fontSize: '0.75rem',
                   color: 'var(--text-secondary)',
                   textAlign: 'center',
-                  margin: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.25rem'
+                  marginTop: '1rem'
                 }}>
-                  <Lock size={12} />
-                  Secure 256-bit SSL encryption
+                  Secure checkout powered by Stripe. Cancel anytime.
                 </p>
-              </form>
+              </>
             )}
 
-            {/* Step: Complete */}
-            {checkoutStep === 'complete' && (
-              <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+            {/* STATE 2: Confirmation */}
+            {pricingStep === 'confirmation' && lastAddedPlan && (
+              <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                {/* Success Icon */}
                 <div style={{
-                  width: '4rem',
-                  height: '4rem',
+                  width: '5rem',
+                  height: '5rem',
                   borderRadius: '50%',
                   background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                   display: 'flex',
@@ -1333,32 +1171,120 @@ export default function Pricing() {
                   margin: '0 auto 1.5rem',
                   boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
                 }}>
-                  <CheckCircle size={32} style={{ color: 'white' }} />
+                  <Check size={40} style={{ color: 'white' }} />
                 </div>
+
+                {/* Confirmation Message */}
                 <h3 style={{
                   fontSize: '1.5rem',
                   fontWeight: 700,
                   color: 'var(--text-primary)',
-                  marginBottom: '0.75rem'
-                }}>Payment Successful!</h3>
+                  marginBottom: '0.5rem'
+                }}>
+                  Added to Cart!
+                </h3>
+
                 <p style={{
                   fontSize: '1rem',
                   color: 'var(--text-secondary)',
-                  marginBottom: '0.5rem',
-                  lineHeight: 1.6
+                  marginBottom: '1.5rem'
                 }}>
-                  Thank you for choosing {selectedPlan.name}!
+                  {lastAddedPlan.name} Plan
                 </p>
-                <p style={{
-                  fontSize: '0.875rem',
-                  color: 'var(--text-tertiary)'
+
+                {/* Item Summary */}
+                <div style={{
+                  background: 'var(--gray-50)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '1rem',
+                  marginBottom: '0.75rem',
+                  maxWidth: '320px',
+                  margin: '0 auto 1.5rem'
                 }}>
-                  Redirecting you to your dashboard...
-                </p>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginBottom: '0.5rem'
+                  }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{lastAddedPlan.name}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--primary)' }}>${lastAddedPlan.price}/{lastAddedPlan.period}</span>
+                  </div>
+                  <div style={{
+                    borderTop: '1px solid var(--border)',
+                    paddingTop: '0.5rem',
+                    fontSize: '0.875rem',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    {cartService.getCount()} {cartService.getCount() === 1 ? 'item' : 'items'} in cart
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{
+                  display: 'flex',
+                  gap: '0.75rem',
+                  justifyContent: 'center',
+                  maxWidth: '400px',
+                  margin: '0 auto'
+                }}>
+                  {/* Continue Shopping - Secondary (outline) */}
+                  <button
+                    onClick={resetPricingModal}
+                    style={{
+                      flex: 1,
+                      padding: '0.875rem 1.5rem',
+                      background: 'white',
+                      color: '#667eea',
+                      border: '2px solid #667eea',
+                      borderRadius: 'var(--radius-lg)',
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      fontFamily: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <ShoppingCart size={18} />
+                    Continue Shopping
+                  </button>
+
+                  {/* Checkout - Primary (solid) */}
+                  <button
+                    onClick={() => {
+                      resetPricingModal();
+                      navigate('/dashboard/cart');
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '0.875rem 1.5rem',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 'var(--radius-lg)',
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                      fontFamily: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    Checkout
+                    <ArrowRight size={18} />
+                  </button>
+                </div>
               </div>
             )}
           </div>
-        </div>
+        </>
       )}
     </div>
   );

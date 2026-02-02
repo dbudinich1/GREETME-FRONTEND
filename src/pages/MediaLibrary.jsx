@@ -1,13 +1,19 @@
 // src/pages/MediaLibrary.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Trash2, Play, Pause, Image as ImageIcon, Mic, ArrowLeft, Smartphone, QrCode, Video, CheckCircle, Users } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Upload, Trash2, Play, Pause, Image as ImageIcon, Mic, ArrowLeft, Smartphone, QrCode, Video, CheckCircle, Users, Check, X } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getMediaLibraryItems, removeFromMediaLibrary } from '../utils/mediaLibrary';
+import api from '../api/api';
 
 export default function MediaLibrary() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, updateUser, getToken } = useAuth();
+
+  // Check if we're in photo selection mode (coming from SendGreeting)
+  const isSelectionMode = searchParams.get('select') === 'photo' && searchParams.get('returnTo') === 'send';
+  const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [voices, setVoices] = useState([]);
   const [recipientPhotos, setRecipientPhotos] = useState([]);
   const [activeVoice, setActiveVoice] = useState(null);
@@ -19,11 +25,38 @@ export default function MediaLibrary() {
 
   const API_URL = import.meta.env.VITE_API_BASE || 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
 
+  // Toggle photo selection
+  const togglePhotoSelection = (photo) => {
+    setSelectedPhotos(prev => {
+      const isSelected = prev.some(p => p.id === photo.id);
+      if (isSelected) {
+        return prev.filter(p => p.id !== photo.id);
+      } else {
+        return [...prev, photo];
+      }
+    });
+  };
+
+  // Handle confirming selection and returning to SendGreeting
+  const handleConfirmSelection = () => {
+    // Store selected photos in sessionStorage for SendGreeting to pick up
+    const selectedUrls = selectedPhotos.map(p => p.url);
+    sessionStorage.setItem('selectedMediaLibraryPhotos', JSON.stringify(selectedUrls));
+    // Navigate back to SendGreeting
+    navigate('/dashboard/send?returnTo=send&fromMediaLibrary=true');
+  };
+
+  // Handle cancel selection
+  const handleCancelSelection = () => {
+    setSelectedPhotos([]);
+    navigate('/dashboard/send?returnTo=send');
+  };
+
   useEffect(() => {
     loadMedia();
   }, []);
 
-  const loadMedia = () => {
+  const loadMedia = async () => {
     // Load saved voice from localStorage (voice still uses localStorage)
     const savedVoice = localStorage.getItem('greetme_voice_file');
     if (savedVoice) {
@@ -36,9 +69,48 @@ export default function MediaLibrary() {
     }
     // Photo comes from user.photoUrl (AuthContext / backend)
 
-    // Load recipient photos from media library
+    // Load recipient photos from media library storage
     const libraryItems = getMediaLibraryItems();
-    setRecipientPhotos(libraryItems.filter(item => item.type === 'photo'));
+    const libraryPhotos = libraryItems.filter(item => item.type === 'photo');
+
+    // Also fetch memory photos directly from contacts (since base64 photos aren't stored in media library)
+    try {
+      const response = await api.getContacts();
+      const contacts = Array.isArray(response?.data) ? response.data :
+        Array.isArray(response?.contacts) ? response.contacts :
+        Array.isArray(response) ? response : [];
+
+      // Extract memory photos from all contacts
+      const contactPhotos = [];
+      contacts.forEach(contact => {
+        if (contact.memoryPhotos && Array.isArray(contact.memoryPhotos)) {
+          contact.memoryPhotos.forEach((photo, index) => {
+            const photoUrl = typeof photo === 'string' ? photo : photo?.url;
+            if (photoUrl) {
+              // Check if this photo is already in the library photos (avoid duplicates)
+              const alreadyExists = libraryPhotos.some(lp => lp.url === photoUrl);
+              if (!alreadyExists) {
+                contactPhotos.push({
+                  id: `contact-${contact._id || contact.id}-photo-${index}`,
+                  url: photoUrl,
+                  type: 'photo',
+                  source: 'recipient-memory',
+                  contactName: contact.name,
+                  addedAt: contact.updatedAt || contact.createdAt || new Date().toISOString()
+                });
+              }
+            }
+          });
+        }
+      });
+
+      // Combine library photos with contact photos
+      setRecipientPhotos([...libraryPhotos, ...contactPhotos]);
+    } catch (error) {
+      console.error('Failed to fetch contact photos:', error);
+      // Fall back to just library photos
+      setRecipientPhotos(libraryPhotos);
+    }
   };
 
   const handleDeleteRecipientPhoto = (id) => {
@@ -153,46 +225,99 @@ export default function MediaLibrary() {
   };
 
   return (
-    <div style={{ padding: '2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-        <button
-          onClick={() => navigate('/dashboard')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 1rem',
-            background: 'transparent',
-            border: '1px solid #000000',
-            borderRadius: 'var(--radius-md)',
-            color: '#000000',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            fontFamily: 'inherit'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#f3f4f6';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-          }}
-        >
-          <ArrowLeft size={16} />
-          Back
-        </button>
+    <div style={{ maxWidth: '100%', overflow: 'hidden', paddingBottom: isSelectionMode ? '4rem' : '0' }}>
+      {/* Background Frame for Page Body */}
+      <div style={{
+        background: '#f8fafc',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid #e2e8f0',
+        padding: '2rem',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+      }}>
+        {/* Banner Header */}
+        <div style={{
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '1.5rem 1.5rem',
+        marginBottom: '1.5rem',
+        color: 'white',
+        textAlign: 'center',
+        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+      }}>
+        <h1 style={{
+          fontSize: '1.5rem',
+          fontWeight: 700,
+          margin: 0,
+          marginBottom: '0.5rem'
+        }}>{isSelectionMode ? 'Select Photos for Your Greeting' : 'Media Library'}</h1>
+        <p style={{
+          fontSize: '0.9375rem',
+          opacity: 0.9,
+          fontStyle: 'italic',
+          margin: 0
+        }}>
+          {isSelectionMode
+            ? (selectedPhotos.length === 0
+                ? 'Tap photos to select them'
+                : `${selectedPhotos.length} photo${selectedPhotos.length > 1 ? 's' : ''} selected`)
+            : 'Manage your voice recordings and photos'}
+        </p>
       </div>
-      <h1 style={{
-        fontSize: '2rem',
-        fontWeight: 700,
-        marginBottom: '0.5rem',
-        color: 'var(--text-primary)'
-      }}>Media Library</h1>
-      <p style={{
-        color: 'var(--text-secondary)',
-        marginBottom: '2rem'
-      }}>Manage your voice recordings and default photo</p>
+
+      {/* Selection Mode Action Buttons */}
+      {isSelectionMode && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '0.75rem',
+          marginBottom: '1.5rem'
+        }}>
+          <button
+            onClick={handleCancelSelection}
+            style={{
+              padding: '0.5rem 1.25rem',
+              background: '#f3f4f6',
+              color: '#374151',
+              border: '1px solid #d1d5db',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+              transition: 'all 0.2s',
+              fontFamily: 'inherit'
+            }}
+          >
+            <X size={16} />
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirmSelection}
+            disabled={selectedPhotos.length === 0}
+            style={{
+              padding: '0.5rem 1.25rem',
+              background: selectedPhotos.length === 0 ? '#e5e7eb' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: selectedPhotos.length === 0 ? '#9ca3af' : 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: selectedPhotos.length === 0 ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+              transition: 'all 0.2s',
+              fontFamily: 'inherit',
+              boxShadow: selectedPhotos.length > 0 ? '0 4px 12px rgba(102, 126, 234, 0.3)' : 'none'
+            }}
+          >
+            <Check size={16} />
+            Done ({selectedPhotos.length})
+          </button>
+        </div>
+      )}
 
       {/* Demo Video Section */}
       <div style={{
@@ -601,23 +726,62 @@ export default function MediaLibrary() {
             <p>No default photo yet</p>
             <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Upload your photo to use in greetings</p>
           </div>
-        ) : (
+        ) : (() => {
+          const defaultPhotoObj = { id: 'user-default-photo', url: user.photoUrl };
+          const isDefaultSelected = selectedPhotos.some(p => p.id === 'user-default-photo');
+          return (
           <div style={{
             display: 'flex',
             justifyContent: 'center'
           }}>
             <div
+              onClick={isSelectionMode ? () => togglePhotoSelection(defaultPhotoObj) : undefined}
               style={{
                 position: 'relative',
-                border: '3px solid #22c55e',
+                border: isSelectionMode && isDefaultSelected ? '3px solid #667eea' : '3px solid #22c55e',
                 borderRadius: 'var(--radius-lg)',
                 overflow: 'hidden',
                 background: 'white',
-                boxShadow: '0 4px 12px rgba(34, 197, 94, 0.2)',
+                boxShadow: isSelectionMode && isDefaultSelected
+                  ? '0 4px 12px rgba(102, 126, 234, 0.3)'
+                  : '0 4px 12px rgba(34, 197, 94, 0.2)',
                 maxWidth: '300px',
-                width: '100%'
+                width: '100%',
+                cursor: isSelectionMode ? 'pointer' : 'default',
+                transition: 'all 0.2s',
+                transform: isSelectionMode && isDefaultSelected ? 'scale(0.98)' : 'scale(1)'
               }}
             >
+              {/* Selection Checkbox for Default Photo */}
+              {isSelectionMode && (
+                <div style={{
+                  position: 'absolute',
+                  top: '0.5rem',
+                  right: '0.5rem',
+                  width: '1.75rem',
+                  height: '1.75rem',
+                  borderRadius: '50%',
+                  background: isDefaultSelected ? '#667eea' : 'rgba(255, 255, 255, 0.9)',
+                  border: isDefaultSelected ? '2px solid #667eea' : '2px solid rgba(0, 0, 0, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 15,
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+                }}>
+                  {isDefaultSelected && <Check size={16} color="white" strokeWidth={3} />}
+                </div>
+              )}
+              {/* Selection Overlay */}
+              {isSelectionMode && isDefaultSelected && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'rgba(102, 126, 234, 0.15)',
+                  zIndex: 5,
+                  pointerEvents: 'none'
+                }} />
+              )}
               {/* Default Badge */}
               <div style={{
                 position: 'absolute',
@@ -654,8 +818,8 @@ export default function MediaLibrary() {
                 <div style={{
                   width: '100%',
                   padding: '0.5rem',
-                  background: '#dcfce7',
-                  color: '#15803d',
+                  background: isSelectionMode && isDefaultSelected ? '#e0e7ff' : '#dcfce7',
+                  color: isSelectionMode && isDefaultSelected ? '#4f46e5' : '#15803d',
                   borderRadius: 'var(--radius-md)',
                   fontSize: '0.75rem',
                   fontWeight: 600,
@@ -664,13 +828,23 @@ export default function MediaLibrary() {
                   justifyContent: 'center',
                   gap: '0.375rem'
                 }}>
-                  <CheckCircle size={14} />
-                  Used for Greetings
+                  {isSelectionMode && isDefaultSelected ? (
+                    <>
+                      <Check size={14} />
+                      Selected
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={14} />
+                      {isSelectionMode ? 'Tap to Select' : 'Used for Greetings'}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Recipient Photos Section (Auto-added from recipients) */}
@@ -734,17 +908,53 @@ export default function MediaLibrary() {
             gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
             gap: '1rem'
           }}>
-            {recipientPhotos.map(photo => (
+            {recipientPhotos.map(photo => {
+              const isSelected = selectedPhotos.some(p => p.id === photo.id);
+              return (
               <div
                 key={photo.id}
+                onClick={isSelectionMode ? () => togglePhotoSelection(photo) : undefined}
                 style={{
                   position: 'relative',
                   borderRadius: 'var(--radius-lg)',
                   overflow: 'hidden',
-                  border: '1px solid var(--border)',
-                  background: 'white'
+                  border: isSelectionMode && isSelected ? '3px solid #667eea' : '1px solid var(--border)',
+                  background: 'white',
+                  cursor: isSelectionMode ? 'pointer' : 'default',
+                  transition: 'all 0.2s',
+                  transform: isSelectionMode && isSelected ? 'scale(0.98)' : 'scale(1)'
                 }}
               >
+                {/* Selection Checkbox Overlay */}
+                {isSelectionMode && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '0.5rem',
+                    right: '0.5rem',
+                    width: '1.5rem',
+                    height: '1.5rem',
+                    borderRadius: '50%',
+                    background: isSelected ? '#667eea' : 'rgba(255, 255, 255, 0.9)',
+                    border: isSelected ? '2px solid #667eea' : '2px solid rgba(0, 0, 0, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 15,
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+                  }}>
+                    {isSelected && <Check size={14} color="white" strokeWidth={3} />}
+                  </div>
+                )}
+                {/* Selection Overlay */}
+                {isSelectionMode && isSelected && (
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'rgba(102, 126, 234, 0.15)',
+                    zIndex: 5,
+                    pointerEvents: 'none'
+                  }} />
+                )}
                 <img
                   src={photo.url}
                   alt="Recipient photo"
@@ -769,30 +979,32 @@ export default function MediaLibrary() {
                 }}>
                   {photo.source === 'recipient-avatar' ? 'Avatar' : 'Memory'}
                 </div>
-                {/* Delete button */}
-                <button
-                  onClick={() => handleDeleteRecipientPhoto(photo.id)}
-                  style={{
-                    position: 'absolute',
-                    top: '0.375rem',
-                    right: '0.375rem',
-                    padding: '0.25rem',
-                    background: 'rgba(220, 38, 38, 0.9)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '50%',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#dc2626'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(220, 38, 38, 0.9)'}
-                >
-                  <Trash2 size={12} />
-                </button>
-                {/* Date added */}
+                {/* Delete button - only for photos in media library, not direct from contacts, and not in selection mode */}
+                {!photo.contactName && !isSelectionMode && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteRecipientPhoto(photo.id); }}
+                    style={{
+                      position: 'absolute',
+                      top: '0.375rem',
+                      right: '0.375rem',
+                      padding: '0.25rem',
+                      background: 'rgba(220, 38, 38, 0.9)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '50%',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#dc2626'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(220, 38, 38, 0.9)'}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+                {/* Photo info */}
                 <div style={{
                   padding: '0.5rem',
                   fontSize: '0.6875rem',
@@ -800,13 +1012,93 @@ export default function MediaLibrary() {
                   borderTop: '1px solid var(--border)',
                   textAlign: 'center'
                 }}>
+                  {photo.contactName && (
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.125rem' }}>
+                      {photo.contactName}
+                    </div>
+                  )}
                   Added {new Date(photo.addedAt).toLocaleDateString()}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
+      </div>
+
+      {/* Floating Action Bar for Selection Mode */}
+      {isSelectionMode && (
+        <div style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: 'white',
+          borderTop: '1px solid var(--border)',
+          padding: '1rem 1.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '1rem',
+          boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.1)',
+          zIndex: 100
+        }}>
+          <div style={{
+            fontSize: '0.9375rem',
+            fontWeight: 600,
+            color: selectedPhotos.length > 0 ? '#667eea' : 'var(--text-secondary)'
+          }}>
+            {selectedPhotos.length === 0
+              ? 'Select photos to include'
+              : `${selectedPhotos.length} photo${selectedPhotos.length > 1 ? 's' : ''} selected`}
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button
+              onClick={handleCancelSelection}
+              style={{
+                padding: '0.75rem 1.25rem',
+                background: '#f3f4f6',
+                color: '#374151',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                transition: 'all 0.2s'
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmSelection}
+              disabled={selectedPhotos.length === 0}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: selectedPhotos.length === 0
+                  ? '#e5e7eb'
+                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: selectedPhotos.length === 0 ? '#9ca3af' : 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                cursor: selectedPhotos.length === 0 ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit',
+                transition: 'all 0.2s',
+                boxShadow: selectedPhotos.length > 0 ? '0 4px 12px rgba(102, 126, 234, 0.3)' : 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <Check size={18} />
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

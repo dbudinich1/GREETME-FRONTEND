@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { getPhotoSrc } from '../utils/getPhotoSrc';
-import { useNavigate } from 'react-router-dom';
-import { Send, CheckCircle, XCircle, Loader, Edit3, Gift, ArrowLeft, Camera, Plus, X } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Send, CheckCircle, XCircle, Loader, Edit3, Gift, ArrowLeft, Camera, Plus, X, Check } from 'lucide-react';
 import { useRef } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
@@ -31,13 +31,13 @@ const greetingDraftModel = {
 
 export default function SendGreeting() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [jobId, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
-  const [showMoreOptions, setShowMoreOptions] = useState(false); // Inline expand/collapse
   const [formData, setFormData] = useState({
     contactId: '',
     occasionType: '',
@@ -63,9 +63,20 @@ export default function SendGreeting() {
   // Photo state
   const [defaultPhoto, setDefaultPhoto] = useState(null);
   const [memoryPhotos, setMemoryPhotos] = useState([]);
+  const [useMemoryPhotos, setUseMemoryPhotos] = useState(true); // Include memory photos by default
+  const [excludedMemoryPhotos, setExcludedMemoryPhotos] = useState(new Set()); // Track deselected photos
   const MAX_MEMORY_PHOTOS = 8;
   const defaultPhotoInputRef = useRef(null);
   const memoryPhotoInputRef = useRef(null);
+  const addToMemoryInputRef = useRef(null);
+  const hasRestoredStateRef = useRef(false); // Track if we've already restored state
+
+  // Memory photos picker modal state
+  const [showMemoryPhotosPicker, setShowMemoryPhotosPicker] = useState(false);
+
+  // Get selected contact's memory photos
+  const selectedContact = contacts.find(c => c._id === formData.contactId || c.id === formData.contactId);
+  const contactMemoryPhotos = selectedContact?.memoryPhotos || [];
 
   // Handle default photo selection
   const handleDefaultPhotoChange = (e) => {
@@ -98,9 +109,120 @@ export default function SendGreeting() {
     setMemoryPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Toggle memory photo selection
+  const toggleMemoryPhotoSelection = (photoUrl) => {
+    setExcludedMemoryPhotos(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(photoUrl)) {
+        newSet.delete(photoUrl);
+      } else {
+        newSet.add(photoUrl);
+      }
+      return newSet;
+    });
+  };
+
   useEffect(() => {
     fetchContacts();
   }, []);
+
+  // Handle return from merch/marketplace/media browse - restore saved state
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const returnTo = params.get('returnTo');
+    const giftType = params.get('giftType');
+    const selectedPhoto = params.get('selectedPhoto');
+    const fromMediaLibrary = params.get('fromMediaLibrary');
+
+    // Only restore once per navigation - prevents race conditions
+    if (returnTo === 'send' && !hasRestoredStateRef.current) {
+      hasRestoredStateRef.current = true;
+      // Restore saved form state from sessionStorage
+      const savedState = sessionStorage.getItem('sendGreetingState');
+      let restoredMemoryPhotos = [];
+
+      if (savedState) {
+        try {
+          const parsed = JSON.parse(savedState);
+          if (parsed.formData) setFormData(parsed.formData);
+          if (giftType) {
+            setGiftSettings({ ...parsed.giftSettings, type: giftType });
+          } else if (parsed.giftSettings) {
+            setGiftSettings(parsed.giftSettings);
+          }
+          if (parsed.defaultPhoto) setDefaultPhoto(parsed.defaultPhoto);
+          if (parsed.useMemoryPhotos !== undefined) setUseMemoryPhotos(parsed.useMemoryPhotos);
+          // Always restore excludedMemoryPhotos, even if empty array
+          if (parsed.excludedMemoryPhotos) {
+            setExcludedMemoryPhotos(new Set(parsed.excludedMemoryPhotos));
+          }
+          // Save restored memory photos to combine with new selections
+          restoredMemoryPhotos = parsed.memoryPhotos || [];
+        } catch (e) {
+          console.error('Failed to restore saved state:', e);
+        }
+        // Clean up saved state - delay to handle React Strict Mode double-render
+        setTimeout(() => {
+          sessionStorage.removeItem('sendGreetingState');
+        }, 100);
+      } else if (giftType) {
+        // No saved state, just set the gift type
+        setGiftSettings(prev => ({ ...prev, type: giftType }));
+      }
+
+      // If returning from media library with a selected photo (single photo, legacy)
+      if (selectedPhoto) {
+        setDefaultPhoto(decodeURIComponent(selectedPhoto));
+      }
+
+      // If returning from media library with multiple selected photos
+      if (fromMediaLibrary === 'true') {
+        const selectedPhotosJson = sessionStorage.getItem('selectedMediaLibraryPhotos');
+        if (selectedPhotosJson) {
+          try {
+            const selectedUrls = JSON.parse(selectedPhotosJson);
+            if (Array.isArray(selectedUrls) && selectedUrls.length > 0) {
+              // Combine restored photos with newly selected photos (avoiding duplicates)
+              const existing = new Set(restoredMemoryPhotos);
+              const newPhotos = selectedUrls.filter(url => !existing.has(url));
+              const combinedPhotos = [...restoredMemoryPhotos, ...newPhotos].slice(0, MAX_MEMORY_PHOTOS);
+              setMemoryPhotos(combinedPhotos);
+            } else {
+              // No new photos selected, just restore the old ones
+              setMemoryPhotos(restoredMemoryPhotos);
+            }
+          } catch (e) {
+            console.error('Failed to parse selected photos:', e);
+            setMemoryPhotos(restoredMemoryPhotos);
+          }
+          // Clean up
+          sessionStorage.removeItem('selectedMediaLibraryPhotos');
+        } else {
+          // No selected photos in sessionStorage, just restore
+          setMemoryPhotos(restoredMemoryPhotos);
+        }
+      } else {
+        // Not from media library, just restore the memory photos
+        if (restoredMemoryPhotos.length > 0) {
+          setMemoryPhotos(restoredMemoryPhotos);
+        }
+      }
+
+      // Open the gift modal only if returning from gift browse
+      if (giftType) {
+        setIsGiftModalOpen(true);
+      }
+
+      // Clean up the URL - delay to ensure state updates are committed
+      setTimeout(() => {
+        navigate('/dashboard/send', { replace: true });
+        // Reset the ref after navigation so future returns can restore state
+        setTimeout(() => {
+          hasRestoredStateRef.current = false;
+        }, 50);
+      }, 0);
+    }
+  }, [location.search, navigate]);
 
   useEffect(() => {
     if (jobId) {
@@ -391,156 +513,645 @@ if (typeof window !== "undefined") {
   // Form State
   return (
     <div className="max-w-2xl mx-auto">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-        <button
-          type="button"
-          onClick={() => navigate('/dashboard')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 1rem',
-            background: 'transparent',
-            border: '1px solid #000000',
-            borderRadius: '0.5rem',
-            color: '#000000',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            fontFamily: 'inherit'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#f3f4f6';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-          }}
-        >
-          <ArrowLeft size={16} />
-          Back
-        </button>
-      </div>
-      <h1 className="text-3xl font-bold text-gray-900 mt-2">Send a Greeting Just Because!</h1>
-      <p className="text-gray-600 mt-2 mb-6">
-        Create and send a one-off personalized greeting to one of your recipients.
-      </p>
+      {/* Background Frame for Page Body */}
+      <div style={{
+        background: '#f8fafc',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid #e2e8f0',
+        padding: '1.5rem',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+      }}>
+        {/* Banner Header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '1.5rem 1.5rem',
+          marginBottom: '1.5rem',
+          color: 'white',
+          textAlign: 'center',
+          boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+        }}>
+          <h1 style={{
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            margin: 0
+          }}>Send a Greet-Me</h1>
+          <p style={{
+            fontSize: '0.9375rem',
+            opacity: 0.9,
+            marginTop: '0.25rem',
+            fontStyle: 'italic'
+          }}>Just Because</p>
+        </div>
+        {contacts.length === 0 && (
+          <Alert
+            type="warning"
+            message="You don't have any contacts yet. Add contacts first to send greetings."
+          />
+        )}
 
-      {contacts.length === 0 && (
-        <Alert
-          type="warning"
-          message="You don't have any contacts yet. Add contacts first to send greetings."
-        />
-      )}
-
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-10">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-10">
         {errors.submit && <Alert type="error" message={errors.submit} />}
         {errors.photo && <Alert type="error" message={errors.photo} />}
 
-        {/* Select Contact */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Recipient <span className="text-red-500">*</span>
-          </label>
-          <select
-            name="contactId"
-            value={formData.contactId}
-            onChange={handleChange}
-            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.contactId ? 'border-red-500' : 'border-gray-300'
-            }`}
-            disabled={contacts.length === 0}
-            style={{
-              WebkitAppearance: 'menulist',
-              appearance: 'menulist',
-              cursor: 'pointer',
-              touchAction: 'manipulation',
-              position: 'relative',
-              zIndex: 1
-            }}
-          >
-            <option value="">Choose a recipient...</option>
-            {contacts.map((contact) => (
-              <option key={contact.id} value={contact.id}>
-                {contact.name} ({contact.email})
-              </option>
-            ))}
-          </select>
-          {errors.contactId && <p className="mt-1 text-sm text-red-500">{errors.contactId}</p>}
+        {/* Recipient, Occasion, and Tone - Side by Side */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
+          gap: '1rem',
+          marginBottom: '1.5rem'
+        }}>
+          {/* Select Contact */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Recipient <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="contactId"
+              value={formData.contactId}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.contactId ? 'border-red-500' : 'border-gray-300'
+              }`}
+              disabled={contacts.length === 0}
+              style={{
+                WebkitAppearance: 'menulist',
+                appearance: 'menulist',
+                cursor: 'pointer',
+                touchAction: 'manipulation',
+                position: 'relative',
+                zIndex: 1,
+                fontSize: '0.875rem'
+              }}
+            >
+              <option value="">Choose...</option>
+              {contacts.map((contact) => (
+                <option key={contact.id} value={contact.id}>
+                  {contact.name}
+                </option>
+              ))}
+            </select>
+            {errors.contactId && <p className="mt-1 text-xs text-red-500">{errors.contactId}</p>}
+          </div>
+
+          {/* Occasion - Free Text Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Occasion <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="occasionType"
+              value={formData.occasionType}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.occasionType ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="e.g., Thinking of you"
+              style={{ fontSize: '0.875rem' }}
+            />
+            {errors.occasionType && <p className="mt-1 text-xs text-red-500">{errors.occasionType}</p>}
+          </div>
+
+          {/* Tone Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tone
+            </label>
+            <select
+              name="tone"
+              value={formData.tone}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              style={{ fontSize: '0.875rem' }}
+            >
+              <option value="warm">Warm</option>
+              <option value="funny">Funny</option>
+              <option value="heartfelt">Heartfelt</option>
+              <option value="professional">Professional</option>
+              <option value="casual">Casual</option>
+            </select>
+          </div>
         </div>
 
-        {/* Occasion - Free Text Input */}
+        {/* Personal Sentiment Textarea */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Occasion <span className="text-red-500">*</span>
+            Personal Sentiment (Optional)
           </label>
-          <input
-            type="text"
-            name="occasionType"
-            value={formData.occasionType}
+          <textarea
+            name="customMessage"
+            value={formData.customMessage}
             onChange={handleChange}
-            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.occasionType ? 'border-red-500' : 'border-gray-300'
-            }`}
-            placeholder="What's the occasion? (e.g., Just thinking of you, Congrats on the new job, etc.)"
+            rows={3}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            placeholder="Add a personal touch or give Greet-Me a hint about what to say..."
           />
-          {errors.occasionType && <p className="mt-1 text-sm text-red-500">{errors.occasionType}</p>}
-          <p className="mt-2 text-xs text-gray-500">
-            Enter any occasion or reason for sending this greeting
+          <p className="mt-1 text-xs text-gray-500">
+            This will be included in your greeting message
           </p>
         </div>
 
-        {/* More Options - Inline Accordion */}
-        <div className="mb-6">
-          <button
-            type="button"
-            onClick={() => setShowMoreOptions(!showMoreOptions)}
-            className="flex items-center gap-2 text-sm font-medium text-purple-700 hover:text-purple-800"
-          >
-            <span>{showMoreOptions ? '▼' : '▶'}</span>
-            <span>More Options</span>
-          </button>
+        {/* Photo Selection Section */}
+        <div style={{
+          marginTop: '1.5rem',
+          marginBottom: '1.5rem',
+          background: 'var(--bg-primary)',
+          borderRadius: 'var(--radius-xl)',
+          border: '1px solid var(--border)',
+          padding: '1.25rem 1.5rem',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+        }}>
+          <h3 style={{
+            fontSize: '1rem',
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            marginBottom: '0.5rem'
+          }}>
+            <Camera size={18} style={{ color: '#3b82f6' }} />
+            <span>Choose Photos</span>
+          </h3>
+          <p style={{
+            fontSize: '0.8125rem',
+            color: 'var(--text-secondary)',
+            marginBottom: '1rem'
+          }}>
+            Select photos to include with this Greet-Me. If no photos are added, your saved memory photos will be included by default unless disabled.
+          </p>
 
-          {showMoreOptions && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
-              {/* Tone Dropdown */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tone
-                </label>
-                <select
-                  name="tone"
-                  value={formData.tone}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="warm">Warm</option>
-                  <option value="funny">Funny</option>
-                  <option value="heartfelt">Heartfelt</option>
-                  <option value="professional">Professional</option>
-                  <option value="casual">Casual</option>
-                </select>
-              </div>
+          {/* Hidden file inputs */}
+          <input
+            type="file"
+            ref={defaultPhotoInputRef}
+            onChange={handleDefaultPhotoChange}
+            accept="image/*"
+            style={{ display: 'none' }}
+          />
+          <input
+            type="file"
+            ref={memoryPhotoInputRef}
+            onChange={handleMemoryPhotoAdd}
+            accept="image/*"
+            style={{ display: 'none' }}
+          />
 
-              {/* Personal Sentiment Textarea */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Personal Sentiment (Optional)
-                </label>
-                <textarea
-                  name="customMessage"
-                  value={formData.customMessage}
-                  onChange={handleChange}
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="Add a personal touch or give Greet-Me a hint about what to say..."
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  This will be included in your greeting message
+          {/* Selected Photo Preview */}
+          {defaultPhoto && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.75rem',
+              background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+              borderRadius: 'var(--radius-md)',
+              marginBottom: '1.25rem',
+              border: '2px solid #22c55e'
+            }}>
+              <img
+                src={defaultPhoto}
+                alt="Selected Photo"
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: 'var(--radius-md)',
+                  objectFit: 'cover',
+                  border: '2px solid white',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  flexShrink: 0,
+                  cursor: 'pointer'
+                }}
+                onClick={() => window.open(defaultPhoto, '_blank')}
+                title="Click to enlarge"
+              />
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#166534', margin: 0 }}>
+                  Photo Selected
+                </p>
+                <p style={{ fontSize: '0.75rem', color: '#15803d', margin: '0.125rem 0 0 0' }}>
+                  This photo will be included with your greeting
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => setDefaultPhoto(null)}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  background: 'white',
+                  color: '#dc2626',
+                  border: '1px solid #fecaca',
+                  borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem'
+                }}
+              >
+                <X size={14} />
+                Remove
+              </button>
             </div>
           )}
+
+          {/* Hidden file input for adding to memory album */}
+          <input
+            type="file"
+            ref={addToMemoryInputRef}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  // Add to the local memoryPhotos array (for this session)
+                  setMemoryPhotos(prev => [...prev, reader.result]);
+                };
+                reader.readAsDataURL(file);
+              }
+              e.target.value = '';
+            }}
+            accept="image/*"
+            style={{ display: 'none' }}
+          />
+
+          {/* Option 1: Recipient's Memory Photos */}
+          {formData.contactId && (
+            <div style={{
+              marginBottom: '1.25rem',
+              padding: '1rem',
+              background: useMemoryPhotos
+                ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)'
+                : 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
+              borderRadius: 'var(--radius-lg)',
+              border: useMemoryPhotos ? '1px solid #93c5fd' : '1px solid #e5e7eb',
+              opacity: useMemoryPhotos ? 1 : 0.7,
+              transition: 'all 0.2s'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '0.75rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    background: useMemoryPhotos ? '#3b82f6' : '#9ca3af',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.75rem',
+                    fontWeight: 700
+                  }}>1</div>
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: useMemoryPhotos ? '#1e40af' : '#6b7280', margin: 0 }}>
+                    {selectedContact?.name}'s Memory Photos
+                  </h4>
+                </div>
+                {/* Checkbox to enable/disable memory photos */}
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: useMemoryPhotos ? '#3b82f6' : '#9ca3af'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={useMemoryPhotos}
+                    onChange={(e) => setUseMemoryPhotos(e.target.checked)}
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      accentColor: '#3b82f6',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  Include
+                </label>
+              </div>
+              <p style={{ fontSize: '0.75rem', color: useMemoryPhotos ? '#1d4ed8' : '#9ca3af', marginBottom: '0.75rem' }}>
+                {contactMemoryPhotos.length > 0
+                  ? 'Use photos you\'ve already saved for this recipient'
+                  : 'No memory photos saved yet - add some below!'}
+              </p>
+              {useMemoryPhotos && (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
+                  gap: '0.5rem'
+                }}>
+                  {contactMemoryPhotos.map((photo, index) => {
+                    const photoUrl = typeof photo === 'string' ? photo : photo?.url;
+                    if (!photoUrl) return null;
+                    const isIncluded = !excludedMemoryPhotos.has(photoUrl);
+                    return (
+                      <div
+                        key={`contact-${index}`}
+                        onClick={() => toggleMemoryPhotoSelection(photoUrl)}
+                        style={{
+                          position: 'relative',
+                          paddingBottom: '100%',
+                          borderRadius: 'var(--radius-md)',
+                          overflow: 'hidden',
+                          border: isIncluded ? '2px solid #3b82f6' : '2px solid #d1d5db',
+                          cursor: 'pointer',
+                          boxShadow: isIncluded ? '0 2px 8px rgba(59, 130, 246, 0.3)' : '0 1px 3px rgba(0,0,0,0.1)',
+                          transition: 'all 0.2s',
+                          opacity: isIncluded ? 1 : 0.5
+                        }}
+                      >
+                        <img
+                          src={photoUrl}
+                          alt={`Memory ${index + 1}`}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                        {/* Selection Checkbox */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '4px',
+                          right: '4px',
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '4px',
+                          background: isIncluded ? '#3b82f6' : 'rgba(255, 255, 255, 0.9)',
+                          border: isIncluded ? '2px solid #3b82f6' : '2px solid #9ca3af',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)'
+                        }}>
+                          {isIncluded && (
+                            <Check size={12} color="white" strokeWidth={3} />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Add Photo to Memory Album Placeholder */}
+                  <div
+                    onClick={() => addToMemoryInputRef.current?.click()}
+                    style={{
+                      position: 'relative',
+                      paddingBottom: '100%',
+                      borderRadius: 'var(--radius-md)',
+                      border: '2px dashed #93c5fd',
+                      background: 'rgba(255, 255, 255, 0.8)',
+                      overflow: 'hidden',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    title="Add photo to memory album"
+                  >
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#3b82f6'
+                    }}>
+                      <Plus size={18} />
+                      <span style={{ fontSize: '0.5rem', fontWeight: 600, marginTop: '0.125rem' }}>Add</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Option 2: Add Photos for This Occasion */}
+          <div style={{
+            marginBottom: '1.25rem',
+            padding: '1rem',
+            background: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid #c4b5fd'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.75rem'
+            }}>
+              <div style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                background: '#8b5cf6',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.75rem',
+                fontWeight: 700
+              }}>{formData.contactId && contactMemoryPhotos.length > 0 ? '2' : '1'}</div>
+              <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#6b21a8', margin: 0 }}>
+                Add Photo for This Occasion
+              </h4>
+            </div>
+            <p style={{ fontSize: '0.75rem', color: '#7c3aed', marginBottom: '0.75rem' }}>
+              Upload a new photo specifically for this "Just Because" greeting
+            </p>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
+              gap: '0.5rem'
+            }}>
+              {/* Photos added for this occasion */}
+              {memoryPhotos.map((photoUrl, index) => {
+                const isSelected = photoUrl === defaultPhoto;
+                return (
+                  <div key={`local-${index}`} style={{ position: 'relative' }}>
+                    <div
+                      onClick={() => setDefaultPhoto(photoUrl)}
+                      style={{
+                        position: 'relative',
+                        paddingBottom: '100%',
+                        borderRadius: 'var(--radius-md)',
+                        overflow: 'hidden',
+                        border: isSelected ? '3px solid #22c55e' : '2px solid white',
+                        cursor: 'pointer',
+                        boxShadow: isSelected ? '0 2px 8px rgba(34, 197, 94, 0.4)' : '0 2px 8px rgba(0,0,0,0.1)',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <img
+                        src={photoUrl}
+                        alt={`Added ${index + 1}`}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                      />
+                      {isSelected && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '4px',
+                          left: '4px',
+                          background: '#22c55e',
+                          color: 'white',
+                          fontSize: '0.5rem',
+                          fontWeight: 700,
+                          padding: '2px 4px',
+                          borderRadius: '3px'
+                        }}>
+                          Selected
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleRemoveMemoryPhoto(index); }}
+                      style={{
+                        position: 'absolute',
+                        top: '4px',
+                        right: '4px',
+                        width: '18px',
+                        height: '18px',
+                        background: 'rgba(255, 255, 255, 0.95)',
+                        color: '#dc2626',
+                        border: 'none',
+                        borderRadius: '50%',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                      }}
+                      title="Remove photo"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                );
+              })}
+
+              {/* Add Photo Button */}
+              <div
+                onClick={() => memoryPhotoInputRef.current?.click()}
+                style={{
+                  position: 'relative',
+                  paddingBottom: '100%',
+                  borderRadius: 'var(--radius-md)',
+                  border: '2px dashed #a78bfa',
+                  background: 'white',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#8b5cf6'
+                }}>
+                  <Plus size={18} />
+                  <span style={{ fontSize: '0.5rem', fontWeight: 600, marginTop: '0.125rem' }}>Upload</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Option 3: Media Library */}
+          <div style={{
+            padding: '1rem',
+            background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid #7dd3fc'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.75rem'
+            }}>
+              <div style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                background: '#0ea5e9',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.75rem',
+                fontWeight: 700
+              }}>{formData.contactId && contactMemoryPhotos.length > 0 ? '3' : '2'}</div>
+              <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0369a1', margin: 0 }}>
+                Browse Media Library
+              </h4>
+            </div>
+            <p style={{ fontSize: '0.75rem', color: '#0284c7', marginBottom: '0.75rem' }}>
+              Choose from your collection of saved photos and media
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                // Save current state before navigating to media library
+                const excludedArray = Array.from(excludedMemoryPhotos);
+                const stateToSave = {
+                  formData,
+                  giftSettings,
+                  defaultPhoto,
+                  memoryPhotos,
+                  useMemoryPhotos,
+                  excludedMemoryPhotos: excludedArray
+                };
+                sessionStorage.setItem('sendGreetingState', JSON.stringify(stateToSave));
+                navigate('/dashboard/media?select=photo&returnTo=send');
+              }}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem',
+                background: 'white',
+                border: '2px solid #0ea5e9',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: '#0284c7',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Camera size={18} />
+              Open Media Library
+            </button>
+          </div>
         </div>
 
         {/* Add a Gift - Modal Button */}
@@ -661,397 +1272,62 @@ if (typeof window !== "undefined") {
           </div>
         </div>
 
-        {/* Photo Section - Responsive Grid */}
-        <div className="mt-10 mb-10">
-          <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
-            Photos
-          </label>
-          {/* Hidden file inputs */}
-          <input
-            type="file"
-            ref={defaultPhotoInputRef}
-            onChange={handleDefaultPhotoChange}
-            accept="image/*"
-            style={{ display: 'none' }}
-          />
-          <input
-            type="file"
-            ref={memoryPhotoInputRef}
-            onChange={handleMemoryPhotoAdd}
-            accept="image/*"
-            style={{ display: 'none' }}
-          />
-          {/* Responsive grid: stacked on mobile, side-by-side on md+ */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-            {/* Default Photo Pane */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              border: '1px solid #e5e7eb',
-              borderRadius: '0.5rem',
-              padding: '1.25rem',
-              background: 'white',
-              minHeight: '260px'
-            }}>
-              {/* Panel Header - Centered */}
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                marginBottom: '0.5rem'
-              }}>
-                <h4 style={{
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  color: '#1f2937',
-                  marginBottom: '0.25rem'
-                }}>Default Photo</h4>
-                {defaultPhoto && (
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    padding: '0.25rem 0.625rem',
-                    borderRadius: '9999px',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    background: '#dcfce7',
-                    color: '#16a34a'
-                  }}>
-                    ✓ Photo Set
-                  </span>
-                )}
-              </div>
-              {/* Panel Content - centered photo viewer */}
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{
-                  width: '140px',
-                  height: '140px',
-                  background: defaultPhoto ? 'transparent' : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-                  borderRadius: '0.5rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: defaultPhoto ? 'none' : '2px dashed #d1d5db',
-                  overflow: 'hidden',
-                  position: 'relative'
-                }}>
-                  {defaultPhoto ? (
-                    <>
-                      <img
-                        src={defaultPhoto}
-                        alt="Default"
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          borderRadius: '0.5rem'
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setDefaultPhoto(null)}
-                        style={{
-                          position: 'absolute',
-                          top: '0.25rem',
-                          right: '0.25rem',
-                          width: '1.5rem',
-                          height: '1.5rem',
-                          borderRadius: '50%',
-                          background: 'rgba(0,0,0,0.6)',
-                          color: 'white',
-                          border: 'none',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <X size={12} />
-                      </button>
-                    </>
-                  ) : (
-                    <Camera size={20} style={{ color: '#9ca3af' }} />
-                  )}
-                </div>
-              </div>
-              {/* Panel Buttons - pinned to bottom */}
-              <div style={{ marginTop: 'auto', paddingTop: '0.75rem' }}>
-                <button
-                  type="button"
-                  onClick={() => defaultPhotoInputRef.current?.click()}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    background: '#22c55e',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '0.375rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    marginBottom: '0.375rem',
-                    fontFamily: 'inherit',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#16a34a'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#22c55e'}
-                >
-                  {defaultPhoto ? 'Change Photo' : 'Upload Photo'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate('/dashboard/media-library?select=photo')}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    background: 'white',
-                    color: '#667eea',
-                    border: '1px solid #667eea',
-                    borderRadius: '0.375rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#667eea';
-                    e.currentTarget.style.color = 'white';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'white';
-                    e.currentTarget.style.color = '#667eea';
-                  }}
-                >
-                  Media Library
-                </button>
-              </div>
-            </div>
-
-            {/* Memory Photos Pane */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              border: '1px solid #e5e7eb',
-              borderRadius: '0.5rem',
-              padding: '1.25rem',
-              background: 'white',
-              minHeight: '260px'
-            }}>
-              {/* Panel Header */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '0.5rem'
-              }}>
-                <h4 style={{
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  color: '#1f2937'
-                }}>Memory Photos</h4>
-                <span style={{
-                  fontSize: '0.75rem',
-                  color: '#6b7280'
-                }}>
-                  {memoryPhotos.length}/{MAX_MEMORY_PHOTOS}
-                </span>
-              </div>
-              {/* Panel Content - 4 tile grid */}
-              <div style={{ flex: 1 }}>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '0.375rem'
-                }}>
-                  {/* Always render 4 tiles */}
-                  {[0, 1, 2, 3].map((index) => {
-                    const photo = memoryPhotos[index];
-                    if (photo) {
-                      // Filled tile with photo
-                      return (
-                        <div
-                          key={index}
-                          style={{
-                            aspectRatio: '1',
-                            borderRadius: '0.375rem',
-                            overflow: 'hidden',
-                            position: 'relative'
-                          }}
-                        >
-                          <img
-                            src={getPhotoSrc(photo)}
-                            alt={`Memory ${index + 1}`}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover'
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveMemoryPhoto(index)}
-                            style={{
-                              position: 'absolute',
-                              top: '0.125rem',
-                              right: '0.125rem',
-                              width: '1.25rem',
-                              height: '1.25rem',
-                              borderRadius: '50%',
-                              background: 'rgba(0,0,0,0.6)',
-                              color: 'white',
-                              border: 'none',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: 0
-                            }}
-                          >
-                            <X size={10} />
-                          </button>
-                        </div>
-                      );
-                    } else if (index === memoryPhotos.length && memoryPhotos.length < MAX_MEMORY_PHOTOS) {
-                      // Add button tile (first empty slot)
-                      return (
-                        <button
-                          key={index}
-                          type="button"
-                          onClick={() => memoryPhotoInputRef.current?.click()}
-                          style={{
-                            aspectRatio: '1',
-                            background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-                            borderRadius: '0.375rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            border: '1px dashed #d1d5db',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = '#667eea';
-                            e.currentTarget.style.background = 'rgba(102, 126, 234, 0.05)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = '#d1d5db';
-                            e.currentTarget.style.background = 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
-                          }}
-                        >
-                          <Plus size={18} style={{ color: '#9ca3af' }} />
-                        </button>
-                      );
-                    } else {
-                      // Empty placeholder tile
-                      return (
-                        <div
-                          key={index}
-                          style={{
-                            aspectRatio: '1',
-                            background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
-                            borderRadius: '0.375rem',
-                            border: '1px solid #e5e7eb',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <Camera size={18} style={{ color: '#d1d5db' }} />
-                        </div>
-                      );
-                    }
-                  })}
-                </div>
-              </div>
-              {/* Panel Buttons - pinned to bottom */}
-              <div style={{ marginTop: 'auto', paddingTop: '0.75rem' }}>
-                <button
-                  type="button"
-                  onClick={() => memoryPhotoInputRef.current?.click()}
-                  disabled={memoryPhotos.length >= MAX_MEMORY_PHOTOS}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    background: memoryPhotos.length >= MAX_MEMORY_PHOTOS ? '#9ca3af' : '#22c55e',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '0.375rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    cursor: memoryPhotos.length >= MAX_MEMORY_PHOTOS ? 'not-allowed' : 'pointer',
-                    marginBottom: '0.375rem',
-                    fontFamily: 'inherit',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (memoryPhotos.length < MAX_MEMORY_PHOTOS) {
-                      e.currentTarget.style.background = '#16a34a';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (memoryPhotos.length < MAX_MEMORY_PHOTOS) {
-                      e.currentTarget.style.background = '#22c55e';
-                    }
-                  }}
-                >
-                  Add Photos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate('/dashboard/media-library?select=memories')}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    background: 'white',
-                    color: '#667eea',
-                    border: '1px solid #667eea',
-                    borderRadius: '0.375rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#667eea';
-                    e.currentTarget.style.color = 'white';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'white';
-                    e.currentTarget.style.color = '#667eea';
-                  }}
-                >
-                  Media Library
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Submit */}
-        <div className="flex justify-end items-center pt-10">
-          <div className="flex space-x-3">
-            <button
-              type="button"
-              onClick={() => alert('Draft saved!')}
-              className="px-6 py-2 text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
-            >
-              Save Draft
-            </button>
-            <button
-              type="submit"
-              disabled={contacts.length === 0 || sending}
-              className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 flex items-center"
-              title="Send greeting"
-            >
-              <Send size={18} className="mr-2" />
-              {sending ? 'Sending...' : 'Done & Send'}
-            </button>
-          </div>
+        <div style={{
+          marginTop: '3rem',
+          paddingTop: '2rem',
+          borderTop: '1px solid var(--border)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '1rem'
+        }}>
+          <button
+            type="button"
+            onClick={() => alert('Draft saved!')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: 'white',
+              border: '2px solid #d1d5db',
+              borderRadius: '0.5rem',
+              fontSize: '0.9375rem',
+              fontWeight: 600,
+              color: '#374151',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              fontFamily: 'inherit'
+            }}
+          >
+            Save Draft
+          </button>
+          <button
+            type="submit"
+            disabled={contacts.length === 0 || sending}
+            style={{
+              padding: '0.75rem 2rem',
+              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              border: 'none',
+              borderRadius: '0.5rem',
+              fontSize: '0.9375rem',
+              fontWeight: 600,
+              color: 'white',
+              cursor: contacts.length === 0 || sending ? 'not-allowed' : 'pointer',
+              opacity: contacts.length === 0 || sending ? 0.5 : 1,
+              transition: 'all 0.2s',
+              fontFamily: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+            }}
+            title="Send greeting"
+          >
+            <Send size={18} />
+            {sending ? 'Sending...' : 'Done & Send'}
+          </button>
         </div>
       </form>
+      </div>
 
       {/* Gift Selector Modal */}
       <GiftSelectorModal
@@ -1065,6 +1341,26 @@ if (typeof window !== "undefined") {
         getOccasionLabel={() => 'Just Because'}
         getOccasionEmoji={() => '💝'}
         context="oneoff"
+        onBrowse={(type) => {
+          // Save current state to sessionStorage before navigating
+          const stateToSave = {
+            formData,
+            giftSettings,
+            defaultPhoto,
+            memoryPhotos,
+            useMemoryPhotos,
+            excludedMemoryPhotos: Array.from(excludedMemoryPhotos)
+          };
+          sessionStorage.setItem('sendGreetingState', JSON.stringify(stateToSave));
+
+          // Close the modal and navigate to the appropriate page
+          setIsGiftModalOpen(false);
+          if (type === 'merch') {
+            navigate('/dashboard/merch?returnTo=send&giftType=merch');
+          } else if (type === 'marketplace') {
+            navigate('/dashboard/gifts?returnTo=send&giftType=marketplace');
+          }
+        }}
       />
     </div>
   );

@@ -1147,8 +1147,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           overflowY: 'auto',
           padding: '0.25rem'
         }}>
-          {/* Default Photo Slot (first photo or placeholder) */}
-          {formData.avatar ? (
+          {/* Default Photo Slot (only show when avatar exists) */}
+          {formData.avatar && (
             <div style={{ position: 'relative' }}>
               <div style={{
                 position: 'relative',
@@ -1225,54 +1225,6 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                 <Trash2 size={14} />
               </button>
             </div>
-          ) : (
-            <label style={{ cursor: 'pointer' }}>
-              <input
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    if (file.size > 5 * 1024 * 1024) {
-                      alert('Image must be less than 5MB');
-                      return;
-                    }
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      setFormData(prev => ({ ...prev, avatar: reader.result }));
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                }}
-              />
-              <div style={{
-                position: 'relative',
-                paddingBottom: '100%',
-                borderRadius: 'var(--radius-md)',
-                border: '2px dashed var(--border)',
-                background: 'var(--gray-50)',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--text-tertiary)',
-                  textAlign: 'center',
-                  padding: '0.5rem'
-                }}>
-                  <Camera size={24} style={{ marginBottom: '0.25rem', opacity: 0.5 }} />
-                  <span style={{ fontSize: '0.625rem', fontWeight: 500, lineHeight: 1.2 }}>Recipient photo here</span>
-                </div>
-              </div>
-            </label>
           )}
 
           {/* Memory Photos */}
