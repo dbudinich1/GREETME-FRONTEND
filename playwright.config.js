@@ -2,10 +2,10 @@
  * playwright.config.js
  * Viewport Fit Gate - Pre-deploy validation
  *
- * Tests greeting card layout at 3 viewports:
- * - Desktop: 1920x1080
- * - Mobile Portrait: 375x667
- * - Mobile Landscape: 667x375
+ * Tests greeting card layout at 3 canonical viewports:
+ * - Desktop: 1440x900
+ * - Mobile Portrait: 390x844
+ * - Mobile Landscape: 844x390
  */
 
 import { defineConfig, devices } from '@playwright/test';
@@ -28,15 +28,15 @@ export default defineConfig({
     {
       name: 'Desktop',
       use: {
-        viewport: { width: 1920, height: 1080 },
+        viewport: { width: 1440, height: 900 },
         ...devices['Desktop Chrome'],
       },
     },
     {
       name: 'Mobile Portrait',
       use: {
-        viewport: { width: 375, height: 667 },
-        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)',
+        viewport: { width: 390, height: 844 },
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)',
         isMobile: true,
         hasTouch: true,
       },
@@ -44,8 +44,8 @@ export default defineConfig({
     {
       name: 'Mobile Landscape',
       use: {
-        viewport: { width: 667, height: 375 },
-        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)',
+        viewport: { width: 844, height: 390 },
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)',
         isMobile: true,
         hasTouch: true,
       },
