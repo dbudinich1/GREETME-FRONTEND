@@ -75,12 +75,13 @@ const CARD_FRAME = {
 // ═══════════════════════════════════════════════════════════════════════════════
 // SPREAD FRAME WRAPPER — Shared sizing for all spreads
 // Ensures consistent card dimensions across cover and all spreads
+// COVER uses portrait aspect ratio (5/7), SPREADS use landscape (3/2)
 // ═══════════════════════════════════════════════════════════════════════════════
 const SpreadFrame = ({ children, isSinglePage = false }) => (
   <div style={{
-    width: CARD_FRAME.width,
-    aspectRatio: CARD_FRAME.aspectRatio,
-    minHeight: CARD_FRAME.minHeight,
+    width: isSinglePage ? 'min(500px, 85vw)' : CARD_FRAME.width,  // Cover narrower
+    aspectRatio: isSinglePage ? '5 / 7' : CARD_FRAME.aspectRatio, // Portrait for cover
+    minHeight: isSinglePage ? '500px' : CARD_FRAME.minHeight,
     maxHeight: CARD_FRAME.maxHeight,
     overflow: 'hidden',
     display: isSinglePage ? 'block' : 'grid',
@@ -1054,16 +1055,16 @@ export default function GreetingCardViewer({
             cursor: 'default',
           }}
         >
-          {/* Flip container - rotates on hover */}
+          {/* Swivel container - rotates on hover with natural pivot motion */}
           <div style={{
             position: 'relative',
             width: '100%',
             height: '100%',
             transformStyle: 'preserve-3d',
-            transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
            transform: envelopeFlipped
-              ? 'rotateY(180deg) rotateZ(2deg)'
-              : 'rotateY(0deg) rotateZ(-2deg)',
+              ? 'rotateY(180deg) rotateX(-8deg) rotateZ(2deg)'  /* Swivel: tilts toward viewer */
+              : 'rotateY(0deg) rotateX(5deg) rotateZ(-2deg)',   /* Slight backward tilt at rest */
 
           }}>
             {/* FRONT FACE - Envelope with wax seal */}
@@ -1229,7 +1230,7 @@ export default function GreetingCardViewer({
                   style={{
                     width: '100%',
                     height: '100%',
-                    objectFit: 'contain',
+                    objectFit: 'cover',  /* Fill entire frame, may crop edges */
                     display: 'block',
                     borderRadius: '6px',
                   }}

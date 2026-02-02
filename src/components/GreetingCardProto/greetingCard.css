@@ -301,7 +301,7 @@
   top: 96px;
   left: 140px;
   right: 120px;
-  bottom: 96px;
+  bottom: 140px;  /* INCREASED from 96px - leaves room for signature */
   display: flex;
   flex-direction: column;
 }
@@ -311,8 +311,8 @@
   font-size: 48px;                      /* -2 from body size */
   font-weight: 400;
   color: #1a3a6b;
-  margin: 0 0 6px 0;    /* Tighter spacing */
-  line-height: 1.4;     /* Reduced line-height */
+  margin: 0 0 16px 0;   /* GENEROUS spacing below salutation */
+  line-height: 1.6;     /* GENEROUS line-height */
   letter-spacing: 1px;
   flex-shrink: 0;
   text-align: left;
@@ -325,8 +325,8 @@
   font-size: var(--gc-letter-body-size);
   font-weight: 400;
   color: #1a3a6b;
-  line-height: 1.4;     /* Reduced line-height */
-  margin: 0 0 6px 0;    /* Tighter spacing */
+  line-height: 1.6;     /* GENEROUS line-height */
+  margin: 0 0 20px 0;   /* GENEROUS spacing below occasion */
   text-align: center;
   text-shadow: 0 0 0.5px #1a3a6b;
 }
@@ -336,19 +336,19 @@
   font-size: var(--gc-letter-body-size);
   font-weight: 400;
   color: #1a3a6b;
-  line-height: 1.2;     /* Tighter line spacing */
-  margin: 0 0 12px 0;   /* Tighter spacing */
+  line-height: 1.8;     /* GENEROUS line spacing - never cramped */
+  margin: 0 0 24px 0;   /* GENEROUS bottom margin before signature */
   text-align: left;
   overflow: hidden; /* CANONICAL: Truncate message, never signature */
   flex: 1; /* Take remaining space, shrink if needed */
   min-height: 0; /* Allow shrinking below content size */
-  max-height: calc(100% - 80px); /* Ensure room for signature */
+  max-height: calc(100% - 120px); /* GENEROUS room for signature (was 80px) */
   /* Subtle ink thickness via text-shadow */
   text-shadow: 0 0 0.5px #1a3a6b;
 }
 
 .gc-greeting-message p {
-  margin: 0 0 8px 0; /* Tighter paragraph spacing */
+  margin: 0 0 20px 0; /* GENEROUS paragraph spacing - never cramped */
 }
 
 .gc-greeting-message p:first-child {
@@ -487,13 +487,14 @@
 
 .gc-signature {
   position: absolute;
-  bottom: 60px;
-  right: 120px;  /* Moved left from 40px */
+  bottom: 80px;         /* GENEROUS bottom margin (was 60px) */
+  right: 120px;         /* Moved left from 40px */
   font-family: var(--gc-font-handwritten);
   font-size: 48px;
   color: #1a3a6b;
   text-align: right;
   text-shadow: 0 0 0.5px #1a3a6b;
+  padding-top: 16px;    /* EXTRA padding above signature */
 }
 
 

@@ -1225,7 +1225,8 @@ export default function DashboardHome() {
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          minHeight: 0  /* Allow flex shrinking */
         }}>
           <div style={{
             background: 'var(--bg-primary)',
@@ -1236,7 +1237,9 @@ export default function DashboardHome() {
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            height: '100%',   /* Match parent height */
+            minHeight: 0      /* Allow flex shrinking below content */
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '2px solid var(--border)' }}>
               <h2 style={{
