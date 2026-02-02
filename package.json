@@ -10,7 +10,11 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verify:lock": "node scripts/verify-greeting-lock.mjs",
+    "test:viewport": "playwright test",
+    "test:viewport:headed": "playwright test --headed",
+    "precommit:greeting": "npm run verify:lock"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
@@ -25,6 +29,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.40.0",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
