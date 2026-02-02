@@ -1,16 +1,20 @@
 // Animation Bank Page
 // Shows user's animation credits with positive, asset-focused language
 import { useState, useEffect } from 'react';
-import { Film, Plus, Gift, Calendar, Star, Sparkles, Repeat } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Film, Plus, Gift, Calendar, Star, Sparkles, Repeat, ShoppingCart, Check, ArrowRight } from 'lucide-react';
 import animationBankService from '../services/animationBankService';
 import animationTemplateService from '../services/animationTemplateService';
+import cartService from '../services/cartService';
 
 export default function AnimationBank() {
+  const navigate = useNavigate();
   const [bank, setBank] = useState(null);
   const [breakdown, setBreakdown] = useState(null);
   const [showPacksModal, setShowPacksModal] = useState(false);
   const [packsModalStep, setPacksModalStep] = useState('selection'); // 'selection' | 'confirmation'
   const [selectedPack, setSelectedPack] = useState(null);
+  const [lastAddedPack, setLastAddedPack] = useState(null);
   const [creditsSaved, setCreditsSaved] = useState(0);
 
   useEffect(() => {
@@ -34,27 +38,33 @@ export default function AnimationBank() {
     setCreditsSaved(saved);
   };
 
-  const handleSelectPack = (pack) => {
-    setSelectedPack(pack);
-    setPacksModalStep('confirmation');
-  };
+  const handleAddToCart = (pack) => {
+    const cartItem = {
+      type: 'animation-pack',
+      name: `Animation Pack - ${pack.name}`,
+      price: pack.price,
+      quantity: 1,
+      animations: pack.size,
+      packName: pack.name,
+      icon: pack.icon
+    };
 
-  const handleConfirmPurchase = () => {
-    if (!selectedPack) return;
-    // In production, this would integrate with payment processor
-    animationBankService.addPurchasedPack(selectedPack.size, `${selectedPack.name} Pack`);
-    loadAnimationBank();
-    // Keep modal open to show success, or close after brief delay
-    setTimeout(() => {
-      resetPacksModal();
-    }, 100);
-    alert(`${selectedPack.name} Pack added! You now have ${animationBankService.getTotalAvailable()} Animated Moments.`);
+    // Use cartService
+    cartService.addItem(cartItem);
+
+    // Trigger cart badge update
+    window.dispatchEvent(new Event('cartUpdated'));
+
+    // Store the added pack and transition to confirmation state
+    setLastAddedPack(pack);
+    setPacksModalStep('confirmation');
   };
 
   const resetPacksModal = () => {
     setShowPacksModal(false);
     setPacksModalStep('selection');
     setSelectedPack(null);
+    setLastAddedPack(null);
   };
 
   if (!bank || !breakdown) {
@@ -466,25 +476,30 @@ export default function AnimationBank() {
                     {packs.map(pack => (
                       <div
                         key={pack.name}
-                        onClick={() => handleSelectPack(pack)}
+                        onClick={() => setSelectedPack(selectedPack?.name === pack.name ? null : pack)}
                         style={{
-                          border: `2px solid ${pack.color}`,
+                          border: selectedPack?.name === pack.name ? '2px solid #667eea' : `2px solid ${pack.color}`,
                           borderRadius: '0.75rem',
                           padding: '1.5rem',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          background: `${pack.color}08`,
+                          background: selectedPack?.name === pack.name ? 'rgba(102, 126, 234, 0.1)' : `${pack.color}08`,
                           cursor: 'pointer',
-                          transition: 'all 0.2s'
+                          transition: 'all 0.2s',
+                          transform: selectedPack?.name === pack.name ? 'scale(1.02)' : 'scale(1)'
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = `0 4px 12px ${pack.color}30`;
+                          if (selectedPack?.name !== pack.name) {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = `0 4px 12px ${pack.color}30`;
+                          }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = 'none';
+                          if (selectedPack?.name !== pack.name) {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -508,111 +523,170 @@ export default function AnimationBank() {
                             </p>
                           </div>
                         </div>
-                        <div style={{
-                          fontSize: '1.25rem',
-                          fontWeight: 700,
-                          color: pack.color
-                        }}>
-                          ${pack.price}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{
+                            fontSize: '1.25rem',
+                            fontWeight: 700,
+                            color: pack.color
+                          }}>
+                            ${pack.price}
+                          </div>
+                          {/* Selection Indicator */}
+                          <div style={{
+                            width: '1.5rem',
+                            height: '1.5rem',
+                            borderRadius: '50%',
+                            border: selectedPack?.name === pack.name ? '2px solid #667eea' : '2px solid var(--border)',
+                            background: selectedPack?.name === pack.name ? '#667eea' : 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s'
+                          }}>
+                            {selectedPack?.name === pack.name && (
+                              <Check size={14} style={{ color: 'white' }} />
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
 
-                  {/* Cancel Button */}
-                  <button
-                    onClick={resetPacksModal}
-                    style={{
-                      marginTop: '1.5rem',
-                      width: '100%',
-                      padding: '0.875rem',
-                      background: 'white',
-                      color: '#667eea',
-                      border: '2px solid #667eea',
-                      borderRadius: '0.75rem',
-                      fontSize: '0.9375rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#f5f3ff';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'white';
-                    }}
-                  >
-                    Cancel
-                  </button>
+                  {/* Action Buttons */}
+                  <div style={{
+                    display: 'flex',
+                    gap: '0.75rem',
+                    justifyContent: 'space-between',
+                    marginTop: '1.5rem'
+                  }}>
+                    {/* Cancel - Secondary (outline) - LEFT */}
+                    <button
+                      onClick={resetPacksModal}
+                      style={{
+                        padding: '0.875rem 1.5rem',
+                        background: 'white',
+                        color: 'var(--text-primary)',
+                        border: '2px solid var(--border)',
+                        borderRadius: '0.75rem',
+                        fontSize: '0.9375rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      Cancel
+                    </button>
+
+                    {/* Add to Cart - Primary (solid) - RIGHT */}
+                    <button
+                      onClick={() => {
+                        if (selectedPack) {
+                          handleAddToCart(selectedPack);
+                        }
+                      }}
+                      disabled={!selectedPack}
+                      style={{
+                        padding: '0.875rem 2rem',
+                        background: selectedPack
+                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                          : 'var(--gray-200)',
+                        color: selectedPack ? 'white' : 'var(--text-secondary)',
+                        border: 'none',
+                        borderRadius: '0.75rem',
+                        fontSize: '0.9375rem',
+                        fontWeight: 600,
+                        cursor: selectedPack ? 'pointer' : 'not-allowed',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        boxShadow: selectedPack ? '0 4px 12px rgba(102, 126, 234, 0.3)' : 'none'
+                      }}
+                    >
+                      <ShoppingCart size={18} />
+                      Add to Cart
+                    </button>
+                  </div>
                 </>
               )}
 
               {/* STATE 2: Confirmation */}
-              {packsModalStep === 'confirmation' && selectedPack && (
-                <>
+              {packsModalStep === 'confirmation' && lastAddedPack && (
+                <div style={{ textAlign: 'center', padding: '1rem 0' }}>
                   {/* Success Icon */}
                   <div style={{
-                    width: '80px',
-                    height: '80px',
+                    width: '5rem',
+                    height: '5rem',
                     borderRadius: '50%',
-                    background: `linear-gradient(135deg, ${selectedPack.color} 0%, ${selectedPack.color}dd 100%)`,
+                    background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     margin: '0 auto 1.5rem',
-                    fontSize: '2.5rem',
-                    boxShadow: `0 4px 12px ${selectedPack.color}40`
+                    boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
                   }}>
-                    {selectedPack.icon}
+                    <Check size={40} style={{ color: 'white' }} />
                   </div>
 
-                  <h2 style={{
+                  {/* Confirmation Message */}
+                  <h3 style={{
                     fontSize: '1.5rem',
                     fontWeight: 700,
                     color: 'var(--text-primary)',
-                    marginBottom: '0.5rem',
-                    textAlign: 'center'
+                    marginBottom: '0.5rem'
                   }}>
-                    Confirm Purchase
-                  </h2>
+                    Added to Cart!
+                  </h3>
 
-                  {/* Pack Summary */}
+                  <p style={{
+                    fontSize: '1rem',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '1.5rem'
+                  }}>
+                    {lastAddedPack.name} Pack ({lastAddedPack.size} Animated Moments)
+                  </p>
+
+                  {/* Item Summary */}
                   <div style={{
-                    background: '#f9fafb',
+                    background: 'var(--gray-50)',
                     borderRadius: '0.75rem',
-                    padding: '1.25rem',
-                    marginBottom: '1.5rem',
-                    border: `2px solid ${selectedPack.color}30`
+                    padding: '1rem',
+                    marginBottom: '0.75rem',
+                    maxWidth: '320px',
+                    margin: '0 auto 1.5rem'
                   }}>
                     <div style={{
                       display: 'flex',
                       justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '0.75rem'
+                      marginBottom: '0.5rem'
                     }}>
-                      <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {selectedPack.name} Pack
-                      </span>
-                      <span style={{ fontSize: '1.125rem', fontWeight: 700, color: selectedPack.color }}>
-                        ${selectedPack.price}
-                      </span>
+                      <span style={{ color: 'var(--text-secondary)' }}>Animation Pack - {lastAddedPack.name}</span>
+                      <span style={{ fontWeight: 600, color: lastAddedPack.color }}>${lastAddedPack.price}</span>
                     </div>
-                    <p style={{
+                    <div style={{
+                      borderTop: '1px solid var(--border)',
+                      paddingTop: '0.5rem',
                       fontSize: '0.875rem',
                       color: 'var(--text-secondary)'
                     }}>
-                      {selectedPack.size} Animated Moments • Never expire
-                    </p>
+                      {cartService.getCount()} {cartService.getCount() === 1 ? 'item' : 'items'} in cart
+                    </div>
                   </div>
 
                   {/* Action Buttons */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {/* Go Back Button */}
+                  <div style={{
+                    display: 'flex',
+                    gap: '0.75rem',
+                    justifyContent: 'center',
+                    maxWidth: '400px',
+                    margin: '0 auto'
+                  }}>
+                    {/* Continue Shopping - Secondary (outline) */}
                     <button
-                      onClick={() => setPacksModalStep('selection')}
+                      onClick={resetPacksModal}
                       style={{
-                        width: '100%',
-                        padding: '0.875rem',
+                        flex: 1,
+                        padding: '0.875rem 1.5rem',
                         background: 'white',
                         color: '#667eea',
                         border: '2px solid #667eea',
@@ -620,25 +694,27 @@ export default function AnimationBank() {
                         fontSize: '0.9375rem',
                         fontWeight: 600,
                         cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#f5f3ff';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'white';
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem'
                       }}
                     >
-                      ← Choose Different Pack
+                      <ShoppingCart size={18} />
+                      Continue Shopping
                     </button>
 
-                    {/* Confirm Purchase Button */}
+                    {/* Checkout - Primary (solid) */}
                     <button
-                      onClick={handleConfirmPurchase}
+                      onClick={() => {
+                        resetPacksModal();
+                        navigate('/dashboard/cart');
+                      }}
                       style={{
-                        width: '100%',
-                        padding: '0.875rem',
-                        background: `linear-gradient(135deg, ${selectedPack.color} 0%, ${selectedPack.color}dd 100%)`,
+                        flex: 1,
+                        padding: '0.875rem 1.5rem',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         color: 'white',
                         border: 'none',
                         borderRadius: '0.75rem',
@@ -646,21 +722,18 @@ export default function AnimationBank() {
                         fontWeight: 600,
                         cursor: 'pointer',
                         transition: 'all 0.2s',
-                        boxShadow: `0 4px 12px ${selectedPack.color}40`
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = `0 6px 16px ${selectedPack.color}50`;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = `0 4px 12px ${selectedPack.color}40`;
+                        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem'
                       }}
                     >
-                      Purchase ${selectedPack.price}
+                      Checkout
+                      <ArrowRight size={18} />
                     </button>
                   </div>
-                </>
+                </div>
               )}
             </div>
           </div>
