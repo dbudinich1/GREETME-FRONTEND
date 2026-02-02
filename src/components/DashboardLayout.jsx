@@ -1,31 +1,22 @@
 // src/components/DashboardLayout.jsx
 import { useState, useEffect } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, ShoppingCart, Film, X, Image as ImageIcon, QrCode } from 'lucide-react';
 import GreetMeLogo from './GreetMeLogo';
 import NotificationBell from './NotificationBell';
-import GuidedSetupFlow, { shouldShowGuidedSetup } from './GuidedSetupFlow';
+import cartService from '../services/cartService';
+import imageCreditsService from '../services/imageCreditsService';
 
-// TEMP STUB — services layer intentionally disabled for V1 build safety
-const animationBankService = {
-  getCount: () => 0,
-  hasAccess: () => false,
-};
-
-const cartService = {
-  getCount: () => 0,
-};
-
-export default function DashboardLayout() {
+export default function DashboardLayout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [showGuidedSetup, setShowGuidedSetup] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
 
-  const [animationCount, setAnimationCount] = useState(0);
+  const [imageCredits, setImageCredits] = useState(0);
   const [cartCount, setCartCount] = useState(0);
 
   // Handle resize for mobile detection
@@ -35,36 +26,31 @@ export default function DashboardLayout() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Check if guided setup should show on mount
-  useEffect(() => {
-    if (shouldShowGuidedSetup()) {
-      setShowGuidedSetup(true);
-    }
-  }, []);
-
-
-
   useEffect(() => {
     // Update cart count on mount and when window regains focus
     const updateCartCount = () => {
       setCartCount(cartService.getCount());
     };
 
-    // Update animation count
-    const updateAnimationCount = () => {
-      setAnimationCount(animationBankService.getCount());
+    // Update image credits count
+    const updateImageCredits = () => {
+      setImageCredits(imageCreditsService.getCount());
     };
 
     updateCartCount();
-    updateAnimationCount();
+    updateImageCredits();
     window.addEventListener('focus', updateCartCount);
+    window.addEventListener('focus', updateImageCredits);
 
-    // Custom event for cart updates
+    // Custom events for updates
     window.addEventListener('cartUpdated', updateCartCount);
+    window.addEventListener('imageCreditsUpdated', updateImageCredits);
 
     return () => {
       window.removeEventListener('focus', updateCartCount);
+      window.removeEventListener('focus', updateImageCredits);
       window.removeEventListener('cartUpdated', updateCartCount);
+      window.removeEventListener('imageCreditsUpdated', updateImageCredits);
     };
   }, []);
 
@@ -74,14 +60,12 @@ export default function DashboardLayout() {
   };
 
   const navigation = [
-    { name: 'Home', path: '/', icon: null },
-    { name: 'Dashboard', path: '/dashboard', icon: null },
+    { name: 'Home', path: '/dashboard', icon: null },
     { name: 'Media Library', path: '/dashboard/media', icon: ImageIcon },
     { name: 'Plans & Pricing', path: '/pricing', icon: null },
     { name: 'For Business', path: '/business', icon: null },
     { name: 'Merch', path: '/dashboard/merch', icon: ShoppingBag },
     { name: 'American Marketplace', path: '/dashboard/gifts', icon: Gift },
-    { name: 'QR Cash', path: '/dashboard', icon: QrCode },
     { name: '❤️ Rewards', path: '/dashboard/rewards', icon: null },
     { name: '🥇 Greet-Me Hero™', path: '/dashboard/hero', icon: null },
   ];
@@ -98,7 +82,7 @@ export default function DashboardLayout() {
       }}>
         
         <div style={{
-          maxWidth: '1400px',
+          maxWidth: '1200px',
           margin: '0 auto',
           padding: isNarrow ? '0 1rem' : '0 2rem',
           display: 'flex',
@@ -351,12 +335,12 @@ export default function DashboardLayout() {
                 <path d="M12 12v6" />
                 <path d="M10 14h4c.5 0 1 .5 1 1s-.5 1-1 1h-2c-.5 0-1 .5-1 1s.5 1 1 1h4" style={{ strokeWidth: 1.5 }} />
               </svg>
-                            {animationCount > 0 && (
+              {imageCredits > 0 && (
                 <span style={{
                   position: 'absolute',
                   top: '0',
                   right: '0',
-                  background: '#8b5cf6',
+                  background: '#22c55e',
                   color: 'white',
                   fontSize: '0.625rem',
                   fontWeight: 700,
@@ -368,7 +352,7 @@ export default function DashboardLayout() {
                   justifyContent: 'center',
                   border: '2px solid var(--bg-primary)'
                 }}>
-                  {animationCount > 9 ? '9+' : animationCount}
+                  {imageCredits > 9 ? '9+' : imageCredits}
                 </span>
               )}
             </button>
@@ -497,37 +481,6 @@ export default function DashboardLayout() {
                         whiteSpace: 'nowrap'
                       }}>{user?.email || 'user@example.com'}</p>
                     </div>
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        navigate('/dashboard/profile');
-                      }}
-                      style={{
-                        width: '100%',
-                        textAlign: 'left',
-                        padding: '0.625rem 0.75rem',
-                        fontSize: '0.875rem',
-                        color: 'var(--text-primary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        borderRadius: 'var(--radius-md)',
-                        border: 'none',
-                        background: 'transparent',
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                        marginBottom: '0.25rem'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'var(--gray-100)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                      }}
-                    >
-                      <User size={16} />
-                      <span>Profile</span>
-                    </button>
                     <button
                       onClick={handleLogout}
                       style={{
@@ -671,31 +624,6 @@ export default function DashboardLayout() {
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  navigate('/dashboard/profile');
-                }}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '0.75rem 1rem',
-                  fontSize: '0.875rem',
-                  color: 'var(--text-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  marginBottom: '0.5rem'
-                }}
-              >
-                <User size={18} />
-                <span>Profile</span>
-              </button>
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
                   handleLogout();
                 }}
                 style={{
@@ -729,10 +657,13 @@ export default function DashboardLayout() {
         borderBottom: '1px solid var(--border)',
         padding: '0 2rem',
         overflowX: 'visible',
-        WebkitOverflowScrolling: 'touch'
+        WebkitOverflowScrolling: 'touch',
+        position: 'sticky',
+        top: '7rem',
+        zIndex: 49
       }}>
         <div style={{
-          maxWidth: '1400px',
+          maxWidth: '1200px',
           margin: '0 auto',
           display: 'flex',
           justifyContent: 'space-evenly',
@@ -748,7 +679,7 @@ export default function DashboardLayout() {
                 gap: '0.5rem',
                 padding: '1rem 1.25rem',
                 textDecoration: 'none',
-                fontSize: '0.875rem',
+                fontSize: '1rem',
                 fontWeight: 500,
                 transition: 'all 0.2s',
                 borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
@@ -786,28 +717,23 @@ export default function DashboardLayout() {
       )}
 
       {/* Main Content */}
-      <main style={{ flex: 1, padding: isNarrow ? '1rem' : '2rem', overflowY: 'auto', background: 'var(--bg-secondary)' }}>
+      <main style={{ flex: 1, padding: isNarrow ? '1rem' : '2rem', overflowY: 'auto', background: 'var(--bg-secondary)', position: 'relative', zIndex: 1 }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          {/* Page-level Welcome greeting */}
-          <p style={{
-            fontSize: '0.875rem',
-            color: 'var(--text-tertiary)',
-            margin: '0 0 1.5rem 0',
-            fontWeight: 500
-          }}>
-            Welcome back, {user?.name?.split(' ')[0] || 'User'}!
-          </p>
-          <Outlet />
+          {/* Page-level Welcome greeting - only show on home page */}
+          {location.pathname === '/dashboard' && (
+            <p style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-tertiary)',
+              margin: '0 0 1.5rem 0',
+              fontWeight: 500
+            }}>
+              Welcome back, {user?.name?.split(' ')[0] || 'User'}!
+            </p>
+          )}
+          {children || <Outlet />}
         </div>
       </main>
 
-      {/* Guided Setup Flow for first-time users */}
-      {showGuidedSetup && (
-        <GuidedSetupFlow
-          onComplete={() => setShowGuidedSetup(false)}
-          onDismiss={() => setShowGuidedSetup(false)}
-        />
-      )}
     </div>
   );
 }
