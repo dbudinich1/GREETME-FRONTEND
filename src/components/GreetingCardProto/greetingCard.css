@@ -365,6 +365,12 @@
   margin-bottom: 0;
 }
 
+/* Spacer for preserved blank lines in canonical formatting */
+.gc-greeting-message .gc-spacer {
+  height: 0.5em;
+  margin: 0;
+}
+
 /* ===== INTERIOR SPREAD - RIGHT PAGE (POEM) ===== */
 /* CANONICAL LAYOUT LOCKS - DO NOT MODIFY without design approval:
  * - Page padding: 96px top, 160px right, 60px bottom, 120px left

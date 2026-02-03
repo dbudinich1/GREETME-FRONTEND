@@ -230,11 +230,11 @@ export default function GreetingCard({ greeting }) {
       {currentScreen === SCREENS.INTERIOR && (
         <InteriorSpread
           recipientName={greeting.recipientName}
-          message={greeting.writtenIntroText || greeting.greetingText}
+          message={greeting.render?.writtenIntroText ?? greeting.writtenIntroText ?? greeting.greetingText}
           senderName={greeting.senderName}
           occasionKey={greeting.occasionKey}
           relationshipKey={greeting.relationshipKey}
-          poemText={greeting.poemText}
+          poemText={greeting.render?.poemText ?? greeting.poemText}
           onClick={advanceScreen}
         />
       )}

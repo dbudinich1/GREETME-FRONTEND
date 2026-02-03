@@ -195,12 +195,13 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
             <div className="gc-greeting-message" ref={messageRef}>
               {bodyMessage
                 .replace(/\r\n/g, '\n')           // Normalize Windows line endings
-                .replace(/\n{2,}/g, '\n')         // Collapse multiple newlines to single
                 .split('\n')                       // Split on every newline
                 .map(line => line.trim())          // Trim whitespace
-                .filter(line => line.length > 0)   // Remove empty lines
                 .map((line, i) => (
-                  <p key={i}>{line}</p>
+                  // Preserve blank lines as spacers for canonical formatting
+                  line.length > 0
+                    ? <p key={i}>{line}</p>
+                    : <p key={i} className="gc-spacer" aria-hidden="true">&nbsp;</p>
                 ))
               }
             </div>
