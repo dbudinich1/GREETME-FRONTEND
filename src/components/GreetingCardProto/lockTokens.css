@@ -45,6 +45,9 @@
   --lock-signature-bottom: 60px;
   --lock-signature-right: 120px;
 
+  /* Signature reserve (space the message must never enter) */
+  --lock-signature-reserve: 140px;
+
   /* Page Content Frame */
   --lock-page-content-top: 96px;
   --lock-page-content-left: 140px;
