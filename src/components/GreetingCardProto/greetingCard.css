@@ -1143,7 +1143,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    padding: 4px;
+    padding: 4px 4px var(--lock-signature-reserve) 4px;
   }
 
   /* Typography handled by lockTokens.css - tokens mutate values, not selectors */
@@ -1493,7 +1493,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    padding: 6px;
+    padding: 6px 6px var(--lock-signature-reserve) 6px;
   }
 
   /* Typography handled by lockTokens.css - tokens mutate values, not selectors */
