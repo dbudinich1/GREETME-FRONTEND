@@ -353,6 +353,10 @@ export default function SendGreeting() {
       personalSentiment: formData.customMessage || '',
       tone: formData.tone || 'warm',
       photos: (selectedContact.memoryPhotos || []).map(p => typeof p === 'string' ? p : p?.url).filter(Boolean),
+
+      // === LAYOUT BUDGET (STATIC DEFAULT) ===
+      // Send-time has no card DOM to measure; backend will sentence-trim only if needed.
+      layoutBudget: { introMaxChars: 350 },
     };
       const response = await api.sendGreeting(greetingData);
       setJobId(response.jobId);

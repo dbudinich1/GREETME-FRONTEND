@@ -1,11 +1,11 @@
 // src/pages/PublicGreetingCard.jsx
-// Public greeting card view using GreetingCardViewer - no auth required
+// Public greeting card view using GreetingCardProto
 // Route: /g/:jobId
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../api/api';
-import GreetingCardViewer from '../components/GreetingCardViewer';
+// GreetingCardViewer import removed - using GreetingCardProto instead
 import { GreetingCard as GreetingCardProto } from '../components/GreetingCardProto';
 export default function PublicGreetingCard() {
   const { jobId } = useParams();

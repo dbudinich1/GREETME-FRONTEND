@@ -195,13 +195,12 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
             <div className="gc-greeting-message" ref={messageRef}>
               {bodyMessage
                 .replace(/\r\n/g, '\n')           // Normalize Windows line endings
-                .split('\n')                       // Split on every newline
-                .map(line => line.trim())          // Trim whitespace
-                .map((line, i) => (
-                  // Preserve blank lines as spacers for canonical formatting
-                  line.length > 0
-                    ? <p key={i}>{line}</p>
-                    : <p key={i} className="gc-spacer" aria-hidden="true">&nbsp;</p>
+                .trim()                            // Remove leading/trailing whitespace
+                .split(/\n\s*\n+/)                 // Split on blank lines (paragraphs only)
+                .map(para => para.trim().replace(/\n/g, ' '))  // Collapse internal newlines to spaces
+                .filter(para => para.length > 0)   // Remove empty paragraphs
+                .map((para, i) => (
+                  <p key={i}>{para}</p>
                 ))
               }
             </div>
@@ -212,15 +211,7 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
         {/* Right Page */}
         <div className="gc-page gc-page-right">
           <div className="gc-page-content gc-poem-content">
-            {(() => {
-              const formattedPoem = formatPoemToFit(poemText);
-              const lineCount = formattedPoem.split('\n').length;
-              return (
-                <p className="gc-poem" style={{ fontSize: getPoemFontSize(lineCount) }}>
-                  {formattedPoem}
-                </p>
-              );
-            })()}
+            <p className="gc-poem">{formatPoemToFit(poemText)}</p>
             <h3 className="gc-warm-wishes">With Warmest Wishes</h3>
           </div>
         </div>

@@ -1,5 +1,6 @@
 // src/pages/ViewGreeting.jsx
 // Public greeting viewer for recipients (no account required)
+// TODO: Migrate from GreetingCardViewer (deprecated) to GreetingCardProto
 // Uses LOCKED Card Interaction Contract via GreetingCardViewer
 
 import { useState, useEffect } from 'react';

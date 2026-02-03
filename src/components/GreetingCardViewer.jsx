@@ -1,7 +1,12 @@
 // src/components/GreetingCardViewer.jsx
+/**
+ * @deprecated LEGACY - Do not use in new code
+ * Use GreetingCardProto instead (src/components/GreetingCardProto/)
+ * This file is retained for reference only.
+ */
 // ═══════════════════════════════════════════════════════════════════════════════
 // GREET-ME™ — PREMIUM PACKAGING MASTER SPEC (FINAL / LOCKED)
-// Status: CANONICAL · FINAL · LOCKED
+// Status: DEPRECATED · LEGACY · DO NOT USE
 // Creative Discretion: NONE
 // Scope Expansion: FORBIDDEN
 // Interpretation: LITERAL ONLY

@@ -16,7 +16,7 @@
   /* ===== INTERIOR SPREAD - LEFT PAGE (Letter) ===== */
 
   /* Salutation (Dear [Name],) */
-  --lock-salutation-font-size: 48px;
+  --lock-salutation-font-size: 46px;
   --lock-salutation-font-weight: 400;
   --lock-salutation-line-height: 1.4;
   --lock-salutation-margin: 0 0 6px 0;
@@ -81,32 +81,32 @@
    ===================================================== */
 @media (max-width: 380px) and (orientation: portrait) {
   :root {
-    /* Interior Spread - Salutation */
-    --lock-interior-salutation-font-size: 18px;
-    --lock-interior-salutation-font-weight: 400;
+    /* Salutation */
+    --lock-salutation-font-size: 18px;
+    --lock-salutation-font-weight: 400;
 
-    /* Interior Spread - Occasion */
-    --lock-interior-occasion-font-size: 18px;
-    --lock-interior-occasion-font-weight: 400;
+    /* Occasion */
+    --lock-occasion-font-size: 18px;
+    --lock-occasion-font-weight: 400;
 
-    /* Interior Spread - Message */
-    --lock-interior-message-font-size: 18px;
-    --lock-interior-message-line-height: 1.15;
-    --lock-interior-message-margin-top: -3px;
+    /* Message */
+    --lock-message-font-size: 18px;
+    --lock-message-line-height: 1.15;
 
-    /* Interior Spread - Signature */
-    --lock-interior-signature-font-size: 17px;
-    --lock-interior-signature-bottom: 6px;
-    --lock-interior-signature-right: 24px;
+    /* Signature */
+    --lock-signature-font-size: 17px;
+    --lock-signature-bottom: 6px;
+    --lock-signature-right: 24px;
 
-    /* Interior Spread - Poem */
-    --lock-interior-poem-font-size: 13px;
-    --lock-interior-poem-line-height: 1.3;
-    --lock-interior-poem-margin: -45px auto 3px auto;
+    /* Poem */
+    --lock-poem-font-size: 13px;
+    --lock-poem-line-height: 1.3;
+    --lock-poem-margin: -45px auto 3px auto;
 
-    /* Interior Spread - Warm Wishes */
-    --lock-interior-warm-wishes-font-size: 12px;
-    --lock-interior-warm-wishes-margin: -4px 8px 0 0;
+    /* Warm Wishes */
+    --lock-warm-wishes-font-size: 12px;
+    --lock-warm-wishes-margin-top: -4px;
+    --lock-warm-wishes-margin-left: 8px;
   }
 }
 
@@ -116,57 +116,33 @@
    ===================================================== */
 @media (max-width: 500px) and (orientation: portrait) {
   :root {
-    /* Interior Spread - Salutation */
-    --lock-interior-salutation-font-size: 18px;
+    /* Salutation */
+    --lock-salutation-font-size: 18px;
 
-    /* Interior Spread - Occasion */
-    --lock-interior-occasion-font-size: 17px;
+    /* Occasion */
+    --lock-occasion-font-size: 17px;
 
-    /* Interior Spread - Message */
-    --lock-interior-message-font-size: 17px;
-    --lock-interior-message-line-height: 0.95;
-    --lock-interior-message-margin-top: -4px;
+    /* Message */
+    --lock-message-font-size: 17px;
+    --lock-message-line-height: 0.95;
 
-    /* Interior Spread - Message Paragraphs */
-    --lock-interior-message-p-font-size: 17px;
-    --lock-interior-message-p-line-height: 1.15;
-    --lock-interior-message-p-font-weight: 500;
+    /* Message Paragraphs */
+    --lock-message-p-margin: 0;
 
-    /* Interior Spread - Signature */
-    --lock-interior-signature-font-size: 17px;
-    --lock-interior-signature-bottom: 8px;
-    --lock-interior-signature-right: 20px;
+    /* Signature */
+    --lock-signature-font-size: 17px;
+    --lock-signature-bottom: 8px;
+    --lock-signature-right: 20px;
 
-    /* Interior Spread - Poem */
-    --lock-interior-poem-font-size: 15px;
-    --lock-interior-poem-line-height: 1.3;
-    --lock-interior-poem-margin: -70px auto 4px auto;
+    /* Poem */
+    --lock-poem-font-size: 15px;
+    --lock-poem-line-height: 1.3;
+    --lock-poem-margin: -70px auto 4px auto;
 
-    /* Interior Spread - Warm Wishes */
-    --lock-interior-warm-wishes-font-size: 19px;
-    --lock-interior-warm-wishes-margin: 10px 0 0 0;
-
-    /* Intro Spread (non-interior) - Salutation */
-    --lock-intro-salutation-font-size: 15px;
-    --lock-intro-salutation-font-weight: 700;
-
-    /* Intro Spread - Occasion */
-    --lock-intro-occasion-font-size: 19px;
-
-    /* Intro Spread - Message */
-    --lock-intro-message-font-size: 18px;
-    --lock-intro-message-line-height: 0.95;
-    --lock-intro-message-margin-top: -8px;
-
-    /* Intro Spread - Signature */
-    --lock-intro-signature-font-size: 18px;
-
-    /* Intro Spread - Poem */
-    --lock-intro-poem-font-size: 15px;
-    --lock-intro-poem-line-height: 1.2;
-
-    /* Intro Spread - Warm Wishes */
-    --lock-intro-warm-wishes-font-size: 17px;
+    /* Warm Wishes */
+    --lock-warm-wishes-font-size: 19px;
+    --lock-warm-wishes-margin-top: 10px;
+    --lock-warm-wishes-margin-left: 0;
   }
 }
 
@@ -211,46 +187,38 @@
     --lock-letter-frame: 32px;
 
     /* Salutation */
-    --lock-landscape-salutation-font-size: 23px;
-    --lock-landscape-salutation-font-weight: 700;
-    --lock-landscape-salutation-margin-top: 8px;
-    --lock-landscape-salutation-margin-left: 16px;
-    --lock-landscape-salutation-text-align: left;
+    --lock-salutation-font-size: 23px;
+    --lock-salutation-font-weight: 700;
 
     /* Occasion */
-    --lock-landscape-occasion-font-size: 23px;
-    --lock-landscape-occasion-margin-top: 8px;
-    --lock-landscape-occasion-text-align: center;
+    --lock-occasion-font-size: 23px;
 
     /* Message */
-    --lock-landscape-message-font-size: 25px;
-    --lock-landscape-message-line-height: 1.15;
-    --lock-landscape-message-margin-top: 2px;
-    --lock-landscape-message-text-align: center;
+    --lock-message-font-size: 25px;
+    --lock-message-line-height: 1.15;
+    --lock-message-text-align: center;
 
     /* Message Paragraphs */
-    --lock-landscape-message-p-margin: 0;
-    --lock-landscape-message-p-line-height: 1.15;
+    --lock-message-p-margin: 0;
 
     /* Signature */
-    --lock-landscape-signature-font-size: 23px;
-    --lock-landscape-signature-bottom: 8px;
-    --lock-landscape-signature-right: 32px;
+    --lock-signature-font-size: 23px;
+    --lock-signature-bottom: 8px;
+    --lock-signature-right: 32px;
+
+    /* Poem */
+    --lock-poem-font-size: 21px;
+    --lock-poem-line-height: 1.05;
+    --lock-poem-margin: 53px 0 0 0;
+
+    /* Warm Wishes */
+    --lock-warm-wishes-font-size: 21px;
+    --lock-warm-wishes-margin-top: 0;
+    --lock-warm-wishes-margin-left: 0;
 
     /* Poem Content Container */
-    --lock-landscape-poem-content-padding: 0;
-    --lock-landscape-poem-content-height: 100%;
-    --lock-landscape-poem-content-justify: flex-start;
-
-    /* Interior Poem */
-    --lock-landscape-interior-poem-font-size: 21px;
-    --lock-landscape-interior-poem-line-height: 1.05;
-    --lock-landscape-interior-poem-margin: 53px 0 0 0;
-    --lock-landscape-interior-poem-max-width: 85%;
-
-    /* Interior Warm Wishes */
-    --lock-landscape-interior-warm-wishes-font-size: 21px;
-    --lock-landscape-interior-warm-wishes-margin: 0;
+    --lock-poem-content-padding: 0;
+    --lock-poem-content-margin-top: 0;
   }
 }
 

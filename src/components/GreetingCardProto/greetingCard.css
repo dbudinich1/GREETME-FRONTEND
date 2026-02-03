@@ -71,9 +71,11 @@
   align-items: center;
   min-height: 100vh;
   min-height: 100dvh;
+  max-height: 100dvh;  /* FIT-FIRST: Prevent scroll via height constraint */
   background: var(--gc-bg-navy);
-  padding: 40px 20px;
+  padding: clamp(8px, 2vw, 40px);  /* FIT-FIRST: Responsive padding */
   box-sizing: border-box;
+  /* NO overflow: hidden - preserves paper edges and shadows */
   /* Prevent text selection during swipe/drag navigation */
   user-select: none;
   -webkit-user-select: none;
@@ -174,10 +176,6 @@
   transform: translate(-50%, -50%) scale(1.05);
 }
 
-.gc-wax-seal:hover {
-  transform: translate(-50%, -50%) scale(1.05);
-}
-
 
 
 /* ===== COVER ===== */
@@ -259,6 +257,7 @@
   display: flex;
   width: var(--gc-master-frame);
   max-width: var(--gc-spread-max-width);
+  max-height: calc(100dvh - 80px);  /* FIT-FIRST: Constrain to viewport */
   height: auto;
   aspect-ratio: var(--gc-landscape-ar);
   background-size: 100% 100%;
@@ -268,7 +267,7 @@
   filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.4));
   position: relative;
   cursor: pointer;
-  overflow: hidden;
+  overflow: visible;  /* FIT-FIRST: Preserves paper edges and shadows */
 }
 
 .gc-page {
@@ -304,57 +303,55 @@
 
 .gc-interior-spread .gc-page-left .gc-page-content {
   position: absolute;
-  top: 96px;
-  left: 140px;
-  right: 120px;
-  bottom: 96px;   /* LOCK STATE */
+  top: var(--lock-page-content-top);
+  left: var(--lock-page-content-left);
+  right: var(--lock-page-content-right);
+  bottom: var(--lock-page-content-bottom);
   display: flex;
   flex-direction: column;
 }
 
 .gc-greeting-salutation {
   font-family: var(--gc-font-title);
-  font-size: 48px;                      /* LOCK STATE: -2 from body size */
-  font-weight: 400;                     /* LOCK STATE: Explicit weight */
-  color: #1a3a6b;
-  margin: 0 0 6px 0;                    /* LOCK STATE */
-  line-height: 1.4;                     /* LOCK STATE */
-  letter-spacing: 1px;
+  font-size: var(--lock-salutation-font-size);
+  font-weight: var(--lock-salutation-font-weight);
+  color: var(--lock-ink-color);
+  margin: var(--lock-salutation-margin);
+  line-height: var(--lock-salutation-line-height);
+  letter-spacing: var(--lock-salutation-letter-spacing);
   flex-shrink: 0;
   text-align: left;
-  /* No text-shadow for lighter appearance */
 }
 
 /* Occasion greeting line (e.g., "Happy Birthday!") */
 .gc-greeting-occasion {
   font-family: var(--gc-font-handwritten);
-  font-size: var(--gc-letter-body-size); /* LOCK STATE: 50px */
-  font-weight: 400;                      /* LOCK STATE: Explicit weight */
-  color: #1a3a6b;
-  line-height: 1.4;                      /* LOCK STATE */
-  margin: 0 0 6px 0;                     /* LOCK STATE */
-  text-align: center;                    /* LOCK STATE */
-  text-shadow: 0 0 0.5px #1a3a6b;
+  font-size: var(--lock-occasion-font-size);
+  font-weight: var(--lock-occasion-font-weight);
+  color: var(--lock-ink-color);
+  line-height: var(--lock-occasion-line-height);
+  margin: var(--lock-occasion-margin);
+  text-align: var(--lock-occasion-text-align);
+  text-shadow: var(--lock-ink-shadow);
 }
 
 .gc-greeting-message {
   font-family: var(--gc-font-handwritten);
-  font-size: var(--gc-letter-body-size); /* LOCK STATE: 50px */
-  font-weight: 400;                      /* LOCK STATE: Explicit weight */
-  color: #1a3a6b;
-  line-height: 1.2;                      /* LOCK STATE: Tight line spacing */
-  margin: 0 0 12px 0;                    /* LOCK STATE: Standard margin */
-  text-align: left;                      /* LOCK STATE */
-  overflow: hidden;                      /* CANONICAL: Truncate message, never signature */
-  flex: 1;                               /* Take remaining space, shrink if needed */
-  min-height: 0;                         /* Allow shrinking below content size */
-  max-height: calc(100% - 80px);         /* LOCK STATE: Room for signature */
-  /* Subtle ink thickness via text-shadow */
-  text-shadow: 0 0 0.5px #1a3a6b;
+  font-size: var(--lock-message-font-size);
+  font-weight: var(--lock-message-font-weight);
+  color: var(--lock-ink-color);
+  line-height: var(--lock-message-line-height);
+  margin: var(--lock-message-margin);
+  text-align: var(--lock-message-text-align);
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  max-height: var(--lock-message-max-height);
+  text-shadow: var(--lock-ink-shadow);
 }
 
 .gc-greeting-message p {
-  margin: 0 0 8px 0; /* LOCK STATE: Tight paragraph spacing */
+  margin: var(--lock-message-p-margin);
 }
 
 .gc-greeting-message p:first-child {
@@ -401,37 +398,36 @@
 .gc-poem-content {
   display: flex;
   flex-direction: column;
-  justify-content: center;    /* Vertically center poem */
-  align-items: center;        /* Horizontally center */
-  padding: 40px 20px;         /* Reduced padding for more width */
-  margin-top: 140px;          /* Drop down ~7 spaces */
+  justify-content: center;
+  align-items: center;
+  padding: var(--lock-poem-content-padding);
+  margin-top: var(--lock-poem-content-margin-top);
 }
 
 .gc-poem {
   font-family: var(--gc-font-body);
-  font-size: 36px;
+  font-size: var(--lock-poem-font-size);
   font-style: italic;
-  font-weight: 700;
-  line-height: 1.5;
+  font-weight: var(--lock-poem-font-weight);
+  line-height: var(--lock-poem-line-height);
   text-align: center;
-  margin: 0 auto 40px auto;   /* Center the block */
-  padding-left: 40px;         /* Bump 2 spaces right */
-  width: 100%;                /* Full width of container */
-  max-width: 100%;            /* Use all available space */
+  margin: var(--lock-poem-margin);
+  padding-left: var(--lock-poem-padding-left);
+  width: 100%;
+  max-width: 100%;
   color: var(--gc-text-brown-light);
   white-space: pre-line;
-  text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor; /* Simulated bold */
+  text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor;
 }
 
 .gc-warm-wishes {
   font-family: var(--gc-font-title);
-  font-size: 46px;
-  font-weight: 500;
+  font-size: var(--lock-warm-wishes-font-size);
+  font-weight: var(--lock-warm-wishes-font-weight);
   color: var(--gc-text-gold);
-  text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor; /* Simulated bold */
-  /* CANONICAL: Warm wishes positioning */
-  margin-top: auto;
-  margin-left: 40px;
+  text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor;
+  margin-top: var(--lock-warm-wishes-margin-top);
+  margin-left: var(--lock-warm-wishes-margin-left);
   padding-top: 20px;
   padding-bottom: 60px;
   flex-shrink: 0;
@@ -499,13 +495,13 @@
 
 .gc-signature {
   position: absolute;
-  bottom: 60px;         /* LOCK STATE */
-  right: 120px;
+  bottom: var(--lock-signature-bottom);
+  right: var(--lock-signature-right);
   font-family: var(--gc-font-handwritten);
-  font-size: 48px;
-  color: #1a3a6b;
+  font-size: var(--lock-signature-font-size);
+  color: var(--lock-ink-color);
   text-align: right;
-  text-shadow: 0 0 0.5px #1a3a6b;
+  text-shadow: var(--lock-ink-shadow);
 }
 
 
@@ -1149,35 +1145,19 @@
     padding: 4px;
   }
 
-  .gc-interior-spread .gc-greeting-salutation {
-    font-size: 18px !important;
-  }
-
+  /* Typography handled by lockTokens.css - tokens mutate values, not selectors */
   .gc-interior-spread .gc-greeting-occasion {
-    font-size: 17px !important;
-    margin-bottom: 0 !important;
+    margin-bottom: 0;
   }
 
   .gc-interior-spread .gc-greeting-message {
-    font-size: 22px !important;
-    line-height: 0.95 !important;
-    margin-top: -4px !important;
-    overflow: visible !important;
-    max-height: none !important;
-  }
-
-  .gc-interior-spread .gc-greeting-message p {
-    margin: 0 !important;
-    font-size: 17px !important;
-    line-height: 1.15 !important;
-    font-weight: 500 !important;
+    margin-top: -4px;
+    overflow: visible;
+    max-height: none;
   }
 
   .gc-interior-spread .gc-signature {
-    font-size: 17px !important;
-    position: absolute !important;
-    bottom: 8px !important;
-    right: 20px !important;
+    position: absolute;
   }
 
   .gc-interior-spread .gc-page-right {
@@ -1197,25 +1177,20 @@
   }
 
   .gc-interior-spread .gc-poem {
-    font-size: 15px !important;
-    line-height: 1.3;
     padding-left: 0;
-    flex-shrink: 0 !important;
-    max-height: none !important;
-    margin: -70px auto 4px auto !important;
+    flex-shrink: 0;
+    max-height: none;
   }
 
   .gc-interior-spread .gc-warm-wishes {
-    font-size: 19px !important;
-    flex-shrink: 0 !important;
-    margin: 10px 0 0 0 !important;
+    flex-shrink: 0;
   }
 
   .gc-envelope-wrapper,
   .gc-cover-wrapper,
   .gc-spread-wrapper {
     padding: 16px;
-    overflow: hidden;
+    /* FIT-FIRST: No overflow:hidden - preserves paper edges */
   }
 
   .gc-envelope {
@@ -1256,10 +1231,9 @@
     padding-left: 8px;
   }
 
+  /* Typography handled by lockTokens.css */
   .gc-greeting-salutation {
     font-family: var(--gc-font-handwritten);
-    font-size: 15px !important;
-    font-weight: 700;
     white-space: nowrap;
     margin-bottom: -2px;
     color: var(--gc-letter-ink-color);
@@ -1267,24 +1241,16 @@
   }
 
   .gc-greeting-occasion {
-    font-size: 19px !important;
     margin-top: 4px;
     margin-bottom: 0;
   }
 
   .gc-greeting-message {
-    font-size: 18px !important;
-    line-height: 0.95 !important;
-    margin-top: -8px !important;
+    margin-top: -8px;
     margin-bottom: 0;
   }
 
-  .gc-greeting-message p {
-    margin: 0 !important;
-  }
-
   .gc-signature {
-    font-size: 18px !important;
     margin-top: 8px;
     padding-right: 8px;
   }
@@ -1301,14 +1267,11 @@
   }
 
   .gc-poem {
-    font-size: 15px;
-    line-height: 1.2;
     margin-top: 8px;
     margin-bottom: 10px;
   }
 
   .gc-warm-wishes {
-    font-size: 17px;
     margin-top: 4px;
   }
 
@@ -1532,67 +1495,46 @@
     padding: 6px;
   }
 
-  .gc-interior-spread .gc-greeting-salutation {
-    font-size: 18px !important;
-    font-weight: 400 !important;
-  }
-
-  .gc-interior-spread .gc-greeting-occasion {
-    font-size: 18px !important;
-    font-weight: 400 !important;
-  }
-
+  /* Typography handled by lockTokens.css - tokens mutate values, not selectors */
   .gc-interior-spread .gc-greeting-message {
-    font-size: 18px !important;
-    line-height: 1.15 !important;
-    margin-top: -3px !important;
-    overflow: visible !important;
-    max-height: none !important;
+    margin-top: -3px;
+    overflow: visible;
+    max-height: none;
   }
 
   .gc-interior-spread .gc-signature {
-    font-size: 17px !important;
-    position: absolute !important;
-    bottom: 6px !important;
-    right: 24px !important;
+    position: absolute;
   }
 
   .gc-interior-spread .gc-poem {
-    font-size: 10px !important;
-    line-height: 1.3;
     padding-left: 0;
-    margin-bottom: 8px !important;
+    margin-bottom: 8px;
   }
 
   .gc-interior-spread .gc-page-right {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .gc-interior-spread .gc-poem-content {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    height: auto !important;
-    max-height: none !important;
-    padding: 8px 24px !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: auto;
+    max-height: none;
+    padding: 8px 24px;
   }
 
   .gc-interior-spread .gc-poem {
-    font-size: 13px !important;
-    line-height: 1.3;
     padding-left: 0;
-    flex-shrink: 0 !important;
-    max-height: none !important;
-    margin: -45px auto 3px auto !important;
+    flex-shrink: 0;
+    max-height: none;
   }
 
   .gc-interior-spread .gc-warm-wishes {
-    font-size: 12px !important;
-    flex-shrink: 0 !important;
-    margin: -4px 8px 0 0 !important;
+    flex-shrink: 0;
   }
 
   .gc-recipient-name {
@@ -1612,31 +1554,7 @@
     font-size: 12px;
   }
 
-  .gc-greeting-salutation {
-    font-size: 14px !important;
-  }
-
-  .gc-greeting-occasion {
-    font-size: 16px !important;
-  }
-
-  .gc-greeting-message {
-    font-size: 13px !important;
-    line-height: 1.25;
-  }
-
-  .gc-signature {
-    font-size: 16px !important;
-  }
-
-  .gc-poem {
-    font-size: 13px;
-    line-height: 1.3;
-  }
-
-  .gc-warm-wishes {
-    font-size: 15px;
-  }
+  /* Typography handled by lockTokens.css */
 
   .gc-gift-title {
     font-size: 16px;
@@ -1683,34 +1601,18 @@
     padding: 30px;
   }
 
+  /* Typography handled by lockTokens.css */
   .gc-greeting-salutation {
-    font-size: 18px !important;
     white-space: nowrap;
     margin-bottom: 2px;
   }
 
   .gc-greeting-occasion {
-    font-size: 20px !important;
     margin-bottom: 8px;
   }
 
-  .gc-greeting-message {
-    font-size: 16px !important;
-    line-height: 1.3;
-  }
-
-  .gc-signature {
-    font-size: 22px !important;
-  }
-
   .gc-poem {
-    font-size: 18px;
-    line-height: 1.4;
     margin-bottom: 12px;
-  }
-
-  .gc-warm-wishes {
-    font-size: 22px;
   }
 
   .gc-cover-title {
@@ -1768,27 +1670,27 @@
   .gc-container {
     padding: 8px;
     max-height: 100vh;
-    overflow: hidden;
+    /* FIT-FIRST: No overflow:hidden - height constraint prevents scroll */
   }
 
   .gc-envelope-wrapper,
   .gc-cover-wrapper,
   .gc-spread-wrapper {
     padding: 4px;
-    overflow: hidden;
     max-height: calc(100vh - 16px);
     display: flex;
     justify-content: center;
     align-items: center;
+    /* FIT-FIRST: No overflow:hidden - preserves paper edges */
   }
 
-  /* LANDSCAPE FIX: Constrain spread to fit viewport height */
+  /* LANDSCAPE FIT-FIRST: Constrain spread to fit viewport height */
   .gc-spread {
     max-height: calc(100vh - 32px);
     width: auto;
     height: calc(100vh - 32px);
     aspect-ratio: var(--gc-landscape-ar);
-    overflow: hidden;
+    overflow: visible;  /* FIT-FIRST: Preserves shadows */
   }
 
   .gc-envelope {
@@ -1839,45 +1741,37 @@
     bottom: 8px;
   }
 
+  /* Typography handled by lockTokens.css */
   .gc-greeting-salutation {
     font-family: var(--gc-font-handwritten);
-    font-size: 23px !important;
-    font-weight: 700;
     white-space: nowrap;
     margin-top: 8px;
     margin-bottom: 0;
     margin-left: 16px;
-    text-align: left !important;
+    text-align: left;
     color: var(--gc-letter-ink-color);
     text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
   }
 
   .gc-greeting-occasion {
-    font-size: 23px !important;
     margin-top: 8px;
     margin-bottom: 0;
-    text-align: center !important;
-    padding-left: 0 !important;
+    text-align: center;
+    padding-left: 0;
   }
 
   .gc-greeting-message {
-    font-size: 25px !important;
-    line-height: 1.15 !important;
     margin-top: 2px;
     margin-bottom: 0;
-    text-align: center !important;
+    text-align: center;
   }
 
   .gc-greeting-message p {
-    margin: 0 !important;
-    line-height: 1.15 !important;
+    margin: 0;
   }
 
   .gc-signature {
-    font-size: 23px !important;
-    position: absolute !important;
-    bottom: 8px !important;
-    right: 32px !important;
+    position: absolute;
   }
 
   /* RIGHT PAGE: Center content vertically */
@@ -1891,40 +1785,32 @@
     justify-content: center;
     align-items: center;
     height: 100%;
-    padding: 0 12px !important;
-    margin-top: 0 !important;
+    padding: 0 12px;
+    margin-top: 0;
   }
 
   .gc-interior-spread .gc-poem-content {
-    padding: 0 !important;
-    height: 100% !important;
-    justify-content: flex-start !important;
-    align-items: center !important;
+    padding: 0;
+    height: 100%;
+    justify-content: flex-start;
+    align-items: center;
   }
 
   .gc-poem {
-    font-size: 18px !important;
-    line-height: 1.15 !important;
-    margin: 8px 0 0 0 !important;
-    padding-left: 0 !important;
+    margin: 8px 0 0 0;
+    padding-left: 0;
   }
 
   .gc-interior-spread .gc-poem {
-    font-size: 21px !important;
-    line-height: 1.05 !important;
-    margin: 53px 0 0 0 !important;
-    padding-left: 0 !important;
-    max-width: 85% !important;
+    max-width: 85%;
   }
 
   .gc-warm-wishes {
-    font-size: 21px !important;
-    margin: 0 !important;
+    margin: 0;
   }
 
   .gc-interior-spread .gc-warm-wishes {
-    font-size: 21px !important;
-    margin: 4px 0 0 0 !important;
+    margin: 4px 0 0 0;
   }
 
   /* FEATURED SPREAD: Constrain video/album to fit within spread */
@@ -2076,33 +1962,17 @@
     padding: 10px;
   }
 
-  .gc-greeting-salutation {
-    font-size: 12px !important;
-  }
-
+  /* Typography handled by lockTokens.css */
   .gc-greeting-occasion {
-    font-size: 14px !important;
     margin-bottom: 4px;
   }
 
-  .gc-greeting-message {
-    font-size: 11px !important;
-    line-height: 1.2;
-  }
-
   .gc-signature {
-    font-size: 14px !important;
     margin-top: 6px;
   }
 
   .gc-poem {
-    font-size: 11px;
-    line-height: 1.3;
     margin-bottom: 6px;
-  }
-
-  .gc-warm-wishes {
-    font-size: 14px;
   }
 
   .gc-album-title {

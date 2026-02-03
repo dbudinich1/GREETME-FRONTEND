@@ -76,8 +76,13 @@ export function normalizeOccasionKey(input) {
     return 'holiday';
   }
 
-  // No match - return empty (caller decides fallback)
-  return '';
+  // Just Because
+  if (normalized.includes('just because') || normalized === 'just_because') {
+    return 'just_because';
+  }
+
+  // No match - return general fallback
+  return 'general';
 }
 
 export default normalizeOccasionKey;
