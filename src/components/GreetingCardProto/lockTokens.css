@@ -18,21 +18,21 @@
   /* Salutation (Dear [Name],) */
   --lock-salutation-font-size: 46px;
   --lock-salutation-font-weight: 400;
-  --lock-salutation-line-height: 1.4;
+  --lock-salutation-line-height: 1.3;
   --lock-salutation-margin: 0 0 6px 0;
   --lock-salutation-letter-spacing: 1px;
 
   /* Occasion Line (Happy Birthday!) */
   --lock-occasion-font-size: 50px;
   --lock-occasion-font-weight: 400;
-  --lock-occasion-line-height: 1.4;
+  --lock-occasion-line-height: 1.3;
   --lock-occasion-margin: 0 0 6px 0;
   --lock-occasion-text-align: center;
 
   /* Message Body */
   --lock-message-font-size: 50px;
   --lock-message-font-weight: 400;
-  --lock-message-line-height: 1.2;
+  --lock-message-line-height: 1.15;
   --lock-message-margin: 0 0 12px 0;
   --lock-message-max-height: calc(100% - 80px);
   --lock-message-text-align: left;
