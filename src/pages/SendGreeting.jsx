@@ -356,7 +356,7 @@ export default function SendGreeting() {
 
       // === LAYOUT BUDGET (STATIC DEFAULT) ===
       // Send-time has no card DOM to measure; backend will sentence-trim only if needed.
-      layoutBudget: { introMaxChars: 350 },
+      layoutBudget: { introMaxChars: 280 },
     };
       const response = await api.sendGreeting(greetingData);
       setJobId(response.jobId);

@@ -278,7 +278,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           occasionKey: 'just_because',
 
           // === LAYOUT BUDGET (STATIC DEFAULT) ===
-          layoutBudget: { introMaxChars: 350 },
+          layoutBudget: { introMaxChars: 280 },
         });
       } catch (err) {
         console.warn('Greeting send failed, continuing anyway:', err);
