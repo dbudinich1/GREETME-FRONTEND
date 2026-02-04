@@ -204,8 +204,8 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
                 ))
               }
             </div>
+            <p className="gc-signature" ref={signatureRef}>{displaySender}</p>
           </div>
-          <p className="gc-signature" ref={signatureRef}>{displaySender}</p>
         </div>
 
         {/* Right Page */}

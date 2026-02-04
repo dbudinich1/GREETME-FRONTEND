@@ -66,8 +66,8 @@
   /* Warm Wishes */
   --lock-warm-wishes-font-size: 46px;
   --lock-warm-wishes-font-weight: 500;
-  --lock-warm-wishes-margin-top: auto;
   --lock-warm-wishes-margin-left: 40px;
+  --lock-warm-wishes-gap: 12px;
 
   /* Poem Content Container */
   --lock-poem-content-margin-top: 140px;
@@ -84,6 +84,9 @@
    ===================================================== */
 @media (max-width: 380px) and (orientation: portrait) {
   :root {
+    /* Signature Reserve */
+    --lock-signature-reserve: 40px;
+
     /* Salutation */
     --lock-salutation-font-size: 18px;
     --lock-salutation-font-weight: 400;
@@ -119,6 +122,9 @@
    ===================================================== */
 @media (max-width: 500px) and (orientation: portrait) {
   :root {
+    /* Signature Reserve */
+    --lock-signature-reserve: 50px;
+
     /* Salutation */
     --lock-salutation-font-size: 18px;
 
@@ -150,11 +156,35 @@
 }
 
 /* =====================================================
-   LANDSCAPE MODE - Tablet (900px)
-   Reference: greetingCard.css @media (max-width: 900px)
+   PORTRAIT MODE - Tablet (501-1024px)
+   NEW: Covers iPad portrait and larger phones
    ===================================================== */
-@media (max-width: 900px) and (orientation: landscape) {
+@media (min-width: 501px) and (max-width: 1024px) and (orientation: portrait) {
   :root {
+    /* Signature Reserve */
+    --lock-signature-reserve: 70px;
+    --lock-signature-bottom: 24px;
+    --lock-signature-right: 40px;
+
+    /* Typography (optional tablet sizing) */
+    --lock-salutation-font-size: 32px;
+    --lock-occasion-font-size: 34px;
+    --lock-message-font-size: 28px;
+    --lock-signature-font-size: 32px;
+    --lock-poem-font-size: 24px;
+    --lock-warm-wishes-font-size: 30px;
+  }
+}
+
+/* =====================================================
+   LANDSCAPE MODE - Tablet (701-1024px)
+   NEW: Covers iPad landscape
+   ===================================================== */
+@media (min-width: 701px) and (max-width: 1024px) and (orientation: landscape) {
+  :root {
+    /* Signature Reserve */
+    --lock-signature-reserve: 50px;
+
     /* Letter Frame */
     --lock-letter-frame: 48px;
 
@@ -186,6 +216,9 @@
    ===================================================== */
 @media (max-width: 700px) and (orientation: landscape) {
   :root {
+    /* Signature Reserve */
+    --lock-signature-reserve: 60px;
+
     /* Letter Frame */
     --lock-letter-frame: 32px;
 
@@ -231,6 +264,9 @@
    ===================================================== */
 @media (max-width: 550px) and (orientation: landscape) {
   :root {
+    /* Signature Reserve */
+    --lock-signature-reserve: 35px;
+
     /* Salutation */
     --lock-salutation-font-size: 12px;
 

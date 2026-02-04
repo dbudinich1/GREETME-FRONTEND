@@ -334,6 +334,7 @@
   margin: var(--lock-occasion-margin);
   text-align: var(--lock-occasion-text-align);
   text-shadow: var(--lock-ink-shadow);
+  flex-shrink: 0;
 }
 
 .gc-greeting-message {
@@ -344,10 +345,10 @@
   line-height: var(--lock-message-line-height);
   margin: var(--lock-message-margin);
   text-align: var(--lock-message-text-align);
-  overflow: hidden;
-  flex: 1;
+  /* Flex: natural height, can shrink, does not grow (preserves auto margin for signature) */
+  flex: 0 1 auto;
   min-height: 0;
-  max-height: var(--lock-message-max-height);
+  overflow: visible;
   text-shadow: var(--lock-ink-shadow);
 }
 
@@ -399,10 +400,10 @@
 .gc-poem-content {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
+  height: 100%;
   padding: var(--lock-poem-content-padding);
-  margin-top: var(--lock-poem-content-margin-top);
+  /* No justify-content: center - allows margin-top: auto on warm wishes to anchor bottom */
 }
 
 .gc-poem {
@@ -414,11 +415,16 @@
   text-align: center;
   margin: var(--lock-poem-margin);
   padding-left: var(--lock-poem-padding-left);
+  padding-top: var(--lock-poem-content-margin-top);
   width: 100%;
   max-width: 100%;
   color: var(--gc-text-brown-light);
   white-space: pre-line;
   text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor;
+  /* Flex: natural height, can shrink, does not grow (preserves auto margin for warm wishes) */
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: visible;
 }
 
 .gc-warm-wishes {
@@ -427,9 +433,10 @@
   font-weight: var(--lock-warm-wishes-font-weight);
   color: var(--gc-text-gold);
   text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor;
-  margin-top: var(--lock-warm-wishes-margin-top);
+  /* Flex-anchored: margin-top auto pushes to bottom of flex container */
+  margin-top: auto;
   margin-left: var(--lock-warm-wishes-margin-left);
-  padding-top: 20px;
+  padding-top: var(--lock-warm-wishes-gap, 12px);
   padding-bottom: 60px;
   flex-shrink: 0;
 }
@@ -495,9 +502,11 @@
 }
 
 .gc-signature {
-  position: absolute;
-  bottom: var(--lock-signature-bottom);
-  right: var(--lock-signature-right);
+  /* Flex-anchored: margin-top auto pushes to bottom of flex container */
+  margin-top: auto;
+  flex-shrink: 0;
+  padding-right: var(--lock-signature-right);
+  padding-bottom: var(--lock-signature-bottom);
   font-family: var(--gc-font-handwritten);
   font-size: var(--lock-signature-font-size);
   color: var(--lock-ink-color);
@@ -1157,9 +1166,7 @@
     max-height: none;
   }
 
-  .gc-interior-spread .gc-signature {
-    position: absolute;
-  }
+  /* Signature uses flex anchoring (margin-top: auto) - no position override needed */
 
   .gc-interior-spread .gc-page-right {
     display: flex !important;
@@ -1503,9 +1510,7 @@
     max-height: none;
   }
 
-  .gc-interior-spread .gc-signature {
-    position: absolute;
-  }
+  /* Signature uses flex anchoring (margin-top: auto) - no position override needed */
 
   .gc-interior-spread .gc-poem {
     padding-left: 0;
@@ -1771,9 +1776,7 @@
     margin: 0;
   }
 
-  .gc-signature {
-    position: absolute;
-  }
+  /* Signature uses flex anchoring (margin-top: auto) - no position override needed */
 
   /* RIGHT PAGE: Center content vertically */
   .gc-interior-spread .gc-page-right .gc-page-content {
