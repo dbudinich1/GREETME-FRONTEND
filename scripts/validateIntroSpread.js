@@ -27,15 +27,12 @@ const __dirname = path.dirname(__filename);
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════
 
-const JOB_ID = process.env.GREET_JOB_ID;
+// JOB_ID is optional - if not provided, uses dev-only fixture route
+const JOB_ID = process.env.GREET_JOB_ID || null;
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 const SCREENSHOT_DIR = path.join(__dirname, '..', 'validation-screenshots');
 
-if (!JOB_ID) {
-  console.error('ERROR: GREET_JOB_ID environment variable is required.');
-  console.error('Usage: $env:GREET_JOB_ID="your-job-id"; node scripts/validateIntroSpread.js');
-  process.exit(1);
-}
+// No longer required - fixture route available for dev testing
 
 const VIEWPORTS = [
   { width: 375, height: 667 },
@@ -50,7 +47,7 @@ const VIEWPORTS = [
 // VALIDATION LOGIC (injected into page)
 // ═══════════════════════════════════════════════════════════════════
 
-const VALIDATION_FN = `() => {
+const VALIDATION_FN = `(() => {
   const msg = document.querySelector('.gc-greeting-message');
   const sig = document.querySelector('.gc-signature');
   const poem = document.querySelector('.gc-poem');
@@ -90,7 +87,7 @@ const VALIDATION_FN = `() => {
     noScrollPass,
     allPass: leftPagePass && rightPagePass && noScrollPass
   };
-}`;
+})()`;
 
 // ═══════════════════════════════════════════════════════════════════
 // MAIN
@@ -98,14 +95,16 @@ const VALIDATION_FN = `() => {
 
 async function main() {
   // IMPORTANT: App uses HashRouter, so URLs must include hash
-  // Pattern: BASE_URL/#/g/:jobId?test=1
-  // The ?test=1 enables test mode bypass (triple-gated: !PROD + VITE_GREET_TEST_MODE + ?test=1)
-  const URL = `${BASE_URL}/#/g/${JOB_ID}?test=1`;
+  // If JOB_ID provided: use real greeting route
+  // If no JOB_ID: use dev-only fixture route (deterministic test data)
+  const URL = JOB_ID
+    ? `${BASE_URL}/#/g/${JOB_ID}?test=1`
+    : `${BASE_URL}/#/__debug/greeting-fixture`;
 
   console.log('════════════════════════════════════════════════════════════════════');
   console.log('GREETME INTERIOR SPREAD VALIDATION — PHASE 5');
   console.log('════════════════════════════════════════════════════════════════════');
-  console.log(`JOB_ID:       ${JOB_ID}`);
+  console.log(`JOB_ID:       ${JOB_ID || '(using fixture route)'}`);
   console.log(`URL:          ${URL}`);
   console.log(`SCREENSHOTS:  ${SCREENSHOT_DIR}`);
   console.log('════════════════════════════════════════════════════════════════════');
@@ -236,10 +235,19 @@ async function main() {
 
       console.log(`[${label}] Detected screen: ${firstScreen}`);
 
-      // Step 3b: Envelope → Cover (click + verify)
+      // Step 3b: Envelope → Cover (click wax seal to open)
       if (firstScreen === '.gc-envelope' || firstScreen === '.gc-wax-seal') {
-        console.log(`[${label}] Clicking ${firstScreen} to open envelope...`);
-        await page.locator(firstScreen).first().click({ force: true });
+        // The wax seal is on the backface of a 3D-transformed envelope (hidden initially).
+        // Regular clicks may not fire React handlers. Use dispatchEvent to trigger directly.
+        console.log(`[${label}] Dispatching click to .gc-wax-seal to open envelope...`);
+        await page.evaluate(() => {
+          const seal = document.querySelector('.gc-wax-seal');
+          if (seal) {
+            seal.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+          }
+        });
+
+        // Wait for React state update and re-render
         const coverVisible = await page
           .waitForSelector('.gc-cover', { timeout: 10000, state: 'attached' })
           .catch(() => null);
@@ -275,6 +283,34 @@ async function main() {
 
       console.log(`[${label}] Interior spread visible`);
 
+      // === PHASE 3: INSET TOKEN PROOF (AUTOMATED) ===
+      const insetProof = await page.evaluate(() => {
+        // Normalize CSS values: "0" -> "0px", "18px" -> "18px"
+        const normalize = (v) => {
+          const trimmed = v.trim();
+          // If it's a pure number (no unit), append 'px'
+          if (/^-?\d+(\.\d+)?$/.test(trimmed)) return trimmed + 'px';
+          return trimmed;
+        };
+        const root = document.documentElement;
+        const tok = {
+          top: normalize(getComputedStyle(root).getPropertyValue('--lock-page-content-top')),
+          left: normalize(getComputedStyle(root).getPropertyValue('--lock-page-content-left')),
+          right: normalize(getComputedStyle(root).getPropertyValue('--lock-page-content-right')),
+          bottom: normalize(getComputedStyle(root).getPropertyValue('--lock-page-content-bottom')),
+        };
+        const el = document.querySelector('.gc-interior-spread .gc-page-left .gc-page-content');
+        if (!el) return { ok: false, error: 'LEFT_PAGE_CONTENT_NOT_FOUND', tok, comp: null };
+        const cs = getComputedStyle(el);
+        const comp = { top: cs.top, left: cs.left, right: cs.right, bottom: cs.bottom };
+        const ok = tok.top === comp.top && tok.left === comp.left && tok.right === comp.right && tok.bottom === comp.bottom;
+        return { ok, tok, comp };
+      });
+      console.log(`[${label}] INSET_TOKEN_PROOF:`, insetProof);
+      if (!insetProof.ok) {
+        throw new Error(`INSET_TOKEN_PROOF_FAILED tok=${JSON.stringify(insetProof.tok)} comp=${JSON.stringify(insetProof.comp)}`);
+      }
+
       // Allow animations to settle
       await page.waitForTimeout(300);
 
@@ -282,6 +318,10 @@ async function main() {
       // STEP 4: Run validation
       // ─────────────────────────────────────────────────────────────
       const result = await page.evaluate(VALIDATION_FN);
+
+      if (!result) {
+        throw new Error('VALIDATION_FAILED: evaluate returned null/undefined');
+      }
 
       if (result.error === 'MISSING_ELEMENTS') {
         console.log(`[${label}] ✗ FAIL — Missing: ${result.missing.join(', ')}`);

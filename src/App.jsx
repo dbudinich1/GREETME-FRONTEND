@@ -31,6 +31,7 @@ import Rewards from "./pages/Rewards";
 import Notifications from "./pages/Notifications";
 import RecipientGreeting from "./pages/RecipientGreeting";
 import PublicGreetingCard from "./pages/PublicGreetingCard";
+import DebugGreetingFixture from './pages/DebugGreetingFixture';
 
 export default function App() {
   return (
@@ -47,6 +48,11 @@ export default function App() {
           <Route path="/redeem/qr-cash/:id" element={<RedeemQRCash />} />
           <Route path="/greeting/:greetingId" element={<RecipientGreeting />} />
           <Route path="/g/:jobId" element={<PublicGreetingCard />} />
+
+          {/* Dev-only debug route for validator */}
+          {!import.meta.env.PROD && (
+            <Route path="/__debug/greeting-fixture" element={<DebugGreetingFixture />} />
+          )}
 
           {/* Protected Routes */}
           <Route
