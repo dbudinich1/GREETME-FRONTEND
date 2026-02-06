@@ -462,7 +462,10 @@
   justify-content: flex-start; /* start at top, warm wishes uses margin-top: auto */
   height: auto; /* override base height:100% - let inset positioning control height */
   overflow: hidden; /* keep within inset frame */
-  padding: 8px; /* breathing room */
+  padding-top: var(--lock-poem-top-gap);
+  padding-bottom: var(--lock-warm-wishes-bottom-gap);
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 /* Poem can shrink to fit, centered */
@@ -1145,14 +1148,6 @@
     overflow: visible;
   }
 
-  /* FIT-FIRST: Override page-content insets for landscape tablets */
-  .gc-interior-spread .gc-page-left .gc-page-content {
-    top: var(--lock-page-content-top);
-    left: var(--lock-page-content-left);
-    right: var(--lock-page-content-right);
-    bottom: var(--lock-page-content-bottom);
-  }
-
   .gc-page {
     padding: 16px;
   }
@@ -1196,10 +1191,6 @@
   .gc-cover-title {
     font-size: 42px;
   }
-
-  .gc-greeting-salutation {
-    font-size: 32px;
-  }
 }
 
 /* =====================================================
@@ -1235,10 +1226,6 @@
 
   .gc-interior-spread .gc-page-left {
     padding: 8px 8px 0 8px !important;
-  }
-
-  .gc-interior-spread .gc-page-left .gc-page-content {
-    position: absolute; /* LOCK: Must be absolute for inset model */
   }
 
   /* Typography handled by lockTokens.css - tokens mutate values, not selectors */
@@ -1567,9 +1554,6 @@
     height: auto; /* height from aspect-ratio, constrained by max-height */
   }
 
-  .gc-interior-spread .gc-page-left .gc-page-content {
-    position: absolute; /* LOCK: Must be absolute for inset model */
-  }
 }
 
 /* Portrait: Small phones */
@@ -1718,14 +1702,6 @@
     overflow: visible;
   }
 
-  /* FIT-FIRST: Override page-content insets for landscape tablets */
-  .gc-interior-spread .gc-page-left .gc-page-content {
-    top: var(--lock-page-content-top);
-    left: var(--lock-page-content-left);
-    right: var(--lock-page-content-right);
-    bottom: var(--lock-page-content-bottom);
-  }
-
   .gc-page {
     padding: 16px;
   }
@@ -1871,20 +1847,11 @@
     padding-left: 8px;
   }
 
-  /* LANDSCAPE FIX: Override frame clamp for narrow landscape */
-  .gc-interior-spread .gc-page-left .gc-page-content {
-    top: var(--lock-page-content-top);
-    left: var(--lock-page-content-left);
-    right: var(--lock-page-content-right);
-    bottom: var(--lock-page-content-bottom);
-  }
-
   /* Typography handled by lockTokens.css */
   .gc-greeting-salutation {
     font-family: var(--gc-font-handwritten);
     white-space: nowrap;
-    margin-top: 8px;
-    margin-bottom: 0;
+    margin: var(--lock-salutation-margin);
     margin-left: 16px;
     text-align: left;
     color: var(--gc-letter-ink-color);
