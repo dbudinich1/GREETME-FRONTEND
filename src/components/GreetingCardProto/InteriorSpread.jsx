@@ -127,8 +127,22 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
   // Fallback to 'Me' if senderName is missing
   const displaySender = formatPersonName((senderName || 'Me').split(' ')[0]);
 
+  // CANONICAL: Strip duplicate salutation if content already includes "Dear X,"
+  const normalizedRawMessage = (() => {
+    const lines = String(rawMessage || '').split('\n');
+    // Remove leading blank lines
+    while (lines.length && lines[0].trim() === '') lines.shift();
+    // If first line is a salutation (Dear ...,), strip it
+    if (lines.length && /^dear\s+.+,\s*$/i.test(lines[0].trim())) {
+      lines.shift();
+      // Also remove blank line after salutation if present
+      if (lines.length && lines[0].trim() === '') lines.shift();
+    }
+    return lines.join('\n');
+  })();
+
   // Split greeting (first line before \n\n) from body
-  const [greeting, ...bodyParts] = rawMessage.split('\n\n');
+  const [greeting, ...bodyParts] = normalizedRawMessage.split('\n\n');
 
   // CANONICAL: Never place text after signature - strip closing phrases and sender name
   // Common closing phrases that should appear BEFORE signature, not after

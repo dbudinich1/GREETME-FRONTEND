@@ -85,6 +85,16 @@
   touch-action: pan-y pinch-zoom;
 }
 
+/* FIT-FIRST: Landscape mode - enforce height = 100dvh exactly */
+@media (orientation: landscape) {
+  .gc-container {
+    height: 100vh;
+    height: 100dvh;
+    min-height: unset;
+    overflow: hidden;
+  }
+}
+
 .gc-error {
   color: #fff;
   text-align: center;
@@ -309,7 +319,8 @@
   bottom: var(--lock-page-content-bottom);
   display: flex;
   flex-direction: column;
-  padding-bottom: var(--lock-signature-reserve);
+  padding: var(--lock-page-content-padding) var(--lock-page-content-padding) var(--lock-signature-reserve) var(--lock-page-content-padding);
+  overflow: hidden; /* Containment: prevent bleed past gutter */
 }
 
 .gc-greeting-salutation {
@@ -348,7 +359,7 @@
   /* Flex: natural height, can shrink, does not grow (preserves auto margin for signature) */
   flex: 0 1 auto;
   min-height: 0;
-  overflow: visible;
+  overflow: hidden; /* Containment: clip long text at boundary */
   text-shadow: var(--lock-ink-shadow);
 }
 
@@ -385,16 +396,17 @@
 }
 
 .gc-interior-spread .gc-page-right .gc-page-content {
-  /* Reduced padding for wider poem container */
-  padding: 60px 40px 40px 40px;
+  position: absolute;
+  top: var(--lock-page-content-top, 16px);
+  left: var(--lock-page-content-left, 16px);
+  right: var(--lock-page-content-right, 16px);
+  bottom: var(--lock-page-content-bottom, 16px);
+
   display: flex;
   flex-direction: column;
-  justify-content: center;    /* Center vertically */
-  align-items: center;
-  text-align: center;
-  height: 100%;
-  width: 100%;
-  box-sizing: border-box;
+
+  padding: var(--lock-right-page-content-padding);
+  overflow: hidden;
 }
 
 .gc-poem-content {
@@ -433,8 +445,8 @@
   font-weight: var(--lock-warm-wishes-font-weight);
   color: var(--gc-text-gold);
   text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor;
-  /* Flex-anchored: margin-top auto pushes to bottom of flex container */
-  margin-top: auto;
+  /* Fixed margin (not auto) - inset model now controls containment */
+  margin-top: 18px;
   margin-left: var(--lock-warm-wishes-margin-left);
   padding-top: var(--lock-warm-wishes-gap, 12px);
   padding-bottom: 60px;
@@ -1072,6 +1084,52 @@
 /* ===== RESPONSIVE ===== */
 /* Note: --gc-card-size uses clamp() for automatic responsive sizing */
 
+/* FIT-FIRST: Landscape tablets 901-1200px - height constraints */
+@media (min-width: 901px) and (max-width: 1200px) and (orientation: landscape) {
+  .gc-container {
+    max-height: 100vh;
+    max-height: 100dvh;
+    padding: 0;
+  }
+
+  .gc-envelope-wrapper,
+  .gc-cover-wrapper,
+  .gc-spread-wrapper {
+    padding: 0;
+    max-height: 100vh;
+    max-height: 100dvh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .gc-spread {
+    max-height: 100vh;
+    max-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+    width: auto;
+    overflow: visible;
+  }
+
+  /* FIT-FIRST: Override page-content insets for landscape tablets */
+  .gc-interior-spread .gc-page-left .gc-page-content {
+    top: var(--lock-page-content-top);
+    left: var(--lock-page-content-left);
+    right: var(--lock-page-content-right);
+    bottom: var(--lock-page-content-bottom);
+  }
+
+  .gc-page {
+    padding: 16px;
+  }
+
+  .gc-page-left,
+  .gc-page-right {
+    padding: 16px;
+  }
+}
+
 @media (max-width: 900px) {
   .gc-page {
     padding: 30px;
@@ -1147,12 +1205,7 @@
   }
 
   .gc-interior-spread .gc-page-left .gc-page-content {
-    position: relative;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 4px 4px var(--lock-signature-reserve) 4px;
+    position: absolute; /* LOCK: Must be absolute for inset model */
   }
 
   /* Typography handled by lockTokens.css - tokens mutate values, not selectors */
@@ -1162,8 +1215,7 @@
 
   .gc-interior-spread .gc-greeting-message {
     margin-top: -4px;
-    overflow: visible;
-    max-height: none;
+    overflow: hidden; /* LOCK: Must be hidden for containment */
   }
 
   /* Signature uses flex anchoring (margin-top: auto) - no position override needed */
@@ -1181,7 +1233,6 @@
     justify-content: center !important;
     height: auto !important;
     max-height: none !important;
-    padding: 10px 30px !important;
   }
 
   .gc-interior-spread .gc-poem {
@@ -1259,7 +1310,7 @@
   }
 
   .gc-signature {
-    margin-top: 8px;
+    margin-top: auto; /* LOCK: Must be auto for flex anchoring */
     padding-right: 8px;
   }
 
@@ -1468,6 +1519,32 @@
   }
 }
 
+/* Portrait: Tablets (501-1024px) - FIT-FIRST height constraints */
+@media (min-width: 501px) and (max-width: 1024px) and (orientation: portrait) {
+  .gc-container {
+    max-height: 100vh;
+    max-height: 100dvh;
+    padding: 16px;
+  }
+
+  .gc-spread-wrapper {
+    padding: 8px;
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+  }
+
+  .gc-spread {
+    max-height: calc(100vh - 48px);
+    max-height: calc(100dvh - 48px);
+    width: auto;
+    height: auto;
+  }
+
+  .gc-interior-spread .gc-page-left .gc-page-content {
+    position: absolute; /* LOCK: Must be absolute for inset model */
+  }
+}
+
 /* Portrait: Small phones */
 @media (max-width: 380px) and (orientation: portrait) {
   .gc-interior-spread {
@@ -1494,20 +1571,9 @@
     padding: 10px 10px 0 10px !important;
   }
 
-  .gc-interior-spread .gc-page-left .gc-page-content {
-    position: relative;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 6px 6px var(--lock-signature-reserve) 6px;
-  }
-
   /* Typography handled by lockTokens.css - tokens mutate values, not selectors */
   .gc-interior-spread .gc-greeting-message {
     margin-top: -3px;
-    overflow: visible;
-    max-height: none;
   }
 
   /* Signature uses flex anchoring (margin-top: auto) - no position override needed */
@@ -1598,13 +1664,48 @@
     --gc-letter-frame-bottom: 48px;
   }
 
+  /* FIT-FIRST: Strict height constraint for landscape tablets */
+  .gc-container {
+    max-height: 100vh;
+    max-height: 100dvh;
+    padding: 8px;
+  }
+
+  .gc-envelope-wrapper,
+  .gc-cover-wrapper,
+  .gc-spread-wrapper {
+    padding: 8px;
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .gc-spread {
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    height: calc(100vh - 32px);
+    height: calc(100dvh - 32px);
+    width: auto;
+    overflow: visible;
+  }
+
+  /* FIT-FIRST: Override page-content insets for landscape tablets */
+  .gc-interior-spread .gc-page-left .gc-page-content {
+    top: var(--lock-page-content-top);
+    left: var(--lock-page-content-left);
+    right: var(--lock-page-content-right);
+    bottom: var(--lock-page-content-bottom);
+  }
+
   .gc-page {
-    padding: 30px;
+    padding: 16px;
   }
 
   .gc-page-left,
   .gc-page-right {
-    padding: 30px;
+    padding: 16px;
   }
 
   /* Typography handled by lockTokens.css */
@@ -1674,16 +1775,18 @@
   }
 
   .gc-container {
-    padding: 8px;
+    padding: 0;
     max-height: 100vh;
+    max-height: 100dvh;
     /* FIT-FIRST: No overflow:hidden - height constraint prevents scroll */
   }
 
   .gc-envelope-wrapper,
   .gc-cover-wrapper,
   .gc-spread-wrapper {
-    padding: 4px;
-    max-height: calc(100vh - 16px);
+    padding: 0;
+    max-height: 100vh;
+    max-height: 100dvh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1692,9 +1795,11 @@
 
   /* LANDSCAPE FIT-FIRST: Constrain spread to fit viewport height */
   .gc-spread {
-    max-height: calc(100vh - 32px);
+    max-height: 100vh;
+    max-height: 100dvh;
     width: auto;
-    height: calc(100vh - 32px);
+    height: 100vh;
+    height: 100dvh;
     aspect-ratio: var(--gc-landscape-ar);
     overflow: visible;  /* FIT-FIRST: Preserves shadows */
   }
@@ -1741,10 +1846,10 @@
 
   /* LANDSCAPE FIX: Override frame clamp for narrow landscape */
   .gc-interior-spread .gc-page-left .gc-page-content {
-    top: 8px;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
+    top: var(--lock-page-content-top);
+    left: var(--lock-page-content-left);
+    right: var(--lock-page-content-right);
+    bottom: var(--lock-page-content-bottom);
   }
 
   /* Typography handled by lockTokens.css */
@@ -1780,7 +1885,7 @@
 
   /* RIGHT PAGE: Center content vertically */
   .gc-interior-spread .gc-page-right .gc-page-content {
-    padding: 8px !important;
+    padding: var(--lock-right-page-content-padding);
   }
 
   .gc-poem-content {
@@ -2051,3 +2156,4 @@
     transition: none;
   }
 }
+
