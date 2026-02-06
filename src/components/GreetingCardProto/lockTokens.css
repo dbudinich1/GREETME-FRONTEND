@@ -43,7 +43,7 @@
   /* Signature */
   --lock-signature-font-size: 48px;
   --lock-signature-bottom: 60px;
-  --lock-signature-right: 90px;
+  --lock-signature-right: 45px;
 
   /* Signature reserve (space the message must never enter) */
   --lock-signature-reserve: 140px;
@@ -58,11 +58,12 @@
   /* ===== INTERIOR SPREAD - RIGHT PAGE (Poem) ===== */
 
   /* Poem Text */
-  --lock-poem-font-size: 36px;
+  --lock-poem-font-size: 41px;
   --lock-poem-font-weight: 700;
-  --lock-poem-line-height: 1.5;
+  --lock-poem-line-height: 1.25;
   --lock-poem-margin: 0 auto 4px auto; /* DEPRECATED: margin not used for positioning */
   --lock-poem-padding-left: 40px;
+  --lock-poem-max-width: 85%;
 
   /* Poem Container Spacing (NEW - vertical positioning) */
   --lock-poem-top-gap: 0px;
@@ -75,7 +76,7 @@
   --lock-warm-wishes-gap: 12px;
 
   /* Poem Content Container */
-  --lock-poem-content-margin-top: 140px;
+  --lock-poem-content-margin-top: 80px;
   --lock-poem-content-padding: 40px 20px;
 
   /* Right Page Content Padding */
@@ -134,6 +135,7 @@
 /* =====================================================
    PORTRAIT MODE - Large Phones (500px)
    Reference: greetingCard.css @media (max-width: 500px)
+   🔒 LOCKED 2026-02-06 - DO NOT MODIFY (390×844)
    ===================================================== */
 @media (max-width: 500px) and (orientation: portrait) {
   :root {
@@ -164,17 +166,17 @@
 
     /* Signature */
     --lock-signature-font-size: 19px;
-    --lock-signature-bottom: 2px;
+    --lock-signature-bottom: 10px;
     --lock-signature-right: 16px;
 
     /* Poem */
-    --lock-poem-font-size: 15px;
-    --lock-poem-line-height: 1.3;
-    --lock-poem-margin: 8px 0 10px 0;
-    --lock-poem-top-gap: 12px;
+    --lock-poem-font-size: 14px;
+    --lock-poem-line-height: 1.2;
+    --lock-poem-margin: 4px 0 6px 0;
+    --lock-poem-top-gap: 8px;
 
-    /* Lift poem block upward */
-    --lock-poem-content-margin-top: 10px;
+    /* Poem vertical position */
+    --lock-poem-content-margin-top: 20px;
     --lock-poem-content-padding: 0;
 
     /* Warm Wishes */
@@ -228,6 +230,7 @@
 /* =====================================================
    LANDSCAPE MODE - Tablet (701-1024px)
    NEW: Covers iPad landscape and larger phones in landscape
+   🔒 LOCKED 2026-02-06 - DO NOT MODIFY (844×390)
    ===================================================== */
 @media (min-width: 701px) and (max-width: 1024px) and (orientation: landscape) {
   :root {
@@ -244,90 +247,87 @@
     --lock-letter-frame: 24px;
 
     /* Salutation */
-    --lock-salutation-font-size: 16px;
+    --lock-salutation-font-size: 23px;
+    --lock-salutation-margin: 20px 0 6px 0;
 
     /* Occasion */
-    --lock-occasion-font-size: 16px;
+    --lock-occasion-font-size: 23px;
 
     /* Message */
-    --lock-message-font-size: 16px;
+    --lock-message-font-size: 23px;
     --lock-message-line-height: 1.15;
 
     /* Signature */
-    --lock-signature-font-size: 16px;
+    --lock-signature-font-size: 23px;
     --lock-signature-bottom: 8px;
     --lock-signature-right: 16px;
 
     /* Poem */
-    --lock-poem-font-size: 16px;
-    --lock-poem-line-height: 1.2;
-    --lock-poem-margin: 16px 0 0 0;
+    --lock-poem-font-size: 17px;
+    --lock-poem-line-height: 0.95;
+    --lock-poem-margin: 8px 0 0 0;
+    --lock-poem-max-width: 65%;
 
     /* Warm Wishes */
-    --lock-warm-wishes-font-size: 16px;
+    --lock-warm-wishes-font-size: 18px;
     --lock-warm-wishes-margin-top: 0;
     --lock-warm-wishes-margin-left: 0;
 
     /* Poem Content Container */
-    --lock-poem-content-padding: 0;
-    --lock-poem-content-margin-top: 0;
+    --lock-poem-content-padding: 0 56px;
+    --lock-poem-content-margin-top: 80px;
   }
 }
 
 /* =====================================================
    LANDSCAPE MODE - Phone (700px)
    Reference: GREETING_LOCK.md - LANDSCAPE VIEW (700px)
+   🔒 LOCKED 2026-02-06 - DO NOT MODIFY (667×375)
    ===================================================== */
 @media (max-width: 700px) and (orientation: landscape) {
   :root {
-    /* Signature Reserve - balanced for tight landscape viewports */
-    --lock-signature-reserve: 18px;
+    /* Signature Reserve - reduced for height-constrained landscape */
+    --lock-signature-reserve: 40px;
 
     /* Page Content Frame */
-    --lock-page-content-top: 8px;
-    --lock-page-content-left: 8px;
-    --lock-page-content-right: 8px;
-    --lock-page-content-bottom: 8px;
+    --lock-page-content-top: 16px;
+    --lock-page-content-left: 16px;
+    --lock-page-content-right: 16px;
+    --lock-page-content-bottom: 16px;
 
     /* Letter Frame */
-    --lock-letter-frame: 32px;
+    --lock-letter-frame: 24px;
 
     /* Salutation */
-    --lock-salutation-font-size: 20px;
-    --lock-salutation-font-weight: 700;
+    --lock-salutation-font-size: 25px;
     --lock-salutation-margin: 20px 0 6px 0;
 
     /* Occasion */
-    --lock-occasion-font-size: 20px;
-    --lock-occasion-margin: 8px 0 0 0;
+    --lock-occasion-font-size: 25px;
 
     /* Message */
-    --lock-message-font-size: 20px;
-    --lock-message-line-height: 1.1;
-    --lock-message-text-align: center;
-    --lock-message-margin: 2px 0 0 0;
-
-    /* Message Paragraphs */
-    --lock-message-p-margin: 0;
+    --lock-message-font-size: 25px;
+    --lock-message-line-height: 1.15;
 
     /* Signature */
-    --lock-signature-font-size: 20px;
+    --lock-signature-font-size: 25px;
     --lock-signature-bottom: 4px;
-    --lock-signature-right: 16px;
+    --lock-signature-right: 24px;
 
     /* Poem */
-    --lock-poem-font-size: 16px;
+    --lock-poem-font-size: 19px;
     --lock-poem-line-height: 1.1;
     --lock-poem-margin: 8px 0 0 0;
+    --lock-poem-max-width: 80%;
 
     /* Warm Wishes */
-    --lock-warm-wishes-font-size: 16px;
+    --lock-warm-wishes-font-size: 20px;
     --lock-warm-wishes-margin-top: 0;
-    --lock-warm-wishes-margin-left: 4px 0 0 0;
+    --lock-warm-wishes-margin-left: 0;
 
     /* Poem Content Container */
-    --lock-poem-content-padding: 0 12px;
-    --lock-poem-content-margin-top: 0;
+    --lock-poem-content-padding: 0 56px;
+    --lock-poem-content-margin-top: 70px;
 
     /* Right Page Content Padding */
     --lock-right-page-content-padding: 8px;
