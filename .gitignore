@@ -12,3 +12,27 @@ playwright-report/
 *.log
 *.swp
 src/components/GreetingCardProto/GREETING_LOCK.md
+
+# local debug artifacts
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.log
+*.zip
+debug-screenshots/
+final-screenshots/
+phase4-screenshots/
+validation-screenshots/
+playwright-report/
+test-results/
+scripts/debug*.js
+scripts/proof*.js
+scripts/check*.js
+scripts/diagnose*.js
+scripts/baseline*.js
+scripts/find*.js
+scripts/get*.js
+scripts/take*.js
+scripts/visual*.js
+scripts/final*.js
