@@ -178,8 +178,8 @@
     --lock-warm-wishes-margin-top: 10px;
     --lock-warm-wishes-margin-left: 0;
 
-    /* Right Page Content Padding */
-    --lock-right-page-content-padding: 10px 30px;
+    /* Right Page Content Padding - reduced horizontal for narrow viewports */
+    --lock-right-page-content-padding: 8px;
   }
 }
 
@@ -189,10 +189,10 @@
    ===================================================== */
 @media (min-width: 501px) and (max-width: 1024px) and (orientation: portrait) {
   :root {
-    --lock-page-content-top: 96px;
-    --lock-page-content-left: 96px;
-    --lock-page-content-right: 120px;
-    --lock-page-content-bottom: 140px;
+    --lock-page-content-top: 40px;
+    --lock-page-content-left: 40px;
+    --lock-page-content-right: 40px;
+    --lock-page-content-bottom: 40px;
     --lock-page-content-padding: 16px;
 
     /* Signature Reserve */
@@ -209,6 +209,9 @@
     --lock-poem-font-size: 20px;
     --lock-poem-line-height: 1.2;
     --lock-warm-wishes-font-size: 24px;
+
+    /* Right Page Content Padding - reduced for tablet viewports */
+    --lock-right-page-content-padding: 16px;
   }
 }
 

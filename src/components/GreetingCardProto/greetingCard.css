@@ -413,9 +413,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   height: 100%;
   padding: var(--lock-poem-content-padding);
-  /* No justify-content: center - allows margin-top: auto on warm wishes to anchor bottom */
 }
 
 .gc-poem {
@@ -433,10 +433,10 @@
   color: var(--gc-text-brown-light);
   white-space: pre-line;
   text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor;
-  /* Flex: natural height, can shrink, does not grow (preserves auto margin for warm wishes) */
-  flex: 0 1 auto;
+  /* Flex: grow to fill, can shrink, yields space to warm wishes */
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .gc-warm-wishes {
@@ -445,11 +445,44 @@
   font-weight: var(--lock-warm-wishes-font-weight);
   color: var(--gc-text-gold);
   text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor;
-  /* Fixed margin (not auto) - inset model now controls containment */
-  margin-top: 18px;
+  margin-top: auto;
   margin-left: var(--lock-warm-wishes-margin-left);
   padding-top: var(--lock-warm-wishes-gap, 12px);
-  padding-bottom: 60px;
+  flex-shrink: 0;
+}
+
+/* ===== RIGHT PAGE POEM STACK NORMALIZATION ===== */
+/* Surgical fix: stable vertical stack for poem + wishes */
+
+/* RIGHT PAGE: poem + wishes must lay out as a stable vertical stack */
+.gc-interior-spread .gc-page-right .gc-poem-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start; /* start at top, warm wishes uses margin-top: auto */
+  height: auto; /* override base height:100% - let inset positioning control height */
+  overflow: hidden; /* keep within inset frame */
+  padding: 8px; /* breathing room */
+}
+
+/* Poem can shrink to fit, centered */
+.gc-interior-spread .gc-page-right .gc-poem {
+  margin: 0;
+  padding: 0;
+  max-width: 100%;
+  text-align: center;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Warm wishes anchored to bottom via margin-top: auto, no shrink */
+.gc-interior-spread .gc-page-right .gc-warm-wishes {
+  margin: 0;
+  margin-top: auto; /* push to bottom */
+  padding: 8px 0; /* breathing room top/bottom */
+  align-self: center;
+  text-align: center;
   flex-shrink: 0;
 }
 
@@ -1229,16 +1262,11 @@
   .gc-interior-spread .gc-poem-content {
     display: flex !important;
     flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    height: auto !important;
-    max-height: none !important;
   }
 
   .gc-interior-spread .gc-poem {
     padding-left: 0;
-    flex-shrink: 0;
-    max-height: none;
+    flex-shrink: 1;
   }
 
   .gc-interior-spread .gc-warm-wishes {
@@ -1314,12 +1342,11 @@
     padding-right: 8px;
   }
 
-  /* RIGHT PAGE: Center content vertically */
+  /* RIGHT PAGE: Poem content layout */
   .gc-poem-content {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    justify-content: flex-start;
     height: 100%;
     padding-top: 0;
     padding-bottom: 0;
@@ -1331,7 +1358,7 @@
   }
 
   .gc-warm-wishes {
-    margin-top: 4px;
+    margin-top: auto;
   }
 
   /* FEATURED SPREAD: Stacked pages (video page top, album page bottom) */
@@ -1536,8 +1563,8 @@
   .gc-spread {
     max-height: calc(100vh - 48px);
     max-height: calc(100dvh - 48px);
-    width: auto;
-    height: auto;
+    width: calc(100vw - 48px); /* explicit width for portrait tablet */
+    height: auto; /* height from aspect-ratio, constrained by max-height */
   }
 
   .gc-interior-spread .gc-page-left .gc-page-content {
@@ -2156,4 +2183,5 @@
     transition: none;
   }
 }
+
 
