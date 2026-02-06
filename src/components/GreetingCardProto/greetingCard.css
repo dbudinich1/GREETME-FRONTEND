@@ -451,6 +451,11 @@
   flex-shrink: 0;
 }
 
+/* Warm Wishes must appear ONLY on the right page */
+.gc-interior-spread .gc-page-left .gc-warm-wishes {
+  display: none;
+}
+
 /* ===== RIGHT PAGE POEM STACK NORMALIZATION ===== */
 /* Surgical fix: stable vertical stack for poem + wishes */
 
