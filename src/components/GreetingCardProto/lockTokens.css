@@ -43,7 +43,7 @@
   /* Signature */
   --lock-signature-font-size: 48px;
   --lock-signature-bottom: 60px;
-  --lock-signature-right: 120px;
+  --lock-signature-right: 90px;
 
   /* Signature reserve (space the message must never enter) */
   --lock-signature-reserve: 140px;
