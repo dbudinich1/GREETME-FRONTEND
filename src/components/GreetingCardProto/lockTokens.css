@@ -299,11 +299,13 @@
 
     /* Occasion */
     --lock-occasion-font-size: 20px;
+    --lock-occasion-margin: 8px 0 0 0;
 
     /* Message */
     --lock-message-font-size: 20px;
     --lock-message-line-height: 1.1;
     --lock-message-text-align: center;
+    --lock-message-margin: 2px 0 0 0;
 
     /* Message Paragraphs */
     --lock-message-p-margin: 0;
@@ -316,15 +318,15 @@
     /* Poem */
     --lock-poem-font-size: 16px;
     --lock-poem-line-height: 1.1;
-    --lock-poem-margin: 20px 0 0 0;
+    --lock-poem-margin: 8px 0 0 0;
 
     /* Warm Wishes */
     --lock-warm-wishes-font-size: 16px;
     --lock-warm-wishes-margin-top: 0;
-    --lock-warm-wishes-margin-left: 0;
+    --lock-warm-wishes-margin-left: 4px 0 0 0;
 
     /* Poem Content Container */
-    --lock-poem-content-padding: 0;
+    --lock-poem-content-padding: 0 12px;
     --lock-poem-content-margin-top: 0;
 
     /* Right Page Content Padding */
