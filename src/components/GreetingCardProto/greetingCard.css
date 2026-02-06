@@ -1309,19 +1309,8 @@
   .gc-greeting-salutation {
     font-family: var(--gc-font-handwritten);
     white-space: nowrap;
-    margin-bottom: -2px;
     color: var(--gc-letter-ink-color);
     text-shadow: 0 0 0.5px var(--gc-letter-ink-color);
-  }
-
-  .gc-greeting-occasion {
-    margin-top: 4px;
-    margin-bottom: 0;
-  }
-
-  .gc-greeting-message {
-    margin-top: -8px;
-    margin-bottom: 0;
   }
 
   .gc-signature {
@@ -1335,13 +1324,6 @@
     flex-direction: column;
     justify-content: flex-start;
     height: 100%;
-    padding-top: 0;
-    padding-bottom: 0;
-  }
-
-  .gc-poem {
-    margin-top: 8px;
-    margin-bottom: 10px;
   }
 
   .gc-warm-wishes {
@@ -1859,20 +1841,12 @@
   }
 
   .gc-greeting-occasion {
-    margin-top: 8px;
-    margin-bottom: 0;
     text-align: center;
     padding-left: 0;
   }
 
   .gc-greeting-message {
-    margin-top: 2px;
-    margin-bottom: 0;
     text-align: center;
-  }
-
-  .gc-greeting-message p {
-    margin: 0;
   }
 
   /* Signature uses flex anchoring (margin-top: auto) - no position override needed */
@@ -1888,19 +1862,16 @@
     justify-content: center;
     align-items: center;
     height: 100%;
-    padding: 0 12px;
     margin-top: 0;
   }
 
   .gc-interior-spread .gc-poem-content {
-    padding: 0;
     height: 100%;
     justify-content: flex-start;
     align-items: center;
   }
 
   .gc-poem {
-    margin: 8px 0 0 0;
     padding-left: 0;
   }
 
@@ -1910,10 +1881,6 @@
 
   .gc-warm-wishes {
     margin: 0;
-  }
-
-  .gc-interior-spread .gc-warm-wishes {
-    margin: 4px 0 0 0;
   }
 
   /* FEATURED SPREAD: Constrain video/album to fit within spread */
