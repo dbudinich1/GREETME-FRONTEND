@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "verify:lock": "node scripts/verify-greeting-lock.mjs",
+    "validate:conformity": "node scripts/validate-conformity.mjs",
     "test:viewport": "playwright test",
     "test:viewport:headed": "playwright test --headed",
     "precommit:greeting": "npm run verify:lock"
