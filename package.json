@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "prebuild": "npm run validate:conformity",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
