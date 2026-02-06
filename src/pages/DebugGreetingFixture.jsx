@@ -15,7 +15,6 @@ const FIXTURE_GREETING = {
     'Wishing you a day filled with joy, laughter, and everything you love.',
     'You deserve the very best today and always.',
     '',
-    'With appreciation,',
     'Danny',
   ].join('\n'),
   poemText: [
