@@ -1208,6 +1208,8 @@
 @media (max-width: 500px) and (orientation: portrait) {
   .gc-container {
     padding: 16px 8px;
+    max-height: none; /* UNLOCK: Allow scroll in portrait */
+    overflow-y: auto; /* UNLOCK: Enable vertical scroll */
   }
 
   .gc-interior-spread {
