@@ -350,7 +350,7 @@
 
 .gc-greeting-message {
   font-family: var(--gc-font-handwritten);
-  font-size: var(--lock-message-font-size);
+  font-size: var(--fit-message-font-size, var(--lock-message-font-size));
   font-weight: var(--lock-message-font-weight);
   color: var(--lock-ink-color);
   line-height: var(--lock-message-line-height);
@@ -420,7 +420,7 @@
 
 .gc-poem {
   font-family: var(--gc-font-body);
-  font-size: var(--lock-poem-font-size);
+  font-size: var(--fit-poem-font-size, var(--lock-poem-font-size));
   font-style: italic;
   font-weight: var(--lock-poem-font-weight);
   line-height: var(--lock-poem-line-height);

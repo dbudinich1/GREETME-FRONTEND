@@ -10,7 +10,7 @@
  * LOCK STATE: See GREETING_LOCK.md for authoritative CSS values
  */
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import cardInteriorImg from '../../assets/card/card-interior.png';
 import { formatPersonName } from '../../utils/formatPersonName';
 
@@ -65,6 +65,28 @@ function getPoemFontSize(lineCount) {
   return '34px';
 }
 
+// AUTO-FIT: Shrink font by 1px steps until content fits (no clipping)
+const MIN_MESSAGE_PX = 16;
+const MIN_POEM_PX = 13;
+const MAX_STEPS = 8;
+
+function autoFitElement(el, cssVar, minPx, maxSteps) {
+  if (!el) return;
+  // Clear previous fit override so we measure from the lock token baseline
+  el.style.removeProperty(cssVar);
+  // Allow browser to recalc after clearing
+  void el.offsetHeight;
+  if (el.scrollHeight <= el.clientHeight + 2) return; // Not clipped
+  const computed = getComputedStyle(el);
+  let size = parseFloat(computed.fontSize);
+  for (let step = 0; step < maxSteps; step++) {
+    size -= 1;
+    if (size < minPx) { size = minPx; el.style.setProperty(cssVar, `${size}px`); break; }
+    el.style.setProperty(cssVar, `${size}px`);
+    if (el.scrollHeight <= el.clientHeight + 2) break;
+  }
+}
+
 // CANONICAL: Limit intro message to 8 lines (backup constraint)
 function limitToLines(text, maxLines = 8) {
   if (!text) return '';
@@ -78,8 +100,30 @@ function limitToLines(text, maxLines = 8) {
 export default function InteriorSpread({ recipientName, message, senderName, poemText, onClick }) {
   // Refs for runtime fit check
   const messageRef = useRef(null);
+  const poemRef = useRef(null);
   const signatureRef = useRef(null);
   const pageContentRef = useRef(null);
+
+  // AUTO-FIT: shrink font until no clipping, runs after every render
+  const runAutoFit = useCallback(() => {
+    autoFitElement(messageRef.current, '--fit-message-font-size', MIN_MESSAGE_PX, MAX_STEPS);
+    autoFitElement(poemRef.current, '--fit-poem-font-size', MIN_POEM_PX, MAX_STEPS);
+  }, []);
+
+  useLayoutEffect(() => {
+    runAutoFit();
+  }, [message, poemText, senderName, runAutoFit]);
+
+  // Debounced resize handler
+  useEffect(() => {
+    let timer;
+    const handleResize = () => {
+      clearTimeout(timer);
+      timer = setTimeout(runAutoFit, 200);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => { clearTimeout(timer); window.removeEventListener('resize', handleResize); };
+  }, [runAutoFit]);
 
   // DEV ONLY: Runtime fit check - warn if message overlaps signature
   useEffect(() => {
@@ -225,7 +269,7 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
         {/* Right Page */}
         <div className="gc-page gc-page-right">
           <div className="gc-page-content gc-poem-content">
-            <p className="gc-poem">{formatPoemToFit(poemText)}</p>
+            <p className="gc-poem" ref={poemRef}>{formatPoemToFit(poemText)}</p>
             <h3 className="gc-warm-wishes">With Warmest Wishes</h3>
           </div>
         </div>
