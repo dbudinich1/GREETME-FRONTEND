@@ -68,7 +68,14 @@ function getPoemFontSize(lineCount) {
 // AUTO-FIT: Shrink font by 1px steps until content fits (no clipping)
 const MIN_MESSAGE_PX = 16;
 const MIN_POEM_PX = 13;
-const MAX_STEPS = 8;
+const MAX_STEPS_MESSAGE = 16;
+const MAX_STEPS_POEM = 16;
+const MIN_LH_MESSAGE = 1.10;
+const LH_STEP = 0.03;
+
+const isPortrait = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia('(max-width: 500px) and (orientation: portrait)').matches;
 
 function autoFitElement(el, cssVar, minPx, maxSteps) {
   if (!el) return;
@@ -84,6 +91,31 @@ function autoFitElement(el, cssVar, minPx, maxSteps) {
     if (size < minPx) { size = minPx; el.style.setProperty(cssVar, `${size}px`); break; }
     el.style.setProperty(cssVar, `${size}px`);
     if (el.scrollHeight <= el.clientHeight + 2) break;
+  }
+}
+
+// Portrait-only: shrink message line-height after font-size hits floor
+function autoFitMessageLineHeight(el) {
+  if (!el) return;
+  if (!isPortrait()) return;
+  if (el.scrollHeight <= el.clientHeight + 2) return; // Already fits
+  const computed = getComputedStyle(el);
+  const fontSize = parseFloat(computed.fontSize);
+  if (fontSize > MIN_MESSAGE_PX) return; // Font-size didn't hit floor
+  let lh = parseFloat(computed.lineHeight) / fontSize; // Convert px→ratio
+  const startLh = lh;
+  let ok = false;
+  let steps = 0;
+  while (lh > MIN_LH_MESSAGE && el.scrollHeight > el.clientHeight + 2) {
+    lh = Math.round((lh - LH_STEP) * 100) / 100;
+    if (lh < MIN_LH_MESSAGE) lh = MIN_LH_MESSAGE;
+    el.style.setProperty('--fit-message-line-height', String(lh));
+    void el.offsetHeight;
+    steps++;
+  }
+  ok = el.scrollHeight <= el.clientHeight + 2;
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[AUTOFIT] message LH ${startLh.toFixed(2)}→${lh.toFixed(2)} steps=${steps} ok=${ok}`);
   }
 }
 
@@ -106,8 +138,12 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
 
   // AUTO-FIT: shrink font until no clipping, runs after every render
   const runAutoFit = useCallback(() => {
-    autoFitElement(messageRef.current, '--fit-message-font-size', MIN_MESSAGE_PX, MAX_STEPS);
-    autoFitElement(poemRef.current, '--fit-poem-font-size', MIN_POEM_PX, MAX_STEPS);
+    // Clear line-height override before measuring
+    if (messageRef.current) messageRef.current.style.removeProperty('--fit-message-line-height');
+    autoFitElement(messageRef.current, '--fit-message-font-size', MIN_MESSAGE_PX, MAX_STEPS_MESSAGE);
+    autoFitElement(poemRef.current, '--fit-poem-font-size', MIN_POEM_PX, MAX_STEPS_POEM);
+    // Portrait-only: tighten line-height if message font hit floor and still clips
+    autoFitMessageLineHeight(messageRef.current);
   }, []);
 
   useLayoutEffect(() => {

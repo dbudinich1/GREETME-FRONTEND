@@ -353,7 +353,7 @@
   font-size: var(--fit-message-font-size, var(--lock-message-font-size));
   font-weight: var(--lock-message-font-weight);
   color: var(--lock-ink-color);
-  line-height: var(--lock-message-line-height);
+  line-height: var(--fit-message-line-height, var(--lock-message-line-height));
   margin: var(--lock-message-margin);
   text-align: var(--lock-message-text-align);
   /* Flex: natural height, can shrink, does not grow (preserves auto margin for signature) */
