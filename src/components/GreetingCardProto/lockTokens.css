@@ -155,10 +155,10 @@
     --lock-salutation-font-size: 21px;
 
     /* Occasion */
-    --lock-occasion-font-size: 19px;
+    --lock-occasion-font-size: 21px;
 
     /* Message */
-    --lock-message-font-size: 19px;
+    --lock-message-font-size: 21px;
     --lock-message-line-height: 1.25;
 
     /* Reduce desktop padding so content rises */
