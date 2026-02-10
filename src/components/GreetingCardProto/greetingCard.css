@@ -575,7 +575,7 @@
   padding-right: var(--lock-signature-right);
   padding-bottom: var(--lock-signature-bottom);
   font-family: var(--lock-ink-font-family, var(--gc-font-handwritten));
-  font-size: var(--lock-signature-font-size);
+  font-size: var(--fit-message-font-size, var(--lock-signature-font-size));
   font-weight: var(--lock-ink-font-weight, 400);
   font-style: normal;
   color: var(--lock-ink-color);
