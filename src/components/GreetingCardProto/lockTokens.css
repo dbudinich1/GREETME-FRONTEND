@@ -159,7 +159,7 @@
 
     /* Message */
     --lock-message-font-size: 21px;
-    --lock-message-line-height: 1.25;
+    --lock-message-line-height: 1.15;
 
     /* Reduce desktop padding so content rises */
     --lock-page-content-top: 18px;
