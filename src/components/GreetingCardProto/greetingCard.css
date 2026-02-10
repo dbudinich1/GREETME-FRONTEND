@@ -334,7 +334,7 @@
 }
 
 .gc-greeting-salutation {
-  font-family: var(--lock-ink-font-family, var(--gc-font-title));
+  font-family: var(--lock-ink-font-family, var(--gc-font-handwritten));
   font-size: var(--lock-salutation-font-size);
   font-weight: var(--lock-ink-font-weight, 400);
   font-style: normal;
