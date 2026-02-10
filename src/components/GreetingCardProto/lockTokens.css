@@ -153,13 +153,15 @@
 
     /* Salutation */
     --lock-salutation-font-size: 21px;
+    --lock-salutation-line-height: 1.2;
 
     /* Occasion */
     --lock-occasion-font-size: 21px;
+    --lock-occasion-line-height: 1.2;
 
     /* Message */
     --lock-message-font-size: 21px;
-    --lock-message-line-height: 1.15;
+    --lock-message-line-height: 1.2;
 
     /* Reduce desktop padding so content rises */
     --lock-page-content-top: 18px;
@@ -190,14 +192,16 @@
     --lock-warm-wishes-font-size: 15px;
     --lock-warm-wishes-margin-top: 10px;
     --lock-warm-wishes-margin-left: 0;
+    --lock-warm-wishes-bottom-gap: 2px;
 
     /* Right Page Content Padding - reduced horizontal for narrow viewports */
     --lock-right-page-content-padding: 8px;
 
-    /* Token-authoritative margins — uniform vertical rhythm */
+    /* Token-authoritative — uniform vertical rhythm */
     --lock-salutation-margin: 0;
     --lock-occasion-margin: 0;
     --lock-message-margin: 0;
+    --lock-salutation-letter-spacing: 0;
   }
 }
 
@@ -240,48 +244,53 @@
    ===================================================== */
 @media (min-width: 701px) and (max-width: 1024px) and (orientation: landscape) {
   :root {
-    /* Signature Reserve - reduced for height-constrained landscape */
+    /* Signature Reserve */
     --lock-signature-reserve: 40px;
 
     /* Page Content Frame */
-    --lock-page-content-top: 16px;
+    --lock-page-content-top: 12px;
     --lock-page-content-left: 16px;
     --lock-page-content-right: 16px;
-    --lock-page-content-bottom: 16px;
+    --lock-page-content-bottom: 12px;
 
     /* Letter Frame */
     --lock-letter-frame: 24px;
 
     /* Salutation */
-    --lock-salutation-font-size: 23px;
-    --lock-salutation-margin: 20px 0 6px 0;
+    --lock-salutation-font-size: 32px;
+    --lock-salutation-line-height: 1.3;
+    --lock-salutation-margin: 20px 0 0 0;
 
     /* Occasion */
-    --lock-occasion-font-size: 23px;
+    --lock-occasion-font-size: 32px;
+    --lock-occasion-line-height: 1.3;
+    --lock-occasion-margin: 0;
 
     /* Message */
-    --lock-message-font-size: 23px;
-    --lock-message-line-height: 1.15;
+    --lock-message-font-size: 32px;
+    --lock-message-line-height: 1.3;
+    --lock-message-margin: 0;
 
     /* Signature */
-    --lock-signature-font-size: 23px;
-    --lock-signature-bottom: 8px;
+    --lock-signature-font-size: 32px;
+    --lock-signature-bottom: 4px;
     --lock-signature-right: 16px;
 
     /* Poem */
-    --lock-poem-font-size: 17px;
-    --lock-poem-line-height: 0.95;
+    --lock-poem-font-size: 22px;
+    --lock-poem-line-height: 1.15;
     --lock-poem-margin: 8px 0 0 0;
-    --lock-poem-max-width: 65%;
+    --lock-poem-max-width: 80%;
 
     /* Warm Wishes */
-    --lock-warm-wishes-font-size: 18px;
+    --lock-warm-wishes-font-size: 24px;
     --lock-warm-wishes-margin-top: 0;
     --lock-warm-wishes-margin-left: 0;
+    --lock-warm-wishes-bottom-gap: 16px;
 
     /* Poem Content Container */
-    --lock-poem-content-padding: 0 56px;
-    --lock-poem-content-margin-top: 80px;
+    --lock-poem-content-padding: 0 40px;
+    --lock-poem-content-margin-top: 48px;
   }
 }
 
@@ -306,10 +315,12 @@
 
     /* Salutation */
     --lock-salutation-font-size: 25px;
+    --lock-salutation-line-height: 1.15;
     --lock-salutation-margin: 20px 0 6px 0;
 
     /* Occasion */
     --lock-occasion-font-size: 25px;
+    --lock-occasion-line-height: 1.15;
 
     /* Message */
     --lock-message-font-size: 25px;
@@ -321,19 +332,19 @@
     --lock-signature-right: 24px;
 
     /* Poem */
-    --lock-poem-font-size: 19px;
-    --lock-poem-line-height: 1.1;
+    --lock-poem-font-size: 20px;
+    --lock-poem-line-height: 1.15;
     --lock-poem-margin: 8px 0 0 0;
     --lock-poem-max-width: 80%;
 
     /* Warm Wishes */
-    --lock-warm-wishes-font-size: 20px;
+    --lock-warm-wishes-font-size: 21px;
     --lock-warm-wishes-margin-top: 0;
     --lock-warm-wishes-margin-left: 0;
 
     /* Poem Content Container */
-    --lock-poem-content-padding: 0 56px;
-    --lock-poem-content-margin-top: 70px;
+    --lock-poem-content-padding: 0 40px;
+    --lock-poem-content-margin-top: 24px;
 
     /* Right Page Content Padding */
     --lock-right-page-content-padding: 8px;
@@ -399,7 +410,7 @@
  * writtenIntro (Card Message):
  *   - Min: 100 characters
  *   - Max: 600 characters
- *   - Max lines: 8
+ *   - Max body lines: 6 (enforceWrittenIntro.js BODY_MAX_LINES)
  *
  * videoScript:
  *   - Min: 50 characters

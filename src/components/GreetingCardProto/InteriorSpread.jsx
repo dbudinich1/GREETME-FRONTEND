@@ -50,43 +50,50 @@ function formatPoemToFit(poemText, maxLines = MAX_POEM_LINES, maxCharsPerLine = 
     }
   });
 
-  // Truncate to max lines with ellipsis
+  // Cap to max lines (no ellipsis — backend enforces poem budget)
   if (wrappedLines.length > maxLines) {
-    return wrappedLines.slice(0, maxLines).join('\n') + '...';
+    return wrappedLines.slice(0, maxLines).join('\n');
   }
 
   return wrappedLines.join('\n');
 }
 
-// Dynamic font size based on line count
-function getPoemFontSize(lineCount) {
-  if (lineCount <= 4) return '42px';
-  if (lineCount <= 6) return '38px';
-  return '34px';
-}
-
-// AUTO-FIT: Shrink font by 1px steps until content fits (no clipping)
-const MIN_MESSAGE_PX = 16;
+// AUTO-FIT: Shrink-only. Tokens define ideal size; auto-fit may only reduce.
+// No expansions, no truncation, no ellipsis.
+const MIN_MESSAGE_PX = 19;
 const MIN_POEM_PX = 13;
 const MAX_STEPS_MESSAGE = 16;
 const MAX_STEPS_POEM = 16;
-const MIN_LH_MESSAGE = 1.10;
-const LH_STEP = 0.03;
+const MIN_LH = 1.05;
+const LH_TIGHTEN_STEP = 0.03;
 
-const isPortrait = () =>
-  typeof window !== 'undefined' &&
-  window.matchMedia('(max-width: 500px) and (orientation: portrait)').matches;
+// Count sentences from DOM element text content
+function countSentences(el) {
+  if (!el) return 3;
+  const text = el.textContent || '';
+  return text.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
+}
 
-function autoFitElement(el, cssVar, minPx, maxSteps, varTarget) {
+function autoFitElement(el, cssVar, minPx, maxSteps, varTarget, startSize) {
   if (!el) return;
   const target = varTarget || el;
   // Clear previous fit override so we measure from the lock token baseline
   target.style.removeProperty(cssVar);
-  // Allow browser to recalc after clearing
   void el.offsetHeight;
-  if (el.scrollHeight <= el.clientHeight + 2) return; // Not clipped
-  const computed = getComputedStyle(el);
-  let size = parseFloat(computed.fontSize);
+
+  let size;
+  if (startSize != null) {
+    // Variant-based: start from boosted size, then shrink
+    size = startSize;
+    target.style.setProperty(cssVar, `${size}px`);
+    void el.offsetHeight;
+    if (el.scrollHeight <= el.clientHeight + 2) return; // Fits at boosted size
+  } else {
+    if (el.scrollHeight <= el.clientHeight + 2) return; // Already fits at token
+    const computed = getComputedStyle(el);
+    size = parseFloat(computed.fontSize);
+  }
+
   for (let step = 0; step < maxSteps; step++) {
     size -= 1;
     if (size < minPx) { size = minPx; target.style.setProperty(cssVar, `${size}px`); break; }
@@ -95,40 +102,22 @@ function autoFitElement(el, cssVar, minPx, maxSteps, varTarget) {
   }
 }
 
-// Portrait-only: shrink message line-height after font-size hits floor
-function autoFitMessageLineHeight(el, varTarget) {
-  if (!el) return;
-  if (!isPortrait()) return;
-  const target = varTarget || el;
+// Shrink-only: tighten line-height if font-size hit floor and content still clips
+function tightenLineHeight(el, varTarget) {
+  if (!el || !varTarget) return;
   if (el.scrollHeight <= el.clientHeight + 2) return; // Already fits
   const computed = getComputedStyle(el);
-  const fontSize = parseFloat(computed.fontSize);
-  if (fontSize > MIN_MESSAGE_PX) return; // Font-size didn't hit floor
-  let lh = parseFloat(computed.lineHeight) / fontSize; // Convert px→ratio
+  let lh = parseFloat(computed.lineHeight) / parseFloat(computed.fontSize);
   const startLh = lh;
-  let ok = false;
-  let steps = 0;
-  while (lh > MIN_LH_MESSAGE && el.scrollHeight > el.clientHeight + 2) {
-    lh = Math.round((lh - LH_STEP) * 100) / 100;
-    if (lh < MIN_LH_MESSAGE) lh = MIN_LH_MESSAGE;
-    target.style.setProperty('--fit-message-line-height', String(lh));
+  while (lh > MIN_LH && el.scrollHeight > el.clientHeight + 2) {
+    lh = Math.round((lh - LH_TIGHTEN_STEP) * 100) / 100;
+    if (lh < MIN_LH) lh = MIN_LH;
+    varTarget.style.setProperty('--fit-message-line-height', String(lh));
     void el.offsetHeight;
-    steps++;
   }
-  ok = el.scrollHeight <= el.clientHeight + 2;
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[AUTOFIT] message LH ${startLh.toFixed(2)}→${lh.toFixed(2)} steps=${steps} ok=${ok}`);
+  if (process.env.NODE_ENV === 'development' && lh < startLh) {
+    console.log(`[AUTOFIT] LH tighten: ${startLh.toFixed(2)}→${lh.toFixed(2)}`);
   }
-}
-
-// CANONICAL: Limit intro message to 8 lines (backup constraint)
-function limitToLines(text, maxLines = 8) {
-  if (!text) return '';
-  const lines = text.split('\n').filter(line => line.trim());
-  if (lines.length > maxLines) {
-    return lines.slice(0, maxLines).join('\n') + '...';
-  }
-  return text;
 }
 
 export default function InteriorSpread({ recipientName, message, senderName, poemText, onClick }) {
@@ -138,21 +127,48 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
   const signatureRef = useRef(null);
   const pageContentRef = useRef(null);
 
-  // AUTO-FIT: shrink font until no clipping, runs after every render
+  // AUTO-FIT: shrink-only until no clipping, runs after every render
   const runAutoFit = useCallback(() => {
-    // Set fit vars on page-content parent so salutation+occasion+message all inherit
     const varTarget = pageContentRef.current;
-    // Clear line-height override before measuring
+    // Clear ALL previous overrides before measuring
     if (varTarget) varTarget.style.removeProperty('--fit-message-line-height');
-    autoFitElement(messageRef.current, '--fit-message-font-size', MIN_MESSAGE_PX, MAX_STEPS_MESSAGE, varTarget);
+    if (varTarget) varTarget.style.removeProperty('--fit-message-font-size');
+    if (poemRef.current) poemRef.current.style.removeProperty('--fit-poem-font-size');
+    // Variant-based start size: 2-sentence content gets a +2px boost, then shrink-only
+    // Minimum intro is 2 sentences (backend enforced); 1 sentence = upstream failure
+    let messageStartSize = null;
+    if (messageRef.current && varTarget) {
+      const baseSize = parseFloat(getComputedStyle(messageRef.current).fontSize);
+      const sentences = countSentences(messageRef.current);
+      if (sentences <= 2) messageStartSize = baseSize + 2;
+      // 3+ sentences → null (token default, no boost)
+    }
+    // Shrink message font (sets --fit-message-font-size on parent, inherited by all)
+    autoFitElement(messageRef.current, '--fit-message-font-size', MIN_MESSAGE_PX, MAX_STEPS_MESSAGE, varTarget, messageStartSize);
+    // If message still clips after font-size floor, tighten line-height
+    tightenLineHeight(messageRef.current, varTarget);
+    // Shrink poem font
     autoFitElement(poemRef.current, '--fit-poem-font-size', MIN_POEM_PX, MAX_STEPS_POEM);
-    // Portrait-only: tighten line-height if message font hit floor and still clips
-    autoFitMessageLineHeight(messageRef.current, varTarget);
+
+    // DEV: flag fit failures (content must never be truncated — regenerate instead)
+    if (process.env.NODE_ENV === 'development') {
+      if (messageRef.current && messageRef.current.scrollHeight > messageRef.current.clientHeight + 2) {
+        console.error('[AUTOFIT] INTRO_FIT_FAILED: message still clips after shrink-only auto-fit');
+      }
+      if (poemRef.current && poemRef.current.scrollHeight > poemRef.current.clientHeight + 2) {
+        console.error('[AUTOFIT] POEM_FIT_FAILED: poem still clips after shrink-only auto-fit');
+      }
+    }
   }, []);
 
   useLayoutEffect(() => {
     runAutoFit();
   }, [message, poemText, senderName, runAutoFit]);
+
+  // Re-run after web fonts load (initial autoFit may measure with fallback font)
+  useEffect(() => {
+    document.fonts.ready.then(() => runAutoFit());
+  }, [runAutoFit]);
 
   // Debounced resize handler
   useEffect(() => {
@@ -266,9 +282,6 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
   }
   // Strip trailing punctuation after phrase removal
   bodyMessage = bodyMessage.replace(/[,\s]+$/, '');
-
-  // CANONICAL: Apply 8-line limit as backup constraint
-  bodyMessage = limitToLines(bodyMessage, 8);
 
   return (
     <div 
