@@ -1253,11 +1253,11 @@
 
   /* Typography handled by lockTokens.css - tokens mutate values, not selectors */
   .gc-interior-spread .gc-greeting-occasion {
-    margin-bottom: 0;
+    margin: var(--lock-occasion-margin);
   }
 
   .gc-interior-spread .gc-greeting-message {
-    margin-top: -4px;
+    margin: var(--lock-message-margin);
     overflow: hidden; /* LOCK: Must be hidden for containment */
   }
 
