@@ -29,7 +29,7 @@
   --lock-occasion-font-weight: 400;
   --lock-occasion-line-height: 1.3;
   --lock-occasion-margin: 0 0 6px 0;
-  --lock-occasion-text-align: left;
+  --lock-occasion-text-align: center;
 
   /* Message Body */
   --lock-message-font-size: 50px;
