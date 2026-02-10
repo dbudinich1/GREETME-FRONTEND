@@ -335,12 +335,12 @@
 
 .gc-greeting-salutation {
   font-family: var(--lock-ink-font-family, var(--gc-font-handwritten));
-  font-size: var(--lock-salutation-font-size);
+  font-size: var(--fit-message-font-size, var(--lock-salutation-font-size));
   font-weight: var(--lock-ink-font-weight, 400);
   font-style: normal;
   color: var(--lock-ink-color);
   margin: var(--lock-salutation-margin);
-  line-height: var(--lock-salutation-line-height);
+  line-height: var(--fit-message-line-height, var(--lock-salutation-line-height));
   letter-spacing: var(--lock-salutation-letter-spacing);
   flex-shrink: 0;
   text-align: left;
@@ -349,11 +349,11 @@
 /* Occasion greeting line (e.g., "Happy Birthday!") */
 .gc-greeting-occasion {
   font-family: var(--lock-ink-font-family, var(--gc-font-handwritten));
-  font-size: var(--lock-occasion-font-size);
+  font-size: var(--fit-message-font-size, var(--lock-occasion-font-size));
   font-weight: var(--lock-ink-font-weight, 400);
   font-style: normal;
   color: var(--lock-ink-color);
-  line-height: var(--lock-occasion-line-height);
+  line-height: var(--fit-message-line-height, var(--lock-occasion-line-height));
   margin: var(--lock-occasion-margin);
   text-align: var(--lock-occasion-text-align);
   text-shadow: var(--lock-ink-shadow);

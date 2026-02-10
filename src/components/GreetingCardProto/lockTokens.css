@@ -194,10 +194,10 @@
     /* Right Page Content Padding - reduced horizontal for narrow viewports */
     --lock-right-page-content-padding: 8px;
 
-    /* Token-authoritative margins/padding (mirror current hardcoded behavior) */
-    --lock-salutation-margin: 0 0 -2px 0;
-    --lock-occasion-margin: 4px 0 0 0;
-    --lock-message-margin: -8px 0 0 0;
+    /* Token-authoritative margins — uniform vertical rhythm */
+    --lock-salutation-margin: 0;
+    --lock-occasion-margin: 0;
+    --lock-message-margin: 0;
   }
 }
 
