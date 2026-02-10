@@ -20,14 +20,14 @@
   /* Salutation (Dear [Name],) */
   --lock-salutation-font-size: 46px;
   --lock-salutation-font-weight: 400;
-  --lock-salutation-line-height: 1.3;
+  --lock-salutation-line-height: 1.15;
   --lock-salutation-margin: 0 0 6px 0;
   --lock-salutation-letter-spacing: 1px;
 
   /* Occasion Line (Happy Birthday!) */
   --lock-occasion-font-size: 50px;
   --lock-occasion-font-weight: 400;
-  --lock-occasion-line-height: 1.3;
+  --lock-occasion-line-height: 1.15;
   --lock-occasion-margin: 0 0 6px 0;
   --lock-occasion-text-align: center;
 
