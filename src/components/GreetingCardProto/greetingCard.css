@@ -1763,6 +1763,42 @@
     padding: 48px 32px 32px 24px;
   }
 
+  /* Finale typography — base uses var(--gc-letter-body-size) = 50px, too large */
+  .gc-finale-spread .gc-closing-message,
+  .gc-finale-spread .gc-closing-message p,
+  .gc-finale-spread .gc-closing-note,
+  .gc-finale-spread .gc-closing-signoff {
+    font-size: 24px;
+    line-height: 1.2;
+  }
+
+  .gc-finale-spread .gc-closing-message {
+    margin-bottom: 12px;
+  }
+
+  .gc-finale-spread .gc-closing-signoff {
+    margin-top: 8px;
+  }
+
+  /* Feature spread — constrain frame sizes to fit spread height */
+  .gc-video-frame {
+    width: calc(40vh);
+    height: calc(40vh * 1.28);
+    border-width: 2px;
+  }
+
+  .gc-album-stack {
+    width: calc(40vh);
+    height: calc(40vh * 1.28);
+  }
+
+  .gc-album-frame {
+    width: calc(40vh);
+    height: calc(40vh * 1.28);
+    border-width: 2px;
+    border-radius: 6px;
+  }
+
   .gc-gift-title {
     font-size: 36px;
   }
