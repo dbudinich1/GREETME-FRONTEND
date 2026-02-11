@@ -93,5 +93,25 @@ test.describe('LAYOUT_LOCK invariants', () => {
 
     // allow 0–1px due to rounding
     expect(poemBox.bottom).toBeLessThanOrEqual(wwBox.top + 1);
+
+    // --- Desktop only: uniform line-height across all intro elements ---
+    if (test.info().project.name === 'Desktop') {
+      const lineHeights = await page.evaluate(() => {
+        const selectors = [
+          '.gc-greeting-salutation',
+          '.gc-greeting-occasion',
+          '.gc-greeting-message',
+          '.gc-signature',
+        ];
+        return selectors.map((s) => {
+          const el = document.querySelector(s);
+          return el ? parseFloat(getComputedStyle(el).lineHeight) : null;
+        });
+      });
+      const valid = lineHeights.filter((lh) => lh !== null);
+      for (const lh of valid) {
+        expect(lh).toBeCloseTo(valid[0], 0);
+      }
+    }
   });
 });
