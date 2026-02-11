@@ -1694,7 +1694,7 @@
     max-height: 100dvh;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: stretch;            /* PHASE 4: stretch both halves equally */
   }
 
   .gc-spread {
@@ -1704,10 +1704,12 @@
     height: calc(100dvh - 32px);
     width: auto;
     overflow: visible;
+    align-items: stretch;            /* PHASE 4: pages stretch to spread height */
   }
 
   .gc-page {
     padding: 16px;
+    height: 100%;                    /* PHASE 3: match intro height model */
   }
 
   .gc-page-left,
@@ -1739,28 +1741,50 @@
     margin: 12px 0;
   }
 
+  /* PHASE 1+2: Feature video page — true flex column, no absolute, no transform */
   .gc-featured-spread .gc-video-page {
-    padding-top: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    padding: 16px;
+    padding-top: 24px;
     margin: 12px;
     margin-right: 6px;
   }
 
+  /* PHASE 2: Feature album page — true flex column */
   .gc-featured-spread .gc-album-page {
-    padding-top: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    position: relative;
+    padding: 16px;
+    padding-top: 24px;
     margin: 12px;
     margin-left: 6px;
   }
 
   .gc-album-title {
-    font-size: 32px;
+    font-size: 24px;
+    margin-bottom: 8px;
   }
 
   .gc-video-caption {
-    font-size: 18px;
+    font-size: 14px;
+    margin-top: 6px;
   }
 
+  /* PHASE 5: Finale left page — flow naturally in column, no absolute */
   .gc-finale-spread .gc-page-left {
-    padding: 48px 32px 32px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    padding: 32px 24px 24px 20px;
   }
 
   /* Finale typography — base uses var(--gc-letter-body-size) = 50px, too large */
@@ -1799,26 +1823,28 @@
     border-radius: 6px;
   }
 
+  /* Finale right page — fit gift content within page */
   .gc-gift-title {
-    font-size: 36px;
-  }
-
-  .gc-qr-frame {
-    width: 140px;
-    height: 140px;
-    padding: 10px;
-  }
-
-  .gc-gift-instruction {
-    font-size: 18px;
-  }
-
-  .gc-brand-name {
     font-size: 28px;
   }
 
+  .gc-qr-frame {
+    width: 100px;
+    height: 100px;
+    padding: 8px;
+    margin-bottom: 12px;
+  }
+
+  .gc-gift-instruction {
+    font-size: 14px;
+  }
+
+  .gc-brand-name {
+    font-size: 22px;
+  }
+
   .gc-brand-tagline {
-    font-size: 15px;
+    font-size: 12px;
   }
 }
 
