@@ -160,7 +160,7 @@
     --lock-occasion-line-height: 1.2;
 
     /* Message */
-    --lock-message-font-size: 21px;
+    --lock-message-font-size: 24px;
     --lock-message-line-height: 1.2;
 
     /* Reduce desktop padding so content rises */
@@ -173,12 +173,12 @@
     --lock-message-p-margin: 0;
 
     /* Signature */
-    --lock-signature-font-size: 21px;
+    --lock-signature-font-size: 24px;
     --lock-signature-bottom: 10px;
     --lock-signature-right: 16px;
 
     /* Poem */
-    --lock-poem-font-size: 14px;
+    --lock-poem-font-size: 17px;
     --lock-poem-line-height: 1.2;
     --lock-poem-margin: 4px 0 6px 0;
     --lock-poem-top-gap: 8px;
@@ -268,7 +268,7 @@
     --lock-occasion-margin: 0;
 
     /* Message */
-    --lock-message-font-size: 32px;
+    --lock-message-font-size: 35px;
     --lock-message-line-height: 1.3;
     --lock-message-margin: 0;
 
@@ -278,7 +278,7 @@
     --lock-signature-right: 16px;
 
     /* Poem */
-    --lock-poem-font-size: 22px;
+    --lock-poem-font-size: 25px;
     --lock-poem-line-height: 1.15;
     --lock-poem-margin: 8px 0 0 0;
     --lock-poem-max-width: 80%;
