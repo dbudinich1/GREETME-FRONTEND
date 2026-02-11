@@ -1007,38 +1007,21 @@
 .gc-closing-message {
   /* CANONICAL: Tangerine font, centered, uniform styling, poem color */
   font-family: var(--gc-font-handwritten); /* Tangerine */
-  font-size: var(--gc-letter-body-size);
+  font-size: var(--fit-finale-font-size, var(--gc-letter-body-size));
   font-weight: 700;
   color: var(--gc-text-brown-light);
-  line-height: var(--gc-letter-line-gap);
+  line-height: var(--fit-finale-line-height, var(--gc-letter-line-gap));
   margin: 0 0 28px 0;
   white-space: pre-line;
   text-align: center;
   text-shadow: 0 0 0.5px var(--gc-text-brown-light);
+  overflow: hidden;
+  min-height: 0;
 }
 
-.gc-closing-note {
-  /* CANONICAL: Tangerine font, centered, uniform styling, poem color */
-  font-family: var(--gc-font-handwritten); /* Tangerine */
-  font-size: var(--gc-letter-body-size);
-  font-weight: 700;
-  color: var(--gc-text-brown-light);
-  line-height: var(--gc-letter-line-gap);
-  margin: 0;
-  text-align: center;
-  text-shadow: 0 0 0.5px var(--gc-text-brown-light);
-}
-
-.gc-closing-signoff {
-  /* CANONICAL: Final sign-off line - Tangerine font, centered, uniform styling, poem color */
-  font-family: var(--gc-font-handwritten); /* Tangerine */
-  font-size: var(--gc-letter-body-size);
-  font-weight: 700;
-  color: var(--gc-text-brown-light);
-  line-height: var(--gc-letter-line-gap);
-  margin: calc(var(--gc-letter-body-size) * 0.5) 0 0 0;
-  text-align: center;
-  text-shadow: 0 0 0.5px var(--gc-text-brown-light);
+.gc-closing-message p {
+  line-height: inherit;
+  color: inherit;
 }
 
 /* NOTE: No .gc-finale-signature - signature removed per canonical rule */
@@ -1473,16 +1456,10 @@
     margin-top: 12px;
   }
 
-  .gc-closing-message,
-  .gc-closing-note,
-  .gc-closing-signoff {
-    font-size: 18px !important;
-    line-height: 1.35;
+  .gc-closing-message {
+    font-size: var(--fit-finale-font-size, 18px);
+    line-height: var(--fit-finale-line-height, 1.35);
     margin-bottom: 4px;
-  }
-
-  .gc-finale-spread .gc-closing-signoff {
-    margin-top: 8px !important;
   }
 
   .gc-gift-content {
@@ -1797,19 +1774,13 @@
 
   /* Finale typography — base uses var(--gc-letter-body-size) = 50px, too large */
   .gc-finale-spread .gc-closing-message,
-  .gc-finale-spread .gc-closing-message p,
-  .gc-finale-spread .gc-closing-note,
-  .gc-finale-spread .gc-closing-signoff {
-    font-size: 27px;
-    line-height: 1.2;
+  .gc-finale-spread .gc-closing-message p {
+    font-size: var(--fit-finale-font-size, 27px);
+    line-height: var(--fit-finale-line-height, 1.2);
   }
 
   .gc-finale-spread .gc-closing-message {
     margin-bottom: 12px;
-  }
-
-  .gc-finale-spread .gc-closing-signoff {
-    margin-top: 8px;
   }
 
   /* Feature spread — constrain frame sizes to fit spread height */
@@ -2052,23 +2023,13 @@
   }
 
   .gc-finale-spread .gc-closing-message,
-  .gc-finale-spread .gc-closing-note,
-  .gc-finale-spread .gc-closing-signoff {
-    font-size: 22px;
-    line-height: 1.2;
+  .gc-finale-spread .gc-closing-message p {
+    font-size: var(--fit-finale-font-size, 22px);
+    line-height: var(--fit-finale-line-height, 1.2);
   }
 
   .gc-finale-spread .gc-closing-message {
     margin-bottom: 12px;
-  }
-
-  .gc-finale-spread .gc-closing-note {
-    margin-top: -12px;
-    margin-bottom: 0;
-  }
-
-  .gc-finale-spread .gc-closing-signoff {
-    margin-top: 10px;
   }
 
   .gc-gift-title {

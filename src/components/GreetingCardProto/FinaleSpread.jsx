@@ -7,6 +7,7 @@
  * - Typography: Tangerine font, blue ink, frame clamp
  * - NO SIGNATURE on Finale spread (removed per canonical rule)
  * - Uses shared letter block CSS system for frame clamp
+ * - Shrink-only auto-fit: if content overflows, shrink font until it fits
  *
  * TODO: G Logo Asset Pending
  * - When final logo asset is provided, replace LogoPlaceholder component
@@ -14,6 +15,7 @@
  * - Current placeholder: Great Vibes "G" in circular brown seal (per reference HTML)
  */
 
+import { useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import cardInteriorImg from '../../assets/card/card-interior.png';
 
 // Placeholder G logo component - awaiting final asset
@@ -62,7 +64,89 @@ const isBirthdayOccasion = (occasionKey) => {
   return key.includes('birthday') || key === 'bday';
 };
 
+// AUTO-FIT constants (same floors as InteriorSpread)
+const MIN_FINALE_PX = 14;
+const MAX_STEPS = 16;
+const MIN_LH = 1.05;
+const LH_TIGHTEN_STEP = 0.03;
+
+function autoFitElement(el, cssVar, minPx, maxSteps) {
+  if (!el) return;
+  // Clear previous fit override so we measure from the CSS baseline
+  el.style.removeProperty(cssVar);
+  void el.offsetHeight;
+
+  if (el.scrollHeight <= el.clientHeight) return; // Already fits
+
+  const computed = getComputedStyle(el);
+  let size = parseFloat(computed.fontSize);
+
+  for (let step = 0; step < maxSteps; step++) {
+    size -= 1;
+    if (size < minPx) { size = minPx; el.style.setProperty(cssVar, `${size}px`); break; }
+    el.style.setProperty(cssVar, `${size}px`);
+    void el.offsetHeight;
+    if (el.scrollHeight <= el.clientHeight) break;
+  }
+}
+
+function tightenLineHeight(el) {
+  if (!el) return;
+  if (el.scrollHeight <= el.clientHeight) return;
+  const computed = getComputedStyle(el);
+  let lh = parseFloat(computed.lineHeight) / parseFloat(computed.fontSize);
+  while (lh > MIN_LH && el.scrollHeight > el.clientHeight) {
+    lh = Math.round((lh - LH_TIGHTEN_STEP) * 100) / 100;
+    if (lh < MIN_LH) lh = MIN_LH;
+    el.style.setProperty('--fit-finale-line-height', String(lh));
+    void el.offsetHeight;
+  }
+}
+
 export default function FinaleSpread({ finaleText, occasionKey }) {
+  const closingMessageRef = useRef(null);
+
+  // AUTO-FIT: shrink-only until no clipping
+  const runAutoFit = useCallback(() => {
+    const el = closingMessageRef.current;
+    if (!el) return;
+    // Clear previous overrides
+    el.style.removeProperty('--fit-finale-font-size');
+    el.style.removeProperty('--fit-finale-line-height');
+    void el.offsetHeight;
+
+    // Shrink font
+    autoFitElement(el, '--fit-finale-font-size', MIN_FINALE_PX, MAX_STEPS);
+    // If still clips after font-size floor, tighten line-height
+    tightenLineHeight(el);
+
+    if (process.env.NODE_ENV === 'development') {
+      if (el.scrollHeight > el.clientHeight + 2) {
+        console.error('[AUTOFIT] FINALE_FIT_FAILED: closing message still clips after shrink-only auto-fit');
+      }
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    runAutoFit();
+  }, [finaleText, runAutoFit]);
+
+  // Re-run after web fonts load
+  useEffect(() => {
+    document.fonts.ready.then(() => runAutoFit());
+  }, [runAutoFit]);
+
+  // Debounced resize handler
+  useEffect(() => {
+    let timer;
+    const handleResize = () => {
+      clearTimeout(timer);
+      timer = setTimeout(runAutoFit, 200);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => { clearTimeout(timer); window.removeEventListener('resize', handleResize); };
+  }, [runAutoFit]);
+
   // CANONICAL: NO SIGNATURE on Finale spread - strip any sign-off from AI text
   let cleanedFinale = stripSignature(finaleText);
 
@@ -89,7 +173,7 @@ export default function FinaleSpread({ finaleText, occasionKey }) {
         {/* Left Page - CANONICAL: Tangerine font, blue ink, NO signature */}
         <div className="gc-page gc-page-left">
           <div className="gc-page-content">
-            <div className="gc-closing-message">
+            <div className="gc-closing-message" ref={closingMessageRef}>
               {(cleanedFinale || DEFAULT_FINALE).split('\n\n').map((paragraph, index) => (
                 <p key={index}>{paragraph}</p>
               ))}

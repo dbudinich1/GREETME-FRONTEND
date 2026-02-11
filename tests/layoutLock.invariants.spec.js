@@ -39,6 +39,30 @@ async function navigateToInterior(page) {
   await page.waitForTimeout(500);
 }
 
+/**
+ * Navigate from interior → featured → finale spread.
+ * Assumes we are already on the interior spread.
+ */
+async function navigateFromInteriorToFinale(page) {
+  // Step 1: Interior → Featured
+  await page.evaluate(() => {
+    const el = document.querySelector('.gc-interior-spread');
+    if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+  await page.waitForTimeout(1000);
+
+  // Step 2: Featured → Finale
+  await page.evaluate(() => {
+    const el = document.querySelector('.gc-featured-spread');
+    if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+  await page.waitForTimeout(1000);
+
+  // Wait for finale spread to be visible and auto-fit to settle
+  await expect(page.locator('.gc-finale-spread')).toBeVisible({ timeout: 15000 });
+  await page.waitForTimeout(500);
+}
+
 test.describe('LAYOUT_LOCK invariants', () => {
   test('no clipping + warm wishes right-only + no poem overlap', async ({ page, baseURL }) => {
     const url = (baseURL ? baseURL.replace(/\/$/, '') : 'http://localhost:5173') + ROUTE;
@@ -113,5 +137,25 @@ test.describe('LAYOUT_LOCK invariants', () => {
         expect(lh).toBeCloseTo(valid[0], 0);
       }
     }
+  });
+
+  test('no clipping on finale closing message', async ({ page, baseURL }) => {
+    const url = (baseURL ? baseURL.replace(/\/$/, '') : 'http://localhost:5173') + ROUTE;
+
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await page.waitForLoadState('networkidle');
+
+    // Navigate envelope → cover → interior → featured → finale
+    await navigateToInterior(page);
+    await navigateFromInteriorToFinale(page);
+
+    // --- No clipping: finale closing message ---
+    const closingMsg = page.locator('.gc-closing-message').first();
+    await expect(closingMsg).toBeVisible();
+    const metrics = await closingMsg.evaluate((el) => ({
+      scrollH: el.scrollHeight,
+      clientH: el.clientHeight,
+    }));
+    expect(metrics.scrollH).toBeLessThanOrEqual(metrics.clientH);
   });
 });
