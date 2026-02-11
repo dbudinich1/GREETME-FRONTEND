@@ -675,6 +675,10 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                   <option value="grandchild">Grandchild</option>
                   <option value="aunt_uncle">Aunt/Uncle</option>
                   <option value="cousin">Cousin</option>
+                  <option value="nephew">Nephew</option>
+                  <option value="niece">Niece</option>
+                  <option value="godson">Godson</option>
+                  <option value="goddaughter">Goddaughter</option>
                   <option value="spouse">Spouse</option>
                   <option value="partner">Partner</option>
                   <option value="fiancee">Fiancee</option>

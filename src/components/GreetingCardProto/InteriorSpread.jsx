@@ -22,9 +22,9 @@ Another year of dreams,
 May happiness find you always
 In everything, it seems.`;
 
-// CANONICAL: Poem fitting rules
-const MAX_POEM_LINES = 8;
-const MAX_CHARS_PER_LINE = 45;
+// CANONICAL: Poem fitting rules (exactly 4 lines, 42 chars/line max)
+const MAX_POEM_LINES = 4;
+const MAX_CHARS_PER_LINE = 42;
 
 // Format poem to fit within frame constraints
 function formatPoemToFit(poemText, maxLines = MAX_POEM_LINES, maxCharsPerLine = MAX_CHARS_PER_LINE) {
@@ -87,9 +87,9 @@ function autoFitElement(el, cssVar, minPx, maxSteps, varTarget, startSize) {
     size = startSize;
     target.style.setProperty(cssVar, `${size}px`);
     void el.offsetHeight;
-    if (el.scrollHeight <= el.clientHeight + 2) return; // Fits at boosted size
+    if (el.scrollHeight <= el.clientHeight) return; // Fits at boosted size
   } else {
-    if (el.scrollHeight <= el.clientHeight + 2) return; // Already fits at token
+    if (el.scrollHeight <= el.clientHeight) return; // Already fits at token
     const computed = getComputedStyle(el);
     size = parseFloat(computed.fontSize);
   }
@@ -98,18 +98,18 @@ function autoFitElement(el, cssVar, minPx, maxSteps, varTarget, startSize) {
     size -= 1;
     if (size < minPx) { size = minPx; target.style.setProperty(cssVar, `${size}px`); break; }
     target.style.setProperty(cssVar, `${size}px`);
-    if (el.scrollHeight <= el.clientHeight + 2) break;
+    if (el.scrollHeight <= el.clientHeight) break;
   }
 }
 
 // Shrink-only: tighten line-height if font-size hit floor and content still clips
 function tightenLineHeight(el, varTarget) {
   if (!el || !varTarget) return;
-  if (el.scrollHeight <= el.clientHeight + 2) return; // Already fits
+  if (el.scrollHeight <= el.clientHeight) return; // Already fits
   const computed = getComputedStyle(el);
   let lh = parseFloat(computed.lineHeight) / parseFloat(computed.fontSize);
   const startLh = lh;
-  while (lh > MIN_LH && el.scrollHeight > el.clientHeight + 2) {
+  while (lh > MIN_LH && el.scrollHeight > el.clientHeight) {
     lh = Math.round((lh - LH_TIGHTEN_STEP) * 100) / 100;
     if (lh < MIN_LH) lh = MIN_LH;
     varTarget.style.setProperty('--fit-message-line-height', String(lh));
@@ -134,14 +134,14 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
     if (varTarget) varTarget.style.removeProperty('--fit-message-line-height');
     if (varTarget) varTarget.style.removeProperty('--fit-message-font-size');
     if (poemRef.current) poemRef.current.style.removeProperty('--fit-poem-font-size');
-    // Variant-based start size: 2-sentence content gets a +2px boost, then shrink-only
-    // Minimum intro is 2 sentences (backend enforced); 1 sentence = upstream failure
+    // Variant-based start size: 3-sentence content gets a +2px boost, then shrink-only
+    // Minimum intro is 3 sentences (backend enforced, target 4)
     let messageStartSize = null;
     if (messageRef.current && varTarget) {
       const baseSize = parseFloat(getComputedStyle(messageRef.current).fontSize);
       const sentences = countSentences(messageRef.current);
-      if (sentences <= 2) messageStartSize = baseSize + 2;
-      // 3+ sentences → null (token default, no boost)
+      if (sentences <= 3) messageStartSize = baseSize + 2;
+      // 4 sentences → null (token default, no boost)
     }
     // Shrink message font (sets --fit-message-font-size on parent, inherited by all)
     autoFitElement(messageRef.current, '--fit-message-font-size', MIN_MESSAGE_PX, MAX_STEPS_MESSAGE, varTarget, messageStartSize);
@@ -152,10 +152,10 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
 
     // DEV: flag fit failures (content must never be truncated — regenerate instead)
     if (process.env.NODE_ENV === 'development') {
-      if (messageRef.current && messageRef.current.scrollHeight > messageRef.current.clientHeight + 2) {
+      if (messageRef.current && messageRef.current.scrollHeight > messageRef.current.clientHeight) {
         console.error('[AUTOFIT] INTRO_FIT_FAILED: message still clips after shrink-only auto-fit');
       }
-      if (poemRef.current && poemRef.current.scrollHeight > poemRef.current.clientHeight + 2) {
+      if (poemRef.current && poemRef.current.scrollHeight > poemRef.current.clientHeight) {
         console.error('[AUTOFIT] POEM_FIT_FAILED: poem still clips after shrink-only auto-fit');
       }
     }

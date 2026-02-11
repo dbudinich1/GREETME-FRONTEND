@@ -617,7 +617,7 @@
   justify-content: flex-start;
   align-items: center;
   background: transparent;
-  padding-top: 80px;
+  padding-top: 100px;
   margin: 24px;
   margin-left: 12px;
 }
@@ -1362,6 +1362,7 @@
   .gc-featured-spread {
     flex-direction: column !important;
     height: auto !important;
+    max-height: none !important;   /* UNLOCK: Allow scroll via container */
     aspect-ratio: unset !important;
   }
 
@@ -1738,6 +1739,18 @@
     margin: 12px 0;
   }
 
+  .gc-featured-spread .gc-video-page {
+    padding-top: 40px;
+    margin: 12px;
+    margin-right: 6px;
+  }
+
+  .gc-featured-spread .gc-album-page {
+    padding-top: 40px;
+    margin: 12px;
+    margin-left: 6px;
+  }
+
   .gc-album-title {
     font-size: 32px;
   }
@@ -1747,7 +1760,7 @@
   }
 
   .gc-finale-spread .gc-page-left {
-    padding: 64px 48px 48px 32px;
+    padding: 48px 32px 32px 24px;
   }
 
   .gc-gift-title {

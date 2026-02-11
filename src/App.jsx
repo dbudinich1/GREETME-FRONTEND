@@ -32,6 +32,10 @@ import Notifications from "./pages/Notifications";
 import RecipientGreeting from "./pages/RecipientGreeting";
 import PublicGreetingCard from "./pages/PublicGreetingCard";
 import DebugGreetingFixture from './pages/DebugGreetingFixture';
+import DebugGreetingMaxFixture from './pages/DebugGreetingMaxFixture';
+import DebugGreetingMinFixture from './pages/DebugGreetingMinFixture';
+import DebugGreetingMaxOverflowFixture from './pages/DebugGreetingMaxOverflowFixture';
+import DebugGreetingMultiParaFixture from './pages/DebugGreetingMultiParaFixture';
 
 export default function App() {
   return (
@@ -50,9 +54,13 @@ export default function App() {
           <Route path="/g/:jobId" element={<PublicGreetingCard />} />
 
           {/* Dev-only debug route for validator */}
-          {!import.meta.env.PROD && (
+          {!import.meta.env.PROD && (<>
             <Route path="/__debug/greeting-fixture" element={<DebugGreetingFixture />} />
-          )}
+            <Route path="/__debug/greeting-max" element={<DebugGreetingMaxFixture />} />
+            <Route path="/__debug/greeting-min" element={<DebugGreetingMinFixture />} />
+            <Route path="/__debug/greeting-max-overflow" element={<DebugGreetingMaxOverflowFixture />} />
+            <Route path="/__debug/greeting-multi" element={<DebugGreetingMultiParaFixture />} />
+          </>)}
 
           {/* Protected Routes */}
           <Route

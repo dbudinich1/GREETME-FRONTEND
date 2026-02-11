@@ -19,7 +19,9 @@ const relationshipData = {
       uncle: { label: 'Uncle', icon: '👨' },
       cousin: { label: 'Cousin', icon: '🙂' },
       niece: { label: 'Niece', icon: '👧' },
-      nephew: { label: 'Nephew', icon: '👦' }
+      nephew: { label: 'Nephew', icon: '👦' },
+      godson: { label: 'Godson', icon: '👦' },
+      goddaughter: { label: 'Goddaughter', icon: '👧' }
     }
   },
   friend: {
