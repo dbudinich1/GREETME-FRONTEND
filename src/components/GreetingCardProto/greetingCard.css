@@ -609,7 +609,7 @@
   margin: 24px;
   margin-right: 12px;
   padding: 40px;
-  padding-top: 100px;             /* Push video down to align with vignette */
+  padding-top: 140px;             /* Push video down to align with album frame */
   border-radius: 4px;
 }
 
@@ -618,7 +618,7 @@
   justify-content: flex-start;
   align-items: center;
   background: transparent;
-  padding-top: 100px;
+  padding-top: 40px;
   margin: 24px;
   margin-left: 12px;
 }
@@ -770,7 +770,7 @@
   font-size: 49px;                    /* +2 sizes from 45px */
   font-weight: 500;
   color: var(--gc-text-brown);
-  margin: 0 0 24px 0;
+  margin: 0 0 10px 0;
 }
 
 /* Stacked photos effect */
@@ -1803,27 +1803,43 @@
   }
 
   /* Finale right page — fit gift content within page */
+  .gc-gift-content {
+    padding: 16px;
+  }
+
   .gc-gift-title {
-    font-size: 28px;
+    font-size: 24px;
+    margin-bottom: 6px;
   }
 
   .gc-qr-frame {
-    width: 100px;
-    height: 100px;
-    padding: 8px;
-    margin-bottom: 12px;
+    width: 90px;
+    height: 90px;
+    padding: 6px;
+    margin-bottom: 8px;
   }
 
   .gc-gift-instruction {
-    font-size: 14px;
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .gc-logo-seal {
+    width: 30px;
+    height: 30px;
+  }
+
+  .gc-logo-seal span {
+    font-size: 18px;
   }
 
   .gc-brand-name {
-    font-size: 22px;
+    font-size: 16px;
   }
 
   .gc-brand-tagline {
-    font-size: 12px;
+    font-size: 11px;
+    margin-top: 4px;
   }
 }
 
