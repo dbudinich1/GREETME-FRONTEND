@@ -1,7 +1,7 @@
 import { GreetingCard } from '../components/GreetingCardProto';
 
 /**
- * MINIMAL CONTENT fixture — 3 sentences (min fallback), 4-line poem
+ * MINIMAL CONTENT fixture — 4 sentences (short), 4-line poem
  * Tests: variant +2px boost (<=3 sentences), LH expansion, poem fit
  */
 const MIN_FIXTURE_GREETING = {
@@ -11,14 +11,11 @@ const MIN_FIXTURE_GREETING = {
   senderName: 'Dan',
   occasionKey: 'birthday',
   relationshipKey: 'friend',
-  // Body: 3 sentences (min fallback), single paragraph, ~185 chars (180–260 envelope)
+  // Body: 4 sentences, single paragraph, 133 chars (120–165 envelope), 28 words
   writtenIntroText: [
-    'Dear Amy,',
-    '',
     'Happy Birthday!',
     '',
-    'Thinking of you today and sending all my warmest wishes your way. You bring so much light and happiness to everyone around you. May this birthday be as wonderful and special as you are.',
-    '',
+    'Sending warmth and love your way. You light up every room you enter. May today bring you pure happiness. You are truly one of a kind.',
     'Dan',
   ].join('\n'),
   // Poem: exactly 4 lines, 24–42 chars each
@@ -28,8 +25,8 @@ const MIN_FIXTURE_GREETING = {
     'With love and laughter all around,',
     'And blessings waiting to be found.',
   ].join('\n'),
-  // Finale: 3 body lines + birthday sign-off (~153 chars, 120–180 envelope)
-  finaleText: 'Thinking of you today with a smile.\n\nYou bring light to everyone around you.\n\nHere is to another wonderful year.\n\nMay all your birthday wishes come true.',
+  // Finale: 4 body lines + birthday sign-off, \n\n delimited (~145 chars body, 120–180 envelope)
+  finaleText: 'Thinking of you today with a smile.\n\nYou bring light to everyone around you.\n\nHere is to another wonderful year.\n\nEvery day with you is a blessing.\n\nMay all your birthday wishes come true.',
   videoUrl: null,
   photos: [],
 };

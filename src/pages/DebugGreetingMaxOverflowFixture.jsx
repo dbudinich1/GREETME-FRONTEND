@@ -1,7 +1,7 @@
 import { GreetingCard } from '../components/GreetingCardProto';
 
 /**
- * MAX OVERFLOW EDGE CASE — long name, 4 sentences near 260 char ceiling, 4-line poem near 42 chars/line
+ * MAX OVERFLOW EDGE CASE — long name, 4 sentences near 165 char ceiling, 4-line poem near 42 chars/line
  * Tests: auto-fit shrink on message, poem char envelope, salutation nowrap
  */
 const MAX_OVERFLOW_FIXTURE_GREETING = {
@@ -11,14 +11,11 @@ const MAX_OVERFLOW_FIXTURE_GREETING = {
   senderName: 'Alexandria',
   occasionKey: 'birthday',
   relationshipKey: 'friend',
-  // Body: 4 sentences, single paragraph, ~257 chars (near 260 max)
+  // Body: 4 sentences, single paragraph, 163 chars (near 165 max), 28 words
   writtenIntroText: [
-    'Dear Christopher,',
-    '',
     'Happy Birthday!',
     '',
-    'Every year brings new adventures and cherished memories we hold dear. May this birthday be the start of your most wonderful chapter yet. The world is brighter because you are in it and I feel grateful every day. Wishing you nothing but joy and celebration.',
-    '',
+    'Every year brings new adventures to treasure. May this chapter be your most wonderful yet. The world is brighter because of you. Wishing you nothing but joy today.',
     'Alexandria',
   ].join('\n'),
   // Poem: exactly 4 lines, each near 42 char max
@@ -28,8 +25,8 @@ const MAX_OVERFLOW_FIXTURE_GREETING = {
     'With laughter echoing through the years,',
     'And warmth to chase away all fears.',
   ].join('\n'),
-  // Finale: 3 body lines + birthday sign-off (~175 chars, 120–180 envelope)
-  finaleText: 'Every year brings new joy and memories to cherish.\n\nThe world is brighter because of you.\n\nWishing you a day of love and celebration.\n\nMay all your birthday wishes come true.',
+  // Finale: 4 body lines + birthday sign-off, \n\n delimited (~169 chars body, 120–180 envelope)
+  finaleText: 'Every year brings new joy and memories to cherish.\n\nThe world is brighter because of you.\n\nWishing you a day of love and celebration.\n\nMay your new chapter be extraordinary.\n\nMay all your birthday wishes come true.',
   videoUrl: null,
   photos: [],
 };

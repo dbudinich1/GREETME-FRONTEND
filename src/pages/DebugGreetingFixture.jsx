@@ -7,14 +7,11 @@ const FIXTURE_GREETING = {
   senderName: 'Danny',
   occasionKey: 'birthday',
   relationshipKey: 'friend',
-  // Body: 4 sentences, single paragraph, ~195 chars (180–260 envelope)
+  // Body: 4 sentences, single paragraph, 127 chars (120–165 envelope), 26 words
   writtenIntroText: [
-    'Dear Dan,',
-    '',
     'Happy Birthday!',
     '',
-    'Wishing you a day filled with joy, laughter, and love. You deserve nothing but the best today and always. Every moment we share means the world to me. Here is to another beautiful year ahead.',
-    '',
+    'Wishing you joy and laughter today. You mean the world to me. Every year with you is a blessing. Here is to your best year yet.',
     'Danny',
   ].join('\n'),
   // Poem: exactly 4 lines, 24–42 chars each
@@ -24,8 +21,8 @@ const FIXTURE_GREETING = {
     'And every wish you hold so near,',
     'Find its way to you this year.',
   ].join('\n'),
-  // Finale: 3 body lines + birthday sign-off (~158 chars, 120–180 envelope)
-  finaleText: 'I hope today fills your heart with joy.\n\nEvery moment with you is a treasure.\n\nYou deserve the best life can offer.\n\nMay all your birthday wishes come true.',
+  // Finale: 4 body lines + birthday sign-off, \n\n delimited (~147 chars body, 120–180 envelope)
+  finaleText: 'I hope today fills your heart with joy.\n\nEvery moment with you is a treasure.\n\nYou deserve the best life can offer.\n\nMay your day be filled with love.\n\nMay all your birthday wishes come true.',
   videoUrl: null,
   photos: [],
 };

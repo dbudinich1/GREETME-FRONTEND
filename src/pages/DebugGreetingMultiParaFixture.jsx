@@ -1,7 +1,7 @@
 import { GreetingCard } from '../components/GreetingCardProto';
 
 /**
- * STANDARD 4-SENTENCE fixture — 4 sentences, single paragraph, 4-line poem
+ * STANDARD 4-SENTENCE fixture — 4 sentences, 120–165 char envelope, 4-line poem
  * Tests: full content at target spec, no boost (4 sentences = token default)
  */
 const MULTI_PARA_FIXTURE_GREETING = {
@@ -11,14 +11,11 @@ const MULTI_PARA_FIXTURE_GREETING = {
   senderName: 'Mike',
   occasionKey: 'birthday',
   relationshipKey: 'friend',
-  // Body: 4 sentences, single paragraph, ~241 chars (180–260 envelope)
+  // Body: 4 sentences, single paragraph, 145 chars (120–165 envelope), 27 words
   writtenIntroText: [
-    'Dear Sarah,',
-    '',
     'Happy Birthday!',
     '',
-    'What a year it has been full of surprises and cherished memories. I hope today brings you peace, happiness, and everything your heart desires. You make the world a better place just by being in it. Cheering you on today and every day ahead.',
-    '',
+    'What a wonderful year it has been. You make every day brighter for us all. Wishing you peace and happiness today. Cheering you on now and always.',
     'Mike',
   ].join('\n'),
   // Poem: exactly 4 lines, 24–42 chars each
@@ -28,8 +25,8 @@ const MULTI_PARA_FIXTURE_GREETING = {
     'Your kindness lights the darkest night,',
     'Your smile makes everything right.',
   ].join('\n'),
-  // Finale: 3 body lines + birthday sign-off (~172 chars, 120–180 envelope)
-  finaleText: 'What a year of surprises and beautiful moments.\n\nYou make the world better just by being here.\n\nCheering you on today and every day.\n\nMay all your birthday wishes come true.',
+  // Finale: 4 body lines + birthday sign-off, \n\n delimited (~166 chars body, 120–180 envelope)
+  finaleText: 'What a year of surprises and beautiful moments.\n\nYou make the world better just by being here.\n\nCheering you on today and every day.\n\nMay your heart be full of happiness.\n\nMay all your birthday wishes come true.',
   videoUrl: null,
   photos: [],
 };
