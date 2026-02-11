@@ -984,6 +984,13 @@
 /* ===== FINALE SPREAD ===== */
 /* CANONICAL: Uses Tangerine font, frame clamp, NO SIGNATURE */
 
+/* Finale: force equal page widths despite asymmetric padding.
+   flex-basis:50% + border-box = each page is exactly half the spread. */
+.gc-finale-spread .gc-page {
+  flex: 0 0 50%;
+  min-width: 0;
+}
+
 /* Finale spread - centered content with 1 inch margins */
 .gc-finale-spread .gc-page-left {
   display: flex;
