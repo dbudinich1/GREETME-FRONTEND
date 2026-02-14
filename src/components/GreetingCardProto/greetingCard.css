@@ -1277,11 +1277,14 @@
   .gc-interior-spread .gc-poem-content {
     display: flex !important;
     flex-direction: column !important;
+    padding-left: 2px;
+    padding-right: 2px;
   }
 
   .gc-interior-spread .gc-poem {
     padding-left: 0;
     flex-shrink: 1;
+    align-self: stretch; /* Use full parent width instead of shrinking to content */
   }
 
   .gc-interior-spread .gc-warm-wishes {
