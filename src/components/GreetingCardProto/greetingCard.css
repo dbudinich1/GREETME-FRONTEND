@@ -2306,10 +2306,10 @@
   }
 }
 
-/* PHASE B6 — iPhone 12 portrait ONLY (390×844) */
+/* PHASE B6 — Safari-safe mobile portrait (all iPhones ≤430px) */
 /* Lower warm wishes and guarantee bottom breathing room */
 
-@media (width: 390px) and (height: 844px) and (orientation: portrait) {
+@media (max-width: 430px) and (orientation: portrait) {
 
   .gc-page.gc-page-right .gc-page-content.gc-poem-content {
     padding-bottom: 10px; /* bottom safety for iOS descenders */
