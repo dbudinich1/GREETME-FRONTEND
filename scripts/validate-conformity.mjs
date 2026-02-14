@@ -68,11 +68,11 @@ File: ${lockTokensPath}
 
 mustMatch(
   lockTokens,
-  /@media\s*\(max-width:\s*500px\)\s*and\s*\(orientation:\s*portrait\)\s*\{[\s\S]*?:root\s*\{[\s\S]*?--lock-poem-font-size:\s*17px;[\s\S]*?\}[\s\S]*?\}/m,
+  /@media\s*\(max-width:\s*500px\)\s*and\s*\(orientation:\s*portrait\)\s*\{[\s\S]*?:root\s*\{[\s\S]*?--lock-poem-font-size:\s*15px;[\s\S]*?\}[\s\S]*?\}/m,
   "TOKEN_DRIFT_PORTRAIT_POEM_FONT",
   `
 Scope: Locked Tokens (390x844 portrait)
-Expected: --lock-poem-font-size: 17px
+Expected: --lock-poem-font-size: 15px
 File: ${lockTokensPath}
 `
 );

@@ -179,7 +179,7 @@
     --lock-signature-right: 16px;
 
     /* Poem */
-    --lock-poem-font-size: 17px;
+    --lock-poem-font-size: 15px;
     --lock-poem-line-height: 1.2;
     --lock-poem-margin: 4px 0 6px 0;
     --lock-poem-top-gap: 8px;
@@ -279,7 +279,7 @@
     --lock-signature-right: 16px;
 
     /* Poem */
-    --lock-poem-font-size: 25px;
+    --lock-poem-font-size: 15px;
     --lock-poem-line-height: 1.15;
     --lock-poem-margin: 8px 0 0 0;
     --lock-poem-max-width: 80%;
