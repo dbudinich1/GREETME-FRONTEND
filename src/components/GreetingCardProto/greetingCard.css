@@ -2324,4 +2324,17 @@
   .gc-page.gc-page-right .gc-page-content.gc-poem-content .gc-warm-wishes {
     margin-top: 8px; /* fixed small gap, not auto (which pushes to bottom) */
   }
+
+  /* PHASE B7 — Fix portrait wrapping without changing font size */
+
+  /* 1. Widen poem content box */
+  .gc-page.gc-page-right .gc-page-content.gc-poem-content {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  /* 2. Prevent warm wishes from wrapping */
+  .gc-page.gc-page-right .gc-warm-wishes {
+    white-space: nowrap;
+  }
 }
