@@ -2337,4 +2337,20 @@
   .gc-page.gc-page-right .gc-warm-wishes {
     white-space: nowrap;
   }
+
+  /* PHASE B8 — Move poem up to salutation level, reclaim vertical space */
+
+  /* Push content to top of right page instead of centering */
+  .gc-interior-spread .gc-page-right {
+    justify-content: flex-start !important;
+  }
+
+  /* Remove top padding from poem container and poem element */
+  .gc-page.gc-page-right .gc-page-content.gc-poem-content {
+    padding-top: 0;
+  }
+
+  .gc-page.gc-page-right .gc-page-content.gc-poem-content .gc-poem {
+    padding-top: 0;
+  }
 }
