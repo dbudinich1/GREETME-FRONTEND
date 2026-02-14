@@ -193,7 +193,7 @@
     --lock-warm-wishes-font-size: 15px;
     --lock-warm-wishes-margin-top: 10px;
     --lock-warm-wishes-margin-left: 0;
-    --lock-warm-wishes-bottom-gap: 2px;
+    --lock-warm-wishes-bottom-gap: 4px;
 
     /* Right Page Content Padding - reduced horizontal for narrow viewports */
     --lock-right-page-content-padding: 8px;

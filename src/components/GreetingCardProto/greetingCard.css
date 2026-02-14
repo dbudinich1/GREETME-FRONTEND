@@ -1252,6 +1252,10 @@
     position: relative;
   }
 
+  .gc-interior-spread .gc-page-left .gc-page-content {
+    bottom: calc(var(--lock-page-content-bottom) + 8px); /* +8px safety buffer for iPhone 12 portrait clipping */
+  }
+
   /* Typography handled by lockTokens.css - tokens mutate values, not selectors */
   .gc-interior-spread .gc-greeting-occasion {
     margin: var(--lock-occasion-margin);
