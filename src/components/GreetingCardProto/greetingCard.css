@@ -2306,13 +2306,22 @@
   }
 }
 
-/* PHASE B5 — iPhone 12 portrait only (390×844) — add internal safety buffer under poem */
+/* PHASE B6 — iPhone 12 portrait ONLY (390×844) */
+/* Lower warm wishes and guarantee bottom breathing room */
+
 @media (width: 390px) and (height: 844px) and (orientation: portrait) {
-  .gc-interior-spread .gc-page-right .gc-poem {
-    flex: 0 1 auto;      /* stop flex-grow */
-    padding-bottom: 8px; /* guaranteed descender safety buffer */
+
+  .gc-page.gc-page-right .gc-page-content.gc-poem-content {
+    padding-bottom: 10px; /* bottom safety for iOS descenders */
     box-sizing: border-box;
   }
+
+  .gc-page.gc-page-right .gc-page-content.gc-poem-content .gc-poem {
+    flex: 0 1 auto;   /* poem must NOT flex-grow */
+    padding-bottom: 0; /* remove earlier portrait padding if present */
+  }
+
+  .gc-page.gc-page-right .gc-page-content.gc-poem-content .gc-warm-wishes {
+    margin-top: auto; /* pushes warm wishes downward */
+  }
 }
-
-
