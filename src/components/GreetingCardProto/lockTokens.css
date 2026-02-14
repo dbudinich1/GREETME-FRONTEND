@@ -135,6 +135,7 @@
     --lock-warm-wishes-font-size: 12px;
     --lock-warm-wishes-margin-top: -4px;
     --lock-warm-wishes-margin-left: 8px;
+    --lock-warm-wishes-bottom-gap: 0; /* Override 2px to prevent poem clipping */
   }
 }
 
@@ -315,20 +316,23 @@
     --lock-letter-frame: 24px;
 
     /* Salutation */
-    --lock-salutation-font-size: 25px;
-    --lock-salutation-line-height: 1.15;
-    --lock-salutation-margin: 20px 0 6px 0;
+    --lock-salutation-font-size: 27px;
+    --lock-salutation-line-height: 1.25;
+    --lock-salutation-margin: 20px 0 0 0;
 
-    /* Occasion */
-    --lock-occasion-font-size: 25px;
-    --lock-occasion-line-height: 1.15;
+    /* Occasion — zero bottom margin for uniform line spacing */
+    --lock-occasion-font-size: 27px;
+    --lock-occasion-line-height: 1.25;
+    --lock-occasion-margin: 0;
 
-    /* Message */
-    --lock-message-font-size: 25px;
-    --lock-message-line-height: 1.15;
+    /* Message — zero margins for uniform line spacing */
+    --lock-message-font-size: 27px;
+    --lock-message-line-height: 1.25;
+    --lock-message-margin: 0;
+    --lock-message-p-margin: 0;
 
     /* Signature */
-    --lock-signature-font-size: 25px;
+    --lock-signature-font-size: 27px;
     --lock-signature-bottom: 4px;
     --lock-signature-right: 24px;
 
@@ -336,16 +340,17 @@
     --lock-poem-font-size: 20px;
     --lock-poem-line-height: 1.15;
     --lock-poem-margin: 8px 0 0 0;
-    --lock-poem-max-width: 80%;
+    --lock-poem-max-width: 62%;
 
     /* Warm Wishes */
     --lock-warm-wishes-font-size: 21px;
     --lock-warm-wishes-margin-top: 0;
     --lock-warm-wishes-margin-left: 0;
+    --lock-warm-wishes-bottom-gap: 6px;
 
-    /* Poem Content Container */
+    /* Poem Content Container — margin-top 0 for vertical centering */
     --lock-poem-content-padding: 0 40px;
-    --lock-poem-content-margin-top: 24px;
+    --lock-poem-content-margin-top: 0;
 
     /* Right Page Content Padding */
     --lock-right-page-content-padding: 8px;
@@ -381,22 +386,29 @@
     --lock-page-content-right: 8px;
     --lock-page-content-bottom: 8px;
 
-    /* Salutation */
+    /* Salutation — restore from ≤700px change */
     --lock-salutation-font-size: 12px;
+    --lock-salutation-line-height: 1.15;
+    --lock-salutation-margin: 20px 0 6px 0;
 
-    /* Occasion */
+    /* Occasion — restore from ≤700px change */
     --lock-occasion-font-size: 14px;
+    --lock-occasion-line-height: 1.15;
+    --lock-occasion-margin: 0 0 6px 0;
 
-    /* Message */
+    /* Message — restore margins from ≤700px change */
     --lock-message-font-size: 11px;
     --lock-message-line-height: 1.2;
+    --lock-message-margin: 0 0 12px 0;
+    --lock-message-p-margin: 0 0 8px 0;
 
     /* Signature */
     --lock-signature-font-size: 14px;
 
-    /* Poem */
+    /* Poem — restore margin-top from ≤700px change */
     --lock-poem-font-size: 11px;
     --lock-poem-line-height: 1.3;
+    --lock-poem-content-margin-top: 16px;
 
     /* Warm Wishes */
     --lock-warm-wishes-font-size: 14px;

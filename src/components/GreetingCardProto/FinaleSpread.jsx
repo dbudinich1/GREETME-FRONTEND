@@ -67,7 +67,7 @@ const isBirthdayOccasion = (occasionKey) => {
 // AUTO-FIT constants (same floors as InteriorSpread)
 const MIN_FINALE_PX = 14;
 const MAX_STEPS = 16;
-const MIN_LH = 1.05;
+const MIN_LH = 1.20;
 const LH_TIGHTEN_STEP = 0.03;
 
 function autoFitElement(el, cssVar, minPx, maxSteps) {
@@ -174,9 +174,7 @@ export default function FinaleSpread({ finaleText, occasionKey }) {
         <div className="gc-page gc-page-left">
           <div className="gc-page-content">
             <div className="gc-closing-message" ref={closingMessageRef}>
-              {(cleanedFinale || DEFAULT_FINALE).split('\n\n').map((paragraph, index) => (
-                <p key={index}>{paragraph}</p>
-              ))}
+              {(cleanedFinale || DEFAULT_FINALE).replace(/\n\n/g, '\n')}
             </div>
             {/* CANONICAL: No signature on Finale spread */}
           </div>

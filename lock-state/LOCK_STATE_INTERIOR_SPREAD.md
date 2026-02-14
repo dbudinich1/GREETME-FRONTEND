@@ -1,7 +1,7 @@
 # LOCK STATE — Interior Spread Layout (DO NOT CHANGE WITHOUT EXPLICIT AUTHORIZATION)
 
 Status: LOCKED
-Date: 2026-02-06
+Date: 2026-02-09
 
 ## Scope locked
 - Interior spread layout model
@@ -25,3 +25,5 @@ Date: 2026-02-06
 - Visual containment: no clipping, drifting, overlap, or smashed text across target viewports
 - Right page poem stack visible and contained
 - Tablet portrait no longer collapses/thumbnail
+- 667×375 re-locked 2026-02-09: uniform 1.25 LH, 27px fonts, poem centered, 62% width, warm wishes absolute bottom
+- 667×375 finale locked 2026-02-09: closing message 25px/1.15 centered, brand text weight 700, padding 16px 24px
