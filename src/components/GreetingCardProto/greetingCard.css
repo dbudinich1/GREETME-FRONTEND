@@ -1291,6 +1291,13 @@
     flex-shrink: 0;
   }
 
+  /* iOS Safari safety: shrink warm-wishes vertical footprint to give poem more room */
+  .gc-page-right .gc-warm-wishes {
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+    line-height: 1.1 !important;
+  }
+
   .gc-envelope-wrapper,
   .gc-cover-wrapper,
   .gc-spread-wrapper {
@@ -2296,6 +2303,15 @@
   .gc-envelope,
   .gc-cover {
     transition: none;
+  }
+}
+
+/* PHASE B5 — iPhone 12 portrait only (390×844) — add internal safety buffer under poem */
+@media (width: 390px) and (height: 844px) and (orientation: portrait) {
+  .gc-interior-spread .gc-page-right .gc-poem {
+    flex: 0 1 auto;      /* stop flex-grow */
+    padding-bottom: 8px; /* guaranteed descender safety buffer */
+    box-sizing: border-box;
   }
 }
 

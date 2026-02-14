@@ -179,7 +179,7 @@
     --lock-signature-right: 16px;
 
     /* Poem */
-    --lock-poem-font-size: 15px;
+    --lock-poem-font-size: 14px;
     --lock-poem-line-height: 1.2;
     --lock-poem-margin: 4px 0 6px 0;
     --lock-poem-top-gap: 8px;
@@ -194,7 +194,7 @@
     --lock-warm-wishes-font-size: 15px;
     --lock-warm-wishes-margin-top: 10px;
     --lock-warm-wishes-margin-left: 0;
-    --lock-warm-wishes-bottom-gap: 4px;
+    --lock-warm-wishes-bottom-gap: 2px;
 
     /* Right Page Content Padding - reduced horizontal for narrow viewports */
     --lock-right-page-content-padding: 8px;
