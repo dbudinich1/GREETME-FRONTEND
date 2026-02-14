@@ -2345,12 +2345,14 @@
     justify-content: flex-start !important;
   }
 
-  /* Remove top padding from poem container and poem element */
+  /* Zero out top padding via tokens */
   .gc-page.gc-page-right .gc-page-content.gc-poem-content {
-    padding-top: 0;
+    --lock-poem-top-gap: 0px;
+    padding-top: var(--lock-poem-top-gap);
   }
 
   .gc-page.gc-page-right .gc-page-content.gc-poem-content .gc-poem {
-    padding-top: 0;
+    --lock-poem-content-margin-top: 0px;
+    padding-top: var(--lock-poem-content-margin-top);
   }
 }
