@@ -2356,3 +2356,11 @@
     padding-top: var(--lock-poem-content-margin-top);
   }
 }
+
+/* B9 — iPhone portrait only: nudge poem block down one line-height */
+
+@media (min-width: 389px) and (max-width: 430px) and (orientation: portrait) {
+  .gc-page.gc-page-right .gc-page-content.gc-poem-content {
+    padding-top: 16px;  /* approximately one poem line-height */
+  }
+}
