@@ -2369,3 +2369,28 @@
     padding-top: 18px;  /* approximately one poem line-height */
   }
 }
+
+/* B11 — Safari-only (WebKit) portrait: pin warm wishes to bottom so poem wrapping can't collide */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 430px) and (orientation: portrait) {
+
+    .gc-page.gc-page-right .gc-page-content.gc-poem-content {
+      justify-content: flex-start !important;
+      padding-bottom: 10px;
+      box-sizing: border-box;
+    }
+
+    .gc-page.gc-page-right .gc-page-content.gc-poem-content .gc-poem {
+      flex: 0 0 auto;
+      overflow: visible;
+      max-height: none;
+      height: auto;
+    }
+
+    .gc-page.gc-page-right .gc-page-content.gc-poem-content .gc-warm-wishes {
+      margin-top: auto;
+      padding-top: 8px;       /* fixed gap above warm wishes */
+      white-space: nowrap;
+    }
+  }
+}
