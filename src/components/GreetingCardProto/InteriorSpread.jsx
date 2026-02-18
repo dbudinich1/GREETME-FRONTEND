@@ -60,7 +60,8 @@ function formatPoemToFit(poemText, maxLines = MAX_POEM_LINES, maxCharsPerLine = 
 
 // AUTO-FIT: Shrink-only. Tokens define ideal size; auto-fit may only reduce.
 // No expansions, no truncation, no ellipsis.
-const MIN_MESSAGE_PX = 19;
+const MIN_MESSAGE_PX_DEFAULT = 19;    // non-portrait floor
+const MIN_MESSAGE_PX_PORTRAIT = 16;   // portrait floor (must be <= 18px token)
 const MIN_POEM_PX = 13;
 const MAX_STEPS_MESSAGE = 16;
 const MAX_STEPS_POEM = 16;
@@ -143,8 +144,15 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
       if (sentences <= 3) messageStartSize = baseSize + 2;
       // 4 sentences → null (token default, no boost)
     }
+    // Compute portrait-aware floor
+    const isPortraitMobile =
+      window.matchMedia &&
+      window.matchMedia('(max-width: 430px) and (orientation: portrait)').matches;
+
+    const minMessagePx = isPortraitMobile ? MIN_MESSAGE_PX_PORTRAIT : MIN_MESSAGE_PX_DEFAULT;
+
     // Shrink message font (sets --fit-message-font-size on parent, inherited by all)
-    autoFitElement(messageRef.current, '--fit-message-font-size', MIN_MESSAGE_PX, MAX_STEPS_MESSAGE, varTarget, messageStartSize);
+    autoFitElement(messageRef.current, '--fit-message-font-size', minMessagePx, MAX_STEPS_MESSAGE, varTarget, messageStartSize);
     // If message still clips after font-size floor, tighten line-height
     tightenLineHeight(messageRef.current, varTarget);
     // Shrink poem font

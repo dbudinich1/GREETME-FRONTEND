@@ -2420,9 +2420,9 @@
 @supports (-webkit-touch-callout: none) {
   @media (max-width: 430px) and (orientation: portrait) {
     .gc-page.gc-page-left .gc-greeting-message {
-      padding-bottom: 6px;     /* stronger descender buffer */
+      padding-bottom: 3px;
       box-sizing: border-box;
-      overflow: visible;       /* stop Safari from clipping last line */
+      overflow: hidden; /* prevent signature overlap now that auto-fit can shrink */
     }
   }
 }
