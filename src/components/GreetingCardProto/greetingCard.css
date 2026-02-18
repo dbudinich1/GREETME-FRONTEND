@@ -2338,11 +2338,9 @@
     white-space: nowrap;
   }
 
-  /* PHASE B8 — Move poem up to salutation level, reclaim vertical space */
-
-  /* Push content to top of right page instead of centering */
-  .gc-interior-spread .gc-page-right {
-    justify-content: flex-start !important;
+  /* PHASE B8 — Center poem stack vertically in portrait */
+  .gc-page.gc-page-right .gc-page-content.gc-poem-content {
+    justify-content: center !important;
   }
 
   /* Zero out top padding via tokens */
