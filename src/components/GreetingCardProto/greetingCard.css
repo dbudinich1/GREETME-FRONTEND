@@ -2368,6 +2368,6 @@
 
 @media (min-width: 389px) and (max-width: 430px) and (orientation: portrait) {
   .gc-page.gc-page-right .gc-page-content.gc-poem-content {
-    padding-top: 16px;  /* approximately one poem line-height */
+    padding-top: 18px;  /* approximately one poem line-height */
   }
 }
