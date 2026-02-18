@@ -2388,8 +2388,28 @@
     }
 
     .gc-page.gc-page-right .gc-page-content.gc-poem-content .gc-warm-wishes {
-      margin-top: auto;
-      padding-top: 8px;       /* fixed gap above warm wishes */
+      padding-top: 8px;
+      white-space: nowrap;
+    }
+  }
+}
+
+/* B12 — iOS Safari portrait: reserve a bottom lane for Warm Wishes (prevents push-off) */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 430px) and (orientation: portrait) {
+
+    .gc-page.gc-page-right .gc-page-content.gc-poem-content {
+      position: relative;
+      padding-bottom: 42px; /* reserves space for WW block (24px + padding + safety) */
+      box-sizing: border-box;
+    }
+
+    .gc-page.gc-page-right .gc-page-content.gc-poem-content .gc-warm-wishes {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 10px;         /* keep existing bottom safety feel */
+      margin-top: 0 !important;
       white-space: nowrap;
     }
   }
