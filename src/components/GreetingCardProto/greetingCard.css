@@ -2322,7 +2322,7 @@
   }
 
   .gc-page.gc-page-right .gc-page-content.gc-poem-content .gc-warm-wishes {
-    margin-top: 25px; /* 8px gap + ~17px (one poem line-height) to prevent last line clipping */
+    margin-top: 8px;
   }
 
   /* PHASE B7 — Fix portrait wrapping without changing font size */
@@ -2354,6 +2354,13 @@
   .gc-page.gc-page-right .gc-page-content.gc-poem-content .gc-poem {
     --lock-poem-content-margin-top: 0px;
     padding-top: var(--lock-poem-content-margin-top);
+  }
+
+  /* B10 — Mobile portrait: prevent poem clipping when lines wrap on real iOS Safari */
+  .gc-page.gc-page-right .gc-page-content.gc-poem-content .gc-poem {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important; /* critical: stop hiding wrapped lines */
   }
 }
 
