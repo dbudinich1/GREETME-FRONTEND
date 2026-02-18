@@ -2400,6 +2400,7 @@
 
     .gc-page.gc-page-right .gc-page-content.gc-poem-content {
       position: relative;
+      top: auto; left: auto; right: auto; bottom: auto; /* neutralise absolute inset from base rule */
       padding-bottom: 42px; /* reserves space for WW block (24px + padding + safety) */
       box-sizing: border-box;
     }
