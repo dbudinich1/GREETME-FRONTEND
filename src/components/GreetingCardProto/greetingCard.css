@@ -2431,7 +2431,7 @@
 /* B14 — Mobile landscape: raise poem stack slightly (do not touch desktop) */
 @media (max-height: 430px) and (orientation: landscape) {
   .gc-page.gc-page-right .gc-page-content.gc-poem-content {
-    padding-top: 35px !important;    /* ~2 line-heights down from top edge */
+    padding-top: 52px !important;    /* ~3 line-heights down from top edge */
     justify-content: flex-start !important;
   }
 }
