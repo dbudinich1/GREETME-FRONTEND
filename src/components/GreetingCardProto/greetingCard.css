@@ -2436,4 +2436,55 @@
   }
 }
 
+/* B16 — Safari portrait: squeeze Finale spread to match Intro spread footprint */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 430px) and (orientation: portrait) {
+    .gc-finale-spread {
+      /* Match intro spread dimensions */
+      width: calc(100vw - 32px) !important;
+      max-width: calc(100vw - 32px) !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+
+      /* Match intro spread height */
+      aspect-ratio: var(--gc-landscape-ar) !important;
+      height: auto !important;
+      max-height: 260px !important;
+      overflow: hidden !important;
+
+      /* Prevent left overflow */
+      left: auto !important;
+      right: auto !important;
+      transform: none !important;
+
+      box-sizing: border-box !important;
+    }
+
+    /* Reduce line-height on left page (closing message) to fit cramped space */
+    .gc-finale-spread .gc-page-left .gc-page-content {
+      line-height: 1.1 !important;
+    }
+
+    /* Scale down closing message font to fit */
+    .gc-finale-spread .gc-page-left .gc-closing-message,
+    .gc-finale-spread .gc-page-left p,
+    .gc-finale-spread .gc-page-left h2,
+    .gc-finale-spread .gc-page-left h3 {
+      font-size: 0.85em !important;
+      line-height: 1.1 !important;
+    }
+
+    /* Scale down right page (brand/tagline) proportionally */
+    .gc-finale-spread .gc-page-right .gc-brand-name {
+      font-size: 0.8em !important;
+      line-height: 1.2 !important;
+    }
+
+    .gc-finale-spread .gc-page-right .gc-tagline {
+      font-size: 0.75em !important;
+      line-height: 1.15 !important;
+    }
+  }
+}
+
 
