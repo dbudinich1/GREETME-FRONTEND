@@ -2436,35 +2436,3 @@
   }
 }
 
-/* B15 — Mobile portrait: make Featured/Finale spread use the same book-shell footprint as interior */
-@media (max-width: 430px) and (orientation: portrait) {
-  .gc-featured-spread {
-    width: calc(100vw - 32px) !important;   /* match interior (358px on 390w) */
-    max-width: calc(100vw - 32px) !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-
-    /* match interior height footprint */
-    aspect-ratio: var(--gc-landscape-ar) !important;
-    height: auto !important;
-    max-height: 260px !important;           /* small safety over ~250.44 */
-    overflow: hidden !important;
-
-    /* ensure no left overflow */
-    left: auto !important;
-    right: auto !important;
-    transform: none !important;
-  }
-}
-
-@media (max-width: 430px) and (orientation: portrait) {
-  .gc-featured-spread {
-    display: flex !important;
-    flex-direction: row !important;   /* mimic two-page spread side-by-side */
-  }
-
-  .gc-featured-spread > * {
-    flex: 1 1 0 !important;
-    min-height: 0 !important;
-  }
-}
