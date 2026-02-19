@@ -2436,3 +2436,42 @@
   }
 }
 
+/* B16 — Portrait: keep Featured vertical, but center it and contain height */
+@media (max-width: 430px) and (orientation: portrait) {
+  .gc-featured-spread {
+    width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 32px) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+
+    /* prevent left overflow caused by positional offsets */
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+
+    /* keep vertical stack */
+    display: flex !important;
+    flex-direction: column !important;
+
+    /* contain runaway height */
+    max-height: calc(100vh - 160px) !important;
+    overflow: hidden !important;
+
+    box-sizing: border-box !important;
+  }
+
+  /* video stays natural height */
+  .gc-featured-spread > :first-child {
+    flex: 0 0 auto !important;
+    min-height: 0 !important;
+  }
+
+  /* album takes remaining space and scrolls internally */
+  .gc-featured-spread > :last-child {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
