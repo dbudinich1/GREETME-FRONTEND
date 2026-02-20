@@ -2460,17 +2460,22 @@
       box-sizing: border-box !important;
     }
 
-    /* Reduce line-height on left page (closing message) to fit cramped space */
+    /* Center content vertically on left page + tighter margins */
     .gc-finale-spread .gc-page-left .gc-page-content {
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+      padding-left: 8px !important;
+      padding-right: 8px !important;
       line-height: 1.1 !important;
     }
 
-    /* Scale down closing message font to fit */
+    /* Increase font size by 2px from 0.85em, tighter line-height */
     .gc-finale-spread .gc-page-left .gc-closing-message,
     .gc-finale-spread .gc-page-left p,
     .gc-finale-spread .gc-page-left h2,
     .gc-finale-spread .gc-page-left h3 {
-      font-size: 0.85em !important;
+      font-size: calc(0.85em + 2px) !important;
       line-height: 1.1 !important;
     }
 
