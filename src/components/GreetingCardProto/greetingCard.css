@@ -1406,11 +1406,8 @@
     overflow: hidden;
   }
 
-  /* Video frame size for stacked portrait layout - 100% with !important override */
-  .gc-featured-spread .gc-video-frame {
-    width: 100% !important;
-    height: auto !important;
-  }
+  /* Video/album sizes for stacked pages */
+  /* REMOVED: video frame width override - using default var(--gc-video-size) */
 
   /* Album sizes for stacked pages */
   .gc-album-stack {
