@@ -2044,7 +2044,11 @@
   }
 
   /* Shrink video/album sizes for landscape */
-  /* REMOVED: .gc-video-frame { width: calc(40vh) } — causes video shrink */
+  .gc-video-frame {
+    width: calc(40vh) !important;
+    height: calc(40vh * 1.28) !important;
+    border-width: 2px;
+  }
 
   .gc-album-stack {
     width: calc(40vh) !important;
