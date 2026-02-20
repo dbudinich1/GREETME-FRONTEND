@@ -36,3 +36,25 @@ scripts/get*.js
 scripts/take*.js
 scripts/visual*.js
 scripts/final*.js
+
+# Root-level debug/measurement scripts (generated during CSS debugging)
+measure-*.cjs
+measure-*.mjs
+proof-*.cjs
+proof-*.mjs
+verify-*.cjs
+inspect-*.cjs
+find-*.cjs
+identify-*.cjs
+check-*.cjs
+append-*.cjs
+phase-*.cjs
+_gen*.js
+_write*.js
+_writer.cjs
+gen.js
+gen_*.py
+write-measure.js
+write-measure.cjs
+*.txt
+nul
