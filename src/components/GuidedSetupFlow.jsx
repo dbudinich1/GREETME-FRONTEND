@@ -346,7 +346,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         color: 'var(--text-primary)',
         marginBottom: '0.5rem',
       }}>
-        Welcome to Greet-Me
+        Welcome to Greet-Me™
       </h2>
       <p style={{
         fontSize: '1rem',
@@ -467,7 +467,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           Read this script:
         </p>
         <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.6, margin: 0 }}>
-          "Hello, I hope this greeting finds you well. I'm recording my voice so my greetings sound natural and warm. I look forward to creating many meaningful memories with friends and family for years to come. Thank you for using Greet-Me."
+          "Hello, I hope this greeting finds you well. I'm recording my voice so my greetings sound natural and warm. I look forward to creating many meaningful memories with friends and family for years to come. Thank you for using Greet-Me™."
         </p>
       </div>
 
@@ -884,7 +884,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         }}
       >
         <Send size={18} />
-        Send my first Greet-Me greeting
+        Send my first Greet-Me™ greeting
       </button>
     </div>
   );
@@ -1049,7 +1049,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         marginBottom: '1.5rem',
         lineHeight: 1.6,
       }}>
-        You're set. From here on out, Greet-Me can show up for the moments that matter — in your voice, with your presence.
+        You're set. From here on out, Greet-Me™ can show up for the moments that matter — in your voice, with your presence.
       </p>
       <p style={{
         fontSize: '1rem',

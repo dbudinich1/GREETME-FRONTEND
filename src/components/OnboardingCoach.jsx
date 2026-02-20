@@ -106,7 +106,7 @@ export default function OnboardingCoach({ voiceDone, photoDone, recipientDone })
             opacity: 0.95,
             marginBottom: '1rem'
           }}>
-            Your Greet-Me profile is ready. You can now send personalized greetings!
+            Your Greet-Me™ profile is ready. You can now send personalized greetings!
           </p>
           <button
             onClick={() => setIsVisible(false)}

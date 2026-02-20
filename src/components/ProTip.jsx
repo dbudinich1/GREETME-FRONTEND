@@ -158,7 +158,7 @@ export default function ProTip({
 export const PRO_TIPS = {
   TEMPLATE_REUSE: {
     tipKey: 'template_reuse',
-    title: '💡 Greet-Me Pro Tip',
+    title: '💡 Greet-Me™ Pro Tip™',
     message: 'Creating one animated message and saving it as a template lets you send it to multiple recipients — using just one animated moment.',
     variant: 'purple',
     icon: 'lightbulb'

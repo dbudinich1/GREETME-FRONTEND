@@ -369,7 +369,7 @@ export default function Invitations() {
           marginBottom: '1.5rem',
           textAlign: 'center'
         }}>
-          Why Choose Greet-Me Invitations?
+          Why Choose Greet-Me™ Invitations?
         </h2>
         <div style={{
           display: 'grid',

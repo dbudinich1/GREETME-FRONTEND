@@ -280,7 +280,7 @@ export default function LandingPage() {
             color: 'rgba(255, 255, 255, 0.9)',
             marginBottom: '2rem'
           }}>
-            Scan the QR code to download Greet-Me on your phone
+            Scan the QR code to download Greet-Me™ on your phone
           </p>
 
           {/* QR Code Placeholder */}
@@ -333,7 +333,7 @@ export default function LandingPage() {
         color: 'rgba(255, 255, 255, 0.7)',
         fontSize: '0.875rem'
       }}>
-        <p>&copy; 2025 Greet-Me. Never forget the ones you love.</p>
+        <p>&copy; 2025 Greet-Me™. Never forget the ones you love.</p>
       </footer>
     </div>
   );

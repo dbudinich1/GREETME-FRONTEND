@@ -539,7 +539,7 @@ if (typeof window !== "undefined") {
             fontSize: '1.5rem',
             fontWeight: 700,
             margin: 0
-          }}>Send a Greet-Me</h1>
+          }}>Send a Greet-Me™</h1>
           <p style={{
             fontSize: '0.9375rem',
             opacity: 0.9,
@@ -649,7 +649,7 @@ if (typeof window !== "undefined") {
             onChange={handleChange}
             rows={3}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-            placeholder="Add a personal touch or give Greet-Me a hint about what to say..."
+            placeholder="Add a personal touch or give Greet-Me™ a hint about what to say..."
           />
           <p className="mt-1 text-xs text-gray-500">
             This will be included in your greeting message
@@ -683,7 +683,7 @@ if (typeof window !== "undefined") {
             color: 'var(--text-secondary)',
             marginBottom: '1rem'
           }}>
-            Select photos to include with this Greet-Me. If no photos are added, your saved memory photos will be included by default unless disabled.
+            Select photos to include with this Greet-Me™. If no photos are added, your saved memory photos will be included by default unless disabled.
           </p>
 
           {/* Hidden file inputs */}

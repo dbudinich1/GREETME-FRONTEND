@@ -10,7 +10,7 @@ export default function Legal() {
 
       <h2>Privacy Policy</h2>
       <p>
-        Greet-Me.com respects your privacy. This Privacy Policy explains how we collect, use, and
+        Greet-Me™.com respects your privacy. This Privacy Policy explains how we collect, use, and
         handle information when you use our service.
       </p>
 
@@ -26,7 +26,7 @@ export default function Legal() {
       <h3>How We Use Information</h3>
       <p>
         Information you provide is used solely to generate personalized greetings, deliver greetings
-        to the intended recipient, and operate and improve the Greet-Me service.
+        to the intended recipient, and operate and improve the Greet-Me™ service.
       </p>
       <p>
         Uploaded content may be processed by automated systems to generate audio and video greetings.
@@ -53,10 +53,10 @@ export default function Legal() {
       <hr style={{ margin: "28px 0" }} />
 
       <h2>Terms of Service</h2>
-      <p>By using Greet-Me.com, you agree to the following terms.</p>
+      <p>By using Greet-Me™.com, you agree to the following terms.</p>
 
       <h3>Service Description</h3>
-      <p>Greet-Me allows users to create and send personalized digital greetings using submitted content.</p>
+      <p>Greet-Me™ allows users to create and send personalized digital greetings using submitted content.</p>
 
       <h3>User Content &amp; Permissions</h3>
       <p>
@@ -64,7 +64,7 @@ export default function Legal() {
         to submit any photo, voice, or content used with the service.
       </p>
       <p>
-        You grant Greet-Me permission to process submitted content solely for the purpose of generating
+        You grant Greet-Me™ permission to process submitted content solely for the purpose of generating
         and delivering the requested greeting.
       </p>
 
@@ -78,7 +78,7 @@ export default function Legal() {
       <p>The service is provided “as is” without warranties of any kind.</p>
 
       <h3>Limitation of Liability</h3>
-      <p>Greet-Me is not liable for damages arising from use of the service or from content submitted by users.</p>
+      <p>Greet-Me™ is not liable for damages arising from use of the service or from content submitted by users.</p>
 
       <h3>Changes</h3>
       <p>These terms may be updated from time to time.</p>

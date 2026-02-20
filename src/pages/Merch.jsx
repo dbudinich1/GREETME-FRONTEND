@@ -9,7 +9,7 @@ import greetmeFlags from '../assets/greetme-flags.jpg';
 const merchItems = [
   {
     id: 1,
-    name: 'Greet-Me Premium T-Shirt',
+    name: 'Greet-Me™ Premium T-Shirt',
     price: 29.99,
     description: 'Soft cotton tee with signature logo',
     category: 'Apparel',
@@ -328,7 +328,7 @@ export default function Merch() {
             margin: 0,
             marginBottom: '0.375rem'
           }}>
-            Greet-Me Merchandise
+            Greet-Me™ Merchandise
           </h1>
           <p style={{
             fontSize: '0.8125rem',
@@ -347,7 +347,7 @@ export default function Merch() {
           }}>
             <img
               src={greetmeFlags}
-              alt="Greet-Me American Made"
+              alt="Greet-Me™ American Made"
               style={{
                 height: isNarrow ? '50px' : '60px',
                 width: 'auto',

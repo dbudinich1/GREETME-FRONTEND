@@ -206,7 +206,7 @@ export default function Rewards() {
             justifyContent: 'center',
             gap: '0.5rem'
           }}>
-            <span style={{ fontSize: '2rem' }}>❤️</span> Greet-Me Rewards™
+            <span style={{ fontSize: '2rem' }}>❤️</span> Greet-Me™ Rewards™
           </h1>
           <p style={{
             fontSize: '1rem',
@@ -214,7 +214,7 @@ export default function Rewards() {
             fontStyle: 'italic',
             margin: 0
           }}>
-            Earn Hearts for every Greet-Me you send and more.
+            Earn Hearts for every Greet-Me™ you send and more.
           </p>
         </div>
 
@@ -289,7 +289,7 @@ export default function Rewards() {
                 e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
               }}
             >
-              ❤️ Greet-Me Hero Hearts™
+              ❤️ Greet-Me™ Hero™ Hearts™
             </button>
             {isHero && (
               <div style={{

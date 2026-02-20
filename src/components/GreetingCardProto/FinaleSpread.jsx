@@ -23,7 +23,7 @@ import cardInteriorImg from '../../assets/card/card-interior.png';
 const LogoPlaceholder = () => (
   <div
     className="gc-logo-seal"
-    aria-label="Greet-Me logo placeholder"
+    aria-label="Greet-Me™ logo placeholder"
   >
     <span>G</span>
   </div>
@@ -209,7 +209,7 @@ export default function FinaleSpread({ finaleText, occasionKey }) {
             <div className="gc-branding">
               {/* TODO: Replace with final G logo asset when provided */}
               <LogoPlaceholder />
-              <span className="gc-brand-name">Greet-Me</span>
+              <span className="gc-brand-name">Greet-Me™</span>
             </div>
             <p className="gc-brand-tagline">This moment was lovingly prepared for you</p>
           </div>

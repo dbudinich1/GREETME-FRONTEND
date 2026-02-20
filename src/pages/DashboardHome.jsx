@@ -1896,7 +1896,7 @@ export default function DashboardHome() {
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.25rem'
-            }}>Download Greet-Me Mobile App</h3>
+            }}>Download Greet-Me™ Mobile App</h3>
             <p style={{
               fontSize: '0.8125rem',
               color: 'var(--text-secondary)',
@@ -2614,7 +2614,7 @@ export default function DashboardHome() {
                   lineHeight: 1.6,
                   marginBottom: '0.75rem'
                 }}>
-                  Every Greet-Me subscription includes <strong>two subscriptions</strong> — one for you and one to gift to someone you care about. It's our way of spreading meaningful connections.
+                  Every Greet-Me™ subscription includes <strong>two subscriptions</strong> — one for you and one to gift to someone you care about. It's our way of spreading meaningful connections.
                 </p>
                 <ul style={{
                   fontSize: '0.9375rem',

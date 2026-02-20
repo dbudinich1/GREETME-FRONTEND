@@ -171,7 +171,7 @@ export default function HeroProgram() {
             marginBottom: '0.5rem',
             color: '#000000'
           }}>
-            Greet-Me Hero™
+            Greet-Me™ Hero™
           </h1>
 
           <p style={{
@@ -198,7 +198,7 @@ export default function HeroProgram() {
               fontFamily: 'inherit'
             }}
           >
-            Many Ways to Be a Greet-Me Hero
+            Many Ways to Be a Greet-Me™ Hero™
           </button>
 
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -300,7 +300,7 @@ export default function HeroProgram() {
           color: 'var(--text-primary)',
           marginBottom: '1.5rem',
           textAlign: 'center'
-        }}>Many Ways to Be a Greet-Me Hero</h2>
+        }}>Many Ways to Be a Greet-Me™ Hero™</h2>
 
         <div style={{
           display: 'grid',
@@ -377,7 +377,7 @@ export default function HeroProgram() {
               color: 'var(--text-secondary)',
               lineHeight: 1.6
             }}>
-              Curated vendors who stand with Greet-Me to honor our heroes. Shop from partners committed to quality and purpose-driven giving.
+              Curated vendors who stand with Greet-Me™ to honor our heroes. Shop from partners committed to quality and purpose-driven giving.
             </p>
           </div>
 
@@ -641,14 +641,14 @@ export default function HeroProgram() {
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.5rem'
-            }}>Greet-Me Hero Hearts™</h3>
+            }}>Greet-Me™ Hero™ Hearts™</h3>
             <p style={{
               fontSize: '0.875rem',
               color: 'var(--text-secondary)',
               lineHeight: 1.6,
               flex: 1
             }}>
-              All Rewards Bundle purchases Double the Users Greet-Me Rewards balance and support our heros.
+              All Rewards Bundle purchases Double the Users Greet-Me™ Rewards™ balance and support our heros.
             </p>
             <div style={{
               marginTop: '1rem',

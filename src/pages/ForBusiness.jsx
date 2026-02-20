@@ -236,7 +236,7 @@ export default function ForBusiness() {
             lineHeight: 1.7,
             margin: 0
           }}>
-            Bundle Greet-Me subscriptions with your products or services. Enhance customer value, boost retention, and create meaningful touchpoints that differentiate your brand.
+            Bundle Greet-Me™ subscriptions with your products or services. Enhance customer value, boost retention, and create meaningful touchpoints that differentiate your brand.
           </p>
         </div>
 
@@ -421,7 +421,7 @@ export default function ForBusiness() {
             lineHeight: 1.7,
             margin: 0
           }}>
-            All corporate patronage is automatically Greet-Me Hero eligible.
+            All corporate patronage is automatically Greet-Me™ Hero™ eligible.
           </p>
         </div>
       </section>
@@ -450,7 +450,7 @@ export default function ForBusiness() {
           marginBottom: '1.5rem',
           lineHeight: 1.6
         }}>
-          Through Greet-Me Hero™, we reward corporate patronage with automatic 10% contributions to veteran, law enforcement and EMS organizations and Greet-Me Hero recognition.
+          Through Greet-Me™ Hero™, we reward corporate patronage with automatic 10% contributions to veteran, law enforcement and EMS organizations and Greet-Me™ Hero™ recognition.
         </p>
         <button
           onClick={() => navigate('/dashboard/hero')}

@@ -22,7 +22,7 @@ export default function OnboardingTour() {
 
   const steps = [
     {
-      title: 'Welcome to Greet-Me!',
+      title: 'Welcome to Greet-Me™!',
       description: 'Let\'s get you started with a quick tour. You can skip this at any time.',
       icon: '👋',
       action: null
@@ -41,7 +41,7 @@ export default function OnboardingTour() {
     },
     {
       title: 'Add Your First Contact',
-      description: 'Add the people you want to send greetings and gifts to. You can add occasions for each contact, pre-select a gift (including QR Cash™), or let Greet-Me curate one automatically within your budget.',
+      description: 'Add the people you want to send greetings and gifts to. You can add occasions for each contact, pre-select a gift (including QR Cash™), or let Greet-Me™ curate one automatically within your budget.',
       icon: <UserPlus size={32} />,
       action: 'Click "Add Recipient" button to create your first contact',
       helperText: "You'll get a reminder 10 days before the occasion to confirm or change your gift selection."

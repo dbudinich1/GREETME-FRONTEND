@@ -351,7 +351,7 @@ export default function MediaLibrary() {
               fontSize: '0.875rem',
               opacity: 0.9,
               margin: 0
-            }}>Learn how to use Greet-Me in under 2 minutes</p>
+            }}>Learn how to use Greet-Me™ in under 2 minutes</p>
           </div>
         </div>
         <button
@@ -419,7 +419,7 @@ export default function MediaLibrary() {
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.25rem'
-            }}>Download Greet-Me Mobile App</h3>
+            }}>Download Greet-Me™ Mobile App</h3>
             <p style={{
               fontSize: '0.8125rem',
               color: 'var(--text-secondary)',

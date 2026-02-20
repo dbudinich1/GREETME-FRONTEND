@@ -67,7 +67,7 @@ export default function DashboardLayout({ children }) {
     { name: 'Merch', path: '/dashboard/merch', icon: ShoppingBag },
     { name: 'American Marketplace', path: '/dashboard/gifts', icon: Gift },
     { name: '❤️ Rewards', path: '/dashboard/rewards', icon: null },
-    { name: '🥇 Greet-Me Hero™', path: '/dashboard/hero', icon: null },
+    { name: '🥇 Greet-Me™ Hero™', path: '/dashboard/hero', icon: null },
   ];
 
   return (

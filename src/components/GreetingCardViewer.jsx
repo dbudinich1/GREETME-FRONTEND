@@ -1641,7 +1641,7 @@ export default function GreetingCardViewer({
                   color: 'rgba(44, 24, 16, 0.35)',
                   fontStyle: 'italic',
                 }}>
-                  Greet-Me
+                  Greet-Me™
                 </p>
               </LeftPage>
 
@@ -1756,7 +1756,7 @@ export default function GreetingCardViewer({
                       fontSize: '0.875rem',
                       color: '#666',
                     }}>
-                      Thank you for being part of Greet-Me
+                      Thank you for being part of Greet-Me™
                     </p>
                   </div>
                 )}

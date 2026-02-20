@@ -5,8 +5,8 @@ import { DollarSign } from 'lucide-react';
 const GIFT_OPTIONS = [
   { value: 'none', label: 'None', description: 'No gift for now' },
   { value: 'qrcash', label: 'QR Cash\u2122', description: 'Send cash they can scan and spend' },
-  { value: 'curated', label: 'Let Greet-Me Select', description: 'We\'ll select something thoughtful within your limit' },
-  { value: 'merch', label: 'Merch', description: 'Greet-Me merch & keepsakes' },
+  { value: 'curated', label: 'Let Greet-Me™ Select', description: 'We\'ll select something thoughtful within your limit' },
+  { value: 'merch', label: 'Merch', description: 'Greet-Me™ merch & keepsakes' },
   { value: 'marketplace', label: 'American Marketplace', description: 'Browse made-in-USA gifts' }
 ];
 
@@ -294,7 +294,7 @@ export default function GiftSelectorModal({
                         color: '#a21caf',
                         marginBottom: '0.75rem'
                       }}>
-                        Browse our collection of Greet-Me merch and keepsakes
+                        Browse our collection of Greet-Me™ merch and keepsakes
                       </p>
                       <button
                         type="button"

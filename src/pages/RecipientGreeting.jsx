@@ -437,7 +437,7 @@ export default function RecipientGreeting() {
           fontSize: '0.75rem',
           color: '#9ca3af',
         }}>
-          Powered by Greet-Me
+          Powered by Greet-Me™
         </p>
       </div>
     </div>

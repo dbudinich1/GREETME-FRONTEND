@@ -234,7 +234,7 @@ export default function RedeemQRCash() {
                   marginTop: '0.5rem',
                   marginBottom: 0
                 }}>
-                  - From the Greet-Me team
+                  - From the Greet-Me™ team
                 </p>
               )}
             </div>

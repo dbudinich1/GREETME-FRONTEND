@@ -85,7 +85,7 @@ export default function GreetMeLogo({ size = 'medium', clickable = true, variant
             letterSpacing: '-0.5px',
             lineHeight: 1
           }}>
-            Greet-Me
+            Greet-Me™
           </span>
           <span
             className="tagline"
@@ -139,7 +139,7 @@ export default function GreetMeLogo({ size = 'medium', clickable = true, variant
               fontWeight: 700,
               transform: 'skewX(-12deg)',
               display: 'inline-block'
-            }}>Forget Them Not!</span>
+            }}>Forget Them Not!™</span>
           </span>
         </div>
       </div>
