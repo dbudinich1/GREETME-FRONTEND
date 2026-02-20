@@ -1406,9 +1406,9 @@
     overflow: hidden;
   }
 
-  /* Video frame size for stacked portrait layout - 75% with !important override */
+  /* Video frame size for stacked portrait layout - 100% with !important override */
   .gc-featured-spread .gc-video-frame {
-    width: 75% !important;
+    width: 100% !important;
     height: auto !important;
   }
 
