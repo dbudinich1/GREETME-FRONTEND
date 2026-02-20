@@ -1406,8 +1406,11 @@
     overflow: hidden;
   }
 
-  /* Video/album sizes for stacked pages */
-  /* REMOVED: .gc-video-frame { width: 70% } — caused thumbnail shrink on mobile */
+  /* Video/album sizes for stacked pages - controlled 75% reduction */
+  .gc-featured-spread .gc-video-frame {
+    width: 75%;
+    height: auto;
+  }
 
   .gc-album-stack {
     width: 80% !important;
@@ -2485,10 +2488,11 @@
     line-height: 1.1 !important;
   }
 
-  /* Brand tagline - tiny */
+  /* Brand tagline - increase by 2px, add weight */
   .gc-finale-spread .gc-page-right .gc-brand-tagline {
-    font-size: 8px !important;
+    font-size: 10px !important;
     line-height: 1.1 !important;
+    font-weight: 600 !important;
   }
 
   /* Gift title - smaller */
@@ -2506,10 +2510,11 @@
     margin-bottom: 4px !important;
   }
 
-  /* Gift instruction - smaller */
+  /* Gift instruction - increase by 2px, add weight */
   .gc-finale-spread .gc-page-right .gc-gift-instruction {
-    font-size: 8px !important;
+    font-size: 10px !important;
     line-height: 1.2 !important;
+    font-weight: 600 !important;
   }
 }
 
