@@ -1625,9 +1625,7 @@
   }
 
   /* Video + album frames: identical sizing at 375×677 portrait */
-  .gc-video-frame {
-    width: 80% !important;
-  }
+  /* REMOVED: .gc-video-frame { width: 80% } — causes video shrink */
 
   .gc-album-stack {
     width: 80% !important;
@@ -1816,11 +1814,7 @@
   }
 
   /* Feature spread — constrain frame sizes to fit spread height */
-  .gc-video-frame {
-    width: calc(40vh);
-    height: calc(40vh * 1.28);
-    border-width: 2px;
-  }
+  /* REMOVED: .gc-video-frame { width: calc(40vh) } — causes video shrink */
 
   .gc-album-stack {
     width: calc(40vh);
@@ -2049,11 +2043,7 @@
   }
 
   /* Shrink video/album sizes for landscape */
-  .gc-video-frame {
-    width: calc(40vh) !important;
-    height: calc(40vh * 1.28) !important;
-    border-width: 2px;
-  }
+  /* REMOVED: .gc-video-frame { width: calc(40vh) } — causes video shrink */
 
   .gc-album-stack {
     width: calc(40vh) !important;
@@ -2432,7 +2422,7 @@
 }
 
 /* B16 — Portrait mobile: squeeze Finale spread to match Intro spread footprint */
-@media (max-width: 430px) and (orientation: portrait) {
+@media (max-width: 500px) and (orientation: portrait) {
   .gc-finale-spread {
     /* Match intro spread dimensions */
     width: calc(100vw - 32px) !important;
@@ -2473,38 +2463,53 @@
     line-height: 1.1 !important;
   }
 
-  /* Right page adjustments - match landscape spacing */
+  /* Right page adjustments - AGGRESSIVE top padding for visibility */
   .gc-finale-spread .gc-page-right .gc-page-content {
-    padding-top: 12px !important;  /* match landscape .gc-gift-content padding */
-    padding-bottom: 12px !important;  /* breathing room at bottom edge */
+    padding-top: 8px !important;  /* reduced from 12px to pull content up */
+    padding-bottom: 8px !important;
   }
 
-  /* Reduce logo seal size by 7px (4px more than initial -3px) */
+  /* Reduce logo seal AGGRESSIVELY - make it tiny */
   .gc-finale-spread .gc-page-right .gc-logo-seal {
-    width: calc(100% - 14px) !important;  /* width reduction to match smaller font */
-    max-width: calc(100% - 14px) !important;
-    font-size: calc(1em - 7px) !important;
+    width: 18px !important;  /* drastically smaller */
+    height: 18px !important;
   }
 
-  /* Brand name */
+  .gc-finale-spread .gc-page-right .gc-logo-seal span {
+    font-size: 9px !important;  /* tiny logo text */
+  }
+
+  /* Brand name - much smaller */
   .gc-finale-spread .gc-page-right .gc-brand-name {
-    font-size: 0.8em !important;
-    line-height: 1.2 !important;
+    font-size: 9px !important;
+    line-height: 1.1 !important;
   }
 
-  /* Brand tagline - match line-height to brand name */
+  /* Brand tagline - tiny */
   .gc-finale-spread .gc-page-right .gc-brand-tagline {
-    font-size: 0.75em !important;
-    line-height: 1.2 !important;  /* match brand-name line-height */
+    font-size: 8px !important;
+    line-height: 1.1 !important;
   }
 
-  /* Reduce QR Cash code - target frame (parent) for square aspect ratio */
+  /* Gift title - smaller */
+  .gc-finale-spread .gc-page-right .gc-gift-title {
+    font-size: 14px !important;
+    margin-bottom: 4px !important;
+  }
+
+  /* QR code - MUCH smaller to fit proportionally */
   .gc-finale-spread .gc-page-right .gc-qr-frame {
-    width: 70px !important;
-    height: 70px !important;
-    padding: 4px !important;
-    border-width: 2px !important;
-    margin-bottom: 6px !important;
+    width: 45px !important;  /* drastically smaller */
+    height: 45px !important;
+    padding: 3px !important;
+    border-width: 1px !important;
+    margin-bottom: 4px !important;
+  }
+
+  /* Gift instruction - smaller */
+  .gc-finale-spread .gc-page-right .gc-gift-instruction {
+    font-size: 8px !important;
+    line-height: 1.2 !important;
   }
 }
 
