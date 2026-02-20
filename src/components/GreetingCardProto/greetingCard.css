@@ -2479,15 +2479,39 @@
       line-height: 1.1 !important;
     }
 
-    /* Scale down right page (brand/tagline) proportionally */
+    /* Right page adjustments */
+    .gc-finale-spread .gc-page-right .gc-page-content {
+      padding-top: 16px !important;  /* push "a little something extra" down */
+      padding-bottom: 12px !important;  /* breathing room at bottom edge */
+    }
+
+    /* Reduce logo size by 3px */
+    .gc-finale-spread .gc-page-right .gc-logo,
+    .gc-finale-spread .gc-page-right img[class*="logo"] {
+      width: calc(100% - 6px) !important;
+      max-width: calc(100% - 6px) !important;
+      font-size: calc(1em - 3px) !important;
+    }
+
+    /* Brand name (above logo) */
     .gc-finale-spread .gc-page-right .gc-brand-name {
       font-size: 0.8em !important;
       line-height: 1.2 !important;
     }
 
+    /* Tagline (below logo) - match line-height to brand name */
     .gc-finale-spread .gc-page-right .gc-tagline {
       font-size: 0.75em !important;
-      line-height: 1.15 !important;
+      line-height: 1.2 !important;  /* match brand-name line-height */
+    }
+
+    /* Reduce QR Cash code size */
+    .gc-finale-spread .gc-page-right .gc-qr-code,
+    .gc-finale-spread .gc-page-right [class*="qr"],
+    .gc-finale-spread .gc-page-right canvas {
+      width: 80% !important;
+      height: auto !important;
+      max-width: 120px !important;
     }
   }
 }
