@@ -1407,12 +1407,7 @@
   }
 
   /* Video/album sizes for stacked pages */
-  .gc-video-frame {
-    width: 70% !important;
-    height: auto !important;
-    aspect-ratio: 1 / 1.28;
-    border-width: 2px;
-  }
+  /* REMOVED: .gc-video-frame { width: 70% } — caused thumbnail shrink on mobile */
 
   .gc-album-stack {
     width: 80% !important;
@@ -2436,82 +2431,80 @@
   }
 }
 
-/* B16 — Safari portrait: squeeze Finale spread to match Intro spread footprint */
-@supports (-webkit-touch-callout: none) {
-  @media (max-width: 430px) and (orientation: portrait) {
-    .gc-finale-spread {
-      /* Match intro spread dimensions */
-      width: calc(100vw - 32px) !important;
-      max-width: calc(100vw - 32px) !important;
-      margin-left: auto !important;
-      margin-right: auto !important;
+/* B16 — Portrait mobile: squeeze Finale spread to match Intro spread footprint */
+@media (max-width: 430px) and (orientation: portrait) {
+  .gc-finale-spread {
+    /* Match intro spread dimensions */
+    width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 32px) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
 
-      /* Match intro spread height */
-      aspect-ratio: var(--gc-landscape-ar) !important;
-      height: auto !important;
-      max-height: 260px !important;
-      overflow: hidden !important;
+    /* Match intro spread height */
+    aspect-ratio: var(--gc-landscape-ar) !important;
+    height: auto !important;
+    max-height: 260px !important;
+    overflow: hidden !important;
 
-      /* Prevent left overflow */
-      left: auto !important;
-      right: auto !important;
-      transform: none !important;
+    /* Prevent left overflow */
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
 
-      box-sizing: border-box !important;
-    }
+    box-sizing: border-box !important;
+  }
 
-    /* Center content vertically on left page + tighter margins */
-    .gc-finale-spread .gc-page-left .gc-page-content {
-      display: flex !important;
-      flex-direction: column !important;
-      justify-content: center !important;
-      padding-left: 8px !important;
-      padding-right: 8px !important;
-      line-height: 1.1 !important;
-    }
+  /* Center content vertically on left page + tighter margins */
+  .gc-finale-spread .gc-page-left .gc-page-content {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    line-height: 1.1 !important;
+  }
 
-    /* Increase font size by 2px from 0.85em, tighter line-height */
-    .gc-finale-spread .gc-page-left .gc-closing-message,
-    .gc-finale-spread .gc-page-left p,
-    .gc-finale-spread .gc-page-left h2,
-    .gc-finale-spread .gc-page-left h3 {
-      font-size: calc(0.85em + 2px) !important;
-      line-height: 1.1 !important;
-    }
+  /* Increase font size by 2px from 0.85em, tighter line-height */
+  .gc-finale-spread .gc-page-left .gc-closing-message,
+  .gc-finale-spread .gc-page-left p,
+  .gc-finale-spread .gc-page-left h2,
+  .gc-finale-spread .gc-page-left h3 {
+    font-size: calc(0.85em + 2px) !important;
+    line-height: 1.1 !important;
+  }
 
-    /* Right page adjustments */
-    .gc-finale-spread .gc-page-right .gc-page-content {
-      padding-top: 16px !important;  /* push "a little something extra" down */
-      padding-bottom: 12px !important;  /* breathing room at bottom edge */
-    }
+  /* Right page adjustments */
+  .gc-finale-spread .gc-page-right .gc-page-content {
+    padding-top: 16px !important;  /* push "a little something extra" down */
+    padding-bottom: 12px !important;  /* breathing room at bottom edge */
+  }
 
-    /* Reduce logo seal size by 3px */
-    .gc-finale-spread .gc-page-right .gc-logo-seal {
-      width: calc(100% - 6px) !important;
-      max-width: calc(100% - 6px) !important;
-      font-size: calc(1em - 3px) !important;
-    }
+  /* Reduce logo seal size by 3px */
+  .gc-finale-spread .gc-page-right .gc-logo-seal {
+    width: calc(100% - 6px) !important;
+    max-width: calc(100% - 6px) !important;
+    font-size: calc(1em - 3px) !important;
+  }
 
-    /* Brand name */
-    .gc-finale-spread .gc-page-right .gc-brand-name {
-      font-size: 0.8em !important;
-      line-height: 1.2 !important;
-    }
+  /* Brand name */
+  .gc-finale-spread .gc-page-right .gc-brand-name {
+    font-size: 0.8em !important;
+    line-height: 1.2 !important;
+  }
 
-    /* Brand tagline - match line-height to brand name */
-    .gc-finale-spread .gc-page-right .gc-brand-tagline {
-      font-size: 0.75em !important;
-      line-height: 1.2 !important;  /* match brand-name line-height */
-    }
+  /* Brand tagline - match line-height to brand name */
+  .gc-finale-spread .gc-page-right .gc-brand-tagline {
+    font-size: 0.75em !important;
+    line-height: 1.2 !important;  /* match brand-name line-height */
+  }
 
-    /* Reduce QR Cash code size */
-    .gc-finale-spread .gc-page-right .gc-qr-code,
-    .gc-finale-spread .gc-page-right [class*="qr"],
-    .gc-finale-spread .gc-page-right canvas {
-      width: 80% !important;
-      height: auto !important;
-      max-width: 120px !important;
-    }
+  /* Reduce QR Cash code - target frame (parent) for square aspect ratio */
+  .gc-finale-spread .gc-page-right .gc-qr-frame {
+    width: 70px !important;
+    height: 70px !important;
+    padding: 4px !important;
+    border-width: 2px !important;
+    margin-bottom: 6px !important;
   }
 }
 
