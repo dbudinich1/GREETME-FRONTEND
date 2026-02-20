@@ -1406,12 +1406,13 @@
     overflow: hidden;
   }
 
-  /* Video/album sizes for stacked pages - controlled 75% reduction */
+  /* Video frame size for stacked portrait layout */
   .gc-featured-spread .gc-video-frame {
     width: 75%;
     height: auto;
   }
 
+  /* Album sizes for stacked pages */
   .gc-album-stack {
     width: 80% !important;
     height: auto !important;
@@ -2517,5 +2518,4 @@
     font-weight: 600 !important;
   }
 }
-
 
