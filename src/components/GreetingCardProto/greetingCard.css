@@ -2485,22 +2485,21 @@
       padding-bottom: 12px !important;  /* breathing room at bottom edge */
     }
 
-    /* Reduce logo size by 3px */
-    .gc-finale-spread .gc-page-right .gc-logo,
-    .gc-finale-spread .gc-page-right img[class*="logo"] {
+    /* Reduce logo seal size by 3px */
+    .gc-finale-spread .gc-page-right .gc-logo-seal {
       width: calc(100% - 6px) !important;
       max-width: calc(100% - 6px) !important;
       font-size: calc(1em - 3px) !important;
     }
 
-    /* Brand name (above logo) */
+    /* Brand name */
     .gc-finale-spread .gc-page-right .gc-brand-name {
       font-size: 0.8em !important;
       line-height: 1.2 !important;
     }
 
-    /* Tagline (below logo) - match line-height to brand name */
-    .gc-finale-spread .gc-page-right .gc-tagline {
+    /* Brand tagline - match line-height to brand name */
+    .gc-finale-spread .gc-page-right .gc-brand-tagline {
       font-size: 0.75em !important;
       line-height: 1.2 !important;  /* match brand-name line-height */
     }
