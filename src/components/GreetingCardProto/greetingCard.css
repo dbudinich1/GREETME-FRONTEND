@@ -2473,17 +2473,17 @@
     line-height: 1.1 !important;
   }
 
-  /* Right page adjustments */
+  /* Right page adjustments - match landscape spacing */
   .gc-finale-spread .gc-page-right .gc-page-content {
-    padding-top: 16px !important;  /* push "a little something extra" down */
+    padding-top: 12px !important;  /* match landscape .gc-gift-content padding */
     padding-bottom: 12px !important;  /* breathing room at bottom edge */
   }
 
-  /* Reduce logo seal size by 3px */
+  /* Reduce logo seal size by 7px (4px more than initial -3px) */
   .gc-finale-spread .gc-page-right .gc-logo-seal {
-    width: calc(100% - 6px) !important;
-    max-width: calc(100% - 6px) !important;
-    font-size: calc(1em - 3px) !important;
+    width: calc(100% - 14px) !important;  /* width reduction to match smaller font */
+    max-width: calc(100% - 14px) !important;
+    font-size: calc(1em - 7px) !important;
   }
 
   /* Brand name */
