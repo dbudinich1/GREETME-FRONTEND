@@ -117,7 +117,7 @@ export default function LandingPage() {
             transform: 'skewX(-12deg)',
             display: 'inline-block'
           }}>
-            Forget Them Not!
+            Forget Them Not!™
           </h1>
 
           <p style={{
