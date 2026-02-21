@@ -6,8 +6,8 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
-// GreetingCardViewer import removed - using GreetingCardProto instead
 import { GreetingCard as GreetingCardProto } from '../components/GreetingCardProto';
+
 export default function PublicGreetingCard() {
   const { jobId } = useParams();
 
@@ -18,6 +18,14 @@ export default function PublicGreetingCard() {
   useEffect(() => {
     loadGreeting();
   }, [jobId]);
+
+  // Dynamic document title (Task 4.1)
+  useEffect(() => {
+    if (greeting) {
+      document.title = `${greeting.senderName} sent you a Greet-Me™ greeting!`;
+    }
+    return () => { document.title = 'Greet-Me™ | Forget Them Not!™'; };
+  }, [greeting]);
 
   const loadGreeting = async () => {
     try {
@@ -31,7 +39,7 @@ export default function PublicGreetingCard() {
         setGreeting({
           jobId: g.jobId || jobId,
           recipientName: g.recipientName || 'Friend',
-          senderName: g.senderName || 'Dan',
+          senderName: g.senderName || 'Someone special',
           greetingText: g.greetingText || '',
           writtenIntroText: g.writtenIntroText || '',
           poemText: g.poemText || '',
@@ -43,11 +51,18 @@ export default function PublicGreetingCard() {
           status: g.status || 'done',
         });
       } else {
-        setError('Greeting not found');
+        setError('not_found');
       }
     } catch (err) {
       console.error('Error loading greeting:', err);
-      setError(getErrorMessage(err));
+      const status = err?.status || err?.response?.status;
+      if (status === 410) {
+        setError('expired');
+      } else if (status === 404) {
+        setError('not_found');
+      } else {
+        setError(getErrorMessage(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -68,13 +83,13 @@ export default function PublicGreetingCard() {
           fontSize: '1rem',
           fontFamily: 'Georgia, serif',
         }}>
-          Loading...
+          Loading your greeting...
         </p>
       </div>
     );
   }
 
-  // Error state
+  // Error / expired / not found state (Task 4.3)
   if (error || !greeting) {
     return (
       <div style={{
@@ -84,32 +99,46 @@ export default function PublicGreetingCard() {
         justifyContent: 'center',
         background: '#f5f3f0',
         padding: '2rem',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}>
         <div style={{
-          maxWidth: '400px',
+          maxWidth: '500px',
           textAlign: 'center',
+          padding: '2rem',
         }}>
-          <p style={{
-            fontSize: '1.125rem',
-            color: '#374151',
-            marginBottom: '1rem',
-            fontFamily: 'Georgia, serif',
-          }}>
-            This greeting is unavailable
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💌</div>
+          <h2 style={{ color: '#1B2A4A', margin: '0 0 0.75rem', fontSize: '1.5rem', fontWeight: 700 }}>
+            {error === 'expired' ? 'This greeting has expired' : 'This greeting is unavailable'}
+          </h2>
+          <p style={{ color: '#666', fontSize: '1rem', lineHeight: 1.6, margin: '0 0 1rem' }}>
+            {error === 'expired'
+              ? 'Greet-Me™ greetings are available for a limited time to keep your moments special. This greeting is no longer accessible.'
+              : 'The link may have expired or the greeting doesn\'t exist.'}
           </p>
-          <p style={{
-            fontSize: '0.875rem',
-            color: '#6b7280',
-            fontFamily: 'Georgia, serif',
+          <p style={{ color: '#888', fontSize: '0.9rem', margin: '0 0 1.25rem' }}>
+            Want to send your own heartfelt greeting?
+          </p>
+          <a href="/" style={{
+            display: 'inline-block',
+            padding: '12px 28px',
+            background: '#3A7BD5',
+            color: '#FFF',
+            borderRadius: '8px',
+            fontWeight: 600,
+            textDecoration: 'none',
+            fontSize: '1rem',
           }}>
-            The link may have expired or the greeting doesn't exist.
+            Create a Greet-Me™
+          </a>
+          <p style={{ marginTop: '2rem', fontSize: '0.8rem', color: '#AAA' }}>
+            © 2026 Greet-Me™ · Forget Them Not!™
           </p>
         </div>
       </div>
     );
   }
 
-  // Failed state - show error instead of spinning forever
+  // Failed state
   if (greeting.status === 'failed') {
     return (
       <div style={{
@@ -119,25 +148,34 @@ export default function PublicGreetingCard() {
         justifyContent: 'center',
         background: '#f5f3f0',
         padding: '2rem',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}>
         <div style={{
-          maxWidth: '400px',
+          maxWidth: '500px',
           textAlign: 'center',
+          padding: '2rem',
         }}>
-          <p style={{
-            fontSize: '1.125rem',
-            color: '#374151',
-            marginBottom: '1rem',
-            fontFamily: 'Georgia, serif',
-          }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>😔</div>
+          <h2 style={{ color: '#1B2A4A', margin: '0 0 0.75rem', fontSize: '1.5rem', fontWeight: 700 }}>
             This greeting couldn't be created
+          </h2>
+          <p style={{ color: '#666', fontSize: '1rem', lineHeight: 1.6, margin: '0 0 1rem' }}>
+            Something went wrong while preparing this greeting. Please contact the sender to request a new one.
           </p>
-          <p style={{
-            fontSize: '0.875rem',
-            color: '#6b7280',
-            fontFamily: 'Georgia, serif',
+          <a href="/" style={{
+            display: 'inline-block',
+            padding: '12px 28px',
+            background: '#3A7BD5',
+            color: '#FFF',
+            borderRadius: '8px',
+            fontWeight: 600,
+            textDecoration: 'none',
+            fontSize: '1rem',
           }}>
-            Please contact the sender to request a new one.
+            Learn About Greet-Me™
+          </a>
+          <p style={{ marginTop: '2rem', fontSize: '0.8rem', color: '#AAA' }}>
+            © 2026 Greet-Me™ · Forget Them Not!™
           </p>
         </div>
       </div>
@@ -154,34 +192,109 @@ export default function PublicGreetingCard() {
         justifyContent: 'center',
         background: '#f5f3f0',
         padding: '2rem',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}>
         <div style={{
-          maxWidth: '400px',
+          maxWidth: '500px',
           textAlign: 'center',
+          padding: '2rem',
         }}>
-          <p style={{
-            fontSize: '1.125rem',
-            color: '#374151',
-            marginBottom: '1rem',
-            fontFamily: 'Georgia, serif',
-          }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✨</div>
+          <h2 style={{ color: '#1B2A4A', margin: '0 0 0.75rem', fontSize: '1.5rem', fontWeight: 700 }}>
             Your greeting is being prepared...
+          </h2>
+          <p style={{ color: '#666', fontSize: '1rem', lineHeight: 1.6 }}>
+            Someone special is crafting a personalized greeting just for you. Please check back in a few minutes.
           </p>
-          <p style={{
-            fontSize: '0.875rem',
-            color: '#6b7280',
-            fontFamily: 'Georgia, serif',
-          }}>
-            Please check back in a few minutes.
+          <p style={{ marginTop: '2rem', fontSize: '0.8rem', color: '#AAA' }}>
+            Powered by Greet-Me™ · Forget Them Not!™
           </p>
         </div>
       </div>
     );
   }
 
-  // Render the premium greeting card experience
+  // Render the premium greeting card experience with wrapper
   return (
-  <GreetingCardProto greeting={greeting} />
+    <div style={{ minHeight: '100vh', background: '#f5f3f0' }}>
+      {/* Branded header — subtle, tasteful */}
+      <div style={{
+        textAlign: 'center',
+        padding: '1rem 1rem 0.5rem',
+      }}>
+        <p style={{
+          fontSize: '0.8rem',
+          color: '#9ca3af',
+          margin: 0,
+          letterSpacing: '0.05em',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        }}>
+          <span style={{ fontWeight: 600 }}>Greet-Me™</span>
+          <span style={{ margin: '0 0.5rem', opacity: 0.4 }}>·</span>
+          <span style={{ fontStyle: 'italic', fontSize: '0.75rem' }}>Forget Them Not!™</span>
+        </p>
+      </div>
+
+      {/* Premium greeting card experience */}
+      <GreetingCardProto greeting={greeting} />
+
+      {/* "Send Your Own" CTA (Viral Loop) */}
+      <div style={{
+        maxWidth: '640px',
+        margin: '2rem auto 0',
+        padding: '0 1rem',
+      }}>
+        <div style={{
+          padding: '1.5rem',
+          background: 'linear-gradient(135deg, #3A7BD5 0%, #1B2A4A 100%)',
+          borderRadius: '16px',
+          textAlign: 'center',
+          color: '#FFF',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.2rem', fontWeight: 700 }}>
+            ✨ Touched by this greeting?
+          </h3>
+          <p style={{ margin: '0 0 1rem', fontSize: '0.95rem', opacity: 0.9, lineHeight: 1.5 }}>
+            Send your own personalized animated greeting to someone you love.
+          </p>
+          <a href="/" style={{
+            display: 'inline-block',
+            padding: '12px 32px',
+            background: '#FFF',
+            color: '#3A7BD5',
+            borderRadius: '8px',
+            fontWeight: 700,
+            textDecoration: 'none',
+            fontSize: '1rem',
+            minHeight: '44px',
+            lineHeight: '20px',
+          }}>
+            Create Your Greet-Me™
+          </a>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer style={{
+        textAlign: 'center',
+        padding: '2rem 1rem',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      }}>
+        <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: '0 0 0.25rem' }}>
+          © 2026 Greet-Me™. All rights reserved.
+        </p>
+        <p style={{ fontSize: '0.75rem', color: '#b0b0b0', margin: '0 0 0.5rem', fontStyle: 'italic' }}>
+          Forget Them Not!™
+        </p>
+        <div style={{ fontSize: '0.75rem', color: '#b0b0b0' }}>
+          <a href="/#/support" style={{ color: '#9ca3af', textDecoration: 'none' }}>Support</a>
+          <span style={{ margin: '0 0.5rem', opacity: 0.4 }}>·</span>
+          <a href="/#/privacy" style={{ color: '#9ca3af', textDecoration: 'none' }}>Privacy</a>
+          <span style={{ margin: '0 0.5rem', opacity: 0.4 }}>·</span>
+          <a href="/#/terms" style={{ color: '#9ca3af', textDecoration: 'none' }}>Terms</a>
+        </div>
+      </footer>
+    </div>
   );
 }
-    

@@ -3,7 +3,7 @@
 // V1: Structure + flow only, minimal styling
 
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
 
@@ -46,7 +46,6 @@ const generateThankYouText = (senderName, recipientNote) => {
 
 export default function RecipientGreeting() {
   const { greetingId } = useParams();
-  const navigate = useNavigate();
 
   // State
   const [greeting, setGreeting] = useState(null);
@@ -62,6 +61,14 @@ export default function RecipientGreeting() {
     loadGreeting();
     setThankYouSent(hasThankYouBeenSent(greetingId));
   }, [greetingId]);
+
+  // Dynamic document title
+  useEffect(() => {
+    if (greeting) {
+      document.title = `${greeting.senderName} sent you a Greet-Me™ greeting!`;
+    }
+    return () => { document.title = 'Greet-Me™ | Forget Them Not!™'; };
+  }, [greeting]);
 
   const loadGreeting = async () => {
     try {
@@ -187,7 +194,7 @@ export default function RecipientGreeting() {
     );
   }
 
-  // Error/unavailable state
+  // Error/unavailable state (branded)
   if (error || !greeting) {
     return (
       <div style={{
@@ -197,41 +204,39 @@ export default function RecipientGreeting() {
         justifyContent: 'center',
         background: '#f9fafb',
         padding: '2rem',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}>
         <div style={{
-          maxWidth: '400px',
+          maxWidth: '500px',
           textAlign: 'center',
+          padding: '2rem',
         }}>
-          <p style={{
-            fontSize: '1.125rem',
-            color: '#374151',
-            marginBottom: '1rem',
-          }}>
-            This greeting is unavailable
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💌</div>
+          <h2 style={{ color: '#1B2A4A', margin: '0 0 0.75rem', fontSize: '1.5rem', fontWeight: 700 }}>
+            This greeting has expired
+          </h2>
+          <p style={{ color: '#666', fontSize: '1rem', lineHeight: 1.6, margin: '0 0 1rem' }}>
+            Greet-Me™ greetings are available for a limited time to keep your moments special.
+            This greeting is no longer accessible.
           </p>
-          <p style={{
-            fontSize: '0.875rem',
-            color: '#6b7280',
-            marginBottom: '1.5rem',
-          }}>
-            The link may have expired or the greeting doesn't exist.
+          <p style={{ color: '#888', fontSize: '0.9rem', margin: '0 0 1.25rem' }}>
+            Want to send your own heartfelt greeting?
           </p>
-          <button
-            onClick={() => navigate('/')}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: '#6366f1',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            Go Home
-          </button>
+          <a href="/" style={{
+            display: 'inline-block',
+            padding: '12px 28px',
+            background: '#3A7BD5',
+            color: '#FFF',
+            borderRadius: '8px',
+            fontWeight: 600,
+            textDecoration: 'none',
+            fontSize: '1rem',
+          }}>
+            Create a Greet-Me™
+          </a>
+          <p style={{ marginTop: '2rem', fontSize: '0.8rem', color: '#AAA' }}>
+            © 2026 Greet-Me™ · Forget Them Not!™
+          </p>
         </div>
       </div>
     );
@@ -242,24 +247,54 @@ export default function RecipientGreeting() {
       minHeight: '100vh',
       background: '#f9fafb',
       padding: '1rem',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     }}>
       <div style={{
-        maxWidth: '600px',
+        maxWidth: '640px',
         margin: '0 auto',
       }}>
+        {/* Branded header */}
+        <div style={{
+          textAlign: 'center',
+          padding: '0.5rem 0',
+          marginBottom: '0.5rem',
+        }}>
+          <p style={{
+            fontSize: '0.8rem',
+            color: '#9ca3af',
+            margin: 0,
+            letterSpacing: '0.05em',
+          }}>
+            <span style={{ fontWeight: 600 }}>Greet-Me™</span>
+            <span style={{ margin: '0 0.5rem', opacity: 0.4 }}>·</span>
+            <span style={{ fontStyle: 'italic', fontSize: '0.75rem' }}>Forget Them Not!™</span>
+          </p>
+        </div>
+
         {/* Sender Context */}
         <div style={{
           textAlign: 'center',
           marginBottom: '1rem',
-          paddingTop: '1rem',
+          paddingTop: '0.5rem',
         }}>
           <p style={{
-            fontSize: '0.875rem',
-            color: '#6b7280',
-            margin: 0,
+            fontSize: '1.125rem',
+            color: '#374151',
+            margin: '0 0 0.25rem',
+            fontWeight: 600,
           }}>
-            From <strong style={{ color: '#374151' }}>{greeting.senderName}</strong>
+            From {greeting.senderName}
           </p>
+          {greeting.greetingTitle && (
+            <p style={{
+              fontSize: '0.9rem',
+              color: '#6b7280',
+              margin: 0,
+              fontStyle: 'italic',
+            }}>
+              {greeting.greetingTitle}
+            </p>
+          )}
         </div>
 
         {/* Video Player */}
@@ -283,18 +318,6 @@ export default function RecipientGreeting() {
             Your browser does not support video playback.
           </video>
         </div>
-
-        {/* Optional Greeting Title */}
-        {greeting.greetingTitle && (
-          <p style={{
-            textAlign: 'center',
-            fontSize: '0.875rem',
-            color: '#6b7280',
-            marginBottom: '1.5rem',
-          }}>
-            {greeting.greetingTitle}
-          </p>
-        )}
 
         {/* Primary CTA: Send Thank You */}
         {!showThankYouPanel && (
@@ -412,34 +435,64 @@ export default function RecipientGreeting() {
           </div>
         )}
 
-        {/* Secondary CTA: Create Your Own */}
-        <button
-          onClick={() => navigate('/register')}
-          style={{
-            width: '100%',
-            padding: '0.875rem',
-            background: 'white',
-            color: '#6366f1',
-            border: '1px solid #e5e7eb',
-            borderRadius: '10px',
-            fontSize: '0.9375rem',
-            fontWeight: 500,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            marginBottom: '2rem',
-          }}
-        >
-          Create your own greeting
-        </button>
-
-        {/* Footer */}
+        {/* Sent with love attribution */}
         <p style={{
           textAlign: 'center',
-          fontSize: '0.75rem',
+          fontSize: '0.8rem',
           color: '#9ca3af',
+          marginBottom: '1.5rem',
+          fontStyle: 'italic',
         }}>
-          Powered by Greet-Me™
+          This greeting was sent with love using Greet-Me™
         </p>
+
+        {/* "Send Your Own" CTA (Viral Loop) */}
+        <div style={{
+          padding: '1.5rem',
+          background: 'linear-gradient(135deg, #3A7BD5 0%, #1B2A4A 100%)',
+          borderRadius: '16px',
+          textAlign: 'center',
+          color: '#FFF',
+          marginBottom: '2rem',
+        }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.2rem', fontWeight: 700 }}>
+            ✨ Touched by this greeting?
+          </h3>
+          <p style={{ margin: '0 0 1rem', fontSize: '0.95rem', opacity: 0.9, lineHeight: 1.5 }}>
+            Send your own personalized animated greeting to someone you love.
+          </p>
+          <a href="/" style={{
+            display: 'inline-block',
+            padding: '12px 32px',
+            background: '#FFF',
+            color: '#3A7BD5',
+            borderRadius: '8px',
+            fontWeight: 700,
+            textDecoration: 'none',
+            fontSize: '1rem',
+            minHeight: '44px',
+            lineHeight: '20px',
+          }}>
+            Create Your Greet-Me™
+          </a>
+        </div>
+
+        {/* Footer */}
+        <footer style={{ textAlign: 'center', paddingBottom: '2rem' }}>
+          <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: '0 0 0.25rem' }}>
+            © 2026 Greet-Me™. All rights reserved.
+          </p>
+          <p style={{ fontSize: '0.75rem', color: '#b0b0b0', margin: '0 0 0.5rem', fontStyle: 'italic' }}>
+            Forget Them Not!™
+          </p>
+          <div style={{ fontSize: '0.75rem', color: '#b0b0b0' }}>
+            <a href="/#/support" style={{ color: '#9ca3af', textDecoration: 'none' }}>Support</a>
+            <span style={{ margin: '0 0.5rem', opacity: 0.4 }}>·</span>
+            <a href="/#/privacy" style={{ color: '#9ca3af', textDecoration: 'none' }}>Privacy</a>
+            <span style={{ margin: '0 0.5rem', opacity: 0.4 }}>·</span>
+            <a href="/#/terms" style={{ color: '#9ca3af', textDecoration: 'none' }}>Terms</a>
+          </div>
+        </footer>
       </div>
     </div>
   );
