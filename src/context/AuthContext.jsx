@@ -96,6 +96,8 @@ export const AuthProvider = ({ children }) => {
       }
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      // Clear stale onboarding state so new registration always gets fresh onboarding
+      localStorage.removeItem('greetme_setup_state');
       setUser(data.user);
       // Hydrate photoUrl from backend profile (fire-and-forget)
       fetchAndHydrateProfile(data.token, data.user);

@@ -11,7 +11,6 @@ import QRCashGiftModal from '../components/QRCashGiftModal';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
 import UpcomingGreetings from '../components/UpcomingGreetings';
-import GuidedSetupFlow, { shouldShowGuidedSetup } from '../components/GuidedSetupFlow';
 import OnboardingCoach from '../components/OnboardingCoach';
 import TutorialVideo from '../components/TutorialVideo';
 
@@ -49,14 +48,6 @@ export default function DashboardHome() {
   const [rewardsBalance, setRewardsBalance] = useState(0);
   const [viewMode, setViewMode] = useState('recipients'); // 'recipients' or 'occasions'
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-
-  // Check if guided setup should show
-  useEffect(() => {
-    if (shouldShowGuidedSetup()) {
-      setShowOnboarding(true);
-    }
-  }, []);
 
   // Handle resize for mobile detection
   useEffect(() => {
@@ -554,13 +545,11 @@ export default function DashboardHome() {
       </div>
 
       {/* Onboarding Coach (dashboard nudge for incomplete setup) */}
-      {!showOnboarding && (
-        <OnboardingCoach
-          voiceDone={voiceRecorded || !!user?.voiceId || !!user?.voiceUrl}
-          photoDone={photoUploaded || !!user?.photoUrl}
-          recipientDone={contacts.length > 0}
-        />
-      )}
+      <OnboardingCoach
+        voiceDone={voiceRecorded || !!user?.voiceId || !!user?.voiceUrl}
+        photoDone={photoUploaded || !!user?.photoUrl}
+        recipientDone={contacts.length > 0}
+      />
 
       {/* Dashboard Cards - All same height */}
       {/* Green G1G1 Card - Full Width */}
@@ -2791,14 +2780,6 @@ export default function DashboardHome() {
             </div>
           </div>
         </>
-      )}
-
-      {/* Guided Setup Flow (full-screen onboarding modal) */}
-      {showOnboarding && (
-        <GuidedSetupFlow
-          onComplete={() => setShowOnboarding(false)}
-          onDismiss={() => setShowOnboarding(false)}
-        />
       )}
 
     </div>

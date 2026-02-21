@@ -7,6 +7,7 @@ import GreetMeLogo from './GreetMeLogo';
 import NotificationBell from './NotificationBell';
 import cartService from '../services/cartService';
 import imageCreditsService from '../services/imageCreditsService';
+import GuidedSetupFlow, { shouldShowGuidedSetup } from './GuidedSetupFlow';
 
 export default function DashboardLayout({ children }) {
   const { user, logout } = useAuth();
@@ -18,6 +19,7 @@ export default function DashboardLayout({ children }) {
 
   const [imageCredits, setImageCredits] = useState(0);
   const [cartCount, setCartCount] = useState(0);
+  const [showOnboarding, setShowOnboarding] = useState(() => shouldShowGuidedSetup());
 
   // Handle resize for mobile detection
   useEffect(() => {
@@ -747,6 +749,14 @@ export default function DashboardLayout({ children }) {
           {children || <Outlet />}
         </div>
       </main>
+
+      {/* Guided Setup Flow — rendered outside <main> to escape its stacking context */}
+      {showOnboarding && (
+        <GuidedSetupFlow
+          onComplete={() => setShowOnboarding(false)}
+          onDismiss={() => setShowOnboarding(false)}
+        />
+      )}
 
     </div>
   );
