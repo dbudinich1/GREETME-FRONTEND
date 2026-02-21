@@ -1,13 +1,6 @@
 /**
  * InteriorSpread.jsx
  * Screen 3: Interior Message Spread
- *
- * CANONICAL LAYOUT LOCKS:
- * - Recipient name: top-left, 1.5in from top (via CSS --gc-letter-top-offset)
- * - Signature: bottom-right, 2.5in from crease (via CSS --gc-letter-crease-offset)
- * - Name capitalization: Title Case (via formatPersonName helper)
- *
- * LOCK STATE: See GREETING_LOCK.md for authoritative CSS values
  */
 
 import { useRef, useEffect, useLayoutEffect, useCallback } from 'react';
@@ -22,7 +15,6 @@ Another year of dreams,
 May happiness find you always
 In everything, it seems.`;
 
-// CANONICAL: Poem fitting rules (exactly 4 lines, 42 chars/line max)
 const MAX_POEM_LINES = 4;
 const MAX_CHARS_PER_LINE = 42;
 
@@ -58,17 +50,14 @@ function formatPoemToFit(poemText, maxLines = MAX_POEM_LINES, maxCharsPerLine = 
   return wrappedLines.join('\n');
 }
 
-// AUTO-FIT: Shrink-only. Tokens define ideal size; auto-fit may only reduce.
-// No expansions, no truncation, no ellipsis.
-const MIN_MESSAGE_PX_DEFAULT = 19;    // non-portrait floor
-const MIN_MESSAGE_PX_PORTRAIT = 16;   // portrait floor (must be <= 18px token)
+const MIN_MESSAGE_PX_DEFAULT = 19;
+const MIN_MESSAGE_PX_PORTRAIT = 16;
 const MIN_POEM_PX = 13;
 const MAX_STEPS_MESSAGE = 16;
 const MAX_STEPS_POEM = 16;
 const MIN_LH = 1.05;
 const LH_TIGHTEN_STEP = 0.03;
 
-// Count sentences from DOM element text content
 function countSentences(el) {
   if (!el) return 3;
   const text = el.textContent || '';
@@ -78,19 +67,17 @@ function countSentences(el) {
 function autoFitElement(el, cssVar, minPx, maxSteps, varTarget, startSize) {
   if (!el) return;
   const target = varTarget || el;
-  // Clear previous fit override so we measure from the lock token baseline
   target.style.removeProperty(cssVar);
   void el.offsetHeight;
 
   let size;
   if (startSize != null) {
-    // Variant-based: start from boosted size, then shrink
     size = startSize;
     target.style.setProperty(cssVar, `${size}px`);
     void el.offsetHeight;
-    if (el.scrollHeight <= el.clientHeight) return; // Fits at boosted size
+    if (el.scrollHeight <= el.clientHeight) return;
   } else {
-    if (el.scrollHeight <= el.clientHeight) return; // Already fits at token
+    if (el.scrollHeight <= el.clientHeight) return;
     const computed = getComputedStyle(el);
     size = parseFloat(computed.fontSize);
   }
@@ -103,10 +90,9 @@ function autoFitElement(el, cssVar, minPx, maxSteps, varTarget, startSize) {
   }
 }
 
-// Shrink-only: tighten line-height if font-size hit floor and content still clips
 function tightenLineHeight(el, varTarget) {
   if (!el || !varTarget) return;
-  if (el.scrollHeight <= el.clientHeight) return; // Already fits
+  if (el.scrollHeight <= el.clientHeight) return;
   const computed = getComputedStyle(el);
   let lh = parseFloat(computed.lineHeight) / parseFloat(computed.fontSize);
   const startLh = lh;
@@ -128,34 +114,25 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
   const signatureRef = useRef(null);
   const pageContentRef = useRef(null);
 
-  // AUTO-FIT: shrink-only until no clipping, runs after every render
   const runAutoFit = useCallback(() => {
     const varTarget = pageContentRef.current;
-    // Clear ALL previous overrides before measuring
     if (varTarget) varTarget.style.removeProperty('--fit-message-line-height');
     if (varTarget) varTarget.style.removeProperty('--fit-message-font-size');
     if (poemRef.current) poemRef.current.style.removeProperty('--fit-poem-font-size');
-    // Variant-based start size: 3-sentence content gets a +2px boost, then shrink-only
-    // Minimum intro is 3 sentences (backend enforced, target 4)
     let messageStartSize = null;
     if (messageRef.current && varTarget) {
       const baseSize = parseFloat(getComputedStyle(messageRef.current).fontSize);
       const sentences = countSentences(messageRef.current);
       if (sentences <= 3) messageStartSize = baseSize + 2;
-      // 4 sentences → null (token default, no boost)
     }
-    // Compute portrait-aware floor
     const isPortraitMobile =
       window.matchMedia &&
       window.matchMedia('(max-width: 430px) and (orientation: portrait)').matches;
 
     const minMessagePx = isPortraitMobile ? MIN_MESSAGE_PX_PORTRAIT : MIN_MESSAGE_PX_DEFAULT;
 
-    // Shrink message font (sets --fit-message-font-size on parent, inherited by all)
     autoFitElement(messageRef.current, '--fit-message-font-size', minMessagePx, MAX_STEPS_MESSAGE, varTarget, messageStartSize);
-    // If message still clips after font-size floor, tighten line-height
     tightenLineHeight(messageRef.current, varTarget);
-    // Shrink poem font
     autoFitElement(poemRef.current, '--fit-poem-font-size', MIN_POEM_PX, MAX_STEPS_POEM);
 
     // DEV: flag fit failures (content must never be truncated — regenerate instead)
@@ -173,7 +150,6 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
     runAutoFit();
   }, [message, poemText, senderName, runAutoFit]);
 
-  // Re-run after web fonts load (initial autoFit may measure with fallback font)
   useEffect(() => {
     document.fonts.ready.then(() => runAutoFit());
   }, [runAutoFit]);
@@ -225,17 +201,13 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
     return () => clearTimeout(timer);
   }, [message, senderName]);
 
-  // CANONICAL: Title Case FIRST NAME only via formatPersonName helper
   const displayName = formatPersonName((recipientName || 'Friend').split(' ')[0]);
 
   // GS-03: Never render empty - always use placeholder if missing
   const rawMessage = message?.trim() || `Happy Birthday!\n\nI've been thinking about you lately and wanted to reach out.\n\nYou matter to me more than you know.\n\nI hope this message finds you well.`;
 
-  // CANONICAL: Signature in Title Case (FIRST NAME only)
-  // Fallback to 'Me' if senderName is missing
   const displaySender = formatPersonName((senderName || 'Me').split(' ')[0]);
 
-  // CANONICAL: Strip duplicate salutation if content already includes "Dear X,"
   const normalizedRawMessage = (() => {
     const lines = String(rawMessage || '').split('\n');
     // Remove leading blank lines
@@ -252,8 +224,6 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
   // Split greeting (first line before \n\n) from body
   const [greeting, ...bodyParts] = normalizedRawMessage.split('\n\n');
 
-  // CANONICAL: Never place text after signature - strip closing phrases and sender name
-  // Common closing phrases that should appear BEFORE signature, not after
   const CLOSING_PHRASES = [
     'thinking of you today and always',
     'thinking of you always',
@@ -280,7 +250,6 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
   // Strip trailing punctuation after name removal
   bodyMessage = bodyMessage.replace(/[,\s]+$/, '');
 
-  // Strip any closing phrases from end of body (they belong before signature, not after)
   let bodyLower = bodyMessage.trim().toLowerCase();
   for (const phrase of CLOSING_PHRASES) {
     if (bodyLower.endsWith(phrase)) {
