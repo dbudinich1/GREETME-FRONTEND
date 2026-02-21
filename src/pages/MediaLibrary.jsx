@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { getMediaLibraryItems, removeFromMediaLibrary } from '../utils/mediaLibrary';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
+import TutorialVideo from '../components/TutorialVideo';
 
 export default function MediaLibrary() {
   const navigate = useNavigate();
@@ -322,72 +323,8 @@ export default function MediaLibrary() {
       )}
 
       {/* Demo Video Section */}
-      <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '1.5rem',
-        marginBottom: '2rem',
-        color: 'white',
-        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-          <div style={{
-            width: '3rem',
-            height: '3rem',
-            borderRadius: '50%',
-            background: 'rgba(255, 255, 255, 0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <Video size={24} style={{ color: 'white' }} />
-          </div>
-          <div>
-            <h2 style={{
-              fontSize: '1.25rem',
-              fontWeight: 700,
-              margin: 0,
-              marginBottom: '0.25rem'
-            }}>Watch the Demo</h2>
-            <p style={{
-              fontSize: '0.875rem',
-              opacity: 0.9,
-              margin: 0
-            }}>Learn how to use Greet-Me™ in under 2 minutes</p>
-          </div>
-        </div>
-        <button
-          onClick={() => alert('Demo video will open here - integration coming soon')}
-          style={{
-            width: '100%',
-            padding: '0.875rem',
-            background: 'white',
-            color: '#667eea',
-            border: 'none',
-            borderRadius: 'var(--radius-lg)',
-            fontSize: '0.9375rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-            transition: 'all 0.2s',
-            fontFamily: 'inherit',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-          }}
-        >
-          <Play size={20} />
-          Watch Demo Video
-        </button>
+      <div style={{ marginBottom: '2rem' }}>
+        <TutorialVideo variant="full" />
       </div>
 
       {/* Mobile App QR Code */}

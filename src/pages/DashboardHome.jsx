@@ -11,6 +11,9 @@ import QRCashGiftModal from '../components/QRCashGiftModal';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
 import UpcomingGreetings from '../components/UpcomingGreetings';
+import GuidedSetupFlow, { shouldShowGuidedSetup } from '../components/GuidedSetupFlow';
+import OnboardingCoach from '../components/OnboardingCoach';
+import TutorialVideo from '../components/TutorialVideo';
 
 export default function DashboardHome() {
   const navigate = useNavigate();
@@ -46,6 +49,14 @@ export default function DashboardHome() {
   const [rewardsBalance, setRewardsBalance] = useState(0);
   const [viewMode, setViewMode] = useState('recipients'); // 'recipients' or 'occasions'
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Check if guided setup should show
+  useEffect(() => {
+    if (shouldShowGuidedSetup()) {
+      setShowOnboarding(true);
+    }
+  }, []);
 
   // Handle resize for mobile detection
   useEffect(() => {
@@ -392,13 +403,6 @@ export default function DashboardHome() {
     }
   };
 
-  // Mock data matching PDF
-  const mockContacts = [
-    { id: 1, name: 'John Doe', relationship: 'Dad', occasions: ['Birthday', 'Anniversary'], avatar: '👤', online: true },
-    { id: 2, name: 'Jane Smith', relationship: 'Spouse', occasions: ['Birthday'], avatar: '👤', online: true },
-    { id: 3, name: 'Bob Johnson', relationship: 'Friend', occasions: ['Christmas'], avatar: '👤', online: true },
-  ];
-
   const comingUpOccasions = [
     { id: 1, recipient: 'Jane Smith', relationship: 'Spouse', icons: ['🎂', '❤️', '❤️'], occasions: ['Birthday', 'Anniversary'], date: 'Jan 15' },
     { id: 2, recipient: 'John Doe', relationship: 'Dad', icons: ['🎂'], occasions: ['Birthday'], date: 'Jan 18' },
@@ -416,11 +420,8 @@ export default function DashboardHome() {
     );
   }
 
-  // Show actual contacts if available, otherwise show examples
-  const displayContacts = contacts.length > 0 ? contacts : mockContacts;
-
   // Filter contacts based on search term
-  const filteredContacts = displayContacts.filter(contact =>
+  const filteredContacts = contacts.filter(contact =>
     contact.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.relationship?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -551,6 +552,15 @@ export default function DashboardHome() {
         </button>
         </div>
       </div>
+
+      {/* Onboarding Coach (dashboard nudge for incomplete setup) */}
+      {!showOnboarding && (
+        <OnboardingCoach
+          voiceDone={voiceRecorded || !!user?.voiceId || !!user?.voiceUrl}
+          photoDone={photoUploaded || !!user?.photoUrl}
+          recipientDone={contacts.length > 0}
+        />
+      )}
 
       {/* Dashboard Cards - All same height */}
       {/* Green G1G1 Card - Full Width */}
@@ -1369,7 +1379,37 @@ export default function DashboardHome() {
               overflowY: 'auto',
               minHeight: 0
             }}>
-              {filteredContacts.length === 0 && searchTerm ? (
+              {contacts.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '2rem',
+                  color: 'var(--text-secondary)',
+                }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>👥</div>
+                  <p style={{ fontSize: '0.9rem', margin: '0 0 0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    No recipients yet
+                  </p>
+                  <p style={{ fontSize: '0.8125rem', margin: '0 0 1rem', lineHeight: 1.5 }}>
+                    Add your first contact to start sending Greet-Me™ greetings automatically.
+                  </p>
+                  <button
+                    onClick={() => navigate('/dashboard/contacts')}
+                    style={{
+                      padding: '0.5rem 1.25rem',
+                      background: '#6366f1',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 'var(--radius-lg)',
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    Add Recipient
+                  </button>
+                </div>
+              ) : filteredContacts.length === 0 && searchTerm ? (
                 <div style={{
                   textAlign: 'center',
                   padding: '2rem',
@@ -1974,6 +2014,13 @@ export default function DashboardHome() {
         <UpcomingGreetings />
       </section>
 
+      {/* Tutorial Video Teaser (for users with incomplete setup) */}
+      {(!(voiceRecorded || user?.voiceId || user?.voiceUrl) || !(photoUploaded || user?.photoUrl) || contacts.length === 0) && (
+        <section style={{ marginTop: '1.5rem' }}>
+          <TutorialVideo variant="teaser" />
+        </section>
+      )}
+
       {/* Past Greetings Section */}
       <div style={{
         background: 'var(--bg-primary)',
@@ -2038,14 +2085,41 @@ export default function DashboardHome() {
                 }))
             ];
 
-            // If no items, show example data
-            const displayItems = allItems.length > 0 ? allItems : [
-              { id: 1, recipient: 'Mom', relationship: 'Mother', icons: ['🎂'], occasions: ['Birthday'], date: 'Dec 15, 2025', sent: true, qrCash: null },
-              { id: 2, recipient: 'John Smith', relationship: 'Friend', icons: ['🎄'], occasions: ['Christmas'], date: 'Dec 25, 2025', sent: true, qrCash: { redeemed: true, amount: '25' } },
-              { id: 3, recipient: 'Sarah Johnson', relationship: 'Sister', icons: ['❤️'], occasions: ['Anniversary'], date: 'Dec 28, 2025', sent: true, qrCash: { redeemed: false, amount: '10' } },
-            ];
+            if (allItems.length === 0) {
+              return (
+                <div style={{
+                  padding: '2rem',
+                  textAlign: 'center',
+                  color: 'var(--text-secondary)',
+                }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>💌</div>
+                  <p style={{ fontSize: '1rem', margin: '0 0 0.5rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                    No greetings sent yet
+                  </p>
+                  <p style={{ fontSize: '0.875rem', margin: '0 0 1rem', lineHeight: 1.5 }}>
+                    Once you add contacts and occasions, Greet-Me™ will handle the rest!
+                  </p>
+                  <button
+                    onClick={() => navigate('/dashboard/send')}
+                    style={{
+                      padding: '0.625rem 1.5rem',
+                      background: '#6366f1',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 'var(--radius-lg)',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    Send Your First Greeting
+                  </button>
+                </div>
+              );
+            }
 
-            return displayItems.map((item, index, array) => (
+            return allItems.map((item, index, array) => (
               <div
                 key={item.id}
                 style={{
@@ -2717,6 +2791,14 @@ export default function DashboardHome() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Guided Setup Flow (full-screen onboarding modal) */}
+      {showOnboarding && (
+        <GuidedSetupFlow
+          onComplete={() => setShowOnboarding(false)}
+          onDismiss={() => setShowOnboarding(false)}
+        />
       )}
 
     </div>
