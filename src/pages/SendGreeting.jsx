@@ -15,6 +15,7 @@ import { pushInApp } from '../utils/notify';
 import { COMMS_EVENTS } from '../utils/commsCatalog';
 import { awardGreetingHearts } from '../utils/rewards';
 import { normalizeOccasionKey } from '../utils/normalizeOccasionKey';
+import { getErrorMessage } from '../utils/errorMessages';
 
 // TEMP STUB — models layer intentionally disabled for V1 build safety
 const greetingDraftModel = {
@@ -226,7 +227,22 @@ export default function SendGreeting() {
 
   useEffect(() => {
     if (jobId) {
-      const interval = setInterval(pollJobStatus, 2000);
+      const MAX_POLL_DURATION = 5 * 60 * 1000;
+      const POLL_INTERVAL = 3000;
+      const pollStart = Date.now();
+
+      const interval = setInterval(async () => {
+        if (Date.now() - pollStart > MAX_POLL_DURATION) {
+          clearInterval(interval);
+          setErrors({
+            submit: 'Your greeting is still being processed. You will receive an email when it is ready. You can close this page.'
+          });
+          setSending(false);
+          return;
+        }
+        await pollJobStatus();
+      }, POLL_INTERVAL);
+
       return () => clearInterval(interval);
     }
   }, [jobId]);
@@ -362,7 +378,7 @@ export default function SendGreeting() {
       setJobId(response.jobId);
       setJobStatus('queued');
     } catch (error) {
-      setErrors({ submit: error.message });
+      setErrors({ submit: getErrorMessage(error) });
       setSending(false);
     }
   };
@@ -386,7 +402,7 @@ if (typeof window !== "undefined") {
   // no-op for V1
 }
     } catch (error) {
-      setErrors({ submit: error.message });
+      setErrors({ submit: getErrorMessage(error) });
       setSending(false);
     }
   };

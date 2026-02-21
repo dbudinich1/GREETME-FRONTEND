@@ -10,6 +10,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import { getOccasionIcon, getOccasionLabel } from '../utils/helpers';
 import { autoAddRecipientPhotosToLibrary } from '../utils/mediaLibrary';
+import { getErrorMessage } from '../utils/errorMessages';
 
 // Session storage key (must match ContactForm.jsx)
 const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
@@ -169,19 +170,25 @@ export default function Recipients() {
       setDeleteConfirm(null);
       fetchRecipients();
     } catch (error) {
-      showAlertMessage('error', 'Failed to delete recipient');
+      showAlertMessage('error', getErrorMessage(error));
     }
   };
 
   const handleImportRecipients = async (contactsToImport) => {
     try {
-      const promises = contactsToImport.map(contact => api.createContact(contact));
-      await Promise.all(promises);
+      const BATCH_SIZE = 5;
+      for (let i = 0; i < contactsToImport.length; i += BATCH_SIZE) {
+        const batch = contactsToImport.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(c => api.createContact(c)));
+        if (i + BATCH_SIZE < contactsToImport.length) {
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
       showAlertMessage('success', `${contactsToImport.length} recipients imported successfully`);
       setShowImportModal(false);
       fetchRecipients();
     } catch (error) {
-      throw new Error('Failed to import recipients');
+      throw new Error(getErrorMessage(error));
     }
   };
 

@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/api';
+import { getErrorMessage } from '../utils/errorMessages';
 
 // localStorage key pattern for thank you tracking
 const getThankYouKey = (greetingId) => `greetme_thank_you_sent_${greetingId}`;
@@ -117,10 +118,10 @@ export default function RecipientGreeting() {
             senderEmail: found.senderEmail,
           });
         } else {
-          setError('unavailable');
+          setError(getErrorMessage(err));
         }
       } catch {
-        setError('unavailable');
+        setError(getErrorMessage(err));
       }
     } finally {
       setLoading(false);

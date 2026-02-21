@@ -7,8 +7,19 @@ export default function JobStatus({ jobId, apiBase, onComplete }) {
   useEffect(() => {
     if (!jobId) return;
 
+    const MAX_POLL_DURATION = 5 * 60 * 1000; // 5 minutes
+    const POLL_INTERVAL = 3000;
+    const pollStart = Date.now();
     let cancelled = false;
+
     const interval = setInterval(async () => {
+      if (Date.now() - pollStart > MAX_POLL_DURATION) {
+        clearInterval(interval);
+        setStatus("timeout");
+        setError("Your greeting is still being processed. You will receive an email when it is ready. You can close this page.");
+        return;
+      }
+
       try {
         const res = await fetch(`${apiBase}/api/jobs/${jobId}`);
         const data = await res.json();
@@ -32,7 +43,7 @@ export default function JobStatus({ jobId, apiBase, onComplete }) {
           clearInterval(interval);
         }
       }
-    }, 2000);
+    }, POLL_INTERVAL);
 
     return () => {
       cancelled = true;

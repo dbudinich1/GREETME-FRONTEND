@@ -6,6 +6,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import cartService from '../services/cartService';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
+import { getErrorMessage } from '../utils/errorMessages';
 
 // TODO: VITE_STRIPE_PUBLISHABLE_KEY must be set in .env before Stripe checkout is functional
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
@@ -66,7 +67,7 @@ export default function Checkout() {
       window.location.href = data.url;
     } catch (error) {
       console.error('Stripe checkout error:', error);
-      alert('Unable to start checkout. Please try again.');
+      setErrors({ submit: getErrorMessage(error) });
     }
   };
 
@@ -129,7 +130,13 @@ export default function Checkout() {
 
     setIsProcessing(true);
 
-    // Simulate payment processing
+    // Simulated payment processing (dev-only when Stripe is not configured)
+    if (!import.meta.env.DEV || import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
+      setErrors({ submit: getErrorMessage({ code: 'SERVICE_UNAVAILABLE' }) });
+      setIsProcessing(false);
+      return;
+    }
+
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
 

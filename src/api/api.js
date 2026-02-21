@@ -165,6 +165,37 @@ class ApiService {
       /* no body */
     }
 
+    // Rate limiting
+    if (res.status === 429) {
+      const retryAfter =
+        res.headers?.get?.('Retry-After') ||
+        (typeof res.headers?.get === 'function' ? res.headers.get('Retry-After') : null) ||
+        data?.retryAfter ||
+        60;
+
+      const error = new Error(data?.error || 'Rate limit exceeded');
+      error.status = 429;
+      error.code = data?.code || 'RATE_LIMIT_GENERAL';
+      error.retryAfter = Number(retryAfter);
+      throw error;
+    }
+
+    // Forbidden / cap enforcement
+    if (res.status === 403) {
+      const error = new Error(data?.error || 'Access denied');
+      error.status = 403;
+      error.code = data?.code || 'FORBIDDEN';
+      throw error;
+    }
+
+    // Server errors
+    if (res.status >= 500) {
+      const error = new Error(data?.error || 'Server error');
+      error.status = res.status;
+      error.code = data?.code || 'SERVER_ERROR';
+      throw error;
+    }
+
     if (!res.ok) {
       throw new Error(data?.error || `HTTP ${res.status}`);
     }

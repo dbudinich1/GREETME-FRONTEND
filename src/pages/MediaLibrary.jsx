@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getMediaLibraryItems, removeFromMediaLibrary } from '../utils/mediaLibrary';
 import api from '../api/api';
+import { getErrorMessage } from '../utils/errorMessages';
 
 export default function MediaLibrary() {
   const navigate = useNavigate();
@@ -151,7 +152,7 @@ export default function MediaLibrary() {
       alert('Voice uploaded successfully!');
     } catch (error) {
       console.error('Voice upload error:', error);
-      alert('Failed to upload voice.');
+      alert(getErrorMessage(error));
     }
   };
 
@@ -197,7 +198,7 @@ export default function MediaLibrary() {
       alert('Photo uploaded successfully!');
     } catch (error) {
       console.error('Photo upload error:', error);
-      alert('Failed to upload photo. Please try again.');
+      alert(getErrorMessage(error));
     } finally {
       setUploadingPhoto(false);
     }

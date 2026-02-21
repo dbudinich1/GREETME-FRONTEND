@@ -62,7 +62,12 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email, password }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Login failed');
+      if (!response.ok) {
+        const err = new Error(data.error || 'Login failed');
+        err.code = data.code;
+        err.status = response.status;
+        throw err;
+      }
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       setUser(data.user);
@@ -71,7 +76,7 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
-      return { success: false, error: error.message || 'Login failed' };
+      return { success: false, error: error.message || 'Login failed', code: error.code, status: error.status };
     }
   };
 
@@ -83,7 +88,12 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ name, email, password }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Registration failed');
+      if (!response.ok) {
+        const err = new Error(data.error || 'Registration failed');
+        err.code = data.code;
+        err.status = response.status;
+        throw err;
+      }
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       setUser(data.user);
@@ -92,7 +102,7 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Register error:', error);
-      return { success: false, error: error.message || 'Registration failed' };
+      return { success: false, error: error.message || 'Registration failed', code: error.code, status: error.status };
     }
   };
 

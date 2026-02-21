@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { getErrorMessage } from "../utils/errorMessages";
 import { Mail, Lock, QrCode, Smartphone } from "lucide-react";
 import GreetMeLogo from "../components/GreetMeLogo";
 
@@ -31,7 +32,7 @@ export const Login = () => {
     if (result?.success) {
       navigate("/dashboard");
     } else {
-      setError(result?.error || "Login failed");
+      setError(getErrorMessage(result));
     }
 
     setLoading(false);

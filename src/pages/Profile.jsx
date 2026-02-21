@@ -5,6 +5,7 @@ import api from "../api/api";
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import { useAuth } from '../context/AuthContext';
+import { getErrorMessage } from '../utils/errorMessages';
 
 export default function Profile() {
   const [profile, setProfile] = useState(null);
@@ -93,7 +94,7 @@ export default function Profile() {
       showAlert('success', 'Voice uploaded successfully! Processing may take a moment.');
       fetchProfile();
     } catch (error) {
-      showAlert('error', error.message || 'Failed to upload voice');
+      showAlert('error', getErrorMessage(error));
     } finally {
       setUploadingVoice(false);
     }
@@ -127,7 +128,7 @@ export default function Profile() {
       showAlert('success', 'Photo uploaded successfully!');
       fetchProfile();
     } catch (error) {
-      showAlert('error', error.message || 'Failed to upload photo');
+      showAlert('error', getErrorMessage(error));
     } finally {
       setUploadingPhoto(false);
     }

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getErrorMessage } from '../utils/errorMessages';
 import { QrCode, Smartphone } from 'lucide-react';
 import GreetMeLogo from '../components/GreetMeLogo';
 
@@ -26,7 +27,7 @@ export default function Register() {
     if (result.success) {
       navigate('/dashboard');
     } else {
-      setError(result.error);
+      setError(getErrorMessage(result));
     }
     setLoading(false);
   };

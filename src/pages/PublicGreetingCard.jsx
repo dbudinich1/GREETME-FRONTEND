@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../api/api';
+import { getErrorMessage } from '../utils/errorMessages';
 // GreetingCardViewer import removed - using GreetingCardProto instead
 import { GreetingCard as GreetingCardProto } from '../components/GreetingCardProto';
 export default function PublicGreetingCard() {
@@ -46,7 +47,7 @@ export default function PublicGreetingCard() {
       }
     } catch (err) {
       console.error('Error loading greeting:', err);
-      setError('Unable to load greeting');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

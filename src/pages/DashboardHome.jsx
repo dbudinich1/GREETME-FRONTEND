@@ -9,6 +9,7 @@ import { pushInApp } from '../utils/notify';
 import { COMMS_EVENTS } from '../utils/commsCatalog';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 import { useAuth } from '../context/AuthContext';
+import { getErrorMessage } from '../utils/errorMessages';
 
 export default function DashboardHome() {
   const navigate = useNavigate();
@@ -200,7 +201,7 @@ export default function DashboardHome() {
       pushInApp(COMMS_EVENTS.VOICE_UPLOADED);
     } catch (error) {
       console.error('Voice upload error:', error);
-      alert('Failed to upload voice. Please try again.');
+      alert(getErrorMessage(error));
     } finally {
       setUploadingVoice(false);
     }
@@ -384,7 +385,7 @@ export default function DashboardHome() {
       pushInApp(COMMS_EVENTS.PHOTO_UPLOADED);
     } catch (error) {
       console.error('Photo upload error:', error);
-      alert('Failed to upload photo. Please try again.');
+      alert(getErrorMessage(error));
     } finally {
       setUploadingPhoto(false);
     }
