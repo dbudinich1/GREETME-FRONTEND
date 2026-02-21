@@ -19,6 +19,7 @@
     "precommit:greeting": "npm run verify:lock"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^8.8.0",
     "canvas-confetti": "^1.9.4",
     "date-fns": "^3.6.0",
     "lucide-react": "^0.562.0",

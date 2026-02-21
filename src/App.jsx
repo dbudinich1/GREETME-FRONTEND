@@ -31,6 +31,10 @@ import Rewards from "./pages/Rewards";
 import Notifications from "./pages/Notifications";
 import RecipientGreeting from "./pages/RecipientGreeting";
 import PublicGreetingCard from "./pages/PublicGreetingCard";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCanceled from "./pages/PaymentCanceled";
+import Support from "./pages/Support";
+
 export default function App() {
   return (
     <AuthProvider>
@@ -78,6 +82,13 @@ export default function App() {
           <Route path="/landing" element={<LandingPage />} />
           <Route path="/pricing" element={<DashboardLayout><Pricing /></DashboardLayout>} />
           <Route path="/business" element={<DashboardLayout><ForBusiness /></DashboardLayout>} />
+
+          {/* Payment Routes (Public) */}
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment/canceled" element={<PaymentCanceled />} />
+
+          {/* Support (Public) */}
+          <Route path="/support" element={<Support />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

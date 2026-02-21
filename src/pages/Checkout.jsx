@@ -2,8 +2,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CreditCard, Lock, ArrowLeft, CheckCircle, ShoppingBag, Truck, Shield } from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
 import cartService from '../services/cartService';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/api';
+
+// TODO: VITE_STRIPE_PUBLISHABLE_KEY must be set in .env before Stripe checkout is functional
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -50,6 +57,17 @@ export default function Checkout() {
     }
     setCartItems(items);
     setTotal(cartService.getTotal());
+  };
+
+  // Stripe Checkout handler for subscription items
+  const handleStripeCheckout = async (priceId) => {
+    try {
+      const data = await api.post('/api/payments/create-checkout', { priceId });
+      window.location.href = data.url;
+    } catch (error) {
+      console.error('Stripe checkout error:', error);
+      alert('Unable to start checkout. Please try again.');
+    }
   };
 
   const handleInputChange = (e) => {

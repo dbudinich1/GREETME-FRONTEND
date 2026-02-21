@@ -333,7 +333,12 @@ export default function LandingPage() {
         color: 'rgba(255, 255, 255, 0.7)',
         fontSize: '0.875rem'
       }}>
-        <p>&copy; 2025 Greet-Me™. Never forget the ones you love.</p>
+        <p>&copy; 2026 Greet-Me™. Never forget the ones you love.</p>
+        <p style={{ marginTop: '0.5rem' }}>
+          <a href="#/support" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'underline' }}>Support</a>
+          {' | '}
+          <a href="#/legal" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'underline' }}>Legal</a>
+        </p>
       </footer>
     </div>
   );

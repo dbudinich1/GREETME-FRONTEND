@@ -645,6 +645,20 @@ export default function DashboardLayout({ children }) {
                 <LogOut size={18} />
                 <span>Logout</span>
               </button>
+              <a
+                href="#/support"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  display: 'block',
+                  padding: '0.5rem 1rem',
+                  fontSize: '0.8125rem',
+                  color: 'var(--text-secondary)',
+                  textDecoration: 'none',
+                  marginTop: '0.25rem'
+                }}
+              >
+                Support
+              </a>
             </div>
           </div>
         </>
