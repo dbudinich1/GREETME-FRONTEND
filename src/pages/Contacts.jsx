@@ -655,6 +655,7 @@ export default function Recipients() {
                       >
                         <span style={{ fontSize: '0.875rem' }}>{getOccasionIcon(occasion.type)}</span>
                         {!isMobile && <span>{getOccasionLabel(occasion.type)}</span>}
+                        {occasion.autoSend && <span title="Auto-send enabled" style={{ fontSize: '0.6875rem', color: '#27AE60' }}>⚡</span>}
                       </span>
                     ))
                   ) : (

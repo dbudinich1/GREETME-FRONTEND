@@ -10,6 +10,7 @@ import { COMMS_EVENTS } from '../utils/commsCatalog';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
+import UpcomingGreetings from '../components/UpcomingGreetings';
 
 export default function DashboardHome() {
   const navigate = useNavigate();
@@ -1959,6 +1960,19 @@ export default function DashboardHome() {
           </div>
         </div>
       </div>
+
+      {/* Upcoming Greetings Section */}
+      <section style={{ marginTop: '2rem' }}>
+        <h2 style={{
+          fontSize: '1.25rem',
+          fontWeight: 700,
+          color: 'var(--text-primary)',
+          marginBottom: '1rem'
+        }}>
+          📅 Upcoming Greetings
+        </h2>
+        <UpcomingGreetings />
+      </section>
 
       {/* Past Greetings Section */}
       <div style={{
