@@ -1,8 +1,9 @@
 // src/api/api.js
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE ||
-  "https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net";
+const API_BASE = import.meta.env.VITE_API_BASE;
+if (!API_BASE) {
+  throw new Error("VITE_API_BASE is required");
+}
 
 /**
  * Sanitize memoryPhotos to prevent oversized payloads (Cosmos 413/500)

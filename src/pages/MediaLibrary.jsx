@@ -23,7 +23,8 @@ export default function MediaLibrary() {
   const voiceInputRef = useRef(null);
   const photoInputRef = useRef(null);
 
-  const API_URL = import.meta.env.VITE_API_BASE || 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
+  const API_URL = import.meta.env.VITE_API_BASE;
+  if (!API_URL) throw new Error("VITE_API_BASE is required");
 
   // Toggle photo selection
   const togglePhotoSelection = (photo) => {

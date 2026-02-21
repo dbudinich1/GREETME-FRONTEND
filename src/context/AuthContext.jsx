@@ -7,7 +7,8 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const API_URL = import.meta.env.VITE_API_BASE || 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
+  const API_URL = import.meta.env.VITE_API_BASE;
+  if (!API_URL) throw new Error("VITE_API_BASE is required");
 
   // Fetch profile to hydrate photoUrl (safe: does not block login if fails)
   const fetchAndHydrateProfile = async (token, currentUser) => {
