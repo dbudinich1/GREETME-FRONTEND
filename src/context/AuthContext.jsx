@@ -98,8 +98,6 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(data.user));
       // Clear stale onboarding state so new registration always gets fresh onboarding
       localStorage.removeItem('greetme_setup_state');
-      // GA4 signup event (no PII)
-      if (typeof window.gtag === 'function') window.gtag('event', 'signup_success');
       setUser(data.user);
       // Hydrate photoUrl from backend profile (fire-and-forget)
       fetchAndHydrateProfile(data.token, data.user);

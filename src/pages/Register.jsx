@@ -25,7 +25,15 @@ export default function Register() {
     const result = await register(name, email, password);
 
     if (result.success) {
-      navigate('/dashboard');
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', 'signup_success', {
+          event_callback: function() {
+            navigate('/dashboard');
+          }
+        });
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       setError(getErrorMessage(result));
     }
