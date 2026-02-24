@@ -60,14 +60,30 @@ export default function Checkout() {
     setTotal(cartService.getTotal());
   };
 
-  // Stripe Checkout handler for subscription items
-  const handleStripeCheckout = async (priceId) => {
+  // Stripe Checkout — redirect to Stripe hosted checkout page
+  const handleStripeCheckout = async () => {
+    const item = cartItems.find(i => i.priceId);
+    if (!item) {
+      console.error('Cart items missing priceId:', cartItems.map(i => ({ name: i.name, type: i.type, price: i.price, priceId: i.priceId })));
+      setErrors({ submit: 'Payment configuration incomplete. No Stripe price ID found.' });
+      return;
+    }
+
+    setIsProcessing(true);
+    setErrors({});
     try {
-      const data = await api.post('/api/payments/create-checkout', { priceId });
+      const data = await api.post('/api/payments/create-checkout', {
+        priceId: item.priceId,
+        purchaseType: item.purchaseType || 'subscription',
+        quantity: item.quantity || 1,
+        planTier: item.planTier,
+        billingPeriod: item.billingPeriod || item.period,
+      });
       window.location.href = data.url;
     } catch (error) {
       console.error('Stripe checkout error:', error);
       setErrors({ submit: getErrorMessage(error) });
+      setIsProcessing(false);
     }
   };
 
@@ -687,9 +703,10 @@ export default function Checkout() {
                   </div>
                 </div>
 
-                {/* Submit Button */}
+                {/* Submit Button — calls Stripe Checkout (not form submit) */}
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleStripeCheckout}
                   disabled={isProcessing}
                   style={{
                     width: '100%',

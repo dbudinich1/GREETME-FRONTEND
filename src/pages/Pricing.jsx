@@ -13,6 +13,10 @@ const personalPlans = {
       name: 'Close Circle',
       price: 9.99,
       period: 'year',
+      priceId: 'price_1SjUyRCf7KAA6aLauO121Y15',
+      purchaseType: 'subscription',
+      planTier: 'close_circle',
+      billingPeriod: 'yearly',
       description: 'Perfect for immediate family',
       featureGroups: [
         { section: 'Core', features: ['Up to 5 recipients', 'Greet One, Give One™ included', 'American Marketplace'] },
@@ -231,7 +235,12 @@ export default function Pricing() {
       planId: plan.id,
       period: plan.period,
       pricingMode: pricingMode,
-      icon: '📋'
+      icon: '📋',
+      // Stripe checkout fields (only present if plan defines them)
+      ...(plan.priceId && { priceId: plan.priceId }),
+      ...(plan.purchaseType && { purchaseType: plan.purchaseType }),
+      ...(plan.planTier && { planTier: plan.planTier }),
+      ...(plan.billingPeriod && { billingPeriod: plan.billingPeriod }),
     };
 
     // Use cartService
