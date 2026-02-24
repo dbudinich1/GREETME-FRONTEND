@@ -1,8 +1,10 @@
 // src/pages/Settings.jsx
 import React from 'react';
 import { Bell, Lock, CreditCard, Database } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function Settings() {
+  const { user } = useAuth();
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Settings</h1>
@@ -50,7 +52,7 @@ export default function Settings() {
             <h2 className="text-xl font-semibold text-gray-900">Billing</h2>
           </div>
           <div className="space-y-3">
-            <p className="text-gray-600">Current Plan: <strong>Free</strong></p>
+            <p className="text-gray-600">Current Plan: <strong>{user?.tier || user?.plan || 'Free'}</strong></p>
             <button className="text-blue-600 hover:text-blue-700 font-medium">
               Upgrade to Premium
             </button>

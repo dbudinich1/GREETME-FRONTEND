@@ -21,7 +21,10 @@ export const AuthProvider = ({ children }) => {
       const photoUrl = data.profile?.photoUrl || null;
       const voiceId = data.profile?.voiceId || null;
       const voiceUrl = data.profile?.voiceUrl || null;
-      const updatedUser = { ...currentUser, photoUrl, voiceId, voiceUrl };
+      const plan = data.profile?.plan || currentUser.plan || 'free';
+      const tier = data.profile?.tier || currentUser.tier || 'free';
+      const entitlements = data.profile?.entitlements || currentUser.entitlements || null;
+      const updatedUser = { ...currentUser, photoUrl, voiceId, voiceUrl, plan, tier, entitlements };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
     } catch (err) {
