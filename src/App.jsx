@@ -34,6 +34,7 @@ import PublicGreetingCard from "./pages/PublicGreetingCard";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
 import Support from "./pages/Support";
+import VerifyEmail from "./pages/VerifyEmail";
 
 export default function App() {
   return (
@@ -82,6 +83,9 @@ export default function App() {
           <Route path="/landing" element={<LandingPage />} />
           <Route path="/pricing" element={<DashboardLayout><Pricing /></DashboardLayout>} />
           <Route path="/business" element={<DashboardLayout><ForBusiness /></DashboardLayout>} />
+
+          {/* Email Verification (Public) */}
+          <Route path="/verify-email" element={<VerifyEmail />} />
 
           {/* Payment Routes (Public) */}
           <Route path="/payment/success" element={<PaymentSuccess />} />
