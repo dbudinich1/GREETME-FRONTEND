@@ -14,9 +14,9 @@ export default function HeroProgram() {
   const [lastAddedImagePackage, setLastAddedImagePackage] = useState(null);
 
   const imageBankPackages = [
-    { id: 1, images: 3, price: 5, perImage: '1.67', popular: false },
-    { id: 2, images: 5, price: 10, perImage: '2.00', popular: true },
-    { id: 3, images: 10, price: 15, perImage: '1.50', popular: false, bestValue: true }
+    { id: 1, images: 3, price: 5, perImage: '1.67', popular: false, priceId: 'price_1T4eK0Cf7KAA6aLax1sSi8mH', purchaseType: 'image_pack' },
+    { id: 2, images: 5, price: 10, perImage: '2.00', popular: true, priceId: 'price_1T4eK0Cf7KAA6aLamRmp8BWp', purchaseType: 'image_pack' },
+    { id: 3, images: 10, price: 15, perImage: '1.50', popular: false, bestValue: true, priceId: 'price_1T4eK1Cf7KAA6aLaeNoyvgHL', purchaseType: 'image_pack' }
   ];
 
   const handleAddImageToCart = (pkg) => {
@@ -27,7 +27,9 @@ export default function HeroProgram() {
       quantity: 1,
       images: pkg.images,
       packageId: pkg.id,
-      icon: '🖼️'
+      icon: '🖼️',
+      ...(pkg.priceId && { priceId: pkg.priceId }),
+      ...(pkg.purchaseType && { purchaseType: pkg.purchaseType }),
     };
 
     // Use cartService
@@ -65,7 +67,9 @@ export default function HeroProgram() {
       totalHearts: 1200,
       perDollar: 12,
       popular: false,
-      description: 'Perfect for getting started with Hero Hearts'
+      description: 'Perfect for getting started with Hero Hearts',
+      priceId: 'price_1T4eJxCf7KAA6aLaHqH2clKw',
+      purchaseType: 'hero_hearts',
     },
     {
       id: 'bundle-250',
@@ -76,7 +80,9 @@ export default function HeroProgram() {
       totalHearts: 3250,
       perDollar: 13,
       popular: true,
-      description: 'Most popular choice - best value for regular gifters'
+      description: 'Most popular choice - best value for regular gifters',
+      priceId: 'price_1T4eJyCf7KAA6aLaJjJLgVTK',
+      purchaseType: 'hero_hearts',
     },
     {
       id: 'bundle-500',
@@ -88,7 +94,9 @@ export default function HeroProgram() {
       perDollar: 14,
       popular: false,
       bestValue: true,
-      description: 'Maximum impact - double your rewards balance'
+      description: 'Maximum impact - double your rewards balance',
+      priceId: 'price_1T4eJzCf7KAA6aLagx468kzk',
+      purchaseType: 'hero_hearts',
     }
   ];
 
@@ -100,7 +108,9 @@ export default function HeroProgram() {
       quantity: 1,
       hearts: bundle.totalHearts,
       bundleId: bundle.id,
-      icon: '❤️'
+      icon: '❤️',
+      ...(bundle.priceId && { priceId: bundle.priceId }),
+      ...(bundle.purchaseType && { purchaseType: bundle.purchaseType }),
     };
 
     // Use cartService instead of direct localStorage

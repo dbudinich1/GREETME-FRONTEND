@@ -50,7 +50,9 @@ export default function Rewards() {
       totalHearts: 1200,
       perDollar: 12,
       popular: false,
-      description: 'Perfect for getting started with Hero Hearts'
+      description: 'Perfect for getting started with Hero Hearts',
+      priceId: 'price_1T4eJxCf7KAA6aLaHqH2clKw',
+      purchaseType: 'hero_hearts',
     },
     {
       id: 'bundle-250',
@@ -61,7 +63,9 @@ export default function Rewards() {
       totalHearts: 3250,
       perDollar: 13,
       popular: true,
-      description: 'Most popular choice - best value for regular gifters'
+      description: 'Most popular choice - best value for regular gifters',
+      priceId: 'price_1T4eJyCf7KAA6aLaJjJLgVTK',
+      purchaseType: 'hero_hearts',
     },
     {
       id: 'bundle-500',
@@ -73,7 +77,9 @@ export default function Rewards() {
       perDollar: 14,
       popular: false,
       bestValue: true,
-      description: 'Maximum impact - double your rewards balance'
+      description: 'Maximum impact - double your rewards balance',
+      priceId: 'price_1T4eJzCf7KAA6aLagx468kzk',
+      purchaseType: 'hero_hearts',
     }
   ];
 
@@ -85,7 +91,9 @@ export default function Rewards() {
       quantity: 1,
       hearts: bundle.totalHearts,
       bundleId: bundle.id,
-      icon: '❤️'
+      icon: '❤️',
+      ...(bundle.priceId && { priceId: bundle.priceId }),
+      ...(bundle.purchaseType && { purchaseType: bundle.purchaseType }),
     };
 
     // Use cartService instead of direct localStorage

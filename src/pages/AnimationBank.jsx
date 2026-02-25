@@ -46,7 +46,9 @@ export default function AnimationBank() {
       quantity: 1,
       animations: pack.size,
       packName: pack.name,
-      icon: pack.icon
+      icon: pack.icon,
+      ...(pack.priceId && { priceId: pack.priceId }),
+      ...(pack.purchaseType && { purchaseType: pack.purchaseType }),
     };
 
     // Use cartService
@@ -79,9 +81,9 @@ export default function AnimationBank() {
   }
 
   const packs = [
-    { name: 'Starter', size: 3, price: 9.99, icon: '✨', color: '#667eea' },
-    { name: 'Celebration', size: 10, price: 24.99, icon: '🎉', color: '#10b981' },
-    { name: 'Holiday', size: 25, price: 49.99, icon: '🎄', color: '#f59e0b' }
+    { name: 'Starter', size: 3, price: 9.99, icon: '✨', color: '#667eea', priceId: 'price_1T4eK2Cf7KAA6aLanoQY2ekX', purchaseType: 'animation_pack' },
+    { name: 'Celebration', size: 10, price: 24.99, icon: '🎉', color: '#10b981', priceId: 'price_1T4eK3Cf7KAA6aLao0taIyNT', purchaseType: 'animation_pack' },
+    { name: 'Holiday', size: 25, price: 49.99, icon: '🎄', color: '#f59e0b', priceId: 'price_1T4eK3Cf7KAA6aLae8D9ahf8', purchaseType: 'animation_pack' }
   ];
 
   return (
