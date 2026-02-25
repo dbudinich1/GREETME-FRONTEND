@@ -13,7 +13,7 @@ const personalPlans = {
       name: 'Close Circle',
       price: 9.99,
       period: 'year',
-      priceId: 'price_1SjUyRCf7KAA6aLauO121Y15',
+      priceId: 'price_1T4bbGCf7KAA6aLaeFPOGJYq',
       purchaseType: 'subscription',
       planTier: 'close_circle',
       billingPeriod: 'yearly',
