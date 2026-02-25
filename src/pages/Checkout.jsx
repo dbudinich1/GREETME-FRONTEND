@@ -7,6 +7,7 @@ import cartService from '../services/cartService';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
+import { getCurrentPriceMap } from '../config/plans';
 
 // TODO: VITE_STRIPE_PUBLISHABLE_KEY must be set in .env before Stripe checkout is functional
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
@@ -62,9 +63,20 @@ export default function Checkout() {
 
   // Stripe Checkout — redirect to Stripe hosted checkout page
   const handleStripeCheckout = async () => {
-    const item = cartItems.find(i => i.priceId);
+    // Refresh stale cart priceIds against current plan definitions
+    const priceMap = getCurrentPriceMap();
+    const validatedItems = cartItems.map(item => {
+      const current = priceMap[item.planId];
+      if (current && item.priceId !== current.priceId) {
+        console.warn(`CART_STALE: item "${item.planId}" had priceId "${item.priceId}", updated to "${current.priceId}"`);
+        return { ...item, ...current };
+      }
+      return item;
+    });
+
+    const item = validatedItems.find(i => i.priceId);
     if (!item) {
-      console.error('Cart items missing priceId:', cartItems.map(i => ({ name: i.name, type: i.type, price: i.price, priceId: i.priceId })));
+      console.error('Cart items missing priceId:', validatedItems.map(i => ({ name: i.name, type: i.type, price: i.price, priceId: i.priceId })));
       setErrors({ submit: 'Payment configuration incomplete. No Stripe price ID found.' });
       return;
     }
