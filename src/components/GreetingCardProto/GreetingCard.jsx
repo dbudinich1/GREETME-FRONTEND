@@ -253,6 +253,7 @@ export default function GreetingCard({ greeting }) {
         <FinaleSpread
           finaleText={greeting.finaleText}
           occasionKey={greeting.occasionKey}
+          hasGift={greeting.hasGift}
         />
       )}
     </div>

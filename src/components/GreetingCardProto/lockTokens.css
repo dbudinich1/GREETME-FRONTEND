@@ -147,7 +147,7 @@
 @media (max-width: 500px) and (orientation: portrait) {
   :root {
     /* Signature Reserve */
-    --lock-signature-reserve: 20px;
+    --lock-signature-reserve: 30px;
 
     /* Page Content Padding */
     --lock-page-content-padding: 4px;

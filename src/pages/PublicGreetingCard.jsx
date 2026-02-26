@@ -49,6 +49,7 @@ export default function PublicGreetingCard() {
           videoUrl: g.videoUrl || null,
           photos: g.photos || [],
           status: g.status || 'done',
+          hasGift: g.hasGift || false,
         });
       } else {
         setError('not_found');

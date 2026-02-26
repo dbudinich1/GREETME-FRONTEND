@@ -103,7 +103,7 @@ function tightenLineHeight(el) {
   }
 }
 
-export default function FinaleSpread({ finaleText, occasionKey }) {
+export default function FinaleSpread({ finaleText, occasionKey, hasGift }) {
   const closingMessageRef = useRef(null);
 
   // AUTO-FIT: shrink-only until no clipping
@@ -183,28 +183,55 @@ export default function FinaleSpread({ finaleText, occasionKey }) {
         {/* Right Page */}
         <div className="gc-page gc-page-right">
           <div className="gc-page-content gc-gift-content">
-            <h3 className="gc-gift-title">A little something extra</h3>
+            {hasGift ? (
+              <>
+                <h3 className="gc-gift-title">A little something extra</h3>
 
-            <div className="gc-qr-frame">
-              <div className="gc-qr-code">
-                <svg viewBox="0 0 100 100" className="gc-qr-placeholder">
-                  <rect x="10" y="10" width="20" height="20" fill="currentColor"/>
-                  <rect x="70" y="10" width="20" height="20" fill="currentColor"/>
-                  <rect x="10" y="70" width="20" height="20" fill="currentColor"/>
-                  <rect x="40" y="40" width="20" height="20" fill="currentColor"/>
-                  <rect x="35" y="15" width="10" height="10" fill="currentColor"/>
-                  <rect x="55" y="35" width="10" height="10" fill="currentColor"/>
-                  <rect x="15" y="45" width="10" height="10" fill="currentColor"/>
-                  <rect x="75" y="55" width="10" height="10" fill="currentColor"/>
-                  <rect x="45" y="75" width="10" height="10" fill="currentColor"/>
-                </svg>
-              </div>
-            </div>
+                <div className="gc-qr-frame">
+                  <div className="gc-qr-code">
+                    <svg viewBox="0 0 100 100" className="gc-qr-placeholder">
+                      <rect x="10" y="10" width="20" height="20" fill="currentColor"/>
+                      <rect x="70" y="10" width="20" height="20" fill="currentColor"/>
+                      <rect x="10" y="70" width="20" height="20" fill="currentColor"/>
+                      <rect x="40" y="40" width="20" height="20" fill="currentColor"/>
+                      <rect x="35" y="15" width="10" height="10" fill="currentColor"/>
+                      <rect x="55" y="35" width="10" height="10" fill="currentColor"/>
+                      <rect x="15" y="45" width="10" height="10" fill="currentColor"/>
+                      <rect x="75" y="55" width="10" height="10" fill="currentColor"/>
+                      <rect x="45" y="75" width="10" height="10" fill="currentColor"/>
+                    </svg>
+                  </div>
+                </div>
 
-            <p className="gc-gift-instruction">
-              Scan to redeem your gift<br/>
-              Treat yourself to something that makes you smile!
-            </p>
+                <p className="gc-gift-instruction">
+                  Treat yourself to something that makes you smile!
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="gc-gift-title">A Gift From Greet-Me</h3>
+
+                <div className="gc-qr-frame">
+                  <div className="gc-qr-code">
+                    <svg viewBox="0 0 100 100" className="gc-qr-placeholder">
+                      <rect x="10" y="10" width="20" height="20" fill="currentColor"/>
+                      <rect x="70" y="10" width="20" height="20" fill="currentColor"/>
+                      <rect x="10" y="70" width="20" height="20" fill="currentColor"/>
+                      <rect x="40" y="40" width="20" height="20" fill="currentColor"/>
+                      <rect x="35" y="15" width="10" height="10" fill="currentColor"/>
+                      <rect x="55" y="35" width="10" height="10" fill="currentColor"/>
+                      <rect x="15" y="45" width="10" height="10" fill="currentColor"/>
+                      <rect x="75" y="55" width="10" height="10" fill="currentColor"/>
+                      <rect x="45" y="75" width="10" height="10" fill="currentColor"/>
+                    </svg>
+                  </div>
+                </div>
+
+                <p className="gc-gift-instruction">
+                  Enjoy $5 toward your first Greet-Me subscription.
+                </p>
+              </>
+            )}
 
             <div className="gc-branding">
               {/* TODO: Replace with final G logo asset when provided */}

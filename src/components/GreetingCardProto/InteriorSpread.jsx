@@ -107,7 +107,37 @@ function tightenLineHeight(el, varTarget) {
   }
 }
 
-export default function InteriorSpread({ recipientName, message, senderName, poemText, onClick }) {
+// Occasion-specific closing text for right page
+const OCCASION_CLOSINGS = {
+  birthday: 'With Warmest Birthday Wishes',
+  getwell: 'Wishing You a Speedy Recovery',
+  get_well: 'Wishing You a Speedy Recovery',
+  sympathy: 'With Deepest Sympathy',
+  thankyou: 'With Heartfelt Thanks',
+  thank_you: 'With Heartfelt Thanks',
+  anniversary: 'With Love on Your Anniversary',
+  graduation: 'With Warmest Congratulations',
+  wedding: 'With Love and Best Wishes',
+  baby: 'With Joyful Congratulations',
+  holiday: 'With Warmest Holiday Wishes',
+  christmas: 'With Warmest Holiday Wishes',
+  valentines: 'With All My Love',
+  justbecause: 'With Warmest Wishes',
+  just_because: 'With Warmest Wishes',
+};
+
+function getClosingText(occasionKey) {
+  if (!occasionKey) return 'With Warmest Wishes';
+  const key = occasionKey.toLowerCase().replace(/[-\s]/g, '_');
+  // Try exact match, then partial match on known keys
+  if (OCCASION_CLOSINGS[key]) return OCCASION_CLOSINGS[key];
+  for (const [k, v] of Object.entries(OCCASION_CLOSINGS)) {
+    if (key.includes(k) || k.includes(key)) return v;
+  }
+  return 'With Warmest Wishes';
+}
+
+export default function InteriorSpread({ recipientName, message, senderName, occasionKey, poemText, onClick }) {
   // Refs for runtime fit check
   const messageRef = useRef(null);
   const poemRef = useRef(null);
@@ -295,7 +325,7 @@ export default function InteriorSpread({ recipientName, message, senderName, poe
         <div className="gc-page gc-page-right">
           <div className="gc-page-content gc-poem-content">
             <p className="gc-poem" ref={poemRef}>{formatPoemToFit(poemText)}</p>
-            <h3 className="gc-warm-wishes">With Warmest Wishes</h3>
+            <h3 className="gc-warm-wishes">{getClosingText(occasionKey)}</h3>
           </div>
         </div>
       </div>
