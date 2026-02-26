@@ -6,16 +6,16 @@ const ERROR_MESSAGES = {
   RATE_LIMIT_GREETING: "You're sending greetings too quickly. Please wait a moment.",
   RATE_LIMIT_UPLOAD: 'Upload limit reached. Please wait before uploading more files.',
   RATE_LIMIT_VOICE: 'Voice upload limit reached. Please try again later.',
-  RATE_LIMIT_GENERAL: "You're moving too fast. Please wait a moment and try again.",
+  RATE_LIMIT_GENERAL: "You're moving quickly. Please give it just a moment and try again.",
   RATE_LIMIT_PUBLIC: 'This greeting is temporarily unavailable. Please try again shortly.',
-  GENERATION_CAP: "You've used all your greetings for this period. Upgrade your Greet-Me\u2122 plan for more.",
+  GENERATION_CAP: "You've reached your current Greet-Me limit. You can continue tomorrow \u2014 or upgrade anytime to keep the celebrations flowing.",
   PAYMENT_REQUIRED: 'A Greet-Me\u2122 subscription is required to send greetings.',
-  PAYMENT_FAILED: 'Payment could not be processed. Please check your card details.',
+  PAYMENT_FAILED: "Your payment didn't go through. You can update your method and continue whenever you're ready.",
   SUBSCRIPTION_EXPIRED: 'Your Greet-Me\u2122 subscription has expired. Renew to continue.',
   FORBIDDEN: "You don't have access to this feature.",
   SERVICE_UNAVAILABLE: 'Payments are temporarily unavailable. Please try again later.',
-  SERVER_ERROR: 'Something went wrong on our end. Please try again in a moment.',
-  DEFAULT: 'Something unexpected happened. Please try again or contact support@greet-me.com.',
+  SERVER_ERROR: "Something unexpected occurred. We're already on it \u2014 please try again shortly.",
+  DEFAULT: "Something unexpected occurred. We're already on it \u2014 please try again shortly.",
 };
 
 export function getErrorMessage(error) {
@@ -24,7 +24,6 @@ export function getErrorMessage(error) {
   }
   if (error?.status === 429) return ERROR_MESSAGES.RATE_LIMIT_GENERAL;
   if (error?.status >= 500) return ERROR_MESSAGES.SERVER_ERROR;
-  if (error?.message && !error.message.includes('HTTP')) return error.message;
   return ERROR_MESSAGES.DEFAULT;
 }
 

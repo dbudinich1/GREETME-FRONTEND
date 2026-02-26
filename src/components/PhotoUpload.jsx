@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { validateFile } from '../utils/helpers';
+import { getErrorMessage } from '../utils/errorMessages';
 import Alert from './Alert';
 
 export default function PhotoUpload({ onUpload, existingPhoto }) {
@@ -68,7 +69,7 @@ export default function PhotoUpload({ onUpload, existingPhoto }) {
       await onUpload(formData);
       setSelectedFile(null);
     } catch (err) {
-      setError(err.message);
+      setError(getErrorMessage(err));
     } finally {
       setUploading(false);
     }

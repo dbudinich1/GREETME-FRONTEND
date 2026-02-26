@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Upload, Download, FileText } from 'lucide-react';
 import Papa from 'papaparse';
 import { validateEmail } from '../utils/helpers';
+import { getErrorMessage } from '../utils/errorMessages';
 import Alert from './Alert';
 
 export default function CSVImport({ onImport, onCancel }) {
@@ -79,7 +80,7 @@ export default function CSVImport({ onImport, onCancel }) {
 
       await onImport(contacts);
     } catch (error) {
-      setErrors([error.message]);
+      setErrors([getErrorMessage(error)]);
     } finally {
       setImporting(false);
     }

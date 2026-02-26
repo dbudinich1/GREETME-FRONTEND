@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Square, Play, Pause, Upload } from 'lucide-react';
 import { validateAudioFile } from '../utils/helpers';
+import { getErrorMessage } from '../utils/errorMessages';
 import Alert from './Alert';
 
 export default function VoiceRecorder({ onUpload, existingVoice }) {
@@ -106,7 +107,7 @@ export default function VoiceRecorder({ onUpload, existingVoice }) {
       setAudioUrl(null);
       setRecordingTime(0);
     } catch (err) {
-      setError(err.message);
+      setError(getErrorMessage(err));
     } finally {
       setUploading(false);
     }

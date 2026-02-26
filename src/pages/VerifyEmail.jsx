@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader } from 'lucide-react';
 import api from '../api/api';
+import { getErrorMessage } from '../utils/errorMessages';
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
@@ -26,8 +27,7 @@ export default function VerifyEmail() {
       })
       .catch((err) => {
         setStatus('error');
-        const msg = err?.response?.data?.error || err?.message || 'Verification failed';
-        setMessage(msg);
+        setMessage(getErrorMessage(err));
       });
   }, [navigate]);
 

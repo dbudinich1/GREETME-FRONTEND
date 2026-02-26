@@ -1,5 +1,6 @@
 // src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
+import { getErrorMessage } from '../utils/errorMessages';
 
 const AuthContext = createContext(null);
 
@@ -79,7 +80,7 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
-      return { success: false, error: error.message || 'Login failed', code: error.code, status: error.status };
+      return { success: false, error: getErrorMessage(error), code: error.code, status: error.status };
     }
   };
 
@@ -107,7 +108,7 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Register error:', error);
-      return { success: false, error: error.message || 'Registration failed', code: error.code, status: error.status };
+      return { success: false, error: getErrorMessage(error), code: error.code, status: error.status };
     }
   };
 

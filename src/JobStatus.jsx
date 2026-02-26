@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getErrorMessage } from "./utils/errorMessages";
 
 export default function JobStatus({ jobId, apiBase, onComplete }) {
   const [status, setStatus] = useState("queued");
@@ -39,7 +40,7 @@ export default function JobStatus({ jobId, apiBase, onComplete }) {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err.message);
+          setError(getErrorMessage(err));
           clearInterval(interval);
         }
       }

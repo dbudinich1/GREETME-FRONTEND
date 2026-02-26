@@ -10,6 +10,7 @@ import { Heart, User, Mail, Info, Plus, Camera, X, Gift, ChevronDown, ChevronUp,
 import { useAuth } from '../context/AuthContext';
 import { showManualToast } from '../utils/notify';
 import { COMMS_CATEGORIES } from '../utils/commsCatalog';
+import { getErrorMessage } from '../utils/errorMessages';
 import api from '../api/api';
 
 // Session storage key for preserving form data during gift selection navigation
@@ -395,7 +396,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
       // Show saved toast
       showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
     } catch (error) {
-      setErrors({ submit: error.message });
+      setErrors({ submit: getErrorMessage(error) });
     } finally {
       setSubmitting(false);
     }
@@ -1366,7 +1367,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                     }
                   } catch (err) {
                     console.error('Photo upload error:', err);
-                    showManualToast('Upload failed', err.message || 'Could not upload photo', COMMS_CATEGORIES.PROFILE);
+                    showManualToast('Upload failed', getErrorMessage(err), COMMS_CATEGORIES.PROFILE);
                   } finally {
                     setUploadingPhotos(prev => Math.max(0, prev - 1));
                   }
