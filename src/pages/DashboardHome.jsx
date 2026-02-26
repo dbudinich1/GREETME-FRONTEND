@@ -417,29 +417,29 @@ export default function DashboardHome() {
     contact.relationship?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Subscription lifecycle banner config
-  const SUB_BANNERS = {
-    past_due: { bg: '#fef3c7', border: '#f59e0b', color: '#92400e', text: 'Your payment method needs updating. Please update your billing details to avoid service interruption.' },
-    canceled: { bg: '#fee2e2', border: '#ef4444', color: '#991b1b', text: 'Your subscription has been canceled. You can resubscribe anytime from Settings.' },
-    refunded: { bg: '#f3e8ff', border: '#a855f7', color: '#6b21a8', text: 'Your recent payment was refunded. If you have questions, please contact support.' },
+  // Subscription lifecycle banner — calm neutral style, text-only differentiation
+  const SUB_BANNER_TEXT = {
+    past_due: 'Your payment method needs updating. Please update your billing details in Settings to avoid service interruption.',
+    canceled: 'Your subscription has ended. You can resubscribe anytime from Settings.',
+    refunded: 'Your recent payment was refunded. If you have questions, please contact support.',
   };
-  const subBanner = SUB_BANNERS[user?.subscriptionStatus];
+  const bannerText = SUB_BANNER_TEXT[user?.subscriptionStatus];
 
   return (
     <div style={{ maxWidth: '100%', overflow: 'hidden', overflowX: 'hidden' }}>
       {/* Subscription lifecycle banner */}
-      {subBanner && (
+      {bannerText && (
         <div style={{
-          background: subBanner.bg,
-          border: `1px solid ${subBanner.border}`,
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
           borderRadius: '8px',
           padding: '0.875rem 1.25rem',
           marginBottom: '1rem',
-          color: subBanner.color,
+          color: '#475569',
           fontSize: '0.9rem',
           lineHeight: 1.5,
         }}>
-          {subBanner.text}
+          {bannerText}
         </div>
       )}
       {/* Background Frame for Page Body */}

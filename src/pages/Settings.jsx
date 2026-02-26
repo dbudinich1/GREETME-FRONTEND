@@ -89,15 +89,27 @@ export default function Settings() {
             {billingError && (
               <p className="text-sm text-red-600">{billingError}</p>
             )}
-            {user?.tier && user.tier !== 'free' && (
-              <button
-                onClick={handleManageBilling}
-                disabled={billingLoading}
-                className="text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
-              >
-                {billingLoading ? 'Opening...' : 'Manage Billing'}
-              </button>
-            )}
+            {(() => {
+              const hasBillingRelationship =
+                ['active', 'past_due', 'canceled', 'trialing'].includes(user?.subscriptionStatus) ||
+                user?.paymentLocked === true;
+              return hasBillingRelationship ? (
+                <button
+                  onClick={handleManageBilling}
+                  disabled={billingLoading}
+                  className="text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
+                >
+                  {billingLoading ? 'Opening...' : 'Manage Billing'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => window.location.href = '/pricing'}
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  View Plans
+                </button>
+              );
+            })()}
           </div>
         </div>
 
