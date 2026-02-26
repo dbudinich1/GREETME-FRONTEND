@@ -25,7 +25,9 @@ export const AuthProvider = ({ children }) => {
       const plan = data.profile?.plan || currentUser.plan || 'free';
       const tier = data.profile?.tier || currentUser.tier || 'free';
       const entitlements = data.profile?.entitlements || currentUser.entitlements || null;
-      const updatedUser = { ...currentUser, photoUrl, voiceId, voiceUrl, plan, tier, entitlements };
+      const subscriptionStatus = data.profile?.subscriptionStatus || null;
+      const paymentLocked = data.profile?.paymentLocked || false;
+      const updatedUser = { ...currentUser, photoUrl, voiceId, voiceUrl, plan, tier, entitlements, subscriptionStatus, paymentLocked };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
     } catch (err) {

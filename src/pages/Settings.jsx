@@ -1,10 +1,43 @@
 // src/pages/Settings.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { Bell, Lock, CreditCard, Database } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/api';
+import { getErrorMessage } from '../utils/errorMessages';
+
+const TIER_DISPLAY = {
+  free: 'Free',
+  basic: 'Basic',
+  close_circle: 'Close Circle',
+  pro: 'Pro',
+  premium: 'Premium',
+  unlimited: 'Unlimited',
+};
 
 export default function Settings() {
   const { user } = useAuth();
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState(null);
+
+  const tierLabel = TIER_DISPLAY[user?.tier] || TIER_DISPLAY[user?.plan] || user?.tier || 'Free';
+
+  const handleManageBilling = async () => {
+    setBillingLoading(true);
+    setBillingError(null);
+    try {
+      const data = await api.post('/api/payments/portal-session');
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        setBillingError('Unable to open billing portal. Please try again.');
+      }
+    } catch (err) {
+      setBillingError(getErrorMessage(err));
+    } finally {
+      setBillingLoading(false);
+    }
+  };
+
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Settings</h1>
@@ -52,10 +85,19 @@ export default function Settings() {
             <h2 className="text-xl font-semibold text-gray-900">Billing</h2>
           </div>
           <div className="space-y-3">
-            <p className="text-gray-600">Current Plan: <strong>{user?.tier || user?.plan || 'Free'}</strong></p>
-            <button className="text-blue-600 hover:text-blue-700 font-medium">
-              Upgrade to Premium
-            </button>
+            <p className="text-gray-600">Current Plan: <strong>{tierLabel}</strong></p>
+            {billingError && (
+              <p className="text-sm text-red-600">{billingError}</p>
+            )}
+            {user?.tier && user.tier !== 'free' && (
+              <button
+                onClick={handleManageBilling}
+                disabled={billingLoading}
+                className="text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
+              >
+                {billingLoading ? 'Opening...' : 'Manage Billing'}
+              </button>
+            )}
           </div>
         </div>
 

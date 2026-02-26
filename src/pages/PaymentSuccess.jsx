@@ -3,9 +3,6 @@ import GreetMeLogo from '../components/GreetMeLogo';
 
 export default function PaymentSuccess() {
   const navigate = useNavigate();
-  const params = new URLSearchParams(window.location.search);
-  const sessionId = params.get('session_id');
-
   return (
     <div style={{
       minHeight: '100vh',
@@ -58,20 +55,8 @@ export default function PaymentSuccess() {
           lineHeight: 1.6,
           margin: '0 0 1.5rem 0'
         }}>
-          Thank you! Your Greet-Me™ subscription is active.
+          Thank you! Your Greet-Me™ purchase was successful.
         </p>
-
-        {sessionId && (
-          <p style={{
-            fontSize: '0.75rem',
-            color: '#999',
-            fontFamily: 'monospace',
-            wordBreak: 'break-all',
-            margin: '0 0 1.5rem 0'
-          }}>
-            Session: {sessionId}
-          </p>
-        )}
 
         <button
           onClick={() => navigate('/dashboard')}
