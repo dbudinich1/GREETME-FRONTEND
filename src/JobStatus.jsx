@@ -17,7 +17,7 @@ export default function JobStatus({ jobId, apiBase, onComplete }) {
       if (Date.now() - pollStart > MAX_POLL_DURATION) {
         clearInterval(interval);
         setStatus("timeout");
-        setError("Your greeting is still being processed. You will receive an email when it is ready. You can close this page.");
+        setError("Your Greet-Me is still being created. You'll receive an email when it's ready. You can close this page.");
         return;
       }
 
@@ -36,7 +36,7 @@ export default function JobStatus({ jobId, apiBase, onComplete }) {
 
         if (data.status === "failed") {
           clearInterval(interval);
-          setError("Job failed");
+          setError("We couldn't complete your Greet-Me. Please try again.");
         }
       } catch (err) {
         if (!cancelled) {
@@ -64,16 +64,16 @@ export default function JobStatus({ jobId, apiBase, onComplete }) {
   if (status === "completed") {
     return (
       <div style={{ padding: 20, background: "#e8f5e9", borderRadius: 8 }}>
-        <h3>✅ Greeting Sent!</h3>
-        <p>Your greeting has been sent successfully.</p>
+        <h3>✅ Greet-Me Sent!</h3>
+        <p>Your Greet-Me has been sent successfully.</p>
       </div>
     );
   }
 
   return (
     <div style={{ padding: 20, background: "#f5f5f5", borderRadius: 8 }}>
-      <h3>🔄 Processing...</h3>
-      <p>Status: {status}</p>
+      <h3>Creating your Greet-Me...</h3>
+      <p>We're creating your Greet-Me — this usually takes about a minute.</p>
       <div style={{ marginTop: 10 }}>
         <div style={{ 
           width: "100%", 

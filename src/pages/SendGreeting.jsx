@@ -235,7 +235,7 @@ export default function SendGreeting() {
         if (Date.now() - pollStart > MAX_POLL_DURATION) {
           clearInterval(interval);
           setErrors({
-            submit: 'Your greeting is still being processed. You will receive an email when it is ready. You can close this page.'
+            submit: "Your Greet-Me is still being created. You'll receive an email when it's ready. You can close this page."
           });
           setSending(false);
           return;
@@ -327,7 +327,7 @@ export default function SendGreeting() {
       photoUrl.includes('dummyimage.com');
 
     if (isDataUrl || isPlaceholder) {
-      newErrors.photo = 'Please upload a Default Greeting Photo in the Your Presence section on the Dashboard.';
+      newErrors.photo = 'Please upload a Default Photo in the Your Presence section on the Dashboard.';
     }
 
     setErrors(newErrors);
@@ -435,9 +435,9 @@ if (typeof window !== "undefined") {
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <CheckCircle className="mx-auto text-green-500 mb-4" size={64} />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Greeting Sent Successfully!</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Greet-Me Sent Successfully!</h2>
           <p className="text-gray-600 mb-8">
-            Your personalized greeting has been delivered.
+            Your personalized Greet-Me has been sent.
           </p>
           <div className="flex justify-center space-x-4">
             <button
@@ -480,9 +480,9 @@ if (typeof window !== "undefined") {
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <XCircle className="mx-auto text-red-500 mb-4" size={64} />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Sending Failed</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">We couldn't send your Greet-Me</h2>
           <p className="text-gray-600 mb-8">
-            There was an error sending your greeting. Please try again.
+            Something went wrong. Please try again, or contact support if this continues.
           </p>
           <div className="flex justify-center space-x-4">
             <button
@@ -510,10 +510,10 @@ if (typeof window !== "undefined") {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <Loader className="mx-auto text-blue-500 mb-4 animate-spin" size={64} />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            {jobStatus === 'queued' ? 'Queued...' : 'Creating Your Greeting...'}
+            {jobStatus === 'queued' ? 'Preparing...' : 'Creating Your Greet-Me...'}
           </h2>
           <p className="text-gray-600">
-            This may take a minute while we generate your personalized video greeting.
+            This may take a minute while we generate your personalized video.
           </p>
           <div className="mt-8 bg-blue-50 rounded-lg p-4">
             <div className="flex items-center justify-center space-x-2 text-blue-600">
@@ -566,7 +566,7 @@ if (typeof window !== "undefined") {
         {contacts.length === 0 && (
           <Alert
             type="warning"
-            message="You don't have any contacts yet. Add contacts first to send greetings."
+            message="You don't have any contacts yet. Add contacts first to send a Greet-Me."
           />
         )}
 
@@ -668,7 +668,7 @@ if (typeof window !== "undefined") {
             placeholder="Add a personal touch or give Greet-Me™ a hint about what to say..."
           />
           <p className="mt-1 text-xs text-gray-500">
-            This will be included in your greeting message
+            This will be included in your Greet-Me message
           </p>
         </div>
 
@@ -751,7 +751,7 @@ if (typeof window !== "undefined") {
                   Photo Selected
                 </p>
                 <p style={{ fontSize: '0.75rem', color: '#15803d', margin: '0.125rem 0 0 0' }}>
-                  This photo will be included with your greeting
+                  This photo will be included with your Greet-Me
                 </p>
               </div>
               <button
@@ -990,7 +990,7 @@ if (typeof window !== "undefined") {
               </h4>
             </div>
             <p style={{ fontSize: '0.75rem', color: '#7c3aed', marginBottom: '0.75rem' }}>
-              Upload a new photo specifically for this "Just Because" greeting
+              Upload a new photo specifically for this "Just Because" Greet-Me
             </p>
             <div style={{
               display: 'grid',
@@ -1340,7 +1340,7 @@ if (typeof window !== "undefined") {
               gap: '0.5rem',
               boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
             }}
-            title="Send greeting"
+            title="Send Greet-Me"
           >
             <Send size={18} />
             {sending ? 'Sending...' : 'Done & Send'}

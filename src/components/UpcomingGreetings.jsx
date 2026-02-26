@@ -5,12 +5,22 @@ import { getErrorMessage } from '../utils/errorMessages';
 import { getOccasionIcon } from '../utils/helpers';
 
 const STATUS_LABELS = {
-  null: { text: 'Pending', color: '#7F8C8D', bg: '#F4F6F7' },
-  scheduled: { text: 'Scheduled', color: '#2E86C1', bg: '#D6EAF8' },
-  queued: { text: 'Processing', color: '#E67E22', bg: '#FDEBD0' },
-  delivered: { text: 'Delivered', color: '#27AE60', bg: '#D5F5E3' },
-  failed: { text: 'Failed', color: '#E74C3C', bg: '#FADBD8' }
+  null: { text: 'Preparing', color: '#7F8C8D', bg: '#F4F6F7' },
+  scheduled: { text: 'Ready to send', color: '#2E86C1', bg: '#D6EAF8' },
+  queued: { text: 'Creating', color: '#E67E22', bg: '#FDEBD0' },
+  delivered: { text: 'Sent', color: '#27AE60', bg: '#D5F5E3' },
+  skipped: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9' },
+  failed: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9' }
 };
+
+function getSkippedReason(lastError) {
+  if (!lastError) return "This Greet-Me wasn't sent.";
+  if (lastError.includes('Trial expired')) return 'Your trial has ended. Upgrade your plan to continue sending.';
+  if (lastError.includes('Cap exceeded')) return "You've reached your sending limit for this period.";
+  if (lastError.includes('No user photo')) return 'A profile photo is required. Add one in your dashboard.';
+  if (lastError.includes('Contact not found') || lastError.includes('not found')) return 'This recipient was removed from your contacts.';
+  return "This Greet-Me wasn't sent.";
+}
 
 export default function UpcomingGreetings() {
   const [events, setEvents] = useState([]);
@@ -31,7 +41,7 @@ export default function UpcomingGreetings() {
     fetchUpcoming();
   }, []);
 
-  if (loading) return <div style={{ padding: '1rem', textAlign: 'center' }}>Loading upcoming greetings...</div>;
+  if (loading) return <div style={{ padding: '1rem', textAlign: 'center' }}>Loading upcoming Greet-Me occasions...</div>;
   if (error) return <div style={{ padding: '1rem', color: '#E74C3C' }}>{error}</div>;
 
   if (events.length === 0) {
@@ -44,10 +54,10 @@ export default function UpcomingGreetings() {
         border: '1px dashed #CCC'
       }}>
         <p style={{ fontSize: '1.1rem', color: '#555', margin: 0 }}>
-          No upcoming greetings scheduled.
+          No Greet-Me occasions coming up.
         </p>
         <p style={{ fontSize: '0.9rem', color: '#888', marginTop: '0.5rem' }}>
-          Add occasions to your contacts to activate automatic Greet-Me™ greetings.
+          Add occasions to your contacts and Greet-Me will handle the rest.
         </p>
       </div>
     );
@@ -71,14 +81,17 @@ export default function UpcomingGreetings() {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
               <span style={{ fontSize: '1.5rem' }}>{icon}</span>
-              <span style={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                padding: '3px 10px',
-                borderRadius: '12px',
-                color: status.color,
-                background: status.bg,
-              }}>
+              <span
+                title={event.scheduleStatus === 'skipped' || event.scheduleStatus === 'failed' ? getSkippedReason(event.lastError) : undefined}
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  padding: '3px 10px',
+                  borderRadius: '12px',
+                  color: status.color,
+                  background: status.bg,
+                  cursor: (event.scheduleStatus === 'skipped' || event.scheduleStatus === 'failed') ? 'help' : 'default',
+                }}>
                 {status.text}
               </span>
             </div>

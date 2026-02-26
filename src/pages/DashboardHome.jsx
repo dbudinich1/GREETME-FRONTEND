@@ -1402,7 +1402,7 @@ export default function DashboardHome() {
                     No recipients yet
                   </p>
                   <p style={{ fontSize: '0.8125rem', margin: '0 0 1rem', lineHeight: 1.5 }}>
-                    Add your first contact to start sending Greet-Me™ greetings automatically.
+                    Add your first contact to start sending personalized Greet-Me messages automatically.
                   </p>
                   <button
                     onClick={() => navigate('/dashboard/contacts')}
@@ -1956,7 +1956,7 @@ export default function DashboardHome() {
               fontSize: '0.8125rem',
               color: 'var(--text-secondary)',
               margin: 0
-            }}>Send greetings on the go - scan QR code to download</p>
+            }}>Send Greet-Me messages on the go - scan QR code to download</p>
           </div>
         </div>
         <div style={{
@@ -2021,7 +2021,7 @@ export default function DashboardHome() {
           color: 'var(--text-primary)',
           marginBottom: '1rem'
         }}>
-          📅 Upcoming Greetings
+          Upcoming Greet-Me Occasions
         </h2>
         <UpcomingGreetings />
       </section>
@@ -2048,7 +2048,7 @@ export default function DashboardHome() {
             fontWeight: 700,
             color: 'var(--text-primary)',
             margin: 0
-          }}>Past Greetings <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>(Last 30 Days)</span></h2>
+          }}>Past Sends <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>(Last 30 Days)</span></h2>
         </div>
 
         {/* Table Header */}
@@ -2106,7 +2106,7 @@ export default function DashboardHome() {
                 }}>
                   <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>💌</div>
                   <p style={{ fontSize: '1rem', margin: '0 0 0.5rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-                    No greetings sent yet
+                    No Greet-Me sends yet
                   </p>
                   <p style={{ fontSize: '0.875rem', margin: '0 0 1rem', lineHeight: 1.5 }}>
                     Once you add contacts and occasions, Greet-Me™ will handle the rest!
@@ -2125,7 +2125,7 @@ export default function DashboardHome() {
                       fontFamily: 'inherit',
                     }}
                   >
-                    Send Your First Greeting
+                    Send Your First Greet-Me
                   </button>
                 </div>
               );

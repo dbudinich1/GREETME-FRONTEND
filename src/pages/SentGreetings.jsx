@@ -30,7 +30,7 @@ export default function SentGreetings() {
       }
     } catch (err) {
       console.error('Error fetching sent greetings:', err);
-      setError('Failed to load sent greetings');
+      setError("We couldn't load your sent messages right now. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -50,18 +50,18 @@ export default function SentGreetings() {
     const statusConfig = {
       completed: {
         icon: CheckCircle,
-        text: 'Delivered',
+        text: 'Sent',
         className: 'bg-green-100 text-green-700 border-green-200'
       },
       pending: {
         icon: Clock,
-        text: 'Processing',
+        text: 'Creating',
         className: 'bg-yellow-100 text-yellow-700 border-yellow-200'
       },
       failed: {
         icon: XCircle,
-        text: 'Failed',
-        className: 'bg-red-100 text-red-700 border-red-200'
+        text: 'Not sent',
+        className: 'bg-gray-100 text-gray-700 border-gray-200'
       },
     };
 
@@ -92,7 +92,7 @@ export default function SentGreetings() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading sent greetings...</p>
+          <p className="text-gray-600">Loading your sent Greet-Me messages...</p>
         </div>
       </div>
     );
@@ -107,8 +107,8 @@ export default function SentGreetings() {
             <Mail className="text-white" size={24} />
           </div>
           <div>
-            <h1 className="text-3xl font-bold gradient-text">Sent Greetings</h1>
-            <p className="text-gray-600">View and manage all your past greetings</p>
+            <h1 className="text-3xl font-bold gradient-text">Sent</h1>
+            <p className="text-gray-600">View and manage all your past Greet-Me sends</p>
           </div>
         </div>
       </div>
@@ -137,9 +137,9 @@ export default function SentGreetings() {
               className="pl-10 pr-8 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all appearance-none bg-white"
             >
               <option value="all">All Status</option>
-              <option value="completed">Delivered</option>
-              <option value="pending">Processing</option>
-              <option value="failed">Failed</option>
+              <option value="completed">Sent</option>
+              <option value="pending">Creating</option>
+              <option value="failed">Not sent</option>
             </select>
           </div>
         </div>
@@ -147,7 +147,7 @@ export default function SentGreetings() {
         {/* Results Count */}
         <div className="mt-4 text-sm text-gray-600">
           Showing <span className="font-semibold text-purple-600">{filteredGreetings.length}</span> of{' '}
-          <span className="font-semibold">{greetings.length}</span> greetings
+          <span className="font-semibold">{greetings.length}</span> sends
         </div>
       </div>
 
@@ -165,11 +165,11 @@ export default function SentGreetings() {
           <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Mail className="text-purple-600" size={40} />
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Greetings Found</h3>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Greet-Me Sends Found</h3>
           <p className="text-gray-600 mb-6">
             {searchTerm || statusFilter !== 'all'
               ? "Try adjusting your search or filters"
-              : "You haven't sent any greetings yet"}
+              : "You haven't sent any Greet-Me messages yet"}
           </p>
         </div>
       ) : (
@@ -295,7 +295,7 @@ export default function SentGreetings() {
               {/* Video Preview (if available) */}
               {selectedGreeting.videoUrl && (
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Video Greeting</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Video</label>
                   <div className="relative rounded-xl overflow-hidden bg-black">
                     <video
                       src={selectedGreeting.videoUrl}
@@ -325,11 +325,11 @@ export default function SentGreetings() {
                 </div>
               )}
 
-              {/* Error Details (if failed) */}
-              {selectedGreeting.status === 'failed' && selectedGreeting.errorMessage && (
-                <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
-                  <label className="block text-sm font-semibold text-red-700 mb-2">Error Details</label>
-                  <p className="text-red-600 text-sm">{selectedGreeting.errorMessage}</p>
+              {/* What happened (if failed) */}
+              {selectedGreeting.status === 'failed' && (
+                <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">What happened</label>
+                  <p className="text-gray-600 text-sm">We couldn't send this Greet-Me. Please try again.</p>
                 </div>
               )}
             </div>

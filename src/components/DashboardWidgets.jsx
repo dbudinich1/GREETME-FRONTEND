@@ -13,7 +13,7 @@ export function StatsWidget({ stats }) {
       bgColor: 'bg-blue-50',
     },
     {
-      label: 'Greetings Sent',
+      label: 'Greet-Me Sends',
       value: stats?.greetingsSent || 0,
       icon: <Mail className="text-green-600" size={24} />,
       bgColor: 'bg-green-50',
@@ -135,10 +135,10 @@ export function RecentGreetingsWidget({ greetings }) {
   if (!greetings || greetings.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Greetings</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Sends</h3>
         <div className="text-center py-8">
           <p className="text-6xl mb-2">📬</p>
-          <p className="text-gray-500">No greetings sent yet</p>
+          <p className="text-gray-500">No Greet-Me sends yet</p>
         </div>
       </div>
     );
@@ -146,14 +146,14 @@ export function RecentGreetingsWidget({ greetings }) {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Greetings</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Sends</h3>
       <div className="space-y-3">
         {greetings.map((greeting, index) => {
           const statusConfig = {
             completed: { color: 'text-green-600', bg: 'bg-green-50', label: 'Sent' },
-            failed: { color: 'text-red-600', bg: 'bg-red-50', label: 'Failed' },
-            processing: { color: 'text-blue-600', bg: 'bg-blue-50', label: 'Processing' },
-            queued: { color: 'text-gray-600', bg: 'bg-gray-50', label: 'Queued' },
+            failed: { color: 'text-gray-600', bg: 'bg-gray-50', label: 'Not sent' },
+            processing: { color: 'text-blue-600', bg: 'bg-blue-50', label: 'Creating' },
+            queued: { color: 'text-gray-600', bg: 'bg-gray-50', label: 'Preparing' },
           };
 
           const status = statusConfig[greeting.status] || statusConfig.queued;
