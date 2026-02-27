@@ -273,6 +273,7 @@ export default function SendGreeting() {
       setJobStatus(response.status);
 
       if (response.status === 'completed') {
+        setSending(false);
         setJobId(null);
         // Trigger notification and rewards
         const selectedContact = contacts.find(c => c._id === formData.contactId);
