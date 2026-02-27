@@ -1,13 +1,18 @@
 /**
  * GreetingCard.jsx
  * Screen controller for the 5-screen greeting experience
- * 
+ *
  * Screens:
  * 1. ENVELOPE - Interactive 3D envelope (front/back via drag)
  * 2. COVER - Standalone card cover
  * 3. INTERIOR - Message spread
  * 4. FEATURED - Video + Photo album
  * 5. FINALE - Closing Message + Gift (no signature)
+ *
+ * Phase 4D-2: Premium page-turn transitions between screens
+ * - 3D rotateY page turn (420ms, cubic-bezier)
+ * - Envelope exit: seal pop + lift (280ms)
+ * - Reduced motion: quick fade fallback (150ms)
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -57,57 +62,141 @@ const SCREEN_ORDER = [
   SCREENS.FINALE
 ];
 
+// Motion timing (locked spec: 350–450ms acceptable range)
+const TRANSITION_MS = 420;
+const ENVELOPE_EXIT_MS = 280;
+const REDUCED_MOTION_MS = 150;
+
 export default function GreetingCard({ greeting }) {
   const [currentScreen, setCurrentScreen] = useState(SCREENS.ENVELOPE);
+  const [transitionState, setTransitionState] = useState(null); // { from, to, direction }
+  const [envelopeExiting, setEnvelopeExiting] = useState(false);
   const [hasCompletedFirstPass, setHasCompletedFirstPass] = useState(false);
   // Lift video state to persist across page navigation
   const [videoHasEnded, setVideoHasEnded] = useState(false);
 
-  // Advance to next screen (guided navigation)
+  const transitionTimer = useRef(null);
+  const isTransitioningRef = useRef(false);
+
+  // Reduced motion preference (checked once at mount)
+  const reducedMotion = useRef(
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+  );
+
+  // Keep ref in sync with state (avoids stale closures in callbacks)
+  useEffect(() => {
+    isTransitioningRef.current = transitionState !== null || envelopeExiting;
+  }, [transitionState, envelopeExiting]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => { if (transitionTimer.current) clearTimeout(transitionTimer.current); };
+  }, []);
+
+  // Duration: respect reduced-motion preference
+  const dur = useCallback((base) => reducedMotion.current ? REDUCED_MOTION_MS : base, []);
+
+  // Render a screen (non-interactive version for transition overlay)
+  const renderScreenContent = useCallback((screen) => {
+    switch (screen) {
+      case SCREENS.ENVELOPE:
+        return <Envelope recipientName={greeting.recipientName} onSealClick={() => {}} />;
+      case SCREENS.COVER:
+        return <Cover occasionKey={greeting.occasionKey} />;
+      case SCREENS.INTERIOR:
+        return (
+          <InteriorSpread
+            recipientName={greeting.recipientName}
+            message={greeting.render?.writtenIntroText ?? greeting.writtenIntroText ?? greeting.greetingText}
+            senderName={greeting.senderName}
+            occasionKey={greeting.occasionKey}
+            relationshipKey={greeting.relationshipKey}
+            poemText={greeting.render?.poemText ?? greeting.poemText}
+          />
+        );
+      case SCREENS.FEATURED:
+        return (
+          <FeaturedSpread
+            videoUrl={greeting.videoUrl}
+            photos={greeting.photos}
+            videoHasEnded={videoHasEnded}
+            onVideoEnd={() => setVideoHasEnded(true)}
+          />
+        );
+      case SCREENS.FINALE:
+        return (
+          <FinaleSpread
+            finaleText={greeting.finaleText}
+            occasionKey={greeting.occasionKey}
+            hasGift={greeting.hasGift}
+          />
+        );
+      default:
+        return null;
+    }
+  }, [greeting, videoHasEnded]);
+
+  // Page-turn navigation (Cover ↔ Interior ↔ Featured ↔ Finale)
+  const navigateTo = useCallback((toScreen, direction) => {
+    if (isTransitioningRef.current) return;
+    playSound(PAPER_SLIDE_SRC);
+    setTransitionState({ from: currentScreen, to: toScreen, direction });
+    transitionTimer.current = setTimeout(() => {
+      setCurrentScreen(toScreen);
+      setTransitionState(null);
+      if (toScreen === SCREENS.FINALE) setHasCompletedFirstPass(true);
+    }, dur(TRANSITION_MS));
+  }, [currentScreen, dur]);
+
+  // Advance to next screen (called by child onClick / seal click)
   const advanceScreen = useCallback(() => {
-    const currentIndex = SCREEN_ORDER.indexOf(currentScreen);
-    if (currentIndex >= SCREEN_ORDER.length - 1) {
-      // Reached finale - unlock free navigation
+    if (isTransitioningRef.current) return;
+    const idx = SCREEN_ORDER.indexOf(currentScreen);
+    if (idx >= SCREEN_ORDER.length - 1) {
       setHasCompletedFirstPass(true);
       return;
     }
+    const next = SCREEN_ORDER[idx + 1];
 
-    // Play paper slide sound on page turn (not on envelope->cover, seal handles that)
-    if (currentIndex > 0) {
-      playSound(PAPER_SLIDE_SRC);
+    // Envelope → Cover: special exit (seal pop + lift, no page turn)
+    if (currentScreen === SCREENS.ENVELOPE) {
+      setEnvelopeExiting(true);
+      transitionTimer.current = setTimeout(() => {
+        setEnvelopeExiting(false);
+        setCurrentScreen(next);
+      }, dur(ENVELOPE_EXIT_MS));
+      return;
     }
 
-    const nextScreen = SCREEN_ORDER[currentIndex + 1];
-    setCurrentScreen(nextScreen);
+    navigateTo(next, 'forward');
+  }, [currentScreen, navigateTo, dur]);
 
-    // Mark first pass complete when reaching finale
-    if (nextScreen === SCREENS.FINALE) {
-      setHasCompletedFirstPass(true);
-    }
-  }, [currentScreen]);
-
-  // Go to previous screen (available after leaving envelope)
+  // Go to previous screen (arrow / swipe)
   const goBack = useCallback(() => {
-    const currentIndex = SCREEN_ORDER.indexOf(currentScreen);
-    if (currentIndex <= 1) return; // Don't go back to envelope
+    if (isTransitioningRef.current) return;
+    const idx = SCREEN_ORDER.indexOf(currentScreen);
+    if (idx <= 1) return; // Don't go back to envelope
+    navigateTo(SCREEN_ORDER[idx - 1], 'back');
+  }, [currentScreen, navigateTo]);
 
-    playSound(PAPER_SLIDE_SRC);
-    setCurrentScreen(SCREEN_ORDER[currentIndex - 1]);
-  }, [currentScreen]);
-
-  // Go to next screen
+  // Go to next screen (arrow / swipe)
   const goForward = useCallback(() => {
-    const currentIndex = SCREEN_ORDER.indexOf(currentScreen);
-    if (currentIndex >= SCREEN_ORDER.length - 1) return;
+    if (isTransitioningRef.current) return;
+    const idx = SCREEN_ORDER.indexOf(currentScreen);
+    if (idx >= SCREEN_ORDER.length - 1) return;
 
-    playSound(PAPER_SLIDE_SRC);
-    setCurrentScreen(SCREEN_ORDER[currentIndex + 1]);
-
-    // Mark first pass complete when reaching finale
-    if (SCREEN_ORDER[currentIndex + 1] === SCREENS.FINALE) {
-      setHasCompletedFirstPass(true);
+    // Envelope → use exit animation (not page turn)
+    if (currentScreen === SCREENS.ENVELOPE) {
+      setEnvelopeExiting(true);
+      transitionTimer.current = setTimeout(() => {
+        setEnvelopeExiting(false);
+        setCurrentScreen(SCREEN_ORDER[idx + 1]);
+      }, dur(ENVELOPE_EXIT_MS));
+      return;
     }
-  }, [currentScreen]);
+
+    navigateTo(SCREEN_ORDER[idx + 1], 'forward');
+  }, [currentScreen, navigateTo, dur]);
 
   // Keyboard navigation (arrow keys)
   useEffect(() => {
@@ -213,48 +302,75 @@ export default function GreetingCard({ greeting }) {
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
     >
-      {currentScreen === SCREENS.ENVELOPE && (
-        <Envelope
-          recipientName={greeting.recipientName}
-          onSealClick={advanceScreen}
-        />
+      {/* === Normal render (no transition active) === */}
+      {!transitionState && !envelopeExiting && (
+        <>
+          {currentScreen === SCREENS.ENVELOPE && (
+            <Envelope
+              recipientName={greeting.recipientName}
+              onSealClick={advanceScreen}
+            />
+          )}
+
+          {currentScreen === SCREENS.COVER && (
+            <Cover
+              occasionKey={greeting.occasionKey}
+              onClick={advanceScreen}
+            />
+          )}
+
+          {currentScreen === SCREENS.INTERIOR && (
+            <InteriorSpread
+              recipientName={greeting.recipientName}
+              message={greeting.render?.writtenIntroText ?? greeting.writtenIntroText ?? greeting.greetingText}
+              senderName={greeting.senderName}
+              occasionKey={greeting.occasionKey}
+              relationshipKey={greeting.relationshipKey}
+              poemText={greeting.render?.poemText ?? greeting.poemText}
+              onClick={advanceScreen}
+            />
+          )}
+
+          {currentScreen === SCREENS.FEATURED && (
+            <FeaturedSpread
+              videoUrl={greeting.videoUrl}
+              photos={greeting.photos}
+              onClick={advanceScreen}
+              videoHasEnded={videoHasEnded}
+              onVideoEnd={() => setVideoHasEnded(true)}
+            />
+          )}
+
+          {currentScreen === SCREENS.FINALE && (
+            <FinaleSpread
+              finaleText={greeting.finaleText}
+              occasionKey={greeting.occasionKey}
+              hasGift={greeting.hasGift}
+            />
+          )}
+        </>
       )}
 
-      {currentScreen === SCREENS.COVER && (
-        <Cover
-          occasionKey={greeting.occasionKey}
-          onClick={advanceScreen}
-        />
+      {/* === Envelope exit (seal pop + lift away) === */}
+      {envelopeExiting && (
+        <div className="gc-envelope-exit">
+          <Envelope
+            recipientName={greeting.recipientName}
+            onSealClick={() => {}}
+          />
+        </div>
       )}
 
-      {currentScreen === SCREENS.INTERIOR && (
-        <InteriorSpread
-          recipientName={greeting.recipientName}
-          message={greeting.render?.writtenIntroText ?? greeting.writtenIntroText ?? greeting.greetingText}
-          senderName={greeting.senderName}
-          occasionKey={greeting.occasionKey}
-          relationshipKey={greeting.relationshipKey}
-          poemText={greeting.render?.poemText ?? greeting.poemText}
-          onClick={advanceScreen}
-        />
-      )}
-
-      {currentScreen === SCREENS.FEATURED && (
-        <FeaturedSpread
-          videoUrl={greeting.videoUrl}
-          photos={greeting.photos}
-          onClick={advanceScreen}
-          videoHasEnded={videoHasEnded}
-          onVideoEnd={() => setVideoHasEnded(true)}
-        />
-      )}
-
-      {currentScreen === SCREENS.FINALE && (
-        <FinaleSpread
-          finaleText={greeting.finaleText}
-          occasionKey={greeting.occasionKey}
-          hasGift={greeting.hasGift}
-        />
+      {/* === Page turn transition === */}
+      {transitionState && (
+        <div className="gc-screen-stage">
+          <div className={`gc-screen ${transitionState.direction === 'forward' ? 'gc-turn-forward-out' : 'gc-turn-back-out'}`}>
+            {renderScreenContent(transitionState.from)}
+          </div>
+          <div className={`gc-screen ${transitionState.direction === 'forward' ? 'gc-turn-forward-in' : 'gc-turn-back-in'}`}>
+            {renderScreenContent(transitionState.to)}
+          </div>
+        </div>
       )}
     </div>
   );
