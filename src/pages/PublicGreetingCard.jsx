@@ -184,7 +184,7 @@ export default function PublicGreetingCard() {
   }
 
   // Still processing state
-  if (greeting.status !== 'done') {
+  if (greeting.status !== 'done' && greeting.status !== 'completed') {
     return (
       <div style={{
         minHeight: '100vh',
