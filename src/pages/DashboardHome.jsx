@@ -111,11 +111,7 @@ export default function DashboardHome() {
         setPhotoUploaded(true);
       }
 
-      // Load sent greetings
-      const savedGreetings = localStorage.getItem('greetme_sent_greetings');
-      if (savedGreetings) {
-        setSentGreetings(JSON.parse(savedGreetings));
-      }
+      // Sent greetings now loaded from API in fetchDashboardData()
 
       // Load QR Cash gifts
       const savedQrCash = localStorage.getItem('greetme_qrcash_gifts');
@@ -167,6 +163,28 @@ export default function DashboardHome() {
         }
       } catch (err) {
         console.log('Upcoming endpoint not available yet');
+      }
+
+      // Fetch sent greetings from API
+      try {
+        const sentRes = await api.getSentGreetings();
+        if (sentRes?.greetings) {
+          // Map Cosmos fields to the shape the dashboard table expects
+          setSentGreetings(sentRes.greetings.map(g => ({
+            id: g.id,
+            recipient: g.recipientName || 'Unknown',
+            recipientEmail: g.recipientEmail,
+            relationship: g.occasionType || '',
+            icons: [getOccasionIcon(g.occasionType)],
+            occasions: [g.occasionType || 'General'],
+            date: g.sentAt ? new Date(g.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
+            sent: g.status === 'completed',
+            status: g.status,
+            videoUrl: g.videoUrl,
+          })));
+        }
+      } catch (err) {
+        console.log('Sent greetings endpoint not available yet');
       }
     } catch (error) {
       console.error('Dashboard load error:', error);

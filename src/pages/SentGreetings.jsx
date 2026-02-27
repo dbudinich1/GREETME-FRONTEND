@@ -25,8 +25,8 @@ export default function SentGreetings() {
       setError('');
       const response = await api.getSentGreetings();
 
-      if (response.data?.greetings) {
-        setGreetings(response.data.greetings);
+      if (response.greetings) {
+        setGreetings(response.greetings);
       }
     } catch (err) {
       console.error('Error fetching sent greetings:', err);
