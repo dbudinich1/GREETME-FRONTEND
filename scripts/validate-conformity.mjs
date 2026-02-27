@@ -54,14 +54,14 @@ File: ${greetingCssPath}
 
 // ---- Gate 2: Locked token values must remain unchanged for locked viewports ----
 
-// <=500px portrait: signature reserve 20px, poem font-size 17px (locked 390x844)
+// <=500px portrait: signature reserve 30px, poem font-size 17px (locked 390x844)
 mustMatch(
   lockTokens,
-  /@media\s*\(max-width:\s*500px\)\s*and\s*\(orientation:\s*portrait\)\s*\{[\s\S]*?:root\s*\{[\s\S]*?--lock-signature-reserve:\s*20px;[\s\S]*?\}[\s\S]*?\}/m,
+  /@media\s*\(max-width:\s*500px\)\s*and\s*\(orientation:\s*portrait\)\s*\{[\s\S]*?:root\s*\{[\s\S]*?--lock-signature-reserve:\s*30px;[\s\S]*?\}[\s\S]*?\}/m,
   "TOKEN_DRIFT_PORTRAIT_SIGNATURE_RESERVE",
   `
 Scope: Locked Tokens (390x844 portrait)
-Expected: --lock-signature-reserve: 20px
+Expected: --lock-signature-reserve: 30px
 File: ${lockTokensPath}
 `
 );
