@@ -60,50 +60,8 @@ export default function GreetingCard({ greeting }) {
   const isTransitioningRef = useRef(false);
   const waxAudioRef = useRef(null);
   const paperAudioRef = useRef(null);
-  const audioUnlockedRef = useRef(false);
 
-  // ── Preload audio on mount (start downloading immediately) ──────────
-  useEffect(() => {
-    const wax = new Audio(WAX_CRACKLE_SRC);
-    wax.preload = 'auto';
-    waxAudioRef.current = wax;
-
-    const paper = new Audio(PAPER_SLIDE_SRC);
-    paper.preload = 'auto';
-    paperAudioRef.current = paper;
-  }, []);
-
-  // ── Audio Context Unlock ────────────────────────────────────────────
-  // Mobile browsers block audio until a user gesture. On first tap,
-  // play+pause the preloaded elements at volume 0 to unlock the context.
-  useEffect(() => {
-    const unlockAudio = () => {
-      if (audioUnlockedRef.current) return;
-      audioUnlockedRef.current = true;
-
-      [waxAudioRef, paperAudioRef].forEach((ref) => {
-        try {
-          const el = ref.current;
-          if (!el) return;
-          el.volume = 0;
-          el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
-        } catch {}
-      });
-
-      document.removeEventListener('pointerdown', unlockAudio);
-      document.removeEventListener('click', unlockAudio);
-    };
-
-    document.addEventListener('pointerdown', unlockAudio, { once: true });
-    document.addEventListener('click', unlockAudio, { once: true });
-
-    return () => {
-      document.removeEventListener('pointerdown', unlockAudio);
-      document.removeEventListener('click', unlockAudio);
-    };
-  }, []);
-
-  // ── Reusable play helper (uses preloaded refs, no new downloads) ────
+  // ── Reusable play helper (uses DOM <audio> refs) ────────────────────
   const playCue = useCallback((audioRef, volume, maxDuration) => {
     try {
       const el = audioRef.current;
@@ -111,7 +69,7 @@ export default function GreetingCard({ greeting }) {
       el.volume = volume;
       el.currentTime = 0;
       el.play().catch(() => {});
-      setTimeout(() => { el.pause(); el.currentTime = 0; }, maxDuration);
+      setTimeout(() => { try { el.pause(); el.currentTime = 0; } catch {} }, maxDuration);
     } catch {}
   }, []);
 
@@ -415,6 +373,10 @@ export default function GreetingCard({ greeting }) {
           </div>
         </div>
       )}
+
+      {/* Hidden audio elements — DOM preload (browser buffers these reliably) */}
+      <audio ref={waxAudioRef} src={WAX_CRACKLE_SRC} preload="auto" />
+      <audio ref={paperAudioRef} src={PAPER_SLIDE_SRC} preload="auto" />
     </div>
   );
 }
