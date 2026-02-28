@@ -1692,6 +1692,10 @@
     --gc-letter-frame-bottom: 48px;
   }
 
+  .gc-recipient-name {
+    font-size: 48px;
+  }
+
   /* FIT-FIRST: Maximize spread at landscape tablet viewports */
   .gc-container {
     max-height: 100vh;

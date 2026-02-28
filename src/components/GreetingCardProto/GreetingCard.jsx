@@ -94,25 +94,42 @@ export default function GreetingCard({ greeting }) {
 
   // ── Mobile audio unlock ──────────────────────────────────────────────
   // iOS Safari / Android Chrome block audio until the first user gesture.
-  // On the recipient's first tap, silently play+pause both audio elements
-  // to register them as user-approved. Runs once, then removes itself.
+  // On the recipient's first tap we:
+  //   1. Create + resume an AudioContext (Apple's recommended iOS unlock)
+  //   2. Force-load and play each <audio> at volume 0 then immediately pause
+  // Uses volume=0 (not muted flag) because iOS may skip muted plays.
+  // Runs once, then removes itself.
   const audioUnlocked = useRef(false);
   useEffect(() => {
     const unlock = () => {
       if (audioUnlocked.current) return;
       audioUnlocked.current = true;
+
+      // 1. Unlock Web Audio API pipeline (iOS requirement)
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          ctx.resume().then(() => ctx.close()).catch(() => {});
+        }
+      } catch {}
+
+      // 2. Unlock each HTML audio element
       [waxAudioRef, paperAudioRef].forEach((ref) => {
         const el = ref.current;
         if (!el) return;
-        el.muted = true;
+        el.load(); // Force fetch (mobile may ignore preload="auto")
+        const prevVol = el.volume;
+        el.volume = 0;
         el.play().then(() => {
           el.pause();
           el.currentTime = 0;
-          el.muted = false;
+          el.volume = prevVol;
         }).catch(() => {
-          el.muted = false;
+          el.volume = prevVol;
         });
       });
+
       document.removeEventListener('touchstart', unlock, true);
       document.removeEventListener('click', unlock, true);
     };
