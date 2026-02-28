@@ -8,9 +8,8 @@ import { useState, useRef } from 'react';
 import envelopeFrontImg from '../../assets/card/envelope-front.jpeg';
 import envelopeBackImg from '../../assets/card/envelope-back.jpeg';
 
-// Audio: Wax seal crack sound
-// TODO: Final audio asset pending - currently using placeholder
-const WAX_CRACKLE_SRC = '/assets/sounds/wax-crackle.mp3';
+// Audio: Wax seal crack sound (fallback — prefer preloaded ref from parent)
+const WAX_CRACKLE_SRC = '/assets/sounds/wax-crackle.wav';
 
 // Capitalize first letter of name
 const capitalize = (str) => {

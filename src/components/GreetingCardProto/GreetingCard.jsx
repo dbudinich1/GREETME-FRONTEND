@@ -23,9 +23,9 @@ import FeaturedSpread from './FeaturedSpread';
 import FinaleSpread from './FinaleSpread';
 import './greetingCard.css';
 
-// Audio asset paths
-const PAPER_SLIDE_SRC = '/assets/sounds/paper-slide.mp3';
-const WAX_CRACKLE_SRC = '/assets/sounds/wax-crackle.mp3';
+// Audio asset paths (WAV — trimmed to 2s from original 34s/24s recordings)
+const PAPER_SLIDE_SRC = '/assets/sounds/paper-slide.wav';
+const WAX_CRACKLE_SRC = '/assets/sounds/wax-crackle.wav';
 
 const SCREENS = {
   ENVELOPE: 'envelope',

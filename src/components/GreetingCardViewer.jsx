@@ -177,8 +177,8 @@ const PAPER_TONE = '#f6f1e7'; // warm cream, slightly richer than #f8f5f0
 
 // Audio file paths (graceful failure if missing)
 const AUDIO = {
-  paperSlide: '/assets/sounds/paper-slide.mp3',
-  waxCrackle: '/assets/sounds/wax-crackle.mp3',
+  paperSlide: '/assets/sounds/paper-slide.wav',
+  waxCrackle: '/assets/sounds/wax-crackle.wav',
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
