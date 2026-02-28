@@ -23,28 +23,9 @@ import FeaturedSpread from './FeaturedSpread';
 import FinaleSpread from './FinaleSpread';
 import './greetingCard.css';
 
-// Audio: Paper slide sound for page transitions
-// TODO: Final audio asset pending - currently using placeholder
+// Audio asset paths
 const PAPER_SLIDE_SRC = '/assets/sounds/paper-slide.mp3';
-
-// Play audio with error handling (fail-silent)
-// Canon: paper-slide volume = 0.35, max duration = 300ms
-const playSound = (src, volume = 0.35, maxDuration = 300) => {
-  try {
-    const audio = new Audio(src);
-    audio.volume = volume;
-    audio.play().catch(() => {
-      // Fail silently - audio may be blocked by browser
-    });
-    // Hard-stop at maxDuration (canon restraint)
-    setTimeout(() => {
-      audio.pause();
-      audio.currentTime = 0;
-    }, maxDuration);
-  } catch {
-    // Fail silently
-  }
-};
+const WAX_CRACKLE_SRC = '/assets/sounds/wax-crackle.mp3';
 
 const SCREENS = {
   ENVELOPE: 'envelope',
@@ -77,21 +58,35 @@ export default function GreetingCard({ greeting }) {
 
   const transitionTimer = useRef(null);
   const isTransitioningRef = useRef(false);
+  const waxAudioRef = useRef(null);
+  const paperAudioRef = useRef(null);
   const audioUnlockedRef = useRef(false);
 
-  // ── Audio Context Unlock ──────────────────────────────────────────────
-  // Mobile browsers require user interaction before audio can play.
-  // On first pointerdown/click, play+pause both sound files to unlock.
+  // ── Preload audio on mount (start downloading immediately) ──────────
+  useEffect(() => {
+    const wax = new Audio(WAX_CRACKLE_SRC);
+    wax.preload = 'auto';
+    waxAudioRef.current = wax;
+
+    const paper = new Audio(PAPER_SLIDE_SRC);
+    paper.preload = 'auto';
+    paperAudioRef.current = paper;
+  }, []);
+
+  // ── Audio Context Unlock ────────────────────────────────────────────
+  // Mobile browsers block audio until a user gesture. On first tap,
+  // play+pause the preloaded elements at volume 0 to unlock the context.
   useEffect(() => {
     const unlockAudio = () => {
       if (audioUnlockedRef.current) return;
       audioUnlockedRef.current = true;
 
-      [PAPER_SLIDE_SRC, '/assets/sounds/wax-crackle.mp3'].forEach((src) => {
+      [waxAudioRef, paperAudioRef].forEach((ref) => {
         try {
-          const a = new Audio(src);
-          a.volume = 0;
-          a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
+          const el = ref.current;
+          if (!el) return;
+          el.volume = 0;
+          el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
         } catch {}
       });
 
@@ -107,6 +102,22 @@ export default function GreetingCard({ greeting }) {
       document.removeEventListener('click', unlockAudio);
     };
   }, []);
+
+  // ── Reusable play helper (uses preloaded refs, no new downloads) ────
+  const playCue = useCallback((audioRef, volume, maxDuration) => {
+    try {
+      const el = audioRef.current;
+      if (!el) return;
+      el.volume = volume;
+      el.currentTime = 0;
+      el.play().catch(() => {});
+      setTimeout(() => { el.pause(); el.currentTime = 0; }, maxDuration);
+    } catch {}
+  }, []);
+
+  // Callbacks for child components
+  const playWaxSound = useCallback(() => playCue(waxAudioRef, 0.20, 200), [playCue]);
+  const playPaperSound = useCallback(() => playCue(paperAudioRef, 0.35, 300), [playCue]);
 
   // Reduced motion preference (checked once at mount)
   const reducedMotion = useRef(
@@ -169,7 +180,7 @@ export default function GreetingCard({ greeting }) {
   // Page-turn navigation (Cover ↔ Interior ↔ Featured ↔ Finale)
   const navigateTo = useCallback((toScreen, direction) => {
     if (isTransitioningRef.current) return;
-    playSound(PAPER_SLIDE_SRC);
+    playPaperSound();
     setTransitionState({ from: currentScreen, to: toScreen, direction });
     transitionTimer.current = setTimeout(() => {
       setCurrentScreen(toScreen);
@@ -339,6 +350,7 @@ export default function GreetingCard({ greeting }) {
             <Envelope
               recipientName={greeting.recipientName}
               onSealClick={advanceScreen}
+              onPlaySound={playWaxSound}
             />
           )}
 

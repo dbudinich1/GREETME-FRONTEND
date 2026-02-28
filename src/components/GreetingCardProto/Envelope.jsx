@@ -37,7 +37,7 @@ const playSound = (src, volume = 0.20, maxDuration = 200) => {
   }
 };
 
-export default function Envelope({ recipientName, onSealClick }) {
+export default function Envelope({ recipientName, onSealClick, onPlaySound }) {
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const lastPos = useRef({ x: 0, y: 0 });
@@ -80,8 +80,9 @@ export default function Envelope({ recipientName, onSealClick }) {
 
   const handleSealClick = (e) => {
     e.stopPropagation();
-    // Play wax seal crack sound (canon: volume 0.20, max 200ms)
-    playSound(WAX_CRACKLE_SRC);
+    // Play wax seal crack sound via preloaded ref (or local fallback)
+    if (onPlaySound) onPlaySound();
+    else playSound(WAX_CRACKLE_SRC);
     onSealClick();
   };
 
