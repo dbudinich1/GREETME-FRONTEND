@@ -74,7 +74,7 @@ export default function GreetingCard({ greeting }) {
   }, []);
 
   // Callbacks for child components (volume + duration matched to GreetingCardViewer)
-  const playWaxSound = useCallback(() => playCue(waxAudioRef, 0.5, 650), [playCue]);
+  const playWaxSound = useCallback(() => playCue(waxAudioRef, 0.25, 650), [playCue]);
   const playPaperSound = useCallback(() => playCue(paperAudioRef, 0.5, 550), [playCue]);
 
   // Reduced motion preference (checked once at mount)
@@ -90,6 +90,38 @@ export default function GreetingCard({ greeting }) {
   // Cleanup timer on unmount
   useEffect(() => {
     return () => { if (transitionTimer.current) clearTimeout(transitionTimer.current); };
+  }, []);
+
+  // ── Mobile audio unlock ──────────────────────────────────────────────
+  // iOS Safari / Android Chrome block audio until the first user gesture.
+  // On the recipient's first tap, silently play+pause both audio elements
+  // to register them as user-approved. Runs once, then removes itself.
+  const audioUnlocked = useRef(false);
+  useEffect(() => {
+    const unlock = () => {
+      if (audioUnlocked.current) return;
+      audioUnlocked.current = true;
+      [waxAudioRef, paperAudioRef].forEach((ref) => {
+        const el = ref.current;
+        if (!el) return;
+        el.muted = true;
+        el.play().then(() => {
+          el.pause();
+          el.currentTime = 0;
+          el.muted = false;
+        }).catch(() => {
+          el.muted = false;
+        });
+      });
+      document.removeEventListener('touchstart', unlock, true);
+      document.removeEventListener('click', unlock, true);
+    };
+    document.addEventListener('touchstart', unlock, true);
+    document.addEventListener('click', unlock, true);
+    return () => {
+      document.removeEventListener('touchstart', unlock, true);
+      document.removeEventListener('click', unlock, true);
+    };
   }, []);
 
   // Duration: respect reduced-motion preference
