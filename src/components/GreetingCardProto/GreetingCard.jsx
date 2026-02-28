@@ -351,6 +351,7 @@ export default function GreetingCard({ greeting }) {
               recipientName={greeting.recipientName}
               onSealClick={advanceScreen}
               onPlaySound={playWaxSound}
+              onPlayFlipSound={playPaperSound}
             />
           )}
 

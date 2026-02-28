@@ -37,10 +37,11 @@ const playSound = (src, volume = 0.20, maxDuration = 200) => {
   }
 };
 
-export default function Envelope({ recipientName, onSealClick, onPlaySound }) {
+export default function Envelope({ recipientName, onSealClick, onPlaySound, onPlayFlipSound }) {
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const lastPos = useRef({ x: 0, y: 0 });
+  const wasShowingBackRef = useRef(false);
 
   // Get coordinates from mouse or touch event
   const getEventCoords = (e) => {
@@ -89,6 +90,12 @@ export default function Envelope({ recipientName, onSealClick, onPlaySound }) {
   // Determine which side is showing
   const normalizedY = ((rotation.y % 360) + 360) % 360;
   const showingBack = normalizedY > 90 && normalizedY < 270;
+
+  // Play paper-slide when crossing the flip threshold (front↔back)
+  if (showingBack !== wasShowingBackRef.current) {
+    wasShowingBackRef.current = showingBack;
+    if (onPlayFlipSound) onPlayFlipSound();
+  }
 
   return (
     <div
