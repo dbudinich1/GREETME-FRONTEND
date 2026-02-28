@@ -73,9 +73,9 @@ export default function GreetingCard({ greeting }) {
     } catch {}
   }, []);
 
-  // Callbacks for child components
-  const playWaxSound = useCallback(() => playCue(waxAudioRef, 0.20, 200), [playCue]);
-  const playPaperSound = useCallback(() => playCue(paperAudioRef, 0.35, 300), [playCue]);
+  // Callbacks for child components (volume + duration matched to GreetingCardViewer)
+  const playWaxSound = useCallback(() => playCue(waxAudioRef, 0.5, 650), [playCue]);
+  const playPaperSound = useCallback(() => playCue(paperAudioRef, 0.5, 550), [playCue]);
 
   // Reduced motion preference (checked once at mount)
   const reducedMotion = useRef(
