@@ -474,7 +474,8 @@
   margin-top: auto;
   margin-left: var(--lock-warm-wishes-margin-left);
   padding-top: var(--lock-warm-wishes-gap, 12px);
-  flex-shrink: 0;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 /* Warm Wishes must appear ONLY on the right page */
@@ -2440,9 +2441,9 @@
     padding-right: 10px;
   }
 
-  /* 2. Prevent warm wishes from wrapping */
+  /* 2. Allow warm wishes to wrap if needed */
   .gc-page.gc-page-right .gc-warm-wishes {
-    white-space: nowrap;
+    white-space: normal;
   }
 
   /* PHASE B8 — Center poem stack vertically in portrait */
@@ -2517,9 +2518,10 @@
       position: absolute;
       left: 0;
       right: 0;
-      bottom: 10px;         /* keep existing bottom safety feel */
+      bottom: 10px;
       margin-top: 0 !important;
-      white-space: nowrap;
+      white-space: normal;
+      text-align: center;
     }
   }
 }

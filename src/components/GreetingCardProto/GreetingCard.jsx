@@ -77,6 +77,36 @@ export default function GreetingCard({ greeting }) {
 
   const transitionTimer = useRef(null);
   const isTransitioningRef = useRef(false);
+  const audioUnlockedRef = useRef(false);
+
+  // ── Audio Context Unlock ──────────────────────────────────────────────
+  // Mobile browsers require user interaction before audio can play.
+  // On first pointerdown/click, play+pause both sound files to unlock.
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (audioUnlockedRef.current) return;
+      audioUnlockedRef.current = true;
+
+      [PAPER_SLIDE_SRC, '/assets/sounds/wax-crackle.mp3'].forEach((src) => {
+        try {
+          const a = new Audio(src);
+          a.volume = 0;
+          a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
+        } catch {}
+      });
+
+      document.removeEventListener('pointerdown', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    };
+
+    document.addEventListener('pointerdown', unlockAudio, { once: true });
+    document.addEventListener('click', unlockAudio, { once: true });
+
+    return () => {
+      document.removeEventListener('pointerdown', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    };
+  }, []);
 
   // Reduced motion preference (checked once at mount)
   const reducedMotion = useRef(
