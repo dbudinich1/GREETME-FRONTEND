@@ -385,8 +385,8 @@
     --lock-page-content-right: 40px;
     --lock-page-content-bottom: 24px;
 
-    /* Poem Content Container — reduced from 120px base */
-    --lock-poem-content-margin-top: 60px;
+    /* Poem Content Container — reduced for height-constrained landscape */
+    --lock-poem-content-margin-top: 24px;
   }
 }
 
