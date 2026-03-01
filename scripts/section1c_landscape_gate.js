@@ -5,7 +5,8 @@
  * Verifies that the Chrome landscape vertical compression fix (commit 4e001e5)
  * works correctly by:
  *   1. Opening a public greeting card URL
- *   2. Navigating through all 5 spreads at 2 viewports (390x844, 844x390)
+ *   2. Navigating through all 5 spreads at 4 viewports
+ *      (390x844, 844x390, 1600x600, 1440x500)
  *   3. Taking screenshots of each spread
  *   4. Running DOM bounding-box checks for clipping/overflow
  *   5. Collecting console errors
@@ -31,8 +32,10 @@ const URL = `${BASE_URL}/#/g/${JOB_ID}`;
 const ARTIFACT_DIR = path.resolve('test-artifacts/section1c');
 
 const VIEWPORTS = [
-  { width: 390, height: 844, name: '390x844' },
-  { width: 844, height: 390, name: '844x390' },
+  { width: 390,  height: 844, name: '390x844' },
+  { width: 844,  height: 390, name: '844x390' },
+  { width: 1600, height: 600, name: '1600x600' },
+  { width: 1440, height: 500, name: '1440x500' },
 ];
 
 const SPREAD_NAMES = ['envelope', 'cover', 'interior', 'featured', 'finale'];
@@ -49,36 +52,6 @@ const BENIGN_PATTERNS = [
 
 function isBenign(text) {
   return BENIGN_PATTERNS.some((re) => re.test(text));
-}
-
-// ── Navigate to next spread by clicking the current visible element ──
-async function advanceSpread(page, currentSpread) {
-  if (currentSpread === 'envelope') {
-    // Click the wax seal to open
-    const seal = page.locator('.gc-wax-seal');
-    if (await seal.count() > 0) {
-      await seal.first().click({ force: true });
-    }
-  } else if (currentSpread === 'cover') {
-    // Click the cover wrapper (has onClick={advanceScreen})
-    const cover = page.locator('.gc-cover-wrapper');
-    if (await cover.count() > 0) {
-      await cover.first().click({ force: true });
-    }
-  } else if (currentSpread === 'interior') {
-    // Click the interior spread wrapper
-    const interior = page.locator('.gc-spread-wrapper');
-    if (await interior.count() > 0) {
-      await interior.first().click({ force: true });
-    }
-  } else if (currentSpread === 'featured') {
-    // Click the featured spread wrapper
-    const featured = page.locator('.gc-spread-wrapper');
-    if (await featured.count() > 0) {
-      await featured.first().click({ force: true });
-    }
-  }
-  // finale — no advance needed (last screen)
 }
 
 // ── DOM bounding-box checks ──
@@ -134,14 +107,14 @@ async function runBoundingBoxChecks(page, spread) {
     }
   }
 
-  // Check 3: Poem/message page content not exceeding page box (interior spread)
+  // Check 3: Left page content not exceeding its parent page (interior spread)
   if (spread === 'interior') {
     const interiorCheck = await page.evaluate(() => {
       const content = document.querySelector('.gc-page-content');
-      const page = document.querySelector('.gc-page-right') || document.querySelector('.gc-page');
-      if (!content || !page) return null;
+      const parentPage = content ? content.closest('.gc-page-left') || content.closest('.gc-page') : null;
+      if (!content || !parentPage) return null;
       const cBox = content.getBoundingClientRect();
-      const pBox = page.getBoundingClientRect();
+      const pBox = parentPage.getBoundingClientRect();
       return {
         contentBottom: cBox.bottom,
         pageBottom: pBox.bottom,
@@ -152,12 +125,61 @@ async function runBoundingBoxChecks(page, spread) {
 
     if (interiorCheck) {
       if (interiorCheck.contentBottom > interiorCheck.pageBottom + 4) {
-        failures.push(`Interior content bottom (${interiorCheck.contentBottom.toFixed(1)}) exceeds page bottom (${interiorCheck.pageBottom.toFixed(1)}) — poem cramped/overflowing`);
+        failures.push(`Interior content bottom (${interiorCheck.contentBottom.toFixed(1)}) exceeds page-left bottom (${interiorCheck.pageBottom.toFixed(1)}) — content overflowing`);
       }
     }
   }
 
-  // Check 4: Finale spread — check vertical centering (should not be clipped at bottom)
+  // Check 4: Featured spread — video frame and album must not overflow page, tops should align
+  if (spread === 'featured' && isLandscape) {
+    const featuredCheck = await page.evaluate(() => {
+      const vf = document.querySelector('.gc-video-frame');
+      const as = document.querySelector('.gc-album-stack');
+      const videoPage = document.querySelector('.gc-video-page');
+      const albumPage = document.querySelector('.gc-album-page');
+      if (!vf || !as || !videoPage || !albumPage) return null;
+      const vfBox = vf.getBoundingClientRect();
+      const asBox = as.getBoundingClientRect();
+      const vpBox = videoPage.getBoundingClientRect();
+      const apBox = albumPage.getBoundingClientRect();
+      return {
+        videoFrameTop: vfBox.top,
+        videoFrameBottom: vfBox.bottom,
+        videoFrameHeight: vfBox.height,
+        videoPageTop: vpBox.top,
+        videoPageBottom: vpBox.bottom,
+        videoPageHeight: vpBox.height,
+        albumStackTop: asBox.top,
+        albumStackBottom: asBox.bottom,
+        albumStackHeight: asBox.height,
+        albumPageTop: apBox.top,
+        albumPageBottom: apBox.bottom,
+        albumPageHeight: apBox.height,
+        topDiff: Math.abs(asBox.top - vfBox.top),
+      };
+    });
+
+    if (featuredCheck) {
+      // Video frame should not extend above its page
+      if (featuredCheck.videoFrameTop < featuredCheck.videoPageTop - 2) {
+        failures.push(`Video frame top (${featuredCheck.videoFrameTop.toFixed(1)}) above page top (${featuredCheck.videoPageTop.toFixed(1)}) — overflow`);
+      }
+      // Video frame should not extend below its page
+      if (featuredCheck.videoFrameBottom > featuredCheck.videoPageBottom + 2) {
+        failures.push(`Video frame bottom (${featuredCheck.videoFrameBottom.toFixed(1)}) below page bottom (${featuredCheck.videoPageBottom.toFixed(1)}) — overflow`);
+      }
+      // Album stack should not extend below its page
+      if (featuredCheck.albumStackBottom > featuredCheck.albumPageBottom + 2) {
+        failures.push(`Album stack bottom (${featuredCheck.albumStackBottom.toFixed(1)}) below page bottom (${featuredCheck.albumPageBottom.toFixed(1)}) — overflow`);
+      }
+      // Video and album top edges should be within 30px of each other
+      if (featuredCheck.topDiff > 30) {
+        failures.push(`Video/album top misalignment: ${featuredCheck.topDiff.toFixed(1)}px (max 30px)`);
+      }
+    }
+  }
+
+  // Check 5: Finale spread — check vertical centering (should not be clipped at bottom)
   if (spread === 'finale') {
     const finaleCheck = await page.evaluate(() => {
       const spread = document.querySelector('.gc-finale-spread');
@@ -198,8 +220,8 @@ async function main() {
     const context = await browser.newContext({
       viewport: { width: vp.width, height: vp.height },
       deviceScaleFactor: 1,
-      // Simulate mobile for landscape viewport
-      ...(vp.height < vp.width ? {
+      // Simulate mobile only for small landscape viewports (phone-sized)
+      ...(vp.height < vp.width && Math.min(vp.width, vp.height) < 500 ? {
         userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)',
         isMobile: true,
         hasTouch: true,
@@ -249,8 +271,8 @@ async function main() {
       const spread = SPREAD_NAMES[i];
       console.log(`  [${i + 1}/5] ${spread}...`);
 
-      // Wait a moment for transitions to settle
-      await page.waitForTimeout(600);
+      // Wait for transitions to settle (featured needs extra for video fade-in)
+      await page.waitForTimeout(spread === 'featured' ? 2500 : 600);
 
       // Take screenshot
       const ssPath = path.join(vpDir, `${spread}.png`);
@@ -269,9 +291,9 @@ async function main() {
 
       spreadsVisited++;
 
-      // Advance to next spread (unless finale)
+      // Advance to next spread (unless finale) — use keyboard for reliability
       if (i < SPREAD_NAMES.length - 1) {
-        await advanceSpread(page, spread);
+        await page.keyboard.press('ArrowRight');
         // Wait for transition animation to complete
         await page.waitForTimeout(800);
       }

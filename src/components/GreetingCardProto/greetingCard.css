@@ -1262,6 +1262,17 @@
     margin-left: 6px;
   }
 
+  /* Scale down album title + video caption (base 49px too large) */
+  .gc-album-title {
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+
+  .gc-video-caption {
+    font-size: 20px;
+    margin-top: 6px;
+  }
+
   /* Constrain video/album frames to viewport height */
   .gc-video-frame {
     width: calc(40vh);
