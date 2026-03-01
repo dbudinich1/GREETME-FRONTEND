@@ -2680,6 +2680,26 @@
   }
 }
 
+/* B15 — iOS Safari landscape: reduce poem top offset (sits too low on iPhone) */
+@media (orientation: landscape) and (max-width: 900px) {
+  @supports (-webkit-touch-callout: none) {
+    /* Override margin-top: 24px from ≤900px landscape block */
+    .gc-interior-spread .gc-poem-content {
+      margin-top: 0 !important;
+    }
+
+    /* Override B14's padding-top: 52px → 24px (must match 0-4-0 specificity) */
+    .gc-page.gc-page-right .gc-page-content.gc-poem-content {
+      padding-top: 24px !important;
+    }
+
+    /* Override lock-token padding-top: 48px on poem element */
+    .gc-interior-spread .gc-page-right .gc-poem {
+      padding-top: 0 !important;
+    }
+  }
+}
+
 /* B16 — Portrait mobile: squeeze Finale spread to match Intro spread footprint */
 @media (max-width: 500px) and (orientation: portrait) {
   .gc-finale-spread {
