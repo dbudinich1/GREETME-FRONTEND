@@ -17,7 +17,8 @@
     "test:viewport": "playwright test",
     "test:viewport:headed": "playwright test --headed",
     "precommit:greeting": "npm run verify:lock",
-    "section1c": "node scripts/section1c_landscape_gate.js"
+    "section1c": "node scripts/section1c_landscape_gate.js",
+    "section1d": "node scripts/section1d_public_gate.js"
   },
   "dependencies": {
     "@stripe/stripe-js": "^8.8.0",
