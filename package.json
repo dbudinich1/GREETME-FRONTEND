@@ -16,7 +16,8 @@
     "validate:conformity": "node scripts/validate-conformity.mjs",
     "test:viewport": "playwright test",
     "test:viewport:headed": "playwright test --headed",
-    "precommit:greeting": "npm run verify:lock"
+    "precommit:greeting": "npm run verify:lock",
+    "section1c": "node scripts/section1c_landscape_gate.js"
   },
   "dependencies": {
     "@stripe/stripe-js": "^8.8.0",

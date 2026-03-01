@@ -21,6 +21,7 @@ src/components/GreetingCardProto/GREETING_LOCK.md
 *.log
 *.zip
 debug-screenshots/
+test-artifacts/
 final-screenshots/
 phase4-screenshots/
 validation-screenshots/
