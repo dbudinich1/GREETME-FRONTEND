@@ -2527,6 +2527,28 @@
   }
 }
 
+/* =====================================================
+   PORTRAIT PUBLIC MODE — center card below header
+   Header chrome is ~44px; subtracting 2×header (96px)
+   from min-height visually centers the card in the
+   remaining viewport.  Only min-height is touched so
+   phone portrait max-height:none (scroll) is preserved.
+   ===================================================== */
+@media (orientation: portrait) {
+  .gc-public-wrapper .gc-container {
+    min-height: calc(100vh - 96px);
+    min-height: calc(100dvh - 96px);
+  }
+}
+
+/* Portrait safeguard: zero out landscape margin-top on poem-content
+   to prevent any cascade bleed from landscape overrides */
+@media (orientation: portrait) {
+  .gc-interior-spread .gc-poem-content {
+    margin-top: 0;
+  }
+}
+
 /* PHASE B6 — Safari-safe mobile portrait (all iPhones ≤430px) */
 /* Lower warm wishes and guarantee bottom breathing room */
 
