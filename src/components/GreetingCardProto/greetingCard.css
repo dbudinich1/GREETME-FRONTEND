@@ -1198,6 +1198,61 @@
   }
 }
 
+/* Wide desktop landscape (> 1200px) — same constraints as 901-1200 */
+@media (min-width: 1201px) and (orientation: landscape) {
+  .gc-container {
+    padding: 0;
+  }
+
+  .gc-envelope-wrapper,
+  .gc-cover-wrapper,
+  .gc-spread-wrapper {
+    padding: 0;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .gc-cover {
+    max-height: calc(100% - 32px);
+    width: auto;
+  }
+
+  .gc-cover-title {
+    font-size: 42px;
+  }
+
+  .gc-spread {
+    height: calc(100% - 16px);
+    max-height: calc(100% - 16px);
+    width: auto;
+    overflow: visible;
+  }
+
+  .gc-page {
+    padding: 16px;
+  }
+
+  .gc-page-left,
+  .gc-page-right {
+    padding: 16px;
+  }
+
+  .gc-featured-spread .gc-video-page {
+    padding-top: 24px;
+  }
+
+  .gc-featured-spread .gc-album-page {
+    justify-content: center;
+    padding-top: 24px;
+  }
+
+  .gc-finale-spread .gc-page-left {
+    padding: 48px 48px 48px 48px;
+  }
+}
+
 @media (max-width: 900px) {
   .gc-page {
     padding: 30px;
