@@ -90,6 +90,17 @@
 
 /* FIT-FIRST: Landscape mode - enforce height = 100dvh exactly */
 @media (orientation: landscape) {
+  /* Hide header/CTA/footer in landscape for full-screen card experience */
+  .gc-public-wrapper {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .gc-public-chrome {
+    display: none;
+  }
+
   .gc-container {
     height: 100vh;
     height: 100dvh;
@@ -1150,8 +1161,6 @@
 /* FIT-FIRST: Landscape tablets 901-1200px - height constraints */
 @media (min-width: 901px) and (max-width: 1200px) and (orientation: landscape) {
   .gc-container {
-    max-height: 100vh;
-    max-height: 100dvh;
     padding: 0;
   }
 
@@ -1159,18 +1168,20 @@
   .gc-cover-wrapper,
   .gc-spread-wrapper {
     padding: 0;
-    max-height: 100vh;
-    max-height: 100dvh;
+    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
   }
 
+  .gc-cover {
+    max-height: calc(100% - 32px);
+    width: auto;
+  }
+
   .gc-spread {
-    max-height: 100vh;
-    max-height: 100dvh;
-    height: 100vh;
-    height: 100dvh;
+    height: calc(100% - 16px);
+    max-height: calc(100% - 16px);
     width: auto;
     overflow: visible;
   }
@@ -1698,8 +1709,6 @@
 
   /* FIT-FIRST: Maximize spread at landscape tablet viewports */
   .gc-container {
-    max-height: 100vh;
-    max-height: 100dvh;
     padding: 0;
   }
 
@@ -1707,30 +1716,26 @@
   .gc-cover-wrapper,
   .gc-spread-wrapper {
     padding: 0;
-    max-height: 100vh;
-    max-height: 100dvh;
+    height: 100%;
     display: flex;
     justify-content: center;
-    align-items: stretch;            /* PHASE 4: stretch both halves equally */
+    align-items: center;
+  }
+
+  .gc-cover {
+    max-height: calc(100% - 32px);
+    width: auto;
   }
 
   .gc-spread {
-    max-height: 100vh;
-    max-height: 100dvh;
-    height: calc(100vh - 32px);
-    height: calc(100dvh - 32px);
+    height: calc(100% - 16px);
+    max-height: calc(100% - 16px);
     width: auto;
     overflow: visible;
-    align-items: stretch;            /* PHASE 4: pages stretch to spread height */
   }
 
   .gc-page {
     padding: 16px;
-    height: 100%;                    /* PHASE 3: match intro height model */
-  }
-
-  .gc-featured-spread .gc-page {
-    height: auto; /* allow flex stretch to respect margins */
   }
 
   .gc-page-left,
@@ -1890,38 +1895,30 @@
 
   .gc-container {
     padding: 0;
-    max-height: 100vh;
-    max-height: 100dvh;
-    /* FIT-FIRST: No overflow:hidden - height constraint prevents scroll */
   }
 
   .gc-envelope-wrapper,
   .gc-cover-wrapper,
   .gc-spread-wrapper {
     padding: 0;
-    max-height: 100vh;
-    max-height: 100dvh;
+    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
-    /* FIT-FIRST: No overflow:hidden - preserves paper edges */
   }
 
-  /* LANDSCAPE FIT-FIRST: Constrain spread to fit viewport height */
   .gc-spread {
-    max-height: 100vh;
-    max-height: 100dvh;
+    height: calc(100% - 16px);
+    max-height: calc(100% - 16px);
     width: auto;
-    height: 100vh;
-    height: 100dvh;
     aspect-ratio: var(--gc-landscape-ar);
-    overflow: visible;  /* FIT-FIRST: Preserves shadows */
+    overflow: visible;
   }
 
   .gc-envelope {
     width: auto;
-    height: calc(100vh - 24px);
-    max-height: 85vh;
+    height: calc(100% - 24px);
+    max-height: 85%;
   }
 
   .gc-recipient-name {
@@ -1934,8 +1931,8 @@
   }
 
   .gc-cover {
-    width: 45vw;
-    max-width: 280px;
+    max-height: calc(100% - 32px);
+    width: auto;
   }
 
   .gc-cover-title {
@@ -2165,8 +2162,8 @@
   }
 
   .gc-cover {
-    width: 40vw;
-    max-width: 220px;
+    max-height: calc(100% - 32px);
+    width: auto;
   }
 
   .gc-cover-title {

@@ -217,9 +217,9 @@ export default function PublicGreetingCard() {
 
   // Render the premium greeting card experience with wrapper
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f3f0' }}>
-      {/* Branded header — subtle, tasteful */}
-      <div style={{
+    <div className="gc-public-wrapper" style={{ minHeight: '100vh', background: '#f5f3f0' }}>
+      {/* Branded header — subtle, tasteful (hidden in landscape via CSS) */}
+      <div className="gc-public-chrome" style={{
         textAlign: 'center',
         padding: '1rem 1rem 0.5rem',
       }}>
@@ -239,8 +239,8 @@ export default function PublicGreetingCard() {
       {/* Premium greeting card experience */}
       <GreetingCardProto greeting={greeting} />
 
-      {/* "Send Your Own" CTA (Viral Loop) */}
-      <div style={{
+      {/* "Send Your Own" CTA (Viral Loop) — hidden in landscape via CSS */}
+      <div className="gc-public-chrome" style={{
         maxWidth: '640px',
         margin: '2rem auto 0',
         padding: '0 1rem',
@@ -276,8 +276,8 @@ export default function PublicGreetingCard() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer style={{
+      {/* Footer — hidden in landscape via CSS */}
+      <footer className="gc-public-chrome" style={{
         textAlign: 'center',
         padding: '2rem 1rem',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
