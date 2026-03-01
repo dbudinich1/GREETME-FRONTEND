@@ -74,6 +74,7 @@
   align-items: center;
   min-height: 100vh;
   min-height: 100dvh;
+  max-height: 100vh;   /* Fallback for browsers without dvh support */
   max-height: 100dvh;  /* FIT-FIRST: Prevent scroll via height constraint */
   background: var(--gc-bg-navy);
   padding: clamp(8px, 2vw, 40px);  /* FIT-FIRST: Responsive padding */
@@ -281,6 +282,7 @@
   display: flex;
   width: var(--gc-master-frame);
   max-width: var(--gc-spread-max-width);
+  max-height: calc(100vh - 80px);   /* Fallback for browsers without dvh support */
   max-height: calc(100dvh - 80px);  /* FIT-FIRST: Constrain to viewport */
   height: auto;
   aspect-ratio: var(--gc-landscape-ar);
