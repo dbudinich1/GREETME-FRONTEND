@@ -2971,32 +2971,5 @@
   }
 }
 
-/* Desktop short-window (mouse/trackpad): prevent excessive shrink / regain vertical real estate */
-@media (min-width: 901px) and (orientation: landscape) and (max-height: 700px) and (hover: hover) and (pointer: fine) {
-  /* Establish a real height chain so 100% actually works */
-  .gc-public-wrapper {
-    min-height: 100vh !important;
-    min-height: 100dvh !important;
-  }
 
-  .gc-public-wrapper .gc-container {
-    height: 100vh !important;
-    height: 100dvh !important;
-    padding: 0 !important;
-  }
-
-  .gc-public-wrapper .gc-envelope-wrapper,
-  .gc-public-wrapper .gc-cover-wrapper,
-  .gc-public-wrapper .gc-spread-wrapper {
-    height: 100% !important;
-    padding: 0 !important;
-  }
-
-  .gc-public-wrapper .gc-spread,
-  .gc-public-wrapper .gc-cover,
-  .gc-public-wrapper .gc-envelope {
-    height: 100% !important;
-    max-height: 100% !important;
-  }
-}
 
