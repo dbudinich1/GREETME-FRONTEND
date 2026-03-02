@@ -2700,8 +2700,8 @@
   }
 }
 
-/* ALL landscape views: equal background visible around card on all sides */
-@media (orientation: landscape) and (max-height: 500px) {
+/* Phone landscape: equal background visible around card on all sides */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 950px) {
   .gc-public-wrapper .gc-container {
     padding: 12px !important; /* equal on all four sides */
   }
@@ -2716,7 +2716,7 @@
 
 /* iOS Safari landscape — poem nudge + horizontal tightening */
 @supports (-webkit-touch-callout: none) {
-  @media (orientation: landscape) and (max-height: 500px) {
+  @media (orientation: landscape) and (max-height: 500px) and (max-width: 950px) {
     /* nudge poem + warm wishes group down together */
     .gc-public-wrapper .gc-page-content.gc-poem-content { transform: translateY(16px); }
     .gc-public-wrapper .gc-poem { transform: none; }
@@ -2737,7 +2737,7 @@
 
 /* iOS Safari landscape — nudge video down, album up, words stay put */
 @supports (-webkit-touch-callout: none) {
-  @media (orientation: landscape) and (max-height: 500px) {
+  @media (orientation: landscape) and (max-height: 500px) and (max-width: 950px) {
     .gc-public-wrapper .gc-video-frame {
       transform: translateY(-4px); /* was -10px — nudged down (closer to 0) */
     }
@@ -2754,8 +2754,8 @@
   }
 }
 
-/* Cover: clamp title + subtitle on short landscape (closes 701–1200 gap) */
-@media (orientation: landscape) and (max-height: 500px) {
+/* Cover: clamp title + subtitle on short landscape (phones only) */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 950px) {
   .gc-public-wrapper .gc-cover-title {
     font-size: 24px !important; /* was 36px → 32px → 28px → 24px; !important to defeat any cascade */
     line-height: 1.05;
@@ -2766,8 +2766,8 @@
   }
 }
 
-/* Finale: tighten QR spacing on short landscape */
-@media (orientation: landscape) and (max-height: 500px) {
+/* Finale: tighten QR spacing on short landscape (phones only) */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 950px) {
   .gc-public-wrapper .gc-gift-title {
     margin-bottom: 6px; /* was 24px base */
     line-height: 1.15;
