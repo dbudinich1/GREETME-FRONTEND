@@ -2751,8 +2751,8 @@
 @supports (-webkit-touch-callout: none) {
   @media (orientation: landscape) and (max-height: 500px) {
     .gc-public-wrapper .gc-album-title {
-      margin-top: auto; /* push title down via flex — sits just above stack */
-      margin-bottom: 4px;
+      margin-top: 40px !important;
+      margin-bottom: 4px !important;
     }
   }
 }
