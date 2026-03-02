@@ -2700,11 +2700,21 @@
   }
 }
 
-/* iOS Safari landscape — normalize overall vertical bias */
+/* iOS Safari landscape — normalize overall vertical bias + show background */
 @supports (-webkit-touch-callout: none) {
   @media (orientation: landscape) and (max-height: 500px) {
     .gc-public-wrapper .gc-container {
       transform: translateY(16px);
+      padding: 8px 12px !important; /* show background all around card */
+    }
+
+    /* Shrink spreads/cover to fit within padded container */
+    .gc-public-wrapper .gc-spread {
+      height: calc(100% - 24px) !important;
+      max-height: calc(100% - 24px) !important;
+    }
+    .gc-public-wrapper .gc-cover {
+      max-height: calc(100% - 40px) !important;
     }
 
     /* nudge poem + warm wishes group down together */
@@ -2725,11 +2735,11 @@
 /* Cover: clamp title + subtitle on short landscape (closes 701–1200 gap) */
 @media (orientation: landscape) and (max-height: 500px) {
   .gc-public-wrapper .gc-cover-title {
-    font-size: 28px; /* was 36px → 32px → 28px */
+    font-size: 24px !important; /* was 36px → 32px → 28px → 24px; !important to defeat any cascade */
     line-height: 1.05;
   }
   .gc-public-wrapper .gc-cover-subtitle {
-    font-size: 14px;
+    font-size: 12px !important;
     line-height: 1.1;
   }
 }
@@ -2745,10 +2755,13 @@
   }
 }
 
-/* Portrait: reduce video frame min size for breathing room */
+/* Portrait: reduce video frame size for breathing room at top/bottom */
 @media (orientation: portrait) and (max-width: 500px) {
   .gc-public-wrapper {
-    --gc-video-size: clamp(260px, 28vw, 440px);
+    --gc-video-size: clamp(220px, 24vw, 440px);
+  }
+  .gc-public-wrapper .gc-video-frame {
+    max-height: 60vh;
   }
 }
 
