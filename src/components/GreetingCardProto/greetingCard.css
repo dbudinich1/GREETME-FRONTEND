@@ -2707,9 +2707,9 @@
       transform: translateY(16px);
     }
 
-    /* global shift wins — disable group nudge, keep poem-only downshift */
-    .gc-public-wrapper .gc-page-content.gc-poem-content { transform: none; }
-    .gc-public-wrapper .gc-poem { transform: translateY(12px); }
+    /* nudge poem + warm wishes group down together */
+    .gc-public-wrapper .gc-page-content.gc-poem-content { transform: translateY(12px); }
+    .gc-public-wrapper .gc-poem { transform: none; }
   }
 }
 
