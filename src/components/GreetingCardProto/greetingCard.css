@@ -1271,14 +1271,14 @@
 
   /* Interior left — nudge content down */
   .gc-interior-spread .gc-page-left .gc-page-content {
-    padding-top: 18px;
+    padding-top: 32px;
   }
 
   /* Cap Warmest Wishes size on desktop */
-  .gc-interior-spread .gc-warm-wishes,
+  .gc-interior-spread .gc-page-right .gc-warm-wishes,
   .gc-finale-spread .gc-warm-wishes {
-    font-size: clamp(18px, 1.8vw, 28px);
-    line-height: 1.05;
+    font-size: clamp(18px, 1.5vw, 24px);
+    line-height: 1.1;
     margin-top: 6px;
   }
 }
@@ -1392,14 +1392,14 @@
 
   /* Interior left — nudge content down */
   .gc-interior-spread .gc-page-left .gc-page-content {
-    padding-top: 18px;
+    padding-top: 32px;
   }
 
   /* Cap Warmest Wishes size on desktop */
-  .gc-interior-spread .gc-warm-wishes,
+  .gc-interior-spread .gc-page-right .gc-warm-wishes,
   .gc-finale-spread .gc-warm-wishes {
-    font-size: clamp(18px, 1.8vw, 28px);
-    line-height: 1.05;
+    font-size: clamp(18px, 1.5vw, 24px);
+    line-height: 1.1;
     margin-top: 6px;
   }
 }
