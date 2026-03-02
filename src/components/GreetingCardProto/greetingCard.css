@@ -1256,7 +1256,7 @@
     justify-content: center;
     align-items: center;
     padding: 16px;
-    padding-top: 72px; /* drop video down more to meet album front photo */
+    padding-top: 80px; /* drop video to match album front photo top */
     margin: 12px;
     margin-right: 6px;
   }
@@ -1272,9 +1272,10 @@
     margin-left: 6px;
   }
 
-  /* Featured spread fonts (+8px total from base) */
+  /* Featured spread fonts — desktop only */
   .gc-album-title {
     font-size: 35px;
+    font-weight: 400; /* match video caption weight */
     line-height: 1;
     margin-bottom: 8px;
   }
