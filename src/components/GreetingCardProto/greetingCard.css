@@ -2749,7 +2749,7 @@
       margin-bottom: 4px !important;
     }
     .gc-public-wrapper .gc-album-stack {
-      transform: translateY(-8px); /* nudge album stack up */
+      transform: translateY(-12px); /* nudge album stack up a hair more */
     }
   }
 }
