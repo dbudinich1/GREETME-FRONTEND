@@ -1230,15 +1230,6 @@
     overflow: visible;
   }
 
-  .gc-page {
-    padding: 16px;
-  }
-
-  .gc-page-left,
-  .gc-page-right {
-    padding: 16px;
-  }
-
   /* Featured spread — full flex column layout, centered */
   .gc-featured-spread .gc-video-page {
     display: flex;
