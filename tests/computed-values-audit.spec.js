@@ -14,13 +14,16 @@ const FIXTURES = [
 
 // Click through envelope → cover → interior spread (screen 3)
 async function navigateToInterior(page) {
+  // Disable animations so 3D transforms don't block pointer events
+  await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; animation: none !important; }' });
+
   await page.waitForSelector('.gc-envelope-wrapper, .gc-cover-wrapper, .gc-spread-wrapper', { timeout: 8000 });
 
   for (let attempt = 0; attempt < 8; attempt++) {
     const interior = await page.$('.gc-interior-spread');
     if (interior) return true;
 
-    // Try wax seal first (envelope back face — force click through backface-visibility)
+    // Try wax seal first (force: true bypasses 3D backface-visibility)
     const seal = await page.$('.gc-wax-seal');
     if (seal) {
       await seal.click({ force: true });
@@ -31,7 +34,7 @@ async function navigateToInterior(page) {
     // Try cover
     const cover = await page.$('.gc-cover-wrapper');
     if (cover) {
-      await cover.click();
+      await cover.click({ force: true });
       await page.waitForTimeout(800);
       continue;
     }
@@ -40,7 +43,12 @@ async function navigateToInterior(page) {
     await page.keyboard.press('ArrowRight');
     await page.waitForTimeout(800);
   }
-  return !!(await page.$('.gc-interior-spread'));
+
+  const reached = !!(await page.$('.gc-interior-spread'));
+  if (!reached) {
+    throw new Error('BLOCKED (envelope only) — could not navigate to interior spread');
+  }
+  return reached;
 }
 
 async function getComputedValues(page) {

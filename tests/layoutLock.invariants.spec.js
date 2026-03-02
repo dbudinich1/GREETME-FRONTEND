@@ -13,29 +13,30 @@ async function getBox(page, selector) {
 
 /**
  * Navigate from envelope → cover → interior spread.
- * The GreetingCard starts at ENVELOPE; we advance twice to reach INTERIOR.
- * Uses dispatchEvent because the wax seal is on the envelope back face
- * (3D rotated) and not actionable via normal Playwright .click().
+ * Disables animations for reliable clicking through 3D transforms.
  */
 async function navigateToInterior(page) {
+  // Disable animations so 3D transforms don't block pointer events
+  await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; animation: none !important; }' });
+
   // Step 1: Click wax seal to advance envelope → cover
-  await page.waitForSelector('.gc-wax-seal', { timeout: 10000 });
-  await page.evaluate(() => {
-    const seal = document.querySelector('.gc-wax-seal');
-    if (seal) seal.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-  });
+  const seal = page.locator('.gc-wax-seal');
+  await expect(seal).toBeVisible({ timeout: 10000 });
+  await seal.click({ force: true });
   await page.waitForTimeout(1000);
 
   // Step 2: Click cover to advance cover → interior
-  await page.waitForSelector('.gc-cover', { timeout: 10000 });
-  await page.evaluate(() => {
-    const cover = document.querySelector('.gc-cover');
-    if (cover) cover.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-  });
+  const cover = page.locator('.gc-cover');
+  await expect(cover).toBeVisible({ timeout: 10000 });
+  await cover.click({ force: true });
   await page.waitForTimeout(1000);
 
-  // Wait for interior spread to be visible and auto-fit to settle
-  await expect(page.locator('.gc-interior-spread')).toBeVisible({ timeout: 15000 });
+  // Verify we actually reached the interior spread
+  const interior = page.locator('.gc-interior-spread');
+  const reached = await interior.isVisible({ timeout: 5000 }).catch(() => false);
+  if (!reached) {
+    throw new Error('BLOCKED (envelope only) — could not navigate to interior spread');
+  }
   await page.waitForTimeout(500);
 }
 
@@ -45,21 +46,25 @@ async function navigateToInterior(page) {
  */
 async function navigateFromInteriorToFinale(page) {
   // Step 1: Interior → Featured
-  await page.evaluate(() => {
-    const el = document.querySelector('.gc-interior-spread');
-    if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-  });
+  const interior = page.locator('.gc-interior-spread');
+  await interior.click({ force: true });
   await page.waitForTimeout(1000);
 
   // Step 2: Featured → Finale
-  await page.evaluate(() => {
-    const el = document.querySelector('.gc-featured-spread');
-    if (el) el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-  });
+  const featured = page.locator('.gc-featured-spread');
+  const featuredVisible = await featured.isVisible({ timeout: 5000 }).catch(() => false);
+  if (!featuredVisible) {
+    throw new Error('BLOCKED — could not navigate to featured spread');
+  }
+  await featured.click({ force: true });
   await page.waitForTimeout(1000);
 
-  // Wait for finale spread to be visible and auto-fit to settle
-  await expect(page.locator('.gc-finale-spread')).toBeVisible({ timeout: 15000 });
+  // Verify we reached the finale
+  const finale = page.locator('.gc-finale-spread');
+  const reached = await finale.isVisible({ timeout: 5000 }).catch(() => false);
+  if (!reached) {
+    throw new Error('BLOCKED — could not navigate to finale spread');
+  }
   await page.waitForTimeout(500);
 }
 
