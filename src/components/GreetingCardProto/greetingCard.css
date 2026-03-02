@@ -1239,6 +1239,11 @@
     padding: 16px;
   }
 
+  /* Lower intro body by one line height on desktop */
+  .gc-interior-spread .gc-page-left .gc-page-content {
+    top: calc(var(--lock-page-content-top) + 32px);
+  }
+
   /* Featured spread — full flex column layout, centered */
   .gc-featured-spread .gc-video-page {
     display: flex;
