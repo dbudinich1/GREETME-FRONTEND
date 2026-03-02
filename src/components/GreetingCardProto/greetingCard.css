@@ -1272,15 +1272,15 @@
     margin-left: 6px;
   }
 
-  /* Featured spread fonts (+6px total from base) */
+  /* Featured spread fonts (+8px total from base) */
   .gc-album-title {
-    font-size: 30px;
+    font-size: 32px;
     line-height: 1;
     margin-bottom: 8px;
   }
 
   .gc-video-caption {
-    font-size: 26px;
+    font-size: 28px;
     margin-top: 6px;
   }
 
