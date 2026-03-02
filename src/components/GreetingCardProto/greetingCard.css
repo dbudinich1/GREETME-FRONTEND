@@ -1253,10 +1253,10 @@
   .gc-featured-spread .gc-video-page {
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: center;
     padding: 16px;
-    padding-top: 64px; /* match album: 24px page padding + ~40px title height */
+    padding-top: 24px;
     margin: 12px;
     margin-right: 6px;
   }
@@ -1267,7 +1267,7 @@
     justify-content: center;
     align-items: center;
     padding: 16px;
-    padding-top: 24px;
+    padding-top: 60px; /* extra top padding to push album down to meet video */
     margin: 12px;
     margin-left: 6px;
   }
