@@ -2776,6 +2776,22 @@
   }
 }
 
+/* Portrait: video caption breathing room + lift album for dots visibility */
+@media (orientation: portrait) and (max-width: 500px) {
+  /* 1. Breathing room between video frame and "From the heart, with love" */
+  .gc-public-wrapper .gc-video-caption {
+    margin-top: 16px; /* was 6px — more space below video */
+  }
+  /* 2. Lift Cherished Moments + album higher on the page */
+  .gc-public-wrapper .gc-album-page {
+    padding-top: 16px !important; /* was 40px — lift everything up */
+  }
+  /* 3. Ensure photo counter dots have room below album */
+  .gc-public-wrapper .gc-album-dots {
+    margin-top: 12px; /* was 6px — visible below album stack */
+  }
+}
+
 /* B16 — Portrait mobile: squeeze Finale spread to match Intro spread footprint */
 @media (max-width: 500px) and (orientation: portrait) {
   .gc-finale-spread {
