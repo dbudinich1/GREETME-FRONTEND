@@ -2747,12 +2747,12 @@
 /* Landscape: lower "Cherished Moments" title without moving photo album */
 @media (orientation: landscape) and (max-height: 500px) {
   .gc-public-wrapper .gc-album-title {
-    margin-top: 0;
-    margin-bottom: 4px; /* tighter gap before album stack */
+    margin-top: 12px; /* restore breathing room from top */
+    margin-bottom: 6px;
   }
-  /* Nudge album stack up so its top aligns with video frame top */
+  /* Gentle nudge — align album top closer to video frame top */
   .gc-public-wrapper .gc-album-stack {
-    transform: translateY(-14px);
+    transform: translateY(-4px);
   }
 }
 
