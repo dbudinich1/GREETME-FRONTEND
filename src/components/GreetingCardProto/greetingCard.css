@@ -2971,3 +2971,24 @@
   }
 }
 
+/* Desktop short-window (mouse/trackpad): prevent excessive shrink / regain vertical real estate */
+@media (min-width: 901px) and (orientation: landscape) and (max-height: 700px) and (hover: hover) and (pointer: fine) {
+  /* remove extra stage padding so card can occupy more height */
+  .gc-public-wrapper .gc-container {
+    padding: 0 !important;
+  }
+
+  /* allow card/spread to use full container height (reduce the "miniaturized" look) */
+  .gc-public-wrapper .gc-envelope-wrapper,
+  .gc-public-wrapper .gc-cover-wrapper,
+  .gc-public-wrapper .gc-spread-wrapper {
+    padding: 0 !important;
+  }
+
+  .gc-public-wrapper .gc-spread,
+  .gc-public-wrapper .gc-cover {
+    height: 100% !important;
+    max-height: 100% !important;
+  }
+}
+
