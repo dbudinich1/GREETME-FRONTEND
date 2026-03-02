@@ -1272,15 +1272,20 @@
     margin-left: 6px;
   }
 
-  /* Scale down album title + video caption (base 49px too large) */
+  /* Featured spread fonts (+3px) */
   .gc-album-title {
-    font-size: 24px;
+    font-size: 27px;
     margin-bottom: 8px;
   }
 
   .gc-video-caption {
-    font-size: 20px;
+    font-size: 23px;
     margin-top: 6px;
+  }
+
+  /* Raise album stack to meet video frame top */
+  .gc-featured-spread .gc-album-stack {
+    transform: translateY(-16px);
   }
 
   /* Constrain video/album frames to viewport height */
