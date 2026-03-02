@@ -2741,6 +2741,9 @@
     .gc-public-wrapper .gc-video-frame {
       transform: translateY(-10px);
     }
+    .gc-public-wrapper .gc-video-caption {
+      margin-top: 2px; /* tighter below video frame — was 6px base */
+    }
   }
 }
 
