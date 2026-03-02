@@ -2708,7 +2708,7 @@
     }
 
     /* nudge poem + warm wishes group down together */
-    .gc-public-wrapper .gc-page-content.gc-poem-content { transform: translateY(12px); }
+    .gc-public-wrapper .gc-page-content.gc-poem-content { transform: translateY(16px); }
     .gc-public-wrapper .gc-poem { transform: none; }
   }
 }
