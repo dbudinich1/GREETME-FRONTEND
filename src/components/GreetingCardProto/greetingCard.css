@@ -1256,7 +1256,7 @@
     justify-content: center;
     align-items: center;
     padding: 16px;
-    padding-top: 24px;
+    padding-top: 54px; /* drop video down to meet album front photo */
     margin: 12px;
     margin-right: 6px;
   }
@@ -1267,7 +1267,7 @@
     justify-content: center;
     align-items: center;
     padding: 16px;
-    padding-top: 60px; /* extra top padding to push album down to meet video */
+    padding-top: 24px;
     margin: 12px;
     margin-left: 6px;
   }
