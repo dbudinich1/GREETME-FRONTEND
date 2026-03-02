@@ -1239,6 +1239,15 @@
     padding: 16px;
   }
 
+  /* Intro spread — lower body + poem on large desktop */
+  .gc-interior-spread .gc-page-left .gc-page-content {
+    top: calc(var(--lock-page-content-top) + 32px);
+  }
+
+  .gc-interior-spread .gc-page-right .gc-page-content {
+    top: calc(var(--lock-page-content-top) + 64px);
+  }
+
   /* Featured spread — full flex column layout, centered */
   .gc-featured-spread .gc-video-page {
     display: flex;
