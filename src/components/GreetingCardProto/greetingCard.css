@@ -2744,25 +2744,11 @@
   }
 }
 
-/* Landscape: align album stack top with video frame top */
+/* Landscape: album title spacing */
 @media (orientation: landscape) and (max-height: 500px) {
-  /* Pull title out of flex flow so stack centers like video frame */
-  .gc-public-wrapper .gc-album-page {
-    position: relative;
-  }
   .gc-public-wrapper .gc-album-title {
-    position: absolute;
-    top: 8px;
-    left: 0;
-    right: 0;
-    text-align: center;
-    margin: 0;
-  }
-  /* Match album stack to video frame size */
-  .gc-public-wrapper .gc-album-stack,
-  .gc-public-wrapper .gc-album-frame {
-    width: calc(40vh) !important;
-    height: calc(40vh * 1.28) !important;
+    margin-top: 12px;
+    margin-bottom: 6px;
   }
 }
 
