@@ -2720,6 +2720,16 @@
     /* nudge poem + warm wishes group down together */
     .gc-public-wrapper .gc-page-content.gc-poem-content { transform: translateY(16px); }
     .gc-public-wrapper .gc-poem { transform: none; }
+
+    /* expand horizontal squeeze so poem doesn't run into warm wishes */
+    .gc-public-wrapper .gc-poem {
+      padding-left: 0 !important; /* was 40px base lock token */
+      max-width: 100% !important;
+    }
+    .gc-public-wrapper .gc-page-content.gc-poem-content {
+      padding-left: 4px !important;
+      padding-right: 4px !important;
+    }
   }
 }
 
@@ -2755,13 +2765,14 @@
   }
 }
 
-/* Portrait: reduce video frame size for breathing room at top/bottom */
+/* Portrait: reduce video frame size + nudge down to center between title and fold */
 @media (orientation: portrait) and (max-width: 500px) {
   .gc-public-wrapper {
     --gc-video-size: clamp(220px, 24vw, 440px);
   }
   .gc-public-wrapper .gc-video-frame {
     max-height: 60vh;
+    transform: translateY(12px); /* center between lettering top and fold bottom */
   }
 }
 
