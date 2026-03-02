@@ -1176,11 +1176,17 @@
     align-items: center;
   }
 
+  /* Cover — match signed-off desktop */
   .gc-cover {
     max-height: calc(100% - 32px);
     width: auto;
   }
 
+  .gc-cover-title {
+    font-size: 36px;
+  }
+
+  /* Spread sizing — match signed-off desktop */
   .gc-spread {
     height: calc(100% - 16px);
     max-height: calc(100% - 16px);
@@ -1195,6 +1201,72 @@
   .gc-page-left,
   .gc-page-right {
     padding: 16px;
+  }
+
+  /* Featured spread — match signed-off desktop */
+  .gc-featured-spread .gc-video-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+    padding-top: 24px;
+    margin: 12px;
+    margin-right: 6px;
+  }
+
+  .gc-featured-spread .gc-album-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+    padding-top: 24px;
+    margin: 12px;
+    margin-left: 6px;
+  }
+
+  /* Scale down album title + video caption (base 49px too large) */
+  .gc-album-title {
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+
+  .gc-video-caption {
+    font-size: 20px;
+    margin-top: 6px;
+  }
+
+  /* Constrain video/album frames to viewport height */
+  .gc-video-frame {
+    width: calc(40vh);
+    height: calc(40vh * 1.28);
+    border-width: 3px;
+  }
+
+  .gc-album-stack {
+    width: calc(40vh);
+    height: calc(40vh * 1.28);
+  }
+
+  .gc-album-frame {
+    width: calc(40vh);
+    height: calc(40vh * 1.28);
+    border-width: 3px;
+  }
+
+  /* Interior poem block — match signed-off desktop */
+  .gc-interior-spread .gc-poem-content {
+    margin-top: 24px;
+  }
+
+  /* Finale — match signed-off desktop */
+  .gc-finale-spread .gc-page-left {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
   }
 }
 
