@@ -2707,9 +2707,9 @@
       transform: translateY(16px);
     }
 
-    /* global shift wins — remove prior poem nudges to prevent over-correction */
+    /* global shift wins — disable group nudge, keep poem-only downshift */
     .gc-public-wrapper .gc-page-content.gc-poem-content { transform: none; }
-    .gc-public-wrapper .gc-poem { transform: none; }
+    .gc-public-wrapper .gc-poem { transform: translateY(12px); }
   }
 }
 
@@ -2725,7 +2725,7 @@
 /* Cover: clamp title + subtitle on short landscape (closes 701–1200 gap) */
 @media (orientation: landscape) and (max-height: 500px) {
   .gc-public-wrapper .gc-cover-title {
-    font-size: 32px; /* was 36px at ≤900px landscape; -4px */
+    font-size: 28px; /* was 36px → 32px → 28px */
     line-height: 1.05;
   }
   .gc-public-wrapper .gc-cover-subtitle {
@@ -2742,6 +2742,13 @@
   }
   .gc-public-wrapper .gc-gift-instruction {
     line-height: 1.15; /* was 1.5 base */
+  }
+}
+
+/* Portrait: reduce video frame min size for breathing room */
+@media (orientation: portrait) and (max-width: 500px) {
+  .gc-public-wrapper {
+    --gc-video-size: clamp(260px, 28vw, 440px);
   }
 }
 
