@@ -1533,14 +1533,14 @@
 
   /* Album sizes for stacked pages */
   .gc-album-stack {
-    width: 80% !important;
+    width: 90% !important;
     height: auto !important;
     aspect-ratio: 1 / 1.28;
     margin: 0 auto;
   }
 
   .gc-album-frame {
-    width: 80% !important;
+    width: 90% !important;
     height: auto !important;
     aspect-ratio: 1 / 1.28;
     border-width: 2px;
