@@ -2709,6 +2709,15 @@
   }
 }
 
+/* iOS Safari — fine-tune poem only */
+@supports (-webkit-touch-callout: none) {
+  @media (orientation: landscape) and (max-height: 500px) {
+    .gc-public-wrapper .gc-poem {
+      transform: translateY(4px);
+    }
+  }
+}
+
 /* B16 — Portrait mobile: squeeze Finale spread to match Intro spread footprint */
 @media (max-width: 500px) and (orientation: portrait) {
   .gc-finale-spread {
