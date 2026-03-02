@@ -2713,8 +2713,16 @@
 @supports (-webkit-touch-callout: none) {
   @media (orientation: landscape) and (max-height: 500px) {
     .gc-public-wrapper .gc-poem {
-      transform: translateY(4px);
+      transform: translateY(8px); /* was 4px */
     }
+  }
+}
+
+/* Cover subtitle: clamp on short landscape (closes 701–1200 gap for phones) */
+@media (orientation: landscape) and (max-height: 500px) {
+  .gc-public-wrapper .gc-cover-subtitle {
+    font-size: 14px;
+    line-height: 1.1;
   }
 }
 
