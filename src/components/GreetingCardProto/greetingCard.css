@@ -1274,13 +1274,13 @@
 
   /* Featured spread fonts (+8px total from base) */
   .gc-album-title {
-    font-size: 32px;
+    font-size: 35px;
     line-height: 1;
     margin-bottom: 8px;
   }
 
   .gc-video-caption {
-    font-size: 32px;
+    font-size: 35px;
     margin-top: 6px;
   }
 
