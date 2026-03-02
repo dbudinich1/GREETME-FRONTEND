@@ -1246,7 +1246,7 @@
 
   /* Lower poem by one line height on desktop */
   .gc-interior-spread .gc-page-right .gc-page-content {
-    top: calc(var(--lock-page-content-top) + 32px);
+    top: calc(var(--lock-page-content-top) + 64px);
   }
 
   /* Featured spread — full flex column layout, centered */
