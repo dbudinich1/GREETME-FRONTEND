@@ -55,6 +55,7 @@ export default function VideoPlayer({ videoUrl, onEnded, hasEnded }) {
           src={videoUrl}
           className="gc-video"
           playsInline
+          preload="metadata"
           onEnded={handleVideoEnd}
           onError={() => setHasError(true)}
         />
