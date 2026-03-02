@@ -1268,19 +1268,6 @@
     align-items: center;
     padding: 24px;
   }
-
-  /* Interior left — nudge content down */
-  .gc-interior-spread .gc-page-left .gc-page-content {
-    padding-top: 32px;
-  }
-
-  /* Cap Warmest Wishes size on desktop */
-  .gc-interior-spread .gc-page-right .gc-warm-wishes,
-  .gc-finale-spread .gc-warm-wishes {
-    font-size: clamp(18px, 1.5vw, 24px);
-    line-height: 1.1;
-    margin-top: 6px;
-  }
 }
 
 /* Wide desktop landscape (> 1200px) — height-constrained overrides */
@@ -1388,19 +1375,6 @@
     justify-content: center;
     align-items: center;
     padding: 24px;
-  }
-
-  /* Interior left — nudge content down */
-  .gc-interior-spread .gc-page-left .gc-page-content {
-    padding-top: 32px;
-  }
-
-  /* Cap Warmest Wishes size on desktop */
-  .gc-interior-spread .gc-page-right .gc-warm-wishes,
-  .gc-finale-spread .gc-warm-wishes {
-    font-size: clamp(18px, 1.5vw, 24px);
-    line-height: 1.1;
-    margin-top: 6px;
   }
 }
 
