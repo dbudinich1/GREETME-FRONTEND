@@ -2700,29 +2700,48 @@
   }
 }
 
-/* iOS Safari — landscape only — move poem + Warm Wishes down slightly */
+/* iOS Safari landscape — normalize overall vertical bias */
 @supports (-webkit-touch-callout: none) {
   @media (orientation: landscape) and (max-height: 500px) {
-    .gc-public-wrapper .gc-page-content.gc-poem-content {
-      transform: translateY(8px);
+    .gc-public-wrapper .gc-container {
+      transform: translateY(16px);
+    }
+
+    /* global shift wins — remove prior poem nudges to prevent over-correction */
+    .gc-public-wrapper .gc-page-content.gc-poem-content { transform: none; }
+    .gc-public-wrapper .gc-poem { transform: none; }
+  }
+}
+
+/* iOS Safari landscape — lift featured video slightly */
+@supports (-webkit-touch-callout: none) {
+  @media (orientation: landscape) and (max-height: 500px) {
+    .gc-public-wrapper .gc-video-frame {
+      transform: translateY(-10px);
     }
   }
 }
 
-/* iOS Safari — fine-tune poem only */
-@supports (-webkit-touch-callout: none) {
-  @media (orientation: landscape) and (max-height: 500px) {
-    .gc-public-wrapper .gc-poem {
-      transform: translateY(8px); /* was 4px */
-    }
-  }
-}
-
-/* Cover subtitle: clamp on short landscape (closes 701–1200 gap for phones) */
+/* Cover: clamp title + subtitle on short landscape (closes 701–1200 gap) */
 @media (orientation: landscape) and (max-height: 500px) {
+  .gc-public-wrapper .gc-cover-title {
+    font-size: 32px; /* was 36px at ≤900px landscape; -4px */
+    line-height: 1.05;
+  }
   .gc-public-wrapper .gc-cover-subtitle {
     font-size: 14px;
     line-height: 1.1;
+  }
+}
+
+/* Finale: tighten QR spacing on short landscape */
+@media (orientation: landscape) and (max-height: 500px) {
+  .gc-public-wrapper .gc-gift-title {
+    margin-bottom: 6px; /* was 24px base */
+    line-height: 1.15;
+  }
+  .gc-public-wrapper .gc-gift-instruction {
+    line-height: 1.15; /* was 1.5 base */
   }
 }
 
@@ -2797,10 +2816,11 @@
     font-weight: 600 !important;
   }
 
-  /* Gift title - smaller */
+  /* Gift title - smaller + match instruction line-height */
   .gc-finale-spread .gc-page-right .gc-gift-title {
     font-size: 14px !important;
     margin-bottom: 4px !important;
+    line-height: 1.2 !important; /* match gc-gift-instruction below QR */
   }
 
   /* QR code - MUCH smaller to fit proportionally */
