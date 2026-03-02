@@ -1264,7 +1264,7 @@
   .gc-featured-spread .gc-album-page {
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     padding: 16px;
     padding-top: 24px;
@@ -1282,11 +1282,6 @@
   .gc-video-caption {
     font-size: 26px;
     margin-top: 6px;
-  }
-
-  /* Raise album stack only — title stays put */
-  .gc-featured-spread .gc-album-stack {
-    transform: translateY(-24px);
   }
 
   /* Constrain video/album frames to viewport height */
