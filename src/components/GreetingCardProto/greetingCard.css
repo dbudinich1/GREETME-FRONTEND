@@ -2700,23 +2700,23 @@
   }
 }
 
-/* iOS Safari landscape — normalize overall vertical bias + show background */
+/* ALL landscape views: equal background visible around card on all sides */
+@media (orientation: landscape) and (max-height: 500px) {
+  .gc-public-wrapper .gc-container {
+    padding: 12px !important; /* equal on all four sides */
+  }
+  .gc-public-wrapper .gc-spread {
+    height: calc(100% - 24px) !important;
+    max-height: calc(100% - 24px) !important;
+  }
+  .gc-public-wrapper .gc-cover {
+    max-height: calc(100% - 24px) !important;
+  }
+}
+
+/* iOS Safari landscape — poem nudge + horizontal tightening */
 @supports (-webkit-touch-callout: none) {
   @media (orientation: landscape) and (max-height: 500px) {
-    .gc-public-wrapper .gc-container {
-      transform: translateY(16px);
-      padding: 8px 12px !important; /* show background all around card */
-    }
-
-    /* Shrink spreads/cover to fit within padded container */
-    .gc-public-wrapper .gc-spread {
-      height: calc(100% - 24px) !important;
-      max-height: calc(100% - 24px) !important;
-    }
-    .gc-public-wrapper .gc-cover {
-      max-height: calc(100% - 40px) !important;
-    }
-
     /* nudge poem + warm wishes group down together */
     .gc-public-wrapper .gc-page-content.gc-poem-content { transform: translateY(16px); }
     .gc-public-wrapper .gc-poem { transform: none; }
@@ -2748,6 +2748,10 @@
 @media (orientation: landscape) and (max-height: 500px) {
   .gc-public-wrapper .gc-album-title {
     margin-top: 12px; /* push title down from top of album page */
+  }
+  /* Nudge album stack up to align with video height — title stays put */
+  .gc-public-wrapper .gc-album-stack {
+    transform: translateY(-10px);
   }
 }
 
