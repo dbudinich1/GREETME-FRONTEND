@@ -1246,7 +1246,7 @@
     justify-content: center;
     align-items: center;
     padding: 16px;
-    padding-top: 104px; /* drop video another quarter inch */
+    padding-top: 24px;
     margin: 12px;
     margin-right: 6px;
   }
@@ -1262,16 +1262,14 @@
     margin-left: 6px;
   }
 
-  /* Featured spread fonts — desktop only */
+  /* Scale down album title + video caption (base 49px too large) */
   .gc-album-title {
-    font-size: 35px;
-    font-weight: 400; /* match video caption weight */
-    line-height: 1;
+    font-size: 24px;
     margin-bottom: 8px;
   }
 
   .gc-video-caption {
-    font-size: 35px;
+    font-size: 20px;
     margin-top: 6px;
   }
 
