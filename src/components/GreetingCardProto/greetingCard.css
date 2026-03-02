@@ -1275,6 +1275,7 @@
   /* Featured spread fonts (+6px total from base) */
   .gc-album-title {
     font-size: 30px;
+    line-height: 1;
     margin-bottom: 8px;
   }
 
@@ -1283,7 +1284,7 @@
     margin-top: 6px;
   }
 
-  /* Raise album front photo top to match video frame top */
+  /* Raise album stack only — title stays put */
   .gc-featured-spread .gc-album-stack {
     transform: translateY(-24px);
   }
