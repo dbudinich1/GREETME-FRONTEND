@@ -2971,21 +2971,5 @@
   }
 }
 
-/* Desktop (mouse) short-height windows — fix salutation/body riding high + Warm Wishes oversized
-   Scoped: desktop only (hover:hover + pointer:fine). Does NOT touch iPhone/iOS/Android. */
-@media (min-width: 901px) and (orientation: landscape) and (max-height: 700px)
-       and (hover: hover) and (pointer: fine) {
 
-  /* 1) Push left-page text down slightly (salutation + message) */
-  .gc-interior-spread .gc-page-left .gc-page-content {
-    padding-top: 12px !important; /* micro-nudge down */
-  }
-
-  /* 2) Warm Wishes too large — clamp it to a sane desktop size in short-height windows */
-  .gc-interior-spread .gc-warm-wishes {
-    font-size: 22px !important;   /* reduce from "huge" */
-    line-height: 1.05 !important;
-    margin-top: 10px !important;
-  }
-}
 
