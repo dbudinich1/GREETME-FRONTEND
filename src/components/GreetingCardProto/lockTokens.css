@@ -358,6 +358,27 @@
   }
 }
 
+/* DESKTOP_GOLD TYPOGRAPHY — pointer: fine (desktop only)
+   Restores 815ed01 cement typography contract without affecting touch devices. */
+@media (hover: hover) and (pointer: fine) and (min-width: 901px) and (orientation: landscape) {
+  :root {
+    --lock-salutation-font-size: 48px;
+    --lock-salutation-line-height: 1.4;
+
+    --lock-occasion-font-size: 50px;      /* keep canonical desktop size */
+    --lock-occasion-line-height: 1.4;
+
+    --lock-message-font-size: 50px;
+    --lock-message-line-height: 1.2;
+
+    --lock-poem-font-size: 36px;
+    --lock-poem-line-height: 1.5;
+
+    --lock-poem-content-margin-top: 140px;
+    --lock-signature-right: 120px;
+  }
+}
+
 /* =====================================================
    LANDSCAPE MODE - Large Tablet (901-1200px)
    Reference: greetingCard.css @media (min-width: 901px) landscape

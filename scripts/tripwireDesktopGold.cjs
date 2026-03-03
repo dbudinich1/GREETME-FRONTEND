@@ -1,4 +1,4 @@
-/* scripts/tripwireDesktopGold.js */
+/* scripts/tripwireDesktopGold.cjs */
 'use strict';
 
 const fs = require('fs');
@@ -11,9 +11,9 @@ const path = require('path');
  * IMPORTANT: This is a guardrail only. It does not fix CSS.
  *
  * What we assert (static, deterministic):
- *  1) :root token baseline matches Desktop Gold canonical values
- *  2) Desktop landscape media blocks do NOT override typography tokens
- *  3) Desktop landscape media blocks may override ONLY insets (+ optional poem top gap in >1200)
+ *  1) Desktop pointer:fine landscape block contains cement typography values
+ *  2) NON-pointer:fine desktop landscape blocks do NOT override typography tokens
+ *  3) NON-pointer:fine desktop landscape blocks may override ONLY insets (+ optional poem top gap)
  */
 
 function die(msg) {
@@ -27,23 +27,23 @@ function readText(rel) {
   return fs.readFileSync(abs, 'utf8');
 }
 
-function extractRootBlock(cssText) {
-  // Take the first :root { ... } block in the file (assumes tokens are defined there)
-  const m = cssText.match(/:root\s*\{([\s\S]*?)\}/);
-  if (!m) die('Could not find :root { ... } block in lockTokens.css');
-  return m[1];
+function findMediaBlock(cssText, mustIncludeTerms) {
+  // naive but deterministic: finds first @media (...) { ... } block whose condition includes all terms
+  const re = /@media\s*([^{]+)\{([\s\S]*?)\n\}/g;
+  let m;
+  while ((m = re.exec(cssText)) !== null) {
+    const cond = m[1];
+    const body = m[2];
+    const ok = mustIncludeTerms.every(t => cond.includes(t));
+    if (ok) return { cond, body };
+  }
+  return null;
 }
 
-function getVarValue(blockText, varName) {
-  // matches: --var-name: value;
-  const re = new RegExp(`\\${varName}\\s*:\\s*([^;]+);`);
-  const m = blockText.match(re);
-  return m ? m[1].trim() : null;
-}
-
-function assertEq(actual, expected, label) {
-  if (actual !== expected) {
-    die(`${label} expected "${expected}" but got "${actual}"`);
+function assertTokenInBody(blockBody, varName, expected) {
+  const re = new RegExp(`\\${varName}\\s*:\\s*${expected.replace('.', '\\.')}\\s*;`);
+  if (!re.test(blockBody)) {
+    die(`Desktop pointer:fine block missing ${varName}: ${expected}`);
   }
 }
 
@@ -51,7 +51,7 @@ function findDesktopLandscapeBlocks(cssText) {
   // Find desktop landscape @media blocks of interest
   // (min-width: 901px) ... landscape
   const blocks = [];
-  const re = /@media\s*\(([^)]*?)\)\s*\{([\s\S]*?)\n\}/g;
+  const re = /@media\s*([^{]+)\{([\s\S]*?)\n\}/g;
   let m;
   while ((m = re.exec(cssText)) !== null) {
     const cond = m[1];
@@ -81,6 +81,9 @@ function assertNoTypographyOverridesInDesktopBlocks(blocks) {
   ];
 
   for (const b of blocks) {
+    // Skip pointer:fine blocks — those ARE allowed to set typography (Desktop Gold layer)
+    if (b.cond.includes('(pointer: fine)')) continue;
+
     for (const v of forbidden) {
       if (b.body.includes(v)) {
         die(`Desktop landscape @media block overrides typography token ${v}. Condition: (${b.cond})`);
@@ -90,7 +93,7 @@ function assertNoTypographyOverridesInDesktopBlocks(blocks) {
 }
 
 function assertDesktopBlocksOnlyTouchInsetsAndOptionalPoemGap(blocks) {
-  // Allowed overrides inside desktop landscape blocks
+  // Allowed overrides inside NON-pointer:fine desktop landscape blocks
   const allowed = new Set([
     '--lock-page-content-top',
     '--lock-page-content-left',
@@ -103,6 +106,9 @@ function assertDesktopBlocksOnlyTouchInsetsAndOptionalPoemGap(blocks) {
   const assignRe = /(--[a-zA-Z0-9_-]+)\s*:/g;
 
   for (const b of blocks) {
+    // Skip pointer:fine blocks — those have their own contract (Desktop Gold layer)
+    if (b.cond.includes('(pointer: fine)')) continue;
+
     let m;
     while ((m = assignRe.exec(b.body)) !== null) {
       const varName = m[1];
@@ -118,23 +124,28 @@ function assertDesktopBlocksOnlyTouchInsetsAndOptionalPoemGap(blocks) {
   const LOCKTOKENS_PATH = 'src/components/GreetingCardProto/lockTokens.css';
 
   const css = readText(LOCKTOKENS_PATH);
-  const root = extractRootBlock(css);
 
-  // DESKTOP_GOLD canonical (:root) values from cement commit 815ed01 (per your drift table)
-  // If any of these fail, we STOP: desktop is not "mathematically locked."
-  assertEq(getVarValue(root, '--lock-salutation-font-size'), '48px', '--lock-salutation-font-size');
-  assertEq(getVarValue(root, '--lock-salutation-line-height'), '1.4', '--lock-salutation-line-height');
-  assertEq(getVarValue(root, '--lock-occasion-line-height'), '1.4', '--lock-occasion-line-height');
-  assertEq(getVarValue(root, '--lock-message-font-size'), '50px', '--lock-message-font-size');
-  assertEq(getVarValue(root, '--lock-message-line-height'), '1.2', '--lock-message-line-height');
-  assertEq(getVarValue(root, '--lock-poem-font-size'), '36px', '--lock-poem-font-size');
-  assertEq(getVarValue(root, '--lock-poem-line-height'), '1.5', '--lock-poem-line-height');
-  assertEq(getVarValue(root, '--lock-poem-content-margin-top'), '140px', '--lock-poem-content-margin-top');
+  // --- Assert Desktop Gold typography exists in the pointer:fine block ---
+  const desktopFine = findMediaBlock(css, [
+    '(pointer: fine)',
+    '(orientation: landscape)',
+    'min-width: 901px'
+  ]);
 
-  // NOTE: signature-right is a known drift point; assert it too as part of Desktop Gold
-  assertEq(getVarValue(root, '--lock-signature-right'), '120px', '--lock-signature-right');
+  if (!desktopFine) die('Could not find Desktop Gold @media block with (pointer: fine) + min-width: 901px + landscape');
 
-  // Guardrail: Desktop landscape blocks must NOT override typography (only insets + optional poem gap)
+  assertTokenInBody(desktopFine.body, '--lock-salutation-font-size', '48px');
+  assertTokenInBody(desktopFine.body, '--lock-salutation-line-height', '1.4');
+  assertTokenInBody(desktopFine.body, '--lock-occasion-font-size', '50px');
+  assertTokenInBody(desktopFine.body, '--lock-occasion-line-height', '1.4');
+  assertTokenInBody(desktopFine.body, '--lock-message-font-size', '50px');
+  assertTokenInBody(desktopFine.body, '--lock-message-line-height', '1.2');
+  assertTokenInBody(desktopFine.body, '--lock-poem-font-size', '36px');
+  assertTokenInBody(desktopFine.body, '--lock-poem-line-height', '1.5');
+  assertTokenInBody(desktopFine.body, '--lock-poem-content-margin-top', '140px');
+  assertTokenInBody(desktopFine.body, '--lock-signature-right', '120px');
+
+  // --- Guardrail: NON-pointer:fine desktop landscape blocks must NOT override typography ---
   const desktopBlocks = findDesktopLandscapeBlocks(css);
   assertNoTypographyOverridesInDesktopBlocks(desktopBlocks);
   assertDesktopBlocksOnlyTouchInsetsAndOptionalPoemGap(desktopBlocks);
