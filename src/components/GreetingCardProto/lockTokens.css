@@ -376,6 +376,11 @@
 
     --lock-poem-content-margin-top: 140px;
     --lock-signature-right: 120px;
+
+    --lock-page-content-top: 96px;
+    --lock-page-content-left: 140px;
+    --lock-page-content-right: 120px;
+    --lock-page-content-bottom: 96px;
   }
 }
 
