@@ -39,3 +39,17 @@
 ## Milestone
 
 desktop-viewport-system-certified — 8fa1130
+
+---
+
+## How to Re-Certify Quickly
+
+Run all tripwires in one command:
+
+```
+npm run tripwire:all
+```
+
+This sequentially runs `tripwire:mobile` and `tripwire:desktop`, stopping on first failure. Both must pass before any viewport-certified CSS can ship.
+
+Milestone tag: `desktop-viewport-system-certified`
