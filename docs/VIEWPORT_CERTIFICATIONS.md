@@ -5,6 +5,7 @@
 | 1366×768 | viewport-1366x768-certified | b204484 | Desktop-short tuned + poem/feature/finale certified |
 | 1440×900 | viewport-1440x900-certified | 2fafd47 | Desktop-fine tuned; approved |
 | 1536×864 | viewport-1536x864-certified | 2fafd47 | Verified identical to 1440×900 |
+| 1278×682 | viewport-1278x682-certified | 8f39d55 | Intro spread certified (ultra-short desktop) |
 
 ## Intro Spread Certification
 
