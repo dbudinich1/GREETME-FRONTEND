@@ -108,11 +108,11 @@ function assertLockTokenBlock(text, conditionTerms, requiredToken, label) {
     'Safari landscape poem margin-top reset (B15)'
   );
 
-  // Fine-tune poem translateY block
+  // Safari landscape poem nudge (touch-only, pointer:coarse)
   assertContains(
     gcss,
-    'translateY(4px)',
-    'Safari landscape poem fine-tune translateY (1daaa93)'
+    'translateY(16px)',
+    'Safari landscape poem nudge translateY (main baseline)'
   );
 
   // === 2) Mobile landscape @media blocks must exist in greetingCard.css ===
