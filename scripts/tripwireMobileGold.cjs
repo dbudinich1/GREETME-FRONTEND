@@ -108,7 +108,28 @@ function assertLockTokenBlock(text, conditionTerms, requiredToken, label) {
     'Safari landscape poem margin-top reset (B15)'
   );
 
-  // Safari landscape poem nudge (touch-only, pointer:coarse)
+  /*
+   MOBILE GOLD INVARIANT — SAFARI LANDSCAPE POEM NUDGE
+
+   Verified against main branch baseline.
+   Location: greetingCard.css (pointer: coarse / touch-only Safari landscape block)
+
+   This rule intentionally checks for:
+     transform: translateY(16px)
+
+   Purpose:
+   Safari landscape needs a small vertical nudge so the poem stack clears
+   the ribbon and remains visually centered.
+
+   IMPORTANT:
+   The earlier 1daaa93 branch used translateY(4px), but that rule never
+   existed on main. The tripwire now reflects the canonical rule present
+   on main.
+
+   If this assertion fails in the future:
+   1) Verify the Safari landscape rule still exists in greetingCard.css
+   2) Update the tripwire ONLY if the canonical CSS baseline changes.
+  */
   assertContains(
     gcss,
     'translateY(16px)',
