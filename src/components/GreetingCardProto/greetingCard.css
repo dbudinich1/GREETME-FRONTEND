@@ -1382,7 +1382,7 @@
    DESKTOP POLISH — 1366×768 class (short-height laptops)
    pointer:fine guard: never fires on touch devices
    ===================================================== */
-@media (hover: hover) and (pointer: fine) and (min-width: 1201px) and (max-height: 820px) {
+@media (min-width: 1201px) and (max-height: 820px) {
   .gc-interior-spread .gc-page-left .gc-page-content {
     top: calc(var(--lock-page-content-top) + 2lh);
     padding-left: 24px;
@@ -1510,10 +1510,64 @@
 }
 
 /* =====================================================
+   DESKTOP POLISH — ultra-short laptops (1276×6xx class)
+   pointer:fine guard: never fires on touch devices
+   ===================================================== */
+@media (min-width: 1201px) and (max-height: 720px) {
+
+  /* Intro spread: fix overflow clip + bump all text to 40px */
+  .gc-interior-spread .gc-page-left .gc-page-content {
+    top: calc(var(--lock-page-content-top) + 1lh);
+    --gc-letter-body-size: 40px;
+  }
+
+  .gc-interior-spread .gc-page-left .gc-greeting-salutation {
+    font-size: 40px !important;
+  }
+
+  .gc-interior-spread .gc-page-left .gc-greeting-occasion {
+    font-size: 40px !important;
+  }
+
+  .gc-interior-spread .gc-page-left .gc-greeting-message {
+    overflow: visible;
+    font-size: 40px !important;
+  }
+
+  /* Intro signature: match body scale, right-align, keep inside page */
+  .gc-interior-spread .gc-page-left .gc-signature {
+    font-size: 40px !important;
+    line-height: inherit !important;
+    padding-bottom: 0 !important;
+    text-align: right !important;
+    transform: translateX(60px);
+  }
+
+  /* Poem: tighter line-height, let auto-fit handle font-size */
+  .gc-interior-spread .gc-page-right .gc-poem {
+    line-height: 1.15;
+  }
+
+  .gc-interior-spread .gc-page-right .gc-warm-wishes {
+    margin-top: 16px !important;
+  }
+
+  /* Feature spread: reduce padding-top so frames re-center vertically in shorter height */
+  .gc-featured-spread .gc-video-page { padding-top: 110px; }
+  .gc-featured-spread .gc-album-page { padding-top: 40px; }
+
+  /* Finale left: keep the closing message vertically centered */
+  .gc-finale-spread .gc-page-left {
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+}
+
+/* =====================================================
    DESKTOP POLISH — 1440×900 class (mid-height laptops)
    pointer:fine guard: never fires on touch devices
    ===================================================== */
-@media (hover: hover) and (pointer: fine) and (min-width: 1201px) and (min-height: 821px) and (max-height: 980px) {
+@media (min-width: 1201px) and (min-height: 821px) and (max-height: 980px) {
   .gc-interior-spread .gc-page-left .gc-page-content {
     top: calc(var(--lock-page-content-top) + 4lh);
     padding-left: 24px;
