@@ -1509,6 +1509,144 @@
   }
 }
 
+/* =====================================================
+   DESKTOP POLISH — 1440×900 class (mid-height laptops)
+   pointer:fine guard: never fires on touch devices
+   ===================================================== */
+@media (hover: hover) and (pointer: fine) and (min-width: 1201px) and (min-height: 821px) and (max-height: 980px) {
+  .gc-interior-spread .gc-page-left .gc-page-content {
+    top: calc(var(--lock-page-content-top) + 4lh);
+    padding-left: 24px;
+    padding-right: 12px;
+    overflow: visible;
+  }
+
+  .gc-interior-spread .gc-page-left .gc-greeting-message {
+    transform: translateX(8px);
+    font-size: 54px;
+  }
+
+  .gc-interior-spread .gc-page-left .gc-greeting-salutation {
+    font-size: 54px;
+  }
+
+  .gc-interior-spread .gc-page-right .gc-page-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-bottom: 0 !important;
+  }
+
+  .gc-interior-spread .gc-page-right .gc-poem-content {
+    height: auto;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  .gc-interior-spread .gc-page-right .gc-poem {
+    padding-top: 0 !important;
+    flex: 0 0 auto !important;
+    font-size: 40px;
+    line-height: 1.15;
+  }
+
+  .gc-interior-spread .gc-page-right .gc-warm-wishes {
+    margin-top: 20px !important;
+    margin-bottom: 0 !important;
+    position: static !important;
+    bottom: auto !important;
+  }
+
+  /* FEATURE spread: align frame tops + unified typography */
+
+  .gc-featured-spread .gc-video-page {
+    justify-content: flex-start;
+    padding-top: 140px;
+  }
+
+  .gc-album-title {
+    font-size: 36px !important;
+    font-weight: 400;
+    line-height: 1.35;
+    margin-top: 12px;
+  }
+
+  .gc-video-caption {
+    font-size: 36px !important;
+    font-weight: 400;
+    line-height: 1.35;
+    margin-top: 12px;
+  }
+
+  .gc-featured-spread .gc-album-page {
+    justify-content: flex-start;
+    padding-top: 54px;
+  }
+
+  .gc-featured-spread .gc-album-title {
+    margin-bottom: 8px;
+  }
+
+  .gc-video-frame {
+    width: calc(48vh);
+    height: calc(48vh * 1.28);
+  }
+
+  .gc-album-stack,
+  .gc-album-frame {
+    width: calc(48vh);
+    height: calc(48vh * 1.28);
+  }
+
+  /* FINALE — left page: vertical center + prevent descender clip */
+  .gc-finale-spread .gc-page-left .gc-page-content {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .gc-finale-spread .gc-closing-message {
+    overflow: visible;
+    margin-top: 16px;
+  }
+
+  /* FINALE — right page: scale + tighten rhythm */
+  .gc-finale-spread .gc-gift-title {
+    font-size: 42px;
+    margin-bottom: 10px;
+  }
+
+  .gc-finale-spread .gc-qr-frame {
+    width: 140px !important;
+    height: 140px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .gc-finale-spread .gc-gift-instruction {
+    font-size: 24px;
+    margin: 0 0 2px 0;
+    line-height: 1.25;
+  }
+
+  .gc-finale-spread .gc-logo-seal {
+    width: 48px;
+    height: 48px;
+  }
+
+  .gc-finale-spread .gc-brand-name {
+    font-size: 36px;
+  }
+
+  .gc-finale-spread .gc-branding {
+    margin-top: 2px;
+  }
+
+  .gc-finale-spread .gc-brand-tagline {
+    margin-top: 4px;
+  }
+}
+
 @media (max-width: 900px) {
   .gc-page {
     padding: 30px;
