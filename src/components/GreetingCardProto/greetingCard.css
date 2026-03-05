@@ -1517,7 +1517,7 @@
 
   /* Intro spread: fix overflow clip + bump all text to 40px */
   .gc-interior-spread .gc-page-left .gc-page-content {
-    top: calc(var(--lock-page-content-top) + 1lh);
+    top: calc(var(--lock-page-content-top) + 1lh + 24px);
     --gc-letter-body-size: 40px;
   }
 
@@ -1545,11 +1545,13 @@
 
   /* Poem: tighter line-height, let auto-fit handle font-size */
   .gc-interior-spread .gc-page-right .gc-poem {
+    font-size: 28px !important;
     line-height: 1.15;
   }
 
   .gc-interior-spread .gc-page-right .gc-warm-wishes {
     margin-top: 16px !important;
+    font-size: 34px !important;
   }
 
   /* Feature spread: reduce padding-top so frames re-center vertically in shorter height */
