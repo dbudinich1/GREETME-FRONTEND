@@ -1306,6 +1306,27 @@
   }
 }
 
+/* =====================================================
+   DESKTOP POLISH — 1366×768 class (short-height laptops)
+   pointer:fine guard: never fires on touch devices
+   ===================================================== */
+@media (hover: hover) and (pointer: fine) and (min-width: 1201px) and (max-height: 820px) {
+  /* 1366×768 class desktops: fix top-heavy left page + edge clipping */
+  .gc-interior-spread .gc-page-left .gc-page-content {
+    top: calc(var(--lock-page-content-top) + 1lh);
+    padding-left: 12px;   /* breathing room inside the content box */
+    padding-right: 8px;   /* small guard against right-edge clip */
+  }
+
+  .gc-interior-spread .gc-greeting-message {
+    max-width: 88%;
+  }
+
+  .gc-interior-spread .gc-warm-wishes {
+    margin-bottom: 0.5lh;
+  }
+}
+
 @media (max-width: 900px) {
   .gc-page {
     padding: 30px;
