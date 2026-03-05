@@ -24,3 +24,12 @@
 | Desktop-short | 1366×768 | b204484 | viewport-1366x768-certified | Canonical desktop baseline |
 | Desktop-fine | 1440×900 | 2fafd47 | viewport-1440x900-certified | Verified with cascade |
 | Large desktop | 1536×864 | 2fafd47 | viewport-1536x864-certified | Verified identical to 1440×900 |
+
+## Finale Spread Certification
+
+| Viewport Band | Resolution Example | Commit | Tag | Notes |
+|---|---|---|---|---|
+| Ultra-short desktop | ~1278×682 | b41f8ab | viewport-1278x682-finale-certified | Closing 44px, QR 100px, right page flex-centered, typography tightened |
+| Desktop-short | 1366×768 | b204484 | viewport-1366x768-certified | Canonical desktop baseline |
+| Desktop-fine | 1440×900 | 2fafd47 | viewport-1440x900-certified | Verified with cascade |
+| Large desktop | 1536×864 | 2fafd47 | viewport-1536x864-certified | Verified identical to 1440×900 |
