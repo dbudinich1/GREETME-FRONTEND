@@ -1418,6 +1418,47 @@
     position: static !important;
     bottom: auto !important;
   }
+
+  /* FEATURE spread: align frame tops + unified typography */
+
+  .gc-featured-spread .gc-video-page {
+    justify-content: flex-start;
+    padding-top: 140px;
+  }
+
+  .gc-album-title {
+    font-size: 36px !important;
+    font-weight: 400;
+    line-height: 1.35;
+    margin-top: 12px;
+  }
+
+  .gc-video-caption {
+    font-size: 36px !important;
+    font-weight: 400;
+    line-height: 1.35;
+    margin-top: 12px;
+  }
+
+  .gc-featured-spread .gc-album-page {
+    justify-content: flex-start;
+    padding-top: 54px;
+  }
+
+  .gc-featured-spread .gc-album-title {
+    margin-bottom: 8px;
+  }
+
+  .gc-video-frame {
+    width: calc(48vh);
+    height: calc(48vh * 1.28);
+  }
+
+  .gc-album-stack,
+  .gc-album-frame {
+    width: calc(48vh);
+    height: calc(48vh * 1.28);
+  }
 }
 
 @media (max-width: 900px) {
