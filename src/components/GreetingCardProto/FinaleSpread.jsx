@@ -238,7 +238,7 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift }) {
               <LogoPlaceholder />
               <span className="gc-brand-name">Greet-Me™</span>
             </div>
-            <p className="gc-brand-tagline">This moment was lovingly prepared for you</p>
+            <p className="gc-brand-tagline">This moment was lovingly prepared for you.</p>
           </div>
         </div>
       </div>

@@ -1459,6 +1459,54 @@
     width: calc(48vh);
     height: calc(48vh * 1.28);
   }
+
+  /* FINALE — left page: vertical center + prevent descender clip */
+  .gc-finale-spread .gc-page-left .gc-page-content {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .gc-finale-spread .gc-closing-message {
+    overflow: visible;
+    margin-top: 16px;
+  }
+
+  /* FINALE — right page: scale + tighten rhythm for 1366×768 */
+  .gc-finale-spread .gc-gift-title {
+    font-size: 42px;
+    margin-bottom: 10px;
+  }
+
+  .gc-finale-spread .gc-qr-frame {
+    width: 140px !important;
+    height: 140px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .gc-finale-spread .gc-gift-instruction {
+    font-size: 24px;
+    margin: 0 0 2px 0;
+    line-height: 1.25;
+  }
+
+  .gc-finale-spread .gc-logo-seal {
+    width: 48px;
+    height: 48px;
+  }
+
+  .gc-finale-spread .gc-brand-name {
+    font-size: 36px;
+  }
+
+  .gc-finale-spread .gc-branding {
+    margin-top: 2px;
+  }
+
+  .gc-finale-spread .gc-brand-tagline {
+    margin-top: 4px;
+  }
 }
 
 @media (max-width: 900px) {
