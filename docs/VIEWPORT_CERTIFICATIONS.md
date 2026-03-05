@@ -33,3 +33,9 @@
 | Desktop-short | 1366×768 | b204484 | viewport-1366x768-certified | Canonical desktop baseline |
 | Desktop-fine | 1440×900 | 2fafd47 | viewport-1440x900-certified | Verified with cascade |
 | Large desktop | 1536×864 | 2fafd47 | viewport-1536x864-certified | Verified identical to 1440×900 |
+
+---
+
+## Milestone
+
+desktop-viewport-system-certified — 8fa1130
