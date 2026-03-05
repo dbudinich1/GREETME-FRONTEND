@@ -1576,7 +1576,68 @@
     transform: translateY(20px);
   }
 
-  /* Finale left: keep the closing message vertically centered */
+  /* Finale left: reduce font + vertically center */
+  .gc-finale-spread .gc-closing-message {
+    font-size: 44px !important;
+  }
+
+  .gc-finale-spread .gc-page-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding-top: 40px;
+  }
+
+  .gc-finale-spread .gc-page-right .gc-page-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .gc-finale-spread .gc-gift-title {
+    font-size: 36px !important;
+    line-height: 1.1 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .gc-finale-spread .gc-qr-frame {
+    margin-top: 6px !important;
+    width: 100px !important;
+    height: 100px !important;
+  }
+
+  .gc-finale-spread .gc-logo-seal {
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  .gc-finale-spread .gc-logo-seal span {
+    font-size: 25px !important;
+  }
+
+  .gc-finale-spread .gc-gift-instruction {
+    font-size: 20px !important;
+    line-height: 1.1 !important;
+    margin: 0 !important;
+  }
+
+  .gc-finale-spread .gc-branding {
+    margin-top: 0 !important;
+    gap: 4px;
+  }
+
+  .gc-finale-spread .gc-brand-name {
+    font-size: 28px !important;
+    line-height: 1.1 !important;
+  }
+
+  .gc-finale-spread .gc-brand-tagline {
+    margin-top: 6px !important;
+    line-height: 1.1 !important;
+  }
+
   .gc-finale-spread .gc-page-left {
     padding-top: 24px;
     padding-bottom: 24px;
