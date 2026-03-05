@@ -14,3 +14,12 @@
 | Desktop-short | 1366×768 | b204484 | Canonical desktop baseline |
 | Desktop-fine | 1440×900 | 2fafd47 | Taller desktop cascade verified |
 | Large desktop | 1536×864 | 2fafd47 | Verified identical to 1440×900 |
+
+## Feature Spread Certification
+
+| Viewport Band | Resolution Example | Commit | Tag | Notes |
+|---|---|---|---|---|
+| Ultra-short desktop | ~1278×682 | 620b7db | feature-spread-ultra-short-certified | Frame tops aligned (video 82px, album translateY -54px), title 36px unified |
+| Desktop-short | 1366×768 | b204484 | viewport-1366x768-certified | Canonical desktop baseline |
+| Desktop-fine | 1440×900 | 2fafd47 | viewport-1440x900-certified | Verified with cascade |
+| Large desktop | 1536×864 | 2fafd47 | viewport-1536x864-certified | Verified identical to 1440×900 |
