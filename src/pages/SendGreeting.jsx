@@ -366,7 +366,7 @@ export default function SendGreeting() {
       occasionKey: normalizeOccasionKey(formData.occasionType) || formData.occasionType,
       occasionType: formData.occasionType,
       relationshipKey: selectedContact.relationship || 'friend',
-      relationshipNote: '',
+      relationshipNote: selectedContact.relationshipContext || '',
       personalSentiment: formData.customMessage || '',
       tone: formData.tone || 'warm',
       photos: (selectedContact.memoryPhotos || []).map(p => typeof p === 'string' ? p : p?.url).filter(Boolean),
