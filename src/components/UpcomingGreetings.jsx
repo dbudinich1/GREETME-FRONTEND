@@ -41,7 +41,7 @@ export default function UpcomingGreetings() {
     fetchUpcoming();
   }, []);
 
-  if (loading) return <div style={{ padding: '1rem', textAlign: 'center' }}>Loading upcoming Greet-Me occasions...</div>;
+  if (loading) return <div style={{ padding: '1rem', textAlign: 'center' }}>Loading upcoming contact occasions...</div>;
   if (error) return <div style={{ padding: '1rem', color: '#E74C3C' }}>{error}</div>;
 
   if (events.length === 0) {
@@ -54,10 +54,10 @@ export default function UpcomingGreetings() {
         border: '1px dashed #CCC'
       }}>
         <p style={{ fontSize: '1.1rem', color: '#555', margin: 0 }}>
-          No Greet-Me occasions coming up.
+          No upcoming occasions from your contacts.
         </p>
         <p style={{ fontSize: '0.9rem', color: '#888', marginTop: '0.5rem' }}>
-          Add occasions to your contacts and Greet-Me will handle the rest.
+          Add occasions to your contacts and they'll appear here automatically.
         </p>
       </div>
     );

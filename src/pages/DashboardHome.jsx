@@ -10,7 +10,6 @@ import { COMMS_EVENTS } from '../utils/commsCatalog';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
-import UpcomingGreetings from '../components/UpcomingGreetings';
 import OnboardingCoach from '../components/OnboardingCoach';
 import TutorialVideo from '../components/TutorialVideo';
 
@@ -1732,7 +1731,7 @@ export default function DashboardHome() {
             fontWeight: 700,
             color: 'var(--text-primary)',
             margin: 0
-          }}>Coming Up <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>(Next 30 Days)</span></h2>
+          }}>Upcoming Occasions <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>from your contacts</span></h2>
           {/* Desktop: inline button in header */}
           {!isNarrow && (
             <button
@@ -2030,19 +2029,6 @@ export default function DashboardHome() {
           </div>
         </div>
       </div>
-
-      {/* Upcoming Greetings Section */}
-      <section style={{ marginTop: '2rem' }}>
-        <h2 style={{
-          fontSize: '1.25rem',
-          fontWeight: 700,
-          color: 'var(--text-primary)',
-          marginBottom: '1rem'
-        }}>
-          Upcoming Greet-Me Occasions
-        </h2>
-        <UpcomingGreetings />
-      </section>
 
       {/* Tutorial Video Teaser (for users with incomplete setup) */}
       {(!(voiceRecorded || user?.voiceId || user?.voiceUrl) || !(photoUploaded || user?.photoUrl) || contacts.length === 0) && (
