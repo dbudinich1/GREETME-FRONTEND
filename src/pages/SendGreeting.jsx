@@ -41,7 +41,7 @@ export default function SendGreeting() {
   const [jobStatus, setJobStatus] = useState(null);
   const [formData, setFormData] = useState({
     contactId: '',
-    occasionType: '',
+    occasionType: 'Thinking of You',
     customOccasion: '',
     customMessage: '',
     isRecurring: false,
@@ -594,18 +594,20 @@ if (typeof window !== "undefined") {
               name="contactId"
               value={formData.contactId}
               onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.contactId ? 'border-red-500' : 'border-gray-300'
-              }`}
               disabled={contacts.length === 0}
               style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem',
+                border: errors.contactId ? '2px solid var(--error)' : '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
                 WebkitAppearance: 'menulist',
                 appearance: 'menulist',
                 cursor: 'pointer',
                 touchAction: 'manipulation',
                 position: 'relative',
                 zIndex: 1,
-                fontSize: '0.875rem'
+                fontSize: '0.875rem',
+                outline: 'none'
               }}
             >
               <option value="">Choose...</option>
@@ -615,7 +617,7 @@ if (typeof window !== "undefined") {
                 </option>
               ))}
             </select>
-            {errors.contactId && <p className="mt-1 text-xs text-red-500">{errors.contactId}</p>}
+            {errors.contactId && <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.contactId}</p>}
           </div>
 
           {/* Occasion - Free Text Input */}
@@ -628,13 +630,17 @@ if (typeof window !== "undefined") {
               name="occasionType"
               value={formData.occasionType}
               onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.occasionType ? 'border-red-500' : 'border-gray-300'
-              }`}
               placeholder="e.g., Thinking of you"
-              style={{ fontSize: '0.875rem' }}
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem',
+                border: errors.occasionType ? '2px solid var(--error)' : '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                outline: 'none'
+              }}
             />
-            {errors.occasionType && <p className="mt-1 text-xs text-red-500">{errors.occasionType}</p>}
+            {errors.occasionType && <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.occasionType}</p>}
           </div>
 
           {/* Tone Dropdown */}
