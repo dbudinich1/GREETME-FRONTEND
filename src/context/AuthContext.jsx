@@ -104,6 +104,10 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(data.user));
       // Clear stale onboarding state so new registration always gets fresh onboarding
       localStorage.removeItem('greetme_setup_state');
+      // Clear account-specific cached media from any previous account
+      localStorage.removeItem('greetme_media_library');
+      localStorage.removeItem('greetme_voice_file');
+      localStorage.removeItem('greetme_recipients');
       setUser(data.user);
       // Hydrate photoUrl from backend profile (fire-and-forget)
       fetchAndHydrateProfile(data.token, data.user);
@@ -117,6 +121,10 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    // Clear account-specific cached media to prevent bleed-through on next login
+    localStorage.removeItem('greetme_media_library');
+    localStorage.removeItem('greetme_voice_file');
+    localStorage.removeItem('greetme_recipients');
     setUser(null);
   };
 
