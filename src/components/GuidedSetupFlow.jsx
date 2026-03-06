@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import { X, Mic, Square, Play, Pause, Upload, Image as ImageIcon, Check, ArrowRight, Send, Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { validateFile, validateAudioFile, validateEmail } from '../utils/helpers';
+import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 
 // Onboarding illustration from public folder
@@ -48,6 +49,7 @@ export function shouldShowGuidedSetup() {
 
 export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const navigate = useNavigate();
+  const { refreshProfile } = useAuth();
   // Steps: 0=Welcome, 1=ProcessOrientation, 2=Voice, 3=Photo, 4=TestGreeting, 5=Sending, 6=Success
   const [step, setStep] = useState(0);
   const [setupState, setSetupState] = useState(getSetupState());
@@ -167,19 +169,29 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     }
 
     setVoiceUploading(true);
+    setVoiceError(null);
     try {
       const formData = new FormData();
       formData.append('voice', file);
       await api.uploadVoice(formData);
+
+      // Write to localStorage so MediaLibrary (Your Presence) can read it immediately
+      const reader = new FileReader();
+      await new Promise((resolve, reject) => {
+        reader.onloadend = () => {
+          localStorage.setItem('greetme_voice_file', reader.result);
+          resolve();
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(audioBlob);
+      });
+
       setVoiceSaved(true);
       updateSetupState({ voiceDone: true });
       setSetupState(prev => ({ ...prev, voiceDone: true }));
     } catch (err) {
-      // V1 fallback: mark as done locally
-      console.warn('Voice upload failed, marking done locally:', err);
-      setVoiceSaved(true);
-      updateSetupState({ voiceDone: true });
-      setSetupState(prev => ({ ...prev, voiceDone: true }));
+      console.error('Voice upload failed:', err);
+      setVoiceError('Voice upload failed. Please try again.');
     } finally {
       setVoiceUploading(false);
     }
@@ -216,19 +228,21 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     if (!photoFile) return;
 
     setPhotoUploading(true);
+    setPhotoError(null);
     try {
       const formData = new FormData();
       formData.append('photo', photoFile);
       await api.uploadPhoto(formData);
+
+      // Refresh AuthContext so MediaLibrary (Your Presence) sees updated user.photoUrl immediately
+      await refreshProfile();
+
       setPhotoSaved(true);
       updateSetupState({ photoDone: true });
       setSetupState(prev => ({ ...prev, photoDone: true }));
     } catch (err) {
-      // V1 fallback: mark as done locally
-      console.warn('Photo upload failed, marking done locally:', err);
-      setPhotoSaved(true);
-      updateSetupState({ photoDone: true });
-      setSetupState(prev => ({ ...prev, photoDone: true }));
+      console.error('Photo upload failed:', err);
+      setPhotoError('Photo upload failed. Please try again.');
     } finally {
       setPhotoUploading(false);
     }
