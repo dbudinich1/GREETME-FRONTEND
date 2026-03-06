@@ -34,6 +34,7 @@ import PublicGreetingCard from "./pages/PublicGreetingCard";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
 import Support from "./pages/Support";
+import Legal from "./Legal";
 import VerifyEmail from "./pages/VerifyEmail";
 
 export default function App() {
@@ -91,8 +92,9 @@ export default function App() {
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/canceled" element={<PaymentCanceled />} />
 
-          {/* Support (Public) */}
+          {/* Support & Legal (Public) */}
           <Route path="/support" element={<Support />} />
+          <Route path="/legal" element={<Legal />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

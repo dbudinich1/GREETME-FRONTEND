@@ -750,6 +750,21 @@ export default function DashboardLayout({ children }) {
         </div>
       </main>
 
+      {/* Footer */}
+      <footer style={{
+        borderTop: '1px solid var(--border)',
+        padding: isNarrow ? '1rem' : '1.25rem 2rem',
+        textAlign: 'center',
+        fontSize: '0.8125rem',
+        color: 'var(--text-tertiary)',
+      }}>
+        <span>&copy; 2026 Greet-Me&trade;</span>
+        <span style={{ margin: '0 0.5rem' }}>&middot;</span>
+        <a href="#/legal" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Terms &amp; Privacy</a>
+        <span style={{ margin: '0 0.5rem' }}>&middot;</span>
+        <a href="#/support" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Support</a>
+      </footer>
+
       {/* Guided Setup Flow — rendered outside <main> to escape its stacking context */}
       {showOnboarding && (
         <GuidedSetupFlow
