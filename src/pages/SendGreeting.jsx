@@ -568,10 +568,39 @@ if (typeof window !== "undefined") {
           }}>Just Because</p>
         </div>
         {contacts.length === 0 && (
-          <Alert
-            type="warning"
-            message="You don't have any contacts yet. Add contacts first to send a Greet-Me."
-          />
+          <div style={{
+            background: '#fffbeb',
+            border: '1px solid #fde68a',
+            borderRadius: 'var(--radius-md)',
+            padding: '1rem 1.25rem',
+            marginBottom: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.75rem'
+          }}>
+            <span style={{ color: '#92400e', fontSize: '0.875rem' }}>
+              You don't have any contacts yet. Add a recipient to send a Greet-Me.
+            </span>
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard/contacts')}
+              style={{
+                padding: '0.4rem 1rem',
+                background: '#667eea',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit'
+              }}
+            >
+              + Add Recipient
+            </button>
+          </div>
         )}
 
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-10">
@@ -587,9 +616,17 @@ if (typeof window !== "undefined") {
         }}>
           {/* Select Contact */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Recipient <span className="text-red-500">*</span>
-            </label>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+                Recipient <span style={{ color: 'var(--error)' }}>*</span>
+              </label>
+              <a
+                href="#/dashboard/contacts"
+                style={{ fontSize: '0.75rem', color: '#667eea', textDecoration: 'none', fontWeight: 500 }}
+              >
+                + Add New
+              </a>
+            </div>
             <select
               name="contactId"
               value={formData.contactId}
