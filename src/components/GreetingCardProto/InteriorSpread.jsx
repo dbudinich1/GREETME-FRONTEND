@@ -136,6 +136,28 @@ export default function InteriorSpread({ recipientName, message, senderName, occ
 
     autoFitElement(messageRef.current, '--fit-message-font-size', minMessagePx, MAX_STEPS_MESSAGE, varTarget, messageStartSize);
     tightenLineHeight(messageRef.current, varTarget);
+
+    // Page-level fit: shrink message font until full stack (salutation + occasion + message + signature) fits container.
+    // Uses bounding rects because container may have overflow:visible (scrollHeight === clientHeight).
+    if (varTarget && signatureRef.current) {
+      const pageOverflows = () => {
+        const pageRect = varTarget.getBoundingClientRect();
+        const sigRect = signatureRef.current.getBoundingClientRect();
+        return sigRect.bottom > pageRect.bottom;
+      };
+      if (pageOverflows()) {
+        const computed = getComputedStyle(messageRef.current);
+        let size = parseFloat(computed.fontSize);
+        for (let step = 0; step < MAX_STEPS_MESSAGE; step++) {
+          size -= 1;
+          if (size < minMessagePx) { size = minMessagePx; varTarget.style.setProperty('--fit-message-font-size', `${size}px`); break; }
+          varTarget.style.setProperty('--fit-message-font-size', `${size}px`);
+          void varTarget.offsetHeight;
+          if (!pageOverflows()) break;
+        }
+      }
+    }
+
     autoFitElement(poemRef.current, '--fit-poem-font-size', MIN_POEM_PX, MAX_STEPS_POEM);
 
     // DEV: flag fit failures (content must never be truncated — regenerate instead)
