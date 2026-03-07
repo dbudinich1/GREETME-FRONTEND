@@ -125,6 +125,8 @@ export default function GreetingDraftEditor({
       base = `Hi ${name}. Congratulations. I'm so proud of you and happy for you.`;
     } else if (occ === 'thankyou') {
       base = `Hi ${name}. Thank you so much. I really appreciate you.`;
+    } else if (occ === 'getwell' || occ === 'get_well') {
+      base = `Hi ${name}. I heard you're not feeling well. I'm thinking of you and wishing you a speedy recovery.`;
     } else if (occ.includes('just') || occ.includes('because')) {
       base = `Hi ${name}. Just because—thinking of you today.`;
     } else {

@@ -78,6 +78,7 @@ export const occasionTypes = [
   { value: 'birthday', label: 'Birthday', icon: '🎂', category: 'personal', requiresDate: true },
   { value: 'anniversary', label: 'Anniversary', icon: '💑', category: 'personal', requiresDate: true },
   { value: 'graduation', label: 'Graduation', icon: '🎓', category: 'personal', requiresDate: true },
+  { value: 'getwell', label: 'Get Well', icon: '🩹', category: 'personal', requiresDate: false },
 
   // Secular Holidays (widely celebrated)
   { value: 'new_year', label: "New Year's Day", icon: '🎆', category: 'secular', fixedDate: '01-01' },
