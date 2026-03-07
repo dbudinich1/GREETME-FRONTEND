@@ -15,6 +15,7 @@ src/components/GreetingCardProto/GREETING_LOCK.md
 
 # local debug artifacts
 *.png
+!public/assets/email/*.png
 *.jpg
 *.jpeg
 *.webp
