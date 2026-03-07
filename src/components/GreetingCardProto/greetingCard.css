@@ -1373,6 +1373,12 @@
     margin-top: 24px;
   }
 
+  .gc-interior-spread .gc-page-right .gc-poem {
+    padding-top: 0;
+    max-width: 100%;
+    padding-left: 0;
+  }
+
   /* Finale left page — symmetric padding, centered content */
   .gc-finale-spread .gc-page-left {
     display: flex;
@@ -1398,6 +1404,10 @@
 
   .gc-interior-spread .gc-page-left .gc-greeting-message {
     transform: translateX(8px);
+  }
+
+  .gc-interior-spread .gc-page-left .gc-signature {
+    padding-bottom: 0;
   }
 
   .gc-interior-spread .gc-page-right .gc-page-content {
