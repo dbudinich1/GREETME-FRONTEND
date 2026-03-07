@@ -139,11 +139,14 @@ export default function InteriorSpread({ recipientName, message, senderName, occ
 
     // Page-level fit: shrink message font until full stack (salutation + occasion + message + signature) fits container.
     // Uses bounding rects because container may have overflow:visible (scrollHeight === clientHeight).
+    // Subtracts container padding-bottom since getBoundingClientRect includes padding but flex content sits above it.
     if (varTarget && signatureRef.current) {
       const pageOverflows = () => {
         const pageRect = varTarget.getBoundingClientRect();
+        const padBottom = parseFloat(getComputedStyle(varTarget).paddingBottom) || 0;
+        const contentBottom = pageRect.bottom - padBottom;
         const sigRect = signatureRef.current.getBoundingClientRect();
-        return sigRect.bottom > pageRect.bottom;
+        return sigRect.bottom > contentBottom;
       };
       if (pageOverflows()) {
         const computed = getComputedStyle(messageRef.current);
