@@ -345,11 +345,6 @@
   overflow: hidden; /* Containment: prevent bleed past gutter */
 }
 
-/* Intro page: signature directly below message, not bottom-anchored */
-.gc-interior-spread .gc-page-left .gc-signature {
-  margin-top: 24px;
-}
-
 /* Canonical ink typography — consistent across all viewports */
 .gc-greeting-salutation,
 .gc-greeting-occasion,
@@ -1404,10 +1399,6 @@
 
   .gc-interior-spread .gc-page-left .gc-greeting-message {
     transform: translateX(8px);
-  }
-
-  .gc-interior-spread .gc-page-left .gc-signature {
-    padding-bottom: 0;
   }
 
   .gc-interior-spread .gc-page-right .gc-page-content {
