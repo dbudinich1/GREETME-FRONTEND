@@ -345,6 +345,11 @@
   overflow: hidden; /* Containment: prevent bleed past gutter */
 }
 
+/* Intro page: signature directly below message, not bottom-anchored */
+.gc-interior-spread .gc-page-left .gc-signature {
+  margin-top: 24px;
+}
+
 /* Canonical ink typography — consistent across all viewports */
 .gc-greeting-salutation,
 .gc-greeting-occasion,
@@ -1545,13 +1550,12 @@
 
   /* Poem: tighter line-height, let auto-fit handle font-size */
   .gc-interior-spread .gc-page-right .gc-poem {
-    font-size: 28px !important;
     line-height: 1.15;
   }
 
   .gc-interior-spread .gc-page-right .gc-warm-wishes {
     margin-top: 16px !important;
-    font-size: 34px !important;
+    font-size: 28px !important;
   }
 
   /* Feature spread: center frames vertically + unified typography for ultra-short */
