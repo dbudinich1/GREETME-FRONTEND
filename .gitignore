@@ -18,6 +18,7 @@ src/components/GreetingCardProto/GREETING_LOCK.md
 !public/assets/email/*.png
 *.jpg
 *.jpeg
+!public/assets/email/*.jpeg
 *.webp
 *.log
 *.zip
