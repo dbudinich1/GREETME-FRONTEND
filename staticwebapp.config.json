@@ -9,13 +9,7 @@
     ".json": "application/json",
     ".css": "text/css"
   },
-  "routes": [
-    {
-      "route": "/*",
-      "serve": "/index.html",
-      "statusCode": 200
-    }
-  ],
+  "routes": [],
   "platform": {
     "apiRuntime": "node:18"
   }
