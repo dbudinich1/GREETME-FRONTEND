@@ -18,6 +18,7 @@ export default function VoiceRecorder({ onUpload, existingVoice }) {
   const audioChunksRef = useRef([]);
   const audioPlayerRef = useRef(null);
   const timerRef = useRef(null);
+  const mimeTypeRef = useRef('audio/webm');
 
   useEffect(() => {
     return () => {
@@ -33,7 +34,19 @@ export default function VoiceRecorder({ onUpload, existingVoice }) {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
+
+      // Detect supported MIME type (Chrome → webm, Safari → mp4)
+      let mimeType = 'audio/webm';
+      if (!MediaRecorder.isTypeSupported('audio/webm')) {
+        if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          mimeType = 'audio/mp4';
+        } else if (MediaRecorder.isTypeSupported('audio/mpeg')) {
+          mimeType = 'audio/mpeg';
+        }
+      }
+      mimeTypeRef.current = mimeType;
+
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
       audioChunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -41,7 +54,7 @@ export default function VoiceRecorder({ onUpload, existingVoice }) {
       };
 
       mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(audioChunksRef.current, { type: mimeTypeRef.current });
         const url = URL.createObjectURL(blob);
         setAudioBlob(blob);
         setAudioUrl(url);
@@ -90,7 +103,8 @@ export default function VoiceRecorder({ onUpload, existingVoice }) {
   const handleUpload = async () => {
     if (!audioBlob) return;
 
-    const file = new File([audioBlob], 'voice-recording.webm', { type: 'audio/webm' });
+    const ext = mimeTypeRef.current === 'audio/mp4' ? 'mp4' : mimeTypeRef.current === 'audio/mpeg' ? 'mp3' : 'webm';
+    const file = new File([audioBlob], `voice-recording.${ext}`, { type: mimeTypeRef.current });
     const validation = validateAudioFile(file);
 
     if (!validation.valid) {
