@@ -86,23 +86,26 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const [sendingStatus, setSendingStatus] = useState(''); // 'voice', 'video', 'finalizing'
   const [sendingError, setSendingError] = useState(null);
 
-  // Demo stage state (Step 0 auto-advancing welcome/demo)
-  const [demoStage, setDemoStage] = useState(0); // 0-4 (5 stages)
+  // Demo stage state (Step 1 — 9 walkthrough stages + 1 final CTA = indices 0–9)
+  const [demoStage, setDemoStage] = useState(0);
   const demoTimerRef = useRef(null);
+  const DEMO_LAST_STAGE = 9; // index of final CTA screen
 
   const isMobile = window.innerWidth <= 480;
 
   // Demo auto-advance timer — runs only while step === 1 (Demo)
+  // Resets demoStage when entering step 1; clears timer when leaving
   useEffect(() => {
     if (step !== 1) {
       if (demoTimerRef.current) clearInterval(demoTimerRef.current);
       return;
     }
+    setDemoStage(0);
     demoTimerRef.current = setInterval(() => {
       setDemoStage((prev) => {
-        if (prev >= 4) {
+        if (prev >= DEMO_LAST_STAGE) {
           clearInterval(demoTimerRef.current);
-          return 4;
+          return DEMO_LAST_STAGE;
         }
         return prev + 1;
       });
@@ -515,95 +518,217 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     </div>
   );
 
-  // STEP 1: Demo — auto-advancing stage sequence (placeholder, will be replaced in Step D)
+  // STEP 1: Demo — full animated product walkthrough
   const demoStages = [
-    { label: 'Welcome to Greet-Me.', icon: '👋', color: 'var(--text-primary)' },
-    { label: 'Envelope arrives', icon: '✉️', color: 'var(--text-secondary)' },
-    { label: 'Card opens', icon: '💌', color: 'var(--text-secondary)' },
-    { label: 'Hey — I just wanted to stop and say welcome to the neighborhood.', icon: '💬', color: 'var(--text-primary)' },
-    { label: 'Your voice greeting plays here', icon: '🎙️', color: 'var(--text-secondary)' },
+    { icon: '✨', heading: 'Create a Greet-Me', body: 'Create something personal in seconds.' },
+    { icon: '🎙️', heading: 'Add your voice and photo', body: 'So it feels like you\'re really there.' },
+    { icon: '💝', heading: 'Choose who it\'s for', body: 'Birthdays, celebrations… or just because.' },
+    { icon: '🎁', heading: 'Add a surprise gift (optional)', body: 'Turn a moment into something unforgettable.' },
+    { icon: '🚀', heading: 'Send it', body: 'One click and it\'s on its way.' },
+    { icon: '📊', heading: 'Your dashboard', body: 'See every upcoming occasion, recent send, and greeting in flight.' },
+    { icon: '✉️', heading: 'They receive it', body: 'A beautiful envelope arrives.' },
+    { icon: '💌', heading: 'They open it', body: 'Your message appears. Your voice plays.' },
+    { icon: '💫', heading: 'The moment', body: 'A greeting they\'ll never forget.' },
   ];
 
+  const demoPrev = () => {
+    if (demoTimerRef.current) clearInterval(demoTimerRef.current);
+    setDemoStage((prev) => Math.max(0, prev - 1));
+  };
+
+  const demoNext = () => {
+    if (demoTimerRef.current) clearInterval(demoTimerRef.current);
+    setDemoStage((prev) => Math.min(DEMO_LAST_STAGE, prev + 1));
+  };
+
+  const demoSkipToEnd = () => {
+    if (demoTimerRef.current) clearInterval(demoTimerRef.current);
+    setDemoStage(DEMO_LAST_STAGE);
+  };
+
   const renderDemoGreeting = () => {
-    const current = demoStages[demoStage];
+    const isFinalScreen = demoStage === DEMO_LAST_STAGE;
+    const current = !isFinalScreen ? demoStages[demoStage] : null;
+
     return (
       <div style={{ padding: isMobile ? '1.5rem' : '2rem', textAlign: 'center' }}>
-        <h2 style={{
-          fontSize: '1.25rem',
-          fontWeight: 700,
-          color: 'var(--text-primary)',
-          marginBottom: '1.5rem',
-        }}>
-          See How a Greet-Me Feels
-        </h2>
 
-        {/* Single active stage */}
-        <div style={{
-          maxWidth: '24rem',
-          margin: '0 auto 1.5rem',
-          minHeight: '8rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <div
-            key={demoStage}
-            style={{
-              padding: '1.5rem',
-              background: 'var(--gray-50, #f9fafb)',
-              borderRadius: 'var(--radius-md, 8px)',
-              border: '1px solid var(--gray-200, #e5e7eb)',
-              width: '100%',
-              animation: 'demoStageFadeIn 0.5s ease-out',
-            }}
-          >
-            <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>{current.icon}</div>
-            <p style={{
-              margin: 0,
-              fontSize: demoStage === 0 ? '1.15rem' : '0.95rem',
-              fontWeight: demoStage === 0 ? 600 : 400,
-              color: current.color,
-              lineHeight: 1.5,
-            }}>
-              {current.label}
-            </p>
-          </div>
-        </div>
-
-        {/* Stage indicator */}
-        <p style={{
-          fontSize: '0.8rem',
-          color: 'var(--text-secondary)',
-          marginBottom: '1.25rem',
-          letterSpacing: '0.05em',
-        }}>
-          {demoStage + 1} / {demoStages.length}
-        </p>
-
-        {/* Inline keyframes for fade-in animation */}
+        {/* Inline keyframes */}
         <style>{`
           @keyframes demoStageFadeIn {
-            from { opacity: 0; transform: translateY(8px) scale(0.97); }
+            from { opacity: 0; transform: translateY(10px) scale(0.97); }
             to   { opacity: 1; transform: translateY(0) scale(1); }
           }
         `}</style>
 
-        <button
-          onClick={nextStep}
-          style={{
-            padding: '0.75rem 2rem',
-            background: 'var(--accent-primary)',
-            color: 'white',
-            border: 'none',
-            borderRadius: 'var(--radius-lg)',
-            fontSize: '1rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}
-        >
-          Continue Onboarding
-        </button>
+        {isFinalScreen ? (
+          /* ─── FINAL DEMO SCREEN ─── */
+          <div key="demo-final" style={{ animation: 'demoStageFadeIn 0.5s ease-out' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🎉</div>
+            <h2 style={{
+              fontSize: isMobile ? '1.35rem' : '1.5rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              marginBottom: '0.75rem',
+            }}>
+              Let's set up your Greet-Me.
+            </h2>
+            <p style={{
+              fontSize: '0.95rem',
+              color: 'var(--text-secondary)',
+              marginBottom: '2rem',
+              lineHeight: 1.5,
+            }}>
+              It only takes a minute to get started.
+            </p>
+            <button
+              onClick={nextStep}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-lg)',
+                fontSize: '1rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                marginBottom: '0.75rem',
+              }}
+            >
+              Let's do it
+            </button>
+            <button
+              onClick={handleSkip}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-tertiary)',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              I'll set up later
+            </button>
+          </div>
+        ) : (
+          /* ─── WALKTHROUGH STAGES 1–9 ─── */
+          <>
+            <h2 style={{
+              fontSize: '1.1rem',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+              marginBottom: '1.5rem',
+              letterSpacing: '0.01em',
+            }}>
+              Here's how Greet-Me works.
+            </h2>
+
+            {/* Stage content */}
+            <div style={{
+              maxWidth: '24rem',
+              margin: '0 auto 1.25rem',
+              minHeight: '9rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <div
+                key={demoStage}
+                style={{
+                  padding: '1.5rem 1.25rem',
+                  background: 'var(--gray-50, #f9fafb)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  border: '1px solid var(--gray-200, #e5e7eb)',
+                  width: '100%',
+                  animation: 'demoStageFadeIn 0.5s ease-out',
+                }}
+              >
+                <div style={{ fontSize: '2.25rem', marginBottom: '0.75rem' }}>{current.icon}</div>
+                <p style={{
+                  margin: 0,
+                  fontSize: '1.05rem',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  marginBottom: '0.4rem',
+                }}>
+                  {current.heading}
+                </p>
+                <p style={{
+                  margin: 0,
+                  fontSize: '0.9rem',
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.5,
+                }}>
+                  {current.body}
+                </p>
+              </div>
+            </div>
+
+            {/* Navigation: Prev / Indicator / Next */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '1.25rem',
+              marginBottom: '1rem',
+            }}>
+              <button
+                onClick={demoPrev}
+                disabled={demoStage === 0}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.25rem',
+                  cursor: demoStage === 0 ? 'default' : 'pointer',
+                  opacity: demoStage === 0 ? 0.3 : 1,
+                  color: 'var(--text-secondary)',
+                  padding: '0.25rem 0.5rem',
+                }}
+              >
+                ‹
+              </button>
+              <span style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                letterSpacing: '0.05em',
+                minWidth: '3rem',
+              }}>
+                {demoStage + 1} / {demoStages.length}
+              </span>
+              <button
+                onClick={demoNext}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.25rem',
+                  cursor: 'pointer',
+                  color: 'var(--text-secondary)',
+                  padding: '0.25rem 0.5rem',
+                }}
+              >
+                ›
+              </button>
+            </div>
+
+            {/* Skip link */}
+            <button
+              onClick={demoSkipToEnd}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-tertiary)',
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              Skip
+            </button>
+          </>
+        )}
       </div>
     );
   };
