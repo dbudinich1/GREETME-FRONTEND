@@ -96,6 +96,20 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     };
   }, [audioUrl]);
 
+  // Fire confetti once when Success step appears
+  const confettiFiredRef = useRef(false);
+  useEffect(() => {
+    if (step === 7 && !confettiFiredRef.current) {
+      confettiFiredRef.current = true;
+      (async () => {
+        try {
+          const confetti = (await import('canvas-confetti')).default;
+          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        } catch { /* silently ignore if confetti fails */ }
+      })();
+    }
+  }, [step]);
+
   // ==================== VOICE FUNCTIONS ====================
   const startRecording = async () => {
     try {
@@ -310,6 +324,14 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           message: greetingMessage.trim() || 'Thinking of you',
           occasionKey: 'just_because',
 
+          // === ONBOARDING DEMO PHOTOS (existing PhotoAlbum slideshow) ===
+          photos: [
+            'onboarding/photo-1-friends-sunset.jpeg',
+            'onboarding/photo-2-friends-dinner.jpeg',
+            'onboarding/photo-3-confetti-party.jpeg',
+            'onboarding/photo-4-time-to-celebrate.jpeg',
+          ],
+
           // === LAYOUT BUDGET (STATIC DEFAULT) ===
           layoutBudget: { introMaxChars: 280 },
         });
@@ -349,6 +371,11 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
   const goToDashboard = () => {
     handleComplete();
+  };
+
+  const goToPricing = () => {
+    handleComplete();
+    navigate('/pricing');
   };
 
   const nextStep = () => {
@@ -1170,6 +1197,24 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         What would you like to do next?
       </p>
       <button
+        onClick={goToRecipientControls}
+        style={{
+          width: '100%',
+          padding: '1rem',
+          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+          color: 'white',
+          border: 'none',
+          borderRadius: 'var(--radius-lg)',
+          fontSize: '1rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          marginBottom: '0.75rem',
+        }}
+      >
+        Add Your First Recipient
+      </button>
+      <button
         onClick={goToDashboard}
         style={{
           width: '100%',
@@ -1188,21 +1233,21 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         Go to Dashboard
       </button>
       <button
-        onClick={goToRecipientControls}
+        onClick={goToPricing}
         style={{
           width: '100%',
-          padding: '1rem',
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-          color: 'white',
+          padding: '0.625rem',
+          background: 'transparent',
+          color: 'var(--text-secondary)',
           border: 'none',
-          borderRadius: 'var(--radius-lg)',
-          fontSize: '1rem',
-          fontWeight: 600,
+          fontSize: '0.875rem',
+          fontWeight: 500,
           cursor: 'pointer',
           fontFamily: 'inherit',
+          textDecoration: 'underline',
         }}
       >
-        Explore Recipient Controls (Recommended)
+        Explore Plans &amp; Pricing
       </button>
     </div>
   );
