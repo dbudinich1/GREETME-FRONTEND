@@ -224,7 +224,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
   // ==================== PHOTO FUNCTIONS ====================
   const handlePhotoSelect = (file) => {
-    const validation = validateFile(file);
+    const validation = validateFile(file, { maxSize: 5 * 1024 * 1024 });
     if (!validation.valid) {
       setPhotoError(validation.error);
       return;
@@ -741,11 +741,11 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         marginBottom: '0.75rem',
         textAlign: 'center',
       }}>
-        Next, we'll choose a photo that's unmistakably you.
+        Upload a photo so your greetings look like you.
       </h3>
 
       <p style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', marginBottom: '1.25rem', textAlign: 'center' }}>
-        Any clear photo works — this isn't about looking perfect.
+        This image will be used for your animated greeting.
       </p>
 
       {photoError && (
@@ -772,7 +772,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
                 Click to upload
               </p>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                PNG, JPG up to 10MB
+                PNG, JPG up to 5MB
               </p>
             </div>
           ) : (
