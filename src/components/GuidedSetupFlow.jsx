@@ -50,7 +50,7 @@ export function shouldShowGuidedSetup() {
 export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const navigate = useNavigate();
   const { refreshProfile } = useAuth();
-  // Steps: 0=Welcome, 1=ProcessOrientation, 2=DemoGreeting, 3=Voice, 4=Photo, 5=TestGreeting, 6=Sending, 7=Success
+  // Steps: 0=DemoGreeting, 1=Voice, 2=Photo, 3=TestGreeting, 4=Sending, 5=Success
   const [step, setStep] = useState(0);
   const [setupState, setSetupState] = useState(getSetupState());
 
@@ -86,12 +86,37 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const [sendingStatus, setSendingStatus] = useState(''); // 'voice', 'video', 'finalizing'
   const [sendingError, setSendingError] = useState(null);
 
+  // Demo stage state (Step 0 auto-advancing welcome/demo)
+  const [demoStage, setDemoStage] = useState(0); // 0-4 (5 stages)
+  const demoTimerRef = useRef(null);
+
   const isMobile = window.innerWidth <= 480;
+
+  // Demo auto-advance timer — runs only while step === 0
+  useEffect(() => {
+    if (step !== 0) {
+      if (demoTimerRef.current) clearInterval(demoTimerRef.current);
+      return;
+    }
+    demoTimerRef.current = setInterval(() => {
+      setDemoStage((prev) => {
+        if (prev >= 4) {
+          clearInterval(demoTimerRef.current);
+          return 4;
+        }
+        return prev + 1;
+      });
+    }, 4000);
+    return () => {
+      if (demoTimerRef.current) clearInterval(demoTimerRef.current);
+    };
+  }, [step]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (demoTimerRef.current) clearInterval(demoTimerRef.current);
       if (audioUrl) URL.revokeObjectURL(audioUrl);
     };
   }, [audioUrl]);
@@ -99,7 +124,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   // Fire confetti once when Success step appears
   const confettiFiredRef = useRef(false);
   useEffect(() => {
-    if (step === 7 && !confettiFiredRef.current) {
+    if (step === 5 && !confettiFiredRef.current) {
       confettiFiredRef.current = true;
       (async () => {
         try {
@@ -305,7 +330,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     }
 
     setGreetingError(null);
-    setStep(6); // Go to sending state
+    setStep(4); // Go to sending state
     setSendingStatus('voice');
 
     try {
@@ -342,10 +367,10 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       // Mark as complete
       updateSetupState({ firstGreetingSent: true });
       setSetupState(prev => ({ ...prev, firstGreetingSent: true }));
-      setStep(7); // Go to success
+      setStep(5); // Go to success
     } catch (err) {
       setSendingError('Something went wrong. Please try again.');
-      setStep(5); // Go back to test greeting
+      setStep(3); // Go back to test greeting
     }
   };
 
@@ -502,82 +527,98 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     </div>
   );
 
-  // STEP 2: Demo Greeting (playback shell)
-  const renderDemoGreeting = () => (
-    <div style={{ padding: isMobile ? '1.5rem' : '2rem', textAlign: 'center' }}>
-      <h2 style={{
-        fontSize: '1.25rem',
-        fontWeight: 700,
-        color: 'var(--text-primary)',
-        marginBottom: '1.5rem',
-      }}>
-        See How a Greet-Me Feels
-      </h2>
+  // STEP 0: Welcome / Demo — auto-advancing 5-stage sequence
+  const demoStages = [
+    { label: 'Welcome to Greet-Me.', icon: '👋', color: 'var(--text-primary)' },
+    { label: 'Envelope arrives', icon: '✉️', color: 'var(--text-secondary)' },
+    { label: 'Card opens', icon: '💌', color: 'var(--text-secondary)' },
+    { label: 'Hey — I just wanted to stop and say welcome to the neighborhood.', icon: '💬', color: 'var(--text-primary)' },
+    { label: 'Your voice greeting plays here', icon: '🎙️', color: 'var(--text-secondary)' },
+  ];
 
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1rem',
-        maxWidth: '24rem',
-        margin: '0 auto 2rem',
-      }}>
-        <div style={{
-          padding: '1rem',
-          background: 'var(--gray-50, #f9fafb)',
-          borderRadius: 'var(--radius-md, 8px)',
-          border: '1px solid var(--gray-200, #e5e7eb)',
+  const renderDemoGreeting = () => {
+    const current = demoStages[demoStage];
+    return (
+      <div style={{ padding: isMobile ? '1.5rem' : '2rem', textAlign: 'center' }}>
+        <h2 style={{
+          fontSize: '1.25rem',
+          fontWeight: 700,
+          color: 'var(--text-primary)',
+          marginBottom: '1.5rem',
         }}>
-          <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Envelope arrives</p>
+          See How a Greet-Me Feels
+        </h2>
+
+        {/* Single active stage */}
+        <div style={{
+          maxWidth: '24rem',
+          margin: '0 auto 1.5rem',
+          minHeight: '8rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div
+            key={demoStage}
+            style={{
+              padding: '1.5rem',
+              background: 'var(--gray-50, #f9fafb)',
+              borderRadius: 'var(--radius-md, 8px)',
+              border: '1px solid var(--gray-200, #e5e7eb)',
+              width: '100%',
+              animation: 'demoStageFadeIn 0.5s ease-out',
+            }}
+          >
+            <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>{current.icon}</div>
+            <p style={{
+              margin: 0,
+              fontSize: demoStage === 0 ? '1.15rem' : '0.95rem',
+              fontWeight: demoStage === 0 ? 600 : 400,
+              color: current.color,
+              lineHeight: 1.5,
+            }}>
+              {current.label}
+            </p>
+          </div>
         </div>
 
-        <div style={{
-          padding: '1rem',
-          background: 'var(--gray-50, #f9fafb)',
-          borderRadius: 'var(--radius-md, 8px)',
-          border: '1px solid var(--gray-200, #e5e7eb)',
+        {/* Stage indicator */}
+        <p style={{
+          fontSize: '0.8rem',
+          color: 'var(--text-secondary)',
+          marginBottom: '1.25rem',
+          letterSpacing: '0.05em',
         }}>
-          <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Card opens</p>
-        </div>
+          {demoStage + 1} / {demoStages.length}
+        </p>
 
-        <div style={{
-          padding: '1rem',
-          background: 'var(--gray-50, #f9fafb)',
-          borderRadius: 'var(--radius-md, 8px)',
-          border: '1px solid var(--gray-200, #e5e7eb)',
-        }}>
-          <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-            Hey — I just wanted to stop and say welcome to the neighborhood.
-          </p>
-        </div>
+        {/* Inline keyframes for fade-in animation */}
+        <style>{`
+          @keyframes demoStageFadeIn {
+            from { opacity: 0; transform: translateY(8px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+          }
+        `}</style>
 
-        <div style={{
-          padding: '1rem',
-          background: 'var(--gray-50, #f9fafb)',
-          borderRadius: 'var(--radius-md, 8px)',
-          border: '1px solid var(--gray-200, #e5e7eb)',
-        }}>
-          <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Your voice greeting plays here</p>
-        </div>
+        <button
+          onClick={nextStep}
+          style={{
+            padding: '0.75rem 2rem',
+            background: 'var(--accent-primary)',
+            color: 'white',
+            border: 'none',
+            borderRadius: 'var(--radius-lg)',
+            fontSize: '1rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          Continue Onboarding
+        </button>
       </div>
-
-      <button
-        onClick={nextStep}
-        style={{
-          padding: '0.75rem 2rem',
-          background: 'var(--accent-primary)',
-          color: 'white',
-          border: 'none',
-          borderRadius: 'var(--radius-lg)',
-          fontSize: '1rem',
-          fontWeight: 600,
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-        }}
-      >
-        Continue Onboarding
-      </button>
-    </div>
-  );
+    );
+  };
 
   // STEP 3: Record Voice
   const renderVoice = () => (
@@ -1254,24 +1295,21 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
   // Step content map
   const stepContent = {
-    0: renderWelcome,
-    1: renderTeachingScreen,
-    2: renderDemoGreeting,
-    3: renderVoice,
-    4: renderPhoto,
-    5: renderTestGreeting,
-    6: renderSending,
-    7: renderSuccess,
+    0: renderDemoGreeting,
+    1: renderVoice,
+    2: renderPhoto,
+    3: renderTestGreeting,
+    4: renderSending,
+    5: renderSuccess,
   };
 
   // Calculate progress (steps 2-5 are the main progress steps)
   const getProgressWidth = () => {
-    if (step <= 1) return 0;
-    if (step === 2) return 20;
-    if (step === 3) return 40;
-    if (step === 4) return 60;
-    if (step === 5) return 80;
-    if (step >= 6) return 100;
+    if (step === 0) return 20;
+    if (step === 1) return 40;
+    if (step === 2) return 60;
+    if (step === 3) return 80;
+    if (step >= 4) return 100;
     return 0;
   };
 
@@ -1304,7 +1342,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
       }}>
         {/* Progress bar (shown during demo/voice/photo/test greeting steps) */}
-        {step >= 2 && step <= 5 && (
+        {step >= 0 && step <= 3 && (
           <div style={{
             height: '4px',
             background: 'var(--gray-100)',
@@ -1318,7 +1356,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           </div>
         )}
 
-        {/* Close button (only on welcome step) */}
+        {/* Close button (only on first step — DemoGreeting) */}
         {step === 0 && (
           <button
             onClick={handleSkip}
