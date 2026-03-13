@@ -1151,7 +1151,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         color: 'var(--text-primary)',
         marginBottom: '0.75rem',
       }}>
-        That's it.
+        That's it! Your Greet-Me is ready!
       </h2>
       <p style={{
         fontSize: '0.9375rem',
