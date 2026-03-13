@@ -50,7 +50,7 @@ export function shouldShowGuidedSetup() {
 export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const navigate = useNavigate();
   const { refreshProfile } = useAuth();
-  // Steps: 0=DemoGreeting, 1=Voice, 2=Photo, 3=TestGreeting, 4=Sending, 5=Success
+  // Steps: 0=Welcome, 1=Demo, 2=Voice, 3=Photo, 4=TestGreeting, 5=Sending, 6=Success
   const [step, setStep] = useState(0);
   const [setupState, setSetupState] = useState(getSetupState());
 
@@ -92,9 +92,9 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
   const isMobile = window.innerWidth <= 480;
 
-  // Demo auto-advance timer — runs only while step === 0
+  // Demo auto-advance timer — runs only while step === 1 (Demo)
   useEffect(() => {
-    if (step !== 0) {
+    if (step !== 1) {
       if (demoTimerRef.current) clearInterval(demoTimerRef.current);
       return;
     }
@@ -124,7 +124,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   // Fire confetti once when Success step appears
   const confettiFiredRef = useRef(false);
   useEffect(() => {
-    if (step === 5 && !confettiFiredRef.current) {
+    if (step === 6 && !confettiFiredRef.current) {
       confettiFiredRef.current = true;
       (async () => {
         try {
@@ -330,7 +330,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     }
 
     setGreetingError(null);
-    setStep(4); // Go to sending state
+    setStep(5); // Go to sending state
     setSendingStatus('voice');
 
     try {
@@ -367,10 +367,10 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       // Mark as complete
       updateSetupState({ firstGreetingSent: true });
       setSetupState(prev => ({ ...prev, firstGreetingSent: true }));
-      setStep(5); // Go to success
+      setStep(6); // Go to success
     } catch (err) {
       setSendingError('Something went wrong. Please try again.');
-      setStep(3); // Go back to test greeting
+      setStep(4); // Go back to test greeting
     }
   };
 
@@ -527,7 +527,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     </div>
   );
 
-  // STEP 0: Welcome / Demo — auto-advancing 5-stage sequence
+  // STEP 1: Demo — auto-advancing stage sequence (placeholder, will be replaced in Step D)
   const demoStages = [
     { label: 'Welcome to Greet-Me.', icon: '👋', color: 'var(--text-primary)' },
     { label: 'Envelope arrives', icon: '✉️', color: 'var(--text-secondary)' },
@@ -1295,21 +1295,23 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
   // Step content map
   const stepContent = {
-    0: renderDemoGreeting,
-    1: renderVoice,
-    2: renderPhoto,
-    3: renderTestGreeting,
-    4: renderSending,
-    5: renderSuccess,
+    0: renderWelcome,
+    1: renderDemoGreeting,
+    2: renderVoice,
+    3: renderPhoto,
+    4: renderTestGreeting,
+    5: renderSending,
+    6: renderSuccess,
   };
 
-  // Calculate progress (steps 2-5 are the main progress steps)
+  // Calculate progress (steps 0-6)
   const getProgressWidth = () => {
-    if (step === 0) return 20;
-    if (step === 1) return 40;
-    if (step === 2) return 60;
-    if (step === 3) return 80;
-    if (step >= 4) return 100;
+    if (step === 0) return 10;
+    if (step === 1) return 25;
+    if (step === 2) return 40;
+    if (step === 3) return 55;
+    if (step === 4) return 75;
+    if (step >= 5) return 100;
     return 0;
   };
 
@@ -1341,8 +1343,8 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         overflowY: 'auto',
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
       }}>
-        {/* Progress bar (shown during demo/voice/photo/test greeting steps) */}
-        {step >= 0 && step <= 3 && (
+        {/* Progress bar (shown during welcome/demo/voice/photo/test greeting steps) */}
+        {step >= 0 && step <= 4 && (
           <div style={{
             height: '4px',
             background: 'var(--gray-100)',
@@ -1356,7 +1358,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           </div>
         )}
 
-        {/* Close button (only on first step — DemoGreeting) */}
+        {/* Close button (only on first step — Welcome) */}
         {step === 0 && (
           <button
             onClick={handleSkip}
