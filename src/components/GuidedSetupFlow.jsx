@@ -429,17 +429,19 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         fontSize: isMobile ? '1.5rem' : '1.75rem',
         fontWeight: 700,
         color: 'var(--text-primary)',
-        marginBottom: '0.5rem',
+        marginBottom: '0.75rem',
       }}>
-        Welcome to Greet-Me™
+        Welcome to Greet-Me.
       </h2>
       <p style={{
         fontSize: '1rem',
         color: 'var(--text-secondary)',
-        marginBottom: '2rem',
+        marginBottom: '2.5rem',
         lineHeight: 1.6,
+        maxWidth: '20rem',
+        margin: '0 auto 2.5rem',
       }}>
-        Where technology meets the moments that matter most.
+        A new way to show up for the people who matter — in your voice, with your presence.
       </p>
       <button
         onClick={nextStep}
@@ -454,23 +456,9 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           fontWeight: 600,
           cursor: 'pointer',
           fontFamily: 'inherit',
-          marginBottom: '0.75rem',
         }}
       >
-        Begin
-      </button>
-      <button
-        onClick={handleSkip}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: 'var(--text-tertiary)',
-          fontSize: '0.875rem',
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-        }}
-      >
-        Skip for now
+        See how it works
       </button>
     </div>
   );
