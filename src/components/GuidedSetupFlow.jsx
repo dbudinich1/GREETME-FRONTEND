@@ -50,7 +50,7 @@ export function shouldShowGuidedSetup() {
 export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const navigate = useNavigate();
   const { refreshProfile } = useAuth();
-  // Steps: 0=Welcome, 1=ProcessOrientation, 2=Voice, 3=Photo, 4=TestGreeting, 5=Sending, 6=Success
+  // Steps: 0=Welcome, 1=ProcessOrientation, 2=DemoGreeting, 3=Voice, 4=Photo, 5=TestGreeting, 6=Sending, 7=Success
   const [step, setStep] = useState(0);
   const [setupState, setSetupState] = useState(getSetupState());
 
@@ -272,7 +272,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     }
 
     setGreetingError(null);
-    setStep(5); // Go to sending state
+    setStep(6); // Go to sending state
     setSendingStatus('voice');
 
     try {
@@ -301,10 +301,10 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       // Mark as complete
       updateSetupState({ firstGreetingSent: true });
       setSetupState(prev => ({ ...prev, firstGreetingSent: true }));
-      setStep(6); // Go to success
+      setStep(7); // Go to success
     } catch (err) {
       setSendingError('Something went wrong. Please try again.');
-      setStep(4); // Go back to test greeting
+      setStep(5); // Go back to test greeting
     }
   };
 
@@ -456,7 +456,48 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     </div>
   );
 
-  // STEP 2: Record Voice
+  // STEP 2: Demo Greeting (placeholder)
+  const renderDemoGreeting = () => (
+    <div style={{ padding: isMobile ? '1.5rem' : '2rem', textAlign: 'center' }}>
+      <h2 style={{
+        fontSize: '1.25rem',
+        fontWeight: 700,
+        color: 'var(--text-primary)',
+        marginBottom: '1rem',
+      }}>
+        Experience a Demo Greet-Me
+      </h2>
+      <p style={{
+        fontSize: '0.95rem',
+        color: 'var(--text-secondary)',
+        lineHeight: 1.6,
+        marginBottom: '2rem',
+        maxWidth: '28rem',
+        marginLeft: 'auto',
+        marginRight: 'auto',
+      }}>
+        This is where the 20-second demo greeting will play next.
+      </p>
+      <button
+        onClick={nextStep}
+        style={{
+          padding: '0.75rem 2rem',
+          background: 'var(--accent-primary)',
+          color: 'white',
+          border: 'none',
+          borderRadius: 'var(--radius-lg)',
+          fontSize: '1rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        Continue Onboarding
+      </button>
+    </div>
+  );
+
+  // STEP 3: Record Voice
   const renderVoice = () => (
     <div style={{ padding: isMobile ? '1.5rem' : '2rem' }}>
       <h3 style={{
@@ -1115,19 +1156,22 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const stepContent = {
     0: renderWelcome,
     1: renderTeachingScreen,
-    2: renderVoice,
-    3: renderPhoto,
-    4: renderTestGreeting,
-    5: renderSending,
-    6: renderSuccess,
+    2: renderDemoGreeting,
+    3: renderVoice,
+    4: renderPhoto,
+    5: renderTestGreeting,
+    6: renderSending,
+    7: renderSuccess,
   };
 
-  // Calculate progress (steps 2-4 are the main progress steps)
+  // Calculate progress (steps 2-5 are the main progress steps)
   const getProgressWidth = () => {
     if (step <= 1) return 0;
-    if (step === 2) return 33;
-    if (step === 3) return 66;
-    if (step >= 4) return 100;
+    if (step === 2) return 20;
+    if (step === 3) return 40;
+    if (step === 4) return 60;
+    if (step === 5) return 80;
+    if (step >= 6) return 100;
     return 0;
   };
 
@@ -1159,8 +1203,8 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         overflowY: 'auto',
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
       }}>
-        {/* Progress bar (shown during voice/photo/test greeting steps) */}
-        {step >= 2 && step <= 4 && (
+        {/* Progress bar (shown during demo/voice/photo/test greeting steps) */}
+        {step >= 2 && step <= 5 && (
           <div style={{
             height: '4px',
             background: 'var(--gray-100)',
