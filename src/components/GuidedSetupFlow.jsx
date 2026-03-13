@@ -121,7 +121,17 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       setVoiceError(null);
 
       timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
+        setRecordingTime(prev => {
+          if (prev + 1 >= 30) {
+            // Auto-stop at 30 seconds
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+              mediaRecorderRef.current.stop();
+              setIsRecording(false);
+              clearInterval(timerRef.current);
+            }
+          }
+          return prev + 1;
+        });
       }, 1000);
     } catch (err) {
       setVoiceError('Could not access microphone. Please grant permission.');
@@ -160,6 +170,15 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
   const uploadVoice = async () => {
     if (!audioBlob) return;
+
+    if (recordingTime < 10) {
+      setVoiceError('Please record at least 10 seconds.');
+      return;
+    }
+    if (recordingTime > 30) {
+      setVoiceError('Recording must be under 30 seconds. Please re-record.');
+      return;
+    }
 
     const file = new File([audioBlob], 'voice-recording.webm', { type: 'audio/webm' });
     const validation = validateAudioFile(file);
@@ -543,7 +562,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         marginBottom: '0.75rem',
         textAlign: 'center',
       }}>
-        First, we'll capture your voice — so future greetings sound like you.
+        Record your voice so your greetings sound like you.
       </h3>
 
       {/* Script */}
@@ -563,7 +582,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       </div>
 
       <p style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', marginBottom: '1.25rem', textAlign: 'center' }}>
-        Just read naturally — there's no need to perform. And don't forget to smile.
+        A short message is perfect.
       </p>
 
       {voiceError && (
