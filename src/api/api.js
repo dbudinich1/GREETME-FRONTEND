@@ -430,6 +430,17 @@ class ApiService {
     });
   }
 
+  getGiftClaim(claimToken) {
+    return this.request(`/api/gifts/claim/${claimToken}`);
+  }
+
+  submitGiftClaim(claimToken, payload) {
+    return this.request(`/api/gifts/claim/${claimToken}`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
   getJobStatus(jobId) {
     return this.request(`/api/jobs/${jobId}`);
   }

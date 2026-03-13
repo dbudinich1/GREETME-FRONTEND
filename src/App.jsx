@@ -31,6 +31,7 @@ import Rewards from "./pages/Rewards";
 import Notifications from "./pages/Notifications";
 import RecipientGreeting from "./pages/RecipientGreeting";
 import PublicGreetingCard from "./pages/PublicGreetingCard";
+import GiftClaim from "./pages/GiftClaim";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
 import Support from "./pages/Support";
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/redeem/qr-cash/:id" element={<RedeemQRCash />} />
           <Route path="/greeting/:greetingId" element={<RecipientGreeting />} />
           <Route path="/g/:jobId" element={<PublicGreetingCard />} />
+          <Route path="/gift/:claimToken" element={<GiftClaim />} />
 
           {/* Protected Routes */}
           <Route

@@ -67,6 +67,7 @@ export default function SendGreeting() {
   const [giftCharging, setGiftCharging] = useState(false);
   const [giftChargeError, setGiftChargeError] = useState(null);
   const [pendingGreetingData, setPendingGreetingData] = useState(null);
+  const [giftRequestId, setGiftRequestId] = useState(null);
 
   // Photo state
   const [defaultPhoto, setDefaultPhoto] = useState(null);
@@ -398,6 +399,7 @@ export default function SendGreeting() {
     if (giftSettings.type === 'qrcash') {
       setPendingGreetingData(greetingData);
       setGiftChargeError(null);
+      setGiftRequestId(crypto.randomUUID());
       setIsGiftConfirmOpen(true);
       return;
     }
@@ -407,8 +409,8 @@ export default function SendGreeting() {
   };
 
   // QR Cash™ confirmation handler: charge then send
-  const handleGiftConfirm = async () => {
-    if (!pendingGreetingData) return;
+  const handleGiftConfirm = async (paymentMethodId) => {
+    if (!pendingGreetingData || !paymentMethodId) return;
     setGiftCharging(true);
     setGiftChargeError(null);
 
@@ -423,9 +425,8 @@ export default function SendGreeting() {
         giftAmountCents,
         recipientEmail: pendingGreetingData.recipientEmail,
         recipientName: pendingGreetingData.recipientName,
-        // MVP: paymentMethodId will be collected via Stripe Elements in a future iteration
-        // For now, this will use the test payment method or require Stripe Checkout fallback
-        paymentMethodId: 'pm_card_visa', // TODO: Replace with real Stripe Elements payment method
+        paymentMethodId,
+        giftRequestId,
       });
 
       if (!chargeResult.ok || !chargeResult.gift) {
