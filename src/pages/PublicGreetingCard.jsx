@@ -50,6 +50,7 @@ export default function PublicGreetingCard() {
           photos: g.photos || [],
           status: g.status || 'done',
           hasGift: g.hasGift || false,
+          gift: g.gift || null,
         });
       } else {
         setError('not_found');

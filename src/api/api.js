@@ -420,6 +420,16 @@ class ApiService {
     });
   }
 
+  // --------------------
+  // QR Cash™ Gifts
+  // --------------------
+  chargeGift(payload) {
+    return this.request("/api/gifts/charge-now", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
   getJobStatus(jobId) {
     return this.request(`/api/jobs/${jobId}`);
   }

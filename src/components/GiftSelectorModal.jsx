@@ -234,6 +234,36 @@ export default function GiftSelectorModal({
                           </div>
                         )}
                       </div>
+
+                      {/* Fee Preview (display-only) */}
+                      {(() => {
+                        const amt = giftSetting.amount === 0
+                          ? (giftSetting.customAmount || 0)
+                          : (giftSetting.amount || 25);
+                        if (!amt || amt < 5) return null;
+                        const feeCents = 199 + Math.round(amt * 100 * 0.03);
+                        const totalCents = amt * 100 + feeCents;
+                        return (
+                          <div style={{
+                            marginTop: '0.75rem',
+                            padding: '0.625rem 0.75rem',
+                            background: 'rgba(255, 255, 255, 0.7)',
+                            borderRadius: '0.375rem',
+                            fontSize: '0.8125rem',
+                            color: '#92400e',
+                            lineHeight: 1.5,
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Processing fee</span>
+                              <span>${(feeCents / 100).toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, marginTop: '0.25rem' }}>
+                              <span>Total charge</span>
+                              <span>${(totalCents / 100).toFixed(2)}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 

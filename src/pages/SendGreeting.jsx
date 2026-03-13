@@ -8,6 +8,7 @@ import { useRef } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import GiftSelectorModal from '../components/GiftSelectorModal';
+import GiftConfirmationModal from '../components/GiftConfirmationModal';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import GreetingDraftEditor from '../components/GreetingDraftEditor';
@@ -60,6 +61,12 @@ export default function SendGreeting() {
     maxSpend: 50,
     autoGift: false
   });
+
+  // QR Cash™ confirmation modal state
+  const [isGiftConfirmOpen, setIsGiftConfirmOpen] = useState(false);
+  const [giftCharging, setGiftCharging] = useState(false);
+  const [giftChargeError, setGiftChargeError] = useState(null);
+  const [pendingGreetingData, setPendingGreetingData] = useState(null);
 
   // Photo state
   const [defaultPhoto, setDefaultPhoto] = useState(null);
@@ -336,27 +343,10 @@ export default function SendGreeting() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    console.log("🔴 handleSubmit FIRED", { formData, user });
-
-    if (!validate()) {
-      console.log("🔴 validate() returned FALSE - check newErrors above");
-      return;
-    }
-    console.log("🔴 validate() PASSED, proceeding to send");
-
-    const selectedContact = contacts.find(c => c.id === formData.contactId);
-    if (!selectedContact) return;
-
-    setSending(true);
-    setJobStatus(null);
-  try {
-    // Use user.photoUrl from backend profile (real Azure Blob URL)
-    // Do NOT use localStorage data URLs - they cannot be fetched by the worker
+  // Build greeting payload (shared by direct send and QR Cash flow)
+  const buildGreetingData = (selectedContact) => {
     const effectivePhotoUrl = user?.photoUrl || '';
-
-    const greetingData = {
+    return {
       userId: user?.id || user?.email || '',
       recipientName: selectedContact.name,
       recipientEmail: selectedContact.email,
@@ -370,20 +360,105 @@ export default function SendGreeting() {
       personalSentiment: formData.customMessage || '',
       tone: formData.tone || 'warm',
       photos: (selectedContact.memoryPhotos || []).map(p => typeof p === 'string' ? p : p?.url).filter(Boolean),
-
-      // === LAYOUT BUDGET (STATIC DEFAULT) ===
-      // Send-time has no card DOM to measure; backend will sentence-trim only if needed.
       layoutBudget: { introMaxChars: 280 },
-
-      // Gift flag — backend reads as includeGift, stores as hasGift
       includeGift: Boolean(giftSettings?.type && giftSettings.type !== 'none'),
     };
+  };
+
+  // Execute the actual greeting send (called directly or after gift charge)
+  const executeGreetingSend = async (greetingData) => {
+    setSending(true);
+    setJobStatus(null);
+    try {
       const response = await api.sendGreeting(greetingData);
       setJobId(response.jobId);
       setJobStatus('queued');
     } catch (error) {
       setErrors({ submit: getErrorMessage(error) });
       setSending(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    console.log("🔴 handleSubmit FIRED", { formData, user });
+
+    if (!validate()) {
+      console.log("🔴 validate() returned FALSE - check newErrors above");
+      return;
+    }
+    console.log("🔴 validate() PASSED, proceeding to send");
+
+    const selectedContact = contacts.find(c => c.id === formData.contactId);
+    if (!selectedContact) return;
+
+    const greetingData = buildGreetingData(selectedContact);
+
+    // QR Cash™ intercept: open confirmation modal instead of sending directly
+    if (giftSettings.type === 'qrcash') {
+      setPendingGreetingData(greetingData);
+      setGiftChargeError(null);
+      setIsGiftConfirmOpen(true);
+      return;
+    }
+
+    // Non-QR-Cash: send directly
+    await executeGreetingSend(greetingData);
+  };
+
+  // QR Cash™ confirmation handler: charge then send
+  const handleGiftConfirm = async () => {
+    if (!pendingGreetingData) return;
+    setGiftCharging(true);
+    setGiftChargeError(null);
+
+    const giftAmountDollars = giftSettings.amount === 0
+      ? (giftSettings.customAmount || 0)
+      : (giftSettings.amount || 25);
+    const giftAmountCents = Math.round(giftAmountDollars * 100);
+
+    try {
+      // Step 1: Charge for the QR Cash™ gift
+      const chargeResult = await api.chargeGift({
+        giftAmountCents,
+        recipientEmail: pendingGreetingData.recipientEmail,
+        recipientName: pendingGreetingData.recipientName,
+        // MVP: paymentMethodId will be collected via Stripe Elements in a future iteration
+        // For now, this will use the test payment method or require Stripe Checkout fallback
+        paymentMethodId: 'pm_card_visa', // TODO: Replace with real Stripe Elements payment method
+      });
+
+      if (!chargeResult.ok || !chargeResult.gift) {
+        throw new Error(chargeResult.error || 'Gift charge failed');
+      }
+
+      const giftObj = chargeResult.gift;
+
+      // Step 2: Attach gift object to greeting payload and send
+      const greetingDataWithGift = {
+        ...pendingGreetingData,
+        includeGift: true,
+        hasGift: true,
+        gift: {
+          type: 'qrcash',
+          amount: giftAmountDollars,
+          feeAmount: giftObj.feeCents / 100,
+          totalAmount: giftObj.totalCents / 100,
+          status: 'charged',
+          claimToken: giftObj.claimToken,
+          qrUrl: giftObj.qrImageUrl,
+          claimUrl: giftObj.claimUrl,
+        },
+      };
+
+      setIsGiftConfirmOpen(false);
+      setPendingGreetingData(null);
+      await executeGreetingSend(greetingDataWithGift);
+    } catch (error) {
+      const msg = error?.message || error?.error || 'Failed to charge QR Cash™ gift. Please try again.';
+      setGiftChargeError(msg);
+    } finally {
+      setGiftCharging(false);
     }
   };
 
@@ -1428,6 +1503,38 @@ if (typeof window !== "undefined") {
             navigate('/dashboard/gifts?returnTo=send&giftType=marketplace');
           }
         }}
+      />
+
+      {/* QR Cash™ Confirmation Modal */}
+      <GiftConfirmationModal
+        isOpen={isGiftConfirmOpen}
+        onClose={() => {
+          setIsGiftConfirmOpen(false);
+          setPendingGreetingData(null);
+          setGiftChargeError(null);
+        }}
+        onConfirm={handleGiftConfirm}
+        giftAmountCents={(() => {
+          const amt = giftSettings.amount === 0
+            ? (giftSettings.customAmount || 0)
+            : (giftSettings.amount || 25);
+          return Math.round(amt * 100);
+        })()}
+        feeCents={(() => {
+          const amt = giftSettings.amount === 0
+            ? (giftSettings.customAmount || 0)
+            : (giftSettings.amount || 25);
+          return 199 + Math.round(amt * 100 * 0.03);
+        })()}
+        totalCents={(() => {
+          const amt = giftSettings.amount === 0
+            ? (giftSettings.customAmount || 0)
+            : (giftSettings.amount || 25);
+          const amtCents = Math.round(amt * 100);
+          return amtCents + 199 + Math.round(amtCents * 0.03);
+        })()}
+        charging={giftCharging}
+        chargeError={giftChargeError}
       />
     </div>
   );

@@ -15,7 +15,7 @@
  * - Current placeholder: Great Vibes "G" in circular brown seal (per reference HTML)
  */
 
-import { useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import cardInteriorImg from '../../assets/card/card-interior.png';
 
 // Placeholder G logo component - awaiting final asset
@@ -103,8 +103,9 @@ function tightenLineHeight(el) {
   }
 }
 
-export default function FinaleSpread({ finaleText, occasionKey, hasGift }) {
+export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift }) {
   const closingMessageRef = useRef(null);
+  const [qrImageError, setQrImageError] = useState(false);
 
   // AUTO-FIT: shrink-only until no clipping
   const runAutoFit = useCallback(() => {
@@ -183,7 +184,65 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift }) {
         {/* Right Page */}
         <div className="gc-page gc-page-right">
           <div className="gc-page-content gc-gift-content">
-            {hasGift ? (
+            {hasGift && gift?.type === 'qrcash' ? (
+              <>
+                <h3 className="gc-gift-title">A little something extra</h3>
+
+                {/* Real QR image from backend, or fallback */}
+                {(gift.qrUrl || gift.qrImageUrl) && !qrImageError ? (
+                  <div className="gc-qr-frame">
+                    <div className="gc-qr-code">
+                      <img
+                        src={gift.qrUrl || gift.qrImageUrl}
+                        alt="Scan to claim your QR Cash™ gift"
+                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        onError={() => setQrImageError(true)}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  /* QR image failed or missing — skip frame, CTA still shows below */
+                  null
+                )}
+
+                <p className="gc-gift-instruction">
+                  Scan to claim your QR Cash&#8482; gift
+                </p>
+
+                <p style={{
+                  textAlign: 'center',
+                  fontSize: '0.75em',
+                  color: '#8b7355',
+                  margin: '0.3em 0',
+                  letterSpacing: '0.05em',
+                }}>
+                  &mdash; or &mdash;
+                </p>
+
+                <a
+                  href={gift.claimUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="gc-gift-cta"
+                  style={{
+                    display: 'inline-block',
+                    padding: '0.5em 1.2em',
+                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    color: '#fff',
+                    borderRadius: '0.4em',
+                    fontWeight: 700,
+                    fontSize: '0.85em',
+                    textDecoration: 'none',
+                    textAlign: 'center',
+                    letterSpacing: '0.02em',
+                    boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                  }}
+                >
+                  Open Your QR Cash&#8482; Gift
+                </a>
+              </>
+            ) : hasGift ? (
               <>
                 <h3 className="gc-gift-title">A little something extra</h3>
 
