@@ -456,28 +456,64 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     </div>
   );
 
-  // STEP 2: Demo Greeting (placeholder)
+  // STEP 2: Demo Greeting (playback shell)
   const renderDemoGreeting = () => (
     <div style={{ padding: isMobile ? '1.5rem' : '2rem', textAlign: 'center' }}>
       <h2 style={{
         fontSize: '1.25rem',
         fontWeight: 700,
         color: 'var(--text-primary)',
-        marginBottom: '1rem',
+        marginBottom: '1.5rem',
       }}>
-        Experience a Demo Greet-Me
+        See How a Greet-Me Feels
       </h2>
-      <p style={{
-        fontSize: '0.95rem',
-        color: 'var(--text-secondary)',
-        lineHeight: 1.6,
-        marginBottom: '2rem',
-        maxWidth: '28rem',
-        marginLeft: 'auto',
-        marginRight: 'auto',
+
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1rem',
+        maxWidth: '24rem',
+        margin: '0 auto 2rem',
       }}>
-        This is where the 20-second demo greeting will play next.
-      </p>
+        <div style={{
+          padding: '1rem',
+          background: 'var(--gray-50, #f9fafb)',
+          borderRadius: 'var(--radius-md, 8px)',
+          border: '1px solid var(--gray-200, #e5e7eb)',
+        }}>
+          <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Envelope arrives</p>
+        </div>
+
+        <div style={{
+          padding: '1rem',
+          background: 'var(--gray-50, #f9fafb)',
+          borderRadius: 'var(--radius-md, 8px)',
+          border: '1px solid var(--gray-200, #e5e7eb)',
+        }}>
+          <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Card opens</p>
+        </div>
+
+        <div style={{
+          padding: '1rem',
+          background: 'var(--gray-50, #f9fafb)',
+          borderRadius: 'var(--radius-md, 8px)',
+          border: '1px solid var(--gray-200, #e5e7eb)',
+        }}>
+          <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+            Hey — I just wanted to stop and say welcome to the neighborhood.
+          </p>
+        </div>
+
+        <div style={{
+          padding: '1rem',
+          background: 'var(--gray-50, #f9fafb)',
+          borderRadius: 'var(--radius-md, 8px)',
+          border: '1px solid var(--gray-200, #e5e7eb)',
+        }}>
+          <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Your voice greeting plays here</p>
+        </div>
+      </div>
+
       <button
         onClick={nextStep}
         style={{
