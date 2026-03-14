@@ -68,6 +68,7 @@ export default function SendGreeting() {
   const [giftChargeError, setGiftChargeError] = useState(null);
   const [pendingGreetingData, setPendingGreetingData] = useState(null);
   const [giftRequestId, setGiftRequestId] = useState(null);
+  const [giftConfirmed, setGiftConfirmed] = useState(false);
 
   // Photo state
   const [defaultPhoto, setDefaultPhoto] = useState(null);
@@ -453,7 +454,11 @@ export default function SendGreeting() {
         },
       };
 
+      // Show brief payment success confirmation before sending
       setIsGiftConfirmOpen(false);
+      setGiftConfirmed(true);
+      await new Promise((r) => setTimeout(r, 2000));
+      setGiftConfirmed(false);
       setPendingGreetingData(null);
       await executeGreetingSend(greetingDataWithGift);
     } catch (error) {
@@ -579,6 +584,23 @@ if (typeof window !== "undefined") {
               Try Again
             </button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // QR Cash™ payment confirmed — brief interstitial
+  if (giftConfirmed) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+          <CheckCircle className="mx-auto mb-4" size={64} style={{ color: '#d97706' }} />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            QR Cash™ payment confirmed
+          </h2>
+          <p className="text-gray-600">
+            Your gift has been attached to this Greet-Me
+          </p>
         </div>
       </div>
     );
