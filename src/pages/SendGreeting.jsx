@@ -448,6 +448,7 @@ export default function SendGreeting() {
           status: 'charged',
           claimToken: giftObj.claimToken,
           qrUrl: giftObj.qrImageUrl,
+          qrBlobUrl: giftObj.qrBlobUrl,  // Permanent URL for persistence
           claimUrl: giftObj.claimUrl,
         },
       };
