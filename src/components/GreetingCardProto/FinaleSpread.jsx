@@ -188,20 +188,28 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift })
               <>
                 <h3 className="gc-gift-title">A little something extra</h3>
 
-                {/* Real QR image from backend, or fallback */}
+                {/* Real QR image from backend, wrapped as tap target */}
                 {(gift.qrUrl || gift.qrImageUrl) && !qrImageError ? (
-                  <div className="gc-qr-frame">
-                    <div className="gc-qr-code">
-                      <img
-                        src={gift.qrUrl || gift.qrImageUrl}
-                        alt="Scan to claim your QR Cash™ gift"
-                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                        onError={() => setQrImageError(true)}
-                      />
+                  <a
+                    href={gift.claimUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Open your QR Cash gift"
+                    style={{ display: 'block', textDecoration: 'none' }}
+                  >
+                    <div className="gc-qr-frame">
+                      <div className="gc-qr-code">
+                        <img
+                          src={gift.qrUrl || gift.qrImageUrl}
+                          alt="Scan to claim your QR Cash™ gift"
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          onError={() => setQrImageError(true)}
+                        />
+                      </div>
                     </div>
-                  </div>
+                  </a>
                 ) : (
-                  /* QR image failed or missing — skip frame, CTA still shows below */
+                  /* QR image failed or missing — no visual, instruction text remains */
                   null
                 )}
 
