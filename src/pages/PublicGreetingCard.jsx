@@ -240,60 +240,7 @@ export default function PublicGreetingCard() {
       {/* Premium greeting card experience */}
       <GreetingCardProto greeting={greeting} />
 
-      {/* QR Cash™ Gift Claim Section */}
-      {greeting.hasGift && greeting.gift?.claimUrl && (
-        <div style={{
-          maxWidth: '640px',
-          margin: '2rem auto 0',
-          padding: '0 1rem',
-        }}>
-          <div style={{
-            padding: '1.5rem',
-            background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
-            borderRadius: '16px',
-            textAlign: 'center',
-            border: '1px solid #fcd34d',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          }}>
-            <h3 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem', fontWeight: 700, color: '#92400e' }}>
-              You also received QR Cash™!
-            </h3>
-            <p style={{ margin: '0 0 0.25rem', fontSize: '1.1rem', color: '#b45309', fontWeight: 600 }}>
-              ${(greeting.gift.amount || 0).toFixed(2)} is waiting for you
-            </p>
-            <p style={{ margin: '0 0 1rem', fontSize: '0.9rem', color: '#92400e' }}>
-              Tap below to claim your gift
-            </p>
-            <a href={greeting.gift.claimUrl} style={{
-              display: 'inline-block',
-              padding: '14px 32px',
-              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-              color: '#FFF',
-              borderRadius: '10px',
-              fontWeight: 700,
-              textDecoration: 'none',
-              fontSize: '1.05rem',
-              minHeight: '44px',
-              lineHeight: '20px',
-              boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)',
-            }}>
-              Claim Your QR Cash™ Gift
-            </a>
-            {greeting.gift.qrUrl && (
-              <div style={{ marginTop: '1rem' }}>
-                <p style={{ fontSize: '0.75rem', color: '#b45309', margin: '0 0 0.5rem' }}>Or scan this QR code:</p>
-                <a href={greeting.gift.claimUrl} style={{ display: 'inline-block' }}>
-                  <img
-                    src={greeting.gift.qrUrl}
-                    alt="QR Cash QR Code"
-                    style={{ width: '160px', height: 'auto', borderRadius: '8px' }}
-                  />
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* QR Cash™ claim lives inside the FinaleSpread (right page of the card) */}
 
       {/* "Send Your Own" CTA (Viral Loop) — hidden in landscape via CSS */}
       <div className="gc-public-chrome" style={{
