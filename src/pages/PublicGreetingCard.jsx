@@ -282,11 +282,13 @@ export default function PublicGreetingCard() {
             {greeting.gift.qrUrl && (
               <div style={{ marginTop: '1rem' }}>
                 <p style={{ fontSize: '0.75rem', color: '#b45309', margin: '0 0 0.5rem' }}>Or scan this QR code:</p>
-                <img
-                  src={greeting.gift.qrUrl}
-                  alt="QR Cash QR Code"
-                  style={{ width: '160px', height: 'auto', borderRadius: '8px' }}
-                />
+                <a href={greeting.gift.claimUrl} style={{ display: 'inline-block' }}>
+                  <img
+                    src={greeting.gift.qrUrl}
+                    alt="QR Cash QR Code"
+                    style={{ width: '160px', height: 'auto', borderRadius: '8px' }}
+                  />
+                </a>
               </div>
             )}
           </div>
