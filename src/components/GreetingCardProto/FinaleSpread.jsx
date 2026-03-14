@@ -208,13 +208,30 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift })
                       </div>
                     </div>
                   </a>
-                ) : (
-                  /* QR image failed or missing — no visual, instruction text remains */
-                  null
-                )}
+                ) : gift.claimUrl ? (
+                  /* QR image failed or missing — minimal text-link fallback */
+                  <a
+                    href={gift.claimUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Open your QR Cash gift"
+                    style={{
+                      display: 'inline-block',
+                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                      fontSize: '0.85em',
+                      color: '#d97706',
+                      textDecoration: 'underline',
+                      marginBottom: '0.5em',
+                    }}
+                  >
+                    Tap here to claim your gift
+                  </a>
+                ) : null}
 
                 <p className="gc-gift-instruction">
-                  Scan to claim your QR Cash&#8482; gift
+                  {(gift.qrUrl || gift.qrImageUrl) && !qrImageError
+                    ? 'Scan to claim your QR Cash\u2122 gift'
+                    : 'A QR Cash\u2122 gift is included with this greeting'}
                 </p>
               </>
             ) : hasGift ? (
