@@ -409,8 +409,8 @@ export default function SendGreeting() {
     await executeGreetingSend(greetingData);
   };
 
-  // QR Cash™ confirmation handler: charge then send
-  const handleGiftConfirm = async (paymentMethodId) => {
+  // QR Cash™ confirmation handler: charge then send (with 3DS support)
+  const handleGiftConfirm = async (paymentMethodId, stripeInstance) => {
     if (!pendingGreetingData || !paymentMethodId) return;
     setGiftCharging(true);
     setGiftChargeError(null);
@@ -422,7 +422,6 @@ export default function SendGreeting() {
 
     try {
       // Step 1: Charge for the QR Cash™ gift
-      console.log("giftRequestId being sent:", giftRequestId);
       const chargeResult = await api.chargeGift({
         giftAmountCents,
         recipientEmail: pendingGreetingData.recipientEmail,
@@ -431,11 +430,43 @@ export default function SendGreeting() {
         giftRequestId,
       });
 
-      if (!chargeResult.ok || !chargeResult.gift) {
+      let giftObj;
+
+      if (chargeResult.requiresAction && chargeResult.clientSecret) {
+        // Step 1b: 3D Secure authentication required
+        if (!stripeInstance) throw new Error('Payment authentication failed. Please try again.');
+
+        const { error: confirmError, paymentIntent } = await stripeInstance.confirmCardPayment(
+          chargeResult.clientSecret
+        );
+
+        if (confirmError) {
+          throw new Error(confirmError.message || 'Card authentication failed.');
+        }
+
+        if (paymentIntent.status !== 'succeeded') {
+          throw new Error('Payment was not completed after authentication.');
+        }
+
+        // Step 1c: Finalize gift order after successful 3DS
+        const finalizeResult = await api.finalizeGift({
+          paymentIntentId: chargeResult.paymentIntentId,
+          recipientEmail: pendingGreetingData.recipientEmail,
+          recipientName: pendingGreetingData.recipientName,
+          giftAmountCents,
+        });
+
+        if (!finalizeResult.ok || !finalizeResult.gift) {
+          throw new Error(finalizeResult.error || 'Gift finalization failed');
+        }
+
+        giftObj = finalizeResult.gift;
+      } else if (chargeResult.ok && chargeResult.gift) {
+        // Direct success (no 3DS needed)
+        giftObj = chargeResult.gift;
+      } else {
         throw new Error(chargeResult.error || 'Gift charge failed');
       }
-
-      const giftObj = chargeResult.gift;
 
       // Step 2: Attach gift object to greeting payload and send
       const greetingDataWithGift = {
@@ -450,7 +481,7 @@ export default function SendGreeting() {
           status: 'charged',
           claimToken: giftObj.claimToken,
           qrUrl: giftObj.qrImageUrl,
-          qrBlobUrl: giftObj.qrBlobUrl,  // Permanent URL for persistence
+          qrBlobUrl: giftObj.qrBlobUrl,
           claimUrl: giftObj.claimUrl,
         },
       };

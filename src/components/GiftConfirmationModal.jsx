@@ -55,7 +55,8 @@ function GiftConfirmForm({
       return;
     }
 
-    onConfirm(paymentMethod.id);
+    // Pass both paymentMethod ID and stripe instance for potential 3DS handling
+    onConfirm(paymentMethod.id, stripe);
   }, [isDisabled, stripe, elements, onConfirm]);
 
   const handleCardChange = useCallback((event) => {

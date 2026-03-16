@@ -433,6 +433,13 @@ class ApiService {
     });
   }
 
+  finalizeGift(payload) {
+    return this.request("/api/gifts/finalize", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
   getGiftClaim(claimToken) {
     return this.request(`/api/gifts/claim/${claimToken}`);
   }
