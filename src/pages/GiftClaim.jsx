@@ -163,7 +163,7 @@ export default function GiftClaim() {
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏰</div>
           <h1 style={styles.title}>Gift Expired</h1>
           <p style={styles.subtitle}>
-            This QR Cash™ gift is no longer available. Gifts expire 30 days after delivery.
+            This QR Cash™ gift is no longer available. Gifts expire {gift.expiryDays || 30} days after delivery. Expired gifts are not automatically refunded — contact support for assistance.
           </p>
           <p style={styles.footer}>© 2026 Greet-Me™ · Forget Them Not!™</p>
         </div>
@@ -358,7 +358,7 @@ export default function GiftClaim() {
           margin: '0 0 0.5rem',
         }}>
           By claiming, you agree to receive funds via your selected method.
-          QR Cash™ gifts expire 30 days after delivery.
+          QR Cash™ gifts expire {gift.expiryDays || 30} days after delivery.
         </p>
 
         <p style={styles.footer}>© 2026 Greet-Me™ · Forget Them Not!™</p>
