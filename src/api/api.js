@@ -197,7 +197,10 @@ class ApiService {
     }
 
     if (!res.ok) {
-      throw new Error(data?.error || `HTTP ${res.status}`);
+      const error = new Error(data?.error || `HTTP ${res.status}`);
+      error.status = res.status;
+      error.code = data?.code || undefined;
+      throw error;
     }
 
     return data;
@@ -438,6 +441,18 @@ class ApiService {
     return this.request(`/api/gifts/claim/${claimToken}`, {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  }
+
+  connectOnboard(claimToken) {
+    return this.request(`/api/gifts/connect/onboard/${claimToken}`, {
+      method: "POST",
+    });
+  }
+
+  connectComplete(claimToken) {
+    return this.request(`/api/gifts/connect/complete/${claimToken}`, {
+      method: "POST",
     });
   }
 

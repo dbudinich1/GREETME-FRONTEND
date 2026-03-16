@@ -3,34 +3,46 @@
 // Route: /gift/:claimToken
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import api from '../api/api';
-
-const CLAIM_METHODS = [
-  { id: 'venmo', label: 'Venmo', placeholder: '@username', icon: '💸' },
-  { id: 'paypal', label: 'PayPal', placeholder: 'email@example.com', icon: '🅿️' },
-  { id: 'cashapp', label: 'Cash App', placeholder: '$cashtag', icon: '💵' },
-];
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
 export default function GiftClaim() {
   const { claimToken } = useParams();
+  const location = useLocation();
 
   const [gift, setGift] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Claim form state
-  const [selectedMethod, setSelectedMethod] = useState(null);
-  const [claimHandle, setClaimHandle] = useState('');
+  // Claim flow state
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [claimed, setClaimed] = useState(false);
+  const [fulfilled, setFulfilled] = useState(false);
+  const [connectPending, setConnectPending] = useState(false);
+
+  // Detect Stripe Connect return via URL params
+  const searchParams = new URLSearchParams(location.search);
+  const isConnectReturn = searchParams.get('connect_return') === '1';
+  const isConnectRefresh = searchParams.get('connect_refresh') === '1';
 
   useEffect(() => {
     loadGift();
   }, [claimToken]);
+
+  // After loading gift, handle connect return/refresh
+  useEffect(() => {
+    if (!gift || loading) return;
+
+    if (isConnectReturn && gift.status !== 'fulfilled') {
+      handleConnectComplete();
+    } else if (isConnectRefresh) {
+      // Onboarding link expired — restart
+      handleConnectOnboard();
+    }
+  }, [gift, loading, isConnectReturn, isConnectRefresh]);
 
   const loadGift = async () => {
     try {
@@ -39,9 +51,12 @@ export default function GiftClaim() {
       const res = await api.getGiftClaim(claimToken);
       if (res?.ok && res?.gift) {
         setGift(res.gift);
-        // If already claimed, show that state
-        if (res.gift.status === 'claimed' || res.gift.status === 'fulfilled') {
+        if (res.gift.status === 'fulfilled') {
+          setFulfilled(true);
+        } else if (res.gift.status === 'claimed') {
           setClaimed(true);
+        } else if (res.gift.status === 'connect_pending') {
+          setConnectPending(true);
         }
       } else {
         setError('not_found');
@@ -58,29 +73,48 @@ export default function GiftClaim() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedMethod || !claimHandle.trim()) return;
-
+  const handleConnectOnboard = async () => {
     try {
       setSubmitting(true);
       setSubmitError(null);
-
-      await api.submitGiftClaim(claimToken, {
-        claimMethod: selectedMethod,
-        claimDetails: { handle: claimHandle.trim() },
-      });
-
-      setClaimed(true);
+      const res = await api.connectOnboard(claimToken);
+      if (res?.ok && res?.onboardingUrl) {
+        // Redirect to Stripe-hosted onboarding
+        window.location.href = res.onboardingUrl;
+      } else {
+        setSubmitError('Failed to start payout setup. Please try again.');
+      }
     } catch (err) {
-      const code = err?.code;
-      if (code === 'GIFT_ALREADY_CLAIMED') {
+      if (err?.code === 'GIFT_ALREADY_CLAIMED') {
         setClaimed(true);
-      } else if (code === 'GIFT_EXPIRED') {
+      } else if (err?.code === 'GIFT_EXPIRED') {
         setGift((prev) => prev ? { ...prev, status: 'expired' } : prev);
       } else {
-        setSubmitError(err?.message || 'Failed to submit claim. Please try again.');
+        setSubmitError(err?.message || 'Failed to start payout setup. Please try again.');
       }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleConnectComplete = async () => {
+    try {
+      setSubmitting(true);
+      setSubmitError(null);
+      const res = await api.connectComplete(claimToken);
+      if (res?.ok) {
+        if (res.fulfilled || res.alreadyFulfilled) {
+          setFulfilled(true);
+        } else if (res.onboardingComplete === false) {
+          // Onboarding not finished — let them restart
+          setConnectPending(true);
+          setSubmitError('Your account setup is not complete. Please try again to finish setting up your payout details.');
+        }
+      } else {
+        setSubmitError('Something went wrong. Please try again.');
+      }
+    } catch (err) {
+      setSubmitError(err?.message || 'Failed to complete payout. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -89,12 +123,14 @@ export default function GiftClaim() {
   const fmt = (cents) => `$${(cents / 100).toFixed(2)}`;
 
   // ---- Loading ----
-  if (loading) {
+  if (loading || (submitting && (isConnectReturn || isConnectRefresh))) {
     return (
       <div style={styles.page}>
         <div style={{ textAlign: 'center', color: '#92400e' }}>
           <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🎁</div>
-          <p style={{ fontSize: '1rem', fontFamily: FONT_STACK }}>Loading your gift...</p>
+          <p style={{ fontSize: '1rem', fontFamily: FONT_STACK }}>
+            {isConnectReturn ? 'Processing your payout...' : 'Loading your gift...'}
+          </p>
         </div>
       </div>
     );
@@ -114,42 +150,48 @@ export default function GiftClaim() {
               ? 'This gift link may be invalid or has already expired.'
               : typeof error === 'string' ? error : 'Please try again later.'}
           </p>
-          <p style={styles.footer}>© 2026 Greet-Me™ · Forget Them Not!™</p>
+          <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
         </div>
       </div>
     );
   }
 
-  // ---- Already Claimed ----
+  // ---- Fulfilled (payout completed) ----
+  if (fulfilled) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.card}>
+          <div style={styles.successIcon}>&#10003;</div>
+          <h1 style={styles.title}>Gift Received!</h1>
+          <p style={{ ...styles.subtitle, marginBottom: '0.5rem' }}>
+            Your {fmt(gift.giftAmountCents)} QR Cash&trade; gift has been sent to your account.
+          </p>
+          <p style={{ fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
+            Funds typically arrive within 1-2 business days to your bank account, or instantly to a debit card.
+          </p>
+          <a href="/" style={styles.secondaryLink}>Learn about Greet-Me&trade;</a>
+          <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Already Claimed (legacy manual-fulfill path) ----
   if (claimed) {
     return (
       <div style={styles.page}>
         <div style={styles.card}>
-          <div style={{
-            width: '4rem',
-            height: '4rem',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 1.25rem',
-            fontSize: '2rem',
-          }}>
-            ✓
-          </div>
+          <div style={styles.successIcon}>&#10003;</div>
           <h1 style={styles.title}>Gift Claimed!</h1>
           <p style={{ ...styles.subtitle, marginBottom: '0.5rem' }}>
-            Your {fmt(gift.giftAmountCents)} QR Cash™ gift has been claimed.
+            Your {fmt(gift.giftAmountCents)} QR Cash&trade; gift has been claimed.
           </p>
           <p style={{ fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
             You'll receive your funds via your selected payment method.
             Please allow up to 48 hours for processing.
           </p>
-          <a href="/" style={styles.secondaryLink}>
-            Learn about Greet-Me™
-          </a>
-          <p style={styles.footer}>© 2026 Greet-Me™ · Forget Them Not!™</p>
+          <a href="/" style={styles.secondaryLink}>Learn about Greet-Me&trade;</a>
+          <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
         </div>
       </div>
     );
@@ -160,18 +202,18 @@ export default function GiftClaim() {
     return (
       <div style={styles.page}>
         <div style={styles.card}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏰</div>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>&#9200;</div>
           <h1 style={styles.title}>Gift Expired</h1>
           <p style={styles.subtitle}>
-            This QR Cash™ gift is no longer available. Gifts expire {gift.expiryDays || 30} days after delivery. Expired gifts are not automatically refunded — contact support for assistance.
+            This QR Cash&trade; gift is no longer available. Gifts expire {gift.expiryDays || 30} days after delivery. Expired gifts are not automatically refunded &mdash; contact support for assistance.
           </p>
-          <p style={styles.footer}>© 2026 Greet-Me™ · Forget Them Not!™</p>
+          <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
         </div>
       </div>
     );
   }
 
-  // ---- Claim Form ----
+  // ---- Claim Form (Stripe Connect) ----
   return (
     <div style={styles.page}>
       <div style={styles.card}>
@@ -184,9 +226,9 @@ export default function GiftClaim() {
             letterSpacing: '0.05em',
             fontFamily: FONT_STACK,
           }}>
-            <span style={{ fontWeight: 600 }}>Greet-Me™</span>
-            <span style={{ margin: '0 0.4rem', opacity: 0.4 }}>·</span>
-            <span style={{ fontStyle: 'italic', fontSize: '0.75rem' }}>QR Cash™</span>
+            <span style={{ fontWeight: 600 }}>Greet-Me&trade;</span>
+            <span style={{ margin: '0 0.4rem', opacity: 0.4 }}>&middot;</span>
+            <span style={{ fontStyle: 'italic', fontSize: '0.75rem' }}>QR Cash&trade;</span>
           </p>
 
           <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🎁</div>
@@ -223,132 +265,87 @@ export default function GiftClaim() {
             color: '#b45309',
             margin: '0.5rem 0 0',
           }}>
-            QR Cash™ Gift
+            QR Cash&trade; Gift
           </p>
         </div>
 
-        {/* Claim Method Selection */}
-        <form onSubmit={handleSubmit}>
-          <p style={{
-            fontSize: '0.9375rem',
-            fontWeight: 600,
-            color: '#1f2937',
-            margin: '0 0 0.75rem',
-            textAlign: 'left',
+        {/* Payout method */}
+        <p style={{
+          fontSize: '0.9375rem',
+          fontWeight: 600,
+          color: '#1f2937',
+          margin: '0 0 0.5rem',
+          textAlign: 'left',
+        }}>
+          {connectPending ? 'Finish setting up your payout' : 'How would you like to receive your gift?'}
+        </p>
+
+        <p style={{
+          fontSize: '0.85rem',
+          color: '#6b7280',
+          margin: '0 0 1rem',
+          textAlign: 'left',
+          lineHeight: 1.5,
+        }}>
+          {connectPending
+            ? 'You started setting up your payout details. Tap below to finish and receive your gift.'
+            : 'Enter your debit card or bank account details securely via Stripe to receive your funds.'}
+        </p>
+
+        {/* Submit Error */}
+        {submitError && (
+          <div style={{
+            padding: '0.75rem 1rem',
+            background: '#fef2f2',
+            borderRadius: '0.5rem',
+            border: '1px solid #fecaca',
+            marginBottom: '1rem',
           }}>
-            How would you like to receive your gift?
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
-            {CLAIM_METHODS.map((method) => (
-              <button
-                key={method.id}
-                type="button"
-                onClick={() => { setSelectedMethod(method.id); setSubmitError(null); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.75rem 1rem',
-                  background: selectedMethod === method.id ? '#fffbeb' : '#fff',
-                  border: selectedMethod === method.id
-                    ? '2px solid #f59e0b'
-                    : '1px solid #e5e7eb',
-                  borderRadius: '0.5rem',
-                  cursor: 'pointer',
-                  fontFamily: FONT_STACK,
-                  fontSize: '0.9375rem',
-                  fontWeight: selectedMethod === method.id ? 600 : 400,
-                  color: '#1f2937',
-                  textAlign: 'left',
-                  transition: 'border-color 0.15s',
-                }}
-              >
-                <span style={{ fontSize: '1.25rem' }}>{method.icon}</span>
-                {method.label}
-              </button>
-            ))}
+            <p style={{ fontSize: '0.875rem', color: '#dc2626', margin: 0, lineHeight: 1.4 }}>
+              {submitError}
+            </p>
           </div>
+        )}
 
-          {/* Claim Handle Input */}
-          {selectedMethod && (
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                color: '#374151',
-                marginBottom: '0.375rem',
-                textAlign: 'left',
-              }}>
-                Your {CLAIM_METHODS.find(m => m.id === selectedMethod)?.label} handle
-              </label>
-              <input
-                type="text"
-                value={claimHandle}
-                onChange={(e) => { setClaimHandle(e.target.value); setSubmitError(null); }}
-                placeholder={CLAIM_METHODS.find(m => m.id === selectedMethod)?.placeholder}
-                required
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 1rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem',
-                  fontFamily: FONT_STACK,
-                  color: '#1f2937',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-                onFocus={(e) => { e.target.style.borderColor = '#f59e0b'; }}
-                onBlur={(e) => { e.target.style.borderColor = '#d1d5db'; }}
-              />
-            </div>
-          )}
+        {/* CTA Button */}
+        <button
+          onClick={handleConnectOnboard}
+          disabled={submitting}
+          style={{
+            width: '100%',
+            padding: '0.875rem',
+            background: submitting
+              ? '#d1d5db'
+              : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '0.5rem',
+            fontSize: '1rem',
+            fontWeight: 600,
+            cursor: submitting ? 'not-allowed' : 'pointer',
+            fontFamily: FONT_STACK,
+            boxShadow: submitting
+              ? 'none'
+              : '0 2px 6px rgba(245, 158, 11, 0.3)',
+            marginBottom: '0.75rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <span style={{ fontSize: '1.1rem' }}>🏦</span>
+          {submitting ? 'Setting up...' : connectPending ? 'Finish Payout Setup' : `Claim ${fmt(gift.giftAmountCents)}`}
+        </button>
 
-          {/* Submit Error */}
-          {submitError && (
-            <div style={{
-              padding: '0.75rem 1rem',
-              background: '#fef2f2',
-              borderRadius: '0.5rem',
-              border: '1px solid #fecaca',
-              marginBottom: '1rem',
-            }}>
-              <p style={{ fontSize: '0.875rem', color: '#dc2626', margin: 0, lineHeight: 1.4 }}>
-                {submitError}
-              </p>
-            </div>
-          )}
-
-          {/* Submit Button */}
-          {selectedMethod && (
-            <button
-              type="submit"
-              disabled={submitting || !claimHandle.trim()}
-              style={{
-                width: '100%',
-                padding: '0.875rem',
-                background: submitting || !claimHandle.trim()
-                  ? '#d1d5db'
-                  : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '0.5rem',
-                fontSize: '1rem',
-                fontWeight: 600,
-                cursor: submitting || !claimHandle.trim() ? 'not-allowed' : 'pointer',
-                fontFamily: FONT_STACK,
-                boxShadow: submitting || !claimHandle.trim()
-                  ? 'none'
-                  : '0 2px 6px rgba(245, 158, 11, 0.3)',
-                marginBottom: '1rem',
-              }}
-            >
-              {submitting ? 'Claiming...' : `Claim ${fmt(gift.giftAmountCents)}`}
-            </button>
-          )}
-        </form>
+        <p style={{
+          fontSize: '0.8rem',
+          color: '#9ca3af',
+          margin: '0 0 0.75rem',
+          lineHeight: 1.4,
+        }}>
+          Secure payout via Stripe &mdash; debit card or bank account
+        </p>
 
         {/* Fine print */}
         <p style={{
@@ -357,11 +354,11 @@ export default function GiftClaim() {
           lineHeight: 1.5,
           margin: '0 0 0.5rem',
         }}>
-          By claiming, you agree to receive funds via your selected method.
-          QR Cash™ gifts expire {gift.expiryDays || 30} days after delivery.
+          By claiming, you agree to receive funds via Stripe.
+          QR Cash&trade; gifts expire {gift.expiryDays || 30} days after delivery.
         </p>
 
-        <p style={styles.footer}>© 2026 Greet-Me™ · Forget Them Not!™</p>
+        <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
       </div>
     </div>
   );
@@ -413,5 +410,17 @@ const styles = {
     textDecoration: 'none',
     fontSize: '0.9375rem',
     fontFamily: FONT_STACK,
+  },
+  successIcon: {
+    width: '4rem',
+    height: '4rem',
+    borderRadius: '50%',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 auto 1.25rem',
+    fontSize: '2rem',
+    color: '#fff',
   },
 };
