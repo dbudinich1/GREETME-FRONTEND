@@ -270,6 +270,50 @@ export default function GiftClaim() {
           <p style={{ fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
             Funds typically arrive within 1-2 business days to your bank account, or instantly to a debit card.
           </p>
+
+          {/* Viral referral CTA */}
+          {gift.referralCode && (
+            <div style={{
+              padding: '1.25rem',
+              background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+              borderRadius: '0.75rem',
+              border: '1px solid #6ee7b7',
+              marginBottom: '1.5rem',
+              textAlign: 'center',
+            }}>
+              <p style={{ fontSize: '1.25rem', margin: '0 0 0.5rem' }}>
+                🎉 Celebrate it forward!
+              </p>
+              <p style={{
+                fontSize: '0.9rem',
+                color: '#065f46',
+                lineHeight: 1.5,
+                margin: '0 0 1rem',
+              }}>
+                You've received a free Greet-Me subscription to send a{' '}
+                {gift.referralGiftValueCents ? fmt(gift.referralGiftValueCents) : ''} gift
+                to someone you care about.
+              </p>
+              <a
+                href={`/#/dashboard/send?referral=${gift.referralCode}`}
+                style={{
+                  display: 'inline-block',
+                  padding: '0.75rem 1.5rem',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#fff',
+                  borderRadius: '0.5rem',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  fontSize: '0.9375rem',
+                  fontFamily: FONT_STACK,
+                  boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)',
+                }}
+              >
+                🎁 Send Your Free Gift
+              </a>
+            </div>
+          )}
+
           <a href="/" style={styles.secondaryLink}>Learn about Greet-Me&trade;</a>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
         </div>

@@ -463,6 +463,20 @@ class ApiService {
     });
   }
 
+  // --------------------
+  // Referral (viral loop)
+  // --------------------
+  getReferral(referralCode) {
+    return this.request(`/api/gifts/referral/${referralCode}`);
+  }
+
+  redeemReferral(referralCode, payload) {
+    return this.request(`/api/gifts/referral/${referralCode}/redeem`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
   getJobStatus(jobId) {
     return this.request(`/api/jobs/${jobId}`);
   }

@@ -70,6 +70,11 @@ export default function SendGreeting() {
   const [giftRequestId, setGiftRequestId] = useState(null);
   const [giftConfirmed, setGiftConfirmed] = useState(false);
 
+  // Referral state (viral loop)
+  const [referralCode, setReferralCode] = useState(null);
+  const [referralValue, setReferralValue] = useState(null);
+  const [referralError, setReferralError] = useState(null);
+
   // Photo state
   const [defaultPhoto, setDefaultPhoto] = useState(null);
   const [memoryPhotos, setMemoryPhotos] = useState([]);
@@ -135,6 +140,36 @@ export default function SendGreeting() {
   useEffect(() => {
     fetchContacts();
   }, []);
+
+  // Detect referral code from URL and validate
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const code = params.get('referral');
+    if (!code) return;
+
+    api.getReferral(code).then((res) => {
+      if (res?.ok && res.referralValueCents) {
+        setReferralCode(code);
+        setReferralValue(res.referralValueCents);
+        // Pre-fill gift settings
+        setGiftSettings({
+          type: 'qrcash',
+          amount: res.referralValueCents / 100,
+          customAmount: '',
+          maxSpend: res.referralValueCents / 100,
+          autoGift: false,
+        });
+      } else {
+        setReferralError('This referral link is no longer valid.');
+      }
+    }).catch((err) => {
+      if (err?.code === 'REFERRAL_ALREADY_USED') {
+        setReferralError('This referral has already been used.');
+      } else {
+        setReferralError('This referral link is not valid.');
+      }
+    });
+  }, [location.search]);
 
   // Handle return from merch/marketplace/media browse - restore saved state
   useEffect(() => {
@@ -395,6 +430,46 @@ export default function SendGreeting() {
     if (!selectedContact) return;
 
     const greetingData = buildGreetingData(selectedContact);
+
+    // QR Cash™ referral: skip payment, redeem referral code instead
+    if (giftSettings.type === 'qrcash' && referralCode) {
+      setSending(true);
+      try {
+        const redeemResult = await api.redeemReferral(referralCode, {
+          recipientEmail: greetingData.recipientEmail,
+          recipientName: greetingData.recipientName,
+        });
+
+        if (!redeemResult.ok || !redeemResult.gift) {
+          throw new Error(redeemResult.error || 'Referral redemption failed');
+        }
+
+        const giftObj = redeemResult.gift;
+        const greetingDataWithGift = {
+          ...greetingData,
+          includeGift: true,
+          hasGift: true,
+          gift: {
+            type: 'qrcash',
+            amount: referralValue / 100,
+            feeAmount: 0,
+            totalAmount: 0,
+            status: 'charged',
+            claimToken: giftObj.claimToken,
+            qrUrl: giftObj.qrImageUrl,
+            qrBlobUrl: giftObj.qrBlobUrl,
+            claimUrl: giftObj.claimUrl,
+            referral: true,
+          },
+        };
+
+        await executeGreetingSend(greetingDataWithGift);
+      } catch (error) {
+        setErrors({ submit: error?.message || 'Failed to redeem referral gift.' });
+        setSending(false);
+      }
+      return;
+    }
 
     // QR Cash™ intercept: open confirmation modal instead of sending directly
     if (giftSettings.type === 'qrcash') {
@@ -737,6 +812,32 @@ if (typeof window !== "undefined") {
         )}
 
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-10">
+        {/* Referral banner */}
+        {referralCode && referralValue && (
+          <div style={{
+            padding: '1rem 1.25rem',
+            background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+            borderRadius: '0.75rem',
+            border: '1px solid #6ee7b7',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+          }}>
+            <span style={{ fontSize: '1.5rem' }}>🎁</span>
+            <div>
+              <p style={{ margin: 0, fontWeight: 600, color: '#065f46', fontSize: '0.9375rem' }}>
+                Free ${(referralValue / 100).toFixed(0)} QR Cash&trade; Gift
+              </p>
+              <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: '#047857' }}>
+                This gift is free &mdash; courtesy of the person who sent you QR Cash.
+              </p>
+            </div>
+          </div>
+        )}
+        {referralError && (
+          <Alert type="error" message={referralError} />
+        )}
         {errors.submit && <Alert type="error" message={errors.submit} />}
         {errors.photo && <Alert type="error" message={errors.photo} />}
 
