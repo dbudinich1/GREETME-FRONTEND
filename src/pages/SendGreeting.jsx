@@ -422,6 +422,7 @@ export default function SendGreeting() {
 
     try {
       // Step 1: Charge for the QR Cash™ gift
+      console.log("giftRequestId being sent:", giftRequestId);
       const chargeResult = await api.chargeGift({
         giftAmountCents,
         recipientEmail: pendingGreetingData.recipientEmail,
