@@ -464,6 +464,8 @@ export default function SendGreeting() {
     } catch (error) {
       const msg = error?.message || error?.error || 'Failed to charge QR Cash™ gift. Please try again.';
       setGiftChargeError(msg);
+      // Fresh idempotency key so the next attempt isn't blocked by Stripe
+      setGiftRequestId(crypto.randomUUID());
     } finally {
       setGiftCharging(false);
     }
