@@ -8,6 +8,38 @@ import api from '../api/api';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
+// Payout method definitions
+const PAYOUT_METHODS = [
+  {
+    id: 'venmo',
+    label: 'Venmo',
+    icon: '💸',
+    description: 'Receive via Venmo',
+    inputLabel: 'Your Venmo handle',
+    inputPlaceholder: '@yourname',
+    inputPrefix: '',
+    fieldKey: 'handle',
+  },
+  {
+    id: 'paypal',
+    label: 'PayPal',
+    icon: '🅿️',
+    description: 'Receive via PayPal',
+    inputLabel: 'Your PayPal email',
+    inputPlaceholder: 'you@example.com',
+    inputPrefix: '',
+    fieldKey: 'email',
+  },
+  {
+    id: 'debit_bank',
+    label: 'Debit Card / Bank',
+    icon: '🏦',
+    description: 'Direct to your account via Stripe',
+    inputLabel: null, // no text input — launches Stripe Connect
+    fieldKey: null,
+  },
+];
+
 export default function GiftClaim() {
   const { claimToken } = useParams();
   const location = useLocation();
@@ -15,6 +47,11 @@ export default function GiftClaim() {
   const [gift, setGift] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Payout choice state
+  const [selectedMethod, setSelectedMethod] = useState(null);
+  const [inputValue, setInputValue] = useState('');
+  const [inputError, setInputError] = useState(null);
 
   // Claim flow state
   const [submitting, setSubmitting] = useState(false);
@@ -39,7 +76,6 @@ export default function GiftClaim() {
     if (isConnectReturn && gift.status !== 'fulfilled') {
       handleConnectComplete();
     } else if (isConnectRefresh) {
-      // Onboarding link expired — restart
       handleConnectOnboard();
     }
   }, [gift, loading, isConnectReturn, isConnectRefresh]);
@@ -79,7 +115,6 @@ export default function GiftClaim() {
       setSubmitError(null);
       const res = await api.connectOnboard(claimToken);
       if (res?.ok && res?.onboardingUrl) {
-        // Redirect to Stripe-hosted onboarding
         window.location.href = res.onboardingUrl;
       } else {
         setSubmitError('Failed to start payout setup. Please try again.');
@@ -106,7 +141,6 @@ export default function GiftClaim() {
         if (res.fulfilled || res.alreadyFulfilled) {
           setFulfilled(true);
         } else if (res.onboardingComplete === false) {
-          // Onboarding not finished — let them restart
           setConnectPending(true);
           setSubmitError('Your account setup is not complete. Please try again to finish setting up your payout details.');
         }
@@ -120,7 +154,74 @@ export default function GiftClaim() {
     }
   };
 
+  // Validate input before submit
+  const validateInput = () => {
+    if (!selectedMethod) return 'Please select a payout method';
+    const method = PAYOUT_METHODS.find((m) => m.id === selectedMethod);
+    if (!method) return 'Invalid method';
+
+    if (method.id === 'debit_bank') return null; // no input needed
+
+    const val = inputValue.trim();
+    if (!val) return `Please enter your ${method.inputLabel?.toLowerCase() || 'details'}`;
+
+    if (method.id === 'venmo' && !val.startsWith('@')) {
+      return 'Venmo handle must start with @';
+    }
+    if (method.id === 'paypal' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+      return 'Please enter a valid email address';
+    }
+    return null;
+  };
+
+  const handleClaim = async () => {
+    const validationErr = validateInput();
+    if (validationErr) {
+      setInputError(validationErr);
+      return;
+    }
+    setInputError(null);
+    setSubmitError(null);
+
+    // Debit/Bank → launch Stripe Connect onboard
+    if (selectedMethod === 'debit_bank') {
+      handleConnectOnboard();
+      return;
+    }
+
+    // Venmo or PayPal → submit claim via API
+    try {
+      setSubmitting(true);
+      const claimDetails = selectedMethod === 'venmo'
+        ? { handle: inputValue.trim() }
+        : { email: inputValue.trim() };
+
+      const res = await api.submitGiftClaim(claimToken, {
+        claimMethod: selectedMethod,
+        claimDetails,
+      });
+
+      if (res?.ok) {
+        setClaimed(true);
+      } else {
+        setSubmitError('Something went wrong. Please try again.');
+      }
+    } catch (err) {
+      if (err?.code === 'GIFT_ALREADY_CLAIMED') {
+        setClaimed(true);
+      } else if (err?.code === 'GIFT_EXPIRED') {
+        setGift((prev) => prev ? { ...prev, status: 'expired' } : prev);
+      } else {
+        setSubmitError(err?.message || 'Failed to claim gift. Please try again.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const fmt = (cents) => `$${(cents / 100).toFixed(2)}`;
+
+  const currentMethod = PAYOUT_METHODS.find((m) => m.id === selectedMethod);
 
   // ---- Loading ----
   if (loading || (submitting && (isConnectReturn || isConnectRefresh))) {
@@ -176,7 +277,7 @@ export default function GiftClaim() {
     );
   }
 
-  // ---- Already Claimed (legacy manual-fulfill path) ----
+  // ---- Already Claimed ----
   if (claimed) {
     return (
       <div style={styles.page}>
@@ -213,19 +314,55 @@ export default function GiftClaim() {
     );
   }
 
-  // ---- Claim Form (Stripe Connect) ----
+  // ---- Connect Pending (resume onboarding) ----
+  if (connectPending) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.card}>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <p style={styles.brandLine}>
+              <span style={{ fontWeight: 600 }}>Greet-Me&trade;</span>
+              <span style={{ margin: '0 0.4rem', opacity: 0.4 }}>&middot;</span>
+              <span style={{ fontStyle: 'italic', fontSize: '0.75rem' }}>QR Cash&trade;</span>
+            </p>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🏦</div>
+            <h1 style={{ ...styles.title, marginBottom: '0.25rem' }}>
+              Finish Setting Up Your Payout
+            </h1>
+          </div>
+
+          <p style={{ fontSize: '0.9375rem', color: '#6b7280', margin: '0 0 1rem', lineHeight: 1.5 }}>
+            You started setting up your debit/bank payout. Tap below to finish and receive your {fmt(gift.giftAmountCents)} gift.
+          </p>
+
+          {submitError && (
+            <div style={styles.errorBox}>
+              <p style={styles.errorText}>{submitError}</p>
+            </div>
+          )}
+
+          <button
+            onClick={handleConnectOnboard}
+            disabled={submitting}
+            style={styles.ctaButton(submitting)}
+          >
+            <span style={{ fontSize: '1.1rem' }}>🏦</span>
+            {submitting ? 'Setting up...' : 'Finish Payout Setup'}
+          </button>
+
+          <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Claim Form (Payout Method Choice) ----
   return (
     <div style={styles.page}>
       <div style={styles.card}>
         {/* Header */}
         <div style={{ marginBottom: '1.5rem' }}>
-          <p style={{
-            fontSize: '0.8rem',
-            color: '#9ca3af',
-            margin: '0 0 1rem',
-            letterSpacing: '0.05em',
-            fontFamily: FONT_STACK,
-          }}>
+          <p style={styles.brandLine}>
             <span style={{ fontWeight: 600 }}>Greet-Me&trade;</span>
             <span style={{ margin: '0 0.4rem', opacity: 0.4 }}>&middot;</span>
             <span style={{ fontStyle: 'italic', fontSize: '0.75rem' }}>QR Cash&trade;</span>
@@ -245,13 +382,7 @@ export default function GiftClaim() {
         </div>
 
         {/* Amount Display */}
-        <div style={{
-          padding: '1.25rem',
-          background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
-          borderRadius: '0.75rem',
-          border: '1px solid #fcd34d',
-          marginBottom: '1.5rem',
-        }}>
+        <div style={styles.amountBox}>
           <div style={{
             fontSize: '2.5rem',
             fontWeight: 700,
@@ -269,92 +400,183 @@ export default function GiftClaim() {
           </p>
         </div>
 
-        {/* Payout method */}
+        {/* Payout Method Picker */}
         <p style={{
           fontSize: '0.9375rem',
           fontWeight: 600,
           color: '#1f2937',
-          margin: '0 0 0.5rem',
+          margin: '0 0 0.75rem',
           textAlign: 'left',
         }}>
-          {connectPending ? 'Finish setting up your payout' : 'How would you like to receive your gift?'}
+          How would you like to receive your gift?
         </p>
 
-        <p style={{
-          fontSize: '0.85rem',
-          color: '#6b7280',
-          margin: '0 0 1rem',
-          textAlign: 'left',
-          lineHeight: 1.5,
-        }}>
-          {connectPending
-            ? 'You started setting up your payout details. Tap below to finish and receive your gift.'
-            : 'Enter your debit card or bank account details securely via Stripe to receive your funds.'}
-        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+          {PAYOUT_METHODS.map((method) => {
+            const isSelected = selectedMethod === method.id;
+            return (
+              <button
+                key={method.id}
+                type="button"
+                onClick={() => {
+                  setSelectedMethod(method.id);
+                  setInputValue('');
+                  setInputError(null);
+                  setSubmitError(null);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.875rem 1rem',
+                  background: isSelected ? '#fffbeb' : '#fff',
+                  border: isSelected ? '2px solid #f59e0b' : '1px solid #e5e7eb',
+                  borderRadius: '0.625rem',
+                  cursor: 'pointer',
+                  fontFamily: FONT_STACK,
+                  textAlign: 'left',
+                  width: '100%',
+                  transition: 'border-color 0.15s, background 0.15s',
+                }}
+              >
+                <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>{method.icon}</span>
+                <div>
+                  <div style={{
+                    fontSize: '0.9375rem',
+                    fontWeight: 600,
+                    color: isSelected ? '#92400e' : '#1f2937',
+                  }}>
+                    {method.label}
+                  </div>
+                  <div style={{
+                    fontSize: '0.8125rem',
+                    color: '#6b7280',
+                    marginTop: '0.125rem',
+                  }}>
+                    {method.description}
+                  </div>
+                </div>
+                {/* Selection indicator */}
+                <div style={{
+                  marginLeft: 'auto',
+                  width: '1.25rem',
+                  height: '1.25rem',
+                  borderRadius: '50%',
+                  border: isSelected ? '2px solid #f59e0b' : '2px solid #d1d5db',
+                  background: isSelected ? '#f59e0b' : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  {isSelected && (
+                    <div style={{
+                      width: '0.5rem',
+                      height: '0.5rem',
+                      borderRadius: '50%',
+                      background: '#fff',
+                    }} />
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Handle / Email input (for Venmo & PayPal) */}
+        {currentMethod && currentMethod.inputLabel && (
+          <div style={{ marginBottom: '1rem', textAlign: 'left' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: '#374151',
+              marginBottom: '0.375rem',
+            }}>
+              {currentMethod.inputLabel}
+            </label>
+            <input
+              type={currentMethod.id === 'paypal' ? 'email' : 'text'}
+              value={inputValue}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                setInputError(null);
+              }}
+              placeholder={currentMethod.inputPlaceholder}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: inputError ? '1px solid #dc2626' : '1px solid #d1d5db',
+                borderRadius: '0.5rem',
+                fontSize: '1rem',
+                fontFamily: FONT_STACK,
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+              disabled={submitting}
+            />
+            {inputError && (
+              <p style={{ fontSize: '0.8125rem', color: '#dc2626', margin: '0.375rem 0 0' }}>
+                {inputError}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Debit/Bank explainer */}
+        {selectedMethod === 'debit_bank' && (
+          <p style={{
+            fontSize: '0.8125rem',
+            color: '#6b7280',
+            margin: '0 0 1rem',
+            textAlign: 'left',
+            lineHeight: 1.5,
+          }}>
+            You'll be redirected to Stripe to securely enter your debit card or bank account details.
+            Funds are sent automatically once setup is complete.
+          </p>
+        )}
 
         {/* Submit Error */}
         {submitError && (
-          <div style={{
-            padding: '0.75rem 1rem',
-            background: '#fef2f2',
-            borderRadius: '0.5rem',
-            border: '1px solid #fecaca',
-            marginBottom: '1rem',
-          }}>
-            <p style={{ fontSize: '0.875rem', color: '#dc2626', margin: 0, lineHeight: 1.4 }}>
-              {submitError}
-            </p>
+          <div style={styles.errorBox}>
+            <p style={styles.errorText}>{submitError}</p>
           </div>
         )}
 
         {/* CTA Button */}
         <button
-          onClick={handleConnectOnboard}
-          disabled={submitting}
-          style={{
-            width: '100%',
-            padding: '0.875rem',
-            background: submitting
-              ? '#d1d5db'
-              : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '0.5rem',
-            fontSize: '1rem',
-            fontWeight: 600,
-            cursor: submitting ? 'not-allowed' : 'pointer',
-            fontFamily: FONT_STACK,
-            boxShadow: submitting
-              ? 'none'
-              : '0 2px 6px rgba(245, 158, 11, 0.3)',
-            marginBottom: '0.75rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-          }}
+          onClick={handleClaim}
+          disabled={submitting || !selectedMethod}
+          style={styles.ctaButton(submitting || !selectedMethod)}
         >
-          <span style={{ fontSize: '1.1rem' }}>🏦</span>
-          {submitting ? 'Setting up...' : connectPending ? 'Finish Payout Setup' : `Claim ${fmt(gift.giftAmountCents)}`}
+          {submitting ? (
+            'Processing...'
+          ) : !selectedMethod ? (
+            'Select a payout method'
+          ) : selectedMethod === 'debit_bank' ? (
+            <>
+              <span style={{ fontSize: '1.1rem' }}>🏦</span>
+              Set Up Debit/Bank Payout
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: '1.1rem' }}>
+                {currentMethod?.icon}
+              </span>
+              Claim {fmt(gift.giftAmountCents)} via {currentMethod?.label}
+            </>
+          )}
         </button>
-
-        <p style={{
-          fontSize: '0.8rem',
-          color: '#9ca3af',
-          margin: '0 0 0.75rem',
-          lineHeight: 1.4,
-        }}>
-          Secure payout via Stripe &mdash; debit card or bank account
-        </p>
 
         {/* Fine print */}
         <p style={{
           fontSize: '0.75rem',
           color: '#9ca3af',
           lineHeight: 1.5,
-          margin: '0 0 0.5rem',
+          margin: '0.75rem 0 0.5rem',
         }}>
-          By claiming, you agree to receive funds via Stripe.
+          By claiming, you agree to receive funds via your selected method.
           QR Cash&trade; gifts expire {gift.expiryDays || 30} days after delivery.
         </p>
 
@@ -423,4 +645,52 @@ const styles = {
     fontSize: '2rem',
     color: '#fff',
   },
+  brandLine: {
+    fontSize: '0.8rem',
+    color: '#9ca3af',
+    margin: '0 0 1rem',
+    letterSpacing: '0.05em',
+    fontFamily: FONT_STACK,
+  },
+  amountBox: {
+    padding: '1.25rem',
+    background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+    borderRadius: '0.75rem',
+    border: '1px solid #fcd34d',
+    marginBottom: '1.5rem',
+  },
+  errorBox: {
+    padding: '0.75rem 1rem',
+    background: '#fef2f2',
+    borderRadius: '0.5rem',
+    border: '1px solid #fecaca',
+    marginBottom: '1rem',
+  },
+  errorText: {
+    fontSize: '0.875rem',
+    color: '#dc2626',
+    margin: 0,
+    lineHeight: 1.4,
+  },
+  ctaButton: (disabled) => ({
+    width: '100%',
+    padding: '0.875rem',
+    background: disabled
+      ? '#d1d5db'
+      : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '0.5rem',
+    fontSize: '1rem',
+    fontWeight: 600,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontFamily: FONT_STACK,
+    boxShadow: disabled
+      ? 'none'
+      : '0 2px 6px rgba(245, 158, 11, 0.3)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.5rem',
+  }),
 };
