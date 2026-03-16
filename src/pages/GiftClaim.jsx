@@ -76,6 +76,8 @@ export default function GiftClaim() {
       const code = err?.code;
       if (code === 'GIFT_ALREADY_CLAIMED') {
         setClaimed(true);
+      } else if (code === 'GIFT_EXPIRED') {
+        setGift((prev) => prev ? { ...prev, status: 'expired' } : prev);
       } else {
         setSubmitError(err?.message || 'Failed to submit claim. Please try again.');
       }
