@@ -318,6 +318,40 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
               </>
             )}
 
+            {/* Share the Moment — Web Share API (all greetings) */}
+            {typeof navigator !== 'undefined' && navigator.share && (
+              <button
+                onClick={() => {
+                  const shareUrl = `${window.location.origin}/#/g/${jobId || ''}`;
+                  navigator.share({
+                    title: 'Someone sent me a Greet-Me',
+                    text: 'I just received a beautiful AI-animated greeting. Check out Greet-Me!',
+                    url: shareUrl,
+                  }).catch(() => {});
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4em',
+                  marginTop: '0.75em',
+                  marginBottom: '0.5em',
+                  padding: '0.5em 1em',
+                  background: 'linear-gradient(135deg, #3A7BD5 0%, #1B2A4A 100%)',
+                  color: '#fff',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                  fontSize: '0.7em',
+                  fontWeight: 600,
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(58, 123, 213, 0.3)',
+                }}
+              >
+                <span style={{ fontSize: '1.1em' }}>&#x1F4E4;</span>
+                Share the Moment
+              </button>
+            )}
+
             <div className="gc-branding">
               {/* TODO: Replace with final G logo asset when provided */}
               <LogoPlaceholder />
