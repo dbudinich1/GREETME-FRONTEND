@@ -120,13 +120,15 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
 
   // Phase 1.5: "Your Turn" CTA — fires COMPLETE_THE_MOMENT_TRIGGERED (Guard A)
   const handleYourTurn = () => {
-    if (jobId) {
-      fetch('/api/events/complete-the-moment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId }),
-      }).catch(() => {});
+    if (!jobId) {
+      console.error('Missing jobId in FinaleSpread');
+      return;
     }
+    fetch('/api/events/complete-the-moment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId }),
+    }).catch(() => {});
     window.location.href = `/#/thank-you?jobId=${jobId}`;
   };
 

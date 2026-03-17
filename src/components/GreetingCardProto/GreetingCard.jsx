@@ -399,6 +399,7 @@ export default function GreetingCard({ greeting }) {
               occasionKey={greeting.occasionKey}
               hasGift={greeting.hasGift}
               gift={greeting.gift}
+              jobId={greeting.jobId}
             />
           )}
         </>
