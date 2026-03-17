@@ -481,6 +481,16 @@ class ApiService {
     return this.request(`/api/jobs/${jobId}`);
   }
 
+  // --------------------
+  // Growth Engine Events
+  // --------------------
+  trackGreetingOpened(jobId) {
+    return this.request("/api/events/greeting-opened", {
+      method: "POST",
+      body: JSON.stringify({ jobId }),
+    });
+  }
+
   getSentGreetings() {
     return this.request("/api/greetings/sent");
   }

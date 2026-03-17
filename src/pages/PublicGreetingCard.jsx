@@ -27,6 +27,13 @@ export default function PublicGreetingCard() {
     return () => { document.title = 'Greet-Me™ | Forget Them Not!™'; };
   }, [greeting]);
 
+  // Growth Engine: GREETING_OPENED event (fire-and-forget, first-open-only)
+  useEffect(() => {
+    if (greeting && jobId) {
+      api.trackGreetingOpened(jobId).catch(() => {});
+    }
+  }, [greeting, jobId]);
+
   const loadGreeting = async () => {
     try {
       setLoading(true);
