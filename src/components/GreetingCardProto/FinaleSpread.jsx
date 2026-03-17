@@ -286,9 +286,9 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
               </>
             ) : (
               <>
-                <h3 className="gc-gift-title" style={{ fontSize: '0.85em', whiteSpace: 'nowrap' }}>A Gift From Greet-Me</h3>
+                <h3 className="gc-gift-title" style={{ fontSize: '0.85em', whiteSpace: 'nowrap' }}>From Greet-Me, With Love</h3>
                 <p className="gc-gift-instruction" style={{ marginBottom: '0.75em' }}>
-                  Enjoy $5 toward your first Greet-Me subscription.
+                  New members enjoy $5 off their first subscription.
                 </p>
                 <a
                   href="/#/pricing"
@@ -304,7 +304,7 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
                     textDecoration: 'none',
                   }}
                 >
-                  Apply My Credit
+                  See Plans
                 </a>
               </>
             )}
