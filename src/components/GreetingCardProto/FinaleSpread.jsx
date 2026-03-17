@@ -103,9 +103,20 @@ function tightenLineHeight(el) {
   }
 }
 
-export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift }) {
+export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, jobId }) {
   const closingMessageRef = useRef(null);
   const [qrImageError, setQrImageError] = useState(false);
+
+  // Growth Engine: fire GIFT_IT_FORWARD_TRIGGERED event (fire-and-forget)
+  const handleGiftItForward = () => {
+    if (jobId) {
+      fetch('/api/events/gift-it-forward', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId }),
+      }).catch(() => {});
+    }
+  };
 
   // AUTO-FIT: shrink-only until no clipping
   const runAutoFit = useCallback(() => {
@@ -233,6 +244,27 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift })
                     ? 'Scan to claim your QR Cash\u2122 gift'
                     : 'A QR Cash\u2122 gift is included with this greeting'}
                 </p>
+
+                {/* Gift It Forward CTA — viral trigger at peak emotion */}
+                <a
+                  href="/#/pricing"
+                  onClick={handleGiftItForward}
+                  style={{
+                    display: 'inline-block',
+                    marginTop: '0.75em',
+                    padding: '0.5em 1.2em',
+                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    color: '#fff',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    fontSize: '0.75em',
+                    fontWeight: 600,
+                    borderRadius: '6px',
+                    textDecoration: 'none',
+                    boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)',
+                  }}
+                >
+                  Gift It Forward
+                </a>
               </>
             ) : hasGift ? (
               <>
