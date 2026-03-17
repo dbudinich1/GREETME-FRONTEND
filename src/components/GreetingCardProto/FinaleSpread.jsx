@@ -118,6 +118,18 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
     }
   };
 
+  // Phase 1.5: "Your Turn" CTA — fires COMPLETE_THE_MOMENT_TRIGGERED (Guard A)
+  const handleYourTurn = () => {
+    if (jobId) {
+      fetch('/api/events/complete-the-moment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId }),
+      }).catch(() => {});
+    }
+    window.location.href = `/#/thank-you?jobId=${jobId}`;
+  };
+
   // AUTO-FIT: shrink-only until no clipping
   const runAutoFit = useCallback(() => {
     const el = closingMessageRef.current;
@@ -317,6 +329,31 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
                 </p>
               </>
             )}
+
+            {/* Phase 1.5: "Your Turn" CTA — visible on ALL branches, visually dominant */}
+            <div style={{ marginTop: '1.5em', textAlign: 'center' }}>
+              <button
+                onClick={handleYourTurn}
+                style={{
+                  background: '#4F2D7F',
+                  color: '#fff',
+                  padding: '0.7em 1.5em',
+                  borderRadius: '8px',
+                  fontSize: '0.85em',
+                  fontFamily: 'Georgia, serif',
+                  fontWeight: 'bold',
+                  border: 'none',
+                  cursor: 'pointer',
+                  width: '100%',
+                  maxWidth: '280px',
+                }}
+              >
+                Your Turn
+              </button>
+              <p style={{ fontSize: '0.6em', color: '#9ca3af', marginTop: '0.4em' }}>
+                Send one back &mdash; we&rsquo;ve already started it for you
+              </p>
+            </div>
 
             {/* Share the Moment — Web Share API (all greetings) */}
             {typeof navigator !== 'undefined' && navigator.share && (
