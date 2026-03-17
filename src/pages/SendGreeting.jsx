@@ -148,25 +148,25 @@ export default function SendGreeting() {
     if (!code) return;
 
     api.getReferral(code).then((res) => {
-      if (res?.ok && res.referralValueCents) {
+      if (res?.ok && res.referralCreditCents) {
         setReferralCode(code);
-        setReferralValue(res.referralValueCents);
-        // Pre-fill gift settings
+        setReferralValue(res.referralCreditCents);
+        // Pre-fill gift settings with credit value
         setGiftSettings({
           type: 'qrcash',
-          amount: res.referralValueCents / 100,
+          amount: res.referralCreditCents / 100,
           customAmount: '',
-          maxSpend: res.referralValueCents / 100,
+          maxSpend: res.referralCreditCents / 100,
           autoGift: false,
         });
       } else {
-        setReferralError('This referral link is no longer valid.');
+        setReferralError('This referral credit is no longer valid.');
       }
     }).catch((err) => {
       if (err?.code === 'REFERRAL_ALREADY_USED') {
-        setReferralError('This referral has already been used.');
+        setReferralError('This referral credit has already been used.');
       } else {
-        setReferralError('This referral link is not valid.');
+        setReferralError('This referral credit is not valid.');
       }
     });
   }, [location.search]);
@@ -459,13 +459,13 @@ export default function SendGreeting() {
             qrUrl: giftObj.qrImageUrl,
             qrBlobUrl: giftObj.qrBlobUrl,
             claimUrl: giftObj.claimUrl,
-            referral: true,
+            creditApplied: true,
           },
         };
 
         await executeGreetingSend(greetingDataWithGift);
       } catch (error) {
-        setErrors({ submit: error?.message || 'Failed to redeem referral gift.' });
+        setErrors({ submit: error?.message || 'Failed to apply referral credit.' });
         setSending(false);
       }
       return;
@@ -827,10 +827,10 @@ if (typeof window !== "undefined") {
             <span style={{ fontSize: '1.5rem' }}>🎁</span>
             <div>
               <p style={{ margin: 0, fontWeight: 600, color: '#065f46', fontSize: '0.9375rem' }}>
-                Free ${(referralValue / 100).toFixed(0)} QR Cash&trade; Gift
+                ${(referralValue / 100).toFixed(0)} Greet-Me Credit Applied
               </p>
               <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: '#047857' }}>
-                This gift is free &mdash; courtesy of the person who sent you QR Cash.
+                Your $10 credit has been applied toward this Greet-Me subscription. Terms and conditions apply.
               </p>
             </div>
           </div>

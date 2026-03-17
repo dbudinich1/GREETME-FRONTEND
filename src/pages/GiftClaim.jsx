@@ -271,7 +271,7 @@ export default function GiftClaim() {
             Funds typically arrive within 1-2 business days to your bank account, or instantly to a debit card.
           </p>
 
-          {/* Viral referral CTA */}
+          {/* Referral credit CTA */}
           {gift.referralCode && (
             <div style={{
               padding: '1.25rem',
@@ -281,8 +281,8 @@ export default function GiftClaim() {
               marginBottom: '1.5rem',
               textAlign: 'center',
             }}>
-              <p style={{ fontSize: '1.25rem', margin: '0 0 0.5rem' }}>
-                🎉 Celebrate it forward!
+              <p style={{ fontSize: '1.25rem', margin: '0 0 0.5rem', fontWeight: 700, color: '#065f46' }}>
+                You've unlocked a $10 credit
               </p>
               <p style={{
                 fontSize: '0.9rem',
@@ -290,12 +290,12 @@ export default function GiftClaim() {
                 lineHeight: 1.5,
                 margin: '0 0 1rem',
               }}>
-                You've received a free Greet-Me subscription to send a{' '}
-                {gift.referralGiftValueCents ? fmt(gift.referralGiftValueCents) : ''} gift
-                to someone you care about.
+                Apply your $10 credit toward a Greet-Me subscription.
+                <br />
+                <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>Terms and conditions apply.</span>
               </p>
               <a
-                href={`/#/dashboard/send?referral=${gift.referralCode}`}
+                href={`/#/dashboard/plans?referral=${gift.referralCode}`}
                 style={{
                   display: 'inline-block',
                   padding: '0.75rem 1.5rem',
@@ -309,7 +309,7 @@ export default function GiftClaim() {
                   boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)',
                 }}
               >
-                🎁 Send Your Free Gift
+                Unlock Your $10 Credit
               </a>
             </div>
           )}
