@@ -259,28 +259,7 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
                     : 'A QR Cash\u2122 gift is included with this greeting'}
                 </p>
 
-                {/* Gift It Forward CTA — viral trigger at peak emotion
-                     Phase 1: only shown for qrcash gifts. Non-qrcash and no-gift
-                     greetings do not show this CTA. Expand in Phase 2. */}
-                <a
-                  href="/#/pricing"
-                  onClick={handleGiftItForward}
-                  style={{
-                    display: 'inline-block',
-                    marginTop: '0.75em',
-                    padding: '0.5em 1.2em',
-                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                    color: '#fff',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                    fontSize: '0.75em',
-                    fontWeight: 600,
-                    borderRadius: '6px',
-                    textDecoration: 'none',
-                    boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)',
-                  }}
-                >
-                  Gift It Forward
-                </a>
+                {/* Gift It Forward moved to unified CTA panel below */}
               </>
             ) : hasGift ? (
               <>
@@ -332,64 +311,103 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
               </>
             )}
 
-            {/* Phase 1.5: "Your Turn" CTA — visible on ALL branches, visually dominant */}
-            <div style={{ marginTop: '1.5em', textAlign: 'center' }}>
+            {/* ── Finale CTA Panel ── */}
+            <div style={{ marginTop: '1.5em', textAlign: 'center', maxWidth: '300px', marginLeft: 'auto', marginRight: 'auto' }}>
+
+              {/* Top line — italicized intro */}
+              <p style={{
+                fontSize: '0.7em',
+                fontStyle: 'italic',
+                color: '#6b7280',
+                lineHeight: 1.5,
+                margin: '0 0 1em',
+              }}>
+                We&rsquo;ve taken the liberty of starting a note of appreciation for you.
+              </p>
+
+              {/* Primary CTA */}
               <button
                 onClick={handleYourTurn}
                 style={{
                   background: '#4F2D7F',
                   color: '#fff',
-                  padding: '0.7em 1.5em',
+                  padding: '0.85em 2em',
                   borderRadius: '8px',
-                  fontSize: '0.85em',
+                  fontSize: '0.95em',
                   fontFamily: 'Georgia, serif',
                   fontWeight: 'bold',
                   border: 'none',
                   cursor: 'pointer',
                   width: '100%',
-                  maxWidth: '280px',
+                  boxShadow: '0 3px 10px rgba(79, 45, 127, 0.25)',
                 }}
               >
                 Your Turn
               </button>
-              <p style={{ fontSize: '0.6em', color: '#9ca3af', marginTop: '0.4em' }}>
+
+              {/* Subtext */}
+              <p style={{
+                fontSize: '0.6em',
+                color: '#9ca3af',
+                marginTop: '0.5em',
+                marginBottom: '1.25em',
+                lineHeight: 1.4,
+              }}>
                 Send one back &mdash; we&rsquo;ve already started it for you
               </p>
-            </div>
 
-            {/* Share the Moment — Web Share API (all greetings) */}
-            {typeof navigator !== 'undefined' && navigator.share && (
-              <button
-                onClick={() => {
-                  const shareUrl = `${window.location.origin}/#/g/${jobId || ''}`;
-                  navigator.share({
-                    title: 'Someone sent me a Greet-Me',
-                    text: 'I just received a beautiful AI-animated greeting. Check out Greet-Me!',
-                    url: shareUrl,
-                  }).catch(() => {});
-                }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4em',
-                  marginTop: '0.75em',
-                  marginBottom: '0.5em',
-                  padding: '0.5em 1em',
-                  background: 'linear-gradient(135deg, #3A7BD5 0%, #1B2A4A 100%)',
-                  color: '#fff',
-                  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                  fontSize: '0.7em',
-                  fontWeight: 600,
-                  borderRadius: '6px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(58, 123, 213, 0.3)',
-                }}
-              >
-                <span style={{ fontSize: '1.1em' }}>&#x1F4E4;</span>
-                Share the Moment
-              </button>
-            )}
+              {/* Secondary actions — grouped, lower visual weight */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
+                {hasGift && gift?.type === 'qrcash' && (
+                  <a
+                    href="/#/pricing"
+                    onClick={handleGiftItForward}
+                    style={{
+                      display: 'inline-block',
+                      padding: '0.4em 1em',
+                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      color: '#fff',
+                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                      fontSize: '0.65em',
+                      fontWeight: 600,
+                      borderRadius: '6px',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Gift It Forward
+                  </a>
+                )}
+                {typeof navigator !== 'undefined' && navigator.share && (
+                  <button
+                    onClick={() => {
+                      const shareUrl = `${window.location.origin}/#/g/${jobId || ''}`;
+                      navigator.share({
+                        title: 'Someone sent me a Greet-Me',
+                        text: 'I just received a beautiful AI-animated greeting. Check out Greet-Me!',
+                        url: shareUrl,
+                      }).catch(() => {});
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3em',
+                      padding: '0.4em 1em',
+                      background: 'transparent',
+                      color: '#6b7280',
+                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                      fontSize: '0.6em',
+                      fontWeight: 500,
+                      borderRadius: '6px',
+                      border: '1px solid #d1d5db',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span style={{ fontSize: '1em' }}>&#x1F4E4;</span>
+                    Share the Moment
+                  </button>
+                )}
+              </div>
+            </div>
 
             <div className="gc-branding">
               {/* TODO: Replace with final G logo asset when provided */}
