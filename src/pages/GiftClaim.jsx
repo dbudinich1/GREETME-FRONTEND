@@ -295,7 +295,7 @@ export default function GiftClaim() {
                 <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>Terms and conditions apply.</span>
               </p>
               <a
-                href={`/#/dashboard/plans?referral=${gift.referralCode}`}
+                href={`/#/credit/${gift.referralCode}`}
                 style={{
                   display: 'inline-block',
                   padding: '0.75rem 1.5rem',

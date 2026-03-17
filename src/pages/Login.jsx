@@ -30,7 +30,13 @@ export const Login = () => {
     const result = await login(email, password);
 
     if (result?.success) {
-      navigate("/dashboard");
+      const pendingReferral = localStorage.getItem('greetme_referral_code');
+      if (pendingReferral) {
+        localStorage.removeItem('greetme_referral_code');
+        navigate(`/dashboard/send?referral=${pendingReferral}`);
+      } else {
+        navigate("/dashboard");
+      }
     } else {
       setError(getErrorMessage(result));
     }

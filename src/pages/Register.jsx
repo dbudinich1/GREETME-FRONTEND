@@ -25,14 +25,18 @@ export default function Register() {
     const result = await register(name, email, password);
 
     if (result.success) {
+      const pendingReferral = localStorage.getItem('greetme_referral_code');
+      const dest = pendingReferral
+        ? (localStorage.removeItem('greetme_referral_code'), `/dashboard/send?referral=${pendingReferral}`)
+        : '/dashboard';
       if (typeof window.gtag === 'function') {
         window.gtag('event', 'signup_success', {
           event_callback: function() {
-            navigate('/dashboard');
+            navigate(dest);
           }
         });
       } else {
-        navigate('/dashboard');
+        navigate(dest);
       }
     } else {
       setError(getErrorMessage(result));
