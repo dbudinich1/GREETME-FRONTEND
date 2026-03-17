@@ -496,6 +496,27 @@ class ApiService {
   }
 
   // --------------------
+  // Thank You Flow (Phase 1.5)
+  // --------------------
+  getThankyouPrefill(jobId) {
+    return this.request(`/api/events/thankyou-prefill/${jobId}`);
+  }
+
+  submitThankYouGreeting(data) {
+    return this.request("/api/jobs/send-greeting", {
+      method: "POST",
+      body: JSON.stringify({
+        recipientName: data.recipientName,
+        recipientEmail: data.recipientEmail,
+        occasion: data.occasion || "thank-you",
+        tone: data.tone || "warm",
+        notes: data.script,
+        sourceJobId: data.sourceJobId,
+      }),
+    });
+  }
+
+  // --------------------
   // Public Greeting View (no auth required)
   // --------------------
   getPublicGreeting(greetingId) {

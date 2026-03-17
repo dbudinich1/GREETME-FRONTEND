@@ -33,6 +33,7 @@ import RecipientGreeting from "./pages/RecipientGreeting";
 import PublicGreetingCard from "./pages/PublicGreetingCard";
 import GiftClaim from "./pages/GiftClaim";
 import ReferralCredit from "./pages/ReferralCredit";
+import ThankYouFlow from "./pages/ThankYouFlow";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
 import Support from "./pages/Support";
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="/g/:jobId" element={<PublicGreetingCard />} />
           <Route path="/gift/:claimToken" element={<GiftClaim />} />
           <Route path="/credit/:referralCode" element={<ReferralCredit />} />
+          <Route path="/thank-you" element={<ThankYouFlow />} />
 
           {/* Protected Routes */}
           <Route
