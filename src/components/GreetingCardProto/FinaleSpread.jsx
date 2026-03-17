@@ -331,14 +331,13 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
                 style={{
                   background: '#4F2D7F',
                   color: '#fff',
-                  padding: '0.85em 2em',
-                  borderRadius: '8px',
+                  padding: '0.75em 2em',
+                  borderRadius: '24px',
                   fontSize: '0.95em',
                   fontFamily: 'Georgia, serif',
                   fontWeight: 'bold',
                   border: 'none',
                   cursor: 'pointer',
-                  width: '100%',
                   boxShadow: '0 3px 10px rgba(79, 45, 127, 0.25)',
                 }}
               >
