@@ -312,33 +312,45 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
             )}
 
             {/* ── Finale CTA Panel ── */}
-            <div style={{ marginTop: '1.5em', textAlign: 'center', maxWidth: '300px', marginLeft: 'auto', marginRight: 'auto' }}>
+            <div style={{
+              marginTop: '1.5em',
+              maxWidth: '420px',
+              marginLeft: 'auto',
+              marginRight: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '1.25em',
+            }}>
 
-              {/* Top line — italicized intro */}
+              {/* Supporting line */}
               <p style={{
-                fontSize: '0.7em',
+                fontSize: '0.8em',
                 fontStyle: 'italic',
                 color: '#6b7280',
+                opacity: 0.7,
                 lineHeight: 1.5,
-                margin: '0 0 1em',
+                textAlign: 'center',
+                margin: 0,
               }}>
-                We&rsquo;ve taken the liberty of starting a note of appreciation for you.
+                This moment continues with you.
               </p>
 
               {/* Primary CTA */}
               <button
                 onClick={handleYourTurn}
                 style={{
+                  display: 'inline-block',
                   background: '#4F2D7F',
                   color: '#fff',
-                  padding: '0.6em 1.75em',
+                  padding: '0.65em 1.8em',
                   borderRadius: '24px',
-                  fontSize: '0.8em',
+                  fontSize: '0.9em',
                   fontFamily: 'Georgia, serif',
-                  fontWeight: 'bold',
+                  fontWeight: 500,
                   border: 'none',
                   cursor: 'pointer',
-                  boxShadow: '0 3px 10px rgba(79, 45, 127, 0.25)',
+                  boxShadow: '0 3px 10px rgba(79, 45, 127, 0.2)',
                 }}
               >
                 Your Turn
@@ -346,16 +358,17 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
 
               {/* Subtext */}
               <p style={{
-                fontSize: '0.6em',
+                fontSize: '0.75em',
                 color: '#9ca3af',
-                marginTop: '0.5em',
-                marginBottom: '1.25em',
-                lineHeight: 1.4,
+                opacity: 0.7,
+                lineHeight: 1.5,
+                textAlign: 'center',
+                margin: 0,
               }}>
                 Send one back &mdash; we&rsquo;ve already started it for you
               </p>
 
-              {/* Secondary actions — grouped, lower visual weight */}
+              {/* Secondary actions */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
                 {hasGift && gift?.type === 'qrcash' && (
                   <a
@@ -363,7 +376,7 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
                     onClick={handleGiftItForward}
                     style={{
                       display: 'inline-block',
-                      padding: '0.4em 1em',
+                      padding: '0.35em 0.9em',
                       background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                       color: '#fff',
                       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -371,6 +384,7 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
                       fontWeight: 600,
                       borderRadius: '6px',
                       textDecoration: 'none',
+                      opacity: 0.85,
                     }}
                   >
                     Gift It Forward
@@ -390,15 +404,16 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.3em',
-                      padding: '0.4em 1em',
+                      padding: '0.35em 0.9em',
                       background: 'transparent',
-                      color: '#6b7280',
+                      color: '#9ca3af',
                       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
                       fontSize: '0.6em',
                       fontWeight: 500,
                       borderRadius: '6px',
-                      border: '1px solid #d1d5db',
+                      border: '1px solid #e5e7eb',
                       cursor: 'pointer',
+                      opacity: 0.65,
                     }}
                   >
                     <span style={{ fontSize: '1em' }}>&#x1F4E4;</span>
