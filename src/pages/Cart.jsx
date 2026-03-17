@@ -18,6 +18,10 @@ export default function Cart() {
   // Check if cart has a subscription (eligible for G1G1)
   const hasSubscription = cartItems.some(item => item.type === 'subscription');
 
+  // Referral credit disqualifies G1G1
+  const hasReferralCredit = !!(localStorage.getItem('greetme_referral_code'));
+  const g1g1Eligible = hasSubscription && !hasReferralCredit;
+
   useEffect(() => {
     loadCart();
   }, []);
@@ -369,7 +373,46 @@ export default function Cart() {
             ))}
 
             {/* G1G1 Free Gift Subscription Item - shows when cart has a subscription */}
-            {hasSubscription && (
+            {hasSubscription && hasReferralCredit && (
+              <div
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: 'rgba(156, 163, 175, 0.08)'
+                }}
+              >
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1rem',
+                  flexShrink: 0,
+                  opacity: 0.5
+                }}>
+                  🎁
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    color: '#6b7280',
+                    marginBottom: '0',
+                  }}>Greet One, Give One&trade;</h3>
+                  <span style={{
+                    fontSize: '0.5625rem',
+                    fontWeight: 500,
+                    color: '#9ca3af'
+                  }}>Not included with discounted purchases</span>
+                </div>
+              </div>
+            )}
+            {g1g1Eligible && (
               <div
                 style={{
                   padding: '0.5rem 0.75rem',
@@ -443,7 +486,26 @@ export default function Cart() {
           </div>
 
           {/* G1G1 Gift Subscription Section - Only show if cart has a subscription */}
-          {hasSubscription && (
+          {hasSubscription && hasReferralCredit && (
+            <div style={{
+              marginTop: '1rem',
+              background: 'rgba(156, 163, 175, 0.06)',
+              borderRadius: 'var(--radius-xl)',
+              border: '2px solid var(--border)',
+              overflow: 'hidden',
+              padding: '1rem',
+              textAlign: 'center',
+            }}>
+              <Gift size={18} style={{ color: '#9ca3af', marginBottom: '0.5rem' }} />
+              <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: '#6b7280', margin: '0 0 0.375rem' }}>
+                Greet One, Give One&trade;
+              </h3>
+              <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: 0, lineHeight: 1.5 }}>
+                Greet One, Give One&trade; is awarded with full memberships and is not included with discounted purchases.
+              </p>
+            </div>
+          )}
+          {g1g1Eligible && (
             <div style={{
               marginTop: '1rem',
               background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
@@ -466,7 +528,7 @@ export default function Cart() {
                     fontWeight: 700,
                     color: 'white',
                     margin: 0
-                  }}>Greet One, Give One™</h3>
+                  }}>Greet One, Give One&trade;</h3>
                   <p style={{
                     fontSize: '0.6875rem',
                     color: 'rgba(255, 255, 255, 0.9)',
@@ -663,8 +725,8 @@ export default function Cart() {
                   <span>${total.toFixed(2)}</span>
                 </div>
 
-                {/* G1G1 Free Gift Subscription Deduction - show when cart has subscription */}
-                {hasSubscription && (() => {
+                {/* G1G1 Free Gift Subscription Deduction - show when cart has full-price subscription */}
+                {g1g1Eligible && (() => {
                   const subscriptionItem = cartItems.find(item => item.type === 'subscription');
                   const subscriptionPrice = subscriptionItem?.price || 19.99;
                   return (
