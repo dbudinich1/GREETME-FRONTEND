@@ -292,7 +292,7 @@ export default function GiftClaim() {
               }}>
                 Apply your $10 credit toward a Greet-Me subscription.
                 <br />
-                <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>Terms and conditions apply.</span>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>Valid toward Social Butterfly or higher plans. Terms apply.</span>
               </p>
               <a
                 href={`/#/credit/${gift.referralCode}`}

@@ -1,6 +1,6 @@
 // src/pages/Checkout.jsx
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { CreditCard, Lock, ArrowLeft, CheckCircle, ShoppingBag, Truck, Shield } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import cartService from '../services/cartService';
@@ -16,8 +16,14 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 
 export default function Checkout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [cartItems, setCartItems] = useState([]);
+
+  // Referral credit from URL or localStorage
+  const referralCode = new URLSearchParams(location.search).get('referral')
+    || localStorage.getItem('greetme_referral_code')
+    || null;
   const [total, setTotal] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
@@ -90,6 +96,7 @@ export default function Checkout() {
         quantity: item.quantity || 1,
         planTier: item.planTier,
         billingPeriod: item.billingPeriod || item.period,
+        ...(referralCode && { referralCode }),
       });
       window.location.href = data.url;
     } catch (error) {

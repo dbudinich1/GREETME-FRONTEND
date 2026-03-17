@@ -1,16 +1,28 @@
 // src/pages/Pricing.jsx
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Check, CheckCircle, ShoppingCart, X, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import cartService from '../services/cartService';
 import { personalPlans, businessPlans } from '../config/plans';
 
+// Plan tiers ineligible for referral credit
+const CREDIT_INELIGIBLE_TIERS = new Set(['close_circle']);
+
 export default function Pricing() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [viewMode, setViewMode] = useState('personal'); // 'personal' or 'business'
   const [pricingMode, setPricingMode] = useState('founders'); // 'founders' or 'standard' (for personal)
+
+  // Referral credit from URL or localStorage
+  const [referralCode, setReferralCode] = useState(null);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const code = params.get('referral') || localStorage.getItem('greetme_referral_code');
+    if (code) setReferralCode(code);
+  }, [location.search]);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
 
   // Handle resize for mobile detection
@@ -297,6 +309,8 @@ export default function Pricing() {
             alignItems: 'stretch'
           }}>
           {currentPlans.map((plan) => {
+            const isCreditIneligible = referralCode && CREDIT_INELIGIBLE_TIERS.has(plan.planTier);
+            const isCreditEligible = referralCode && !CREDIT_INELIGIBLE_TIERS.has(plan.planTier) && plan.price !== 'Contact Sales';
             return (
               <div
                 key={plan.id}
@@ -517,33 +531,67 @@ export default function Pricing() {
                   )}
                 </div>
 
+                {/* Credit eligibility badge */}
+                {isCreditEligible && (
+                  <div style={{
+                    padding: '0.5rem 0.75rem',
+                    background: '#ecfdf5',
+                    border: '1px solid #6ee7b7',
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: '0.75rem',
+                    fontSize: '0.8125rem',
+                    color: '#065f46',
+                    fontWeight: 600,
+                  }}>
+                    $10 credit applies &mdash; pay ${(plan.price - 10).toFixed(2)}/{plan.period}
+                  </div>
+                )}
+                {isCreditIneligible && (
+                  <div style={{
+                    padding: '0.5rem 0.75rem',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: '0.75rem',
+                    fontSize: '0.8125rem',
+                    color: '#991b1b',
+                    fontWeight: 500,
+                  }}>
+                    Credit not valid for this plan
+                  </div>
+                )}
+
                 {/* CTA Button */}
                 <button
-                  onClick={() => handlePlanSelect(plan)}
+                  onClick={() => !isCreditIneligible && handlePlanSelect(plan)}
+                  disabled={isCreditIneligible}
                   style={{
                     width: '100%',
                     padding: '0.875rem',
-                    background: plan.highlight ? 'var(--primary)' : 'var(--gray-100)',
-                    color: plan.highlight ? 'white' : 'var(--text-primary)',
+                    background: isCreditIneligible ? 'var(--gray-200, #e5e7eb)' : plan.highlight ? 'var(--primary)' : 'var(--gray-100)',
+                    color: isCreditIneligible ? 'var(--text-secondary, #6b7280)' : plan.highlight ? 'white' : 'var(--text-primary)',
                     border: 'none',
                     borderRadius: 'var(--radius-lg)',
                     fontSize: '1rem',
                     fontWeight: 600,
-                    cursor: 'pointer',
+                    cursor: isCreditIneligible ? 'not-allowed' : 'pointer',
                     fontFamily: 'inherit',
                     marginBottom: '2rem',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    opacity: isCreditIneligible ? 0.6 : 1,
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 10px 20px rgba(0, 0, 0, 0.15)';
+                    if (!isCreditIneligible) {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 10px 20px rgba(0, 0, 0, 0.15)';
+                    }
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  {plan.price === 'Contact Sales' ? 'Contact Sales' : 'Get Started'}
+                  {plan.price === 'Contact Sales' ? 'Contact Sales' : isCreditIneligible ? 'Not Eligible' : 'Get Started'}
                 </button>
 
                 {/* Features - Phase 8.3: Grouped into sections for scannability */}

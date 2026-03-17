@@ -104,7 +104,7 @@ export default function ReferralCredit() {
           color: '#6b7280',
           margin: '0 0 1.5rem',
         }}>
-          Terms and conditions apply.
+          Valid toward Social Butterfly or higher plans. Terms apply.
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
