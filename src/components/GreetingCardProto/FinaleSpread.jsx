@@ -245,7 +245,9 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
                     : 'A QR Cash\u2122 gift is included with this greeting'}
                 </p>
 
-                {/* Gift It Forward CTA — viral trigger at peak emotion */}
+                {/* Gift It Forward CTA — viral trigger at peak emotion
+                     Phase 1: only shown for qrcash gifts. Non-qrcash and no-gift
+                     greetings do not show this CTA. Expand in Phase 2. */}
                 <a
                   href="/#/pricing"
                   onClick={handleGiftItForward}

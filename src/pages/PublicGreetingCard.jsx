@@ -28,6 +28,9 @@ export default function PublicGreetingCard() {
   }, [greeting]);
 
   // Growth Engine: GREETING_OPENED event (fire-and-forget, first-open-only)
+  // Phase 1 semantic: fires on page load (envelope screen), NOT on Finale reached.
+  // "They opened it" = "they opened your greeting link." Acceptable for launch.
+  // Phase 2: move trigger to Finale screen via GreetingCard onScreenChange callback.
   useEffect(() => {
     if (greeting && jobId) {
       api.trackGreetingOpened(jobId).catch(() => {});
