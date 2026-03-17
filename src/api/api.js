@@ -508,7 +508,7 @@ class ApiService {
       body: JSON.stringify({
         recipientName: data.recipientName,
         recipientEmail: data.recipientEmail,
-        occasion: data.occasion || "thank-you",
+        occasionKey: "thank-you",
         tone: data.tone || "warm",
         notes: data.script,
         sourceJobId: data.sourceJobId,
