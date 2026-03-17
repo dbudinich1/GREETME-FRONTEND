@@ -264,50 +264,48 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
             ) : hasGift ? (
               <>
                 <h3 className="gc-gift-title">A little something extra</h3>
-
-                <div className="gc-qr-frame">
-                  <div className="gc-qr-code">
-                    <svg viewBox="0 0 100 100" className="gc-qr-placeholder">
-                      <rect x="10" y="10" width="20" height="20" fill="currentColor"/>
-                      <rect x="70" y="10" width="20" height="20" fill="currentColor"/>
-                      <rect x="10" y="70" width="20" height="20" fill="currentColor"/>
-                      <rect x="40" y="40" width="20" height="20" fill="currentColor"/>
-                      <rect x="35" y="15" width="10" height="10" fill="currentColor"/>
-                      <rect x="55" y="35" width="10" height="10" fill="currentColor"/>
-                      <rect x="15" y="45" width="10" height="10" fill="currentColor"/>
-                      <rect x="75" y="55" width="10" height="10" fill="currentColor"/>
-                      <rect x="45" y="75" width="10" height="10" fill="currentColor"/>
-                    </svg>
-                  </div>
-                </div>
-
-                <p className="gc-gift-instruction">
+                <p className="gc-gift-instruction" style={{ marginBottom: '0.75em' }}>
                   Treat yourself to something that makes you smile!
                 </p>
+                <a
+                  href="/#/pricing"
+                  style={{
+                    display: 'inline-block',
+                    padding: '0.45em 1.2em',
+                    background: 'linear-gradient(135deg, #3A7BD5 0%, #1B2A4A 100%)',
+                    color: '#fff',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    fontSize: '0.7em',
+                    fontWeight: 600,
+                    borderRadius: '20px',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Browse Plans
+                </a>
               </>
             ) : (
               <>
                 <h3 className="gc-gift-title" style={{ fontSize: '0.85em', whiteSpace: 'nowrap' }}>A Gift From Greet-Me</h3>
-
-                <div className="gc-qr-frame">
-                  <div className="gc-qr-code">
-                    <svg viewBox="0 0 100 100" className="gc-qr-placeholder">
-                      <rect x="10" y="10" width="20" height="20" fill="currentColor"/>
-                      <rect x="70" y="10" width="20" height="20" fill="currentColor"/>
-                      <rect x="10" y="70" width="20" height="20" fill="currentColor"/>
-                      <rect x="40" y="40" width="20" height="20" fill="currentColor"/>
-                      <rect x="35" y="15" width="10" height="10" fill="currentColor"/>
-                      <rect x="55" y="35" width="10" height="10" fill="currentColor"/>
-                      <rect x="15" y="45" width="10" height="10" fill="currentColor"/>
-                      <rect x="75" y="55" width="10" height="10" fill="currentColor"/>
-                      <rect x="45" y="75" width="10" height="10" fill="currentColor"/>
-                    </svg>
-                  </div>
-                </div>
-
-                <p className="gc-gift-instruction">
+                <p className="gc-gift-instruction" style={{ marginBottom: '0.75em' }}>
                   Enjoy $5 toward your first Greet-Me subscription.
                 </p>
+                <a
+                  href="/#/pricing"
+                  style={{
+                    display: 'inline-block',
+                    padding: '0.45em 1.2em',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: '#fff',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    fontSize: '0.7em',
+                    fontWeight: 600,
+                    borderRadius: '20px',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Apply My Credit
+                </a>
               </>
             )}
 
