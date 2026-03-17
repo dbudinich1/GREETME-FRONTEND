@@ -287,7 +287,7 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
               </>
             ) : (
               <>
-                <h3 className="gc-gift-title">A Gift From Greet-Me</h3>
+                <h3 className="gc-gift-title" style={{ fontSize: '0.85em', whiteSpace: 'nowrap' }}>A Gift From Greet-Me</h3>
 
                 <div className="gc-qr-frame">
                   <div className="gc-qr-code">
@@ -331,9 +331,9 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
                 style={{
                   background: '#4F2D7F',
                   color: '#fff',
-                  padding: '0.75em 2em',
+                  padding: '0.6em 1.75em',
                   borderRadius: '24px',
-                  fontSize: '0.95em',
+                  fontSize: '0.8em',
                   fontFamily: 'Georgia, serif',
                   fontWeight: 'bold',
                   border: 'none',
