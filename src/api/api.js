@@ -510,7 +510,7 @@ class ApiService {
         recipientEmail: data.recipientEmail,
         occasionKey: "thank-you",
         tone: data.tone || "warm",
-        notes: data.script,
+        personalSentiment: data.script,
         sourceJobId: data.sourceJobId,
       }),
     });

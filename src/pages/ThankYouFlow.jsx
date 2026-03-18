@@ -195,40 +195,7 @@ export default function ThankYouFlow() {
           </p>
         </div>
 
-        {/* Error display */}
-        {error && (
-          <div style={{ padding: '0.75rem 1rem', background: '#fef2f2', borderRadius: '0.5rem', border: '1px solid #fecaca', marginBottom: '1.5rem' }}>
-            <p style={{ fontSize: '0.875rem', color: '#dc2626', margin: 0 }}>{error}</p>
-          </div>
-        )}
-
-        {/* C. Primary CTA block */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <button
-            onClick={handleSend}
-            disabled={sending}
-            style={{
-              width: '100%',
-              padding: '1rem',
-              background: sending ? '#d1d5db' : '#4F2D7F',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '0.75rem',
-              fontSize: '1.125rem',
-              fontWeight: 600,
-              fontFamily: 'Georgia, serif',
-              cursor: sending ? 'not-allowed' : 'pointer',
-              boxShadow: sending ? 'none' : '0 4px 14px rgba(79, 45, 127, 0.2)',
-            }}
-          >
-            {sending ? 'Sending...' : 'Send'}
-          </button>
-          <p style={{ fontSize: '0.8rem', color: '#9ca3af', textAlign: 'center', margin: '0.625rem 0 0', lineHeight: 1.5 }}>
-            You can send now, or add your voice and photo below.
-          </p>
-        </div>
-
-        {/* D. Enhancement card — optional, never blocking */}
+        {/* C. Enhancement card — optional, above Send */}
         {effectivelyAuthenticated && (
           <div style={styles.enhanceCard}>
             <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1f2937', margin: '0 0 0.25rem' }}>
@@ -277,6 +244,34 @@ export default function ThankYouFlow() {
             )}
           </div>
         )}
+
+        {/* D. Error display */}
+        {error && (
+          <div style={{ padding: '0.75rem 1rem', background: '#fef2f2', borderRadius: '0.5rem', border: '1px solid #fecaca', marginBottom: '1.5rem' }}>
+            <p style={{ fontSize: '0.875rem', color: '#dc2626', margin: 0 }}>{error}</p>
+          </div>
+        )}
+
+        {/* E. Primary CTA — always last, always available */}
+        <button
+          onClick={handleSend}
+          disabled={sending}
+          style={{
+            width: '100%',
+            padding: '1rem',
+            background: sending ? '#d1d5db' : '#4F2D7F',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '0.75rem',
+            fontSize: '1.125rem',
+            fontWeight: 600,
+            fontFamily: 'Georgia, serif',
+            cursor: sending ? 'not-allowed' : 'pointer',
+            boxShadow: sending ? 'none' : '0 4px 14px rgba(79, 45, 127, 0.2)',
+          }}
+        >
+          {sending ? 'Sending...' : 'Send'}
+        </button>
 
         <p style={{ ...styles.footer, textAlign: 'center' }}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
       </div>
