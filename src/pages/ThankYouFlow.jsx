@@ -41,6 +41,8 @@ export default function ThankYouFlow() {
   // Track whether user has added assets (refreshes after upload)
   const hasVoice = !!user?.voiceId;
   const hasPhoto = !!user?.photoUrl;
+  const [addedVoiceThisSession, setAddedVoiceThisSession] = useState(false);
+  const [addedPhotoThisSession, setAddedPhotoThisSession] = useState(false);
 
   useEffect(() => {
     if (!jobId) {
@@ -97,6 +99,7 @@ export default function ThankYouFlow() {
     try {
       await api.uploadVoice(formData);
       await refreshProfile();
+      setAddedVoiceThisSession(true);
     } catch { /* non-fatal */ }
   };
 
@@ -104,6 +107,7 @@ export default function ThankYouFlow() {
     try {
       await api.uploadPhoto(formData);
       await refreshProfile();
+      setAddedPhotoThisSession(true);
     } catch { /* non-fatal */ }
   };
 
@@ -206,7 +210,15 @@ export default function ThankYouFlow() {
             </p>
 
             {/* Voice row */}
-            {!hasVoice ? (
+            {addedVoiceThisSession ? (
+              <div style={styles.chipRow}>
+                <span style={styles.successChip}>&#10003; Voice added</span>
+              </div>
+            ) : hasVoice ? (
+              <div style={styles.chipRow}>
+                <span style={styles.neutralChip}>On your profile</span>
+              </div>
+            ) : (
               <div style={styles.enhanceRow}>
                 <div style={{ marginBottom: '0.5rem' }}>
                   <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
@@ -218,14 +230,18 @@ export default function ThankYouFlow() {
                 </div>
                 <VoiceRecorder onUpload={handleVoiceUpload} existingVoice={null} />
               </div>
-            ) : (
-              <div style={styles.chipRow}>
-                <span style={styles.successChip}>&#10003; Voice added</span>
-              </div>
             )}
 
             {/* Photo row */}
-            {!hasPhoto ? (
+            {addedPhotoThisSession ? (
+              <div style={styles.chipRow}>
+                <span style={styles.successChip}>&#10003; Photo added</span>
+              </div>
+            ) : hasPhoto ? (
+              <div style={styles.chipRow}>
+                <span style={styles.neutralChip}>On your profile</span>
+              </div>
+            ) : (
               <div style={{ ...styles.enhanceRow, marginBottom: 0 }}>
                 <div style={{ marginBottom: '0.5rem' }}>
                   <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
@@ -236,10 +252,6 @@ export default function ThankYouFlow() {
                   </p>
                 </div>
                 <PhotoUpload onUpload={handlePhotoUpload} existingPhoto={null} />
-              </div>
-            ) : (
-              <div style={styles.chipRow}>
-                <span style={styles.successChip}>&#10003; Photo added</span>
               </div>
             )}
           </div>
@@ -336,6 +348,15 @@ const styles = {
     borderRadius: '1rem',
     fontSize: '0.8125rem',
     fontWeight: 600,
+  },
+  neutralChip: {
+    display: 'inline-block',
+    padding: '0.375rem 0.75rem',
+    background: '#f3f4f6',
+    color: '#6b7280',
+    borderRadius: '1rem',
+    fontSize: '0.8125rem',
+    fontWeight: 500,
   },
   title: {
     fontSize: '1.5rem',
