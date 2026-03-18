@@ -149,130 +149,136 @@ export default function ThankYouFlow() {
   }
 
   // ---- Main flow ----
+  const recipientFirst = (prefill.recipientName || 'them').split(' ')[0];
+
   return (
     <div style={styles.page}>
-      <div style={styles.card}>
-        <p style={{ fontSize: '0.8rem', color: '#9ca3af', letterSpacing: '0.05em', margin: '0 0 1rem' }}>
-          <span style={{ fontWeight: 600 }}>Greet-Me&trade;</span>
-          <span style={{ margin: '0 0.4rem', opacity: 0.4 }}>&middot;</span>
-          <span style={{ fontStyle: 'italic' }}>Your Turn</span>
-        </p>
+      <div style={styles.container}>
 
-        <h1 style={{ ...styles.title, fontSize: '1.625rem' }}>
-          Send one back to {(prefill.recipientName || 'them').split(' ')[0]}
-        </h1>
-
-        <p style={{ fontSize: '0.95rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
-          We&rsquo;ve started it for you. Edit if you want, or send as-is.
-        </p>
-
-        {/* Recipient (read-only) */}
-        <div style={{ marginBottom: '1rem', textAlign: 'left' }}>
-          <label style={styles.label}>To</label>
-          <div style={{
-            padding: '0.75rem',
-            background: '#f9fafb',
-            border: '1px solid #e5e7eb',
-            borderRadius: '0.5rem',
-            fontSize: '1rem',
-            color: '#374151',
-          }}>
-            {prefill.recipientName || 'Recipient'}
-          </div>
+        {/* A. Header block */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <p style={{ fontSize: '0.8rem', color: '#9ca3af', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 0.5rem' }}>
+            Your turn
+          </p>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#1f2937', margin: '0 0 0.75rem', fontFamily: 'Georgia, serif' }}>
+            Send a Greet-Me back
+          </h1>
+          <p style={{ fontSize: '0.95rem', color: '#6b7280', lineHeight: 1.6, margin: 0, maxWidth: '480px', marginLeft: 'auto', marginRight: 'auto' }}>
+            Say thanks to {recipientFirst} in seconds &mdash; then make it even more personal with your voice or photo.
+          </p>
         </div>
 
-        {/* Occasion badge */}
-        <div style={{ marginBottom: '1rem', textAlign: 'left' }}>
-          <label style={styles.label}>Occasion</label>
-          <span style={{
-            display: 'inline-block',
-            padding: '0.375rem 0.75rem',
-            background: '#ede9fe',
-            color: '#5b21b6',
-            borderRadius: '1rem',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-          }}>
-            Thank You
-          </span>
-        </div>
-
-        {/* Script textarea */}
-        <div style={{ marginBottom: '1.5rem', textAlign: 'left' }}>
-          <label style={styles.label}>Your message</label>
+        {/* B. Message card */}
+        <div style={styles.section}>
+          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>
+            Your message
+          </label>
           <textarea
             value={script}
             onChange={(e) => setScript(e.target.value)}
             rows={7}
             style={{
               width: '100%',
-              padding: '0.75rem',
+              padding: '1rem',
               border: '1px solid #d1d5db',
-              borderRadius: '0.5rem',
+              borderRadius: '0.75rem',
               fontSize: '0.95rem',
               fontFamily: 'Georgia, serif',
-              lineHeight: 1.6,
+              lineHeight: 1.7,
               resize: 'vertical',
               boxSizing: 'border-box',
+              background: '#fff',
             }}
           />
+          <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: '0.5rem 0 0' }}>
+            This is already written for you &mdash; edit anything you like.
+          </p>
         </div>
 
-        {/* Optional enhancements — inline, never blocking */}
-        {effectivelyAuthenticated && (!hasVoice || !hasPhoto) && (
-          <div style={{
-            marginBottom: '1.25rem',
-            padding: '1rem',
-            background: '#f9fafb',
-            borderRadius: '0.75rem',
-            border: '1px solid #e5e7eb',
-            textAlign: 'left',
-          }}>
-            <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#374151', margin: '0 0 0.75rem' }}>
-              Make it even better <span style={{ fontWeight: 400, color: '#9ca3af' }}>(recommended)</span>
+        {/* Error display */}
+        {error && (
+          <div style={{ padding: '0.75rem 1rem', background: '#fef2f2', borderRadius: '0.5rem', border: '1px solid #fecaca', marginBottom: '1.5rem' }}>
+            <p style={{ fontSize: '0.875rem', color: '#dc2626', margin: 0 }}>{error}</p>
+          </div>
+        )}
+
+        {/* C. Primary CTA block */}
+        <div style={{ marginBottom: '1.5rem' }}>
+          <button
+            onClick={handleSend}
+            disabled={sending}
+            style={{
+              width: '100%',
+              padding: '1rem',
+              background: sending ? '#d1d5db' : '#4F2D7F',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '0.75rem',
+              fontSize: '1.125rem',
+              fontWeight: 600,
+              fontFamily: 'Georgia, serif',
+              cursor: sending ? 'not-allowed' : 'pointer',
+              boxShadow: sending ? 'none' : '0 4px 14px rgba(79, 45, 127, 0.2)',
+            }}
+          >
+            {sending ? 'Sending...' : 'Send'}
+          </button>
+          <p style={{ fontSize: '0.8rem', color: '#9ca3af', textAlign: 'center', margin: '0.625rem 0 0', lineHeight: 1.5 }}>
+            You can send now, or add your voice and photo below.
+          </p>
+        </div>
+
+        {/* D. Enhancement card — optional, never blocking */}
+        {effectivelyAuthenticated && (
+          <div style={styles.enhanceCard}>
+            <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1f2937', margin: '0 0 0.25rem' }}>
+              Make it even more special
+            </p>
+            <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: '0 0 1.25rem' }}>
+              Optional, but highly recommended.
             </p>
 
-            {!hasVoice && (
-              <div style={{ marginBottom: hasPhoto ? 0 : '0.75rem' }}>
-                <VoiceRecorder
-                  onUpload={handleVoiceUpload}
-                  existingVoice={null}
-                />
+            {/* Voice row */}
+            {!hasVoice ? (
+              <div style={styles.enhanceRow}>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
+                    Add your voice
+                  </p>
+                  <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
+                    Read a quick line so your thank-you feels unmistakably you.
+                  </p>
+                </div>
+                <VoiceRecorder onUpload={handleVoiceUpload} existingVoice={null} />
+              </div>
+            ) : (
+              <div style={styles.chipRow}>
+                <span style={styles.successChip}>&#10003; Voice added</span>
               </div>
             )}
 
-            {!hasPhoto && (
-              <div>
-                <PhotoUpload
-                  onUpload={handlePhotoUpload}
-                  existingPhoto={null}
-                />
+            {/* Photo row */}
+            {!hasPhoto ? (
+              <div style={{ ...styles.enhanceRow, marginBottom: 0 }}>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
+                    Add a photo
+                  </p>
+                  <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
+                    Use a selfie or upload a favorite photo to bring your Greet-Me to life.
+                  </p>
+                </div>
+                <PhotoUpload onUpload={handlePhotoUpload} existingPhoto={null} />
+              </div>
+            ) : (
+              <div style={styles.chipRow}>
+                <span style={styles.successChip}>&#10003; Photo added</span>
               </div>
             )}
           </div>
         )}
 
-        {/* Send button — ALWAYS enabled, NEVER blocked */}
-        <button
-          onClick={handleSend}
-          disabled={sending}
-          style={{
-            width: '100%',
-            padding: '0.875rem',
-            background: sending ? '#d1d5db' : '#4F2D7F',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '0.5rem',
-            fontSize: '1.0625rem',
-            fontWeight: 600,
-            fontFamily: 'Georgia, serif',
-            cursor: sending ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {sending ? 'Sending...' : 'Send'}
-        </button>
-
-        <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+        <p style={{ ...styles.footer, textAlign: 'center' }}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
       </div>
     </div>
   );
@@ -282,14 +288,18 @@ const styles = {
   page: {
     minHeight: '100vh',
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'center',
     background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 50%, #f5f3ff 100%)',
-    padding: '1.5rem',
+    padding: '3rem 1.5rem',
     fontFamily: FONT_STACK,
   },
+  container: {
+    maxWidth: '680px',
+    width: '100%',
+  },
   card: {
-    maxWidth: '480px',
+    maxWidth: '680px',
     width: '100%',
     background: '#fff',
     borderRadius: '1rem',
@@ -297,18 +307,46 @@ const styles = {
     textAlign: 'center',
     boxShadow: '0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)',
   },
+  section: {
+    background: '#fff',
+    borderRadius: '1rem',
+    padding: '1.5rem',
+    marginBottom: '1.5rem',
+    boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+    textAlign: 'left',
+  },
+  enhanceCard: {
+    background: '#f9fafb',
+    borderRadius: '1rem',
+    padding: '1.5rem',
+    marginBottom: '1.5rem',
+    border: '1px solid #e5e7eb',
+    textAlign: 'left',
+  },
+  enhanceRow: {
+    padding: '1rem',
+    background: '#fff',
+    borderRadius: '0.75rem',
+    border: '1px solid #e5e7eb',
+    marginBottom: '0.75rem',
+  },
+  chipRow: {
+    marginBottom: '0.75rem',
+  },
+  successChip: {
+    display: 'inline-block',
+    padding: '0.375rem 0.75rem',
+    background: '#ecfdf5',
+    color: '#059669',
+    borderRadius: '1rem',
+    fontSize: '0.8125rem',
+    fontWeight: 600,
+  },
   title: {
     fontSize: '1.5rem',
     fontWeight: 700,
     color: '#1f2937',
     margin: '0 0 0.75rem',
-  },
-  label: {
-    display: 'block',
-    fontSize: '0.875rem',
-    fontWeight: 600,
-    color: '#374151',
-    marginBottom: '0.375rem',
   },
   footer: {
     fontSize: '0.75rem',
