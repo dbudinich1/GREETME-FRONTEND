@@ -7,6 +7,8 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
+import VoiceRecorder from '../components/VoiceRecorder';
+import PhotoUpload from '../components/PhotoUpload';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -14,7 +16,7 @@ export default function ThankYouFlow() {
   const [searchParams] = useSearchParams();
   const jobId = searchParams.get('jobId');
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user, refreshProfile } = useAuth();
 
   const [prefill, setPrefill] = useState(null);
   const [script, setScript] = useState('');
@@ -22,6 +24,10 @@ export default function ThankYouFlow() {
   const [error, setError] = useState(null);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+
+  // Progressive onboarding state
+  const [showSetup, setShowSetup] = useState(false);
+  const [setupStep, setSetupStep] = useState('voice'); // 'voice' | 'photo' | 'done'
 
   useEffect(() => {
     if (!jobId) {
@@ -42,14 +48,9 @@ export default function ThankYouFlow() {
       .finally(() => setLoading(false));
   }, [jobId]);
 
-  const handleSend = async () => {
-    if (!isAuthenticated) {
-      // Preserve prefill through register redirect
-      localStorage.setItem('greetme_thankyou_prefill', JSON.stringify({ ...prefill, script, jobId }));
-      navigate('/register');
-      return;
-    }
+  const needsSetup = isAuthenticated && (!user?.voiceId || !user?.photoUrl);
 
+  const proceedToSend = async () => {
     setSending(true);
     try {
       await api.submitThankYouGreeting({
@@ -65,6 +66,53 @@ export default function ThankYouFlow() {
       setError(err?.message || 'Failed to send. Please try again.');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleSend = async () => {
+    if (!isAuthenticated) {
+      localStorage.setItem('greetme_thankyou_prefill', JSON.stringify({ ...prefill, script, jobId }));
+      navigate('/register');
+      return;
+    }
+
+    // Show progressive onboarding if voice or photo missing
+    if (needsSetup && !showSetup) {
+      setSetupStep(!user?.voiceId ? 'voice' : 'photo');
+      setShowSetup(true);
+      return;
+    }
+
+    await proceedToSend();
+  };
+
+  const handleSetupComplete = async () => {
+    setShowSetup(false);
+    await refreshProfile();
+    await proceedToSend();
+  };
+
+  const handleVoiceUpload = async (formData) => {
+    await api.uploadVoice(formData);
+    await refreshProfile();
+    // Advance to photo step if also missing
+    if (!user?.photoUrl) {
+      setSetupStep('photo');
+    } else {
+      await handleSetupComplete();
+    }
+  };
+
+  const handlePhotoUpload = async (formData) => {
+    await api.uploadPhoto(formData);
+    await handleSetupComplete();
+  };
+
+  const handleSkipStep = () => {
+    if (setupStep === 'voice' && !user?.photoUrl) {
+      setSetupStep('photo');
+    } else {
+      handleSetupComplete();
     }
   };
 
@@ -103,6 +151,63 @@ export default function ThankYouFlow() {
           <p style={{ fontSize: '1rem', color: '#6b7280', margin: '0 0 1.5rem' }}>
             {error || 'Something went wrong.'}
           </p>
+          <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Progressive onboarding (voice/photo) ----
+  if (showSetup) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.card}>
+          <p style={{ fontSize: '0.8rem', color: '#9ca3af', letterSpacing: '0.05em', margin: '0 0 0.75rem' }}>
+            <span style={{ fontWeight: 600 }}>Greet-Me&trade;</span>
+            <span style={{ margin: '0 0.4rem', opacity: 0.4 }}>&middot;</span>
+            <span style={{ fontStyle: 'italic' }}>Your Turn</span>
+          </p>
+
+          <h1 style={{ ...styles.title, fontSize: '1.375rem' }}>
+            Greet-Me like a pro
+          </h1>
+
+          {setupStep === 'voice' && (
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: '0.95rem', color: '#4b5563', lineHeight: 1.6, margin: '0 0 1.25rem' }}>
+                Tap record and read a quick line &mdash; your voice makes it personal.
+              </p>
+              <VoiceRecorder
+                onUpload={handleVoiceUpload}
+                existingVoice={user?.voiceId || null}
+              />
+              <p
+                onClick={handleSkipStep}
+                style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '1rem', cursor: 'pointer' }}
+              >
+                Skip for now
+              </p>
+            </div>
+          )}
+
+          {setupStep === 'photo' && (
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: '0.95rem', color: '#4b5563', lineHeight: 1.6, margin: '0 0 1.25rem' }}>
+                Add a photo to bring your greeting to life.
+              </p>
+              <PhotoUpload
+                onUpload={handlePhotoUpload}
+                existingPhoto={user?.photoUrl || null}
+              />
+              <p
+                onClick={handleSkipStep}
+                style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '1rem', cursor: 'pointer' }}
+              >
+                Skip for now
+              </p>
+            </div>
+          )}
+
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
         </div>
       </div>
