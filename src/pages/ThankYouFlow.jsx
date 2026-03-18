@@ -18,6 +18,19 @@ export default function ThankYouFlow() {
   const navigate = useNavigate();
   const { isAuthenticated, user, refreshProfile } = useAuth();
 
+  // Check if stored JWT is expired (prevents stale-auth false positive)
+  const isTokenValid = () => {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 > Date.now();
+    } catch {
+      return false;
+    }
+  };
+  const effectivelyAuthenticated = isAuthenticated && isTokenValid();
+
   const [prefill, setPrefill] = useState(null);
   const [script, setScript] = useState('');
   const [loading, setLoading] = useState(true);
@@ -48,12 +61,12 @@ export default function ThankYouFlow() {
       .finally(() => setLoading(false));
   }, [jobId]);
 
-  const needsSetup = isAuthenticated && (!user?.voiceId || !user?.photoUrl);
+  const needsSetup = effectivelyAuthenticated && (!user?.voiceId || !user?.photoUrl);
 
   const proceedToSend = async () => {
     setSending(true);
     try {
-      await api.submitThankYouGreeting({
+      const result = await api.submitThankYouGreeting({
         recipientName: prefill.recipientName,
         recipientEmail: prefill.recipientEmail,
         occasion: prefill.occasion || 'thank-you',
@@ -61,6 +74,12 @@ export default function ThankYouFlow() {
         script,
         sourceJobId: jobId,
       });
+      // Handle silent 401 (api.request returns { ok:false, status:401 } without throwing)
+      if (result?.status === 401 || result?.ok === false) {
+        localStorage.setItem('greetme_thankyou_prefill', JSON.stringify({ ...prefill, script, jobId }));
+        navigate('/register');
+        return;
+      }
       setSent(true);
     } catch (err) {
       setError(err?.message || 'Failed to send. Please try again.');
@@ -70,7 +89,7 @@ export default function ThankYouFlow() {
   };
 
   const handleSend = async () => {
-    if (!isAuthenticated) {
+    if (!effectivelyAuthenticated) {
       localStorage.setItem('greetme_thankyou_prefill', JSON.stringify({ ...prefill, script, jobId }));
       navigate('/register');
       return;
@@ -301,10 +320,10 @@ export default function ThankYouFlow() {
             cursor: sending ? 'not-allowed' : 'pointer',
           }}
         >
-          {sending ? 'Sending...' : isAuthenticated ? 'Send Your Greet-Me' : 'Sign Up & Send'}
+          {sending ? 'Sending...' : effectivelyAuthenticated ? 'Send Your Greet-Me' : 'Sign Up & Send'}
         </button>
 
-        {!isAuthenticated && (
+        {!effectivelyAuthenticated && (
           <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: '0.75rem 0 0', lineHeight: 1.5 }}>
             Quick sign-up required to send. Your message is saved.
           </p>
