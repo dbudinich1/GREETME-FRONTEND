@@ -38,9 +38,9 @@ export default function ThankYouFlow() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
-  // Progressive onboarding state
-  const [showSetup, setShowSetup] = useState(false);
-  const [setupStep, setSetupStep] = useState('voice'); // 'voice' | 'photo' | 'done'
+  // Track whether user has added assets (refreshes after upload)
+  const hasVoice = !!user?.voiceId;
+  const hasPhoto = !!user?.photoUrl;
 
   useEffect(() => {
     if (!jobId) {
@@ -61,10 +61,10 @@ export default function ThankYouFlow() {
       .finally(() => setLoading(false));
   }, [jobId]);
 
-  const needsSetup = effectivelyAuthenticated && (!user?.voiceId || !user?.photoUrl);
-
-  const proceedToSend = async () => {
+  // Send always proceeds — auth checked by backend, not frontend gate
+  const handleSend = async () => {
     setSending(true);
+    setError(null);
     try {
       const result = await api.submitThankYouGreeting({
         recipientName: prefill.recipientName,
@@ -74,10 +74,14 @@ export default function ThankYouFlow() {
         script,
         sourceJobId: jobId,
       });
-      // Handle silent 401 (api.request returns { ok:false, status:401 } without throwing)
-      if (result?.status === 401 || result?.ok === false) {
+      // 401 = not logged in or expired token → redirect to register
+      if (result?.status === 401) {
         localStorage.setItem('greetme_thankyou_prefill', JSON.stringify({ ...prefill, script, jobId }));
         navigate('/register');
+        return;
+      }
+      if (result?.ok === false) {
+        setError(result?.error || 'Something went wrong. Please try again.');
         return;
       }
       setSent(true);
@@ -88,51 +92,19 @@ export default function ThankYouFlow() {
     }
   };
 
-  const handleSend = async () => {
-    if (!effectivelyAuthenticated) {
-      localStorage.setItem('greetme_thankyou_prefill', JSON.stringify({ ...prefill, script, jobId }));
-      navigate('/register');
-      return;
-    }
-
-    // Show progressive onboarding if voice or photo missing
-    if (needsSetup && !showSetup) {
-      setSetupStep(!user?.voiceId ? 'voice' : 'photo');
-      setShowSetup(true);
-      return;
-    }
-
-    await proceedToSend();
-  };
-
-  const handleSetupComplete = async () => {
-    setShowSetup(false);
-    await refreshProfile();
-    await proceedToSend();
-  };
-
+  // Optional enhancement handlers (never block send)
   const handleVoiceUpload = async (formData) => {
-    await api.uploadVoice(formData);
-    await refreshProfile();
-    // Advance to photo step if also missing
-    if (!user?.photoUrl) {
-      setSetupStep('photo');
-    } else {
-      await handleSetupComplete();
-    }
+    try {
+      await api.uploadVoice(formData);
+      await refreshProfile();
+    } catch { /* non-fatal */ }
   };
 
   const handlePhotoUpload = async (formData) => {
-    await api.uploadPhoto(formData);
-    await handleSetupComplete();
-  };
-
-  const handleSkipStep = () => {
-    if (setupStep === 'voice' && !user?.photoUrl) {
-      setSetupStep('photo');
-    } else {
-      handleSetupComplete();
-    }
+    try {
+      await api.uploadPhoto(formData);
+      await refreshProfile();
+    } catch { /* non-fatal */ }
   };
 
   // ---- Sent confirmation ----
@@ -170,63 +142,6 @@ export default function ThankYouFlow() {
           <p style={{ fontSize: '1rem', color: '#6b7280', margin: '0 0 1.5rem' }}>
             {error || 'Something went wrong.'}
           </p>
-          <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ---- Progressive onboarding (voice/photo) ----
-  if (showSetup) {
-    return (
-      <div style={styles.page}>
-        <div style={styles.card}>
-          <p style={{ fontSize: '0.8rem', color: '#9ca3af', letterSpacing: '0.05em', margin: '0 0 0.75rem' }}>
-            <span style={{ fontWeight: 600 }}>Greet-Me&trade;</span>
-            <span style={{ margin: '0 0.4rem', opacity: 0.4 }}>&middot;</span>
-            <span style={{ fontStyle: 'italic' }}>Your Turn</span>
-          </p>
-
-          <h1 style={{ ...styles.title, fontSize: '1.375rem' }}>
-            Greet-Me like a pro
-          </h1>
-
-          {setupStep === 'voice' && (
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: '0.95rem', color: '#4b5563', lineHeight: 1.6, margin: '0 0 1.25rem' }}>
-                Tap record and read a quick line &mdash; your voice makes it personal.
-              </p>
-              <VoiceRecorder
-                onUpload={handleVoiceUpload}
-                existingVoice={user?.voiceId || null}
-              />
-              <p
-                onClick={handleSkipStep}
-                style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '1rem', cursor: 'pointer' }}
-              >
-                Skip for now
-              </p>
-            </div>
-          )}
-
-          {setupStep === 'photo' && (
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: '0.95rem', color: '#4b5563', lineHeight: 1.6, margin: '0 0 1.25rem' }}>
-                Add a photo to bring your greeting to life.
-              </p>
-              <PhotoUpload
-                onUpload={handlePhotoUpload}
-                existingPhoto={user?.photoUrl || null}
-              />
-              <p
-                onClick={handleSkipStep}
-                style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '1rem', cursor: 'pointer' }}
-              >
-                Skip for now
-              </p>
-            </div>
-          )}
-
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
         </div>
       </div>
@@ -303,7 +218,41 @@ export default function ThankYouFlow() {
           />
         </div>
 
-        {/* Send button — ALWAYS enabled */}
+        {/* Optional enhancements — inline, never blocking */}
+        {effectivelyAuthenticated && (!hasVoice || !hasPhoto) && (
+          <div style={{
+            marginBottom: '1.25rem',
+            padding: '1rem',
+            background: '#f9fafb',
+            borderRadius: '0.75rem',
+            border: '1px solid #e5e7eb',
+            textAlign: 'left',
+          }}>
+            <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#374151', margin: '0 0 0.75rem' }}>
+              Make it even better <span style={{ fontWeight: 400, color: '#9ca3af' }}>(recommended)</span>
+            </p>
+
+            {!hasVoice && (
+              <div style={{ marginBottom: hasPhoto ? 0 : '0.75rem' }}>
+                <VoiceRecorder
+                  onUpload={handleVoiceUpload}
+                  existingVoice={null}
+                />
+              </div>
+            )}
+
+            {!hasPhoto && (
+              <div>
+                <PhotoUpload
+                  onUpload={handlePhotoUpload}
+                  existingPhoto={null}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Send button — ALWAYS enabled, NEVER blocked */}
         <button
           onClick={handleSend}
           disabled={sending}
@@ -320,14 +269,8 @@ export default function ThankYouFlow() {
             cursor: sending ? 'not-allowed' : 'pointer',
           }}
         >
-          {sending ? 'Sending...' : effectivelyAuthenticated ? 'Send Your Greet-Me' : 'Sign Up & Send'}
+          {sending ? 'Sending...' : 'Send'}
         </button>
-
-        {!effectivelyAuthenticated && (
-          <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: '0.75rem 0 0', lineHeight: 1.5 }}>
-            Quick sign-up required to send. Your message is saved.
-          </p>
-        )}
 
         <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
       </div>
