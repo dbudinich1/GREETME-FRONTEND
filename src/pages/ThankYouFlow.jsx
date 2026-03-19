@@ -141,18 +141,164 @@ export default function ThankYouFlow() {
     } catch { /* non-fatal */ }
   };
 
-  // ---- Sent confirmation ----
+  // Fire EXPONENTIAL_MOMENT_SEEN once when sent becomes true
+  useEffect(() => {
+    if (!sent || !jobId) return;
+    fetch('/api/events/exponential-moment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId, action: 'seen' }),
+    }).catch(() => {});
+  }, [sent, jobId]);
+
+  const handleShare = () => {
+    // Fire share event
+    fetch('/api/events/exponential-moment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId, action: 'share' }),
+    }).catch(() => {});
+
+    // Native share or fallback
+    const shareUrl = `${window.location.origin}/#/g/${jobId}`;
+    if (navigator.share) {
+      navigator.share({
+        title: 'Greet-Me',
+        text: 'I just sent a Greet-Me \u2014 and it started something. Come see what I mean.',
+        url: shareUrl,
+      }).catch(() => {});
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard?.writeText(
+        `I just sent a Greet-Me \u2014 and it started something. Come see what I mean. ${shareUrl}`
+      ).catch(() => {});
+    }
+  };
+
+  const handleDismiss = () => {
+    fetch('/api/events/exponential-moment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId, action: 'dismissed' }),
+    }).catch(() => {});
+    window.location.href = '/#/dashboard';
+  };
+
+  // ---- Exponential Moment (post-send success) ----
   if (sent) {
+    const isQrCash = prefill?.giftType === 'qrcash';
+    const hasGiftContext = prefill?.hasGift;
+
     return (
-      <div style={styles.page}>
-        <div style={styles.card}>
-          <div style={styles.successIcon}>&#10003;</div>
-          <h1 style={styles.title}>Sent!</h1>
-          <p style={{ fontSize: '1rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
-            Your thank-you Greet-Me is on its way. The loop is complete.
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(160deg, #1B2A4A 0%, #2d1b4e 40%, #1B2A4A 100%)',
+        padding: '2rem 1.5rem',
+        fontFamily: FONT_STACK,
+      }}>
+        <div style={{
+          maxWidth: '520px',
+          width: '100%',
+          textAlign: 'center',
+        }}>
+          {/* Success checkmark */}
+          <div style={{
+            width: '4.5rem',
+            height: '4.5rem',
+            borderRadius: '50%',
+            background: 'rgba(16, 185, 129, 0.15)',
+            border: '2px solid rgba(16, 185, 129, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 2rem',
+            fontSize: '2rem',
+            color: '#10b981',
+          }}>
+            &#10003;
+          </div>
+
+          {/* Sent confirmation */}
+          <p style={{
+            fontSize: '0.875rem',
+            color: 'rgba(255,255,255,0.5)',
+            letterSpacing: '0.15em',
+            textTransform: 'uppercase',
+            margin: '0 0 0.75rem',
+          }}>
+            Sent
           </p>
-          <a href="/#/dashboard" style={styles.linkBtn}>Go to Dashboard</a>
-          <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+
+          {/* Canonical line — exact, once only */}
+          <h1 style={{
+            fontSize: '1.5rem',
+            fontWeight: 500,
+            color: '#fff',
+            lineHeight: 1.5,
+            margin: '0 0 2.5rem',
+            fontFamily: 'Georgia, serif',
+          }}>
+            This is how Greet-Me &mdash; and you &mdash; make life&rsquo;s moments truly unforgettable.
+          </h1>
+
+          {/* Incentive copy */}
+          {hasGiftContext && (
+            <p style={{
+              fontSize: '0.9375rem',
+              color: 'rgba(255,255,255,0.7)',
+              lineHeight: 1.6,
+              margin: '0 0 2rem',
+            }}>
+              {isQrCash
+                ? 'Share and we\u2019ll match your gift with up to $10 in Greet-Me credit.'
+                : 'Share and we\u2019ll double your Greet-Me credit.'}
+            </p>
+          )}
+
+          {/* Primary CTA */}
+          <button
+            onClick={handleShare}
+            style={{
+              display: 'inline-block',
+              padding: '0.875rem 2.5rem',
+              background: '#fff',
+              color: '#1B2A4A',
+              border: 'none',
+              borderRadius: '2rem',
+              fontSize: '1.0625rem',
+              fontWeight: 600,
+              fontFamily: 'Georgia, serif',
+              cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(255,255,255,0.15)',
+              marginBottom: '1.5rem',
+            }}
+          >
+            Share the Moment
+          </button>
+
+          {/* Dismiss */}
+          <div>
+            <button
+              onClick={handleDismiss}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'rgba(255,255,255,0.35)',
+                fontSize: '0.8125rem',
+                cursor: 'pointer',
+                fontFamily: FONT_STACK,
+              }}
+            >
+              Continue to dashboard
+            </button>
+          </div>
+
+          <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)', margin: '3rem 0 0' }}>
+            &copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;
+          </p>
         </div>
       </div>
     );
