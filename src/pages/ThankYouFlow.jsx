@@ -4,7 +4,7 @@
 // Zero blank fields. Send enabled immediately. Auth redirect preserves prefill.
 
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import VoiceRecorder from '../components/VoiceRecorder';
@@ -15,10 +15,15 @@ const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 export default function ThankYouFlow() {
   const [searchParams] = useSearchParams();
   const jobId = searchParams.get('jobId');
-  const navigate = useNavigate();
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, register } = useAuth();
 
-  // Auth is checked server-side on send (401 → redirect to register)
+  // Inline registration state (guest send path)
+  const [showInlineRegister, setShowInlineRegister] = useState(false);
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regError, setRegError] = useState(null);
+  const [registering, setRegistering] = useState(false);
 
   const [prefill, setPrefill] = useState(null);
   const [script, setScript] = useState('');
@@ -44,6 +49,9 @@ export default function ThankYouFlow() {
         if (data?.ok && data.prefill) {
           setPrefill(data.prefill);
           setScript(data.prefill.script || '');
+          // Pre-fill inline registration from greeting data
+          if (data.prefill.senderRecipientEmail) setRegEmail(data.prefill.senderRecipientEmail);
+          if (data.prefill.senderRecipientName) setRegName(data.prefill.senderRecipientName);
         } else {
           setError('Could not load greeting details.');
         }
@@ -52,8 +60,16 @@ export default function ThankYouFlow() {
       .finally(() => setLoading(false));
   }, [jobId]);
 
-  // Send always proceeds — auth checked by backend, not frontend gate
+  // Send: if authenticated → send directly. If not → show inline registration.
   const handleSend = async () => {
+    if (!user) {
+      setShowInlineRegister(true);
+      return;
+    }
+    await doSend();
+  };
+
+  const doSend = async () => {
     setSending(true);
     setError(null);
     try {
@@ -65,10 +81,9 @@ export default function ThankYouFlow() {
         script,
         sourceJobId: jobId,
       });
-      // 401 = not logged in or expired token → redirect to register
       if (result?.status === 401) {
-        localStorage.setItem('greetme_thankyou_prefill', JSON.stringify({ ...prefill, script, jobId }));
-        navigate('/register');
+        setShowInlineRegister(true);
+        setSending(false);
         return;
       }
       if (result?.ok === false) {
@@ -80,6 +95,32 @@ export default function ThankYouFlow() {
       setError(err?.message || 'Failed to send. Please try again.');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleInlineRegister = async (e) => {
+    e.preventDefault();
+    setRegError(null);
+    setRegistering(true);
+    try {
+      const result = await register(regName.trim(), regEmail.trim().toLowerCase(), regPassword);
+      if (!result?.success) {
+        const isEmailExists = result?.code === 'EMAIL_EXISTS';
+        setRegError(
+          isEmailExists
+            ? 'This email already has an account.'
+            : (result?.error || 'Registration failed. Please try again.')
+        );
+        setRegistering(false);
+        return;
+      }
+      // Registration succeeded — token is set, user is in context. Now send.
+      setShowInlineRegister(false);
+      setRegistering(false);
+      await doSend();
+    } catch (err) {
+      setRegError(err?.message || 'Registration failed.');
+      setRegistering(false);
     }
   };
 
@@ -281,7 +322,85 @@ export default function ThankYouFlow() {
           </div>
         )}
 
-        {/* E. Primary CTA — always last, always available */}
+        {/* E. Inline registration (guest path) */}
+        {showInlineRegister && (
+          <div style={styles.section}>
+            <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1f2937', margin: '0 0 0.25rem' }}>
+              Quick sign-up to send
+            </p>
+            <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: '0 0 1rem' }}>
+              Create your free account and your Greet-Me sends instantly.
+            </p>
+            {regError && (
+              <div style={{ padding: '0.5rem 0.75rem', background: '#fef2f2', borderRadius: '0.375rem', border: '1px solid #fecaca', marginBottom: '0.75rem' }}>
+                <p style={{ fontSize: '0.8125rem', color: '#dc2626', margin: 0 }}>{regError}</p>
+                {regError.includes('already has an account') && (
+                  <a href="/#/login" style={{ fontSize: '0.8125rem', color: '#4F2D7F', fontWeight: 600, marginTop: '0.25rem', display: 'inline-block' }}>
+                    Log in instead
+                  </a>
+                )}
+              </div>
+            )}
+            <form onSubmit={handleInlineRegister} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Name</label>
+                <input
+                  type="text"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  placeholder="Your name"
+                  required
+                  style={styles.input}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Email</label>
+                <input
+                  type="email"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  style={styles.input}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Password</label>
+                <input
+                  type="password"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  placeholder="Create a password"
+                  required
+                  minLength={8}
+                  style={styles.input}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={registering || sending}
+                style={{
+                  width: '100%',
+                  padding: '0.875rem',
+                  background: (registering || sending) ? '#d1d5db' : '#4F2D7F',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '0.75rem',
+                  fontSize: '1.0625rem',
+                  fontWeight: 600,
+                  fontFamily: 'Georgia, serif',
+                  cursor: (registering || sending) ? 'not-allowed' : 'pointer',
+                  boxShadow: (registering || sending) ? 'none' : '0 4px 14px rgba(79, 45, 127, 0.2)',
+                }}
+              >
+                {registering ? 'Creating account...' : sending ? 'Sending...' : 'Create Account & Send'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* F. Primary CTA — always available */}
+        {!showInlineRegister && (
         <button
           onClick={handleSend}
           disabled={sending}
@@ -301,6 +420,7 @@ export default function ThankYouFlow() {
         >
           {sending ? 'Sending...' : 'Send'}
         </button>
+        )}
 
         <p style={{ ...styles.footer, textAlign: 'center' }}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
       </div>
@@ -374,6 +494,16 @@ const styles = {
     borderRadius: '1rem',
     fontSize: '0.8125rem',
     fontWeight: 500,
+  },
+  input: {
+    width: '100%',
+    padding: '0.75rem',
+    border: '1px solid #d1d5db',
+    borderRadius: '0.5rem',
+    fontSize: '0.9375rem',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    boxSizing: 'border-box',
+    outline: 'none',
   },
   title: {
     fontSize: '1.5rem',
