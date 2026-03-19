@@ -31,6 +31,7 @@ export default function ThankYouFlow() {
   const [error, setError] = useState(null);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [sentAt, setSentAt] = useState(null);
 
   // Track whether user has added assets (refreshes after upload)
   const hasVoice = !!user?.voiceId;
@@ -91,6 +92,7 @@ export default function ThankYouFlow() {
         return;
       }
       setSent(true);
+      setSentAt(Date.now());
     } catch (err) {
       setError(err?.message || 'Failed to send. Please try again.');
     } finally {
@@ -151,13 +153,32 @@ export default function ThankYouFlow() {
     }).catch(() => {});
   }, [sent, jobId]);
 
+  // Fire DISMISSED on browser back / tab close / navigate away (if moment is showing and not shared)
+  useEffect(() => {
+    if (!sent || !jobId || shared) return;
+    const fireDismissed = () => {
+      navigator.sendBeacon?.('/api/events/exponential-moment',
+        new Blob([JSON.stringify({ jobId, action: 'dismissed' })], { type: 'application/json' }));
+    };
+    window.addEventListener('beforeunload', fireDismissed);
+    window.addEventListener('hashchange', fireDismissed);
+    return () => {
+      window.removeEventListener('beforeunload', fireDismissed);
+      window.removeEventListener('hashchange', fireDismissed);
+    };
+  }, [sent, jobId, shared]);
+
+  const [shared, setShared] = useState(false);
+
   const handleShare = () => {
-    // Fire share event
+    // Fire share event — this IS the reward trigger (share sheet opened = reward unlocked)
     fetch('/api/events/exponential-moment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId, action: 'share' }),
     }).catch(() => {});
+    // TODO: Call reward unlock API when backend credit-doubling/matching is built
+    setShared(true);
 
     // Native share or fallback
     const shareUrl = `${window.location.origin}/#/g/${jobId}`;
@@ -185,7 +206,11 @@ export default function ThankYouFlow() {
   };
 
   // ---- Exponential Moment (post-send success) ----
-  if (sent) {
+  // Gate: only show within 90 minutes of send
+  const EXPIRY_MS = 90 * 60 * 1000;
+  const momentExpired = sentAt && (Date.now() - sentAt > EXPIRY_MS);
+
+  if (sent && !momentExpired) {
     const isQrCash = prefill?.giftType === 'qrcash';
     const hasGiftContext = prefill?.hasGift;
 
@@ -258,26 +283,37 @@ export default function ThankYouFlow() {
             </p>
           )}
 
-          {/* Primary CTA */}
-          <button
-            onClick={handleShare}
-            style={{
-              display: 'inline-block',
-              padding: '0.875rem 2.5rem',
-              background: '#fff',
-              color: '#1B2A4A',
-              border: 'none',
-              borderRadius: '2rem',
-              fontSize: '1.0625rem',
-              fontWeight: 600,
-              fontFamily: 'Georgia, serif',
-              cursor: 'pointer',
-              boxShadow: '0 4px 20px rgba(255,255,255,0.15)',
-              marginBottom: '1.5rem',
-            }}
-          >
-            Share the Moment
-          </button>
+          {/* Primary CTA / Shared confirmation */}
+          {shared ? (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <p style={{ fontSize: '1.0625rem', fontWeight: 600, color: '#10b981', fontFamily: 'Georgia, serif' }}>
+                &#10003; Shared
+              </p>
+              <p style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.375rem' }}>
+                Your reward is on its way.
+              </p>
+            </div>
+          ) : (
+            <button
+              onClick={handleShare}
+              style={{
+                display: 'inline-block',
+                padding: '0.875rem 2.5rem',
+                background: '#fff',
+                color: '#1B2A4A',
+                border: 'none',
+                borderRadius: '2rem',
+                fontSize: '1.0625rem',
+                fontWeight: 600,
+                fontFamily: 'Georgia, serif',
+                cursor: 'pointer',
+                boxShadow: '0 4px 20px rgba(255,255,255,0.15)',
+                marginBottom: '1.5rem',
+              }}
+            >
+              Share the Moment
+            </button>
+          )}
 
           {/* Dismiss */}
           <div>
