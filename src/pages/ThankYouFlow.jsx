@@ -169,15 +169,25 @@ export default function ThankYouFlow() {
   }, [sent, jobId, shared]);
 
   const [shared, setShared] = useState(false);
+  const [rewardResult, setRewardResult] = useState(null);
 
-  const handleShare = () => {
-    // Fire share event — this IS the reward trigger (share sheet opened = reward unlocked)
+  const handleShare = async () => {
+    // Fire share event log
     fetch('/api/events/exponential-moment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId, action: 'share' }),
     }).catch(() => {});
-    // TODO: Call reward unlock API when backend credit-doubling/matching is built
+
+    // Call reward unlock API (authenticated, idempotent, capped)
+    try {
+      const reward = await api.request('/api/events/share-reward', {
+        method: 'POST',
+        body: JSON.stringify({ sourceJobId: jobId }),
+      });
+      setRewardResult(reward);
+    } catch { /* non-fatal — share still counts */ }
+
     setShared(true);
 
     // Native share or fallback
@@ -290,7 +300,11 @@ export default function ThankYouFlow() {
                 &#10003; Shared
               </p>
               <p style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.375rem' }}>
-                Your reward is on its way.
+                {rewardResult?.rewardCreditCents > 0
+                  ? `$${(rewardResult.rewardCreditCents / 100).toFixed(0)} credit unlocked \u2014 applied to your next subscription.`
+                  : rewardResult?.duplicate
+                    ? 'Reward already applied to your account.'
+                    : 'Your reward is on its way.'}
               </p>
             </div>
           ) : (
