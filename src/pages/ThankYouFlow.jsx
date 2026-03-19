@@ -241,51 +241,45 @@ export default function ThankYouFlow() {
 
             {user ? (
               <>
-                {/* Voice row — authenticated */}
-                {addedVoiceThisSession ? (
-                  <div style={styles.chipRow}>
-                    <span style={styles.successChip}>&#10003; Voice added</span>
+                {/* Voice row — always visible for authenticated users */}
+                <div style={styles.enhanceRow}>
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
+                      {addedVoiceThisSession ? 'Voice added' : hasVoice ? 'Your voice' : 'Add your voice'}
+                    </p>
+                    <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
+                      {addedVoiceThisSession
+                        ? 'Your new voice recording will be used for this greeting.'
+                        : hasVoice
+                          ? 'Using your profile voice. Record a new one below to replace it.'
+                          : 'Read a quick line so your thank-you feels unmistakably you.'}
+                    </p>
                   </div>
-                ) : hasVoice ? (
-                  <div style={styles.chipRow}>
-                    <span style={styles.neutralChip}>On your profile</span>
-                  </div>
-                ) : (
-                  <div style={styles.enhanceRow}>
-                    <div style={{ marginBottom: '0.5rem' }}>
-                      <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
-                        Add your voice
-                      </p>
-                      <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
-                        Read a quick line so your thank-you feels unmistakably you.
-                      </p>
-                    </div>
-                    <VoiceRecorder onUpload={handleVoiceUpload} existingVoice={null} />
-                  </div>
-                )}
+                  {addedVoiceThisSession && (
+                    <span style={{ ...styles.successChip, marginBottom: '0.5rem', display: 'inline-block' }}>&#10003; Voice added</span>
+                  )}
+                  <VoiceRecorder onUpload={handleVoiceUpload} existingVoice={user?.voiceId || null} />
+                </div>
 
-                {/* Photo row — authenticated */}
-                {addedPhotoThisSession ? (
-                  <div style={styles.chipRow}>
-                    <span style={styles.successChip}>&#10003; Photo added</span>
+                {/* Photo row — always visible for authenticated users */}
+                <div style={{ ...styles.enhanceRow, marginBottom: 0 }}>
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
+                      {addedPhotoThisSession ? 'Photo added' : hasPhoto ? 'Your photo' : 'Add a photo'}
+                    </p>
+                    <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
+                      {addedPhotoThisSession
+                        ? 'Your new photo will be used for this greeting.'
+                        : hasPhoto
+                          ? 'Using your profile photo. Upload a new one below to replace it.'
+                          : 'Use a selfie or upload a favorite photo to bring your Greet-Me to life.'}
+                    </p>
                   </div>
-                ) : hasPhoto ? (
-                  <div style={styles.chipRow}>
-                    <span style={styles.neutralChip}>On your profile</span>
-                  </div>
-                ) : (
-                  <div style={{ ...styles.enhanceRow, marginBottom: 0 }}>
-                    <div style={{ marginBottom: '0.5rem' }}>
-                      <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
-                        Add a photo
-                      </p>
-                      <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
-                        Use a selfie or upload a favorite photo to bring your Greet-Me to life.
-                      </p>
-                    </div>
-                    <PhotoUpload onUpload={handlePhotoUpload} existingPhoto={null} />
-                  </div>
-                )}
+                  {addedPhotoThisSession && (
+                    <span style={{ ...styles.successChip, marginBottom: '0.5rem', display: 'inline-block' }}>&#10003; Photo added</span>
+                  )}
+                  <PhotoUpload onUpload={handlePhotoUpload} existingPhoto={user?.photoUrl || null} />
+                </div>
               </>
             ) : (
               /* Guest — show sign-up prompt instead of non-functional upload controls */
