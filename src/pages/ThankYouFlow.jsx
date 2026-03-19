@@ -278,7 +278,7 @@ export default function ThankYouFlow() {
                   {addedPhotoThisSession && (
                     <span style={{ ...styles.successChip, marginBottom: '0.5rem', display: 'inline-block' }}>&#10003; Photo added</span>
                   )}
-                  <PhotoUpload onUpload={handlePhotoUpload} existingPhoto={user?.photoUrl || null} />
+                  <PhotoUpload onUpload={handlePhotoUpload} existingPhoto={user?.photoUrl || null} compact />
                 </div>
               </>
             ) : (

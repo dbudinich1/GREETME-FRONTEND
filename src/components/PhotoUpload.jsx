@@ -5,7 +5,7 @@ import { validateFile } from '../utils/helpers';
 import { getErrorMessage } from '../utils/errorMessages';
 import Alert from './Alert';
 
-export default function PhotoUpload({ onUpload, existingPhoto }) {
+export default function PhotoUpload({ onUpload, existingPhoto, compact = false }) {
   const [preview, setPreview] = useState(existingPhoto || null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -89,6 +89,7 @@ export default function PhotoUpload({ onUpload, existingPhoto }) {
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
       {/* Upload Guidelines */}
+      {!compact && (
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h4 className="font-medium text-blue-900 mb-2">Photo Guidelines:</h4>
         <ul className="text-sm text-blue-800 space-y-1">
@@ -98,6 +99,7 @@ export default function PhotoUpload({ onUpload, existingPhoto }) {
           <li>• Formats: JPG, JPEG, PNG</li>
         </ul>
       </div>
+      )}
 
       {/* Upload Area */}
       {!preview ? (
@@ -106,13 +108,13 @@ export default function PhotoUpload({ onUpload, existingPhoto }) {
           onDragOver={handleDrag}
           onDragLeave={handleDrag}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-lg p-12 text-center transition ${
+          className={`border-2 border-dashed rounded-lg ${compact ? 'p-4' : 'p-12'} text-center transition ${
             dragActive
               ? 'border-blue-500 bg-blue-50'
               : 'border-gray-300 hover:border-gray-400'
           }`}
         >
-          <ImageIcon className="mx-auto text-gray-400 mb-4" size={64} />
+          <ImageIcon className="mx-auto text-gray-400 mb-4" size={compact ? 32 : 64} />
           
           <input
             ref={fileInputRef}
@@ -133,12 +135,12 @@ export default function PhotoUpload({ onUpload, existingPhoto }) {
         </div>
       ) : (
         /* Preview Area */
-        <div className="border border-gray-200 rounded-lg p-6">
+        <div className={`border border-gray-200 rounded-lg ${compact ? 'p-3' : 'p-6'}`}>
           <div className="relative inline-block">
             <img
               src={preview}
               alt="Preview"
-              className="w-64 h-64 object-cover rounded-lg"
+              className={`${compact ? 'w-20 h-20' : 'w-64 h-64'} object-cover rounded-lg`}
             />
             {selectedFile && (
               <button
