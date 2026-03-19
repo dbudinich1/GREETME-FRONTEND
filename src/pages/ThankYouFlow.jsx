@@ -16,20 +16,9 @@ export default function ThankYouFlow() {
   const [searchParams] = useSearchParams();
   const jobId = searchParams.get('jobId');
   const navigate = useNavigate();
-  const { isAuthenticated, user, refreshProfile } = useAuth();
+  const { user, refreshProfile } = useAuth();
 
-  // Check if stored JWT is expired (prevents stale-auth false positive)
-  const isTokenValid = () => {
-    const token = localStorage.getItem('token');
-    if (!token) return false;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp * 1000 > Date.now();
-    } catch {
-      return false;
-    }
-  };
-  const effectivelyAuthenticated = isAuthenticated && isTokenValid();
+  // Auth is checked server-side on send (401 → redirect to register)
 
   const [prefill, setPrefill] = useState(null);
   const [script, setScript] = useState('');
@@ -199,8 +188,8 @@ export default function ThankYouFlow() {
           </p>
         </div>
 
-        {/* C. Enhancement card — optional, above Send */}
-        {effectivelyAuthenticated && (
+        {/* C. Enhancement card — optional, above Send, shown to all users */}
+        {(
           <div style={styles.enhanceCard}>
             <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1f2937', margin: '0 0 0.25rem' }}>
               Make it even more special
