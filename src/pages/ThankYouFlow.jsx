@@ -17,6 +17,9 @@ export default function ThankYouFlow() {
   const jobId = searchParams.get('jobId');
   const { user, refreshProfile, register } = useAuth();
 
+  // TEMP DIAGNOSTIC — remove after verification
+  console.log('[ThankYouFlow] mounted, jobId:', jobId);
+
   // Inline registration state (guest send path)
   const [showInlineRegister, setShowInlineRegister] = useState(false);
   const [regName, setRegName] = useState('');
@@ -45,8 +48,10 @@ export default function ThankYouFlow() {
       setLoading(false);
       return;
     }
+    console.log('[ThankYouFlow] fetching prefill for:', jobId);
     api.getThankyouPrefill(jobId)
       .then((data) => {
+        console.log('[ThankYouFlow] prefill response:', data?.ok, data?.prefill ? 'has prefill' : 'no prefill');
         if (data?.ok && data.prefill) {
           setPrefill(data.prefill);
           setScript(data.prefill.script || '');

@@ -3,7 +3,7 @@
 // Route: /gift/:claimToken
 
 import { useState, useEffect } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/api';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
@@ -43,6 +43,7 @@ const PAYOUT_METHODS = [
 export default function GiftClaim() {
   const { claimToken } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [gift, setGift] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -347,7 +348,7 @@ export default function GiftClaim() {
                 </p>
                 <button
                   onClick={() => {
-                    window.location.href = `/#/thank-you?jobId=${gift.sourceGreetingJobId}`;
+                    navigate(`/thank-you?jobId=${gift.sourceGreetingJobId}`);
                   }}
                   style={{
                     display: 'inline-block',
