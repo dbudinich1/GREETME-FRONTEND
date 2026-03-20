@@ -345,8 +345,13 @@ export default function GiftClaim() {
                 <p style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1f2937', margin: '0 0 1rem' }}>
                   Did you love your Greet-Me?
                 </p>
-                <a
-                  href={gift.sourceGreetingJobId ? `/#/thank-you?jobId=${gift.sourceGreetingJobId}` : '/#/dashboard/send'}
+                <button
+                  onClick={() => {
+                    const dest = gift.sourceGreetingJobId
+                      ? `/#/thank-you?jobId=${gift.sourceGreetingJobId}`
+                      : '/#/dashboard/send';
+                    window.location.href = dest;
+                  }}
                   style={{
                     display: 'inline-block',
                     padding: '0.75rem 2rem',
@@ -354,15 +359,16 @@ export default function GiftClaim() {
                     color: '#fff',
                     borderRadius: '2rem',
                     fontWeight: 600,
-                    textDecoration: 'none',
                     fontSize: '1rem',
                     fontFamily: 'Georgia, serif',
                     boxShadow: '0 3px 10px rgba(79, 45, 127, 0.2)',
                     whiteSpace: 'nowrap',
+                    border: 'none',
+                    cursor: 'pointer',
                   }}
                 >
                   say thanks on us
-                </a>
+                </button>
                 <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.75rem 0 0', lineHeight: 1.5 }}>
                   {firstName
                     ? `let ${firstName} know he made your day`
