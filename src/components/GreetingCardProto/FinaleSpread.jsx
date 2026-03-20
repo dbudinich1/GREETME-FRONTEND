@@ -103,34 +103,9 @@ function tightenLineHeight(el) {
   }
 }
 
-export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, jobId }) {
+export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift }) {
   const closingMessageRef = useRef(null);
   const [qrImageError, setQrImageError] = useState(false);
-
-  // Growth Engine: fire GIFT_IT_FORWARD_TRIGGERED event (fire-and-forget)
-  const handleGiftItForward = () => {
-    if (jobId) {
-      fetch('/api/events/gift-it-forward', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId }),
-      }).catch(() => {});
-    }
-  };
-
-  // Phase 1.5: "Your Turn" CTA — fires COMPLETE_THE_MOMENT_TRIGGERED (Guard A)
-  const handleYourTurn = () => {
-    if (!jobId) {
-      console.error('Missing jobId in FinaleSpread');
-      return;
-    }
-    fetch('/api/events/complete-the-moment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId }),
-    }).catch(() => {});
-    window.location.href = `/#/thank-you?jobId=${jobId}`;
-  };
 
   // AUTO-FIT: shrink-only until no clipping
   const runAutoFit = useCallback(() => {
@@ -308,118 +283,6 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, j
                 </a>
               </>
             )}
-
-            {/* ── Finale CTA Panel ── */}
-            <div style={{
-              marginTop: '1.5em',
-              maxWidth: '420px',
-              marginLeft: 'auto',
-              marginRight: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '1.25em',
-            }}>
-
-              {/* Supporting line */}
-              <p style={{
-                fontSize: '0.8em',
-                fontStyle: 'italic',
-                color: '#6b7280',
-                opacity: 0.7,
-                lineHeight: 1.5,
-                textAlign: 'center',
-                margin: 0,
-              }}>
-                This moment continues with you.
-              </p>
-
-              {/* Primary CTA */}
-              <button
-                onClick={handleYourTurn}
-                style={{
-                  display: 'inline-block',
-                  background: '#4F2D7F',
-                  color: '#fff',
-                  padding: '0.65em 1.8em',
-                  borderRadius: '24px',
-                  fontSize: '0.9em',
-                  fontFamily: 'Georgia, serif',
-                  fontWeight: 500,
-                  border: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 3px 10px rgba(79, 45, 127, 0.2)',
-                }}
-              >
-                Your Turn
-              </button>
-
-              {/* Subtext */}
-              <p style={{
-                fontSize: '0.75em',
-                color: '#9ca3af',
-                opacity: 0.7,
-                lineHeight: 1.5,
-                textAlign: 'center',
-                margin: 0,
-              }}>
-                Send one back &mdash; we&rsquo;ve already started it for you
-              </p>
-
-              {/* Secondary actions */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
-                {hasGift && gift?.type === 'qrcash' && (
-                  <a
-                    href="/#/pricing"
-                    onClick={handleGiftItForward}
-                    style={{
-                      display: 'inline-block',
-                      padding: '0.35em 0.9em',
-                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                      color: '#fff',
-                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                      fontSize: '0.65em',
-                      fontWeight: 600,
-                      borderRadius: '6px',
-                      textDecoration: 'none',
-                      opacity: 0.85,
-                    }}
-                  >
-                    Gift It Forward
-                  </a>
-                )}
-                {typeof navigator !== 'undefined' && navigator.share && (
-                  <button
-                    onClick={() => {
-                      const shareUrl = `${window.location.origin}/#/g/${jobId || ''}`;
-                      navigator.share({
-                        title: 'Someone sent me a Greet-Me',
-                        text: 'I just received a beautiful AI-animated greeting. Check out Greet-Me!',
-                        url: shareUrl,
-                      }).catch(() => {});
-                    }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.3em',
-                      padding: '0.35em 0.9em',
-                      background: 'transparent',
-                      color: '#9ca3af',
-                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                      fontSize: '0.6em',
-                      fontWeight: 500,
-                      borderRadius: '6px',
-                      border: '1px solid #e5e7eb',
-                      cursor: 'pointer',
-                      opacity: 0.65,
-                    }}
-                  >
-                    <span style={{ fontSize: '1em' }}>&#x1F4E4;</span>
-                    Share the Moment
-                  </button>
-                )}
-              </div>
-            </div>
 
             <div className="gc-branding">
               {/* TODO: Replace with final G logo asset when provided */}
