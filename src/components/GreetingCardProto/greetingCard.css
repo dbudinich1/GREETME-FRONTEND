@@ -3289,11 +3289,11 @@
     margin-left: auto !important;
     margin-right: auto !important;
 
-    /* Match intro spread height */
+    /* Match intro spread height — allow taller for gift + CTA content */
     aspect-ratio: var(--gc-landscape-ar) !important;
     height: auto !important;
-    max-height: 260px !important;
-    overflow: hidden !important;
+    max-height: none !important;
+    overflow: visible !important;
 
     /* Prevent left overflow */
     left: auto !important;
