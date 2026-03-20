@@ -336,27 +336,31 @@ export default function GiftClaim() {
             Please allow up to 48 hours for processing.
           </p>
 
-          <p style={{ fontSize: '0.9rem', fontStyle: 'italic', color: '#6b7280', margin: '0 0 1rem' }}>
-            A quick thank-you goes a long way.
-          </p>
-          <a
-            href="/#/dashboard/send"
-            style={{
-              display: 'inline-block',
-              padding: '0.75rem 1.5rem',
-              background: '#4F2D7F',
-              color: '#fff',
-              borderRadius: '0.5rem',
-              fontWeight: 600,
-              textDecoration: 'none',
-              fontSize: '0.9375rem',
-              fontFamily: FONT_STACK,
-              boxShadow: '0 3px 10px rgba(79, 45, 127, 0.2)',
-              marginBottom: '1.5rem',
-            }}
-          >
-            Send a Thank You
-          </a>
+          <div style={{ marginTop: '0.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>
+            <p style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1f2937', margin: '0 0 1rem' }}>
+              Did you love it?
+            </p>
+            <a
+              href={`/#/dashboard/send`}
+              style={{
+                display: 'inline-block',
+                padding: '0.75rem 2rem',
+                background: '#4F2D7F',
+                color: '#fff',
+                borderRadius: '2rem',
+                fontWeight: 600,
+                textDecoration: 'none',
+                fontSize: '1rem',
+                fontFamily: 'Georgia, serif',
+                boxShadow: '0 3px 10px rgba(79, 45, 127, 0.2)',
+              }}
+            >
+              say thanks
+            </a>
+            <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: '0.625rem 0 0' }}>
+              it&rsquo;s on us
+            </p>
+          </div>
 
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
         </div>
