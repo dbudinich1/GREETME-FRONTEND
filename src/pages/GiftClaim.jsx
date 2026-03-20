@@ -355,7 +355,7 @@ export default function GiftClaim() {
                 boxShadow: '0 3px 10px rgba(79, 45, 127, 0.2)',
               }}
             >
-              say thanks
+              {gift.senderName ? `thank ${gift.senderName.split(' ')[0].toLowerCase()}` : 'say thanks'}
             </a>
             <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: '0.625rem 0 0' }}>
               it&rsquo;s on us
