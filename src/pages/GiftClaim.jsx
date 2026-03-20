@@ -341,7 +341,7 @@ export default function GiftClaim() {
               Did you love it?
             </p>
             <a
-              href={`/#/dashboard/send`}
+              href={gift.sourceGreetingJobId ? `/#/thank-you?jobId=${gift.sourceGreetingJobId}` : '/#/dashboard/send'}
               style={{
                 display: 'inline-block',
                 padding: '0.75rem 2rem',
