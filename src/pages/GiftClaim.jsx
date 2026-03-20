@@ -336,31 +336,40 @@ export default function GiftClaim() {
             Please allow up to 48 hours for processing.
           </p>
 
-          <div style={{ marginTop: '0.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>
-            <p style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1f2937', margin: '0 0 1rem' }}>
-              Did you love it?
-            </p>
-            <a
-              href={gift.sourceGreetingJobId ? `/#/thank-you?jobId=${gift.sourceGreetingJobId}` : '/#/dashboard/send'}
-              style={{
-                display: 'inline-block',
-                padding: '0.75rem 2rem',
-                background: '#4F2D7F',
-                color: '#fff',
-                borderRadius: '2rem',
-                fontWeight: 600,
-                textDecoration: 'none',
-                fontSize: '1rem',
-                fontFamily: 'Georgia, serif',
-                boxShadow: '0 3px 10px rgba(79, 45, 127, 0.2)',
-              }}
-            >
-              {gift.senderName ? `thank ${gift.senderName.split(' ')[0].charAt(0).toUpperCase() + gift.senderName.split(' ')[0].slice(1).toLowerCase()}` : 'say thanks'}
-            </a>
-            <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: '0.625rem 0 0' }}>
-              it&rsquo;s on us
-            </p>
-          </div>
+          {(() => {
+            const rawFirst = (gift.senderName || '').split(' ')[0];
+            const firstName = rawFirst ? rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase() : '';
+            return (
+              <div style={{ marginTop: '0.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>
+                <p style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1f2937', margin: '0 0 1rem' }}>
+                  Did you love your Greet-Me?
+                </p>
+                <a
+                  href={gift.sourceGreetingJobId ? `/#/thank-you?jobId=${gift.sourceGreetingJobId}` : '/#/dashboard/send'}
+                  style={{
+                    display: 'inline-block',
+                    padding: '0.75rem 2rem',
+                    background: '#4F2D7F',
+                    color: '#fff',
+                    borderRadius: '2rem',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    fontSize: '1rem',
+                    fontFamily: 'Georgia, serif',
+                    boxShadow: '0 3px 10px rgba(79, 45, 127, 0.2)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  say thanks on us
+                </a>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.75rem 0 0', lineHeight: 1.5 }}>
+                  {firstName
+                    ? `let ${firstName} know he made your day`
+                    : 'let them know you loved it'}
+                </p>
+              </div>
+            );
+          })()}
 
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
         </div>
