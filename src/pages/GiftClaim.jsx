@@ -86,6 +86,7 @@ export default function GiftClaim() {
       setError(null);
       const res = await api.getGiftClaim(claimToken);
       if (res?.ok && res?.gift) {
+        console.log('[GiftClaim] gift loaded:', { sourceGreetingJobId: res.gift.sourceGreetingJobId, senderName: res.gift.senderName, status: res.gift.status });
         setGift(res.gift);
         if (res.gift.status === 'fulfilled') {
           setFulfilled(true);
