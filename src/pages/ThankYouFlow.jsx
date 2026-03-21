@@ -3,38 +3,16 @@
 // Route: /#/thank-you?jobId={jobId}
 // Zero blank fields. Send enabled immediately. Auth redirect preserves prefill.
 
-import { useState, useEffect, Component } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
-
 import VoiceRecorder from '../components/VoiceRecorder';
 import PhotoUpload from '../components/PhotoUpload';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
-// Error boundary to catch render crashes
-class ThankYouErrorBoundary extends Component {
-  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
-  static getDerivedStateFromError(error) { return { hasError: true, error }; }
-  componentDidCatch(error, info) { console.error('[ThankYouFlow] CRASH:', error, info); }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_STACK, padding: '2rem' }}>
-          <div style={{ textAlign: 'center', maxWidth: '400px' }}>
-            <h2 style={{ color: '#1f2937', marginBottom: '1rem' }}>Something went wrong</h2>
-            <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>{this.state.error?.message || 'Unknown error'}</p>
-            <a href="/#/dashboard/send" style={{ color: '#4F2D7F', textDecoration: 'underline' }}>Send a greeting instead</a>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-function ThankYouFlowInner() {
+export default function ThankYouFlow() {
   const [searchParams] = useSearchParams();
   const jobId = searchParams.get('jobId');
   const { user, refreshProfile, register } = useAuth();
@@ -761,11 +739,3 @@ const styles = {
   },
 };
 
-// Wrapped export with error boundary
-export default function ThankYouFlow() {
-  return (
-    <ThankYouErrorBoundary>
-      <ThankYouFlowInner />
-    </ThankYouErrorBoundary>
-  );
-}
