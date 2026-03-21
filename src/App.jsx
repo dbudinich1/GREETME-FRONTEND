@@ -34,6 +34,7 @@ import PublicGreetingCard from "./pages/PublicGreetingCard";
 import GiftClaim from "./pages/GiftClaim";
 import ReferralCredit from "./pages/ReferralCredit";
 import ThankYouFlow from "./pages/ThankYouFlow";
+import CourtesyCredit from "./pages/CourtesyCredit";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
 import Support from "./pages/Support";
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="/gift/:claimToken" element={<GiftClaim />} />
           <Route path="/credit/:referralCode" element={<ReferralCredit />} />
           <Route path="/thank-you" element={<ThankYouFlow />} />
+          <Route path="/courtesy-credit" element={<CourtesyCredit />} />
 
           {/* Protected Routes */}
           <Route

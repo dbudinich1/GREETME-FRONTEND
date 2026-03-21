@@ -16,6 +16,7 @@
  */
 
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import QRCode from 'qrcode';
 import cardInteriorImg from '../../assets/card/card-interior.png';
 
 // Placeholder G logo component - awaiting final asset
@@ -106,6 +107,17 @@ function tightenLineHeight(el) {
 export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift }) {
   const closingMessageRef = useRef(null);
   const [qrImageError, setQrImageError] = useState(false);
+  const [courtesyQrUrl, setCourtesyQrUrl] = useState(null);
+
+  // Generate courtesy credit QR for no-gift greetings
+  useEffect(() => {
+    if (hasGift) return;
+    const creditUrl = `${window.location.origin}/#/courtesy-credit?amount=5&source=finale`;
+    QRCode.toDataURL(creditUrl, {
+      width: 400, margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+    }).then(setCourtesyQrUrl).catch(() => {});
+  }, [hasGift]);
 
   // AUTO-FIT: shrink-only until no clipping
   const runAutoFit = useCallback(() => {
@@ -261,26 +273,45 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift })
               </>
             ) : (
               <>
-                <h3 className="gc-gift-title" style={{ fontSize: '0.85em', whiteSpace: 'nowrap' }}>From Greet-Me, With Love</h3>
-                <p className="gc-gift-instruction" style={{ marginBottom: '0.75em' }}>
-                  New members enjoy $5 off their first subscription.
+                <h3 className="gc-gift-title" style={{ fontSize: '0.85em', whiteSpace: 'nowrap' }}>A Gift From Greet-Me</h3>
+
+                {courtesyQrUrl ? (
+                  <a
+                    href={`${window.location.origin}/#/courtesy-credit?amount=5&source=finale`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Claim your $5 Greet-Me credit"
+                    style={{ display: 'block', textDecoration: 'none' }}
+                  >
+                    <div className="gc-qr-frame">
+                      <div className="gc-qr-code">
+                        <img
+                          src={courtesyQrUrl}
+                          alt="Scan to claim your $5 Greet-Me credit"
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        />
+                      </div>
+                    </div>
+                  </a>
+                ) : (
+                  <a
+                    href="/#/courtesy-credit?amount=5&source=finale"
+                    style={{
+                      display: 'inline-block',
+                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                      fontSize: '0.85em',
+                      color: '#10b981',
+                      textDecoration: 'underline',
+                      marginBottom: '0.5em',
+                    }}
+                  >
+                    Tap to claim your $5 credit
+                  </a>
+                )}
+
+                <p className="gc-gift-instruction">
+                  Scan to claim $5 toward your first Greet-Me
                 </p>
-                <a
-                  href="/#/pricing"
-                  style={{
-                    display: 'inline-block',
-                    padding: '0.45em 1.2em',
-                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    color: '#fff',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                    fontSize: '0.7em',
-                    fontWeight: 600,
-                    borderRadius: '20px',
-                    textDecoration: 'none',
-                  }}
-                >
-                  See Plans
-                </a>
               </>
             )}
 
