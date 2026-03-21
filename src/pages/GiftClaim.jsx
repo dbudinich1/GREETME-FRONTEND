@@ -344,6 +344,7 @@ export default function GiftClaim() {
             const dest = gift.sourceGreetingJobId
               ? `/thank-you?jobId=${gift.sourceGreetingJobId}`
               : '/dashboard/send';
+            console.log('[GiftClaim] CTA dest:', dest, 'sourceGreetingJobId:', gift.sourceGreetingJobId);
             return (
               <div style={{ marginTop: '0.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>
                 <p style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1f2937', margin: '0 0 1rem' }}>
@@ -351,6 +352,7 @@ export default function GiftClaim() {
                 </p>
                 <button
                   onClick={() => {
+                    console.log('[GiftClaim] navigating to:', dest);
                     navigate(dest);
                   }}
                   style={{
