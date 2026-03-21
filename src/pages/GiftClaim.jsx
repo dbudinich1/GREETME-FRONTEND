@@ -338,9 +338,12 @@ export default function GiftClaim() {
             Please allow up to 48 hours for processing.
           </p>
 
-          {gift.sourceGreetingJobId && (() => {
+          {(() => {
             const rawFirst = (gift.senderName || '').split(' ')[0];
             const firstName = rawFirst ? rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase() : '';
+            const dest = gift.sourceGreetingJobId
+              ? `/thank-you?jobId=${gift.sourceGreetingJobId}`
+              : '/dashboard/send';
             return (
               <div style={{ marginTop: '0.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>
                 <p style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1f2937', margin: '0 0 1rem' }}>
@@ -348,7 +351,7 @@ export default function GiftClaim() {
                 </p>
                 <button
                   onClick={() => {
-                    navigate(`/thank-you?jobId=${gift.sourceGreetingJobId}`);
+                    navigate(dest);
                   }}
                   style={{
                     display: 'inline-block',
