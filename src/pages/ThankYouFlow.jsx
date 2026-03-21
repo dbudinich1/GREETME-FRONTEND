@@ -231,13 +231,36 @@ export default function ThankYouFlow() {
     };
   }, [sent, jobId, shared]);
 
+  const [sharing, setSharing] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   const handleShare = async () => {
-    // Fire share event log
+    // Immediately show visual transition
+    setSharing(true);
+
+    // Fire share event log (fire-and-forget)
     fetch('/api/events/exponential-moment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId, action: 'share' }),
     }).catch(() => {});
+
+    // Native share or clipboard fallback (launch early so user sees share sheet while reward loads)
+    const shareUrl = `${window.location.origin}/#/g/${jobId}`;
+    if (navigator.share) {
+      navigator.share({
+        title: 'Greet-Me',
+        text: 'I just sent a Greet-Me \u2014 and it started something. Come see what I mean.',
+        url: shareUrl,
+      }).catch(() => {});
+    } else {
+      try {
+        await navigator.clipboard?.writeText(
+          `I just sent a Greet-Me \u2014 and it started something. Come see what I mean. ${shareUrl}`
+        );
+        setCopied(true);
+      } catch { /* silent */ }
+    }
 
     // Call reward unlock API (authenticated, idempotent, capped)
     try {
@@ -248,22 +271,8 @@ export default function ThankYouFlow() {
       setRewardResult(reward);
     } catch { /* non-fatal — share still counts */ }
 
+    setSharing(false);
     setShared(true);
-
-    // Native share or fallback
-    const shareUrl = `${window.location.origin}/#/g/${jobId}`;
-    if (navigator.share) {
-      navigator.share({
-        title: 'Greet-Me',
-        text: 'I just sent a Greet-Me \u2014 and it started something. Come see what I mean.',
-        url: shareUrl,
-      }).catch(() => {});
-    } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard?.writeText(
-        `I just sent a Greet-Me \u2014 and it started something. Come see what I mean. ${shareUrl}`
-      ).catch(() => {});
-    }
   };
 
   const handleDismiss = () => {
@@ -357,7 +366,7 @@ export default function ThankYouFlow() {
           {shared ? (
             <div style={{ marginBottom: '1.5rem' }}>
               <p style={{ fontSize: '1.0625rem', fontWeight: 600, color: '#10b981', fontFamily: 'Georgia, serif' }}>
-                &#10003; Shared
+                &#10003; Shared{copied ? ' \u2014 link copied' : ''}
               </p>
               <p style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.375rem' }}>
                 {rewardResult?.rewardCreditCents > 0
@@ -370,22 +379,24 @@ export default function ThankYouFlow() {
           ) : (
             <button
               onClick={handleShare}
+              disabled={sharing}
               style={{
                 display: 'inline-block',
                 padding: '0.875rem 2.5rem',
-                background: '#fff',
+                background: sharing ? 'rgba(255,255,255,0.7)' : '#fff',
                 color: '#1B2A4A',
                 border: 'none',
                 borderRadius: '2rem',
                 fontSize: '1.0625rem',
                 fontWeight: 600,
                 fontFamily: 'Georgia, serif',
-                cursor: 'pointer',
+                cursor: sharing ? 'default' : 'pointer',
                 boxShadow: '0 4px 20px rgba(255,255,255,0.15)',
                 marginBottom: '1.5rem',
+                transition: 'background 0.2s',
               }}
             >
-              Share the Moment
+              {sharing ? 'Sharing\u2026' : 'Share the Moment'}
             </button>
           )}
 
