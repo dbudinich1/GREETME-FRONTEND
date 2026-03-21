@@ -12,6 +12,63 @@ import PhotoUpload from '../components/PhotoUpload';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
+const styles = {
+  page: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 50%, #f5f3ff 100%)',
+    padding: '3rem 1.5rem',
+    fontFamily: FONT_STACK,
+  },
+  container: { maxWidth: '680px', width: '100%' },
+  card: {
+    maxWidth: '680px', width: '100%', background: '#fff', borderRadius: '1rem',
+    padding: '2rem', textAlign: 'center',
+    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)',
+  },
+  section: {
+    background: '#fff', borderRadius: '1rem', padding: '1.5rem',
+    marginBottom: '1.5rem', boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)', textAlign: 'left',
+  },
+  enhanceCard: {
+    background: '#f9fafb', borderRadius: '1rem', padding: '1.5rem',
+    marginBottom: '1.5rem', border: '1px solid #e5e7eb', textAlign: 'left',
+  },
+  enhanceRow: {
+    padding: '1rem', background: '#fff', borderRadius: '0.75rem',
+    border: '1px solid #e5e7eb', marginBottom: '0.75rem',
+  },
+  chipRow: { marginBottom: '0.75rem' },
+  successChip: {
+    display: 'inline-block', padding: '0.375rem 0.75rem', background: '#ecfdf5',
+    color: '#059669', borderRadius: '1rem', fontSize: '0.8125rem', fontWeight: 600,
+  },
+  neutralChip: {
+    display: 'inline-block', padding: '0.375rem 0.75rem', background: '#f3f4f6',
+    color: '#6b7280', borderRadius: '1rem', fontSize: '0.8125rem', fontWeight: 500,
+  },
+  input: {
+    width: '100%', padding: '0.75rem', border: '1px solid #d1d5db',
+    borderRadius: '0.5rem', fontSize: '0.9375rem', fontFamily: FONT_STACK,
+    boxSizing: 'border-box', outline: 'none',
+  },
+  title: { fontSize: '1.5rem', fontWeight: 700, color: '#1f2937', margin: '0 0 0.75rem' },
+  footer: { fontSize: '0.75rem', color: '#b0b0b0', margin: '1.5rem 0 0' },
+  successIcon: {
+    width: '4rem', height: '4rem', borderRadius: '50%',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    margin: '0 auto 1.25rem', fontSize: '2rem', color: '#fff',
+  },
+  linkBtn: {
+    display: 'inline-block', padding: '0.625rem 1.5rem', background: '#4F2D7F',
+    color: '#fff', borderRadius: '0.5rem', fontWeight: 600,
+    textDecoration: 'none', fontSize: '0.9375rem',
+  },
+};
+
 export default function ThankYouFlow() {
   const [searchParams] = useSearchParams();
   const jobId = searchParams.get('jobId');
@@ -626,116 +683,4 @@ export default function ThankYouFlow() {
     </div>
   );
 }
-
-const styles = {
-  page: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 50%, #f5f3ff 100%)',
-    padding: '3rem 1.5rem',
-    fontFamily: FONT_STACK,
-  },
-  container: {
-    maxWidth: '680px',
-    width: '100%',
-  },
-  card: {
-    maxWidth: '680px',
-    width: '100%',
-    background: '#fff',
-    borderRadius: '1rem',
-    padding: '2rem',
-    textAlign: 'center',
-    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)',
-  },
-  section: {
-    background: '#fff',
-    borderRadius: '1rem',
-    padding: '1.5rem',
-    marginBottom: '1.5rem',
-    boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
-    textAlign: 'left',
-  },
-  enhanceCard: {
-    background: '#f9fafb',
-    borderRadius: '1rem',
-    padding: '1.5rem',
-    marginBottom: '1.5rem',
-    border: '1px solid #e5e7eb',
-    textAlign: 'left',
-  },
-  enhanceRow: {
-    padding: '1rem',
-    background: '#fff',
-    borderRadius: '0.75rem',
-    border: '1px solid #e5e7eb',
-    marginBottom: '0.75rem',
-  },
-  chipRow: {
-    marginBottom: '0.75rem',
-  },
-  successChip: {
-    display: 'inline-block',
-    padding: '0.375rem 0.75rem',
-    background: '#ecfdf5',
-    color: '#059669',
-    borderRadius: '1rem',
-    fontSize: '0.8125rem',
-    fontWeight: 600,
-  },
-  neutralChip: {
-    display: 'inline-block',
-    padding: '0.375rem 0.75rem',
-    background: '#f3f4f6',
-    color: '#6b7280',
-    borderRadius: '1rem',
-    fontSize: '0.8125rem',
-    fontWeight: 500,
-  },
-  input: {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '0.5rem',
-    fontSize: '0.9375rem',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    boxSizing: 'border-box',
-    outline: 'none',
-  },
-  title: {
-    fontSize: '1.5rem',
-    fontWeight: 700,
-    color: '#1f2937',
-    margin: '0 0 0.75rem',
-  },
-  footer: {
-    fontSize: '0.75rem',
-    color: '#b0b0b0',
-    margin: '1.5rem 0 0',
-  },
-  successIcon: {
-    width: '4rem',
-    height: '4rem',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: '0 auto 1.25rem',
-    fontSize: '2rem',
-    color: '#fff',
-  },
-  linkBtn: {
-    display: 'inline-block',
-    padding: '0.625rem 1.5rem',
-    background: '#4F2D7F',
-    color: '#fff',
-    borderRadius: '0.5rem',
-    fontWeight: 600,
-    textDecoration: 'none',
-    fontSize: '0.9375rem',
-  },
-};
 
