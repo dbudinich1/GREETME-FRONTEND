@@ -179,6 +179,7 @@ export default function GreetingCard({ greeting }) {
             hasGift={greeting.hasGift}
             gift={greeting.gift}
             jobId={greeting.jobId}
+            courtesyCreditCode={greeting.courtesyCreditCode}
           />
         );
       default:
@@ -400,6 +401,7 @@ export default function GreetingCard({ greeting }) {
               hasGift={greeting.hasGift}
               gift={greeting.gift}
               jobId={greeting.jobId}
+              courtesyCreditCode={greeting.courtesyCreditCode}
             />
           )}
         </>

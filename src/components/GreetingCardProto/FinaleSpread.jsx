@@ -104,7 +104,7 @@ function tightenLineHeight(el) {
   }
 }
 
-export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift }) {
+export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, courtesyCreditCode }) {
   const closingMessageRef = useRef(null);
   const [qrImageError, setQrImageError] = useState(false);
   const [courtesyQrUrl, setCourtesyQrUrl] = useState(null);
@@ -112,12 +112,15 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift })
   // Generate courtesy credit QR for no-gift greetings
   useEffect(() => {
     if (hasGift) return;
-    const creditUrl = `${window.location.origin}/#/courtesy-credit?amount=5&source=finale`;
+    // Use real credit code if available, otherwise fallback to generic landing
+    const creditUrl = courtesyCreditCode
+      ? `${window.location.origin}/#/claim-credit/${courtesyCreditCode}`
+      : `${window.location.origin}/#/courtesy-credit?amount=5&source=finale`;
     QRCode.toDataURL(creditUrl, {
       width: 400, margin: 2,
       color: { dark: '#000000', light: '#ffffff' },
     }).then(setCourtesyQrUrl).catch(() => {});
-  }, [hasGift]);
+  }, [hasGift, courtesyCreditCode]);
 
   // AUTO-FIT: shrink-only until no clipping
   const runAutoFit = useCallback(() => {
@@ -277,7 +280,9 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift })
 
                 {courtesyQrUrl ? (
                   <a
-                    href={`${window.location.origin}/#/courtesy-credit?amount=5&source=finale`}
+                    href={courtesyCreditCode
+                      ? `${window.location.origin}/#/claim-credit/${courtesyCreditCode}`
+                      : `${window.location.origin}/#/courtesy-credit?amount=5&source=finale`}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Claim your $5 Greet-Me credit"
