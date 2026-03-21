@@ -415,7 +415,7 @@ export default function ThankYouFlow() {
                   ? `$${(rewardResult.rewardCreditCents / 100).toFixed(0)} credit unlocked \u2014 applied to your next subscription.`
                   : rewardResult?.duplicate
                     ? 'Reward already applied to your account.'
-                    : 'Thanks for sharing.'}
+                    : 'Thanks for sharing \u2014 send with a gift to unlock credit.'}
               </p>
             </div>
           ) : (
