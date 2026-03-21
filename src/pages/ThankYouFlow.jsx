@@ -209,9 +209,8 @@ export default function ThankYouFlow() {
   // Fire EXPONENTIAL_MOMENT_SEEN once when sent becomes true
   useEffect(() => {
     if (!sent || !jobId) return;
-    fetch('/api/events/exponential-moment', {
+    api.request('/api/events/exponential-moment', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId, action: 'seen' }),
     }).catch(() => {});
   }, [sent, jobId]);
@@ -219,8 +218,9 @@ export default function ThankYouFlow() {
   // Fire DISMISSED on browser back / tab close / navigate away (if moment is showing and not shared)
   useEffect(() => {
     if (!sent || !jobId || shared) return;
+    const beaconUrl = `${import.meta.env.VITE_API_BASE}/api/events/exponential-moment`;
     const fireDismissed = () => {
-      navigator.sendBeacon?.('/api/events/exponential-moment',
+      navigator.sendBeacon?.(beaconUrl,
         new Blob([JSON.stringify({ jobId, action: 'dismissed' })], { type: 'application/json' }));
     };
     window.addEventListener('beforeunload', fireDismissed);
@@ -238,31 +238,38 @@ export default function ThankYouFlow() {
     // Immediately show visual transition
     setSharing(true);
 
-    // Fire share event log (fire-and-forget)
-    fetch('/api/events/exponential-moment', {
+    // Fire share event log (fire-and-forget, use API_BASE)
+    api.request('/api/events/exponential-moment', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId, action: 'share' }),
     }).catch(() => {});
 
-    // Native share or clipboard fallback (launch early so user sees share sheet while reward loads)
+    // Native share or clipboard fallback
     const shareUrl = `${window.location.origin}/#/g/${jobId}`;
+    let shareCompleted = false;
     if (navigator.share) {
-      navigator.share({
-        title: 'Greet-Me',
-        text: 'I just sent a Greet-Me \u2014 and it started something. Come see what I mean.',
-        url: shareUrl,
-      }).catch(() => {});
+      try {
+        await navigator.share({
+          title: 'Greet-Me',
+          text: 'I just sent a Greet-Me \u2014 and it started something. Come see what I mean.',
+          url: shareUrl,
+        });
+        shareCompleted = true;
+      } catch {
+        // User cancelled share sheet — still count as share intent
+        shareCompleted = true;
+      }
     } else {
       try {
         await navigator.clipboard?.writeText(
           `I just sent a Greet-Me \u2014 and it started something. Come see what I mean. ${shareUrl}`
         );
         setCopied(true);
-      } catch { /* silent */ }
+        shareCompleted = true;
+      } catch { shareCompleted = true; }
     }
 
-    // Call reward unlock API (authenticated, idempotent, capped)
+    // Call reward unlock API AFTER share sheet closes (so user sees the result)
     try {
       const reward = await api.request('/api/events/share-reward', {
         method: 'POST',
@@ -276,9 +283,8 @@ export default function ThankYouFlow() {
   };
 
   const handleDismiss = () => {
-    fetch('/api/events/exponential-moment', {
+    api.request('/api/events/exponential-moment', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId, action: 'dismissed' }),
     }).catch(() => {});
     window.location.href = '/#/dashboard';
