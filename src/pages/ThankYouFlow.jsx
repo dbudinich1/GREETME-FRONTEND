@@ -137,6 +137,7 @@ export default function ThankYouFlow() {
     setSending(true);
     setError(null);
     try {
+      console.log('[ThankYouFlow] sending greeting, sourceJobId:', jobId);
       const result = await api.submitThankYouGreeting({
         recipientName: prefill.recipientName,
         recipientEmail: prefill.recipientEmail,
@@ -145,18 +146,20 @@ export default function ThankYouFlow() {
         script,
         sourceJobId: jobId,
       });
+      console.log('[ThankYouFlow] send result:', { ok: result?.ok, status: result?.status, code: result?.code, error: result?.error });
       if (result?.status === 401) {
         setShowInlineRegister(true);
         setSending(false);
         return;
       }
       if (result?.ok === false) {
-        setError(result?.error || 'Something went wrong. Please try again.');
+        setError(result?.error || 'Send failed. Please try again.');
         return;
       }
       setSent(true);
       setSentAt(Date.now());
     } catch (err) {
+      console.error('[ThankYouFlow] send error:', err?.message, err?.code, err?.status);
       setError(err?.message || 'Failed to send. Please try again.');
     } finally {
       setSending(false);
@@ -168,13 +171,18 @@ export default function ThankYouFlow() {
     setRegError(null);
     setRegistering(true);
     try {
+      console.log('[ThankYouFlow] registering:', regEmail.trim().toLowerCase());
       const result = await register(regName.trim(), regEmail.trim().toLowerCase(), regPassword);
+      console.log('[ThankYouFlow] register result:', { success: result?.success, code: result?.code, status: result?.status, error: result?.error });
       if (!result?.success) {
         const isEmailExists = result?.code === 'EMAIL_EXISTS';
+        const isServerError = result?.status >= 500 || result?.code === 'SERVER_ERROR';
         setRegError(
           isEmailExists
             ? 'This email already has an account.'
-            : (result?.error || 'Registration failed. Please try again.')
+            : isServerError
+              ? 'Our server had a hiccup. Please try again in a moment.'
+              : (result?.error || 'Registration failed. Please try again.')
         );
         setRegistering(false);
         return;
@@ -184,6 +192,7 @@ export default function ThankYouFlow() {
       setRegistering(false);
       await doSend();
     } catch (err) {
+      console.error('[ThankYouFlow] register exception:', err);
       setRegError(err?.message || 'Registration failed.');
       setRegistering(false);
     }
