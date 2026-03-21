@@ -7,8 +7,9 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
-import VoiceRecorder from '../components/VoiceRecorder';
-import PhotoUpload from '../components/PhotoUpload';
+// TEMP: lazy import to isolate crash source
+const VoiceRecorder = null; // import('../components/VoiceRecorder')
+const PhotoUpload = null; // import('../components/PhotoUpload')
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -520,7 +521,7 @@ export default function ThankYouFlow() {
                   {addedVoiceThisSession && (
                     <span style={{ ...styles.successChip, marginBottom: '0.5rem', display: 'inline-block' }}>&#10003; Voice added</span>
                   )}
-                  <VoiceRecorder onUpload={handleVoiceUpload} existingVoice={user?.voiceId || null} />
+                  {VoiceRecorder ? <VoiceRecorder onUpload={handleVoiceUpload} existingVoice={user?.voiceId || null} /> : <p style={{fontSize:'0.8rem',color:'#999'}}>Voice upload loading...</p>}
                 </div>
 
                 {/* Photo row — always visible for authenticated users */}
@@ -540,7 +541,7 @@ export default function ThankYouFlow() {
                   {addedPhotoThisSession && (
                     <span style={{ ...styles.successChip, marginBottom: '0.5rem', display: 'inline-block' }}>&#10003; Photo added</span>
                   )}
-                  <PhotoUpload onUpload={handlePhotoUpload} existingPhoto={user?.photoUrl || null} compact />
+                  {PhotoUpload ? <PhotoUpload onUpload={handlePhotoUpload} existingPhoto={user?.photoUrl || null} compact /> : <p style={{fontSize:'0.8rem',color:'#999'}}>Photo upload loading...</p>}
                 </div>
               </>
             ) : (
