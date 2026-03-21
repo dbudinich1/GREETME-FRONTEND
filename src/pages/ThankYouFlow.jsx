@@ -34,13 +34,12 @@ class ThankYouErrorBoundary extends Component {
   }
 }
 
-function ThankYouFlowInner() {  // eslint-disable-line no-use-before-define
+function ThankYouFlowInner() {
   const [searchParams] = useSearchParams();
   const jobId = searchParams.get('jobId');
   const { user, refreshProfile, register } = useAuth();
-
   // TEMP DIAGNOSTIC — remove after verification
-  console.log('[ThankYouFlow] mounted, jobId:', jobId);
+  console.log('[ThankYouFlow] render cycle — jobId:', jobId, 'user:', user?.email || 'guest');
 
   // Inline registration state (guest send path)
   const [showInlineRegister, setShowInlineRegister] = useState(false);
@@ -385,20 +384,25 @@ function ThankYouFlowInner() {  // eslint-disable-line no-use-before-define
   if (loading) {
     return (
       <div style={styles.page}>
-        <p style={{ color: '#6b7280', fontFamily: FONT_STACK }}>Loading your greeting...</p>
+        <p style={{ color: '#6b7280', fontFamily: FONT_STACK }}>Loading your thank-you...</p>
+        <p style={{ fontSize: '11px', color: '#999', marginTop: '8px' }}>jobId: {jobId || 'missing'}</p>
       </div>
     );
   }
 
-  // ---- Error ----
+  // ---- Error / missing prefill ----
   if (error || !prefill) {
     return (
       <div style={styles.page}>
         <div style={styles.card}>
-          <h1 style={styles.title}>Oops</h1>
-          <p style={{ fontSize: '1rem', color: '#6b7280', margin: '0 0 1.5rem' }}>
-            {error || 'Something went wrong.'}
+          <h1 style={styles.title}>Could not load thank-you</h1>
+          <p style={{ fontSize: '1rem', color: '#6b7280', margin: '0 0 1rem' }}>
+            {error || 'Prefill data missing.'}
           </p>
+          <p style={{ fontSize: '11px', color: '#999', margin: '0 0 1.5rem' }}>jobId: {jobId || 'missing'}</p>
+          <a href="/#/dashboard/send" style={{ color: '#4F2D7F', textDecoration: 'underline', fontSize: '0.9rem' }}>
+            Send a greeting instead
+          </a>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
         </div>
       </div>
