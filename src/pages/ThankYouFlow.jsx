@@ -72,12 +72,13 @@ const styles = {
 export default function ThankYouFlow() {
   const [searchParams] = useSearchParams();
   const jobId = searchParams.get('jobId');
-  const { user, refreshProfile, register } = useAuth();
+  const { user, refreshProfile, register, login } = useAuth();
   // TEMP DIAGNOSTIC — remove after verification
   console.log('[ThankYouFlow] render cycle — jobId:', jobId, 'user:', user?.email || 'guest');
 
-  // Inline registration state (guest send path)
+  // Inline registration/login state (guest send path)
   const [showInlineRegister, setShowInlineRegister] = useState(false);
+  const [inlineMode, setInlineMode] = useState('register'); // 'register' | 'login'
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
@@ -177,13 +178,16 @@ export default function ThankYouFlow() {
       if (!result?.success) {
         const isEmailExists = result?.code === 'EMAIL_EXISTS';
         const isServerError = result?.status >= 500 || result?.code === 'SERVER_ERROR';
-        setRegError(
-          isEmailExists
-            ? 'This email already has an account.'
-            : isServerError
+        if (isEmailExists) {
+          setInlineMode('login');
+          setRegError('This email already has an account. Enter your password to log in.');
+        } else {
+          setRegError(
+            isServerError
               ? 'Our server had a hiccup. Please try again in a moment.'
               : (result?.error || 'Registration failed. Please try again.')
-        );
+          );
+        }
         setRegistering(false);
         return;
       }
@@ -194,6 +198,29 @@ export default function ThankYouFlow() {
     } catch (err) {
       console.error('[ThankYouFlow] register exception:', err);
       setRegError(err?.message || 'Registration failed.');
+      setRegistering(false);
+    }
+  };
+
+  const handleInlineLogin = async (e) => {
+    e.preventDefault();
+    setRegError(null);
+    setRegistering(true);
+    try {
+      console.log('[ThankYouFlow] logging in:', regEmail.trim().toLowerCase());
+      const result = await login(regEmail.trim().toLowerCase(), regPassword);
+      console.log('[ThankYouFlow] login result:', { success: result?.success, code: result?.code });
+      if (!result?.success) {
+        setRegError(result?.error || 'Login failed. Please try again.');
+        setRegistering(false);
+        return;
+      }
+      setShowInlineRegister(false);
+      setRegistering(false);
+      await doSend();
+    } catch (err) {
+      console.error('[ThankYouFlow] login exception:', err);
+      setRegError(err?.message || 'Login failed.');
       setRegistering(false);
     }
   };
@@ -603,37 +630,36 @@ export default function ThankYouFlow() {
           </div>
         )}
 
-        {/* E. Inline registration (guest path) */}
+        {/* E. Inline registration or login (guest path — never leaves page) */}
         {showInlineRegister && (
           <div style={styles.section}>
             <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1f2937', margin: '0 0 0.25rem' }}>
-              Quick sign-up to send
+              {inlineMode === 'login' ? 'Log in to send' : 'Quick sign-up to send'}
             </p>
             <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: '0 0 1rem' }}>
-              Create your free account and your Greet-Me sends instantly.
+              {inlineMode === 'login'
+                ? 'Log in and your Greet-Me sends instantly.'
+                : 'Create your free account and your Greet-Me sends instantly.'}
             </p>
             {regError && (
               <div style={{ padding: '0.5rem 0.75rem', background: '#fef2f2', borderRadius: '0.375rem', border: '1px solid #fecaca', marginBottom: '0.75rem' }}>
                 <p style={{ fontSize: '0.8125rem', color: '#dc2626', margin: 0 }}>{regError}</p>
-                {regError.includes('already has an account') && (
-                  <a href="/#/login" style={{ fontSize: '0.8125rem', color: '#4F2D7F', fontWeight: 600, marginTop: '0.25rem', display: 'inline-block' }}>
-                    Log in instead
-                  </a>
-                )}
               </div>
             )}
-            <form onSubmit={handleInlineRegister} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Name</label>
-                <input
-                  type="text"
-                  value={regName}
-                  onChange={(e) => setRegName(e.target.value)}
-                  placeholder="Your name"
-                  required
-                  style={styles.input}
-                />
-              </div>
+            <form onSubmit={inlineMode === 'login' ? handleInlineLogin : handleInlineRegister} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {inlineMode === 'register' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Name</label>
+                  <input
+                    type="text"
+                    value={regName}
+                    onChange={(e) => setRegName(e.target.value)}
+                    placeholder="Your name"
+                    required
+                    style={styles.input}
+                  />
+                </div>
+              )}
               <div>
                 <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Email</label>
                 <input
@@ -651,9 +677,9 @@ export default function ThankYouFlow() {
                   type="password"
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
-                  placeholder="Create a password"
+                  placeholder={inlineMode === 'login' ? 'Your password' : 'Create a password'}
                   required
-                  minLength={8}
+                  minLength={inlineMode === 'login' ? 1 : 8}
                   style={styles.input}
                 />
               </div>
@@ -674,9 +700,16 @@ export default function ThankYouFlow() {
                   boxShadow: (registering || sending) ? 'none' : '0 4px 14px rgba(79, 45, 127, 0.2)',
                 }}
               >
-                {registering ? 'Creating account...' : sending ? 'Sending...' : 'Create Account & Send'}
+                {registering ? (inlineMode === 'login' ? 'Logging in...' : 'Creating account...') : sending ? 'Sending...' : (inlineMode === 'login' ? 'Log In & Send' : 'Create Account & Send')}
               </button>
             </form>
+            <p style={{ fontSize: '0.8125rem', color: '#6b7280', textAlign: 'center', margin: '0.75rem 0 0' }}>
+              {inlineMode === 'login' ? (
+                <>Don&rsquo;t have an account? <button onClick={() => { setInlineMode('register'); setRegError(null); }} style={{ background: 'none', border: 'none', color: '#4F2D7F', fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer', padding: 0 }}>Sign up</button></>
+              ) : (
+                <>Already have an account? <button onClick={() => { setInlineMode('login'); setRegError(null); }} style={{ background: 'none', border: 'none', color: '#4F2D7F', fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer', padding: 0 }}>Log in</button></>
+              )}
+            </p>
           </div>
         )}
 
