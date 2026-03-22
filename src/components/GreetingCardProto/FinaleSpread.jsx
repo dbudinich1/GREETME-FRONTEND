@@ -110,6 +110,7 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
   const [courtesyQrUrl, setCourtesyQrUrl] = useState(null);
 
   // Generate courtesy credit QR for no-gift greetings
+  console.log('[FinaleSpread] courtesyCreditCode:', courtesyCreditCode);
   useEffect(() => {
     if (hasGift) return;
     // Use real credit code if available, otherwise fallback to generic landing
