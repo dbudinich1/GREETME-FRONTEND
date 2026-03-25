@@ -89,7 +89,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   // Demo stage state (Step 1 — 9 walkthrough stages + 1 final CTA = indices 0–9)
   const [demoStage, setDemoStage] = useState(0);
   const demoTimerRef = useRef(null);
-  const DEMO_LAST_STAGE = 9; // index of final CTA screen
+  const DEMO_LAST_STAGE = 7; // index of final CTA screen (after 7 content stages at 0-6)
 
   const isMobile = window.innerWidth <= 480;
 
@@ -521,14 +521,12 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   // STEP 1: Demo — full animated product walkthrough
   const demoStages = [
     { icon: '✉️', heading: 'A personal Greet-Me awaits you', body: 'A greeting and gifting platform that sends personalized moments using your voice and photo.' },
-    { icon: '🎙️', heading: 'Your voice. Your photo.', body: 'Every Greet-Me is animated with AI \u2014 so it feels like you\u2019re really there.' },
+    { icon: '🧑\u200d🎤', heading: 'You \u2014 in every greeting', body: 'Your voice recorded. Your photo animated with AI. So it truly feels like you\u2019re there.' },
     { icon: '💝', heading: 'For every occasion', body: 'Personal \u00b7 Business \u00b7 Recognition \u2014 birthdays, milestones, thank-yous, or just because.' },
     { icon: '🎁', heading: 'Greetings, gifts, and gratitude', body: 'Add a cash gift, a subscription credit, or simply your words \u2014 all in one experience.' },
-    { icon: '✨', heading: 'Greet One. Gift One.\u2122', body: 'We give first. When you choose a subscription, you can share one of equal value with someone you love.', highlight: true },
+    { icon: '✨', heading: 'Your First Gift Is On Us', body: 'Share a $5 Greet-Me credit with someone you care about \u2014 because we give first.', highlight: true },
     { icon: '🚀', heading: 'Send it', body: 'One tap and it\u2019s on its way \u2014 a sealed envelope, a handwritten card, your voice, and the moment.' },
-    { icon: '✉️', heading: 'They receive it', body: 'A beautiful sealed envelope arrives in their inbox.' },
-    { icon: '💌', heading: 'They open it', body: 'Your message appears. Your voice plays. Photos come alive.' },
-    { icon: '💫', heading: 'The moment', body: 'A greeting they\u2019ll never forget \u2014 and the start of something bigger.' },
+    { icon: '💫', heading: 'They experience it', body: 'Your message appears. Your voice plays. Photos come alive. A moment they won\u2019t forget.' },
   ];
 
   const demoPrev = () => {
@@ -1392,7 +1390,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         marginBottom: '0.75rem',
         fontFamily: 'Georgia, serif',
       }}>
-        A Welcome Gift From Greet-Me
+        Your First Gift Is On Us
       </h2>
       <p style={{
         fontSize: '0.9375rem',
@@ -1400,7 +1398,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         lineHeight: 1.7,
         marginBottom: '1.25rem',
       }}>
-        Because every great neighborhood starts with generosity, we've included a little something to share.
+        Because we believe in giving first, we&rsquo;ve included a little something to share.
       </p>
       <div style={{
         background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
@@ -1416,7 +1414,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           marginBottom: '0.5rem',
           fontFamily: 'Georgia, serif',
         }}>
-          Greet One. Gift One.&trade;
+          🎁 A $5 Greet-Me Credit to Share
         </p>
         <p style={{
           fontSize: '0.875rem',
@@ -1424,7 +1422,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           lineHeight: 1.6,
           margin: 0,
         }}>
-          When you activate any subscription plan, you'll receive one free subscription of equal value to give to someone you love.
+          Share a $5 Greet-Me credit with someone you care about. It&rsquo;s our way of saying welcome.
         </p>
       </div>
       <button
