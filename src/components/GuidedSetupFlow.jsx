@@ -1340,18 +1340,18 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         marginBottom: '1.5rem',
         lineHeight: 1.6,
       }}>
-        You're set. From here on out, Greet-Me™ can show up for the moments that matter — in your voice, with your presence.
+        You're set. From here on out, Greet-Me&trade; can show up for the moments that matter &mdash; in your voice, with your presence.
       </p>
       <p style={{
-        fontSize: '1rem',
-        fontWeight: 600,
-        color: 'var(--text-primary)',
-        marginBottom: '1.25rem',
+        fontSize: '0.9375rem',
+        color: 'var(--text-secondary)',
+        marginBottom: '1.5rem',
+        lineHeight: 1.6,
       }}>
-        What would you like to do next?
+        But first &mdash; we have something for you.
       </p>
       <button
-        onClick={goToRecipientControls}
+        onClick={() => setStep(7)}
         style={{
           width: '100%',
           padding: '1rem',
@@ -1363,42 +1363,85 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           fontWeight: 600,
           cursor: 'pointer',
           fontFamily: 'inherit',
+        }}
+      >
+        See Your Gift
+      </button>
+    </div>
+  );
+
+  // ==================== STEP 7: GIFT REVEAL ====================
+  const renderGiftReveal = () => (
+    <div style={{ textAlign: 'center', padding: isMobile ? '2rem 1.5rem' : '2.5rem 2rem' }}>
+      <div style={{
+        width: '5rem', height: '5rem', borderRadius: '50%',
+        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        margin: '0 auto 1.5rem', fontSize: '2.5rem',
+      }}>
+        🎁
+      </div>
+      <h2 style={{
+        fontSize: isMobile ? '1.5rem' : '1.75rem',
+        fontWeight: 700,
+        color: 'var(--text-primary)',
+        marginBottom: '0.75rem',
+        fontFamily: 'Georgia, serif',
+      }}>
+        A Welcome Gift From Greet-Me
+      </h2>
+      <p style={{
+        fontSize: '0.9375rem',
+        color: 'var(--text-secondary)',
+        lineHeight: 1.7,
+        marginBottom: '1.25rem',
+      }}>
+        Because every great neighborhood starts with generosity, we've included a little something to share.
+      </p>
+      <div style={{
+        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '1.5rem',
+        marginBottom: '1.5rem',
+        border: '1px solid #f59e0b33',
+      }}>
+        <p style={{
+          fontSize: '1.125rem',
+          fontWeight: 700,
+          color: '#92400e',
+          marginBottom: '0.5rem',
+          fontFamily: 'Georgia, serif',
+        }}>
+          Greet One. Gift One.&trade;
+        </p>
+        <p style={{
+          fontSize: '0.875rem',
+          color: '#78350f',
+          lineHeight: 1.6,
+          margin: 0,
+        }}>
+          When you activate any subscription plan, you'll receive one free subscription of equal value to give to someone you love.
+        </p>
+      </div>
+      <button
+        onClick={goToRecipientControls}
+        style={{
+          width: '100%', padding: '1rem',
+          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+          color: 'white', border: 'none', borderRadius: 'var(--radius-lg)',
+          fontSize: '1rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
           marginBottom: '0.75rem',
         }}
       >
         Add Your First Recipient
       </button>
       <button
-        onClick={goToDashboard}
-        style={{
-          width: '100%',
-          padding: '1rem',
-          background: 'white',
-          color: 'var(--text-primary)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-lg)',
-          fontSize: '1rem',
-          fontWeight: 500,
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          marginBottom: '0.75rem',
-        }}
-      >
-        Go to Dashboard
-      </button>
-      <button
         onClick={goToPricing}
         style={{
-          width: '100%',
-          padding: '0.625rem',
-          background: 'transparent',
-          color: 'var(--text-secondary)',
-          border: 'none',
-          fontSize: '0.875rem',
-          fontWeight: 500,
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          textDecoration: 'underline',
+          width: '100%', padding: '0.625rem',
+          background: 'transparent', color: 'var(--text-secondary)',
+          border: 'none', fontSize: '0.875rem', fontWeight: 500,
+          cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline',
         }}
       >
         Explore Plans &amp; Pricing
@@ -1415,16 +1458,19 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     4: renderTestGreeting,
     5: renderSending,
     6: renderSuccess,
+    7: renderGiftReveal,
   };
 
   // Calculate progress (steps 0-6)
   const getProgressWidth = () => {
-    if (step === 0) return 10;
-    if (step === 1) return 25;
-    if (step === 2) return 40;
-    if (step === 3) return 55;
-    if (step === 4) return 75;
-    if (step >= 5) return 100;
+    if (step === 0) return 8;
+    if (step === 1) return 22;
+    if (step === 2) return 36;
+    if (step === 3) return 50;
+    if (step === 4) return 64;
+    if (step === 5) return 78;
+    if (step === 6) return 90;
+    if (step >= 7) return 100;
     return 0;
   };
 
