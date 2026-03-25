@@ -520,15 +520,15 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
   // STEP 1: Demo — full animated product walkthrough
   const demoStages = [
-    { icon: '✨', heading: 'Create a Greet-Me', body: 'Create something personal in seconds.' },
-    { icon: '🎙️', heading: 'Add your voice and photo', body: 'So it feels like you\'re really there.' },
-    { icon: '💝', heading: 'Choose who it\'s for', body: 'Birthdays, celebrations… or just because.' },
-    { icon: '🎁', heading: 'Add a surprise gift (optional)', body: 'Turn a moment into something unforgettable.' },
-    { icon: '🚀', heading: 'Send it', body: 'One click and it\'s on its way.' },
-    { icon: '📊', heading: 'Your dashboard', body: 'See every upcoming occasion, recent send, and greeting in flight.' },
-    { icon: '✉️', heading: 'They receive it', body: 'A beautiful envelope arrives.' },
-    { icon: '💌', heading: 'They open it', body: 'Your message appears. Your voice plays.' },
-    { icon: '💫', heading: 'The moment', body: 'A greeting they\'ll never forget.' },
+    { icon: '✉️', heading: 'A personal Greet-Me awaits you', body: 'A greeting and gifting platform that sends personalized moments using your voice and photo.' },
+    { icon: '🎙️', heading: 'Your voice. Your photo.', body: 'Every Greet-Me is animated with AI \u2014 so it feels like you\u2019re really there.' },
+    { icon: '💝', heading: 'For every occasion', body: 'Personal \u00b7 Business \u00b7 Recognition \u2014 birthdays, milestones, thank-yous, or just because.' },
+    { icon: '🎁', heading: 'Greetings, gifts, and gratitude', body: 'Add a cash gift, a subscription credit, or simply your words \u2014 all in one experience.' },
+    { icon: '✨', heading: 'Greet One. Gift One.\u2122', body: 'We give first. When you choose a subscription, you can share one of equal value with someone you love.', highlight: true },
+    { icon: '🚀', heading: 'Send it', body: 'One tap and it\u2019s on its way \u2014 a sealed envelope, a handwritten card, your voice, and the moment.' },
+    { icon: '✉️', heading: 'They receive it', body: 'A beautiful sealed envelope arrives in their inbox.' },
+    { icon: '💌', heading: 'They open it', body: 'Your message appears. Your voice plays. Photos come alive.' },
+    { icon: '💫', heading: 'The moment', body: 'A greeting they\u2019ll never forget \u2014 and the start of something bigger.' },
   ];
 
   const demoPrev = () => {
@@ -571,7 +571,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
               color: 'var(--text-primary)',
               marginBottom: '0.75rem',
             }}>
-              Let's set up your Greet-Me.
+              Now let&rsquo;s create yours.
             </h2>
             <p style={{
               fontSize: '0.95rem',
@@ -579,7 +579,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
               marginBottom: '2rem',
               lineHeight: 1.5,
             }}>
-              It only takes a minute to get started.
+              Record your voice, add a photo, and send your first Greet-Me in under a minute.
             </p>
             <button
               onClick={nextStep}
@@ -597,7 +597,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
                 marginBottom: '0.75rem',
               }}
             >
-              Let's do it
+              Let&rsquo;s create yours
             </button>
             <button
               onClick={handleSkip}
@@ -639,9 +639,13 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
                 key={demoStage}
                 style={{
                   padding: '1.5rem 1.25rem',
-                  background: 'var(--gray-50, #f9fafb)',
+                  background: current?.highlight
+                    ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)'
+                    : 'var(--gray-50, #f9fafb)',
                   borderRadius: 'var(--radius-md, 8px)',
-                  border: '1px solid var(--gray-200, #e5e7eb)',
+                  border: current?.highlight
+                    ? '1px solid #f59e0b44'
+                    : '1px solid var(--gray-200, #e5e7eb)',
                   width: '100%',
                   animation: 'demoStageFadeIn 0.5s ease-out',
                 }}
