@@ -55,15 +55,37 @@ const stripSignature = (text) => {
   return cleaned;
 };
 
-// CANONICAL: Birthday greetings always end with this sign-off
-const BIRTHDAY_SIGNOFF = 'May all your birthday wishes come true.';
-
-// Check if occasion is a birthday type
-const isBirthdayOccasion = (occasionKey) => {
-  if (!occasionKey) return false;
-  const key = occasionKey.toLowerCase();
-  return key.includes('birthday') || key === 'bday';
+// CANONICAL: Deterministic finale sign-off by occasion
+const OCCASION_SIGNOFFS = {
+  birthday:       'May all your birthday wishes come true.',
+  bday:           'May all your birthday wishes come true.',
+  anniversary:    'All my love.',
+  get_well:       'Get well soon!',
+  getwell:        'Get well soon!',
+  sympathy:       'With warmest regards.',
+  condolence:     'With warmest regards.',
+  thank_you:      'With warmest wishes.',
+  thankyou:       'With warmest wishes.',
+  thanks:         'With warmest wishes.',
+  holiday:        'With warmest holiday wishes.',
+  christmas:      'With warmest holiday wishes.',
+  hanukkah:       'With warmest holiday wishes.',
+  thinking_of_you:'With warmest wishes.',
+  thinking:       'With warmest wishes.',
+  general:        'With warmest wishes.',
 };
+
+function getOccasionSignoff(occasionKey) {
+  if (!occasionKey) return null;
+  const key = occasionKey.toLowerCase().replace(/[\s-]/g, '_');
+  // Direct match
+  if (OCCASION_SIGNOFFS[key]) return OCCASION_SIGNOFFS[key];
+  // Partial match (e.g. "birthday_milestone" matches "birthday")
+  for (const [k, v] of Object.entries(OCCASION_SIGNOFFS)) {
+    if (key.includes(k)) return v;
+  }
+  return null;
+}
 
 // AUTO-FIT constants (same floors as InteriorSpread)
 const MIN_FINALE_PX = 14;
@@ -167,18 +189,15 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
   // CANONICAL: NO SIGNATURE on Finale spread - strip any sign-off from AI text
   let cleanedFinale = stripSignature(finaleText);
 
-  // CANONICAL: Birthday greetings MUST end with birthday sign-off
-  if (isBirthdayOccasion(occasionKey)) {
-    // Remove existing birthday sign-off if present (to avoid duplication)
-    if (cleanedFinale) {
-      cleanedFinale = cleanedFinale
-        .replace(/may all your birthday wishes come true\.?\s*$/i, '')
-        .trim();
-    }
-    // Append the canonical birthday sign-off
-    cleanedFinale = cleanedFinale
-      ? `${cleanedFinale}\n\n${BIRTHDAY_SIGNOFF}`
-      : BIRTHDAY_SIGNOFF;
+  // CANONICAL: Append deterministic sign-off by occasion
+  const signoff = getOccasionSignoff(occasionKey);
+  if (signoff && cleanedFinale) {
+    // Remove any existing instance of this sign-off to avoid duplication
+    const escaped = signoff.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\.\s*$/, '\\.?');
+    cleanedFinale = cleanedFinale.replace(new RegExp(escaped + '\\s*$', 'i'), '').trim();
+    cleanedFinale = `${cleanedFinale}\n\n${signoff}`;
+  } else if (signoff) {
+    cleanedFinale = signoff;
   }
 
   return (
