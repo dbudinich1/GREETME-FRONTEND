@@ -352,12 +352,13 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           message: greetingMessage.trim() || 'Thinking of you',
           occasionKey: 'just_because',
 
-          // === ONBOARDING DEMO PHOTOS (existing PhotoAlbum slideshow) ===
+          // === ONBOARDING MEMORY PHOTOS (curated emotional sequence) ===
           photos: [
-            'onboarding/photo-1-friends-sunset.jpeg',
-            'onboarding/photo-2-friends-dinner.jpeg',
-            'onboarding/photo-3-confetti-party.jpeg',
-            'onboarding/photo-4-time-to-celebrate.jpeg',
+            'onboarding/memory-1-beach-toast.jpeg',
+            'onboarding/memory-2-european-walk.jpeg',
+            'onboarding/memory-3-mountain-family.jpeg',
+            'onboarding/memory-4-festival-night.jpeg',
+            'onboarding/memory-5-thinking-of-you.jpeg',
           ],
 
           // === LAYOUT BUDGET (STATIC DEFAULT) ===
