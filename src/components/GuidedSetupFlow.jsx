@@ -89,7 +89,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   // Demo stage state (Step 1 — 9 walkthrough stages + 1 final CTA = indices 0–9)
   const [demoStage, setDemoStage] = useState(0);
   const demoTimerRef = useRef(null);
-  const DEMO_LAST_STAGE = 7; // index of final CTA screen (after 7 content stages at 0-6)
+  const DEMO_LAST_STAGE = 6; // index of final CTA screen (after 6 content stages at 0-5)
 
   const isMobile = window.innerWidth <= 480;
 
@@ -521,13 +521,12 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
   // STEP 1: Demo — full animated product walkthrough
   const demoStages = [
-    { icon: '✉️', heading: 'A personal Greet-Me awaits you', body: 'A greeting and gifting platform that sends personalized moments using your voice and photo.' },
-    { icon: '🧑\u200d🎤', heading: 'You \u2014 in every greeting', body: 'Your voice recorded. Your photo animated with AI. So it truly feels like you\u2019re there.' },
-    { icon: '💝', heading: 'For every occasion', body: 'Personal \u00b7 Business \u00b7 Recognition \u2014 birthdays, milestones, thank-yous, or just because.' },
-    { icon: '🎁', heading: 'Greetings, gifts, and gratitude', body: 'Add a cash gift, a subscription credit, or simply your words \u2014 all in one experience.' },
-    { icon: '✨', heading: 'Your First Gift Is On Us', body: 'Share a $5 Greet-Me credit with someone you care about \u2014 because we give first.', highlight: true },
-    { icon: '🚀', heading: 'Send it', body: 'One tap and it\u2019s on its way \u2014 a sealed envelope, a handwritten card, your voice, and the moment.' },
-    { icon: '💫', heading: 'They experience it', body: 'Your message appears. Your voice plays. Photos come alive. A moment they won\u2019t forget.' },
+    { icon: '✉️', heading: 'Welcome to Greet-Me\u2122', body: 'The automated greeting and gifting platform\u2014powered by Greet-Me and you.' },
+    { icon: '🎁', heading: 'Personalized greetings, gifts, and gratitude\u2014automatically.', body: 'For every occasion that matters.' },
+    { icon: '🧑\u200d🎤', heading: 'Truly personal.', body: 'Your voice.\nYour photo.\nYour presence\u2014delivered.' },
+    { icon: '📅', heading: 'Set it once. Greet forever.', body: 'Add your people\nChoose the occasions\nInclude a thoughtful gift\u2014or let Greet-Me choose\n\nSend anytime\u2026 or just because.' },
+    { icon: '✨', heading: 'From here on, Greet-Me handles the rest.', body: 'Never miss a moment.\nForget them not.', highlight: true },
+    { icon: '💫', heading: 'Your recipients receive something unforgettable.', body: 'A personalized Greet-Me\u2014with your voice, your presence, and a meaningful gift.' },
   ];
 
   const demoPrev = () => {
@@ -665,7 +664,9 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
                   color: 'var(--text-secondary)',
                   lineHeight: 1.5,
                 }}>
-                  {current.body}
+                  {current.body.split('\n').map((line, i) => (
+                    <span key={i}>{line}{i < current.body.split('\n').length - 1 && <br />}</span>
+                  ))}
                 </p>
               </div>
             </div>
