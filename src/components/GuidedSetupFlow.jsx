@@ -1313,6 +1313,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           Every Greet-Me subscription comes with one of equal value to share with a friend or loved one.
         </p>
       </div>
+      {/* Primary CTA */}
       <button
         onClick={goToRecipientControls}
         style={{
@@ -1323,19 +1324,32 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           marginBottom: '0.75rem',
         }}
       >
-        Add Your First Recipient
+        Add Recipient
       </button>
+      {/* Secondary CTA */}
       <button
         onClick={goToPricing}
         style={{
-          width: '100%', padding: '0.625rem',
-          background: 'transparent', color: 'var(--text-secondary)',
-          border: 'none', fontSize: '0.875rem', fontWeight: 500,
-          cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline',
+          width: '100%', padding: '0.75rem',
+          background: 'transparent', color: 'var(--text-primary)',
+          border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius-lg)',
+          fontSize: '0.9375rem', fontWeight: 500,
+          cursor: 'pointer', fontFamily: 'inherit',
+          marginBottom: '0.75rem',
         }}
       >
-        Explore Plans &amp; Pricing
+        Explore Plans
       </button>
+      {/* Tertiary link */}
+      <div
+        onClick={goToDashboard}
+        style={{
+          fontSize: '0.8125rem', color: 'var(--text-tertiary, #9ca3af)',
+          cursor: 'pointer', textAlign: 'center', marginTop: '0.25rem',
+        }}
+      >
+        Go to Dashboard
+      </div>
     </div>
   );
 
