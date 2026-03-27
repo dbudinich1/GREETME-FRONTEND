@@ -527,7 +527,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     { icon: '📅', heading: 'Set it once. Greet forever.', body: 'Add your people\nChoose the occasions\nInclude a thoughtful gift\u2014or let Greet-Me choose\n\nSend anytime\u2026 or just because.' },
     { icon: '✨', heading: 'From here on, Greet-Me handles the rest.', body: 'Never miss a moment.\nForget them not.' },
     { icon: '💫', heading: 'Your recipients receive something unforgettable.', body: 'A personalized Greet-Me\u2014with your voice, your presence, and a meaningful gift.' },
-    { icon: '🎁', heading: 'Your First Gift Is On Us', body: 'Share a $5 Greet-Me credit with someone you care about\u2014because we give first.', highlight: true },
+    { icon: '🎁', heading: 'Greet One. Gift One.\u2122', body: 'Every Greet-Me subscription comes with one of equal value to share with a friend or loved one.', highlight: true },
   ];
 
   const demoPrev = () => {
@@ -1247,7 +1247,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         marginBottom: '0.75rem',
         fontFamily: 'Georgia, serif',
       }}>
-        Your First Gift Is On Us
+        G1G1 &mdash; Greet One. Gift One.&trade;
       </h2>
       <p style={{
         fontSize: '0.9375rem',
@@ -1271,7 +1271,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           marginBottom: '0.5rem',
           fontFamily: 'Georgia, serif',
         }}>
-          🎁 A $5 Greet-Me Credit to Share
+          🎁 Greet One. Gift One.&trade;
         </p>
         <p style={{
           fontSize: '0.875rem',
@@ -1279,7 +1279,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           lineHeight: 1.6,
           margin: 0,
         }}>
-          Share a $5 Greet-Me credit with someone you care about. It&rsquo;s our way of saying welcome.
+          Every Greet-Me subscription comes with one of equal value to share with a friend or loved one.
         </p>
       </div>
       <button
