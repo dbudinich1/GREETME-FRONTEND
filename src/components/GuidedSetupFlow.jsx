@@ -49,9 +49,10 @@ export function shouldShowGuidedSetup() {
 
 export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const navigate = useNavigate();
-  const { refreshProfile } = useAuth();
-  // Steps: 0=Welcome, 1=Demo, 2=Voice, 3=Photo, 4=TestGreeting, 5=Sending, 6=Success
+  const { user, refreshProfile } = useAuth();
+  // Steps: 0=Welcome, 1=Demo(video), 2=Voice, 3=Photo, 4=TestGreeting, 5=Sending, 6=Success, 7=GiftReveal
   const [step, setStep] = useState(0);
+  const [demoVideoEnded, setDemoVideoEnded] = useState(false);
   const [setupState, setSetupState] = useState(getSetupState());
 
   // Voice recording state
@@ -318,16 +319,15 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
   // ==================== TEST GREETING FUNCTIONS ====================
   const sendTestGreeting = async () => {
-    // Validate
-    if (!greetingRecipient.trim()) {
+    // Use prefilled user values if fields are empty (onboarding auto-send)
+    const recipientName = greetingRecipient.trim() || user?.name || 'there';
+    const recipientEmail = greetingEmail.trim() || user?.email || '';
+
+    if (!recipientName) {
       setGreetingError('Please enter a name');
       return;
     }
-    if (!greetingEmail.trim()) {
-      setGreetingError('Please enter an email');
-      return;
-    }
-    if (!validateEmail(greetingEmail)) {
+    if (!recipientEmail || !validateEmail(recipientEmail)) {
       setGreetingError('Please enter a valid email');
       return;
     }
@@ -347,8 +347,8 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       // Try to send via API
       try {
         await api.sendGreeting({
-          recipientName: greetingRecipient.trim(),
-          recipientEmail: greetingEmail.trim(),
+          recipientName,
+          recipientEmail,
           message: greetingMessage.trim() || 'Thinking of you',
           occasionKey: 'just_because',
 
@@ -545,198 +545,91 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     setDemoStage(DEMO_LAST_STAGE);
   };
 
-  const renderDemoGreeting = () => {
-    const isFinalScreen = demoStage === DEMO_LAST_STAGE;
-    const current = !isFinalScreen ? demoStages[demoStage] : null;
+  const renderDemoGreeting = () => (
+    <div style={{ padding: isMobile ? '1rem' : '1.5rem', textAlign: 'center' }}>
+      <h2 style={{
+        fontSize: '1.1rem',
+        fontWeight: 600,
+        color: 'var(--text-secondary)',
+        marginBottom: '1rem',
+        letterSpacing: '0.01em',
+      }}>
+        Here&rsquo;s how Greet-Me works.
+      </h2>
 
-    return (
-      <div style={{ padding: isMobile ? '1.5rem' : '2rem', textAlign: 'center' }}>
-
-        {/* Inline keyframes */}
-        <style>{`
-          @keyframes demoStageFadeIn {
-            from { opacity: 0; transform: translateY(10px) scale(0.97); }
-            to   { opacity: 1; transform: translateY(0) scale(1); }
-          }
-        `}</style>
-
-        {isFinalScreen ? (
-          /* ─── FINAL DEMO SCREEN ─── */
-          <div key="demo-final" style={{ animation: 'demoStageFadeIn 0.5s ease-out' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🎉</div>
-            <h2 style={{
-              fontSize: isMobile ? '1.35rem' : '1.5rem',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              marginBottom: '0.75rem',
-            }}>
-              Now let&rsquo;s create yours.
-            </h2>
-            <p style={{
-              fontSize: '0.95rem',
-              color: 'var(--text-secondary)',
-              marginBottom: '2rem',
-              lineHeight: 1.5,
-            }}>
-              Record your voice, add a photo, and send your first Greet-Me in under a minute.
-            </p>
-            <button
-              onClick={nextStep}
-              style={{
-                width: '100%',
-                padding: '1rem',
-                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '1rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                marginBottom: '0.75rem',
-              }}
-            >
-              Let&rsquo;s create yours
-            </button>
-            <button
-              onClick={handleSkip}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-tertiary)',
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              I'll set up later
-            </button>
-          </div>
-        ) : (
-          /* ─── WALKTHROUGH STAGES 1–9 ─── */
-          <>
-            <h2 style={{
-              fontSize: '1.1rem',
-              fontWeight: 600,
-              color: 'var(--text-secondary)',
-              marginBottom: '1.5rem',
-              letterSpacing: '0.01em',
-            }}>
-              Here's how Greet-Me works.
-            </h2>
-
-            {/* Stage content */}
-            <div style={{
-              maxWidth: '24rem',
-              margin: '0 auto 1.25rem',
-              minHeight: '9rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <div
-                key={demoStage}
-                style={{
-                  padding: '1.5rem 1.25rem',
-                  background: current?.highlight
-                    ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)'
-                    : 'var(--gray-50, #f9fafb)',
-                  borderRadius: 'var(--radius-md, 8px)',
-                  border: current?.highlight
-                    ? '1px solid #f59e0b44'
-                    : '1px solid var(--gray-200, #e5e7eb)',
-                  width: '100%',
-                  animation: 'demoStageFadeIn 0.5s ease-out',
-                }}
-              >
-                <div style={{ fontSize: '2.25rem', marginBottom: '0.75rem' }}>{current.icon}</div>
-                <p style={{
-                  margin: 0,
-                  fontSize: '1.05rem',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  marginBottom: '0.4rem',
-                }}>
-                  {current.heading}
-                </p>
-                <p style={{
-                  margin: 0,
-                  fontSize: '0.9rem',
-                  color: 'var(--text-secondary)',
-                  lineHeight: 1.5,
-                }}>
-                  {current.body.split('\n').map((line, i) => (
-                    <span key={i}>{line}{i < current.body.split('\n').length - 1 && <br />}</span>
-                  ))}
-                </p>
-              </div>
-            </div>
-
-            {/* Navigation: Prev / Indicator / Next */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '1.25rem',
-              marginBottom: '1rem',
-            }}>
-              <button
-                onClick={demoPrev}
-                disabled={demoStage === 0}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.25rem',
-                  cursor: demoStage === 0 ? 'default' : 'pointer',
-                  opacity: demoStage === 0 ? 0.3 : 1,
-                  color: 'var(--text-secondary)',
-                  padding: '0.25rem 0.5rem',
-                }}
-              >
-                ‹
-              </button>
-              <span style={{
-                fontSize: '0.8rem',
-                color: 'var(--text-secondary)',
-                letterSpacing: '0.05em',
-                minWidth: '3rem',
-              }}>
-                {demoStage + 1} / {demoStages.length}
-              </span>
-              <button
-                onClick={demoNext}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.25rem',
-                  cursor: 'pointer',
-                  color: 'var(--text-secondary)',
-                  padding: '0.25rem 0.5rem',
-                }}
-              >
-                ›
-              </button>
-            </div>
-
-            {/* Skip link */}
-            <button
-              onClick={demoSkipToEnd}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-tertiary)',
-                fontSize: '0.8rem',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              Skip
-            </button>
-          </>
-        )}
+      {/* Demo video */}
+      <div style={{
+        borderRadius: 'var(--radius-md, 8px)',
+        overflow: 'hidden',
+        marginBottom: '1.25rem',
+        background: '#000',
+      }}>
+        <video
+          src="/assets/demo/greetme-demo.mp4"
+          autoPlay
+          muted
+          playsInline
+          onEnded={() => setDemoVideoEnded(true)}
+          style={{
+            width: '100%',
+            display: 'block',
+            borderRadius: 'var(--radius-md, 8px)',
+          }}
+        />
       </div>
-    );
-  };
+
+      {/* CTA — visible after video ends */}
+      {demoVideoEnded ? (
+        <div>
+          <button
+            onClick={nextStep}
+            style={{
+              width: '100%',
+              padding: '1rem',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '1rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Now let&rsquo;s create yours
+          </button>
+          <button
+            onClick={handleSkip}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-tertiary)',
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            I&rsquo;ll set up later
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setDemoVideoEnded(true)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-tertiary)',
+            fontSize: '0.8rem',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          Skip
+        </button>
+      )}
+    </div>
+  );
 
   // STEP 3: Record Voice
   const renderVoice = () => (
@@ -1068,100 +961,61 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   );
 
   // STEP 4: Test Greeting
+  // Auto-prefill test greeting with user's own info
+  const userName = user?.name || 'there';
+  const userEmail = user?.email || '';
+
   const renderTestGreeting = () => (
-    <div style={{ padding: isMobile ? '1.5rem' : '2rem' }}>
+    <div style={{ padding: isMobile ? '1.5rem' : '2rem', textAlign: 'center' }}>
       <h3 style={{
         fontSize: '1.25rem',
         fontWeight: 600,
         color: 'var(--text-primary)',
         marginBottom: '0.75rem',
-        textAlign: 'center',
       }}>
-        Now, let's experience it.
+        Send your first Greet-Me
       </h3>
 
       <p style={{
         fontSize: '0.9375rem',
         color: 'var(--text-secondary)',
         marginBottom: '1.5rem',
-        textAlign: 'center',
         lineHeight: 1.6,
       }}>
-        Enter your own email below to receive a greeting — or choose someone else to surprise.
+        Your first personalized greeting is ready.
+        We&rsquo;ll send it to you so you can experience it exactly as your recipients will.
       </p>
 
+      {/* Prefilled info display (not editable) */}
+      <div style={{
+        background: 'var(--gray-50, #f9fafb)',
+        borderRadius: 'var(--radius-md, 8px)',
+        border: '1px solid var(--gray-200, #e5e7eb)',
+        padding: '1.25rem',
+        marginBottom: '1.5rem',
+        textAlign: 'left',
+      }}>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: '0 0 0.5rem' }}>
+          <strong>To:</strong> {userName} ({userEmail})
+        </p>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
+          <strong>Occasion:</strong> Just Because
+        </p>
+      </div>
+
       {greetingError && (
-        <p style={{ fontSize: '0.8125rem', color: 'var(--error)', marginBottom: '1rem', textAlign: 'center' }}>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--error)', marginBottom: '1rem' }}>
           {greetingError}
         </p>
       )}
 
-      <div style={{ marginBottom: '1rem' }}>
-        <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
-          Recipient Name
-        </label>
-        <input
-          type="text"
-          value={greetingRecipient}
-          onChange={(e) => setGreetingRecipient(e.target.value)}
-          placeholder="e.g., Mom, John, or yourself"
-          style={{
-            width: '100%',
-            padding: '0.75rem',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-            fontSize: '0.875rem',
-            fontFamily: 'inherit',
-            boxSizing: 'border-box',
-          }}
-        />
-      </div>
-
-      <div style={{ marginBottom: '1rem' }}>
-        <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
-          Email Address
-        </label>
-        <input
-          type="email"
-          value={greetingEmail}
-          onChange={(e) => setGreetingEmail(e.target.value)}
-          placeholder="their@email.com (or your own)"
-          style={{
-            width: '100%',
-            padding: '0.75rem',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-            fontSize: '0.875rem',
-            fontFamily: 'inherit',
-            boxSizing: 'border-box',
-          }}
-        />
-      </div>
-
-      <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
-          Message (optional)
-        </label>
-        <textarea
-          value={greetingMessage}
-          onChange={(e) => setGreetingMessage(e.target.value)}
-          placeholder="Add a personal note..."
-          rows={3}
-          style={{
-            width: '100%',
-            padding: '0.75rem',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-            fontSize: '0.875rem',
-            fontFamily: 'inherit',
-            boxSizing: 'border-box',
-            resize: 'vertical',
-          }}
-        />
-      </div>
-
       <button
-        onClick={sendTestGreeting}
+        onClick={() => {
+          // Prefill and send
+          setGreetingRecipient(userName);
+          setGreetingEmail(userEmail);
+          sendTestGreeting();
+        }}
         style={{
           width: '100%',
           padding: '1rem',
@@ -1180,7 +1034,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         }}
       >
         <Send size={18} />
-        Send my first Greet-Me™ greeting
+        Send My First Greet-Me
       </button>
     </div>
   );
