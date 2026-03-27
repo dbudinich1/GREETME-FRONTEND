@@ -8,35 +8,35 @@ import api from '../api/api';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
-// Payout method definitions
+// Payout method definitions — simple preference capture
 const PAYOUT_METHODS = [
+  {
+    id: 'zelle',
+    label: 'Zelle',
+    icon: '⚡',
+    placeholder: 'Email or phone linked to Zelle',
+    prefix: '',
+  },
   {
     id: 'venmo',
     label: 'Venmo',
     icon: '💸',
-    description: 'Receive via Venmo',
-    inputLabel: 'Your Venmo handle',
-    inputPlaceholder: '@yourname',
-    inputPrefix: '',
-    fieldKey: 'handle',
+    placeholder: '@yourname',
+    prefix: '@',
+  },
+  {
+    id: 'cashapp',
+    label: 'Cash App',
+    icon: '💵',
+    placeholder: '$yourtag',
+    prefix: '$',
   },
   {
     id: 'paypal',
     label: 'PayPal',
     icon: '🅿️',
-    description: 'Receive via PayPal',
-    inputLabel: 'Your PayPal email',
-    inputPlaceholder: 'you@example.com',
-    inputPrefix: '',
-    fieldKey: 'email',
-  },
-  {
-    id: 'debit_bank',
-    label: 'Debit Card / Bank',
-    icon: '🏦',
-    description: 'Direct to your account via Stripe',
-    inputLabel: null, // no text input — launches Stripe Connect
-    fieldKey: null,
+    placeholder: 'you@example.com',
+    prefix: '',
   },
 ];
 
@@ -158,21 +158,9 @@ export default function GiftClaim() {
 
   // Validate input before submit
   const validateInput = () => {
-    if (!selectedMethod) return 'Please select a payout method';
-    const method = PAYOUT_METHODS.find((m) => m.id === selectedMethod);
-    if (!method) return 'Invalid method';
-
-    if (method.id === 'debit_bank') return null; // no input needed
-
+    if (!selectedMethod) return 'Please select how you\u2019d like to receive your gift';
     const val = inputValue.trim();
-    if (!val) return `Please enter your ${method.inputLabel?.toLowerCase() || 'details'}`;
-
-    if (method.id === 'venmo' && !val.startsWith('@')) {
-      return 'Venmo handle must start with @';
-    }
-    if (method.id === 'paypal' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-      return 'Please enter a valid email address';
-    }
+    if (!val) return 'Please enter your email, phone, or handle';
     return null;
   };
 
@@ -185,22 +173,11 @@ export default function GiftClaim() {
     setInputError(null);
     setSubmitError(null);
 
-    // Debit/Bank → launch Stripe Connect onboard
-    if (selectedMethod === 'debit_bank') {
-      handleConnectOnboard();
-      return;
-    }
-
-    // Venmo or PayPal → submit claim via API
     try {
       setSubmitting(true);
-      const claimDetails = selectedMethod === 'venmo'
-        ? { handle: inputValue.trim() }
-        : { email: inputValue.trim() };
-
       const res = await api.submitGiftClaim(claimToken, {
         claimMethod: selectedMethod,
-        claimDetails,
+        claimDetails: { destination: inputValue.trim() },
       });
 
       if (res?.ok) {
@@ -509,7 +486,7 @@ export default function GiftClaim() {
                 type="button"
                 onClick={() => {
                   setSelectedMethod(method.id);
-                  setInputValue('');
+                  setInputValue(method.prefix || '');
                   setInputError(null);
                   setSubmitError(null);
                 }}
@@ -529,21 +506,12 @@ export default function GiftClaim() {
                 }}
               >
                 <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>{method.icon}</span>
-                <div>
-                  <div style={{
-                    fontSize: '0.9375rem',
-                    fontWeight: 600,
-                    color: isSelected ? '#92400e' : '#1f2937',
-                  }}>
-                    {method.label}
-                  </div>
-                  <div style={{
-                    fontSize: '0.8125rem',
-                    color: '#6b7280',
-                    marginTop: '0.125rem',
-                  }}>
-                    {method.description}
-                  </div>
+                <div style={{
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  color: isSelected ? '#92400e' : '#1f2937',
+                }}>
+                  {method.label}
                 </div>
                 {/* Selection indicator */}
                 <div style={{
@@ -572,8 +540,8 @@ export default function GiftClaim() {
           })}
         </div>
 
-        {/* Handle / Email input (for Venmo & PayPal) */}
-        {currentMethod && currentMethod.inputLabel && (
+        {/* Destination input */}
+        {currentMethod && (
           <div style={{ marginBottom: '1rem', textAlign: 'left' }}>
             <label style={{
               display: 'block',
@@ -582,16 +550,16 @@ export default function GiftClaim() {
               color: '#374151',
               marginBottom: '0.375rem',
             }}>
-              {currentMethod.inputLabel}
+              Enter your email, phone, or handle
             </label>
             <input
-              type={currentMethod.id === 'paypal' ? 'email' : 'text'}
+              type="text"
               value={inputValue}
               onChange={(e) => {
                 setInputValue(e.target.value);
                 setInputError(null);
               }}
-              placeholder={currentMethod.inputPlaceholder}
+              placeholder={currentMethod.placeholder}
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -604,16 +572,20 @@ export default function GiftClaim() {
               }}
               disabled={submitting}
             />
-            {inputError && (
+            {inputError ? (
               <p style={{ fontSize: '0.8125rem', color: '#dc2626', margin: '0.375rem 0 0' }}>
                 {inputError}
+              </p>
+            ) : (
+              <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0.375rem 0 0' }}>
+                Use the email, phone, or handle linked to your account. We&rsquo;ll follow up to complete delivery.
               </p>
             )}
           </div>
         )}
 
-        {/* Debit/Bank explainer */}
-        {selectedMethod === 'debit_bank' && (
+        {/* Legacy debit/bank explainer — kept for safety but hidden */}
+        {false && selectedMethod === 'debit_bank' && (
           <p style={{
             fontSize: '0.8125rem',
             color: '#6b7280',
