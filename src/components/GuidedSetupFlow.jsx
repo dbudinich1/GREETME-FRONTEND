@@ -53,6 +53,8 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   // Steps: 0=Welcome, 1=Demo(video), 2=Voice, 3=Photo, 4=TestGreeting, 5=Sending, 6=Success, 7=GiftReveal
   const [step, setStep] = useState(0);
   const [demoVideoEnded, setDemoVideoEnded] = useState(false);
+  const [demoMuted, setDemoMuted] = useState(true);
+  const demoVideoRef = useRef(null);
   const [setupState, setSetupState] = useState(getSetupState());
 
   // Voice recording state
@@ -557,14 +559,24 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         Here&rsquo;s how Greet-Me works.
       </h2>
 
-      {/* Demo video */}
+      {/* Demo video with tap-to-unmute */}
       <div style={{
         borderRadius: 'var(--radius-md, 8px)',
         overflow: 'hidden',
         marginBottom: '1.25rem',
         background: '#000',
-      }}>
+        position: 'relative',
+        cursor: demoMuted ? 'pointer' : 'default',
+      }}
+        onClick={() => {
+          if (demoMuted && demoVideoRef.current) {
+            demoVideoRef.current.muted = false;
+            setDemoMuted(false);
+          }
+        }}
+      >
         <video
+          ref={demoVideoRef}
           src="/assets/demo/greetme-demo.mp4"
           autoPlay
           muted
@@ -576,6 +588,25 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
             borderRadius: 'var(--radius-md, 8px)',
           }}
         />
+        {demoMuted && !demoVideoEnded && (
+          <div style={{
+            position: 'absolute',
+            bottom: '0.75rem',
+            right: '0.75rem',
+            background: 'rgba(0,0,0,0.6)',
+            color: '#fff',
+            borderRadius: '2rem',
+            padding: '0.4rem 0.75rem',
+            fontSize: '0.75rem',
+            fontWeight: 500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            backdropFilter: 'blur(4px)',
+          }}>
+            🔇 Tap for sound
+          </div>
+        )}
       </div>
 
       {/* CTA — visible after video ends */}
