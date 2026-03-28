@@ -14,7 +14,7 @@ export const personalPlans = {
       billingPeriod: 'yearly',
       description: 'Perfect for immediate family',
       featureGroups: [
-        { section: 'Core', features: ['Up to 5 recipients', 'Greet One, Give One™ included', 'American Marketplace'] },
+        { section: 'Core', features: ['Up to 5 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
         { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings'] },
         { section: 'Delivery', features: ['Email delivery'] }
       ]
@@ -30,7 +30,7 @@ export const personalPlans = {
       billingPeriod: 'yearly',
       description: 'For friends and extended family',
       featureGroups: [
-        { section: 'Core', features: ['Up to 25 recipients', 'Greet One, Give One™ included', 'American Marketplace'] },
+        { section: 'Core', features: ['Up to 25 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
         { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Premium templates'] },
         { section: 'Delivery', features: ['Priority email delivery'] }
       ]
@@ -46,7 +46,7 @@ export const personalPlans = {
       billingPeriod: 'yearly',
       description: 'For the ultimate connector',
       featureGroups: [
-        { section: 'Core', features: ['Unlimited recipients', 'Greet One, Give One™ included', 'American Marketplace'] },
+        { section: 'Core', features: ['Unlimited recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
         { section: 'Greetings', features: ['Voice + Photo greetings', 'Video greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Advanced AI personalization'] },
         { section: 'Delivery & Support', features: ['Priority support', 'Gift add-ons available'] }
       ],
@@ -65,7 +65,7 @@ export const personalPlans = {
       billingPeriod: 'yearly',
       description: 'Perfect for immediate family',
       featureGroups: [
-        { section: 'Core', features: ['Up to 5 recipients', 'Greet One, Give One™ included', 'American Marketplace'] },
+        { section: 'Core', features: ['Up to 5 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
         { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings'] },
         { section: 'Delivery', features: ['Email delivery'] }
       ]
@@ -81,7 +81,7 @@ export const personalPlans = {
       billingPeriod: 'yearly',
       description: 'For friends and extended family',
       featureGroups: [
-        { section: 'Core', features: ['Up to 25 recipients', 'Greet One, Give One™ included', 'American Marketplace'] },
+        { section: 'Core', features: ['Up to 25 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
         { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Premium templates'] },
         { section: 'Delivery', features: ['Priority email delivery'] }
       ]
@@ -97,7 +97,7 @@ export const personalPlans = {
       billingPeriod: 'yearly',
       description: 'For the ultimate connector',
       featureGroups: [
-        { section: 'Core', features: ['Unlimited recipients', 'Greet One, Give One™ included', 'American Marketplace'] },
+        { section: 'Core', features: ['Unlimited recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
         { section: 'Greetings', features: ['Voice + Photo greetings', 'Video greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Advanced AI personalization'] },
         { section: 'Delivery & Support', features: ['Priority support', 'Gift add-ons available'] }
       ],
@@ -119,7 +119,7 @@ export const businessPlans = {
       billingPeriod: 'yearly',
       description: 'Up to 25 Employees',
       featureGroups: [
-        { section: 'Core', features: ['Up to 25 employee recipients', 'American Marketplace', 'Team dashboard'] },
+        { section: 'Core', features: ['Up to 25 employee recipients', 'American Gift Place', 'Team dashboard'] },
         { section: 'Branding', features: ['Branding + templates', 'Bulk greeting sending'] },
         { section: 'Support & Reporting', features: ['Email support', 'Hero impact reporting (coming soon)'] }
       ]
@@ -135,7 +135,7 @@ export const businessPlans = {
       billingPeriod: 'yearly',
       description: 'Up to 50 Employees',
       featureGroups: [
-        { section: 'Core', features: ['Up to 50 employee recipients', 'American Marketplace', 'Team collaboration tools'] },
+        { section: 'Core', features: ['Up to 50 employee recipients', 'American Gift Place', 'Team collaboration tools'] },
         { section: 'Branding', features: ['Advanced branding options', 'Analytics & reporting'] },
         { section: 'Support & Reporting', features: ['Priority support', 'Hero impact reporting (coming soon)'] }
       ],
@@ -148,7 +148,7 @@ export const businessPlans = {
       period: '',
       description: 'Custom enterprise solution',
       featureGroups: [
-        { section: 'Core', features: ['Unlimited employees', 'American Marketplace', 'API access'] },
+        { section: 'Core', features: ['Unlimited employees', 'American Gift Place', 'API access'] },
         { section: 'Customization', features: ['White-label platform option', 'Custom integrations', 'Custom SLA agreements'] },
         { section: 'Support & Reporting', features: ['Dedicated account manager', 'Hero impact reporting (coming soon)'] }
       ]
@@ -166,7 +166,7 @@ export const businessPlans = {
       billingPeriod: 'yearly',
       description: 'Up to 25 Employees',
       featureGroups: [
-        { section: 'Core', features: ['Up to 25 employee recipients', 'American Marketplace', 'Team dashboard'] },
+        { section: 'Core', features: ['Up to 25 employee recipients', 'American Gift Place', 'Team dashboard'] },
         { section: 'Branding', features: ['Branding + templates', 'Bulk greeting sending'] },
         { section: 'Support & Reporting', features: ['Email support', 'Hero impact reporting (coming soon)'] }
       ]
@@ -182,7 +182,7 @@ export const businessPlans = {
       billingPeriod: 'yearly',
       description: 'Up to 50 Employees',
       featureGroups: [
-        { section: 'Core', features: ['Up to 50 employee recipients', 'American Marketplace', 'Team collaboration tools'] },
+        { section: 'Core', features: ['Up to 50 employee recipients', 'American Gift Place', 'Team collaboration tools'] },
         { section: 'Branding', features: ['Advanced branding options', 'Analytics & reporting'] },
         { section: 'Support & Reporting', features: ['Priority support', 'Hero impact reporting (coming soon)'] }
       ],
@@ -195,7 +195,7 @@ export const businessPlans = {
       period: '',
       description: 'Custom enterprise solution',
       featureGroups: [
-        { section: 'Core', features: ['Unlimited employees', 'American Marketplace', 'API access'] },
+        { section: 'Core', features: ['Unlimited employees', 'American Gift Place', 'API access'] },
         { section: 'Customization', features: ['White-label platform option', 'Custom integrations', 'Custom SLA agreements'] },
         { section: 'Support & Reporting', features: ['Dedicated account manager', 'Hero impact reporting (coming soon)'] }
       ]

@@ -118,7 +118,7 @@ export default function ForBusiness() {
             maxWidth: '800px',
             margin: '0 auto 1.5rem'
           }}>
-            From branded merchandise to curated American Marketplace gifts and QR Cash, deliver meaningful moments at scale.
+            From branded merchandise to curated American Gift Place gifts and QR Cash, deliver meaningful moments at scale.
           </p>
           <button
             onClick={() => setShowContactForm(true)}
@@ -240,7 +240,7 @@ export default function ForBusiness() {
           </p>
         </div>
 
-        {/* 3. Curated Gifts from our American Marketplace */}
+        {/* 3. Curated Gifts from our American Gift Place */}
         <div style={{
           background: 'white',
           padding: '2rem',
@@ -268,7 +268,7 @@ export default function ForBusiness() {
             color: 'var(--text-primary)',
             marginBottom: '1rem'
           }}>
-            Curated Gifts from our American Marketplace
+            Curated Gifts from our American Gift Place
           </h3>
           <p style={{
             fontSize: '1rem',

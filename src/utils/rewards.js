@@ -59,7 +59,7 @@ export const REDEMPTION_OPTIONS = [
   { id: 'subscription_discount', label: '$5 off next subscription bill', cost: 50, description: 'Applied automatically at checkout' },
   { id: 'free_greeting', label: 'Free greeting credit', cost: 25, description: 'Send one greeting for free' },
   { id: 'qr_cash_waiver', label: 'QR Cash fee waiver', cost: 25, description: 'No fee on your next QR Cash gift' },
-  { id: 'marketplace_discount', label: 'Marketplace gift discount', cost: 75, description: '10% off American Marketplace gifts' },
+  { id: 'marketplace_discount', label: 'Marketplace gift discount', cost: 75, description: '10% off American Gift Place gifts' },
 ];
 
 export const REWARDS_KEY = 'greetme_rewards_balance';

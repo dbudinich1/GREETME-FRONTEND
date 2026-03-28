@@ -7,7 +7,7 @@ const GIFT_OPTIONS = [
   { value: 'qrcash', label: 'QR Cash\u2122', description: 'Send cash they can scan and spend' },
   { value: 'curated', label: 'Let Greet-Me™ Select', description: 'We\'ll select something thoughtful within your limit' },
   { value: 'merch', label: 'Merch', description: 'Greet-Me™ merch & keepsakes' },
-  { value: 'marketplace', label: 'American Marketplace', description: 'Browse made-in-USA gifts' }
+  { value: 'marketplace', label: 'American Gift Place', description: 'Browse made-in-USA gifts' }
 ];
 
 const QR_CASH_PRESETS = [10, 25, 50, 100];
@@ -361,7 +361,7 @@ export default function GiftSelectorModal({
                         color: '#047857',
                         marginBottom: '0.75rem'
                       }}>
-                        Explore made-in-USA gifts from the American Marketplace
+                        Explore made-in-USA gifts from the American Gift Place
                       </p>
                       <button
                         type="button"

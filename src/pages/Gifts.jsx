@@ -326,7 +326,7 @@ export default function Gifts() {
           margin: 0,
           marginBottom: '0.375rem'
         }}>
-          American Marketplace
+          American Gift Place
         </h1>
         {/* Subtitle */}
         <p style={{
@@ -339,7 +339,7 @@ export default function Gifts() {
         }}>
           {cameFromRecipientForm
             ? 'Select a gift for your recipient'
-            : 'Add a thoughtful gift from our American Marketplace — curated to celebrate life\'s moments while supporting American makers and the values we hold dear.'}
+            : 'Add a thoughtful gift from our American Gift Place — curated to celebrate life\'s moments while supporting American makers and the values we hold dear.'}
         </p>
         {/* Toggle inside banner */}
         <div style={{
