@@ -306,13 +306,13 @@ export default function GiftClaim() {
       <div style={styles.page}>
         <div style={styles.card}>
           <div style={styles.successIcon}>&#10003;</div>
-          <h1 style={styles.title}>Gift Claimed!</h1>
+          <h1 style={styles.title}>You&rsquo;re all set.</h1>
           <p style={{ ...styles.subtitle, marginBottom: '0.5rem' }}>
-            Your {fmt(gift.giftAmountCents)} QR Cash&trade; gift has been claimed.
+            Your {fmt(gift.giftAmountCents)} QR Cash&trade; gift request has been submitted.
           </p>
           <p style={{ fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
-            You'll receive your funds via your selected payment method.
-            Please allow up to 48 hours for processing.
+            We&rsquo;ll send your gift using your selected method shortly.
+            You&rsquo;ll receive a confirmation once it&rsquo;s on the way.
           </p>
 
           {(() => {
@@ -321,17 +321,13 @@ export default function GiftClaim() {
             const dest = gift.sourceGreetingJobId
               ? `/thank-you?jobId=${gift.sourceGreetingJobId}`
               : '/dashboard/send';
-            console.log('[GiftClaim] CTA dest:', dest, 'sourceGreetingJobId:', gift.sourceGreetingJobId);
             return (
               <div style={{ marginTop: '0.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>
                 <p style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1f2937', margin: '0 0 1rem' }}>
                   Did you love your Greet-Me?
                 </p>
                 <button
-                  onClick={() => {
-                    console.log('[GiftClaim] navigating to:', dest);
-                    navigate(dest);
-                  }}
+                  onClick={() => navigate(dest)}
                   style={{
                     display: 'inline-block',
                     padding: '0.75rem 2rem',
@@ -485,8 +481,10 @@ export default function GiftClaim() {
                 key={method.id}
                 type="button"
                 onClick={() => {
-                  setSelectedMethod(method.id);
-                  setInputValue(method.prefix || '');
+                  if (selectedMethod !== method.id) {
+                    setSelectedMethod(method.id);
+                    setInputValue(method.prefix || '');
+                  }
                   setInputError(null);
                   setSubmitError(null);
                 }}
