@@ -264,15 +264,20 @@ export default function InteriorSpread({ recipientName, message, senderName, occ
   bodyMessage = bodyMessage.replace(/[,\s]+$/, '');
 
   return (
-    <div 
+    <div
       className="gc-spread-wrapper"
       onClick={onClick}
       role="button"
       tabIndex={0}
-      aria-label="Click to continue"
+      aria-label="Swipe to continue"
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
     >
-      <div 
+      {/* Subtle swipe hint — pulses twice, then fades */}
+      <div className="gc-swipe-cue" aria-hidden="true">
+        <span className="gc-swipe-cue-chevron" />
+        <span className="gc-swipe-cue-chevron" />
+      </div>
+      <div
         className="gc-spread gc-interior-spread"
         style={{ backgroundImage: `url(${cardInteriorImg})` }}
       >

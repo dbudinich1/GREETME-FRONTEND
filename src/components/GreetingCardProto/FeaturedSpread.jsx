@@ -10,7 +10,7 @@ import VideoPlayer from './VideoPlayer';
 import PhotoAlbum from './PhotoAlbum';
 import cardInteriorImg from '../../assets/card/card-interior.png';
 
-export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnded, onVideoEnd }) {
+export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnded, onVideoEnd, posterUrl }) {
   const [showVideo, setShowVideo] = useState(false);
 
   // GS-04: 2-second pause before video fades in
@@ -42,7 +42,7 @@ export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnde
           <div className={`gc-video-container ${showVideo ? 'gc-video-visible' : ''}`}>
             {showVideo && (
               <>
-                <VideoPlayer videoUrl={videoUrl} onEnded={onVideoEnd} hasEnded={videoHasEnded} />
+                <VideoPlayer videoUrl={videoUrl} onEnded={onVideoEnd} hasEnded={videoHasEnded} posterUrl={posterUrl} />
                 <p className="gc-video-caption">
                   <em>From the heart, with love</em>
                 </p>

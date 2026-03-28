@@ -211,7 +211,7 @@
 
 .gc-cover {
   width: 90vw;
-  max-width: 550px;
+  max-width: 680px;
   height: auto;
   aspect-ratio: 400 / 560;
   background-size: contain;
@@ -224,10 +224,20 @@
   justify-content: center;
   align-items: center;
   transition: transform 0.3s ease;
+  animation: gc-coverHint 2.4s cubic-bezier(0.4, 0, 0.2, 1) 0.6s 1 both;
 }
 
 .gc-cover:hover {
   transform: scale(1.02);
+  animation: none;
+}
+
+/* Subtle 3D tilt hint — plays once on mount, suggests interactivity */
+@keyframes gc-coverHint {
+  0%   { transform: perspective(1200px) rotateY(0deg)   rotateX(0deg);  }
+  30%  { transform: perspective(1200px) rotateY(-2deg)   rotateX(0.5deg); filter: drop-shadow(4px 20px 44px rgba(0, 0, 0, 0.45)); }
+  60%  { transform: perspective(1200px) rotateY(1.2deg)  rotateX(-0.3deg); }
+  100% { transform: perspective(1200px) rotateY(0deg)    rotateX(0deg);  }
 }
 
 .gc-cover-content {
@@ -276,6 +286,7 @@
 .gc-spread-wrapper {
   perspective: 1500px;
   padding: 40px;
+  position: relative;
 }
 
 .gc-spread {
@@ -1808,8 +1819,9 @@
   }
 
   .gc-cover {
-    width: 85vw;
-    height: calc(85vw * 1.4);
+    width: 88vw;
+    max-width: 580px;
+    height: calc(88vw * 1.4);
   }
 
   .gc-cover-title {
@@ -1917,8 +1929,8 @@
   }
 
   .gc-cover {
-    width: 80vw;
-    max-width: 320px;
+    width: 85vw;
+    max-width: 380px;
   }
 
   .gc-cover-title {
@@ -2882,6 +2894,44 @@
   }
 }
 
+/* ===== SWIPE CUE — subtle edge chevron, fades after 3s ===== */
+.gc-swipe-cue {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  animation: gc-swipePulse 1.4s ease-in-out 1s 2, gc-swipeFadeOut 0.6s ease 4.2s forwards;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.gc-swipe-cue-chevron {
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid rgba(139, 115, 85, 0.5);
+  border-bottom: 2px solid rgba(139, 115, 85, 0.5);
+  transform: rotate(-45deg);
+}
+
+@keyframes gc-swipePulse {
+  0%   { opacity: 0;   transform: translateY(-50%) translateX(0);   }
+  40%  { opacity: 0.7; transform: translateY(-50%) translateX(-6px); }
+  100% { opacity: 0;   transform: translateY(-50%) translateX(0);   }
+}
+
+@keyframes gc-swipeFadeOut {
+  to { opacity: 0; visibility: hidden; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gc-swipe-cue { animation: none; display: none; }
+}
+
 /* ===== PAGE TURN TRANSITIONS (Phase 4D-2) ===== */
 
 /* Stage: fills gc-container, provides 3D perspective */
@@ -2982,6 +3032,7 @@
   .gc-envelope,
   .gc-cover {
     transition: none;
+    animation: none;
   }
 
   /* Page turn: replace 3D rotation with quick fade */
