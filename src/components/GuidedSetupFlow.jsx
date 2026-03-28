@@ -1004,6 +1004,16 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
   const renderTestGreeting = () => (
     <div style={{ padding: isMobile ? '1.5rem' : '2rem', textAlign: 'center' }}>
+      <p style={{
+        fontSize: '1rem',
+        fontWeight: 500,
+        color: '#6366f1',
+        marginBottom: '0.5rem',
+        fontStyle: 'italic',
+      }}>
+        Now for the fun part
+      </p>
+
       <h3 style={{
         fontSize: '1.25rem',
         fontWeight: 600,

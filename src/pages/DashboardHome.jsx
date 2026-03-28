@@ -579,7 +579,7 @@ export default function DashboardHome() {
           }}
         >
           <Send size={isNarrow ? 14 : 16} style={{ flexShrink: 0 }} />
-          Just Because
+          Send Greet-Me
         </button>
         </div>
       </div>
@@ -2077,8 +2077,8 @@ export default function DashboardHome() {
         </div>
         )}
 
-        {/* Table Rows */}
-        <div>
+        {/* Table Rows — scrollable, ~5 items visible */}
+        <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
           {(() => {
             // Combine sent greetings and QR Cash gifts
             const allItems = [

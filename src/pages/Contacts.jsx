@@ -302,7 +302,7 @@ export default function Recipients() {
             }}
           >
             <Send size={isMobile ? 12 : 14} style={{ flexShrink: 0 }} />
-            Just Because
+            Send Greet-Me
           </button>
           <h1 style={{
             fontSize: isMobile ? '1.5rem' : '1.75rem',
@@ -719,6 +719,35 @@ export default function Recipients() {
                   justifyContent: isMobile ? 'flex-end' : 'flex-start',
                   flexShrink: 0
                 }}>
+                  <button
+                    onClick={() => navigate(`/dashboard/send?contactId=${contact._id || contact.id}`)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      background: '#22c55e',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      fontFamily: 'inherit'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#16a34a';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#22c55e';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <Send size={14} />
+                    Send
+                  </button>
                   <button
                     onClick={() => openEditModal(contact)}
                     style={{

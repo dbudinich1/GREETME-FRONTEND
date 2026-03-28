@@ -752,7 +752,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               }}
             >
               <option value="">Select...</option>
-              <option value="innermost">Innermost</option>
+              <option value="inner_circle">Inner Circle</option>
               <option value="greetme_worthy">Greet-Me Worthy</option>
               <option value="obligatory">You Gotta Do What Ya Gotta Do</option>
             </select>

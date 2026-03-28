@@ -283,12 +283,7 @@ export const relationshipTypes = [
 ];
 
 export const closenessLevels = [
-  { value: 'super_close_loved_one', label: 'Super Close Loved One' },
-  { value: 'casual_acquaintance', label: 'Casual Acquaintance' },
-  { value: 'fav', label: 'Fav' },
-  { value: 'bestie', label: 'Bestie' },
-  { value: 'like_family', label: 'Like Family to Me' },
-  { value: 'keep_professional', label: 'Keep it Professional' },
-  { value: 'professional_friendly', label: 'Professional but Friendly' },
-  { value: 'good_like_that', label: "We're Good Like That!" },
+  { value: 'inner_circle', label: 'Inner Circle' },
+  { value: 'greetme_worthy', label: 'Greet-Me Worthy' },
+  { value: 'obligatory', label: 'You Gotta Do What Ya Gotta Do' },
 ];

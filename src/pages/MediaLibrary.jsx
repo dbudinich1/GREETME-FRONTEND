@@ -1,6 +1,6 @@
 // src/pages/MediaLibrary.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Trash2, Play, Pause, Image as ImageIcon, Mic, ArrowLeft, Smartphone, QrCode, Video, CheckCircle, Users, Check, X } from 'lucide-react';
+import { Upload, Trash2, Play, Pause, Image as ImageIcon, Mic, ArrowLeft, Smartphone, QrCode, Video, CheckCircle, Users, Check, X, Send } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getMediaLibraryItems, removeFromMediaLibrary } from '../utils/mediaLibrary';
@@ -267,6 +267,55 @@ export default function MediaLibrary() {
         </p>
       </div>
 
+      {/* Quick-action CTAs */}
+      {!isSelectionMode && (
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => {
+              const voiceSection = document.getElementById('media-voice-section');
+              if (voiceSection) voiceSection.scrollIntoView({ behavior: 'smooth' });
+            }}
+            style={{
+              padding: '0.5rem 1rem',
+              background: '#667eea',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+              fontFamily: 'inherit',
+            }}
+          >
+            <Mic size={14} />
+            Record Voice
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/send')}
+            style={{
+              padding: '0.5rem 1rem',
+              background: '#22c55e',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+              fontFamily: 'inherit',
+            }}
+          >
+            <Send size={14} />
+            Send Greet-Me
+          </button>
+        </div>
+      )}
+
       {/* Selection Mode Action Buttons */}
       {isSelectionMode && (
         <div style={{
@@ -421,7 +470,7 @@ export default function MediaLibrary() {
       </div>
 
       {/* Voice Recordings Section */}
-      <div style={{
+      <div id="media-voice-section" style={{
         background: 'white',
         border: '2px solid var(--border)',
         borderRadius: 'var(--radius-lg)',

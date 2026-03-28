@@ -193,11 +193,11 @@ export function QuickActionsWidget({ onAction }) {
       color: 'bg-blue-600 hover:bg-blue-700',
     },
     {
-      label: 'Just Because',
+      label: 'Send Greet-Me',
       icon: '✉️',
       action: 'sendGreeting',
       color: 'bg-purple-600 hover:bg-purple-700',
-      tooltip: 'Click to send a one-off greeting to a recipient — Just Because.',
+      tooltip: 'Send a greeting to a recipient.',
     },
     {
       label: 'Browse Gifts',

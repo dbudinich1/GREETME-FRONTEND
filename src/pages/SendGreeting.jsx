@@ -1291,7 +1291,7 @@ if (typeof window !== "undefined") {
               </h4>
             </div>
             <p style={{ fontSize: '0.75rem', color: '#7c3aed', marginBottom: '0.75rem' }}>
-              Upload a new photo specifically for this "Just Because" Greet-Me
+              Upload a new photo specifically for this Greet-Me
             </p>
             <div style={{
               display: 'grid',
