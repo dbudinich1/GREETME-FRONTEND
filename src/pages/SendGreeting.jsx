@@ -11,25 +11,12 @@ import GiftSelectorModal from '../components/GiftSelectorModal';
 import GiftConfirmationModal from '../components/GiftConfirmationModal';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
-import GreetingDraftEditor from '../components/GreetingDraftEditor';
+import draftService from '../services/draftService';
 import { pushInApp } from '../utils/notify';
 import { COMMS_EVENTS } from '../utils/commsCatalog';
 import { awardGreetingHearts } from '../utils/rewards';
 import { normalizeOccasionKey } from '../utils/normalizeOccasionKey';
 import { getErrorMessage } from '../utils/errorMessages';
-
-// TEMP STUB — models layer intentionally disabled for V1 build safety
-const greetingDraftModel = {
-  createEmpty: () => ({
-    message: "",
-    tone: "warm",
-    occasion: "",
-    recipientName: "",
-  }),
-  normalize: (draft) => draft ?? {},
-  validate: () => ({ ok: true, errors: [] }),
-};
-
 
 export default function SendGreeting() {
   const navigate = useNavigate();
@@ -140,6 +127,34 @@ export default function SendGreeting() {
   useEffect(() => {
     fetchContacts();
   }, []);
+
+  // Auto-save draft when form has meaningful content
+  useEffect(() => {
+    if (!formData.contactId || !formData.occasionType) return;
+    const timer = setTimeout(() => {
+      try {
+        draftService.saveDraft({
+          contactId: formData.contactId,
+          occasionType: formData.occasionType,
+          formData,
+          status: 'draft',
+        });
+      } catch { /* localStorage full or unavailable — non-critical */ }
+    }, 1000); // debounce 1s
+    return () => clearTimeout(timer);
+  }, [formData]);
+
+  // Restore draft if navigating to send with a contact+occasion pre-selected
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const contactId = params.get('contactId');
+    const occasion = params.get('occasion');
+    if (!contactId || !occasion) return;
+    const saved = draftService.getDraft(contactId, occasion);
+    if (saved?.formData) {
+      setFormData(prev => ({ ...prev, ...saved.formData }));
+    }
+  }, [location.search]);
 
   // Detect referral code from URL and validate
   useEffect(() => {
@@ -319,6 +334,10 @@ export default function SendGreeting() {
       if (response.status === 'completed') {
         setSending(false);
         setJobId(null);
+        // Mark draft as sent so it won't be restored
+        if (formData.contactId && formData.occasionType) {
+          try { draftService.markDraftAsSent(formData.contactId, formData.occasionType); } catch {}
+        }
         // Trigger notification and rewards
         const selectedContact = contacts.find(c => c._id === formData.contactId);
         const recipientName = selectedContact?.name || 'your recipient';
@@ -376,7 +395,6 @@ export default function SendGreeting() {
     }
 
     setErrors(newErrors);
-    console.log("🔴 validate() newErrors:", newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
@@ -418,13 +436,8 @@ export default function SendGreeting() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("🔴 handleSubmit FIRED", { formData, user });
 
-    if (!validate()) {
-      console.log("🔴 validate() returned FALSE - check newErrors above");
-      return;
-    }
-    console.log("🔴 validate() PASSED, proceeding to send");
+    if (!validate()) return;
 
     const selectedContact = contacts.find(c => c.id === formData.contactId);
     if (!selectedContact) return;
@@ -618,6 +631,13 @@ if (typeof window !== "undefined") {
     setSending(false);
     setErrors({});
     setShowMoreOptions(false);
+    // Reset gift state so next send starts fresh
+    setGiftSettings({ type: 'none', amount: 25, customAmount: '', maxSpend: 50, autoGift: false });
+    setIsGiftModalOpen(false);
+    setIsGiftConfirmOpen(false);
+    setGiftCharging(false);
+    setGiftChargeError(null);
+    setPendingGreetingData(null);
   };
 
   if (loading) {

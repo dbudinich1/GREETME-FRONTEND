@@ -125,6 +125,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('greetme_media_library');
     localStorage.removeItem('greetme_voice_file');
     localStorage.removeItem('greetme_recipients');
+    localStorage.removeItem('greetme_cart');
+    localStorage.removeItem('greetme_drafts');
     setUser(null);
   };
 

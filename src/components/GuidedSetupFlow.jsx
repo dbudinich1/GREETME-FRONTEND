@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { validateFile, validateAudioFile, validateEmail } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
+import { addToMediaLibrary } from '../utils/mediaLibrary';
 
 // Onboarding illustration from public folder
 const onboardingExplainer = '/assets/onboarding/onboarding-explainer.png';
@@ -237,9 +238,14 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     try {
       const formData = new FormData();
       formData.append('voice', file);
-      await api.uploadVoice(formData);
+      const result = await api.uploadVoice(formData);
 
-      // Write to localStorage so MediaLibrary (Your Presence) can read it immediately
+      // Add the server-returned voice URL to media library (blob URL is safe to store)
+      if (result?.voiceUrl) {
+        addToMediaLibrary(result.voiceUrl, 'user-voice');
+      }
+
+      // Write base64 to localStorage for immediate playback in Your Presence
       const reader = new FileReader();
       await new Promise((resolve, reject) => {
         reader.onloadend = () => {
