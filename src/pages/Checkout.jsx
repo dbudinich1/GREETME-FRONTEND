@@ -684,98 +684,66 @@ export default function Checkout() {
                   ))}
                 </div>
 
-                {/* Totals */}
-                <div style={{
-                  borderTop: '1px solid var(--border)',
-                  paddingTop: '1rem'
-                }}>
-                  {/* Subtotal */}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    marginBottom: '0.5rem',
-                    fontSize: '0.875rem',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    <span>Subtotal</span>
-                    <span>${total.toFixed(2)}</span>
-                  </div>
+                {/* Totals — normalized pricing structure */}
+                {(() => {
+                  const subscriptionItem = cartItems.find(i => i.type === 'subscription');
+                  const planPrice = subscriptionItem?.price || total;
+                  const hasReferralCredit = !!referralCode;
+                  const g1g1Eligible = !!subscriptionItem && !hasReferralCredit;
+                  const techFee = 4.99;
+                  const finalTotal = Math.max(0, planPrice + techFee - creditAmount);
 
-                  {/* One-time technology fee */}
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      fontSize: '0.875rem',
-                      color: 'var(--text-secondary)'
-                    }}>
-                      <span>One-Time Technology Fee</span>
-                      <span>$4.99</span>
+                  return (
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                      {/* Plan */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                        <span>{subscriptionItem?.name || 'Subscription Plan'}</span>
+                        <span>${planPrice.toFixed(2)}</span>
+                      </div>
+
+                      {/* G1G1 Gift Subscription (full value) */}
+                      {g1g1Eligible && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                          <span>G1G1 Gift Subscription</span>
+                          <span>${planPrice.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      {/* G1G1 Discount */}
+                      {g1g1Eligible && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#22c55e', fontWeight: 500 }}>
+                          <span>G1G1 Discount</span>
+                          <span>&ndash;${planPrice.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      {/* Greet-Me Credit */}
+                      {creditAmount > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#22c55e', fontWeight: 500 }}>
+                          <span>Greet-Me Credit</span>
+                          <span>&ndash;${creditAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      {/* One-Time Technology Fee */}
+                      <div style={{ marginBottom: '0.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                          <span>One-Time Technology Fee</span>
+                          <span>${techFee.toFixed(2)}</span>
+                        </div>
+                        <p style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', margin: '0.125rem 0 0', fontStyle: 'italic' }}>
+                          Covers setup and delivery for you and your gift recipient
+                        </p>
+                      </div>
+
+                      {/* Total */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.75rem', borderTop: '1px solid var(--border)', fontSize: '1.125rem', fontWeight: 700 }}>
+                        <span>Total</span>
+                        <span style={{ color: '#667eea' }}>${finalTotal.toFixed(2)}</span>
+                      </div>
                     </div>
-                    <p style={{
-                      fontSize: '0.6875rem',
-                      color: 'var(--text-tertiary)',
-                      margin: '0.125rem 0 0',
-                      fontStyle: 'italic',
-                    }}>
-                      Covers setup and delivery for you and your gift recipient
-                    </p>
-                  </div>
-
-                  {/* Shipping */}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    marginBottom: '0.5rem',
-                    fontSize: '0.875rem',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    <span>Shipping</span>
-                    <span style={{ color: '#22c55e', fontWeight: 500 }}>FREE</span>
-                  </div>
-
-                  {/* Tax */}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    marginBottom: '0.5rem',
-                    fontSize: '0.875rem',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    <span>Tax</span>
-                    <span>$0.00</span>
-                  </div>
-
-                  {/* Greet-Me Credit (if any) */}
-                  {creditAmount > 0 && (
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginBottom: '0.5rem',
-                      fontSize: '0.875rem',
-                      color: '#22c55e',
-                      fontWeight: 500,
-                    }}>
-                      <span>Greet-Me Credit</span>
-                      <span>&ndash;${creditAmount.toFixed(2)}</span>
-                    </div>
-                  )}
-
-                  {/* Total — plan + $4.99 fee - credit = actual Stripe charge */}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    paddingTop: '0.75rem',
-                    borderTop: '1px solid var(--border)',
-                    fontSize: '1.125rem',
-                    fontWeight: 700
-                  }}>
-                    <span>Total</span>
-                    <span style={{ color: '#667eea' }}>
-                      ${Math.max(0, total + 4.99 - creditAmount).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Submit Button — calls Stripe Checkout (not form submit) */}
                 <button

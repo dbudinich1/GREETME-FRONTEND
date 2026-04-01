@@ -710,81 +710,73 @@ export default function Cart() {
               }}>Summary</h2>
             </div>
 
-            {/* Summary Content */}
+            {/* Summary Content — normalized pricing structure */}
             <div style={{ padding: '0.375rem' }}>
-              {/* Line Items */}
-              <div style={{ marginBottom: '0.25rem' }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginBottom: '0.125rem',
-                  fontSize: '0.5625rem',
-                  color: 'var(--text-secondary)'
-                }}>
-                  <span>Subtotal ({cartItems.length})</span>
-                  <span>${total.toFixed(2)}</span>
-                </div>
+              {(() => {
+                const subscriptionItem = cartItems.find(item => item.type === 'subscription');
+                const planPrice = subscriptionItem?.price || total;
+                const courtesyCredit = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
+                const creditAmt = hasReferralCredit ? 10 : (courtesyCredit?.amount || 0);
+                const techFee = 4.99;
+                const finalTotal = Math.max(0, planPrice + techFee - creditAmt);
 
-                {/* G1G1 Free Gift Subscription Deduction - show when cart has full-price subscription */}
-                {g1g1Eligible && (() => {
-                  const subscriptionItem = cartItems.find(item => item.type === 'subscription');
-                  const subscriptionPrice = subscriptionItem?.price || 19.99;
-                  return (
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginBottom: '0.125rem',
-                      fontSize: '0.5625rem',
-                      color: '#10b981',
-                      fontWeight: 600,
-                      background: 'rgba(16, 185, 129, 0.1)',
-                      padding: '0.25rem 0.375rem',
-                      borderRadius: 'var(--radius-sm)',
-                      marginLeft: '-0.375rem',
-                      marginRight: '-0.375rem'
-                    }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.125rem' }}>
-                        🎁 G1G1 Gift Sub
-                      </span>
-                      <span>-${subscriptionPrice.toFixed(2)}</span>
+                return (
+                  <div style={{ marginBottom: '0.25rem' }}>
+                    {/* Plan */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem', fontSize: '0.5625rem', color: 'var(--text-secondary)' }}>
+                      <span>{subscriptionItem?.name || 'Subscription'}</span>
+                      <span>${planPrice.toFixed(2)}</span>
                     </div>
-                  );
-                })()}
 
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: '0.5625rem',
-                  color: 'var(--text-secondary)'
-                }}>
-                  <span>Shipping</span>
-                  <span style={{ color: '#22c55e', fontWeight: 500 }}>FREE</span>
-                </div>
-              </div>
+                    {/* G1G1 Gift Subscription (full value) */}
+                    {g1g1Eligible && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem', fontSize: '0.5625rem', color: 'var(--text-secondary)' }}>
+                        <span>G1G1 Gift Subscription</span>
+                        <span>${planPrice.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {/* G1G1 Discount (negative) */}
+                    {g1g1Eligible && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem', fontSize: '0.5625rem', color: '#22c55e', fontWeight: 600 }}>
+                        <span>G1G1 Discount</span>
+                        <span>&ndash;${planPrice.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {/* Greet-Me Credit */}
+                    {creditAmt > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem', fontSize: '0.5625rem', color: '#22c55e', fontWeight: 600 }}>
+                        <span>Greet-Me Credit</span>
+                        <span>&ndash;${creditAmt.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {/* One-Time Technology Fee */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem', fontSize: '0.5625rem', color: 'var(--text-secondary)' }}>
+                      <span>One-Time Technology Fee</span>
+                      <span>${techFee.toFixed(2)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Total */}
-              <div style={{
-                borderTop: '1px solid var(--border)',
-                paddingTop: '0.25rem',
-                marginBottom: '0.375rem'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <span style={{
-                    fontSize: '0.6875rem',
-                    fontWeight: 700,
-                    color: 'var(--text-primary)'
-                  }}>Total</span>
-                  <span style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    color: '#667eea'
-                  }}>${total.toFixed(2)}</span>
-                </div>
-              </div>
+              {(() => {
+                const subscriptionItem = cartItems.find(item => item.type === 'subscription');
+                const planPrice = subscriptionItem?.price || total;
+                const courtesyCredit = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
+                const creditAmt = hasReferralCredit ? 10 : (courtesyCredit?.amount || 0);
+                const finalTotal = Math.max(0, planPrice + 4.99 - creditAmt);
+                return (
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.25rem', marginBottom: '0.375rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--text-primary)' }}>Total</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#667eea' }}>${finalTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Checkout Button */}
               <button
