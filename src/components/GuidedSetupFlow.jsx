@@ -2,7 +2,7 @@
 // Guided first-time user setup flow - in-context actions, no navigation
 
 import { useState, useRef, useEffect } from 'react';
-import { X, Mic, Square, Play, Pause, Upload, Image as ImageIcon, Check, ArrowRight, Send, Loader } from 'lucide-react';
+import { X, Mic, Square, Play, Pause, Upload, Image as ImageIcon, Check, ArrowRight, Send, Loader, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { validateFile, validateAudioFile, validateEmail } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
@@ -51,11 +51,8 @@ export function shouldShowGuidedSetup() {
 export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const navigate = useNavigate();
   const { user, refreshProfile } = useAuth();
-  // Steps: 0=Welcome, 1=Demo(video), 2=Voice, 3=Photo, 4=TestGreeting, 5=Sending, 6=Success, 7=GiftReveal
+  // Steps: 0=Welcome, 1=QuickStart, 2=Voice, 3=Photo, 4=TestGreeting, 5=Sending, 6=Success, 7=GiftReveal
   const [step, setStep] = useState(0);
-  const [demoVideoEnded, setDemoVideoEnded] = useState(false);
-  const [demoMuted, setDemoMuted] = useState(true);
-  const demoVideoRef = useRef(null);
   const [setupState, setSetupState] = useState(getSetupState());
 
   // Voice recording state
@@ -90,40 +87,12 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const [sendingStatus, setSendingStatus] = useState(''); // 'voice', 'video', 'finalizing'
   const [sendingError, setSendingError] = useState(null);
 
-  // Demo stage state (Step 1 — 9 walkthrough stages + 1 final CTA = indices 0–9)
-  const [demoStage, setDemoStage] = useState(0);
-  const demoTimerRef = useRef(null);
-  const DEMO_LAST_STAGE = 7; // index of final CTA screen (after 7 content stages at 0-6)
-
   const isMobile = window.innerWidth <= 480;
-
-  // Demo auto-advance timer — runs only while step === 1 (Demo)
-  // Resets demoStage when entering step 1; clears timer when leaving
-  useEffect(() => {
-    if (step !== 1) {
-      if (demoTimerRef.current) clearInterval(demoTimerRef.current);
-      return;
-    }
-    setDemoStage(0);
-    demoTimerRef.current = setInterval(() => {
-      setDemoStage((prev) => {
-        if (prev >= DEMO_LAST_STAGE) {
-          clearInterval(demoTimerRef.current);
-          return DEMO_LAST_STAGE;
-        }
-        return prev + 1;
-      });
-    }, 4000);
-    return () => {
-      if (demoTimerRef.current) clearInterval(demoTimerRef.current);
-    };
-  }, [step]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (demoTimerRef.current) clearInterval(demoTimerRef.current);
       if (audioUrl) URL.revokeObjectURL(audioUrl);
     };
   }, [audioUrl]);
@@ -561,144 +530,122 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     </div>
   );
 
-  // STEP 1: Demo — full animated product walkthrough
-  const demoStages = [
-    { icon: '✉️', heading: 'Welcome to Greet-Me\u2122', body: 'The automated greeting and gifting platform\u2014powered by Greet-Me and you.' },
-    { icon: '🎁', heading: 'Personalized greetings, gifts, and gratitude\u2014automatically.', body: 'For every occasion that matters.' },
-    { icon: '🧑\u200d🎤', heading: 'Truly personal.', body: 'Your voice.\nYour photo.\nYour presence\u2014delivered.' },
-    { icon: '📅', heading: 'Set it once. Greet forever.', body: 'Add your people\nChoose the occasions\nInclude a thoughtful gift\u2014or let Greet-Me choose\n\nSend anytime\u2026 or just because.' },
-    { icon: '✨', heading: 'From here on, Greet-Me handles the rest.', body: 'Never miss a moment.\nForget them not.' },
-    { icon: '💫', heading: 'Your recipients receive something unforgettable.', body: 'A personalized Greet-Me\u2014with your voice, your presence, and a meaningful gift.' },
-    { icon: '🎁', heading: 'Greet One. Gift One.\u2122', body: 'Every Greet-Me subscription comes with one of equal value to share with a friend or loved one.', highlight: true },
-  ];
-
-  const demoPrev = () => {
-    if (demoTimerRef.current) clearInterval(demoTimerRef.current);
-    setDemoStage((prev) => Math.max(0, prev - 1));
-  };
-
-  const demoNext = () => {
-    if (demoTimerRef.current) clearInterval(demoTimerRef.current);
-    setDemoStage((prev) => Math.min(DEMO_LAST_STAGE, prev + 1));
-  };
-
-  const demoSkipToEnd = () => {
-    if (demoTimerRef.current) clearInterval(demoTimerRef.current);
-    setDemoStage(DEMO_LAST_STAGE);
-  };
-
+  // STEP 1: Quick-start 3-step panel (replaced full demo video)
   const renderDemoGreeting = () => (
-    <div style={{ padding: isMobile ? '1rem' : '1.5rem', textAlign: 'center' }}>
-      <h2 style={{
-        fontSize: '1.1rem',
-        fontWeight: 600,
-        color: 'var(--text-secondary)',
-        marginBottom: '1rem',
-        letterSpacing: '0.01em',
-      }}>
-        Here&rsquo;s how Greet-Me works.
-      </h2>
-
-      {/* Demo video with tap-to-unmute */}
+    <div style={{ padding: isMobile ? '1.5rem' : '2rem', textAlign: 'center' }}>
       <div style={{
-        borderRadius: 'var(--radius-md, 8px)',
-        overflow: 'hidden',
-        marginBottom: '1.25rem',
-        background: '#000',
-        position: 'relative',
-        cursor: demoMuted ? 'pointer' : 'default',
-      }}
-        onClick={() => {
-          if (demoMuted && demoVideoRef.current) {
-            demoVideoRef.current.muted = false;
-            setDemoMuted(false);
-          }
-        }}
-      >
-        <video
-          ref={demoVideoRef}
-          src="/assets/demo/greetme-demo.mp4"
-          autoPlay
-          muted
-          playsInline
-          onEnded={() => setDemoVideoEnded(true)}
-          style={{
-            width: '100%',
-            display: 'block',
-            borderRadius: 'var(--radius-md, 8px)',
-          }}
-        />
-        {demoMuted && !demoVideoEnded && (
-          <div style={{
-            position: 'absolute',
-            bottom: '0.75rem',
-            right: '0.75rem',
-            background: 'rgba(0,0,0,0.6)',
-            color: '#fff',
-            borderRadius: '2rem',
-            padding: '0.4rem 0.75rem',
-            fontSize: '0.75rem',
-            fontWeight: 500,
+        width: '4rem',
+        height: '4rem',
+        borderRadius: '50%',
+        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: '0 auto 1.25rem',
+        fontSize: '1.75rem',
+      }}>
+        ✨
+      </div>
+      <h2 style={{
+        fontSize: isMobile ? '1.25rem' : '1.5rem',
+        fontWeight: 700,
+        color: 'var(--text-primary)',
+        marginBottom: '0.5rem',
+      }}>
+        This is exciting.
+      </h2>
+      <p style={{
+        fontSize: '1rem',
+        color: 'var(--text-secondary)',
+        marginBottom: '2rem',
+        lineHeight: 1.6,
+      }}>
+        You&rsquo;re about to create your first Greet-Me.
+      </p>
+
+      {/* 3-step quick start */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1rem',
+        maxWidth: '280px',
+        margin: '0 auto 2rem',
+        textAlign: 'left',
+      }}>
+        {[
+          { icon: <Mic size={20} />, label: 'Record your voice' },
+          { icon: <Camera size={20} />, label: 'Add your photo' },
+          { icon: <Send size={20} />, label: 'Choose your recipient' },
+        ].map((item, i) => (
+          <div key={i} style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '0.35rem',
-            backdropFilter: 'blur(4px)',
+            gap: '0.875rem',
           }}>
-            🔇 Tap for sound
+            <div style={{
+              width: '2.5rem',
+              height: '2.5rem',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#6366f1',
+              flexShrink: 0,
+            }}>
+              {item.icon}
+            </div>
+            <span style={{
+              fontSize: '0.9375rem',
+              fontWeight: 500,
+              color: 'var(--text-primary)',
+            }}>
+              {item.label}
+            </span>
           </div>
-        )}
+        ))}
       </div>
 
-      {/* CTA — visible after video ends */}
-      {demoVideoEnded ? (
-        <div>
-          <button
-            onClick={nextStep}
-            style={{
-              width: '100%',
-              padding: '1rem',
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '1rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              marginBottom: '0.75rem',
-            }}
-          >
-            Create a Greet-Me
-          </button>
-          <button
-            onClick={handleSkip}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-tertiary)',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            I&rsquo;ll set up later
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={() => setDemoVideoEnded(true)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-tertiary)',
-            fontSize: '0.8rem',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}
-        >
-          Skip
-        </button>
-      )}
+      <p style={{
+        fontSize: '0.8125rem',
+        color: 'var(--text-tertiary)',
+        marginBottom: '1.5rem',
+        fontStyle: 'italic',
+      }}>
+        Takes less than a minute.
+      </p>
+
+      <button
+        onClick={nextStep}
+        style={{
+          width: '100%',
+          padding: '1rem',
+          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+          color: 'white',
+          border: 'none',
+          borderRadius: 'var(--radius-lg)',
+          fontSize: '1rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          marginBottom: '0.75rem',
+        }}
+      >
+        Let&rsquo;s go
+      </button>
+      <button
+        onClick={handleSkip}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: 'var(--text-tertiary)',
+          fontSize: '0.875rem',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        I&rsquo;ll set up later
+      </button>
     </div>
   );
 
