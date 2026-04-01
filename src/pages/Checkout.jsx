@@ -701,7 +701,7 @@ export default function Checkout() {
                     <span>${total.toFixed(2)}</span>
                   </div>
 
-                  {/* Processing & Delivery Fee */}
+                  {/* Processing & Delivery Fee — included in plan price */}
                   <div style={{ marginBottom: '0.5rem' }}>
                     <div style={{
                       display: 'flex',
@@ -709,8 +709,8 @@ export default function Checkout() {
                       fontSize: '0.875rem',
                       color: 'var(--text-secondary)'
                     }}>
-                      <span>Processing &amp; Delivery Fee</span>
-                      <span>$4.99</span>
+                      <span>Processing &amp; Delivery</span>
+                      <span style={{ color: '#22c55e', fontWeight: 500 }}>Included</span>
                     </div>
                     <p style={{
                       fontSize: '0.6875rem',
@@ -718,7 +718,7 @@ export default function Checkout() {
                       margin: '0.125rem 0 0',
                       fontStyle: 'italic',
                     }}>
-                      Includes delivery for both you and your gift recipient
+                      Delivery for both you and your gift recipient is included in your plan
                     </p>
                   </div>
 
@@ -761,7 +761,7 @@ export default function Checkout() {
                     </div>
                   )}
 
-                  {/* Total */}
+                  {/* Total — matches actual Stripe charge (plan price minus credit) */}
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -772,7 +772,7 @@ export default function Checkout() {
                   }}>
                     <span>Total</span>
                     <span style={{ color: '#667eea' }}>
-                      ${Math.max(0, total + 4.99 - creditAmount).toFixed(2)}
+                      ${Math.max(0, total - creditAmount).toFixed(2)}
                     </span>
                   </div>
                 </div>
