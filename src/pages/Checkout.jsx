@@ -701,7 +701,7 @@ export default function Checkout() {
                     <span>${total.toFixed(2)}</span>
                   </div>
 
-                  {/* Technology fee — included in plan price, not a separate charge */}
+                  {/* One-time technology fee */}
                   <div style={{ marginBottom: '0.5rem' }}>
                     <div style={{
                       display: 'flex',
@@ -710,7 +710,7 @@ export default function Checkout() {
                       color: 'var(--text-secondary)'
                     }}>
                       <span>One-Time Technology Fee</span>
-                      <span style={{ color: '#22c55e', fontWeight: 500 }}>Included</span>
+                      <span>$4.99</span>
                     </div>
                     <p style={{
                       fontSize: '0.6875rem',
@@ -761,7 +761,7 @@ export default function Checkout() {
                     </div>
                   )}
 
-                  {/* Total — matches actual Stripe charge (plan price minus credit) */}
+                  {/* Total — plan + $4.99 fee - credit = actual Stripe charge */}
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -772,7 +772,7 @@ export default function Checkout() {
                   }}>
                     <span>Total</span>
                     <span style={{ color: '#667eea' }}>
-                      ${Math.max(0, total - creditAmount).toFixed(2)}
+                      ${Math.max(0, total + 4.99 - creditAmount).toFixed(2)}
                     </span>
                   </div>
                 </div>
