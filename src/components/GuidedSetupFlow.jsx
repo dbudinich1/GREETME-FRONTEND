@@ -51,7 +51,7 @@ export function shouldShowGuidedSetup() {
 export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const navigate = useNavigate();
   const { user, refreshProfile } = useAuth();
-  // Steps: 0=Welcome, 1=QuickStart, 2=Voice, 3=Photo, 4=TestGreeting, 5=Sending, 6=Success, 7=GiftReveal
+  // Steps: 0=Welcome, 1=QuickStart, 2=Voice, 3=Photo, 4=Recipient, 5=SendPrep, 6=Sending, 7=Success, 8=GiftReveal
   const [step, setStep] = useState(0);
   const [setupState, setSetupState] = useState(getSetupState());
 
@@ -100,7 +100,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   // Fire confetti once when Success step appears
   const confettiFiredRef = useRef(false);
   useEffect(() => {
-    if (step === 6 && !confettiFiredRef.current) {
+    if (step === 7 && !confettiFiredRef.current) {
       confettiFiredRef.current = true;
       (async () => {
         try {
@@ -310,7 +310,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     }
 
     setGreetingError(null);
-    setStep(5); // Go to sending state
+    setStep(6); // Go to sending state
     setSendingStatus('voice');
 
     try {
@@ -352,10 +352,10 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       // Mark as complete
       updateSetupState({ firstGreetingSent: true });
       setSetupState(prev => ({ ...prev, firstGreetingSent: true }));
-      setStep(6); // Go to success
+      setStep(7); // Go to success
     } catch (err) {
       setSendingError('Something went wrong. Please try again.');
-      setStep(4); // Go back to test greeting
+      setStep(5); // Go back to send-prep on error
     }
   };
 
@@ -998,44 +998,9 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           }}>
             <Check size={32} color="white" />
           </div>
-          <p style={{ fontSize: '1rem', fontWeight: 600, color: '#10b981', marginBottom: '1rem' }}>
+          <p style={{ fontSize: '1rem', fontWeight: 600, color: '#10b981', marginBottom: '0.75rem' }}>
             Photo saved
           </p>
-
-          {/* Mini recipient — prefilled with user's own info */}
-          <div style={{
-            background: 'var(--gray-50, #f9fafb)',
-            borderRadius: 'var(--radius-md, 8px)',
-            border: '1px solid var(--gray-200, #e5e7eb)',
-            padding: '1rem',
-            marginBottom: '1.25rem',
-            textAlign: 'left',
-          }}>
-            <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', margin: '0 0 0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Your test recipient
-            </p>
-            <p style={{ fontSize: '0.9375rem', color: 'var(--text-primary)', margin: '0 0 0.25rem', fontWeight: 500 }}>
-              {user?.name || 'You'}
-            </p>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
-              {user?.email || ''}
-            </p>
-          </div>
-
-          {/* Anticipation copy */}
-          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-            Congratulations, you made it!
-          </p>
-          <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', lineHeight: 1.6 }}>
-            Now for the fun part&hellip;
-          </p>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.6 }}>
-            Click send and we&rsquo;ll deliver your first test Greet-Me to your inbox.
-          </p>
-          <p style={{ fontSize: '0.75rem', color: '#10b981', marginBottom: '1.25rem' }}>
-            This test send is free and does not count against your 3 free sends.
-          </p>
-
           <button
             onClick={nextStep}
             style={{
@@ -1060,10 +1025,142 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     </div>
   );
 
-  // STEP 4: Test Greeting
-  // Auto-prefill test greeting with user's own info
+  // STEP 4: Recipient (standalone)
   const userName = user?.name || 'there';
   const userEmail = user?.email || '';
+
+  const renderRecipient = () => (
+    <div style={{ padding: isMobile ? '1.5rem' : '2rem', textAlign: 'center' }}>
+      <h3 style={{
+        fontSize: '1.25rem',
+        fontWeight: 600,
+        color: 'var(--text-primary)',
+        marginBottom: '0.75rem',
+      }}>
+        Send your first Greet-Me to yourself.
+      </h3>
+      <p style={{
+        fontSize: '0.9375rem',
+        color: 'var(--text-secondary)',
+        marginBottom: '1.5rem',
+        lineHeight: 1.6,
+      }}>
+        We&rsquo;ll deliver it to your inbox so you can experience it exactly as your recipients will.
+      </p>
+
+      <div style={{
+        background: 'var(--gray-50, #f9fafb)',
+        borderRadius: 'var(--radius-md, 8px)',
+        border: '1px solid var(--gray-200, #e5e7eb)',
+        padding: '1.25rem',
+        marginBottom: '1.5rem',
+        textAlign: 'left',
+      }}>
+        <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', margin: '0 0 0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Your test recipient
+        </p>
+        <p style={{ fontSize: '0.9375rem', color: 'var(--text-primary)', margin: '0 0 0.25rem', fontWeight: 500 }}>
+          {userName}
+        </p>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
+          {userEmail}
+        </p>
+      </div>
+
+      <button
+        onClick={nextStep}
+        style={{
+          width: '100%',
+          padding: '1rem',
+          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+          color: 'white',
+          border: 'none',
+          borderRadius: 'var(--radius-lg)',
+          fontSize: '1rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        Continue
+      </button>
+    </div>
+  );
+
+  // STEP 5: Send Prep (trigger moment)
+  const renderSendPrep = () => (
+    <div style={{ padding: isMobile ? '1.5rem' : '2rem', textAlign: 'center' }}>
+      <div style={{
+        width: '4rem',
+        height: '4rem',
+        borderRadius: '50%',
+        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: '0 auto 1.25rem',
+        fontSize: '1.75rem',
+      }}>
+        🚀
+      </div>
+      <h3 style={{
+        fontSize: '1.25rem',
+        fontWeight: 700,
+        color: 'var(--text-primary)',
+        marginBottom: '0.5rem',
+      }}>
+        Congratulations, you made it.
+      </h3>
+      <p style={{
+        fontSize: '1rem',
+        color: 'var(--text-secondary)',
+        marginBottom: '0.5rem',
+        lineHeight: 1.6,
+      }}>
+        Now for the fun part.
+      </p>
+      <p style={{
+        fontSize: '0.9375rem',
+        color: 'var(--text-secondary)',
+        marginBottom: '1.5rem',
+        lineHeight: 1.6,
+      }}>
+        Click send and we&rsquo;ll deliver your first Greet-Me to your inbox.
+      </p>
+      <p style={{
+        fontSize: '0.75rem',
+        color: '#10b981',
+        marginBottom: '1.5rem',
+      }}>
+        Your first test Greet-Me is on us &mdash; it won&rsquo;t count toward your 3 sends.
+      </p>
+      <button
+        onClick={() => {
+          setGreetingRecipient(userName);
+          setGreetingEmail(userEmail);
+          sendTestGreeting();
+        }}
+        style={{
+          width: '100%',
+          padding: '1rem',
+          background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+          color: 'white',
+          border: 'none',
+          borderRadius: 'var(--radius-lg)',
+          fontSize: '1rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          boxShadow: '0 4px 14px rgba(34, 197, 94, 0.35)',
+        }}
+      >
+        <Send size={18} style={{ marginRight: '0.5rem', verticalAlign: 'middle' }} />
+        Send My First Greet-Me
+      </button>
+    </div>
+  );
+
+  // STEP 6: Test Greeting (legacy — now bypassed by SendPrep direct send)
 
   const renderTestGreeting = () => (
     <div style={{ padding: isMobile ? '1.5rem' : '2rem', textAlign: 'center' }}>
@@ -1344,7 +1441,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         But first &mdash; we have something for you.
       </p>
       <button
-        onClick={() => setStep(7)}
+        onClick={() => setStep(8)}
         style={{
           width: '100%',
           padding: '1rem',
@@ -1485,22 +1582,24 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     1: renderDemoGreeting,
     2: renderVoice,
     3: renderPhoto,
-    4: renderTestGreeting,
-    5: renderSending,
-    6: renderSuccess,
-    7: renderGiftReveal,
+    4: renderRecipient,
+    5: renderSendPrep,
+    6: renderSending,
+    7: renderSuccess,
+    8: renderGiftReveal,
   };
 
   // Calculate progress (steps 0-6)
   const getProgressWidth = () => {
-    if (step === 0) return 8;
-    if (step === 1) return 22;
-    if (step === 2) return 36;
-    if (step === 3) return 50;
-    if (step === 4) return 64;
-    if (step === 5) return 78;
-    if (step === 6) return 90;
-    if (step >= 7) return 100;
+    if (step === 0) return 6;
+    if (step === 1) return 16;
+    if (step === 2) return 28;
+    if (step === 3) return 40;
+    if (step === 4) return 52;
+    if (step === 5) return 64;
+    if (step === 6) return 76;
+    if (step === 7) return 90;
+    if (step >= 8) return 100;
     return 0;
   };
 
@@ -1533,7 +1632,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
       }}>
         {/* Progress bar (shown during welcome/demo/voice/photo/test greeting steps) */}
-        {step >= 0 && step <= 4 && (
+        {step >= 0 && step <= 5 && (
           <div style={{
             height: '4px',
             background: 'var(--gray-100)',
