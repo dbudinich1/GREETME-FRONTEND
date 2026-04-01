@@ -24,6 +24,16 @@ export default function Checkout() {
   const referralCode = new URLSearchParams(location.search).get('referral')
     || localStorage.getItem('greetme_referral_code')
     || null;
+
+  // Credit amount for display (referral = up to $10, courtesy = $5)
+  const courtesyCredit = (() => {
+    try {
+      const stored = localStorage.getItem('greetme_courtesy_credit');
+      return stored ? JSON.parse(stored) : null;
+    } catch { return null; }
+  })();
+  const creditAmount = referralCode ? 10 : (courtesyCredit?.amount || 0);
+
   const [total, setTotal] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
@@ -679,6 +689,7 @@ export default function Checkout() {
                   borderTop: '1px solid var(--border)',
                   paddingTop: '1rem'
                 }}>
+                  {/* Subtotal */}
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -689,6 +700,29 @@ export default function Checkout() {
                     <span>Subtotal</span>
                     <span>${total.toFixed(2)}</span>
                   </div>
+
+                  {/* Processing & Delivery Fee */}
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.875rem',
+                      color: 'var(--text-secondary)'
+                    }}>
+                      <span>Processing &amp; Delivery Fee</span>
+                      <span>$4.99</span>
+                    </div>
+                    <p style={{
+                      fontSize: '0.6875rem',
+                      color: 'var(--text-tertiary)',
+                      margin: '0.125rem 0 0',
+                      fontStyle: 'italic',
+                    }}>
+                      Includes delivery for both you and your gift recipient
+                    </p>
+                  </div>
+
+                  {/* Shipping */}
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -699,6 +733,8 @@ export default function Checkout() {
                     <span>Shipping</span>
                     <span style={{ color: '#22c55e', fontWeight: 500 }}>FREE</span>
                   </div>
+
+                  {/* Tax */}
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -709,6 +745,23 @@ export default function Checkout() {
                     <span>Tax</span>
                     <span>$0.00</span>
                   </div>
+
+                  {/* Greet-Me Credit (if any) */}
+                  {creditAmount > 0 && (
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '0.5rem',
+                      fontSize: '0.875rem',
+                      color: '#22c55e',
+                      fontWeight: 500,
+                    }}>
+                      <span>Greet-Me Credit</span>
+                      <span>&ndash;${creditAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  {/* Total */}
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -718,7 +771,9 @@ export default function Checkout() {
                     fontWeight: 700
                   }}>
                     <span>Total</span>
-                    <span style={{ color: '#667eea' }}>${total.toFixed(2)}</span>
+                    <span style={{ color: '#667eea' }}>
+                      ${Math.max(0, total + 4.99 - creditAmount).toFixed(2)}
+                    </span>
                   </div>
                 </div>
 
