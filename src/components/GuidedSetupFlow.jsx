@@ -1037,7 +1037,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         color: 'var(--text-primary)',
         marginBottom: '0.75rem',
       }}>
-        Send your first Greet-Me to yourself.
+        Add your first recipient.
       </h3>
       <p style={{
         fontSize: '0.9375rem',
@@ -1045,7 +1045,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         marginBottom: '1.5rem',
         lineHeight: 1.6,
       }}>
-        We&rsquo;ll deliver it to your inbox so you can experience it exactly as your recipients will.
+        We&rsquo;ve prefilled your details so you can experience your first Greet-Me firsthand.
       </p>
 
       <div style={{
@@ -1109,15 +1109,15 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         color: 'var(--text-primary)',
         marginBottom: '0.5rem',
       }}>
-        Congratulations, you made it.
+        You&rsquo;re all set.
       </h3>
       <p style={{
         fontSize: '1rem',
         color: 'var(--text-secondary)',
-        marginBottom: '0.5rem',
-        lineHeight: 1.6,
+        marginBottom: '0.75rem',
+        lineHeight: 1.7,
       }}>
-        Now for the fun part.
+        This is where your Greet-Me comes to life.
       </p>
       <p style={{
         fontSize: '0.9375rem',
