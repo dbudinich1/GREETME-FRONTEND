@@ -428,14 +428,14 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         width: '5rem',
         height: '5rem',
         borderRadius: '50%',
-        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+        background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         margin: '0 auto 1.5rem',
         fontSize: '2.5rem',
       }}>
-        👋
+        🎉
       </div>
       <h2 style={{
         fontSize: isMobile ? '1.5rem' : '1.75rem',
@@ -443,25 +443,47 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         color: 'var(--text-primary)',
         marginBottom: '0.75rem',
       }}>
-        Welcome to Greet-Me.
+        Congratulations &mdash; welcome to Greet-Me!
       </h2>
+      <div style={{
+        display: 'flex',
+        gap: '0.75rem',
+        justifyContent: 'center',
+        marginBottom: '1.5rem',
+        flexWrap: 'wrap',
+      }}>
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.35rem',
+          padding: '0.375rem 0.75rem',
+          background: '#fef3c7',
+          borderRadius: '2rem',
+          fontSize: '0.8125rem',
+          fontWeight: 600,
+          color: '#92400e',
+        }}>⭐ 25 reward points</span>
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.35rem',
+          padding: '0.375rem 0.75rem',
+          background: '#f0fdf4',
+          borderRadius: '2rem',
+          fontSize: '0.8125rem',
+          fontWeight: 600,
+          color: '#166534',
+        }}>✉️ 3 free sends</span>
+      </div>
       <p style={{
         fontSize: '1rem',
         color: 'var(--text-secondary)',
-        marginBottom: '1.5rem',
+        marginBottom: '2rem',
         lineHeight: 1.6,
         maxWidth: '22rem',
-        margin: '0 auto 1.5rem',
+        margin: '0 auto 2rem',
       }}>
-        A new way to show up for the people who matter &mdash; in your voice, with your presence.
-      </p>
-      <p style={{
-        fontSize: '0.875rem',
-        color: 'var(--text-tertiary)',
-        marginBottom: '2rem',
-        lineHeight: 1.5,
-      }}>
-        Watch a quick demo, then we&rsquo;ll help you create your first one.
+        Let&rsquo;s create your first Greet-Me.
       </p>
       <button
         onClick={nextStep}
@@ -478,7 +500,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           fontFamily: 'inherit',
         }}
       >
-        See how it works
+        Let&rsquo;s go
       </button>
     </div>
   );
@@ -1037,12 +1059,44 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           }}>
             <Check size={32} color="white" />
           </div>
-          <p style={{ fontSize: '1rem', fontWeight: 600, color: '#10b981', marginBottom: '0.75rem' }}>
+          <p style={{ fontSize: '1rem', fontWeight: 600, color: '#10b981', marginBottom: '1rem' }}>
             Photo saved
           </p>
-          <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-            That's it — now let's make it real.
+
+          {/* Mini recipient — prefilled with user's own info */}
+          <div style={{
+            background: 'var(--gray-50, #f9fafb)',
+            borderRadius: 'var(--radius-md, 8px)',
+            border: '1px solid var(--gray-200, #e5e7eb)',
+            padding: '1rem',
+            marginBottom: '1.25rem',
+            textAlign: 'left',
+          }}>
+            <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', margin: '0 0 0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Your test recipient
+            </p>
+            <p style={{ fontSize: '0.9375rem', color: 'var(--text-primary)', margin: '0 0 0.25rem', fontWeight: 500 }}>
+              {user?.name || 'You'}
+            </p>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
+              {user?.email || ''}
+            </p>
+          </div>
+
+          {/* Anticipation copy */}
+          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+            Congratulations, you made it!
           </p>
+          <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', lineHeight: 1.6 }}>
+            Now for the fun part&hellip;
+          </p>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.6 }}>
+            Click send and we&rsquo;ll deliver your first test Greet-Me to your inbox.
+          </p>
+          <p style={{ fontSize: '0.75rem', color: '#10b981', marginBottom: '1.25rem' }}>
+            This test send is free and does not count against your 3 free sends.
+          </p>
+
           <button
             onClick={nextStep}
             style={{

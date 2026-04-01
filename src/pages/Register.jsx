@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
-import { QrCode, Smartphone } from 'lucide-react';
+// lucide icons removed — QR/Smartphone section removed
 import GreetMeLogo from '../components/GreetMeLogo';
 
 const isMobile = window.innerWidth <= 480;
@@ -267,69 +267,7 @@ export default function Register() {
           </Link>
         </p>
 
-        {/* Mobile App Download QR Code */}
-        <div style={{
-          marginTop: '1.5rem',
-          paddingTop: '1.25rem',
-          borderTop: '1px solid var(--border)',
-          textAlign: 'center'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-            marginBottom: '0.5rem'
-          }}>
-            <Smartphone size={16} style={{ color: '#6366f1' }} />
-            <span style={{
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)'
-            }}>Get the Mobile App</span>
-          </div>
-          <p style={{
-            fontSize: '0.6875rem',
-            color: 'var(--text-tertiary)',
-            marginBottom: '0.5rem'
-          }}>
-            Scan to download and send greetings on the go
-          </p>
-          <div style={{
-            display: 'inline-flex',
-            padding: '0.5rem',
-            background: 'white',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--border)',
-          }}>
-            <div style={{
-              width: '64px',
-              height: '64px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative'
-            }}>
-              <QrCode size={52} style={{ color: '#6366f1' }} />
-              <div style={{
-                position: 'absolute',
-                inset: '6px',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(8, 1fr)',
-                gridTemplateRows: 'repeat(8, 1fr)',
-                gap: '1px',
-                pointerEvents: 'none'
-              }}>
-                {[...Array(64)].map((_, i) => (
-                  <div key={i} style={{
-                    background: [0,1,2,5,6,7,8,15,16,23,40,47,48,55,56,57,58,61,62,63,9,14,17,22,41,46,49,54,10,13,18,21,42,45,50,53,11,12,19,20,43,44,51,52,27,28,35,36].includes(i) ? '#6366f1' : 'transparent',
-                    borderRadius: '1px'
-                  }} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Mobile app section removed — not needed at registration */}
       </div>
     </div>
   );

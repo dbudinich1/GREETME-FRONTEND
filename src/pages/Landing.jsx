@@ -41,31 +41,31 @@ export default function Landing() {
       fontFamily: FONT,
     }}>
       {/* Logo */}
-      <div style={{ marginBottom: '1.5rem' }}>
+      <div style={{ marginBottom: '1rem' }}>
         <GreetMeLogo />
       </div>
 
       {/* Headline */}
       <h1 style={{
-        fontSize: '2rem',
+        fontSize: '1.75rem',
         fontWeight: 700,
         color: '#1f2937',
         lineHeight: 1.3,
-        margin: '0 0 0.75rem',
+        margin: '0 0 0.5rem',
         textAlign: 'center',
-        maxWidth: '640px',
+        maxWidth: '600px',
       }}>
         Your voice. Their moment.<br />Delivered automatically.
       </h1>
 
-      {/* Updated subheadline */}
+      {/* Subheadline */}
       <p style={{
-        fontSize: '1rem',
+        fontSize: '0.9375rem',
         color: '#6b7280',
         lineHeight: 1.6,
-        margin: '0 0 1.5rem',
+        margin: '0 0 1.25rem',
         textAlign: 'center',
-        maxWidth: '580px',
+        maxWidth: '540px',
       }}>
         Create premium personalized greetings using your voice and photo&mdash;send one to everyone
         on your list automatically with a thoughtful gift for every occasion that matters.
@@ -74,7 +74,7 @@ export default function Landing() {
       {/* Demo video — large, central */}
       <div style={{
         width: '100%',
-        maxWidth: '720px',
+        maxWidth: '640px',
         borderRadius: '12px',
         overflow: 'hidden',
         boxShadow: '0 12px 40px rgba(0,0,0,0.12)',

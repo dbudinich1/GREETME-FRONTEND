@@ -701,7 +701,7 @@ export default function Checkout() {
                     <span>${total.toFixed(2)}</span>
                   </div>
 
-                  {/* Processing & Delivery Fee — included in plan price */}
+                  {/* Technology fee — included in plan price, not a separate charge */}
                   <div style={{ marginBottom: '0.5rem' }}>
                     <div style={{
                       display: 'flex',
@@ -709,7 +709,7 @@ export default function Checkout() {
                       fontSize: '0.875rem',
                       color: 'var(--text-secondary)'
                     }}>
-                      <span>Processing &amp; Delivery</span>
+                      <span>One-Time Technology Fee</span>
                       <span style={{ color: '#22c55e', fontWeight: 500 }}>Included</span>
                     </div>
                     <p style={{
@@ -718,7 +718,7 @@ export default function Checkout() {
                       margin: '0.125rem 0 0',
                       fontStyle: 'italic',
                     }}>
-                      Delivery for both you and your gift recipient is included in your plan
+                      Covers setup and delivery for you and your gift recipient
                     </p>
                   </div>
 
