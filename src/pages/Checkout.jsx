@@ -690,8 +690,10 @@ export default function Checkout() {
                   const planPrice = subscriptionItem?.price || total;
                   const hasReferralCredit = !!referralCode;
                   const g1g1Eligible = !!subscriptionItem && !hasReferralCredit;
+                  const creditEligible = subscriptionItem?.planTier !== 'close_circle';
+                  const effectiveCredit = creditEligible ? creditAmount : 0;
                   const techFee = 4.99;
-                  const finalTotal = Math.max(0, planPrice + techFee - creditAmount);
+                  const finalTotal = Math.max(0, planPrice + techFee - effectiveCredit);
 
                   return (
                     <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
@@ -719,9 +721,9 @@ export default function Checkout() {
 
                       {/* Greet-Me Credit */}
                       {creditAmount > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#22c55e', fontWeight: 500 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: creditEligible ? '#22c55e' : '#9ca3af', fontWeight: 500, fontStyle: creditEligible ? 'normal' : 'italic' }}>
                           <span>Greet-Me Credit</span>
-                          <span>&ndash;${creditAmount.toFixed(2)}</span>
+                          <span>{creditEligible ? `\u2013$${creditAmount.toFixed(2)}` : 'Not eligible for this plan'}</span>
                         </div>
                       )}
 

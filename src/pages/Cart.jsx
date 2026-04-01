@@ -716,9 +716,10 @@ export default function Cart() {
                 const subscriptionItem = cartItems.find(item => item.type === 'subscription');
                 const planPrice = subscriptionItem?.price || total;
                 const courtesyCredit = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
-                const creditAmt = hasReferralCredit ? 10 : (courtesyCredit?.amount || 0);
+                const rawCredit = hasReferralCredit ? 10 : (courtesyCredit?.amount || 0);
+                const creditEligible = subscriptionItem?.planTier !== 'close_circle';
+                const creditAmt = creditEligible ? rawCredit : 0;
                 const techFee = 4.99;
-                const finalTotal = Math.max(0, planPrice + techFee - creditAmt);
 
                 return (
                   <div style={{ marginBottom: '0.25rem' }}>
@@ -745,10 +746,10 @@ export default function Cart() {
                     )}
 
                     {/* Greet-Me Credit */}
-                    {creditAmt > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem', fontSize: '0.5625rem', color: '#22c55e', fontWeight: 600 }}>
+                    {rawCredit > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem', fontSize: '0.5625rem', color: creditEligible ? '#22c55e' : '#9ca3af', fontWeight: 600, fontStyle: creditEligible ? 'normal' : 'italic' }}>
                         <span>Greet-Me Credit</span>
-                        <span>&ndash;${creditAmt.toFixed(2)}</span>
+                        <span>{creditEligible ? `\u2013$${rawCredit.toFixed(2)}` : 'Not eligible for this plan'}</span>
                       </div>
                     )}
 
@@ -766,7 +767,9 @@ export default function Cart() {
                 const subscriptionItem = cartItems.find(item => item.type === 'subscription');
                 const planPrice = subscriptionItem?.price || total;
                 const courtesyCredit = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
-                const creditAmt = hasReferralCredit ? 10 : (courtesyCredit?.amount || 0);
+                const rawCredit = hasReferralCredit ? 10 : (courtesyCredit?.amount || 0);
+                const creditEligible = subscriptionItem?.planTier !== 'close_circle';
+                const creditAmt = creditEligible ? rawCredit : 0;
                 const finalTotal = Math.max(0, planPrice + 4.99 - creditAmt);
                 return (
                   <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.25rem', marginBottom: '0.375rem' }}>
