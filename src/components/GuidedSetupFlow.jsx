@@ -650,7 +650,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   );
 
   // STEP 3: Record Voice
-  const [voicePrepSeen, setVoicePrepSeen] = useState(false);
+  const [voicePrepSeen, setVoicePrepSeen] = useState(true); // Quick-start panel now covers this
 
   const renderVoice = () => {
     // Bridge / prep screen before voice recording
