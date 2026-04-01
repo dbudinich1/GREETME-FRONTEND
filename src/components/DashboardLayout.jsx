@@ -67,7 +67,6 @@ export default function DashboardLayout({ children }) {
     { name: 'Media Library', path: '/dashboard/media', icon: ImageIcon },
     { name: 'Plans & Pricing', path: '/pricing', icon: null },
     { name: 'For Business', path: '/business', icon: null },
-    { name: 'Merch', path: '/dashboard/merch', icon: ShoppingBag },
     { name: 'American Gift Place', path: '/dashboard/gifts', icon: Gift },
     { name: '❤️ Rewards', path: '/dashboard/rewards', icon: null },
     { name: '🥇 Greet-Me™ Hero™', path: '/dashboard/hero', icon: null },
