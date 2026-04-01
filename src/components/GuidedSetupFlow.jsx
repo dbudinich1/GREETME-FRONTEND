@@ -354,7 +354,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
       // Try to send via API
       try {
-        await api.sendGreeting({
+        const sendResult = await api.sendGreeting({
           recipientName,
           recipientEmail,
           message: greetingMessage.trim() || 'Thinking of you',
@@ -372,6 +372,10 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           // === LAYOUT BUDGET (STATIC DEFAULT) ===
           layoutBudget: { introMaxChars: 280 },
         });
+        // Store jobId so "View My Greet-Me" button can link to it
+        if (sendResult?.jobId) {
+          localStorage.setItem('greetme_onboarding_test_jobId', sendResult.jobId);
+        }
       } catch (err) {
         console.warn('Greeting send failed, continuing anyway:', err);
       }
@@ -462,7 +466,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           fontSize: '0.8125rem',
           fontWeight: 600,
           color: '#92400e',
-        }}>⭐ 25 reward points</span>
+        }}>❤️ 25 hearts</span>
         <span style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -1364,10 +1368,27 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       }}>
         Congratulations! Your Greet-Me is on its way!
       </h2>
+
+      {/* First-send reward */}
+      <div style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.35rem',
+        padding: '0.5rem 1rem',
+        background: '#fef3c7',
+        borderRadius: '2rem',
+        fontSize: '0.9375rem',
+        fontWeight: 600,
+        color: '#92400e',
+        marginBottom: '1.25rem',
+      }}>
+        ❤️ +25 hearts for your first send
+      </div>
+
       <p style={{
         fontSize: '0.9375rem',
         color: 'var(--text-secondary)',
-        marginBottom: '1rem',
+        marginBottom: '0.75rem',
         lineHeight: 1.6,
       }}>
         We just sent you a test Greet-Me so you can experience what your recipients will receive.
@@ -1460,9 +1481,32 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           Every Greet-Me subscription comes with one of equal value to share with a friend or loved one.
         </p>
       </div>
-      {/* Primary CTA */}
+      {/* $5 credit apply moment */}
+      <div style={{
+        background: '#f0fdf4',
+        borderRadius: 'var(--radius-lg)',
+        padding: '1rem',
+        marginBottom: '1.25rem',
+        border: '1px solid #bbf7d0',
+      }}>
+        <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#166534', margin: '0 0 0.25rem' }}>
+          You&rsquo;ve got $5 waiting.
+        </p>
+        <p style={{ fontSize: '0.8125rem', color: '#15803d', margin: 0, lineHeight: 1.5 }}>
+          Apply it to your first subscription &mdash; and share the Greet-Me experience with someone you love.
+        </p>
+      </div>
+
+      {/* Primary CTA — view the generated greeting */}
       <button
-        onClick={goToRecipientControls}
+        onClick={() => {
+          const jobId = localStorage.getItem('greetme_onboarding_test_jobId');
+          if (jobId) {
+            window.location.href = `/#/g/${jobId}`;
+          } else {
+            goToPricing();
+          }
+        }}
         style={{
           width: '100%', padding: '1rem',
           background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
@@ -1471,7 +1515,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           marginBottom: '0.75rem',
         }}
       >
-        Add Recipient
+        View My Greet-Me
       </button>
       {/* Secondary CTA */}
       <button
