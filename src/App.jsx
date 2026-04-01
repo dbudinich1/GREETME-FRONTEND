@@ -8,6 +8,7 @@ import DashboardLayout from "./components/DashboardLayout";
 
 import Register from "./pages/Register";
 import Login from "./pages/Login";
+import Landing from "./pages/Landing";
 import ForgotPassword from "./pages/ForgotPassword";
 import DashboardHome from "./pages/DashboardHome";
 import Profile from "./pages/Profile";
@@ -47,8 +48,8 @@ export default function App() {
     <AuthProvider>
       <HashRouter>
         <Routes>
-          {/* Default route: keep it on a tracked page */}
-          <Route path="/" element={<Login />} />
+          {/* Default route: landing page for guests, redirects auth users to dashboard */}
+          <Route path="/" element={<Landing />} />
 
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />

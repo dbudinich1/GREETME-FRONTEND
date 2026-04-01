@@ -1246,7 +1246,14 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         marginBottom: '1.5rem',
         lineHeight: 1.6,
       }}>
-        You're set. From here on out, Greet-Me&trade; can show up for the moments that matter &mdash; in your voice, with your presence.
+        We just sent you a test Greet-Me so you can experience what your recipients will receive.
+      </p>
+      <p style={{
+        fontSize: '0.8125rem',
+        color: '#10b981',
+        marginBottom: '0.75rem',
+      }}>
+        This test send is free and does not count against your 3 free sends.
       </p>
       <p style={{
         fontSize: '0.9375rem',
