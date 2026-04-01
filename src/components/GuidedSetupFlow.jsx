@@ -411,50 +411,29 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         🎉
       </div>
       <h2 style={{
-        fontSize: isMobile ? '1.5rem' : '1.75rem',
+        fontSize: isMobile ? '1.375rem' : '1.625rem',
         fontWeight: 700,
         color: 'var(--text-primary)',
-        marginBottom: '0.75rem',
+        marginBottom: '1.25rem',
+        lineHeight: 1.35,
       }}>
-        Congratulations &mdash; welcome to Greet-Me!
+        Congratulations{user?.name ? `, ${user.name.split(' ')[0]}` : ''} &mdash; welcome to Greet-Me.
       </h2>
-      <div style={{
-        display: 'flex',
-        gap: '0.75rem',
-        justifyContent: 'center',
-        marginBottom: '1.5rem',
-        flexWrap: 'wrap',
-      }}>
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.35rem',
-          padding: '0.375rem 0.75rem',
-          background: '#fef3c7',
-          borderRadius: '2rem',
-          fontSize: '0.8125rem',
-          fontWeight: 600,
-          color: '#92400e',
-        }}>❤️ 25 hearts</span>
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.35rem',
-          padding: '0.375rem 0.75rem',
-          background: '#f0fdf4',
-          borderRadius: '2rem',
-          fontSize: '0.8125rem',
-          fontWeight: 600,
-          color: '#166534',
-        }}>✉️ 3 free sends</span>
-      </div>
       <p style={{
         fontSize: '1rem',
         color: 'var(--text-secondary)',
+        lineHeight: 1.7,
+        marginBottom: '1.5rem',
+        maxWidth: '24rem',
+        margin: '0 auto 1.5rem',
+      }}>
+        You&rsquo;ve earned ❤️ 25 hearts and received 3 free sends &mdash; our gift to you.
+      </p>
+      <p style={{
+        fontSize: '1.0625rem',
+        fontWeight: 600,
+        color: 'var(--text-primary)',
         marginBottom: '2rem',
-        lineHeight: 1.6,
-        maxWidth: '22rem',
-        margin: '0 auto 2rem',
       }}>
         Let&rsquo;s create your first Greet-Me.
       </p>
@@ -471,10 +450,19 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           fontWeight: 600,
           cursor: 'pointer',
           fontFamily: 'inherit',
+          marginBottom: '0.75rem',
         }}
       >
         Let&rsquo;s go
       </button>
+      <p style={{
+        fontSize: '0.75rem',
+        color: 'var(--text-tertiary)',
+        fontStyle: 'italic',
+        margin: 0,
+      }}>
+        Your first test Greet-Me is on us &mdash; it won&rsquo;t count toward your 3 sends.
+      </p>
     </div>
   );
 
