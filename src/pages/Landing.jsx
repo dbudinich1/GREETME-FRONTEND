@@ -14,6 +14,13 @@ export default function Landing() {
   const [demoMuted, setDemoMuted] = useState(true);
   const demoRef = useRef(null);
 
+  // Force autoplay on mount (some browsers need explicit .play() even with autoPlay attr)
+  useEffect(() => {
+    if (demoRef.current && !isAuthenticated && !loading) {
+      demoRef.current.play().catch(() => {});
+    }
+  }, [isAuthenticated, loading]);
+
   useEffect(() => {
     if (!loading && isAuthenticated) {
       navigate('/dashboard', { replace: true });
