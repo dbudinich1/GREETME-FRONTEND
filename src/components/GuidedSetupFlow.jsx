@@ -448,12 +448,20 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       <p style={{
         fontSize: '1rem',
         color: 'var(--text-secondary)',
-        marginBottom: '2.5rem',
+        marginBottom: '1.5rem',
         lineHeight: 1.6,
-        maxWidth: '20rem',
-        margin: '0 auto 2.5rem',
+        maxWidth: '22rem',
+        margin: '0 auto 1.5rem',
       }}>
-        A new way to show up for the people who matter — in your voice, with your presence.
+        A new way to show up for the people who matter &mdash; in your voice, with your presence.
+      </p>
+      <p style={{
+        fontSize: '0.875rem',
+        color: 'var(--text-tertiary)',
+        marginBottom: '2rem',
+        lineHeight: 1.5,
+      }}>
+        Watch a quick demo, then we&rsquo;ll help you create your first one.
       </p>
       <button
         onClick={nextStep}
@@ -634,7 +642,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
               marginBottom: '0.75rem',
             }}
           >
-            Now let&rsquo;s create yours
+            Create a Greet-Me
           </button>
           <button
             onClick={handleSkip}
@@ -669,7 +677,68 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   );
 
   // STEP 3: Record Voice
-  const renderVoice = () => (
+  const [voicePrepSeen, setVoicePrepSeen] = useState(false);
+
+  const renderVoice = () => {
+    // Bridge / prep screen before voice recording
+    if (!voicePrepSeen && !voiceSaved) {
+      return (
+        <div style={{ padding: isMobile ? '1.5rem' : '2rem', textAlign: 'center' }}>
+          <div style={{
+            width: '4rem',
+            height: '4rem',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 1.5rem',
+            fontSize: '1.75rem',
+          }}>
+            ✨
+          </div>
+          <h3 style={{
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            marginBottom: '1rem',
+          }}>
+            This is exciting.
+          </h3>
+          <p style={{
+            fontSize: '1rem',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.7,
+            marginBottom: '2rem',
+            maxWidth: '22rem',
+            margin: '0 auto 2rem',
+          }}>
+            You&rsquo;re about to create your first Greet-Me.
+            Record your voice, add a photo that&rsquo;s unmistakably you, and tap send.
+            Then check your inbox for your first Greet-Me.
+          </p>
+          <button
+            onClick={() => setVoicePrepSeen(true)}
+            style={{
+              width: '100%',
+              padding: '1rem',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '1rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            Let&rsquo;s go
+          </button>
+        </div>
+      );
+    }
+
+    return (
     <div style={{ padding: isMobile ? '1.5rem' : '2rem' }}>
       <h3 style={{
         fontSize: '1.125rem',
@@ -846,6 +915,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       )}
     </div>
   );
+  };
 
   // STEP 3: Upload Photo
   const renderPhoto = () => (
@@ -1238,12 +1308,12 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         color: 'var(--text-primary)',
         marginBottom: '0.75rem',
       }}>
-        That's it! Your Greet-Me is ready!
+        Congratulations! Your Greet-Me is on its way!
       </h2>
       <p style={{
         fontSize: '0.9375rem',
         color: 'var(--text-secondary)',
-        marginBottom: '1.5rem',
+        marginBottom: '1rem',
         lineHeight: 1.6,
       }}>
         We just sent you a test Greet-Me so you can experience what your recipients will receive.
@@ -1251,7 +1321,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       <p style={{
         fontSize: '0.8125rem',
         color: '#10b981',
-        marginBottom: '0.75rem',
+        marginBottom: '1.5rem',
       }}>
         This test send is free and does not count against your 3 free sends.
       </p>

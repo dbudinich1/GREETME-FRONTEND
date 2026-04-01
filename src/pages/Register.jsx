@@ -9,7 +9,8 @@ import GreetMeLogo from '../components/GreetMeLogo';
 const isMobile = window.innerWidth <= 480;
 
 export default function Register() {
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,7 +23,8 @@ export default function Register() {
     setError('');
     setLoading(true);
 
-    const result = await register(name, email, password);
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+    const result = await register(fullName, email, password);
 
     if (result.success) {
       const pendingReferral = localStorage.getItem('greetme_referral_code');
@@ -99,33 +101,63 @@ export default function Register() {
 
         {/* Form */}
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              marginBottom: '0.375rem',
-            }}>
-              Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
-              required
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.875rem',
-                fontFamily: 'inherit',
-                boxSizing: 'border-box',
-                background: 'var(--bg-primary)',
-              }}
-            />
+          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{
+                display: 'block',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                marginBottom: '0.375rem',
+              }}>
+                First Name
+              </label>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="First"
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.875rem',
+                  fontFamily: 'inherit',
+                  boxSizing: 'border-box',
+                  background: 'var(--bg-primary)',
+                }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{
+                display: 'block',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                marginBottom: '0.375rem',
+              }}>
+                Last Name
+              </label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Last"
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.875rem',
+                  fontFamily: 'inherit',
+                  boxSizing: 'border-box',
+                  background: 'var(--bg-primary)',
+                }}
+              />
+            </div>
           </div>
 
           <div style={{ marginBottom: '1rem' }}>
