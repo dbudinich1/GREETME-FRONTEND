@@ -329,6 +329,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         `${window.location.origin}/assets/onboarding/memory-5-thinking-of-you.jpeg`,
       ],
       layoutBudget: { introMaxChars: 280 },
+      isOnboardingTestSend: true,
       demoContent: {
         writtenIntroText: `Welcome \u2014 and thank you for being here.\n\nThese photos tell a story. Your voice brings it to life. And the people who receive this from you will know, without a doubt, that they were on your mind. There\u2019s a little something waiting on the back of this card, just for you.`,
         videoScriptText: `Hey. These moments \u2014 they matter. The laughter, the places, the people. And now your voice is part of it. That\u2019s something no one else can give them. Oh \u2014 and don\u2019t forget to check the back of the card.`,
