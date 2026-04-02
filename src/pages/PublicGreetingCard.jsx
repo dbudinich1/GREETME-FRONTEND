@@ -19,6 +19,23 @@ export default function PublicGreetingCard() {
     loadGreeting();
   }, [jobId]);
 
+  // Auto-poll while greeting is processing (check every 5s, max 5 min)
+  useEffect(() => {
+    if (!greeting || greeting.status === 'done' || greeting.status === 'completed') return;
+    const start = Date.now();
+    const interval = setInterval(async () => {
+      if (Date.now() - start > 5 * 60 * 1000) { clearInterval(interval); return; }
+      try {
+        const res = await api.getPublicGreeting(jobId);
+        if (res?.ok && res.greeting && (res.greeting.status === 'done' || res.greeting.status === 'completed')) {
+          clearInterval(interval);
+          loadGreeting(); // full reload with all fields
+        }
+      } catch {}
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [greeting?.status, jobId]);
+
   // Dynamic document title (Task 4.1)
   useEffect(() => {
     if (greeting) {
