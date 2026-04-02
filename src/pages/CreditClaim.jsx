@@ -106,27 +106,28 @@ export default function CreditClaim() {
               Your {displayAmount} credit has been saved to your account.
             </p>
 
-            {/* Primary: Claim + Create Account */}
+            {/* Primary CTA */}
             <button onClick={() => {
               if (isAuthenticated) { navigate('/dashboard/send'); }
               else { navigate('/register', { state: { returnTo: '/dashboard/send' } }); }
             }} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
               {isAuthenticated
-                ? `Use ${displayAmount} Now \u2014 Send a Greet-Me`
+                ? `Claim & Apply Your ${displayAmount} Credit`
                 : `Claim Your ${displayAmount} \u2014 Create Your Account`}
             </button>
 
-            {/* Smart loop: Thank You (if credit came from a greeting) */}
-            <button onClick={() => {
-              if (isAuthenticated) { navigate('/dashboard/send'); }
-              else { navigate('/register', { state: { returnTo: '/dashboard/send' } }); }
-            }} style={{
-              ...styles.cta,
-              background: 'rgba(255,255,255,0.15)',
-              border: '1px solid rgba(255,255,255,0.3)',
-            }}>
-              Send a Thank You Greet-Me
-            </button>
+            {/* Smart loop: Thank You — hidden for authenticated users (onboarding test flow) */}
+            {!isAuthenticated && (
+              <button onClick={() => {
+                navigate('/register', { state: { returnTo: '/dashboard/send' } });
+              }} style={{
+                ...styles.cta,
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+              }}>
+                Send a Thank You Greet-Me
+              </button>
+            )}
           </>
         ) : (
           <>
