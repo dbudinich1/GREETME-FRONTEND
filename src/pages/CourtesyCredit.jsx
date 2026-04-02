@@ -12,7 +12,11 @@ export default function CourtesyCredit() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const amount = parseInt(searchParams.get('amount') || '5', 10);
+  const source = searchParams.get('source');
   const displayAmount = `$${amount}`;
+
+  // Onboarding test flow: authenticated user arriving from finale → single CTA, no thank-you option
+  const isOnboardingClaim = source === 'finale' && isAuthenticated;
 
   // Stash credit in localStorage so it persists through registration
   const stashCredit = () => {
@@ -106,7 +110,7 @@ export default function CourtesyCredit() {
           Apply your credit and start sending unforgettable greetings to the people who matter most.
         </p>
 
-        {/* Primary: Claim + Create Account / Send */}
+        {/* Primary CTA */}
         <button
           onClick={handlePrimary}
           style={{
@@ -126,32 +130,36 @@ export default function CourtesyCredit() {
             boxShadow: '0 4px 20px rgba(255,255,255,0.15)',
           }}
         >
-          {isAuthenticated
-            ? `Use ${displayAmount} Now \u2014 Send a Greet-Me`
-            : `Claim Your ${displayAmount} \u2014 Create Your Account`}
+          {isOnboardingClaim
+            ? `Claim & Apply Your ${displayAmount} Credit`
+            : isAuthenticated
+              ? `Use ${displayAmount} Now \u2014 Send a Greet-Me`
+              : `Claim Your ${displayAmount} \u2014 Create Your Account`}
         </button>
 
-        {/* Smart loop: Thank You */}
-        <button
-          onClick={handleThankYou}
-          style={{
-            display: 'block',
-            width: '100%',
-            maxWidth: '340px',
-            margin: '0 auto',
-            padding: '0.75rem 2rem',
-            background: 'rgba(255,255,255,0.12)',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.25)',
-            borderRadius: '2rem',
-            fontSize: '0.9375rem',
-            fontWeight: 600,
-            fontFamily: 'Georgia, serif',
-            cursor: 'pointer',
-          }}
-        >
-          Send a Thank You Greet-Me
-        </button>
+        {/* Smart loop: Thank You — hidden during onboarding test flow */}
+        {!isOnboardingClaim && (
+          <button
+            onClick={handleThankYou}
+            style={{
+              display: 'block',
+              width: '100%',
+              maxWidth: '340px',
+              margin: '0 auto',
+              padding: '0.75rem 2rem',
+              background: 'rgba(255,255,255,0.12)',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.25)',
+              borderRadius: '2rem',
+              fontSize: '0.9375rem',
+              fontWeight: 600,
+              fontFamily: 'Georgia, serif',
+              cursor: 'pointer',
+            }}
+          >
+            Send a Thank You Greet-Me
+          </button>
+        )}
 
         <p style={{
           fontSize: '0.75rem',
