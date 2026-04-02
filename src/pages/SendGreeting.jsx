@@ -439,11 +439,16 @@ export default function SendGreeting() {
 
     // Demo mode: attach pre-written content to skip AI generation
     if (isDemo) {
+      const n = selectedContact.name;
       payload.demoContent = {
-        writtenIntroText: `Happy Mother\u2019s Day, ${selectedContact.name}!\n\nYou are the heart of everything good in my life. Your love, your strength, and your kindness have shaped who I am today. I hope this Mother\u2019s Day brings you as much joy as you\u2019ve brought to everyone around you.\nWith all my love`,
-        videoScriptText: `${selectedContact.name}, I just wanted to say happy Mother\u2019s Day. You mean the world to me, and I hope today is filled with all the love you deserve. I\u2019m so grateful for everything you do. Love you.`,
-        poemText: `A mother\u2019s love, so warm and true,\nA guiding light in all we do.\nThrough every storm, through every cheer,\nYou\u2019re the one who holds us near.`,
-        finaleText: `${selectedContact.name}, I cherish every moment we share.\n\nHappy Mother\u2019s Day \u2014 today and always.\n\nWith all my love`,
+        // Intro: ≤280 chars, 2 paragraphs. Occasion in first line after salutation.
+        writtenIntroText: `Happy Mother\u2019s Day!\n\nYour love and strength inspire me every single day. I hope today reminds you just how deeply you are appreciated and how much joy you bring to everyone around you.`,
+        // Video: ~15 seconds spoken, natural and warm
+        videoScriptText: `${n}, happy Mother\u2019s Day. You mean the world to me. I hope today brings you all the love and joy you deserve. Thank you for everything.`,
+        // Poem: exactly 4 lines, each ≤35 chars, terminal punctuation, complete thoughts
+        poemText: `A mother\u2019s love lights every day.\nYou guide us in the warmest way.\nYour grace fills every single room.\nYou turn each shadow into bloom.`,
+        // Finale: body 120-180 chars, 3 paragraphs
+        finaleText: `${n}, you are the heart of this family.\n\nThank you for every sacrifice, every laugh, and every moment of grace. Today is yours.\n\nWith warmest wishes`,
       };
     }
 
