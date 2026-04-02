@@ -525,8 +525,11 @@ export default function Pricing() {
                     </div>
                   ) : (
                     <div>
-                      <span style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>${plan.price}</span>
-                      <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>/{plan.period}</span>
+                      <span style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>${(plan.price + 4.99).toFixed(2)}</span>
+                      <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}> first {plan.period}</span>
+                      <p style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', margin: '0.25rem 0 0' }}>
+                        ${plan.price}/{plan.period} + $4.99 one-time technology fee
+                      </p>
                     </div>
                   )}
                 </div>
@@ -543,7 +546,7 @@ export default function Pricing() {
                     color: '#065f46',
                     fontWeight: 600,
                   }}>
-                    $10 credit applies &mdash; pay ${(plan.price - 10).toFixed(2)}/{plan.period}
+                    $10 credit applies &mdash; pay ${(plan.price + 4.99 - 10).toFixed(2)} today
                   </div>
                 )}
                 {isCreditIneligible && (
@@ -936,7 +939,7 @@ export default function Pricing() {
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    marginBottom: '0.5rem'
+                    marginBottom: '0.375rem'
                   }}>
                     <span style={{ color: 'var(--text-secondary)' }}>{selectedPlan.name}</span>
                     <span style={{ fontWeight: 600 }}>${selectedPlan.price}/{selectedPlan.period}</span>
@@ -945,12 +948,23 @@ export default function Pricing() {
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
+                    marginBottom: '0.375rem',
+                    fontSize: '0.8125rem',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    <span>One-Time Technology Fee</span>
+                    <span>$4.99</span>
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
                     paddingTop: '0.75rem',
                     borderTop: '1px solid var(--border)',
-                    marginTop: '0.75rem'
+                    marginTop: '0.5rem'
                   }}>
                     <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Total</span>
-                    <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--primary)' }}>${selectedPlan.price}</span>
+                    <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--primary)' }}>${(selectedPlan.price + 4.99).toFixed(2)}</span>
                   </div>
                   {pricingMode === 'founders' && (
                     <div style={{
