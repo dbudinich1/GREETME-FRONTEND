@@ -103,11 +103,37 @@ export default function CreditClaim() {
           <>
             <h1 style={styles.headline}>Credit applied</h1>
             <p style={styles.body}>
-              Your {displayAmount} credit has been applied to your account. Use it toward your next Greet-Me subscription.
+              Your {displayAmount} credit has been saved to your account.
             </p>
-            <button onClick={() => navigate('/pricing')} style={styles.cta}>
-              View Plans
+
+            {/* Primary: Use credit now */}
+            <button onClick={() => navigate('/dashboard/send')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
+              Use {displayAmount} Now &mdash; Send a Greet-Me
             </button>
+
+            {/* Secondary: View plans */}
+            <button onClick={() => navigate('/pricing')} style={{
+              ...styles.cta,
+              background: 'transparent',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.3)',
+              marginBottom: '0.75rem',
+            }}>
+              Explore Plans
+            </button>
+
+            {/* Tertiary: Save for later */}
+            <div
+              onClick={() => navigate('/dashboard')}
+              style={{
+                fontSize: '0.8125rem',
+                color: 'rgba(255,255,255,0.5)',
+                cursor: 'pointer',
+                textAlign: 'center',
+              }}
+            >
+              Save for later
+            </div>
           </>
         ) : (
           <>

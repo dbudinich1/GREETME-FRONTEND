@@ -315,41 +315,77 @@ export default function GiftClaim() {
             You&rsquo;ll receive a confirmation once it&rsquo;s on the way.
           </p>
 
+          {/* Multi-path CTA — no dead ends */}
           {(() => {
             const rawFirst = (gift.senderName || '').split(' ')[0];
             const firstName = rawFirst ? rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase() : '';
-            const dest = gift.sourceGreetingJobId
+            const thankYouDest = gift.sourceGreetingJobId
               ? `/thank-you?jobId=${gift.sourceGreetingJobId}`
               : '/dashboard/send';
             return (
               <div style={{ marginTop: '0.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>
-                <p style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1f2937', margin: '0 0 1rem' }}>
-                  Did you love your Greet-Me?
-                </p>
+                {/* Primary: Send a Greet-Me with credit */}
                 <button
-                  onClick={() => navigate(dest)}
+                  onClick={() => navigate('/dashboard/send')}
                   style={{
-                    display: 'inline-block',
-                    padding: '0.75rem 2rem',
-                    background: '#4F2D7F',
+                    display: 'block',
+                    width: '100%',
+                    padding: '0.875rem',
+                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
                     color: '#fff',
-                    borderRadius: '2rem',
+                    borderRadius: '0.75rem',
                     fontWeight: 600,
                     fontSize: '1rem',
-                    fontFamily: 'Georgia, serif',
-                    boxShadow: '0 3px 10px rgba(79, 45, 127, 0.2)',
-                    whiteSpace: 'nowrap',
+                    fontFamily: FONT_STACK,
                     border: 'none',
+                    cursor: 'pointer',
+                    marginBottom: '0.75rem',
+                    boxShadow: '0 4px 14px rgba(99, 102, 241, 0.3)',
+                  }}
+                >
+                  Send a Greet-Me
+                </button>
+
+                {/* Parallel: Thank You */}
+                <button
+                  onClick={() => navigate(thankYouDest)}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    padding: '0.75rem',
+                    background: '#4F2D7F',
+                    color: '#fff',
+                    borderRadius: '0.75rem',
+                    fontWeight: 600,
+                    fontSize: '0.9375rem',
+                    fontFamily: FONT_STACK,
+                    border: 'none',
+                    cursor: 'pointer',
+                    marginBottom: '0.75rem',
+                  }}
+                >
+                  {firstName ? `Say thanks to ${firstName}` : 'Send a thank you'}
+                </button>
+
+                {/* Secondary: Save for later */}
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    padding: '0.625rem',
+                    background: 'transparent',
+                    color: '#6b7280',
+                    borderRadius: '0.75rem',
+                    fontWeight: 500,
+                    fontSize: '0.875rem',
+                    fontFamily: FONT_STACK,
+                    border: '1px solid #e5e7eb',
                     cursor: 'pointer',
                   }}
                 >
-                  say thanks on us
+                  Save for later
                 </button>
-                <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.75rem 0 0', lineHeight: 1.5 }}>
-                  {firstName
-                    ? `let ${firstName} know he made your day`
-                    : 'let them know you loved it'}
-                </p>
               </div>
             );
           })()}
