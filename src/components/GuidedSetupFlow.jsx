@@ -314,12 +314,12 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     setSendingStatus('voice');
 
     // Fire API call immediately (runs in background)
+    // First test send uses pre-written welcome content (demoContent override)
     const sendPromise = api.sendGreeting({
       recipientName,
       recipientEmail,
-      message: greetingMessage.trim() || 'This is your very first Greet-Me. We hope it makes you smile.',
+      message: greetingMessage.trim() || 'Welcome to Greet-Me',
       occasionKey: 'just_because',
-      personalSentiment: 'This is a warm, heartfelt first greeting. Make it emotionally moving and comforting. There is a special gift waiting on the back of the card.',
       tone: 'warm',
       photos: [
         `${window.location.origin}/assets/onboarding/memory-1-beach-toast.jpeg`,
@@ -329,6 +329,12 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         `${window.location.origin}/assets/onboarding/memory-5-thinking-of-you.jpeg`,
       ],
       layoutBudget: { introMaxChars: 280 },
+      demoContent: {
+        writtenIntroText: `Welcome to Greet-Me!\n\nWhat you\u2019re experiencing right now is exactly what your recipients will feel \u2014 your voice, your presence, and a collection of moments that matter. We\u2019ve included a little something special on the back of this card, just for you.`,
+        videoScriptText: `Welcome to Greet-Me. What you\u2019re seeing right now \u2014 these moments, these memories \u2014 this is what it feels like when someone shows up for you. And there\u2019s something waiting for you on the back of this card. Enjoy.`,
+        poemText: `A moment shared is never lost.\nIt lives in hearts beyond all cost.\nThese memories we hold so dear.\nRemind us love is always here.`,
+        finaleText: `This is what your presence feels like \u2014 delivered.\n\nEvery greeting carries your voice and your heart. There\u2019s a gift on the back of this card, just for you.\n\nWith warmth and gratitude`,
+      },
     }).then(result => {
       if (result?.jobId) localStorage.setItem('greetme_onboarding_test_jobId', result.jobId);
       return result;
