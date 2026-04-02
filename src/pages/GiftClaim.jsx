@@ -323,16 +323,16 @@ export default function GiftClaim() {
             You&rsquo;ll receive a confirmation once it&rsquo;s on the way.
           </p>
 
-          {/* Multi-path CTA — no dead ends */}
+          {/* Forward-motion CTAs — no dead ends */}
           {(() => {
             const rawFirst = (gift.senderName || '').split(' ')[0];
             const firstName = rawFirst ? rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase() : '';
             const thankYouDest = gift.sourceGreetingJobId
               ? `/thank-you?jobId=${gift.sourceGreetingJobId}`
-              : '/dashboard/send';
+              : null;
             return (
               <div style={{ marginTop: '0.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>
-                {/* Primary: Send a Greet-Me with credit */}
+                {/* Primary: Claim + Create Account */}
                 <button
                   onClick={() => authRoute('/dashboard/send')}
                   style={{
@@ -351,49 +351,30 @@ export default function GiftClaim() {
                     boxShadow: '0 4px 14px rgba(99, 102, 241, 0.3)',
                   }}
                 >
-                  Send a Greet-Me
+                  {isAuthenticated ? 'Send a Greet-Me' : 'Claim Your $5 \u2014 Create Your Account'}
                 </button>
 
-                {/* Parallel: Thank You (public route — no auth needed) */}
-                <button
-                  onClick={() => navigate(thankYouDest)}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: '0.75rem',
-                    background: '#4F2D7F',
-                    color: '#fff',
-                    borderRadius: '0.75rem',
-                    fontWeight: 600,
-                    fontSize: '0.9375rem',
-                    fontFamily: FONT_STACK,
-                    border: 'none',
-                    cursor: 'pointer',
-                    marginBottom: '0.75rem',
-                  }}
-                >
-                  {firstName ? `Say thanks to ${firstName}` : 'Send a thank you'}
-                </button>
-
-                {/* Secondary: Save for later */}
-                <button
-                  onClick={() => isAuthenticated ? navigate('/dashboard') : navigate('/')}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: '0.625rem',
-                    background: 'transparent',
-                    color: '#6b7280',
-                    borderRadius: '0.75rem',
-                    fontWeight: 500,
-                    fontSize: '0.875rem',
-                    fontFamily: FONT_STACK,
-                    border: '1px solid #e5e7eb',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {isAuthenticated ? 'Save for later' : 'Maybe later'}
-                </button>
+                {/* Smart loop: Thank You (only when sourceGreetingJobId exists) */}
+                {thankYouDest && (
+                  <button
+                    onClick={() => navigate(thankYouDest)}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: '#4F2D7F',
+                      color: '#fff',
+                      borderRadius: '0.75rem',
+                      fontWeight: 600,
+                      fontSize: '0.9375rem',
+                      fontFamily: FONT_STACK,
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {firstName ? `Send a Thank You Greet-Me to ${firstName}` : 'Send a Thank You Greet-Me'}
+                  </button>
+                )}
               </div>
             );
           })()}

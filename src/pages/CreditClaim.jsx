@@ -106,37 +106,27 @@ export default function CreditClaim() {
               Your {displayAmount} credit has been saved to your account.
             </p>
 
-            {/* Primary: Use credit now */}
+            {/* Primary: Claim + Create Account */}
             <button onClick={() => {
               if (isAuthenticated) { navigate('/dashboard/send'); }
               else { navigate('/register', { state: { returnTo: '/dashboard/send' } }); }
             }} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
-              Use {displayAmount} Now &mdash; Send a Greet-Me
+              {isAuthenticated
+                ? `Use ${displayAmount} Now \u2014 Send a Greet-Me`
+                : `Claim Your ${displayAmount} \u2014 Create Your Account`}
             </button>
 
-            {/* Secondary: Explore plans */}
-            <button onClick={() => navigate('/pricing')} style={{
+            {/* Smart loop: Thank You (if credit came from a greeting) */}
+            <button onClick={() => {
+              if (isAuthenticated) { navigate('/dashboard/send'); }
+              else { navigate('/register', { state: { returnTo: '/dashboard/send' } }); }
+            }} style={{
               ...styles.cta,
-              background: 'transparent',
-              color: '#fff',
+              background: 'rgba(255,255,255,0.15)',
               border: '1px solid rgba(255,255,255,0.3)',
-              marginBottom: '0.75rem',
             }}>
-              Explore Plans
+              Send a Thank You Greet-Me
             </button>
-
-            {/* Tertiary: Save for later */}
-            <div
-              onClick={() => isAuthenticated ? navigate('/dashboard') : navigate('/')}
-              style={{
-                fontSize: '0.8125rem',
-                color: 'rgba(255,255,255,0.5)',
-                cursor: 'pointer',
-                textAlign: 'center',
-              }}
-            >
-              {isAuthenticated ? 'Save for later' : 'Maybe later'}
-            </div>
           </>
         ) : (
           <>
