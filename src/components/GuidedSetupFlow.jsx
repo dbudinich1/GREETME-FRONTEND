@@ -332,9 +332,9 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       isOnboardingTestSend: true,
       demoContent: {
         writtenIntroText: `Welcome!\n\nHope this message finds you well. Just wanted to take a moment to say welcome to the neighborhood. We hope you loved receiving your Greet-Me as much as we loved sending it. From our family to yours \u2014 welcome!`,
-        videoScriptText: `Hey \u2014 welcome. Hope this finds you well. Just wanted to take a moment to say welcome to the neighborhood. We hope you loved receiving your Greet-Me as much as we loved sending it. From our family to yours \u2014 welcome. And don\u2019t forget to check the back of the card.`,
-        poemText: `Some forget occasions, some names.\nSome meant to stop by while time passed.\nSo here\u2019s to the ones that time forgot \u2014\nthe love you intended \u2014 forget them not!`,
-        finaleText: `From our family to yours \u2014 welcome to the neighborhood.\n\nThere\u2019s something on the back of this card, just for you.\n\nForget them not.`,
+        videoScriptText: `These are the moments that matter \u2014 the people, the places, the laughter\u2026 but most of all, the personal connection. Showing up means more than you know. I put together a little memory photo album I hope you\u2019ll love. And don\u2019t forget to check the back of the card \u2014 I added something just for you.`,
+        poemText: `Some forget occasions, some forget names.\nSome meant to stop by while time passed with shame!\nSo here\u2019s to the ones that time forgot \u2014\nthe love you intended \u2014 forget them not!`,
+        finaleText: `Once again, welcome.\n\nWe\u2019re looking forward to creating meaningful memories for all of life\u2019s special occasions. Be sure to collect your gift.\n\nForget them not.`,
       },
     }).then(result => {
       if (result?.jobId) localStorage.setItem('greetme_onboarding_test_jobId', result.jobId);
