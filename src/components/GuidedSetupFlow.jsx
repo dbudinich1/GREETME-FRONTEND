@@ -323,11 +323,11 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       tone: 'warm',
       includeGift: true, // Tell AI to reference the gift on the back of the card
       photos: [
-        'onboarding/memory-1-beach-toast.jpeg',
-        'onboarding/memory-2-european-walk.jpeg',
-        'onboarding/memory-3-mountain-family.jpeg',
-        'onboarding/memory-4-festival-night.jpeg',
-        'onboarding/memory-5-thinking-of-you.jpeg',
+        `${window.location.origin}/assets/onboarding/memory-1-beach-toast.jpeg`,
+        `${window.location.origin}/assets/onboarding/memory-2-european-walk.jpeg`,
+        `${window.location.origin}/assets/onboarding/memory-3-mountain-family.jpeg`,
+        `${window.location.origin}/assets/onboarding/memory-4-festival-night.jpeg`,
+        `${window.location.origin}/assets/onboarding/memory-5-thinking-of-you.jpeg`,
       ],
       layoutBudget: { introMaxChars: 280 },
     }).then(result => {
