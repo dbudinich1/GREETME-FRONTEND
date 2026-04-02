@@ -331,10 +331,10 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       layoutBudget: { introMaxChars: 280 },
       isOnboardingTestSend: true,
       demoContent: {
-        writtenIntroText: `Welcome \u2014 and thank you for being here.\n\nThese photos tell a story. Your voice brings it to life. And the people who receive this from you will know, without a doubt, that they were on your mind. There\u2019s a little something waiting on the back of this card, just for you.`,
-        videoScriptText: `Hey. These moments \u2014 they matter. The laughter, the places, the people. And now your voice is part of it. That\u2019s something no one else can give them. Oh \u2014 and don\u2019t forget to check the back of the card.`,
-        poemText: `Some people carry us through the years\nwith steady hands and open hearts.\nA voice, a word, a gentle thought \u2014\nlove never truly departs.`,
-        finaleText: `Their name. Your voice. A moment they\u2019ll keep.\n\nThere\u2019s something on the back of this card \u2014 it\u2019s yours.\n\nForget them not.`,
+        writtenIntroText: `Welcome!\n\nHope this message finds you well. Just wanted to take a moment to say welcome to the neighborhood. We hope you loved receiving your Greet-Me as much as we loved sending it. From our family to yours \u2014 welcome!`,
+        videoScriptText: `Hey \u2014 welcome. Hope this finds you well. Just wanted to take a moment to say welcome to the neighborhood. We hope you loved receiving your Greet-Me as much as we loved sending it. From our family to yours \u2014 welcome. And don\u2019t forget to check the back of the card.`,
+        poemText: `Some forget occasions, some names.\nSome meant to stop by while time passed.\nSo here\u2019s to the ones that time forgot \u2014\nthe love you intended \u2014 forget them not!`,
+        finaleText: `From our family to yours \u2014 welcome to the neighborhood.\n\nThere\u2019s something on the back of this card, just for you.\n\nForget them not.`,
       },
     }).then(result => {
       if (result?.jobId) localStorage.setItem('greetme_onboarding_test_jobId', result.jobId);
