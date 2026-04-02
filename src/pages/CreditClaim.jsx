@@ -107,11 +107,14 @@ export default function CreditClaim() {
             </p>
 
             {/* Primary: Use credit now */}
-            <button onClick={() => navigate('/dashboard/send')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
+            <button onClick={() => {
+              if (isAuthenticated) { navigate('/dashboard/send'); }
+              else { navigate('/register', { state: { returnTo: '/dashboard/send' } }); }
+            }} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
               Use {displayAmount} Now &mdash; Send a Greet-Me
             </button>
 
-            {/* Secondary: View plans */}
+            {/* Secondary: Explore plans */}
             <button onClick={() => navigate('/pricing')} style={{
               ...styles.cta,
               background: 'transparent',
@@ -124,7 +127,7 @@ export default function CreditClaim() {
 
             {/* Tertiary: Save for later */}
             <div
-              onClick={() => navigate('/dashboard')}
+              onClick={() => isAuthenticated ? navigate('/dashboard') : navigate('/')}
               style={{
                 fontSize: '0.8125rem',
                 color: 'rgba(255,255,255,0.5)',
@@ -132,7 +135,7 @@ export default function CreditClaim() {
                 textAlign: 'center',
               }}
             >
-              Save for later
+              {isAuthenticated ? 'Save for later' : 'Maybe later'}
             </div>
           </>
         ) : (

@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
@@ -44,6 +45,13 @@ export default function GiftClaim() {
   const { claimToken } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
+  // Route helper: authenticated → direct, guest → register with returnTo
+  const authRoute = (dest) => {
+    if (isAuthenticated) return navigate(dest);
+    navigate(`/register`, { state: { returnTo: dest } });
+  };
 
   const [gift, setGift] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -326,7 +334,7 @@ export default function GiftClaim() {
               <div style={{ marginTop: '0.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>
                 {/* Primary: Send a Greet-Me with credit */}
                 <button
-                  onClick={() => navigate('/dashboard/send')}
+                  onClick={() => authRoute('/dashboard/send')}
                   style={{
                     display: 'block',
                     width: '100%',
@@ -346,7 +354,7 @@ export default function GiftClaim() {
                   Send a Greet-Me
                 </button>
 
-                {/* Parallel: Thank You */}
+                {/* Parallel: Thank You (public route — no auth needed) */}
                 <button
                   onClick={() => navigate(thankYouDest)}
                   style={{
@@ -369,7 +377,7 @@ export default function GiftClaim() {
 
                 {/* Secondary: Save for later */}
                 <button
-                  onClick={() => navigate('/dashboard')}
+                  onClick={() => isAuthenticated ? navigate('/dashboard') : navigate('/')}
                   style={{
                     display: 'block',
                     width: '100%',
@@ -384,7 +392,7 @@ export default function GiftClaim() {
                     cursor: 'pointer',
                   }}
                 >
-                  Save for later
+                  {isAuthenticated ? 'Save for later' : 'Maybe later'}
                 </button>
               </div>
             );
