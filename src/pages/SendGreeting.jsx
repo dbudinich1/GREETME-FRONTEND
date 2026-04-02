@@ -128,6 +128,21 @@ export default function SendGreeting() {
     fetchContacts();
   }, []);
 
+  // Demo mode prefill: ?demo=true&contactId=X → auto-select contact + Mother's Day
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('demo') !== 'true') return;
+    const demoContactId = params.get('contactId');
+    if (demoContactId) {
+      setFormData(prev => ({
+        ...prev,
+        contactId: demoContactId,
+        occasionType: 'mothersday',
+        tone: 'warm',
+      }));
+    }
+  }, [location.search]);
+
   // Auto-save draft when form has meaningful content
   useEffect(() => {
     if (!formData.contactId || !formData.occasionType) return;
@@ -398,10 +413,13 @@ export default function SendGreeting() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Check if in demo mode (URL param)
+  const isDemo = new URLSearchParams(location.search).get('demo') === 'true';
+
   // Build greeting payload (shared by direct send and QR Cash flow)
   const buildGreetingData = (selectedContact) => {
     const effectivePhotoUrl = user?.photoUrl || '';
-    return {
+    const payload = {
       userId: user?.id || user?.email || '',
       recipientName: selectedContact.name,
       recipientEmail: selectedContact.email,
@@ -418,6 +436,18 @@ export default function SendGreeting() {
       layoutBudget: { introMaxChars: 280 },
       includeGift: Boolean(giftSettings?.type && giftSettings.type !== 'none'),
     };
+
+    // Demo mode: attach pre-written content to skip AI generation
+    if (isDemo) {
+      payload.demoContent = {
+        writtenIntroText: `Happy Mother\u2019s Day, ${selectedContact.name}!\n\nYou are the heart of everything good in my life. Your love, your strength, and your kindness have shaped who I am today. I hope this Mother\u2019s Day brings you as much joy as you\u2019ve brought to everyone around you.\nWith all my love`,
+        videoScriptText: `${selectedContact.name}, I just wanted to say happy Mother\u2019s Day. You mean the world to me, and I hope today is filled with all the love you deserve. I\u2019m so grateful for everything you do. Love you.`,
+        poemText: `A mother\u2019s love, so warm and true,\nA guiding light in all we do.\nThrough every storm, through every cheer,\nYou\u2019re the one who holds us near.`,
+        finaleText: `${selectedContact.name}, I cherish every moment we share.\n\nHappy Mother\u2019s Day \u2014 today and always.\n\nWith all my love`,
+      };
+    }
+
+    return payload;
   };
 
   // Execute the actual greeting send (called directly or after gift charge)
