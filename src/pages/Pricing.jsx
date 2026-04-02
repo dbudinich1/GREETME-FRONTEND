@@ -1094,18 +1094,30 @@ export default function Pricing() {
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    marginBottom: '0.5rem'
+                    marginBottom: '0.375rem'
                   }}>
                     <span style={{ color: 'var(--text-secondary)' }}>{lastAddedPlan.name}</span>
                     <span style={{ fontWeight: 600, color: 'var(--primary)' }}>${lastAddedPlan.price}/{lastAddedPlan.period}</span>
                   </div>
                   <div style={{
-                    borderTop: '1px solid var(--border)',
-                    paddingTop: '0.5rem',
-                    fontSize: '0.875rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginBottom: '0.375rem',
+                    fontSize: '0.8125rem',
                     color: 'var(--text-secondary)'
                   }}>
-                    {cartService.getCount()} {cartService.getCount() === 1 ? 'item' : 'items'} in cart
+                    <span>One-Time Technology Fee</span>
+                    <span>$4.99</span>
+                  </div>
+                  <div style={{
+                    borderTop: '1px solid var(--border)',
+                    paddingTop: '0.5rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontWeight: 600,
+                  }}>
+                    <span>Total</span>
+                    <span style={{ color: 'var(--primary)' }}>${(lastAddedPlan.price + 4.99).toFixed(2)}</span>
                   </div>
                 </div>
 

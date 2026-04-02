@@ -313,43 +313,45 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     setStep(6); // Go to sending state
     setSendingStatus('voice');
 
+    // Fire API call immediately (runs in background)
+    const sendPromise = api.sendGreeting({
+      recipientName,
+      recipientEmail,
+      message: greetingMessage.trim() || 'This is your very first Greet-Me. We hope it makes you smile.',
+      occasionKey: 'just_because',
+      personalSentiment: 'This is a warm, heartfelt first greeting. Make it emotionally moving and comforting.',
+      tone: 'warm',
+      includeGift: true, // Tell AI to reference the gift on the back of the card
+      photos: [
+        'onboarding/memory-1-beach-toast.jpeg',
+        'onboarding/memory-2-european-walk.jpeg',
+        'onboarding/memory-3-mountain-family.jpeg',
+        'onboarding/memory-4-festival-night.jpeg',
+        'onboarding/memory-5-thinking-of-you.jpeg',
+      ],
+      layoutBudget: { introMaxChars: 280 },
+    }).then(result => {
+      if (result?.jobId) localStorage.setItem('greetme_onboarding_test_jobId', result.jobId);
+      return result;
+    }).catch(err => {
+      console.warn('Greeting send failed, continuing anyway:', err);
+      return null;
+    });
+
     try {
-      // Simulate the sending process with status updates
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setSendingStatus('video');
+      // Animate progress stages while API runs in parallel
       await new Promise(resolve => setTimeout(resolve, 2000));
+      setSendingStatus('video');
+      await new Promise(resolve => setTimeout(resolve, 3000));
       setSendingStatus('finalizing');
-      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Try to send via API
-      try {
-        const sendResult = await api.sendGreeting({
-          recipientName,
-          recipientEmail,
-          message: greetingMessage.trim() || 'Thinking of you',
-          occasionKey: 'just_because',
+      // Wait for API to finish (may already be done)
+      await sendPromise;
 
-          // === ONBOARDING MEMORY PHOTOS (curated emotional sequence) ===
-          photos: [
-            'onboarding/memory-1-beach-toast.jpeg',
-            'onboarding/memory-2-european-walk.jpeg',
-            'onboarding/memory-3-mountain-family.jpeg',
-            'onboarding/memory-4-festival-night.jpeg',
-            'onboarding/memory-5-thinking-of-you.jpeg',
-          ],
+      // Brief pause on "finalizing" so it doesn't flash
+      await new Promise(resolve => setTimeout(resolve, 800));
 
-          // === LAYOUT BUDGET (STATIC DEFAULT) ===
-          layoutBudget: { introMaxChars: 280 },
-        });
-        // Store jobId so "View My Greet-Me" button can link to it
-        if (sendResult?.jobId) {
-          localStorage.setItem('greetme_onboarding_test_jobId', sendResult.jobId);
-        }
-      } catch (err) {
-        console.warn('Greeting send failed, continuing anyway:', err);
-      }
-
-      // Mark as complete
+      // Mark as complete and advance
       updateSetupState({ firstGreetingSent: true });
       setSetupState(prev => ({ ...prev, firstGreetingSent: true }));
       setStep(7); // Go to success
