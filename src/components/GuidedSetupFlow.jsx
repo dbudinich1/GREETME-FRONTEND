@@ -330,10 +330,10 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       ],
       layoutBudget: { introMaxChars: 280 },
       demoContent: {
-        writtenIntroText: `Welcome to Greet-Me!\n\nWhat you\u2019re experiencing right now is exactly what your recipients will feel \u2014 your voice, your presence, and a collection of moments that matter. We\u2019ve included a little something special on the back of this card, just for you.`,
-        videoScriptText: `Welcome to Greet-Me. What you\u2019re seeing right now \u2014 these moments, these memories \u2014 this is what it feels like when someone shows up for you. And there\u2019s something waiting for you on the back of this card. Enjoy.`,
-        poemText: `A moment shared is never lost.\nIt lives in hearts beyond all cost.\nThese memories we hold so dear.\nRemind us love is always here.`,
-        finaleText: `This is what your presence feels like \u2014 delivered.\n\nEvery greeting carries your voice and your heart. There\u2019s a gift on the back of this card, just for you.\n\nWith warmth and gratitude`,
+        writtenIntroText: `Welcome \u2014 and thank you for being here.\n\nThese photos tell a story. Your voice brings it to life. And the people who receive this from you will know, without a doubt, that they were on your mind. There\u2019s a little something waiting on the back of this card, just for you.`,
+        videoScriptText: `Hey. These moments \u2014 they matter. The laughter, the places, the people. And now your voice is part of it. That\u2019s something no one else can give them. Oh \u2014 and don\u2019t forget to check the back of the card.`,
+        poemText: `Some people carry us through the years\nwith steady hands and open hearts.\nA voice, a word, a gentle thought \u2014\nlove never truly departs.`,
+        finaleText: `Their name. Your voice. A moment they\u2019ll keep.\n\nThere\u2019s something on the back of this card \u2014 it\u2019s yours.\n\nForget them not.`,
       },
     }).then(result => {
       if (result?.jobId) localStorage.setItem('greetme_onboarding_test_jobId', result.jobId);
