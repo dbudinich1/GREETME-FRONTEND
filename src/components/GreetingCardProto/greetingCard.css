@@ -703,25 +703,29 @@
   position: absolute;
   inset: 0;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  background: rgba(0, 0, 0, 0.3);
+  justify-content: flex-end;
+  align-items: flex-end;
+  padding: 12px;
+  background: transparent;
 }
 
 .gc-play-button {
-  width: 64px;
-  height: 64px;
-  background: rgba(255, 255, 255, 0.95);
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.9);
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
 }
 
 .gc-play-button svg {
-  margin-left: 4px;
+  margin-left: 2px;
   color: var(--gc-bg-navy);
+  width: 18px;
+  height: 18px;
 }
 
 /* Replay overlay - subtle indicator after video ends */

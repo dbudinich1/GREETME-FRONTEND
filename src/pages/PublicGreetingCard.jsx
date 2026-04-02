@@ -57,10 +57,12 @@ export default function PublicGreetingCard() {
           occasionKey: g.occasionKey || 'general',
           relationshipKey: g.relationshipKey || '',
           videoUrl: g.videoUrl || null,
+          photoUrl: g.photoUrl || null,
           photos: g.photos || [],
           status: g.status || 'done',
           hasGift: g.hasGift || false,
           gift: g.gift || null,
+          courtesyCreditCode: g.courtesyCreditCode || null,
         });
       } else {
         setError('not_found');

@@ -169,7 +169,7 @@ export default function GreetingCard({ greeting }) {
             photos={greeting.photos}
             videoHasEnded={videoHasEnded}
             onVideoEnd={() => setVideoHasEnded(true)}
-            posterUrl={greeting.photoUrl || greeting.photos?.[0]}
+            posterUrl={greeting.photoUrl || null}
           />
         );
       case SCREENS.FINALE:
@@ -392,7 +392,7 @@ export default function GreetingCard({ greeting }) {
               onClick={advanceScreen}
               videoHasEnded={videoHasEnded}
               onVideoEnd={() => setVideoHasEnded(true)}
-              posterUrl={greeting.photoUrl || greeting.photos?.[0]}
+              posterUrl={greeting.photoUrl || null}
             />
           )}
 

@@ -319,9 +319,8 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       recipientEmail,
       message: greetingMessage.trim() || 'This is your very first Greet-Me. We hope it makes you smile.',
       occasionKey: 'just_because',
-      personalSentiment: 'This is a warm, heartfelt first greeting. Make it emotionally moving and comforting.',
+      personalSentiment: 'This is a warm, heartfelt first greeting. Make it emotionally moving and comforting. There is a special gift waiting on the back of the card.',
       tone: 'warm',
-      includeGift: true, // Tell AI to reference the gift on the back of the card
       photos: [
         `${window.location.origin}/assets/onboarding/memory-1-beach-toast.jpeg`,
         `${window.location.origin}/assets/onboarding/memory-2-european-walk.jpeg`,
