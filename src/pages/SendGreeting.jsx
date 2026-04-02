@@ -448,7 +448,7 @@ export default function SendGreeting() {
         // Poem: exactly 4 lines, each ≤35 chars, terminal punctuation, complete thoughts
         poemText: `A mother\u2019s love lights every day.\nYou guide us in the warmest way.\nYour grace fills every single room.\nYou turn each shadow into bloom.`,
         // Finale: body 120-180 chars, 3 paragraphs
-        finaleText: `${n}, you are the heart of this family.\n\nThank you for every sacrifice, every laugh, and every moment of grace. Today is yours.\n\nWith warmest wishes`,
+        finaleText: `${n}, you are the heart of this family.\n\nThank you for every sacrifice, every laugh, and every moment of grace. Today is yours.\n\nWith All My Love This Mother\u2019s Day!!!`,
       };
     }
 
