@@ -3,23 +3,46 @@
 // Route: /courtesy-credit
 
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
 export default function CourtesyCredit() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const amount = parseInt(searchParams.get('amount') || '5', 10);
   const displayAmount = `$${amount}`;
 
-  const handleApply = () => {
-    // Stash credit context so pricing page can read it
+  // Stash credit in localStorage so it persists through registration
+  const stashCredit = () => {
     localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
       amount,
       source: 'finale',
       appliedAt: new Date().toISOString(),
     }));
-    navigate('/pricing');
+  };
+
+  const handlePrimary = () => {
+    stashCredit();
+    if (isAuthenticated) {
+      navigate('/dashboard/send');
+    } else {
+      navigate('/register', { state: { returnTo: '/dashboard/send' } });
+    }
+  };
+
+  const handleThankYou = () => {
+    stashCredit();
+    // ThankYouFlow is public — handles its own auth
+    const sourceJobId = searchParams.get('jobId');
+    if (sourceJobId) {
+      navigate(`/thank-you?jobId=${sourceJobId}`);
+    } else if (isAuthenticated) {
+      navigate('/dashboard/send');
+    } else {
+      navigate('/register', { state: { returnTo: '/dashboard/send' } });
+    }
   };
 
   return (
@@ -83,11 +106,15 @@ export default function CourtesyCredit() {
           Apply your credit and start sending unforgettable greetings to the people who matter most.
         </p>
 
+        {/* Primary: Claim + Create Account / Send */}
         <button
-          onClick={handleApply}
+          onClick={handlePrimary}
           style={{
-            display: 'inline-block',
-            padding: '0.875rem 2.5rem',
+            display: 'block',
+            width: '100%',
+            maxWidth: '340px',
+            margin: '0 auto 0.75rem',
+            padding: '0.875rem 2rem',
             background: '#fff',
             color: '#1B2A4A',
             border: 'none',
@@ -99,7 +126,31 @@ export default function CourtesyCredit() {
             boxShadow: '0 4px 20px rgba(255,255,255,0.15)',
           }}
         >
-          Apply My {displayAmount} Credit
+          {isAuthenticated
+            ? `Use ${displayAmount} Now \u2014 Send a Greet-Me`
+            : `Claim Your ${displayAmount} \u2014 Create Your Account`}
+        </button>
+
+        {/* Smart loop: Thank You */}
+        <button
+          onClick={handleThankYou}
+          style={{
+            display: 'block',
+            width: '100%',
+            maxWidth: '340px',
+            margin: '0 auto',
+            padding: '0.75rem 2rem',
+            background: 'rgba(255,255,255,0.12)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.25)',
+            borderRadius: '2rem',
+            fontSize: '0.9375rem',
+            fontWeight: 600,
+            fontFamily: 'Georgia, serif',
+            cursor: 'pointer',
+          }}
+        >
+          Send a Thank You Greet-Me
         </button>
 
         <p style={{
