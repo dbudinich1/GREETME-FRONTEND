@@ -15,7 +15,7 @@ Another year of dreams,
 May happiness find you always
 In everything, it seems.`;
 
-const MAX_POEM_LINES = 4;
+const MAX_POEM_LINES = 5;
 const MAX_CHARS_PER_LINE = 42;
 
 // Format poem to fit within frame constraints
