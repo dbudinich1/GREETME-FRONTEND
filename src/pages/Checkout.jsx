@@ -25,8 +25,15 @@ export default function Checkout() {
     || localStorage.getItem('greetme_referral_code')
     || null;
 
-  // Only referral credits create actual Stripe coupons — courtesy credits are not yet Stripe-backed
-  const creditAmount = referralCode ? 10 : 0;
+  // Credit: referral ($10 from gift) or courtesy ($5 from finale QR)
+  const courtesyCredit = (() => {
+    try {
+      const stored = localStorage.getItem('greetme_courtesy_credit');
+      return stored ? JSON.parse(stored) : null;
+    } catch { return null; }
+  })();
+  const courtesyCreditCode = courtesyCredit?.creditCode || null;
+  const creditAmount = referralCode ? 10 : (courtesyCredit?.amount || 0);
 
   const [total, setTotal] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -101,6 +108,7 @@ export default function Checkout() {
         planTier: item.planTier,
         billingPeriod: item.billingPeriod || item.period,
         ...(referralCode && { referralCode }),
+        ...(courtesyCreditCode && !referralCode && { courtesyCreditCode }),
       });
       window.location.href = data.url;
     } catch (error) {

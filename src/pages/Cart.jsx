@@ -715,8 +715,9 @@ export default function Cart() {
               {(() => {
                 const subscriptionItem = cartItems.find(item => item.type === 'subscription');
                 const planPrice = subscriptionItem?.price || total;
-                // Only referral credits create actual Stripe coupons — courtesy credits are informational
-                const rawCredit = hasReferralCredit ? 10 : 0;
+                // Both referral ($10) and courtesy ($5) credits now create Stripe coupons
+                const courtesyCredit = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
+                const rawCredit = hasReferralCredit ? 10 : (courtesyCredit?.amount || 0);
                 const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                 const creditAmt = creditEligible ? rawCredit : 0;
                 const techFee = 4.99;
@@ -745,10 +746,10 @@ export default function Cart() {
                       </div>
                     )}
 
-                    {/* Referral Credit (Stripe coupon — real deduction) */}
+                    {/* Greet-Me Credit (Stripe coupon — real deduction) */}
                     {rawCredit > 0 && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem', fontSize: '0.5625rem', color: creditEligible ? '#22c55e' : '#9ca3af', fontWeight: 600, fontStyle: creditEligible ? 'normal' : 'italic' }}>
-                        <span>Referral Credit</span>
+                        <span>Greet-Me Credit</span>
                         <span>{creditEligible ? `\u2013$${rawCredit.toFixed(2)}` : 'Not eligible for this plan'}</span>
                       </div>
                     )}
@@ -766,8 +767,8 @@ export default function Cart() {
               {(() => {
                 const subscriptionItem = cartItems.find(item => item.type === 'subscription');
                 const planPrice = subscriptionItem?.price || total;
-                // Only referral credits create Stripe coupons
-                const rawCredit = hasReferralCredit ? 10 : 0;
+                const courtesyCredit2 = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
+                const rawCredit = hasReferralCredit ? 10 : (courtesyCredit2?.amount || 0);
                 const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                 const creditAmt = creditEligible ? rawCredit : 0;
                 const finalTotal = Math.max(0, planPrice + 4.99 - creditAmt);
