@@ -414,19 +414,23 @@ export default function Checkout() {
         </div>
       </div>
 
-      {/* Value reinforcement */}
+      {/* Value reinforcement panel */}
       <div style={{
+        marginTop: '-0.5rem',
         marginBottom: '1.25rem',
-        fontSize: '0.95rem',
+        padding: '0.9rem 1.1rem',
+        background: '#f8f7ff',
+        border: '1px solid #e6e4ff',
+        borderRadius: '10px',
+        fontSize: '0.92rem',
         lineHeight: '1.4',
-        color: '#444',
+        color: '#333',
       }}>
-        <div style={{ marginBottom: '0.4rem', fontWeight: 500 }}>
+        <div style={{ marginBottom: '0.45rem', fontWeight: 600 }}>
           ✨ Your Greet-Me is created instantly and delivered in minutes
         </div>
-        <div style={{ marginBottom: '0.25rem', fontWeight: 500, fontSize: '0.875rem', color: '#555' }}>Includes:</div>
         <div>• Send instantly or schedule for any occasion</div>
-        <div>• A fully animated Greet-Me experience (with or without a gift)</div>
+        <div>• A fully animated Greet-Me experience — with or without a real-world gift</div>
         <div>• Greet One, Give One™ (send one to someone you love)</div>
       </div>
 
