@@ -697,18 +697,16 @@ export default function Cart() {
             position: isNarrow ? 'static' : 'sticky',
             top: '5rem'
           }}>
-            {/* Summary Header */}
+            {/* Summary Header — matches Checkout Order Summary */}
             <div style={{
-              background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-              padding: '0.75rem 1rem',
-              borderBottom: '1px solid var(--border)'
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              padding: '1rem 1.25rem',
+              color: 'white'
             }}>
-              <h2 style={{
-                fontSize: '1rem',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                margin: 0
-              }}>Summary</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <ShoppingBag size={18} />
+                <h2 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Order Summary</h2>
+              </div>
             </div>
 
             {/* Summary Content — normalized pricing structure */}
