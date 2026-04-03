@@ -878,9 +878,10 @@ export default function Pricing() {
             transform: 'translate(-50%, -50%)',
             background: 'white',
             borderRadius: 'var(--radius-xl)',
-            padding: '2rem 2.25rem',
-            maxWidth: '480px',
+            padding: '1.25rem 1.75rem',
+            maxWidth: '440px',
             width: '94%',
+            maxHeight: '88vh',
             overflow: 'visible',
             boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
             zIndex: 99999,
@@ -890,10 +891,10 @@ export default function Pricing() {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '1.5rem'
+              marginBottom: '0.75rem'
             }}>
               <h2 style={{
-                fontSize: '1.5rem',
+                fontSize: '1.25rem',
                 fontWeight: 700,
                 color: 'var(--text-primary)',
                 margin: 0
@@ -1062,36 +1063,36 @@ export default function Pricing() {
 
             {/* STATE 2: Confirmation */}
             {pricingStep === 'confirmation' && lastAddedPlan && (
-              <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+              <div style={{ textAlign: 'center', padding: '0.5rem 0' }}>
                 {/* Success Icon */}
                 <div style={{
-                  width: '5rem',
-                  height: '5rem',
+                  width: '3.5rem',
+                  height: '3.5rem',
                   borderRadius: '50%',
                   background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  margin: '0 auto 1.5rem',
+                  margin: '0 auto 0.75rem',
                   boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
                 }}>
-                  <Check size={40} style={{ color: 'white' }} />
+                  <Check size={28} style={{ color: 'white' }} />
                 </div>
 
                 {/* Confirmation Message */}
                 <h3 style={{
-                  fontSize: '1.5rem',
+                  fontSize: '1.25rem',
                   fontWeight: 700,
                   color: 'var(--text-primary)',
-                  marginBottom: '0.5rem'
+                  marginBottom: '0.25rem'
                 }}>
                   Added to Cart!
                 </h3>
 
                 <p style={{
-                  fontSize: '1rem',
+                  fontSize: '0.9375rem',
                   color: 'var(--text-secondary)',
-                  marginBottom: '1.5rem'
+                  marginBottom: '0.75rem'
                 }}>
                   {lastAddedPlan.name} Plan
                 </p>
@@ -1100,16 +1101,15 @@ export default function Pricing() {
                 <div style={{
                   background: 'var(--gray-50)',
                   borderRadius: 'var(--radius-lg)',
-                  padding: '1rem',
-                  marginBottom: '0.75rem',
-                  maxWidth: '320px',
-                  margin: '0 auto 1.5rem'
+                  padding: '0.875rem',
+                  maxWidth: '340px',
+                  margin: '0 auto 1rem'
                 }}>
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    marginBottom: '0.625rem',
-                    fontSize: '1rem',
+                    marginBottom: '0.5rem',
+                    fontSize: '0.9375rem',
                   }}>
                     <span style={{ color: 'var(--text-secondary)' }}>{lastAddedPlan.name}</span>
                     <span style={{ fontWeight: 600, color: 'var(--primary)' }}>${lastAddedPlan.price}/{lastAddedPlan.period}</span>
@@ -1117,8 +1117,8 @@ export default function Pricing() {
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    marginBottom: '0.625rem',
-                    fontSize: '0.9375rem',
+                    marginBottom: '0.5rem',
+                    fontSize: '0.875rem',
                     color: 'var(--text-secondary)'
                   }}>
                     <span>One-Time Technology Fee</span>
@@ -1135,23 +1135,22 @@ export default function Pricing() {
                           <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
-                            marginBottom: '0.625rem',
-                            fontSize: '0.9375rem',
+                            marginBottom: '0.5rem',
+                            fontSize: '0.875rem',
                             color: '#22c55e',
                             fontWeight: 600,
                           }}>
-                            <span>Greet-Me Credit</span>
+                            <span>Credit Applied</span>
                             <span>&ndash;${effectiveCredit.toFixed(2)}</span>
                           </div>
                         )}
                         <div style={{
                           borderTop: '1px solid var(--border)',
-                          paddingTop: '0.75rem',
-                          marginTop: '0.25rem',
+                          paddingTop: '0.625rem',
                           display: 'flex',
                           justifyContent: 'space-between',
                           fontWeight: 700,
-                          fontSize: '1.125rem',
+                          fontSize: '1.0625rem',
                         }}>
                           <span>Total</span>
                           <span style={{ color: 'var(--primary)' }}>${Math.max(0, lastAddedPlan.price + 4.99 - effectiveCredit).toFixed(2)}</span>

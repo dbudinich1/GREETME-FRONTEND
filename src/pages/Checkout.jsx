@@ -722,10 +722,10 @@ export default function Checkout() {
                         </div>
                       )}
 
-                      {/* Greet-Me Credit */}
+                      {/* Credit Applied */}
                       {creditAmount > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: creditEligible ? '#22c55e' : '#9ca3af', fontWeight: 500, fontStyle: creditEligible ? 'normal' : 'italic' }}>
-                          <span>Greet-Me Credit</span>
+                          <span>Credit Applied</span>
                           <span>{creditEligible ? `\u2013$${creditAmount.toFixed(2)}` : 'Not eligible for this plan'}</span>
                         </div>
                       )}

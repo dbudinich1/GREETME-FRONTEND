@@ -747,10 +747,10 @@ export default function Cart() {
                       </div>
                     )}
 
-                    {/* Greet-Me Credit (Stripe coupon — real deduction) */}
+                    {/* Credit Applied (Stripe coupon — real deduction) */}
                     {rawCredit > 0 && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem', fontSize: '0.5625rem', color: creditEligible ? '#22c55e' : '#9ca3af', fontWeight: 600, fontStyle: creditEligible ? 'normal' : 'italic' }}>
-                        <span>Greet-Me Credit</span>
+                        <span>Credit Applied</span>
                         <span>{creditEligible ? `\u2013$${rawCredit.toFixed(2)}` : 'Not eligible for this plan'}</span>
                       </div>
                     )}
@@ -774,10 +774,10 @@ export default function Cart() {
                 const creditAmt = creditEligible ? rawCredit : 0;
                 const finalTotal = Math.max(0, planPrice + 4.99 - creditAmt);
                 return (
-                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.25rem', marginBottom: '0.375rem' }}>
+                  <div style={{ borderTop: '2px solid var(--border)', paddingTop: '0.5rem', marginBottom: '0.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--text-primary)' }}>Total</span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#667eea' }}>${finalTotal.toFixed(2)}</span>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--text-primary)' }}>Total</span>
+                      <span style={{ fontSize: '1rem', fontWeight: 800, color: '#667eea' }}>${finalTotal.toFixed(2)}</span>
                     </div>
                   </div>
                 );
@@ -788,12 +788,12 @@ export default function Cart() {
                 onClick={handleCheckout}
                 style={{
                   width: '100%',
-                  padding: '0.375rem',
+                  padding: '0.625rem',
                   background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                   color: 'white',
                   border: 'none',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.625rem',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.8125rem',
                   fontWeight: 600,
                   cursor: 'pointer',
                   display: 'flex',
