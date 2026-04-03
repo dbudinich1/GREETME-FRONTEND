@@ -529,12 +529,12 @@ export default function Cart() {
                     fontWeight: 700,
                     color: 'white',
                     margin: 0
-                  }}>Greet One, Give One&trade;</h3>
+                  }}>🎁 Your included G1G1 subscription gift</h3>
                   <p style={{
                     fontSize: '0.6875rem',
                     color: 'rgba(255, 255, 255, 0.9)',
                     margin: 0
-                  }}>Your subscription includes a free gift subscription!</p>
+                  }}>Your plan includes a full subscription you can give to someone you care about.</p>
                 </div>
               </div>
 
@@ -585,13 +585,13 @@ export default function Cart() {
                       gap: '0.375rem'
                     }}>
                       <Mail size={14} />
-                      Receive gift link via email
+                      Email me my gift link for later
                     </div>
                     <div style={{
                       fontSize: '0.75rem',
                       color: 'var(--text-secondary)'
                     }}>
-                      We'll send you a shareable link to give whenever you're ready
+                      We'll send you a shareable gift link so you can send the subscription whenever you're ready.
                     </div>
                   </div>
                 </label>
@@ -612,7 +612,7 @@ export default function Cart() {
                     gap: '0.375rem'
                   }}>
                     <Gift size={14} style={{ color: '#10b981' }} />
-                    Or designate a recipient now:
+                    Send this subscription now:
                   </p>
 
                   <div style={{ display: 'flex', gap: '0.75rem', flexWrap: isNarrow ? 'wrap' : 'nowrap' }}>
