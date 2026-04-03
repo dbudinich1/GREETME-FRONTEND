@@ -413,7 +413,7 @@ export default function Checkout() {
       <form onSubmit={handleSubmit}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isNarrow ? '1fr' : '1fr 400px',
+          gridTemplateColumns: isNarrow ? '1fr' : 'minmax(0, 1fr) minmax(480px, 520px)',
           gap: '2rem',
           alignItems: 'start',
         }}>
