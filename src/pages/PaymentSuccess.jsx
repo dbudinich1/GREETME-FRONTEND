@@ -1,24 +1,54 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import api from '../api/api';
 import GreetMeLogo from '../components/GreetMeLogo';
 
 export default function PaymentSuccess() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [g1g1State, setG1g1State] = useState(null);
+  const [loaded, setLoaded] = useState(false);
 
-  // Read G1G1 gift state from checkout session
-  let g1g1Data = null;
-  try {
-    g1g1Data = JSON.parse(sessionStorage.getItem('greetme_g1g1_checkout') || 'null');
-  } catch { g1g1Data = null; }
+  // Try backend first (entitlement doc), fall back to sessionStorage
+  useEffect(() => {
+    (async () => {
+      // 1. Try reading G1G1 state from backend entitlements
+      if (user?.id) {
+        try {
+          const res = await api.get(`/api/payments/g1g1-status`);
+          if (res?.ok && res.g1g1) {
+            console.log('[Success] G1G1 from backend:', res.g1g1);
+            setG1g1State(res.g1g1);
+            setLoaded(true);
+            return;
+          }
+        } catch { /* fall through to sessionStorage */ }
+      }
 
-  const hasG1G1 = g1g1Data && g1g1Data.eligible === true;
-  const giftSent = hasG1G1 && g1g1Data.recipientName && g1g1Data.recipientEmail && !g1g1Data.sendLater;
-  const giftPending = hasG1G1 && !giftSent;
+      // 2. Fall back to sessionStorage
+      try {
+        const stored = JSON.parse(sessionStorage.getItem('greetme_g1g1_checkout') || 'null');
+        if (stored) {
+          console.log('[Success] G1G1 from session:', stored);
+          setG1g1State({
+            eligible: stored.eligible,
+            giftSent: stored.eligible && stored.recipientName && stored.recipientEmail && !stored.sendLater,
+          });
+        }
+      } catch {}
+      setLoaded(true);
+    })();
+  }, [user?.id]);
 
-  // Clean up session AFTER render (not before)
+  // Clean up session after load
   useEffect(() => {
     return () => { sessionStorage.removeItem('greetme_g1g1_checkout'); };
   }, []);
+
+  const hasG1G1 = g1g1State?.eligible === true;
+  const giftSent = hasG1G1 && g1g1State?.giftSent === true;
+  const giftPending = hasG1G1 && !giftSent;
 
   const btnStyle = {
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',

@@ -211,6 +211,10 @@ class ApiService {
     return this.request(endpoint, { method: "GET" });
   }
 
+  get(endpoint) {
+    return this.request(endpoint, { method: "GET" });
+  }
+
   post(endpoint, body) {
     return this.request(endpoint, { method: "POST", body: JSON.stringify(body) });
   }

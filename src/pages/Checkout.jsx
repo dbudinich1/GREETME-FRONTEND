@@ -102,6 +102,10 @@ export default function Checkout() {
     setIsProcessing(true);
     setErrors({});
     try {
+      // Read G1G1 data from sessionStorage (set by Cart)
+      const g1g1Raw = (() => { try { return JSON.parse(sessionStorage.getItem('greetme_g1g1_checkout') || 'null'); } catch { return null; } })();
+      console.log('[Checkout] G1G1 data from session:', g1g1Raw);
+
       const data = await api.post('/api/payments/create-checkout', {
         priceId: item.priceId,
         purchaseType: item.purchaseType || 'subscription',
@@ -110,6 +114,13 @@ export default function Checkout() {
         billingPeriod: item.billingPeriod || item.period,
         ...(referralCode && { referralCode }),
         ...(courtesyCreditCode && !referralCode && { courtesyCreditCode }),
+        // G1G1 recipient data for fulfillment
+        ...(g1g1Raw?.eligible && {
+          g1g1Eligible: true,
+          g1g1RecipientName: g1g1Raw.recipientName || '',
+          g1g1RecipientEmail: g1g1Raw.recipientEmail || '',
+          g1g1SendLater: !!g1g1Raw.sendLater,
+        }),
       });
       window.location.href = data.url;
     } catch (error) {
