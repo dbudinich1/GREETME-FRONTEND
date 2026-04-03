@@ -231,7 +231,7 @@ export default function Cart() {
       {/* Main Content - Grid Layout */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isNarrow ? '1fr' : '1fr 170px',
+        gridTemplateColumns: isNarrow ? '1fr' : '1fr minmax(320px, 380px)',
         gap: '0.5rem'
       }}>
         {/* Cart Items Column */}
