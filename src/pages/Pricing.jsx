@@ -953,7 +953,7 @@ export default function Pricing() {
                     fontSize: '0.8125rem',
                     color: 'var(--text-secondary)'
                   }}>
-                    <span>One-Time Technology Fee</span>
+                    <span>One-Time Platform Fee</span>
                     <span>$4.99</span>
                   </div>
                   <div style={{
@@ -1121,7 +1121,7 @@ export default function Pricing() {
                     fontSize: '0.875rem',
                     color: 'var(--text-secondary)'
                   }}>
-                    <span>One-Time Technology Fee</span>
+                    <span>One-Time Platform Fee</span>
                     <span>$4.99</span>
                   </div>
                   {(() => {

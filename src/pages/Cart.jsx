@@ -753,11 +753,14 @@ export default function Cart() {
                       </div>
                     )}
 
-                    {/* One-Time Technology Fee */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                      <span>One-Time Technology Fee</span>
+                    {/* One-Time Platform Fee */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                      <span>One-Time Platform Fee</span>
                       <span>${techFee.toFixed(2)}</span>
                     </div>
+                    <p style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', margin: '0 0 0.5rem', fontStyle: 'italic' }}>
+                      Covers setup for you and your G1G1 recipient
+                    </p>
                   </div>
                 );
               })()}

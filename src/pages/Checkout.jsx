@@ -733,14 +733,14 @@ export default function Checkout() {
                         </div>
                       )}
 
-                      {/* One-Time Technology Fee */}
+                      {/* One-Time Platform Fee */}
                       <div style={{ marginBottom: '0.75rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-secondary)' }}>
-                          <span>One-Time Technology Fee</span>
+                          <span>One-Time Platform Fee</span>
                           <span>${techFee.toFixed(2)}</span>
                         </div>
                         <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '0.25rem 0 0', fontStyle: 'italic' }}>
-                          Covers setup and delivery for you and your gift recipient
+                          Covers setup for you and your G1G1 recipient
                         </p>
                       </div>
 
