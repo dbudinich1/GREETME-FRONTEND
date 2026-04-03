@@ -626,7 +626,7 @@ export default function Checkout() {
           </div>
 
           {/* Right Column - Order Summary */}
-          <div style={{ position: isNarrow ? 'static' : 'sticky', top: '1rem' }}>
+          <div style={{ position: isNarrow ? 'static' : 'sticky', top: '5rem' }}>
             <div style={{
               background: 'var(--bg-primary)',
               border: '1px solid var(--border)',
