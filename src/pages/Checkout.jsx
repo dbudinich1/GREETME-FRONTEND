@@ -408,12 +408,8 @@ export default function Checkout() {
             <span>Secure Checkout</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.85)' }}>
-            <Truck size={13} />
-            <span>Free Shipping</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.85)' }}>
             <Shield size={13} />
-            <span>Money-Back Guarantee</span>
+            <span>Privacy Guaranteed</span>
           </div>
         </div>
       </div>
