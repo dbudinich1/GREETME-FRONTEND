@@ -522,7 +522,6 @@ export default function Cart() {
                 alignItems: 'center',
                 gap: '0.5rem'
               }}>
-                <Gift size={18} style={{ color: 'white' }} />
                 <div>
                   <h3 style={{
                     fontSize: '0.875rem',
