@@ -529,12 +529,15 @@ export default function Cart() {
                     fontWeight: 700,
                     color: 'white',
                     margin: 0
-                  }}>🎁 Your included G1G1 subscription gift</h3>
+                  }}>Your included subscription gift (G1G1)</h3>
                   <p style={{
                     fontSize: '0.6875rem',
                     color: 'rgba(255, 255, 255, 0.9)',
                     margin: 0
                   }}>Your plan includes a full subscription you can give to someone you care about.</p>
+                  <div style={{ fontSize: '0.625rem', color: 'rgba(255, 255, 255, 0.75)', marginTop: '0.2rem' }}>
+                    They'll get their own account, voice setup, and full Greet-Me experience.
+                  </div>
                 </div>
               </div>
 
