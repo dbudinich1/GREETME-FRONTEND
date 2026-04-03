@@ -413,7 +413,7 @@ export default function Checkout() {
       <form onSubmit={handleSubmit}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isNarrow ? '1fr' : '1fr 350px',
+          gridTemplateColumns: isNarrow ? '1fr' : '1fr 400px',
           gap: '2rem',
           alignItems: 'start',
         }}>
@@ -632,8 +632,6 @@ export default function Checkout() {
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-lg)',
               overflow: 'hidden',
-              position: isNarrow ? 'static' : 'sticky',
-              top: '1rem'
             }}>
               <div style={{
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -646,9 +644,9 @@ export default function Checkout() {
                 </div>
               </div>
 
-              <div style={{ padding: '1.25rem' }}>
+              <div style={{ padding: '1.25rem 1.5rem' }}>
                 {/* Items */}
-                <div style={{ marginBottom: '1rem' }}>
+                <div style={{ marginBottom: '1.25rem' }}>
                   {cartItems.map((item, index) => (
                     <div
                       key={item.id}
@@ -700,16 +698,16 @@ export default function Checkout() {
                   const finalTotal = Math.max(0, planPrice + techFee - effectiveCredit);
 
                   return (
-                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
                       {/* Plan */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.625rem', fontSize: '1rem', color: 'var(--text-secondary)' }}>
                         <span>{subscriptionItem?.name || 'Subscription Plan'}</span>
                         <span>${planPrice.toFixed(2)}</span>
                       </div>
 
                       {/* G1G1 Gift Subscription (full value) */}
                       {g1g1Eligible && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.625rem', fontSize: '1rem', color: 'var(--text-secondary)' }}>
                           <span>G1G1 Gift Subscription</span>
                           <span>${planPrice.toFixed(2)}</span>
                         </div>
@@ -717,7 +715,7 @@ export default function Checkout() {
 
                       {/* G1G1 Discount */}
                       {g1g1Eligible && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#22c55e', fontWeight: 500 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.625rem', fontSize: '1rem', color: '#22c55e', fontWeight: 500 }}>
                           <span>G1G1 Discount</span>
                           <span>&ndash;${planPrice.toFixed(2)}</span>
                         </div>
@@ -725,25 +723,25 @@ export default function Checkout() {
 
                       {/* Credit Applied */}
                       {creditAmount > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: creditEligible ? '#22c55e' : '#9ca3af', fontWeight: 500, fontStyle: creditEligible ? 'normal' : 'italic' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.625rem', fontSize: '1rem', color: creditEligible ? '#22c55e' : '#9ca3af', fontWeight: 500, fontStyle: creditEligible ? 'normal' : 'italic' }}>
                           <span>Credit Applied</span>
                           <span>{creditEligible ? `\u2013$${creditAmount.toFixed(2)}` : 'Not eligible for this plan'}</span>
                         </div>
                       )}
 
                       {/* One-Time Technology Fee */}
-                      <div style={{ marginBottom: '0.5rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                      <div style={{ marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-secondary)' }}>
                           <span>One-Time Technology Fee</span>
                           <span>${techFee.toFixed(2)}</span>
                         </div>
-                        <p style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', margin: '0.125rem 0 0', fontStyle: 'italic' }}>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '0.25rem 0 0', fontStyle: 'italic' }}>
                           Covers setup and delivery for you and your gift recipient
                         </p>
                       </div>
 
                       {/* Total */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.75rem', borderTop: '1px solid var(--border)', fontSize: '1.125rem', fontWeight: 700 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '2px solid var(--border)', fontSize: '1.25rem', fontWeight: 800 }}>
                         <span>Total</span>
                         <span style={{ color: '#667eea' }}>${finalTotal.toFixed(2)}</span>
                       </div>
