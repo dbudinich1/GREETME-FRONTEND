@@ -349,64 +349,72 @@ export default function Checkout() {
 
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
-      {/* Header */}
+      {/* Checkout Banner */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        marginBottom: '1.5rem'
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '1.25rem 1.5rem',
+        marginBottom: '1.5rem',
+        color: 'white',
       }}>
-        <button
-          onClick={() => navigate('/dashboard/cart')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 1rem',
-            background: 'transparent',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-            color: 'var(--text-primary)',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            cursor: 'pointer',
-            fontFamily: 'inherit'
-          }}
-        >
-          <ArrowLeft size={16} />
-          Back to Cart
-        </button>
-      </div>
-
-      <h1 style={{
-        fontSize: isNarrow ? '1.5rem' : '1.75rem',
-        fontWeight: 700,
-        color: 'var(--text-primary)',
-        marginBottom: '0.5rem'
-      }}>Checkout</h1>
-      <p style={{
-        color: 'var(--text-secondary)',
-        marginBottom: '2rem'
-      }}>Complete your purchase securely</p>
-
-      {/* Trust badges */}
-      <div style={{
-        display: 'flex',
-        gap: '1.5rem',
-        marginBottom: '2rem',
-        flexWrap: 'wrap'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-          <Lock size={14} style={{ color: '#22c55e' }} />
-          <span>Secure Checkout</span>
+        {/* Top row: Checkout left, Back to Cart right */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: '0.75rem',
+        }}>
+          <div>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.25rem', color: 'white' }}>
+              Checkout
+            </h1>
+            <p style={{ fontSize: '0.875rem', margin: 0, color: 'rgba(255,255,255,0.75)' }}>
+              Complete your purchase securely
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/dashboard/cart')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+              padding: '0.5rem 1rem',
+              background: 'rgba(255,255,255,0.15)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              borderRadius: 'var(--radius-md)',
+              color: 'white',
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            <ArrowLeft size={14} />
+            Back to Cart
+          </button>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-          <Truck size={14} style={{ color: '#22c55e' }} />
-          <span>Free Shipping</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-          <Shield size={14} style={{ color: '#22c55e' }} />
-          <span>Money-Back Guarantee</span>
+
+        {/* Bottom row: Trust badges centered */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '1.5rem',
+          flexWrap: 'wrap',
+          borderTop: '1px solid rgba(255,255,255,0.2)',
+          paddingTop: '0.75rem',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.85)' }}>
+            <Lock size={13} />
+            <span>Secure Checkout</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.85)' }}>
+            <Truck size={13} />
+            <span>Free Shipping</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.85)' }}>
+            <Shield size={13} />
+            <span>Money-Back Guarantee</span>
+          </div>
         </div>
       </div>
 
