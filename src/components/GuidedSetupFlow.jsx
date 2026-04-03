@@ -1635,8 +1635,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         borderRadius: 'var(--radius-xl)',
         width: '100%',
         maxWidth: '440px',
-        maxHeight: '90vh',
-        overflowY: 'auto',
+        overflow: 'visible',
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
       }}>
         {/* Progress bar (shown during welcome/demo/voice/photo/test greeting steps) */}
