@@ -414,7 +414,8 @@ export default function Checkout() {
         <div style={{
           display: 'grid',
           gridTemplateColumns: isNarrow ? '1fr' : '1fr 350px',
-          gap: '2rem'
+          gap: '2rem',
+          alignItems: 'start',
         }}>
           {/* Left Column - Form */}
           <div>
@@ -625,7 +626,7 @@ export default function Checkout() {
           </div>
 
           {/* Right Column - Order Summary */}
-          <div>
+          <div style={{ position: isNarrow ? 'static' : 'sticky', top: '1rem' }}>
             <div style={{
               background: 'var(--bg-primary)',
               border: '1px solid var(--border)',
