@@ -51,8 +51,9 @@ export default function Pricing() {
     if (plan.id.includes('enterprise')) {
       setShowEnterpriseForm(true);
     } else {
+      // Skip Plan Summary modal — add to cart immediately, show confirmation
       setSelectedPlan(plan);
-      setPricingStep('selection');
+      handleAddPlanToCart(plan);
       setShowPricingModal(true);
     }
   };
