@@ -695,16 +695,16 @@ export default function Cart() {
             border: '1px solid var(--border)',
             overflow: 'hidden',
             position: isNarrow ? 'static' : 'sticky',
-            top: '1rem'
+            top: '5rem'
           }}>
             {/* Summary Header */}
             <div style={{
               background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-              padding: '0.375rem 0.5rem',
+              padding: '0.75rem 1rem',
               borderBottom: '1px solid var(--border)'
             }}>
               <h2 style={{
-                fontSize: '0.6875rem',
+                fontSize: '1rem',
                 fontWeight: 700,
                 color: 'var(--text-primary)',
                 margin: 0
@@ -712,7 +712,7 @@ export default function Cart() {
             </div>
 
             {/* Summary Content — normalized pricing structure */}
-            <div style={{ padding: '0.375rem' }}>
+            <div style={{ padding: '0.875rem 1rem' }}>
               {(() => {
                 const subscriptionItem = cartItems.find(item => item.type === 'subscription');
                 const planPrice = subscriptionItem?.price || total;
@@ -726,14 +726,14 @@ export default function Cart() {
                 return (
                   <div style={{ marginBottom: '0.25rem' }}>
                     {/* Plan */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem', fontSize: '0.5625rem', color: 'var(--text-secondary)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                       <span>{subscriptionItem?.name || 'Subscription'}</span>
                       <span>${planPrice.toFixed(2)}</span>
                     </div>
 
                     {/* G1G1 Gift Subscription (full value) */}
                     {g1g1Eligible && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem', fontSize: '0.5625rem', color: 'var(--text-secondary)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                         <span>G1G1 Gift Subscription</span>
                         <span>${planPrice.toFixed(2)}</span>
                       </div>
@@ -741,7 +741,7 @@ export default function Cart() {
 
                     {/* G1G1 Discount (negative) */}
                     {g1g1Eligible && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem', fontSize: '0.5625rem', color: '#22c55e', fontWeight: 600 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#22c55e', fontWeight: 600 }}>
                         <span>G1G1 Discount</span>
                         <span>&ndash;${planPrice.toFixed(2)}</span>
                       </div>
@@ -749,14 +749,14 @@ export default function Cart() {
 
                     {/* Credit Applied (Stripe coupon — real deduction) */}
                     {rawCredit > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem', fontSize: '0.5625rem', color: creditEligible ? '#22c55e' : '#9ca3af', fontWeight: 600, fontStyle: creditEligible ? 'normal' : 'italic' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: creditEligible ? '#22c55e' : '#9ca3af', fontWeight: 600, fontStyle: creditEligible ? 'normal' : 'italic' }}>
                         <span>Credit Applied</span>
                         <span>{creditEligible ? `\u2013$${rawCredit.toFixed(2)}` : 'Not eligible for this plan'}</span>
                       </div>
                     )}
 
                     {/* One-Time Technology Fee */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.125rem', fontSize: '0.5625rem', color: 'var(--text-secondary)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                       <span>One-Time Technology Fee</span>
                       <span>${techFee.toFixed(2)}</span>
                     </div>
