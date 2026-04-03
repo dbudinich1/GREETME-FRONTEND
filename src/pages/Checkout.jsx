@@ -424,8 +424,9 @@ export default function Checkout() {
         <div style={{ marginBottom: '0.4rem', fontWeight: 500 }}>
           ✨ Your Greet-Me is created instantly and delivered in minutes
         </div>
-        <div>• Your voice, brought to life</div>
-        <div>• A fully animated Greet-Me</div>
+        <div style={{ marginBottom: '0.25rem', fontWeight: 500, fontSize: '0.875rem', color: '#555' }}>Includes:</div>
+        <div>• Send instantly or schedule for any occasion</div>
+        <div>• A fully animated Greet-Me experience (with or without a gift)</div>
         <div>• Greet One, Give One™ (send one to someone you love)</div>
       </div>
 
