@@ -525,11 +525,8 @@ export default function Pricing() {
                     </div>
                   ) : (
                     <div>
-                      <span style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>${(plan.price + 4.99).toFixed(2)}</span>
-                      <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}> first {plan.period}</span>
-                      <p style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', margin: '0.25rem 0 0' }}>
-                        ${plan.price}/{plan.period} + $4.99 one-time technology fee
-                      </p>
+                      <span style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>${plan.price}</span>
+                      <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>/{plan.period}</span>
                     </div>
                   )}
                 </div>
@@ -546,7 +543,7 @@ export default function Pricing() {
                     color: '#065f46',
                     fontWeight: 600,
                   }}>
-                    $10 credit applies &mdash; pay ${(plan.price + 4.99 - 10).toFixed(2)} today
+                    $10 credit applies &mdash; pay ${(plan.price - 10).toFixed(2)}/{plan.period}
                   </div>
                 )}
                 {isCreditIneligible && (
