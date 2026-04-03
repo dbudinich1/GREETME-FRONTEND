@@ -1,5 +1,6 @@
 // src/pages/Pricing.jsx
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Check, CheckCircle, ShoppingCart, X, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -856,16 +857,16 @@ export default function Pricing() {
       )}
 
       {/* Pricing Modal (Cart-based two-state flow) */}
-      {showPricingModal && selectedPlan && (
+      {showPricingModal && selectedPlan && createPortal(
         <>
-          {/* Backdrop */}
+          {/* Backdrop — rendered to document.body via portal to escape stacking context */}
           <div
             onClick={resetPricingModal}
             style={{
               position: 'fixed',
               inset: 0,
               background: 'rgba(0, 0, 0, 0.5)',
-              zIndex: 1000
+              zIndex: 99998,
             }}
           />
 
@@ -880,8 +881,10 @@ export default function Pricing() {
             padding: '2rem',
             maxWidth: '450px',
             width: '90%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
             boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
-            zIndex: 1001
+            zIndex: 99999,
           }}>
             {/* Header */}
             <div style={{
@@ -1221,7 +1224,8 @@ export default function Pricing() {
               </div>
             )}
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );
