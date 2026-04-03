@@ -1,20 +1,24 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import GreetMeLogo from '../components/GreetMeLogo';
 
 export default function PaymentSuccess() {
   const navigate = useNavigate();
 
-  // Read G1G1 gift state from checkout
-  const g1g1State = (() => {
-    try {
-      const stored = sessionStorage.getItem('greetme_g1g1_checkout');
-      if (stored) sessionStorage.removeItem('greetme_g1g1_checkout'); // one-time read
-      return stored ? JSON.parse(stored) : null;
-    } catch { return null; }
-  })();
+  // Read G1G1 gift state from checkout session
+  let g1g1Data = null;
+  try {
+    g1g1Data = JSON.parse(sessionStorage.getItem('greetme_g1g1_checkout') || 'null');
+  } catch { g1g1Data = null; }
 
-  const giftSent = g1g1State?.giftSent === true;
-  const hasG1G1 = !!g1g1State;
+  const hasG1G1 = g1g1Data && g1g1Data.eligible === true;
+  const giftSent = hasG1G1 && g1g1Data.recipientName && g1g1Data.recipientEmail && !g1g1Data.sendLater;
+  const giftPending = hasG1G1 && !giftSent;
+
+  // Clean up session AFTER render (not before)
+  useEffect(() => {
+    return () => { sessionStorage.removeItem('greetme_g1g1_checkout'); };
+  }, []);
 
   const btnStyle = {
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -73,8 +77,8 @@ export default function PaymentSuccess() {
           ✓
         </div>
 
-        {/* Conditional: gift already sent at checkout */}
-        {giftSent ? (
+        {/* State 1: Gift sent at checkout */}
+        {giftSent && (
           <>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a1a2e', margin: '0 0 0.75rem' }}>
               Your gift has been sent 🎉
@@ -86,7 +90,10 @@ export default function PaymentSuccess() {
               Send Your First Greet-Me
             </button>
           </>
-        ) : hasG1G1 ? (
+        )}
+
+        {/* State 2: Gift pending (send later or no recipient yet) */}
+        {giftPending && (
           <>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a1a2e', margin: '0 0 0.75rem' }}>
               You&rsquo;re all set &mdash; your gift is ready 🎁
@@ -101,13 +108,16 @@ export default function PaymentSuccess() {
               Send Your First Greet-Me
             </button>
           </>
-        ) : (
+        )}
+
+        {/* State 3: No G1G1 (credit used or non-subscription) */}
+        {!hasG1G1 && (
           <>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a1a2e', margin: '0 0 0.75rem' }}>
               Payment Successful
             </h1>
             <p style={{ fontSize: '1rem', color: '#555', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
-              Thank you! Your Greet-Me™ purchase was successful.
+              Thank you! Your Greet-Me&trade; purchase was successful.
             </p>
             <button onClick={() => navigate('/dashboard')} style={btnStyle}>
               Go to Dashboard

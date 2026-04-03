@@ -54,16 +54,13 @@ export default function Cart() {
   };
 
   const handleCheckout = () => {
-    // Stash G1G1 gift state so success page can render conditionally
-    if (g1g1Eligible) {
-      const giftSent = !receiveGiftLinkViaEmail && g1g1RecipientName.trim() && g1g1RecipientEmail.trim();
-      sessionStorage.setItem('greetme_g1g1_checkout', JSON.stringify({
-        giftSent,
-        recipientName: g1g1RecipientName.trim(),
-        recipientEmail: g1g1RecipientEmail.trim(),
-        sendLater: receiveGiftLinkViaEmail,
-      }));
-    }
+    // Always stash G1G1 state so success page can render conditionally
+    sessionStorage.setItem('greetme_g1g1_checkout', JSON.stringify({
+      eligible: g1g1Eligible === true,
+      recipientName: g1g1RecipientName.trim() || '',
+      recipientEmail: g1g1RecipientEmail.trim() || '',
+      sendLater: !!receiveGiftLinkViaEmail,
+    }));
     navigate('/dashboard/checkout');
   };
 
