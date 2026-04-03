@@ -59,6 +59,7 @@ export default function Checkout() {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     loadCart();
   }, []);
 

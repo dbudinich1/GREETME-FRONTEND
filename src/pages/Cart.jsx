@@ -23,6 +23,7 @@ export default function Cart() {
   const g1g1Eligible = hasSubscription && !hasReferralCredit;
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     loadCart();
   }, []);
 

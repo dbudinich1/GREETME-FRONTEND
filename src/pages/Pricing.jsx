@@ -878,9 +878,9 @@ export default function Pricing() {
             transform: 'translate(-50%, -50%)',
             background: 'white',
             borderRadius: 'var(--radius-xl)',
-            padding: '1.5rem',
-            maxWidth: '420px',
-            width: '92%',
+            padding: '2rem 2.25rem',
+            maxWidth: '480px',
+            width: '94%',
             overflow: 'visible',
             boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
             zIndex: 99999,
@@ -1108,7 +1108,8 @@ export default function Pricing() {
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    marginBottom: '0.375rem'
+                    marginBottom: '0.625rem',
+                    fontSize: '1rem',
                   }}>
                     <span style={{ color: 'var(--text-secondary)' }}>{lastAddedPlan.name}</span>
                     <span style={{ fontWeight: 600, color: 'var(--primary)' }}>${lastAddedPlan.price}/{lastAddedPlan.period}</span>
@@ -1116,8 +1117,8 @@ export default function Pricing() {
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    marginBottom: '0.375rem',
-                    fontSize: '0.8125rem',
+                    marginBottom: '0.625rem',
+                    fontSize: '0.9375rem',
                     color: 'var(--text-secondary)'
                   }}>
                     <span>One-Time Technology Fee</span>
@@ -1134,8 +1135,8 @@ export default function Pricing() {
                           <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
-                            marginBottom: '0.375rem',
-                            fontSize: '0.8125rem',
+                            marginBottom: '0.625rem',
+                            fontSize: '0.9375rem',
                             color: '#22c55e',
                             fontWeight: 600,
                           }}>
@@ -1145,10 +1146,12 @@ export default function Pricing() {
                         )}
                         <div style={{
                           borderTop: '1px solid var(--border)',
-                          paddingTop: '0.5rem',
+                          paddingTop: '0.75rem',
+                          marginTop: '0.25rem',
                           display: 'flex',
                           justifyContent: 'space-between',
-                          fontWeight: 600,
+                          fontWeight: 700,
+                          fontSize: '1.125rem',
                         }}>
                           <span>Total</span>
                           <span style={{ color: 'var(--primary)' }}>${Math.max(0, lastAddedPlan.price + 4.99 - effectiveCredit).toFixed(2)}</span>
