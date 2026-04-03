@@ -427,7 +427,7 @@ export default function Checkout() {
         color: '#333',
       }}>
         <div style={{ marginBottom: '0.45rem', fontWeight: 600 }}>
-          ✨ Your Greet-Me is created instantly and delivered in minutes
+          Your Greet-Me is created instantly and delivered in minutes
         </div>
         <div>• Send instantly or schedule for any occasion</div>
         <div>• A fully animated Greet-Me experience — with or without a real-world gift</div>
