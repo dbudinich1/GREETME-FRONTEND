@@ -1121,16 +1121,39 @@ export default function Pricing() {
                     <span>One-Time Technology Fee</span>
                     <span>$4.99</span>
                   </div>
-                  <div style={{
-                    borderTop: '1px solid var(--border)',
-                    paddingTop: '0.5rem',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontWeight: 600,
-                  }}>
-                    <span>Total</span>
-                    <span style={{ color: 'var(--primary)' }}>${(lastAddedPlan.price + 4.99).toFixed(2)}</span>
-                  </div>
+                  {(() => {
+                    const cc = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
+                    const creditAmt = referralCode ? 10 : (cc?.amount || 0);
+                    const isEligible = !CREDIT_INELIGIBLE_TIERS.has(lastAddedPlan.planTier);
+                    const effectiveCredit = isEligible ? creditAmt : 0;
+                    return (
+                      <>
+                        {effectiveCredit > 0 && (
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            marginBottom: '0.375rem',
+                            fontSize: '0.8125rem',
+                            color: '#22c55e',
+                            fontWeight: 600,
+                          }}>
+                            <span>Greet-Me Credit</span>
+                            <span>&ndash;${effectiveCredit.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div style={{
+                          borderTop: '1px solid var(--border)',
+                          paddingTop: '0.5rem',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontWeight: 600,
+                        }}>
+                          <span>Total</span>
+                          <span style={{ color: 'var(--primary)' }}>${Math.max(0, lastAddedPlan.price + 4.99 - effectiveCredit).toFixed(2)}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Action Buttons */}
