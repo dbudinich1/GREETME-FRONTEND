@@ -414,6 +414,21 @@ export default function Checkout() {
         </div>
       </div>
 
+      {/* Value reinforcement */}
+      <div style={{
+        marginBottom: '1.25rem',
+        fontSize: '0.95rem',
+        lineHeight: '1.4',
+        color: '#444',
+      }}>
+        <div style={{ marginBottom: '0.4rem', fontWeight: 500 }}>
+          ✨ Your Greet-Me is created instantly and delivered in minutes
+        </div>
+        <div>• Your voice, brought to life</div>
+        <div>• A fully animated Greet-Me</div>
+        <div>• Greet One, Give One™ (send one to someone you love)</div>
+      </div>
+
       <form onSubmit={handleSubmit}>
         <div style={{
           display: 'grid',
@@ -748,6 +763,12 @@ export default function Checkout() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '2px solid var(--border)', fontSize: '1.25rem', fontWeight: 800 }}>
                         <span>Total</span>
                         <span style={{ color: '#667eea' }}>${finalTotal.toFixed(2)}</span>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: '#555', marginTop: '0.25rem' }}>
+                        Includes 2 Greet-Me experiences
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#777', marginTop: '0.5rem' }}>
+                        🔒 Secure checkout • Cancel anytime
                       </div>
                     </div>
                   );
