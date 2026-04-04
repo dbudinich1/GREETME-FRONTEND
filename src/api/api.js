@@ -468,6 +468,19 @@ class ApiService {
   }
 
   // --------------------
+  // G1G1 Gift Membership
+  // --------------------
+  getG1G1Gift(giftCode) {
+    return this.request(`/api/gifts/g1g1/${giftCode}`);
+  }
+
+  claimG1G1Gift(giftCode) {
+    return this.request(`/api/gifts/g1g1/${giftCode}/claim`, {
+      method: "POST",
+    });
+  }
+
+  // --------------------
   // Referral (viral loop)
   // --------------------
   getReferral(referralCode) {

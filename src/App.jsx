@@ -37,6 +37,7 @@ import ReferralCredit from "./pages/ReferralCredit";
 import ThankYouFlow from "./pages/ThankYouFlow";
 import CourtesyCredit from "./pages/CourtesyCredit";
 import CreditClaim from "./pages/CreditClaim";
+import G1G1Claim from "./pages/G1G1Claim";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
 import Support from "./pages/Support";
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="/redeem/qr-cash/:id" element={<RedeemQRCash />} />
           <Route path="/greeting/:greetingId" element={<RecipientGreeting />} />
           <Route path="/g/:jobId" element={<PublicGreetingCard />} />
+          <Route path="/gift/g1g1/:giftCode" element={<G1G1Claim />} />
           <Route path="/gift/:claimToken" element={<GiftClaim />} />
           <Route path="/credit/:referralCode" element={<ReferralCredit />} />
           <Route path="/thank-you" element={<ThankYouFlow />} />
