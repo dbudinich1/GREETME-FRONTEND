@@ -12,7 +12,7 @@ const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 export default function CreditClaim() {
   const { creditCode } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [credit, setCredit] = useState(null);
@@ -116,10 +116,15 @@ export default function CreditClaim() {
                 : `Claim Your ${displayAmount} \u2014 Create Your Account`}
             </button>
 
-            {/* Smart loop: Thank You — hidden for authenticated users (onboarding test flow) */}
-            {!isAuthenticated && (
+            {/* Smart loop: Thank You — routes to ThankYouFlow with sourceJobId */}
+            {credit?.sourceJobId && (
               <button onClick={() => {
-                navigate('/register', { state: { returnTo: '/dashboard/send' } });
+                if (isAuthenticated) {
+                  navigate(`/thank-you?jobId=${credit.sourceJobId}`);
+                } else {
+                  localStorage.setItem('greetme_pending_thankyou', credit.sourceJobId);
+                  navigate('/register');
+                }
               }} style={{
                 ...styles.cta,
                 background: 'rgba(255,255,255,0.15)',

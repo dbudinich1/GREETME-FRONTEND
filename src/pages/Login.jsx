@@ -35,12 +35,24 @@ export const Login = () => {
         localStorage.removeItem('greetme_g1g1_gift_code');
         navigate(`/gift/g1g1/${pendingG1G1}`);
       } else {
-        const pendingReferral = localStorage.getItem('greetme_referral_code');
-        if (pendingReferral) {
-          localStorage.removeItem('greetme_referral_code');
-          navigate(`/dashboard/send?referral=${pendingReferral}`);
+        const pendingCredit = localStorage.getItem('greetme_pending_credit');
+        if (pendingCredit) {
+          localStorage.removeItem('greetme_pending_credit');
+          navigate(`/claim-credit/${pendingCredit}`);
         } else {
-          navigate("/dashboard");
+          const pendingThankYou = localStorage.getItem('greetme_pending_thankyou');
+          if (pendingThankYou) {
+            localStorage.removeItem('greetme_pending_thankyou');
+            navigate(`/thank-you?jobId=${pendingThankYou}`);
+          } else {
+            const pendingReferral = localStorage.getItem('greetme_referral_code');
+            if (pendingReferral) {
+              localStorage.removeItem('greetme_referral_code');
+              navigate(`/dashboard/send?referral=${pendingReferral}`);
+            } else {
+              navigate("/dashboard");
+            }
+          }
         }
       }
     } else {
