@@ -131,14 +131,10 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
   const [qrImageError, setQrImageError] = useState(false);
   const [courtesyQrUrl, setCourtesyQrUrl] = useState(null);
 
-  // Generate courtesy credit QR for no-gift greetings
-  console.log('[FinaleSpread] courtesyCreditCode:', courtesyCreditCode);
+  // Generate courtesy credit QR ONLY when a real tracked credit code exists
   useEffect(() => {
-    if (hasGift) return;
-    // Use real credit code if available, otherwise fallback to generic landing
-    const creditUrl = courtesyCreditCode
-      ? `${window.location.origin}/#/claim-credit/${courtesyCreditCode}`
-      : `${window.location.origin}/#/courtesy-credit?amount=5&source=finale`;
+    if (hasGift || !courtesyCreditCode) return;
+    const creditUrl = `${window.location.origin}/#/claim-credit/${courtesyCreditCode}`;
     QRCode.toDataURL(creditUrl, {
       width: 400, margin: 2,
       color: { dark: '#000000', light: '#ffffff' },
@@ -298,45 +294,49 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
               <>
                 <h3 className="gc-gift-title" style={{ fontSize: '0.85em', whiteSpace: 'nowrap' }}>A Gift From Greet-Me</h3>
 
-                {courtesyQrUrl ? (
-                  <a
-                    href={courtesyCreditCode
-                      ? `${window.location.origin}/#/claim-credit/${courtesyCreditCode}`
-                      : `${window.location.origin}/#/courtesy-credit?amount=5&source=finale`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Claim your $5 Greet-Me credit"
-                    style={{ display: 'block', textDecoration: 'none' }}
-                  >
-                    <div className="gc-qr-frame">
-                      <div className="gc-qr-code">
-                        <img
-                          src={courtesyQrUrl}
-                          alt="Scan to claim your $5 Greet-Me credit"
-                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                        />
+                {courtesyQrUrl && courtesyCreditCode ? (
+                  <>
+                    <a
+                      href={`${window.location.origin}/#/claim-credit/${courtesyCreditCode}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Claim your $5 Greet-Me credit"
+                      style={{ display: 'block', textDecoration: 'none' }}
+                    >
+                      <div className="gc-qr-frame">
+                        <div className="gc-qr-code">
+                          <img
+                            src={courtesyQrUrl}
+                            alt="Scan to claim your $5 Greet-Me credit"
+                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  </a>
+                    </a>
+                    <p className="gc-gift-instruction">
+                      Scan to claim $5 toward your first Greet-Me
+                    </p>
+                  </>
                 ) : (
-                  <a
-                    href="/#/courtesy-credit?amount=5&source=finale"
-                    style={{
-                      display: 'inline-block',
-                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                      fontSize: '0.85em',
-                      color: '#10b981',
-                      textDecoration: 'underline',
-                      marginBottom: '0.5em',
-                    }}
-                  >
-                    Tap to claim your $5 credit
-                  </a>
+                  <>
+                    <p className="gc-gift-instruction" style={{ marginBottom: '0.5em' }}>
+                      We've included $5 toward your first Greet-Me subscription.
+                    </p>
+                    <a
+                      href="/#/courtesy-credit?amount=5&source=finale"
+                      style={{
+                        display: 'inline-block',
+                        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                        fontSize: '0.85em',
+                        color: '#10b981',
+                        textDecoration: 'underline',
+                        marginBottom: '0.5em',
+                      }}
+                    >
+                      Tap to claim your $5 credit
+                    </a>
+                  </>
                 )}
-
-                <p className="gc-gift-instruction">
-                  Scan to claim $5 toward your first Greet-Me
-                </p>
               </>
             )}
 
