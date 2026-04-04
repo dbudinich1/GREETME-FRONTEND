@@ -286,12 +286,12 @@ export default function PublicGreetingCard() {
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         }}>
           <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.2rem', fontWeight: 700 }}>
-            ✨ Touched by this greeting?
+            Create one of your own
           </h3>
           <p style={{ margin: '0 0 1rem', fontSize: '0.95rem', opacity: 0.9, lineHeight: 1.5 }}>
-            Send your own personalized animated greeting to someone you love.
+            Send a Greet-Me in under a minute.
           </p>
-          <a href="/#/register" style={{
+          <a href="/#/register?fast=1" onClick={() => console.log('EXPLOSION_LAYER_VIEWER_CTA_CLICK')} style={{
             display: 'inline-block',
             padding: '12px 32px',
             background: '#FFF',
@@ -303,7 +303,7 @@ export default function PublicGreetingCard() {
             minHeight: '44px',
             lineHeight: '20px',
           }}>
-            Create Your Greet-Me™
+            Create Yours
           </a>
         </div>
       </div>

@@ -171,6 +171,17 @@ export default function SendGreeting() {
     }
   }, [location.search]);
 
+  // Prefill occasion from query param (explosion layer — new user entry)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const occasion = params.get('occasion');
+    if (!occasion) return;
+    // Only prefill if no contact is also specified (draft restore handles that case)
+    if (params.get('contactId')) return;
+    setFormData(prev => ({ ...prev, occasionType: occasion }));
+    console.log('EXPLOSION_LAYER_SEND_PREFILL_APPLIED', { occasion });
+  }, [location.search]);
+
   // Detect referral code from URL and validate
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -681,13 +692,17 @@ if (typeof window !== "undefined") {
 
   // Success State
   if (jobStatus === 'completed') {
+    console.log('EXPLOSION_LAYER_POST_SEND_SHOWN');
     return (
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <CheckCircle className="mx-auto text-green-500 mb-4" size={64} />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Greet-Me Sent Successfully!</h2>
-          <p className="text-gray-600 mb-8">
-            Your personalized Greet-Me has been sent.
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">You just made someone's day.</h2>
+          <p className="text-gray-600 mb-1">
+            That Greet-Me is on its way.
+          </p>
+          <p className="text-gray-400 mb-8" style={{ fontSize: '0.875rem', fontStyle: 'italic' }}>
+            Personal. Instant. Unforgettable.
           </p>
           <div className="flex justify-center space-x-4">
             <button

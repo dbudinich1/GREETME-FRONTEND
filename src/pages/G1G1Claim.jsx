@@ -113,28 +113,18 @@ export default function G1G1Claim() {
         <div style={styles.card}>
           <GreetMeLogo size="medium" clickable={false} />
           <div style={styles.celebrationEmoji}>🎉</div>
-          <h1 style={styles.title}>You're in!</h1>
+          <h1 style={styles.title}>You're in. Your Greet-Me is ready.</h1>
           <p style={styles.successSubhead}>
-            Your Greet-Me membership is now active.
+            Someone did this for you. Now send one of your own — it takes less than a minute.
           </p>
-          <p style={styles.successBody}>
-            Your profile is already set — just add a recipient and send
-            a Greet-Me whenever it feels right.
-          </p>
-          <p style={styles.successBody}>
-            Schedule something special, or send one just because.
-          </p>
-          <p style={styles.successSupport}>
-            Add a personal note, make it yours, and send something they'll never forget.
-          </p>
-          <button onClick={() => navigate('/dashboard/send')} style={styles.primaryBtn}>
-            Send Your First Greet-Me
+          <button onClick={() => {
+            console.log('EXPLOSION_LAYER_CLAIM_SEND_CLICK');
+            navigate('/dashboard/send?occasion=just_because');
+          }} style={styles.primaryBtn}>
+            Send My First Greet-Me
           </button>
-          <p style={styles.successExtra}>
-            We've also sent you a little something extra — our welcome gift to you.
-          </p>
           <p style={styles.successNoPressure}>
-            No pressure — you can start whenever you're ready.
+            Fast, personal, unforgettable.
           </p>
         </div>
       </div>
