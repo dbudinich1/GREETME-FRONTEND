@@ -1,15 +1,15 @@
-const S = { h2: { marginTop: 32 }, h3: { marginTop: 20, marginBottom: 4 }, p: { lineHeight: 1.7, color: “#444” }, ul: { lineHeight: 1.7, color: “#444” } };
+const S = { h2: { marginTop: 32 }, h3: { marginTop: 20, marginBottom: 4 }, p: { lineHeight: 1.7, color: "#444" }, ul: { lineHeight: 1.7, color: "#444" } };
 
 export default function Legal() {
   return (
-    <div style={{ padding: 40, fontFamily: “system-ui, Arial, sans-serif”, maxWidth: 900, margin: “0 auto” }}>
+    <div style={{ padding: 40, fontFamily: "system-ui, Arial, sans-serif", maxWidth: 900, margin: "0 auto" }}>
       <h1 style={{ marginBottom: 10 }}>Legal</h1>
-      <p style={{ color: “#555”, marginTop: 0 }}>Last updated: April 3, 2026</p>
+      <p style={{ color: "#555", marginTop: 0 }}>Last updated: April 3, 2026</p>
 
-      <hr style={{ margin: “24px 0” }} />
+      <hr style={{ margin: "24px 0" }} />
 
       {/* ============ PRIVACY POLICY ============ */}
-      <h2 id=”privacy” style={S.h2}>Privacy Policy</h2>
+      <h2 id="privacy" style={S.h2}>Privacy Policy</h2>
       <p style={S.p}>Greet-Me&trade; (&ldquo;we,&rdquo; &ldquo;us&rdquo;) respects your privacy. This Privacy Policy explains how we collect, use, store, and protect information when you use greet-me.com and related services.</p>
 
       <h3 style={S.h3}>Information We Collect</h3>
@@ -54,10 +54,10 @@ export default function Legal() {
       <h3 style={S.h3}>Contact</h3>
       <p style={S.p}>For privacy questions: support@greet-me.com</p>
 
-      <hr style={{ margin: “28px 0” }} />
+      <hr style={{ margin: "28px 0" }} />
 
       {/* ============ TERMS OF SERVICE ============ */}
-      <h2 id=”terms” style={S.h2}>Terms of Service</h2>
+      <h2 id="terms" style={S.h2}>Terms of Service</h2>
       <p style={S.p}>By creating an account or using Greet-Me&trade; (&ldquo;the Service&rdquo;), you agree to these Terms.</p>
 
       <h3 style={S.h3}>Eligibility</h3>
@@ -102,8 +102,8 @@ export default function Legal() {
       <h3 style={S.h3}>Contact</h3>
       <p style={S.p}>Questions: support@greet-me.com</p>
 
-      <hr style={{ margin: “28px 0” }} />
-      <a href=”/” style={{ textDecoration: “none” }}>&larr; Back to app</a>
+      <hr style={{ margin: "28px 0" }} />
+      <a href="/" style={{ textDecoration: "none" }}>&larr; Back to app</a>
     </div>
   );
 }
