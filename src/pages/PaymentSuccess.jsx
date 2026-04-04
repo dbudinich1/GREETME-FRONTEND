@@ -8,42 +8,28 @@ export default function PaymentSuccess() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [g1g1State, setG1g1State] = useState(null);
-  const [loaded, setLoaded] = useState(false);
+  const [g1g1Loading, setG1g1Loading] = useState(true);
 
-  // Try backend first (entitlement doc), fall back to sessionStorage
+  // Backend is the ONLY source of truth for G1G1 state
   useEffect(() => {
     (async () => {
-      // 1. Try reading G1G1 state from backend entitlements
       if (user?.id) {
         try {
           const res = await api.get(`/api/payments/g1g1-status`);
           if (res?.ok && res.g1g1) {
-            console.log('[Success] G1G1 from backend:', res.g1g1);
             setG1g1State(res.g1g1);
-            setLoaded(true);
-            return;
           }
-        } catch { /* fall through to sessionStorage */ }
-      }
-
-      // 2. Fall back to sessionStorage
-      try {
-        const stored = JSON.parse(sessionStorage.getItem('greetme_g1g1_checkout') || 'null');
-        if (stored) {
-          console.log('[Success] G1G1 from session:', stored);
-          setG1g1State({
-            eligible: stored.eligible,
-            giftSent: stored.eligible && stored.recipientName && stored.recipientEmail && !stored.sendLater,
-          });
+        } catch (err) {
+          console.error('[Success] G1G1 status check failed:', err.message || err);
         }
-      } catch {}
-      setLoaded(true);
+      }
+      setG1g1Loading(false);
     })();
   }, [user?.id]);
 
-  // Clean up session after load
+  // Clean up stale sessionStorage (no longer used as source of truth)
   useEffect(() => {
-    return () => { sessionStorage.removeItem('greetme_g1g1_checkout'); };
+    sessionStorage.removeItem('greetme_g1g1_checkout');
   }, []);
 
   const hasG1G1 = g1g1State?.eligible === true;
@@ -140,8 +126,20 @@ export default function PaymentSuccess() {
           </>
         )}
 
-        {/* State 3: No G1G1 (credit used or non-subscription) */}
-        {!hasG1G1 && (
+        {/* State 3: Still checking G1G1 status */}
+        {g1g1Loading && !hasG1G1 && (
+          <>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a1a2e', margin: '0 0 0.75rem' }}>
+              Payment Successful
+            </h1>
+            <p style={{ fontSize: '1rem', color: '#555', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
+              Processing your gift&hellip;
+            </p>
+          </>
+        )}
+
+        {/* State 4: No G1G1 (credit used or non-subscription) */}
+        {!g1g1Loading && !hasG1G1 && (
           <>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a1a2e', margin: '0 0 0.75rem' }}>
               Payment Successful
