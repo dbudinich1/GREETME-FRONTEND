@@ -41,6 +41,7 @@ import G1G1Claim from "./pages/G1G1Claim";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
 import FounderDashboard from "./pages/FounderDashboard";
+import QAInspector from "./pages/QAInspector";
 import Support from "./pages/Support";
 import Legal from "./Legal";
 import VerifyEmail from "./pages/VerifyEmail";
@@ -112,6 +113,7 @@ export default function App() {
 
           {/* Founder Dashboard (admin key protected at API level) */}
           <Route path="/admin" element={<FounderDashboard />} />
+          <Route path="/qa" element={<QAInspector />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
