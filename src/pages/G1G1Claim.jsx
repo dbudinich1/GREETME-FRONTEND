@@ -14,14 +14,13 @@ const G1G1_STORAGE_KEY = 'greetme_g1g1_gift_code';
 export default function G1G1Claim() {
   const { giftCode } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   const [gift, setGift] = useState(null);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
   const [error, setError] = useState(null);
   const [claimed, setClaimed] = useState(false);
-  const [claimedPlan, setClaimedPlan] = useState('');
 
   // Fetch gift details on mount
   useEffect(() => {
@@ -37,7 +36,6 @@ export default function G1G1Claim() {
           setGift(res.gift);
           if (res.gift.status === 'claimed') {
             setClaimed(true);
-            setClaimedPlan(res.gift.planName);
           }
         } else {
           setError(res?.error || 'Gift not found');
@@ -70,7 +68,6 @@ export default function G1G1Claim() {
       const res = await api.claimG1G1Gift(giftCode);
       if (res?.ok) {
         setClaimed(true);
-        setClaimedPlan(res.planName || gift?.planName || '');
       } else {
         setError(res?.error || 'Failed to claim gift');
       }
@@ -109,21 +106,36 @@ export default function G1G1Claim() {
     );
   }
 
-  // Already claimed
+  // Already claimed — celebratory success state
   if (claimed) {
     return (
       <div style={styles.page}>
         <div style={styles.card}>
           <GreetMeLogo size="medium" clickable={false} />
-          <div style={styles.successIcon}>&#10003;</div>
-          <h1 style={styles.title}>Membership Activated!</h1>
-          <p style={styles.subtitle}>
-            Your <strong>{claimedPlan}</strong> membership is now active.
-            Start sending personalized AI video greetings to the people who matter most.
+          <div style={styles.celebrationEmoji}>🎉</div>
+          <h1 style={styles.title}>You're in!</h1>
+          <p style={styles.successSubhead}>
+            Your Greet-Me membership is now active.
+          </p>
+          <p style={styles.successBody}>
+            Your profile is already set — just add a recipient and send
+            a Greet-Me whenever it feels right.
+          </p>
+          <p style={styles.successBody}>
+            Schedule something special, or send one just because.
+          </p>
+          <p style={styles.successSupport}>
+            Add a personal note, make it yours, and send something they'll never forget.
           </p>
           <button onClick={() => navigate('/dashboard/send')} style={styles.primaryBtn}>
-            Send Your First Greeting
+            Send Your First Greet-Me
           </button>
+          <p style={styles.successExtra}>
+            We've also sent you a little something extra — our welcome gift to you.
+          </p>
+          <p style={styles.successNoPressure}>
+            No pressure — you can start whenever you're ready.
+          </p>
         </div>
       </div>
     );
@@ -283,17 +295,41 @@ const styles = {
     fontFamily: FONT_STACK,
     marginTop: '0.75rem',
   },
-  successIcon: {
-    width: '56px',
-    height: '56px',
-    borderRadius: '50%',
-    background: '#16a34a',
-    color: 'white',
-    fontSize: '28px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: '1rem auto 0',
+  celebrationEmoji: {
+    fontSize: '3rem',
+    margin: '1rem 0 0',
+    lineHeight: 1,
+  },
+  successSubhead: {
+    fontSize: '1.0625rem',
+    color: '#4b5563',
+    fontWeight: 500,
+    margin: '0 0 1rem',
+    lineHeight: 1.5,
+  },
+  successBody: {
+    fontSize: '0.9375rem',
+    color: '#4b5563',
+    lineHeight: 1.6,
+    margin: '0 0 0.75rem',
+  },
+  successSupport: {
+    fontSize: '0.875rem',
+    color: '#6b7280',
+    lineHeight: 1.6,
+    margin: '0 0 1.5rem',
+    fontStyle: 'italic',
+  },
+  successExtra: {
+    fontSize: '0.8125rem',
+    color: '#6b7280',
+    margin: '1.25rem 0 0.5rem',
+    lineHeight: 1.5,
+  },
+  successNoPressure: {
+    fontSize: '0.8125rem',
+    color: '#9ca3af',
+    margin: '0',
   },
   errorBox: {
     background: '#fef2f2',
