@@ -346,6 +346,27 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
               <span className="gc-brand-name">Greet-Me™</span>
             </div>
             <p className="gc-brand-tagline">This moment was lovingly prepared for you.</p>
+            <p style={{
+              fontSize: '0.65em',
+              color: 'rgba(139, 125, 107, 0.55)',
+              fontStyle: 'italic',
+              margin: '0.8em 0 0.25em',
+              fontFamily: 'Georgia, serif',
+            }}>
+              Want to create something like this?
+            </p>
+            <a
+              href="/#/register"
+              style={{
+                fontSize: '0.65em',
+                color: 'rgba(139, 125, 107, 0.7)',
+                textDecoration: 'none',
+                fontFamily: 'Georgia, serif',
+                letterSpacing: '0.02em',
+              }}
+            >
+              Create your own Greet-Me &rarr;
+            </a>
           </div>
         </div>
       </div>

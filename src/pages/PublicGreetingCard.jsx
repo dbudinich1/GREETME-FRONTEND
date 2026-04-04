@@ -291,7 +291,7 @@ export default function PublicGreetingCard() {
           <p style={{ margin: '0 0 1rem', fontSize: '0.95rem', opacity: 0.9, lineHeight: 1.5 }}>
             Send your own personalized animated greeting to someone you love.
           </p>
-          <a href="/" style={{
+          <a href="/#/register" style={{
             display: 'inline-block',
             padding: '12px 32px',
             background: '#FFF',
