@@ -8,7 +8,19 @@ import GreetMeLogo from '../components/GreetMeLogo';
 
 const isMobile = window.innerWidth <= 480;
 
+// Fast mode: skip name fields when entering from a viral loop
+function isFastMode() {
+  if (new URLSearchParams(window.location.hash.split('?')[1] || '').get('fast') === '1') return true;
+  return !!(
+    localStorage.getItem('greetme_pending_credit') ||
+    localStorage.getItem('greetme_g1g1_gift_code') ||
+    localStorage.getItem('greetme_pending_thankyou') ||
+    localStorage.getItem('greetme_referral_code')
+  );
+}
+
 export default function Register() {
+  const [fastMode] = useState(isFastMode);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -89,7 +101,9 @@ export default function Register() {
             fontSize: '0.875rem',
             color: 'var(--text-secondary)',
           }}>
-            Start sending personalized greetings
+            {fastMode
+              ? 'Create your account in seconds \u2014 you can add the rest later.'
+              : 'Start sending personalized greetings'}
           </p>
         </div>
 
@@ -110,64 +124,66 @@ export default function Register() {
 
         {/* Form */}
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{
-                display: 'block',
-                fontSize: '0.8125rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                marginBottom: '0.375rem',
-              }}>
-                First Name
-              </label>
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="First"
-                required
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.875rem',
-                  fontFamily: 'inherit',
-                  boxSizing: 'border-box',
-                  background: 'var(--bg-primary)',
-                }}
-              />
+          {!fastMode && (
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  marginBottom: '0.375rem',
+                }}>
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="First"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.875rem',
+                    fontFamily: 'inherit',
+                    boxSizing: 'border-box',
+                    background: 'var(--bg-primary)',
+                  }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  marginBottom: '0.375rem',
+                }}>
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Last"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.875rem',
+                    fontFamily: 'inherit',
+                    boxSizing: 'border-box',
+                    background: 'var(--bg-primary)',
+                  }}
+                />
+              </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <label style={{
-                display: 'block',
-                fontSize: '0.8125rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                marginBottom: '0.375rem',
-              }}>
-                Last Name
-              </label>
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Last"
-                required
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.875rem',
-                  fontFamily: 'inherit',
-                  boxSizing: 'border-box',
-                  background: 'var(--bg-primary)',
-                }}
-              />
-            </div>
-          </div>
+          )}
 
           <div style={{ marginBottom: '1rem' }}>
             <label style={{
