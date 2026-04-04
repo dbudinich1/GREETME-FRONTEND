@@ -40,6 +40,7 @@ import CreditClaim from "./pages/CreditClaim";
 import G1G1Claim from "./pages/G1G1Claim";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
+import FounderDashboard from "./pages/FounderDashboard";
 import Support from "./pages/Support";
 import Legal from "./Legal";
 import VerifyEmail from "./pages/VerifyEmail";
@@ -108,6 +109,9 @@ export default function App() {
           {/* Support & Legal (Public) */}
           <Route path="/support" element={<Support />} />
           <Route path="/legal" element={<Legal />} />
+
+          {/* Founder Dashboard (admin key protected at API level) */}
+          <Route path="/admin" element={<FounderDashboard />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
