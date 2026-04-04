@@ -323,9 +323,9 @@ export default function PublicGreetingCard() {
         <div style={{ fontSize: '0.75rem', color: '#b0b0b0' }}>
           <a href="/#/support" style={{ color: '#9ca3af', textDecoration: 'none' }}>Support</a>
           <span style={{ margin: '0 0.5rem', opacity: 0.4 }}>·</span>
-          <a href="/#/privacy" style={{ color: '#9ca3af', textDecoration: 'none' }}>Privacy</a>
+          <a href="/#/legal#privacy" style={{ color: '#9ca3af', textDecoration: 'none' }}>Privacy</a>
           <span style={{ margin: '0 0.5rem', opacity: 0.4 }}>·</span>
-          <a href="/#/terms" style={{ color: '#9ca3af', textDecoration: 'none' }}>Terms</a>
+          <a href="/#/legal#terms" style={{ color: '#9ca3af', textDecoration: 'none' }}>Terms</a>
         </div>
       </footer>
     </div>

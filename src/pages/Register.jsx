@@ -251,6 +251,17 @@ export default function Register() {
             </p>
           </div>
 
+          <p style={{
+            fontSize: '0.75rem',
+            color: 'var(--text-tertiary)',
+            margin: '0 0 1rem',
+            lineHeight: 1.5,
+          }}>
+            By signing up, you confirm you are at least 13 years old and agree to our{' '}
+            <a href="/#/legal#terms" style={{ color: '#6366f1' }}>Terms</a> and{' '}
+            <a href="/#/legal#privacy" style={{ color: '#6366f1' }}>Privacy Policy</a>.
+          </p>
+
           <button
             type="submit"
             disabled={loading}
