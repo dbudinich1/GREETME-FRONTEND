@@ -30,12 +30,18 @@ export const Login = () => {
     const result = await login(email, password);
 
     if (result?.success) {
-      const pendingReferral = localStorage.getItem('greetme_referral_code');
-      if (pendingReferral) {
-        localStorage.removeItem('greetme_referral_code');
-        navigate(`/dashboard/send?referral=${pendingReferral}`);
+      const pendingG1G1 = localStorage.getItem('greetme_g1g1_gift_code');
+      if (pendingG1G1) {
+        localStorage.removeItem('greetme_g1g1_gift_code');
+        navigate(`/gift/g1g1/${pendingG1G1}`);
       } else {
-        navigate("/dashboard");
+        const pendingReferral = localStorage.getItem('greetme_referral_code');
+        if (pendingReferral) {
+          localStorage.removeItem('greetme_referral_code');
+          navigate(`/dashboard/send?referral=${pendingReferral}`);
+        } else {
+          navigate("/dashboard");
+        }
       }
     } else {
       setError(getErrorMessage(result));

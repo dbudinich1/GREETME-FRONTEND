@@ -27,8 +27,11 @@ export default function Register() {
     const result = await register(fullName, email, password);
 
     if (result.success) {
+      const pendingG1G1 = localStorage.getItem('greetme_g1g1_gift_code');
       const pendingReferral = localStorage.getItem('greetme_referral_code');
-      const dest = pendingReferral
+      const dest = pendingG1G1
+        ? (localStorage.removeItem('greetme_g1g1_gift_code'), `/gift/g1g1/${pendingG1G1}`)
+        : pendingReferral
         ? (localStorage.removeItem('greetme_referral_code'), `/dashboard/send?referral=${pendingReferral}`)
         : '/dashboard';
       if (typeof window.gtag === 'function') {
