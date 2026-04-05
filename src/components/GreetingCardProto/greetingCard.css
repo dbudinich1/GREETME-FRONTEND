@@ -293,8 +293,8 @@
   display: flex;
   width: var(--gc-master-frame);
   max-width: var(--gc-spread-max-width);
-  max-height: calc(100vh - 32px);   /* Fallback for browsers without dvh support */
-  max-height: calc(100dvh - 32px);  /* FIT-FIRST: Constrain to viewport, minimal breathing room */
+  max-height: calc(100vh - 48px);   /* Fallback for browsers without dvh support */
+  max-height: calc(100dvh - 48px);  /* FIT-FIRST: Constrain to viewport, safe breathing room */
   height: auto;
   aspect-ratio: var(--gc-landscape-ar);
   background-size: 100% 100%;

@@ -145,16 +145,15 @@ export default function CreditClaim() {
 
             {/* Primary CTA: Thank You (pre-claim) */}
             {credit?.sourceJobId && (
-              <button onClick={() => {
-                // Claim credit first (fire-and-forget), then route to thank-you
-                handleClaim().then(() => {
-                  if (isAuthenticated) {
-                    navigate(`/thank-you?jobId=${credit.sourceJobId}`);
-                  } else {
-                    localStorage.setItem('greetme_pending_thankyou', credit.sourceJobId);
-                    navigate('/register');
-                  }
-                });
+              <button onClick={async () => {
+                if (!isAuthenticated) {
+                  localStorage.setItem('greetme_pending_thankyou', credit.sourceJobId);
+                  localStorage.setItem('greetme_pending_credit', creditCode);
+                  navigate('/register');
+                  return;
+                }
+                await handleClaim();
+                navigate(`/thank-you?jobId=${credit.sourceJobId}`);
               }} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
                 Say Thanks with a Greet-Me
               </button>
@@ -192,16 +191,16 @@ export default function CreditClaim() {
               <p style={styles.nudgeBody}>
                 You can thank the sender with a Greet-Me now, or skip and apply your {displayAmount} subscription credit.
               </p>
-              <button onClick={() => {
+              <button onClick={async () => {
                 setShowNudge(false);
-                handleClaim().then(() => {
-                  if (isAuthenticated) {
-                    navigate(`/thank-you?jobId=${credit.sourceJobId}`);
-                  } else {
-                    localStorage.setItem('greetme_pending_thankyou', credit.sourceJobId);
-                    navigate('/register');
-                  }
-                });
+                if (!isAuthenticated) {
+                  localStorage.setItem('greetme_pending_thankyou', credit.sourceJobId);
+                  localStorage.setItem('greetme_pending_credit', creditCode);
+                  navigate('/register');
+                  return;
+                }
+                await handleClaim();
+                navigate(`/thank-you?jobId=${credit.sourceJobId}`);
               }} style={{ ...styles.cta, marginBottom: '0.75rem', width: '100%' }}>
                 Say Thanks with a Greet-Me
               </button>
