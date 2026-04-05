@@ -77,7 +77,7 @@
   max-height: 100vh;   /* Fallback for browsers without dvh support */
   max-height: 100dvh;  /* FIT-FIRST: Prevent scroll via height constraint */
   background: var(--gc-bg-navy);
-  padding: clamp(8px, 1.5vw, 24px);  /* FIT-FIRST: Tight padding, card dominates */
+  padding: clamp(8px, 2vw, 40px);  /* FIT-FIRST: Responsive padding */
   box-sizing: border-box;
   /* NO overflow: hidden - preserves paper edges and shadows */
   /* Prevent text selection during swipe/drag navigation */
@@ -211,7 +211,7 @@
 
 .gc-cover {
   width: 90vw;
-  max-width: 680px;
+  max-width: 600px;
   height: auto;
   aspect-ratio: 400 / 560;
   background-size: contain;
@@ -224,20 +224,10 @@
   justify-content: center;
   align-items: center;
   transition: transform 0.3s ease;
-  animation: gc-coverHint 2.4s cubic-bezier(0.4, 0, 0.2, 1) 0.6s 1 both;
 }
 
 .gc-cover:hover {
   transform: scale(1.02);
-  animation: none;
-}
-
-/* Subtle 3D tilt hint — plays once on mount, suggests interactivity */
-@keyframes gc-coverHint {
-  0%   { transform: perspective(1200px) rotateY(0deg)   rotateX(0deg);  }
-  30%  { transform: perspective(1200px) rotateY(-2deg)   rotateX(0.5deg); filter: drop-shadow(4px 20px 44px rgba(0, 0, 0, 0.45)); }
-  60%  { transform: perspective(1200px) rotateY(1.2deg)  rotateX(-0.3deg); }
-  100% { transform: perspective(1200px) rotateY(0deg)    rotateX(0deg);  }
 }
 
 .gc-cover-content {
@@ -293,8 +283,8 @@
   display: flex;
   width: var(--gc-master-frame);
   max-width: var(--gc-spread-max-width);
-  max-height: calc(100vh - 48px);   /* Fallback for browsers without dvh support */
-  max-height: calc(100dvh - 48px);  /* FIT-FIRST: Constrain to viewport, safe breathing room */
+  max-height: calc(100vh - 80px);   /* Fallback for browsers without dvh support */
+  max-height: calc(100dvh - 80px);  /* FIT-FIRST: Constrain to viewport */
   height: auto;
   aspect-ratio: var(--gc-landscape-ar);
   background-size: 100% 100%;
