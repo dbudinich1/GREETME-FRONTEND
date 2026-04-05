@@ -101,7 +101,7 @@ export default function Landing() {
       >
         <video
           ref={demoRef}
-          src="/assets/demo/greetme-demo.mp4"
+          src="https://greetmedanny.blob.core.windows.net/public/greetme-demo.mp4"
           autoPlay
           muted
           playsInline
