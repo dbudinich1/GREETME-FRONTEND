@@ -49,7 +49,7 @@ export default function PublicGreetingCard() {
   // "They opened it" = "they opened your greeting link." Acceptable for launch.
   // Phase 2: move trigger to Finale screen via GreetingCard onScreenChange callback.
   useEffect(() => {
-    if (greeting && jobId) {
+    if (greeting && jobId && !greeting.isOnboardingTestSend) {
       api.trackGreetingOpened(jobId).catch(() => {});
     }
   }, [greeting, jobId]);
@@ -80,6 +80,7 @@ export default function PublicGreetingCard() {
           hasGift: g.hasGift || false,
           gift: g.gift || null,
           courtesyCreditCode: g.courtesyCreditCode || null,
+          isOnboardingTestSend: g.isOnboardingTestSend === true,
         });
       } else {
         setError('not_found');
@@ -248,21 +249,21 @@ export default function PublicGreetingCard() {
   // Render the premium greeting card experience with wrapper
   return (
     <div className="gc-public-wrapper" style={{ minHeight: '100vh', background: '#f5f3f0' }}>
-      {/* Branded header — subtle, tasteful (hidden in landscape via CSS) */}
+      {/* Branded header — minimal, doesn't compete with card (hidden in landscape via CSS) */}
       <div className="gc-public-chrome" style={{
         textAlign: 'center',
-        padding: '1rem 1rem 0.5rem',
+        padding: '0.5rem 1rem 0.25rem',
       }}>
         <p style={{
-          fontSize: '0.8rem',
-          color: '#9ca3af',
+          fontSize: '0.7rem',
+          color: '#b0b0b0',
           margin: 0,
           letterSpacing: '0.05em',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         }}>
           <span style={{ fontWeight: 600 }}>Greet-Me™</span>
-          <span style={{ margin: '0 0.5rem', opacity: 0.4 }}>·</span>
-          <span style={{ fontStyle: 'italic', fontSize: '0.75rem' }}>Forget Them Not!™</span>
+          <span style={{ margin: '0 0.4rem', opacity: 0.3 }}>·</span>
+          <span style={{ fontStyle: 'italic', fontSize: '0.65rem' }}>Forget Them Not!™</span>
         </p>
       </div>
 
@@ -274,11 +275,11 @@ export default function PublicGreetingCard() {
       {/* "Send Your Own" CTA (Viral Loop) — hidden in landscape via CSS */}
       <div className="gc-public-chrome" style={{
         maxWidth: '640px',
-        margin: '2rem auto 0',
+        margin: '1rem auto 0',
         padding: '0 1rem',
       }}>
         <div style={{
-          padding: '1.5rem',
+          padding: '1.25rem',
           background: 'linear-gradient(135deg, #3A7BD5 0%, #1B2A4A 100%)',
           borderRadius: '16px',
           textAlign: 'center',
@@ -311,7 +312,7 @@ export default function PublicGreetingCard() {
       {/* Footer — hidden in landscape via CSS */}
       <footer className="gc-public-chrome" style={{
         textAlign: 'center',
-        padding: '2rem 1rem',
+        padding: '1rem 1rem',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}>
         <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: '0 0 0.25rem' }}>

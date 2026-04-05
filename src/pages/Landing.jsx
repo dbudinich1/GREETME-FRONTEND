@@ -21,11 +21,13 @@ export default function Landing() {
     }
   }, [isAuthenticated, loading]);
 
+  // Demo mode: ?demo=1 prevents auth redirect so founder can show landing while logged in
+  const isDemoView = new URLSearchParams(window.location.hash.split('?')[1] || '').get('demo') === '1';
   useEffect(() => {
-    if (!loading && isAuthenticated) {
+    if (!loading && isAuthenticated && !isDemoView) {
       navigate('/dashboard', { replace: true });
     }
-  }, [isAuthenticated, loading, navigate]);
+  }, [isAuthenticated, loading, navigate, isDemoView]);
 
   if (loading) {
     return (
@@ -35,7 +37,7 @@ export default function Landing() {
     );
   }
 
-  if (isAuthenticated) return null;
+  if (isAuthenticated && !isDemoView) return null;
 
   return (
     <div style={{

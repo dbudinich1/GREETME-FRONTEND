@@ -177,10 +177,10 @@ export default function GreetingCard({ greeting }) {
           <FinaleSpread
             finaleText={greeting.finaleText}
             occasionKey={greeting.occasionKey}
-            hasGift={greeting.hasGift}
-            gift={greeting.gift}
+            hasGift={greeting.isOnboardingTestSend ? false : greeting.hasGift}
+            gift={greeting.isOnboardingTestSend ? null : greeting.gift}
             jobId={greeting.jobId}
-            courtesyCreditCode={greeting.courtesyCreditCode}
+            courtesyCreditCode={greeting.isOnboardingTestSend ? null : greeting.courtesyCreditCode}
           />
         );
       default:
@@ -400,10 +400,10 @@ export default function GreetingCard({ greeting }) {
             <FinaleSpread
               finaleText={greeting.finaleText}
               occasionKey={greeting.occasionKey}
-              hasGift={greeting.hasGift}
-              gift={greeting.gift}
+              hasGift={greeting.isOnboardingTestSend ? false : greeting.hasGift}
+              gift={greeting.isOnboardingTestSend ? null : greeting.gift}
               jobId={greeting.jobId}
-              courtesyCreditCode={greeting.courtesyCreditCode}
+              courtesyCreditCode={greeting.isOnboardingTestSend ? null : greeting.courtesyCreditCode}
             />
           )}
         </>

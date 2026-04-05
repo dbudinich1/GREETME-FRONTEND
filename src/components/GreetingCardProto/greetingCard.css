@@ -77,7 +77,7 @@
   max-height: 100vh;   /* Fallback for browsers without dvh support */
   max-height: 100dvh;  /* FIT-FIRST: Prevent scroll via height constraint */
   background: var(--gc-bg-navy);
-  padding: clamp(8px, 2vw, 40px);  /* FIT-FIRST: Responsive padding */
+  padding: clamp(8px, 1.5vw, 24px);  /* FIT-FIRST: Tight padding, card dominates */
   box-sizing: border-box;
   /* NO overflow: hidden - preserves paper edges and shadows */
   /* Prevent text selection during swipe/drag navigation */
@@ -293,8 +293,8 @@
   display: flex;
   width: var(--gc-master-frame);
   max-width: var(--gc-spread-max-width);
-  max-height: calc(100vh - 80px);   /* Fallback for browsers without dvh support */
-  max-height: calc(100dvh - 80px);  /* FIT-FIRST: Constrain to viewport */
+  max-height: calc(100vh - 32px);   /* Fallback for browsers without dvh support */
+  max-height: calc(100dvh - 32px);  /* FIT-FIRST: Constrain to viewport, minimal breathing room */
   height: auto;
   aspect-ratio: var(--gc-landscape-ar);
   background-size: 100% 100%;
