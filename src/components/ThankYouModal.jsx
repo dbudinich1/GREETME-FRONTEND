@@ -229,12 +229,20 @@ export default function ThankYouModal({ isOpen, onClose, greeting }) {
                   <img
                     src={greeting.photoUrl}
                     alt={greeting.senderName}
+                    width={64}
+                    height={64}
                     style={{
                       width: '64px',
                       height: '64px',
+                      maxWidth: '64px',
+                      maxHeight: '64px',
+                      minWidth: '64px',
+                      minHeight: '64px',
                       borderRadius: '50%',
                       objectFit: 'cover',
                       border: '3px solid #f9a8d4',
+                      display: 'block',
+                      margin: '0 auto',
                     }}
                   />
                 </div>
