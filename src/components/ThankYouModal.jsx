@@ -224,6 +224,21 @@ export default function ThankYouModal({ isOpen, onClose, greeting }) {
           ) : (
             // Input state
             <>
+              {greeting.photoUrl && (
+                <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                  <img
+                    src={greeting.photoUrl}
+                    alt={greeting.senderName}
+                    style={{
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '3px solid #f9a8d4',
+                    }}
+                  />
+                </div>
+              )}
               <p style={{
                 fontSize: '0.875rem',
                 color: 'var(--text-secondary)',
