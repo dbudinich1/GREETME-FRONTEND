@@ -140,7 +140,14 @@ export default function PhotoUpload({ onUpload, existingPhoto, compact = false }
             <img
               src={preview}
               alt="Preview"
-              className={`${compact ? 'w-20 h-20' : 'w-64 h-64'} object-cover rounded-lg`}
+              style={{
+                width: compact ? '80px' : '256px',
+                height: compact ? '80px' : '256px',
+                maxWidth: compact ? '80px' : '256px',
+                maxHeight: compact ? '80px' : '256px',
+                objectFit: 'cover',
+                borderRadius: '8px',
+              }}
             />
             {selectedFile && (
               <button
