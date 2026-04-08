@@ -76,6 +76,8 @@ export const AuthProvider = ({ children }) => {
       }
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      // Clear stale media from previous session to prevent cross-account bleed
+      localStorage.removeItem('greetme_voice_file');
       setUser(data.user);
       // Hydrate photoUrl from backend profile (fire-and-forget)
       fetchAndHydrateProfile(data.token, data.user);

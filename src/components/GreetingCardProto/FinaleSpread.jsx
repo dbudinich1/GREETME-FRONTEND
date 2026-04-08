@@ -185,12 +185,17 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
   // CANONICAL: NO SIGNATURE on Finale spread - strip any sign-off from AI text
   let cleanedFinale = stripSignature(finaleText);
 
-  // CANONICAL: Append deterministic sign-off by occasion
+  // CANONICAL: Strip ALL known occasion sign-offs to prevent duplication, then append one
   const signoff = getOccasionSignoff(occasionKey);
+  if (cleanedFinale) {
+    // Remove every known sign-off phrase (handles backend having already appended one)
+    const allSignoffs = [...new Set(Object.values(OCCASION_SIGNOFFS))];
+    for (const so of allSignoffs) {
+      const escaped = so.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\./, '\\.?');
+      cleanedFinale = cleanedFinale.replace(new RegExp('\\s*' + escaped + '\\s*', 'gi'), ' ').trim();
+    }
+  }
   if (signoff && cleanedFinale) {
-    // Remove any existing instance of this sign-off to avoid duplication
-    const escaped = signoff.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\.\s*$/, '\\.?');
-    cleanedFinale = cleanedFinale.replace(new RegExp(escaped + '\\s*$', 'i'), '').trim();
     cleanedFinale = `${cleanedFinale}\n\n${signoff}`;
   } else if (signoff) {
     cleanedFinale = signoff;
