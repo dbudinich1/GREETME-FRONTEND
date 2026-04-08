@@ -418,6 +418,19 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       }}>
         🎉
       </div>
+      {sessionStorage.getItem('greetme_g1g1_claimed') && (
+        <p style={{
+          fontSize: '0.875rem',
+          color: 'var(--text-secondary)',
+          lineHeight: 1.6,
+          marginBottom: '1rem',
+          maxWidth: '24rem',
+          margin: '0 auto 1rem',
+          fontStyle: 'italic',
+        }}>
+          You&rsquo;ve been gifted a Greet-Me. Let&rsquo;s get you set up so you can send one to someone you love.
+        </p>
+      )}
       <h2 style={{
         fontSize: isMobile ? '1.375rem' : '1.625rem',
         fontWeight: 700,
@@ -425,7 +438,9 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         marginBottom: '1.25rem',
         lineHeight: 1.35,
       }}>
-        Congratulations{user?.name ? `, ${user.name.split(' ')[0]}` : ''} &mdash; welcome to Greet-Me.
+        {sessionStorage.getItem('greetme_g1g1_claimed')
+          ? `Welcome${user?.name ? `, ${user.name.split(' ')[0]}` : ''}.`
+          : `Congratulations${user?.name ? `, ${user.name.split(' ')[0]}` : ''} \u2014 welcome to Greet-Me.`}
       </h2>
       <p style={{
         fontSize: '1rem',
@@ -435,7 +450,9 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         maxWidth: '24rem',
         margin: '0 auto 1.5rem',
       }}>
-        You&rsquo;ve earned ❤️ 25 hearts and received 3 free sends &mdash; our gift to you.
+        {sessionStorage.getItem('greetme_g1g1_claimed')
+          ? 'Once you\u2019re ready, you\u2019ll be able to pass it forward.'
+          : 'You\u2019ve earned \u2764\uFE0F 25 hearts and received 3 free sends \u2014 our gift to you.'}
       </p>
       <p style={{
         fontSize: '1.0625rem',

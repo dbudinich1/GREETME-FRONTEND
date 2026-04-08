@@ -68,6 +68,7 @@ export default function G1G1Claim() {
       const res = await api.claimG1G1Gift(giftCode);
       if (res?.ok) {
         setClaimed(true);
+        sessionStorage.setItem('greetme_g1g1_claimed', '1');
       } else {
         setError(res?.error || 'Failed to claim gift');
       }
