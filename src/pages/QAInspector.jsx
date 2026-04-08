@@ -78,6 +78,183 @@ const SECTIONS = [
   },
 ];
 
+// ============ FLOW DOCUMENTATION DATA ============
+const FLOW_DOCS = [
+  {
+    title: 'Core Loop',
+    flows: [
+      {
+        name: '1. Standard Greet-Me Send Loop',
+        badge: 'LIVE',
+        rows: [
+          ['Entry', 'Logged-in sender → /dashboard/send'],
+          ['Route', 'POST /api/jobs/send-greeting → worker pipeline → recipient email'],
+          ['Recipient', 'Opens /#/g/{jobId} → full 5-screen card experience'],
+          ['Events', 'GREETING_OPENED (page load, suppressed for test sends) → T6 email to sender → T7 enqueued +1h'],
+          ['CTAs (below card)', '"Send Thank You" (primary, pink) → /#/thank-you?jobId={id}. "Create Yours" (secondary) → /#/register?fast=1'],
+          ['Finale (in card)', 'QR Cash gift (if hasGift) OR courtesy credit QR (if courtesyCreditCode) OR text fallback'],
+          ['Loop', 'Recipient sends thank-you → original sender receives greeting → cycle repeats'],
+        ],
+      },
+      {
+        name: '2. Recipient Thank-You Loop',
+        badge: 'LIVE',
+        rows: [
+          ['Entry', 'Recipient clicks "Send Thank You" below card OR T7 email CTA'],
+          ['Route', '/#/thank-you?jobId={id}'],
+          ['Prefill', 'GET /api/events/thankyou-prefill/{jobId} → sender name, email, script pre-populated'],
+          ['Auth', 'If guest → inline register/login modal (no page navigation). After auth → auto-sends.'],
+          ['State', 'sourceJobId links thank-you back to original greeting. THANKYOU_FLOW_STARTED (Guard B) fires on prefill load.'],
+          ['Send', 'POST /api/jobs/send-greeting with sourceJobId and occasionKey: "thank-you"'],
+          ['Next', 'Exponential Moment celebration screen'],
+        ],
+      },
+      {
+        name: '3. Post-Thank-You Exponential Moment',
+        badge: 'LIVE',
+        rows: [
+          ['Trigger', 'Immediately after thank-you send succeeds (sent state = true)'],
+          ['UI', 'Success checkmark → "This is how Greet-Me makes life\'s moments truly unforgettable"'],
+          ['CTA 1', '"Share the Moment" (primary) → navigator.share() with /#/g/{jobId} URL'],
+          ['CTA 2', '"Continue to dashboard" (secondary, opacity 0.6) → /#/dashboard'],
+          ['CTA 3', '"View plans & pricing" (tertiary, opacity 0.4) → /#/pricing'],
+          ['Events', 'EXPONENTIAL_MOMENT_SEEN on mount. SHARE fires on share. DISMISSED fires on exit.'],
+          ['Reward', 'POST /api/events/share-reward → credit unlocked (up to $10 QR Cash match or $5 credit double)'],
+          ['Expiry', 'Screen expires 90 minutes after send (momentExpired check)'],
+          ['Note', 'No auto card preview — user stays on celebration screen until they navigate away'],
+        ],
+      },
+    ],
+  },
+  {
+    title: 'Credits / Monetization',
+    flows: [
+      {
+        name: '4. Credit / QR Claim Flow',
+        badge: 'LIVE',
+        rows: [
+          ['Entry', 'Recipient scans QR on Finale OR clicks text link → /#/claim-credit/{creditCode}'],
+          ['QR Render', 'Only when courtesyCreditCode exists (real tracked code). No QR = text fallback "Tap to claim".'],
+          ['Pre-claim', '"Claim Your $5 Credit" button. If unauth → stashes greetme_pending_credit → /login → redirects back.'],
+          ['Claim', 'POST /api/credits/{code}/claim → marks claimed in Cosmos. Stashes greetme_courtesy_credit in localStorage.'],
+          ['Post-claim', '"Plans and Pricing" → /#/pricing. "Go to Dashboard" → /#/dashboard.'],
+          ['Checkout', 'Checkout.jsx reads greetme_courtesy_credit from localStorage → sends courtesyCreditCode to backend → Stripe coupon created.'],
+          ['Note', 'No thank-you CTA on credit claim page (removed — credit claim is not a greeting experience).'],
+        ],
+      },
+    ],
+  },
+  {
+    title: 'Activation / Onboarding',
+    flows: [
+      {
+        name: '5. G1G1 Gift Claim + Activation',
+        badge: 'LIVE',
+        rows: [
+          ['Trigger', 'Full-price subscription with g1g1Eligible: "true" in Stripe metadata'],
+          ['Creation', 'provisionEntitlement.js → gift record in Cosmos (type: "g1g1", checkoutSessionId for dedupe)'],
+          ['Delivery', 'Email: "You\'ve been gifted a Greet-Me" → CTA "Activate Your Membership" → /#/gift/g1g1/{giftCode}'],
+          ['Claim page', 'Shows sender name, plan name. Unauth → "Create Account & Claim Gift" → stash greetme_g1g1_gift_code → /register (fast mode).'],
+          ['Claim', 'POST /api/gifts/g1g1/{code}/claim → updateUserPlan(). Entitlements: source: "g1g1", stripeSubscriptionId: null.'],
+          ['Event', 'G1G1_RECIPIENT_ACTIVATED logged.'],
+          ['Post-claim', '"Send My First Greet-Me" → /dashboard/send?occasion=just_because'],
+          ['Note', 'Discount purchases (referral/courtesy credit) force g1g1Eligible: "false" — no gift created.'],
+        ],
+      },
+      {
+        name: '6. G1G1 Onboarding / Test Send',
+        badge: 'LIVE',
+        rows: [
+          ['Trigger', 'G1G1 user navigates to /dashboard/send → DashboardLayout renders → shouldShowGuidedSetup() returns true (new account)'],
+          ['Welcome', 'G1G1-specific copy: "You\'ve been gifted a Greet-Me. Let\'s get you set up." (detected via sessionStorage greetme_g1g1_claimed)'],
+          ['Steps', 'Welcome → Voice → Photo → Recipient → SendPrep → Sending → Success → GiftReveal'],
+          ['Test send', 'isOnboardingTestSend: true set in payload. demoContent bypasses AI. occasionKey: "just_because".'],
+          ['Flag cleared', 'greetme_g1g1_claimed removed from sessionStorage on onboarding complete.'],
+          ['Note', 'User can dismiss onboarding (X button on step 0) and go straight to real send.'],
+        ],
+      },
+      {
+        name: '7. G1G1 First Real Send',
+        badge: 'LIVE',
+        rows: [
+          ['Trigger', 'After onboarding completes or is dismissed → user on /dashboard/send'],
+          ['Behavior', 'Normal send pipeline. No G1G1 special handling in worker.'],
+          ['Credits', 'Courtesy credit ($5) created for non-gift greetings (same as all users).'],
+          ['Recipient', 'Gets normal greeting experience with thank-you CTA, credit QR, full loop.'],
+          ['Loop', 'Identical to standard send flow. G1G1 source is metadata only.'],
+        ],
+      },
+    ],
+  },
+  {
+    title: 'Exception Cases',
+    flows: [
+      {
+        name: '8. Self-Send / Test-Send Exception',
+        badge: 'EXCEPTION',
+        rows: [
+          ['Onboarding test', 'isOnboardingTestSend: true → GREETING_OPENED suppressed. Thank-you CTA suppressed. hasGift/gift forced to false/null in FinaleSpread.'],
+          ['Credit QR', 'courtesyCreditCode passes through (QR renders for test sends — visual card element).'],
+          ['Post-card', 'Only "Create Yours" CTA visible below card. No "Send Thank You".'],
+          ['Manual self-send', 'Logged-in user sends to own email → isOnboardingTestSend is false → full normal flow including thank-you CTA.'],
+          ['Flag source', 'PublicGreetingCard.jsx:276 — condition: !greeting.isOnboardingTestSend && greeting.jobId'],
+        ],
+      },
+    ],
+  },
+  {
+    title: 'Recovery / Email Flows',
+    flows: [
+      {
+        name: '9a. T6 — "They Opened It" (Sender Notification)',
+        badge: 'LIVE',
+        rows: [
+          ['Trigger', 'GREETING_OPENED event fires on page load at /#/g/{jobId}'],
+          ['Delay', 'Immediate (fire-and-forget)'],
+          ['Email', '"They opened it" → sender email. Subject: "They opened it". Shows recipient first name.'],
+          ['Dedupe', 'hasEventFired(GREETING_OPENED, jobId, eventUserId) — first open only.'],
+          ['Suppression', 'Suppressed when isOnboardingTestSend: true.'],
+        ],
+      },
+      {
+        name: '9b. T7 — "Complete the Moment" (Recovery)',
+        badge: 'LIVE',
+        rows: [
+          ['Trigger', 'enqueueDelayed +1 hour after GREETING_OPENED fires'],
+          ['Guard A', 'COMPLETE_THE_MOMENT_TRIGGERED → blocks T7 if recipient tapped CTA'],
+          ['Guard B', 'THANKYOU_FLOW_STARTED → blocks T7 if recipient opened thank-you form'],
+          ['Guard C', 'recipientEmail missing → blocks T7'],
+          ['Email', '"That was special… now it\'s your turn" → recipient. CTA: "Complete the Moment" → /#/thank-you?jobId={id}'],
+          ['Skip reasons', 'loop_already_triggered, thankyou_flow_already_started, recipient_email_missing'],
+        ],
+      },
+      {
+        name: '9c. Credit Reminder Drip (R1/R2/R3)',
+        badge: 'LIVE',
+        rows: [
+          ['Trigger', 'Gift claim/fulfillment → enqueueCreditReminders()'],
+          ['R1', '+24h: "Your $10 credit is waiting" (48 hours left)'],
+          ['R2', '+48h: "48 hours left — don\'t miss this" (24 hours left)'],
+          ['R3', '+68h: "Last chance — your $10 expires tonight"'],
+          ['Dedupe', 'hasEventFired per reminderType + referralCode + "system"'],
+          ['Note', 'Only for referral credits ($10 from QR Cash gift claim). Not for courtesy credits ($5).'],
+        ],
+      },
+      {
+        name: '9d. G1G1 Gift Email',
+        badge: 'LIVE',
+        rows: [
+          ['Trigger', 'provisionSubscription() with g1g1HasRecipient && !g1g1SendLater'],
+          ['Email', '"You\'ve been gifted a Greet-Me" via buildG1G1Email() template'],
+          ['Event', 'G1G1_AVAILABLE logged (or sent:false if email fails)'],
+          ['Delay', 'Immediate (not queued). Fire-and-forget.'],
+          ['Note', 'No follow-up reminder for unclaimed G1G1 gifts (no R1/R2/R3 equivalent).'],
+        ],
+      },
+    ],
+  },
+];
+
 export default function QAInspector() {
   const [emailPreview, setEmailPreview] = useState(null);
   const [filter, setFilter] = useState('');
@@ -196,6 +373,45 @@ export default function QAInspector() {
             </div>
           </div>
         )}
+        {/* ============ FLOW DOCUMENTATION ============ */}
+        <div style={{ marginTop: '3rem', borderTop: '1px solid #334155', paddingTop: '2rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f1f5f9', margin: '0 0 1.5rem' }}>
+            System Flow Documentation
+          </h2>
+
+          {FLOW_DOCS.map((section) => (
+            <div key={section.title} style={{ marginBottom: '2rem' }}>
+              <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#94a3b8', margin: '0 0 1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {section.title}
+              </h3>
+              {section.flows.map((flow) => (
+                <div key={flow.name} style={{
+                  background: '#1e293b', border: '1px solid #334155', borderRadius: '8px',
+                  padding: '1rem', marginBottom: '0.75rem',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#f1f5f9' }}>{flow.name}</span>
+                    <span style={{
+                      padding: '2px 8px', borderRadius: '4px', fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase',
+                      background: flow.badge === 'LIVE' ? '#065f46' : flow.badge === 'EXCEPTION' ? '#7f1d1d' : '#1e3a5f',
+                      color: flow.badge === 'LIVE' ? '#d1fae5' : flow.badge === 'EXCEPTION' ? '#fecaca' : '#bfdbfe',
+                    }}>{flow.badge}</span>
+                  </div>
+                  <table style={{ width: '100%', fontSize: '0.75rem', color: '#94a3b8', borderCollapse: 'collapse' }}>
+                    <tbody>
+                      {flow.rows.map(([label, value], i) => (
+                        <tr key={i} style={{ borderTop: i > 0 ? '1px solid #1e293b' : 'none' }}>
+                          <td style={{ padding: '4px 8px 4px 0', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap', verticalAlign: 'top', width: '120px' }}>{label}</td>
+                          <td style={{ padding: '4px 0', lineHeight: 1.5 }}>{value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
