@@ -180,7 +180,7 @@ export default function GreetingCard({ greeting }) {
             hasGift={greeting.isOnboardingTestSend ? false : greeting.hasGift}
             gift={greeting.isOnboardingTestSend ? null : greeting.gift}
             jobId={greeting.jobId}
-            courtesyCreditCode={greeting.isOnboardingTestSend ? null : greeting.courtesyCreditCode}
+            courtesyCreditCode={greeting.courtesyCreditCode}
           />
         );
       default:
@@ -403,7 +403,7 @@ export default function GreetingCard({ greeting }) {
               hasGift={greeting.isOnboardingTestSend ? false : greeting.hasGift}
               gift={greeting.isOnboardingTestSend ? null : greeting.gift}
               jobId={greeting.jobId}
-              courtesyCreditCode={greeting.isOnboardingTestSend ? null : greeting.courtesyCreditCode}
+              courtesyCreditCode={greeting.courtesyCreditCode}
             />
           )}
         </>
