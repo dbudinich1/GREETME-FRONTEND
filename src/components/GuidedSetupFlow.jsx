@@ -379,6 +379,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       console.warn('Onboarding completion email failed:', err);
     });
     updateSetupState({ onboardingCompleted: true });
+    sessionStorage.removeItem('greetme_g1g1_claimed');
     onComplete?.();
   };
 
