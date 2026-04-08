@@ -1631,16 +1631,21 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         position: 'absolute',
         inset: 0,
         background: 'rgba(0, 0, 0, 0.6)',
+        zIndex: 1,
       }} />
 
       {/* Modal */}
       <div style={{
         position: 'relative',
+        zIndex: 2,
         background: 'white',
         borderRadius: 'var(--radius-xl)',
         width: '100%',
         maxWidth: '440px',
-        overflow: 'visible',
+        maxHeight: 'calc(100vh - 4rem)',
+        maxHeight: 'calc(100dvh - 4rem)',
+        overflowY: 'auto',
+        overflowX: 'hidden',
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
       }}>
         {/* Progress bar (shown during welcome/demo/voice/photo/test greeting steps) */}
