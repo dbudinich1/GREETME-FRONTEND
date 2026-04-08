@@ -60,7 +60,7 @@ export default function MediaLibrary() {
   }, []);
 
   const loadMedia = async () => {
-    // Load saved voice from localStorage (voice still uses localStorage)
+    // Load saved voice: localStorage cache first, then fall back to backend voiceUrl
     const savedVoice = localStorage.getItem('greetme_voice_file');
     if (savedVoice) {
       setVoices([{
@@ -68,6 +68,14 @@ export default function MediaLibrary() {
         name: 'My Voice Recording',
         dataUrl: savedVoice,
         date: new Date().toLocaleDateString()
+      }]);
+    } else if (user?.voiceUrl) {
+      // Voice exists on backend but not cached locally (e.g., after re-login)
+      setVoices([{
+        id: 'main-voice',
+        name: 'My Voice Recording',
+        dataUrl: user.voiceUrl,
+        date: 'Saved'
       }]);
     }
     // Photo comes from user.photoUrl (AuthContext / backend)
@@ -147,6 +155,12 @@ export default function MediaLibrary() {
     }
 
     try {
+      // Upload to backend first (persist to Azure Blob + Cosmos)
+      const formData = new FormData();
+      formData.append('voice', file);
+      await api.uploadVoice(formData);
+
+      // Cache locally for immediate playback
       const dataUrl = await fileToDataUrl(file);
       localStorage.setItem('greetme_voice_file', dataUrl);
       loadMedia();

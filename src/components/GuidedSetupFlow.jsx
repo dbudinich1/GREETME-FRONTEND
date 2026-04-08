@@ -225,6 +225,8 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         reader.readAsDataURL(audioBlob);
       });
 
+      // Sync voiceId/voiceUrl into AuthContext (same pattern as photo upload)
+      await refreshProfile();
       setVoiceSaved(true);
       updateSetupState({ voiceDone: true });
       setSetupState(prev => ({ ...prev, voiceDone: true }));
