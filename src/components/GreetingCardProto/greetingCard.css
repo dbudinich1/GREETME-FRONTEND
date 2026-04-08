@@ -101,6 +101,9 @@
   .gc-public-chrome {
     display: none;
   }
+  .gc-public-chrome.gc-public-chrome--thankyou {
+    display: block;
+  }
 
   .gc-container {
     height: 100vh;

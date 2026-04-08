@@ -274,7 +274,7 @@ export default function PublicGreetingCard() {
 
       {/* "Send Thank You" CTA — primary recipient action (suppressed for test sends) */}
       {!greeting.isOnboardingTestSend && greeting.jobId && (
-        <div className="gc-public-chrome" style={{
+        <div className="gc-public-chrome gc-public-chrome--thankyou" style={{
           maxWidth: '640px',
           margin: '2rem auto 0',
           padding: '0 1rem',
