@@ -210,11 +210,11 @@
 }
 
 .gc-cover {
-  /* Single page = half the spread width, same height → matched proportions */
-  width: calc(var(--gc-master-frame) * 0.5);
-  max-height: calc(100vh - 80px);
-  max-height: calc(100dvh - 80px);
-  height: auto;
+  /* Height-driven: fill viewport like spread, derive width from aspect ratio */
+  width: auto;
+  height: calc(100vh - 80px);
+  height: calc(100dvh - 80px);
+  max-width: calc(var(--gc-master-frame) * 0.5);
   aspect-ratio: 476 / 666;
   background-size: contain;
   background-repeat: no-repeat;
