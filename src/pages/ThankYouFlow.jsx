@@ -442,14 +442,14 @@ export default function ThankYouFlow() {
             </button>
           )}
 
-          {/* Dismiss */}
-          <div>
+          {/* Exit options */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
             <button
               onClick={handleDismiss}
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: 'rgba(255,255,255,0.35)',
+                color: 'rgba(255,255,255,0.6)',
                 fontSize: '0.8125rem',
                 cursor: 'pointer',
                 fontFamily: FONT_STACK,
@@ -457,6 +457,17 @@ export default function ThankYouFlow() {
             >
               Continue to dashboard
             </button>
+            <a
+              href="/#/pricing"
+              style={{
+                color: 'rgba(255,255,255,0.4)',
+                fontSize: '0.75rem',
+                textDecoration: 'none',
+                fontFamily: FONT_STACK,
+              }}
+            >
+              View plans &amp; pricing
+            </a>
           </div>
 
           <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)', margin: '3rem 0 0' }}>
