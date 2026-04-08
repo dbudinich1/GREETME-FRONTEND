@@ -210,10 +210,12 @@
 }
 
 .gc-cover {
-  width: 90vw;
-  max-width: 600px;
+  /* Single page = half the spread width, same height → matched proportions */
+  width: calc(var(--gc-master-frame) * 0.5);
+  max-height: calc(100vh - 80px);
+  max-height: calc(100dvh - 80px);
   height: auto;
-  aspect-ratio: 400 / 560;
+  aspect-ratio: 476 / 666;
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -1813,9 +1815,9 @@
   }
 
   .gc-cover {
-    width: 88vw;
-    max-width: 580px;
-    height: calc(88vw * 1.4);
+    width: calc(var(--gc-master-frame) * 0.5);
+    max-width: none;
+    height: auto;
   }
 
   .gc-cover-title {
@@ -1923,8 +1925,8 @@
   }
 
   .gc-cover {
-    width: 85vw;
-    max-width: 380px;
+    width: calc(var(--gc-master-frame) * 0.5);
+    max-width: none;
   }
 
   .gc-cover-title {
