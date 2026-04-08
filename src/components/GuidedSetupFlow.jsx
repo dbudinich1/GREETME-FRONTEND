@@ -1063,16 +1063,21 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         padding: '1.25rem',
         marginBottom: '1.5rem',
         textAlign: 'left',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.75rem',
       }}>
-        <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', margin: '0 0 0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <p style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-tertiary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Your test recipient
         </p>
-        <p style={{ fontSize: '0.9375rem', color: 'var(--text-primary)', margin: '0 0 0.25rem', fontWeight: 500 }}>
-          {userName}
-        </p>
-        <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
-          {userEmail}
-        </p>
+        <div style={{ borderBottom: '1px solid var(--gray-200, #e5e7eb)', paddingBottom: '0.75rem' }}>
+          <p style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-tertiary)', margin: '0 0 0.25rem' }}>Name</p>
+          <p style={{ fontSize: '0.9375rem', color: 'var(--text-primary)', margin: 0, fontWeight: 500 }}>{userName}</p>
+        </div>
+        <div>
+          <p style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-tertiary)', margin: '0 0 0.25rem' }}>Email</p>
+          <p style={{ fontSize: '0.9375rem', color: 'var(--text-primary)', margin: 0, fontWeight: 500 }}>{userEmail}</p>
+        </div>
       </div>
 
       <button
@@ -1677,8 +1682,10 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           </button>
         )}
 
-        {/* Step content */}
-        {stepContent[step]?.()}
+        {/* Step content — fixed min-height prevents modal resize between steps */}
+        <div style={{ minHeight: isMobile ? '420px' : '460px', display: 'flex', flexDirection: 'column' }}>
+          {stepContent[step]?.()}
+        </div>
       </div>
 
       {/* Global animation styles */}
