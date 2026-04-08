@@ -1,6 +1,6 @@
 // src/pages/CreditClaim.jsx
 // Public landing page for tracked courtesy credit
-// Route: /credit/:creditCode (replaces ReferralCredit for courtesy credits)
+// Route: /claim-credit/:creditCode
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -19,7 +19,6 @@ export default function CreditClaim() {
   const [error, setError] = useState(null);
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
-  const [showNudge, setShowNudge] = useState(false);
 
   useEffect(() => {
     if (!creditCode) {
@@ -42,7 +41,6 @@ export default function CreditClaim() {
 
   const handleClaim = async () => {
     if (!isAuthenticated) {
-      // Stash credit code and redirect to login
       localStorage.setItem('greetme_pending_credit', creditCode);
       navigate('/login');
       return;
@@ -54,7 +52,6 @@ export default function CreditClaim() {
       });
       if (result?.ok) {
         setClaimed(true);
-        // Stash for checkout
         localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
           creditCode,
           amount: (result.amountCents || credit?.amountCents || 500) / 100,
@@ -102,36 +99,16 @@ export default function CreditClaim() {
 
         {claimed ? (
           <>
-            <h1 style={styles.headline}>Credit applied</h1>
+            <h1 style={styles.headline}>Credit Applied</h1>
             <p style={styles.body}>
-              Your {displayAmount} credit has been saved to your account.
+              Your {displayAmount} credit has been saved and will be applied at checkout.
             </p>
 
-            {/* Primary CTA: Thank You */}
-            {credit?.sourceJobId && (
-              <button onClick={() => {
-                if (isAuthenticated) {
-                  navigate(`/thank-you?jobId=${credit.sourceJobId}`);
-                } else {
-                  localStorage.setItem('greetme_pending_thankyou', credit.sourceJobId);
-                  navigate('/register');
-                }
-              }} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
-                Say Thanks with a Greet-Me
-              </button>
-            )}
-
-            {/* Secondary CTA: Apply credit */}
-            <button onClick={() => {
-              if (isAuthenticated) { navigate('/dashboard/send'); }
-              else { navigate('/register', { state: { returnTo: '/dashboard/send' } }); }
-            }} style={{
-              ...styles.cta,
-              ...(credit?.sourceJobId ? styles.ctaSecondary : {}),
-            }}>
-              {isAuthenticated
-                ? `Apply Your ${displayAmount} Credit`
-                : `Claim Your ${displayAmount} \u2014 Create Your Account`}
+            <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
+              Plans and Pricing
+            </button>
+            <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
+              Go to Dashboard
             </button>
           </>
         ) : (
@@ -140,78 +117,21 @@ export default function CreditClaim() {
               You&rsquo;ve received {displayAmount} toward your first Greet-Me subscription.
             </h1>
             <p style={styles.body}>
-              Someone sent you something meaningful. You can say thanks, or apply your credit toward a subscription.
+              Apply your credit and start sending unforgettable greetings to the people who matter most.
             </p>
 
-            {/* Primary CTA: Thank You (pre-claim) */}
-            {credit?.sourceJobId && (
-              <button onClick={async () => {
-                if (!isAuthenticated) {
-                  localStorage.setItem('greetme_pending_thankyou', credit.sourceJobId);
-                  localStorage.setItem('greetme_pending_credit', creditCode);
-                  navigate('/register');
-                  return;
-                }
-                await handleClaim();
-                navigate(`/thank-you?jobId=${credit.sourceJobId}`);
-              }} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
-                Say Thanks with a Greet-Me
-              </button>
-            )}
-
-            {/* Secondary CTA: Apply credit (with nudge if sourceJobId exists) */}
-            <button onClick={() => {
-              if (credit?.sourceJobId && !showNudge) {
-                setShowNudge(true);
-                return;
-              }
-              handleClaim();
-            }} disabled={claiming} style={{
+            <button onClick={handleClaim} disabled={claiming} style={{
               ...styles.cta,
-              ...(credit?.sourceJobId ? styles.ctaSecondary : {}),
               opacity: claiming ? 0.7 : 1,
               cursor: claiming ? 'default' : 'pointer',
             }}>
-              {claiming ? 'Applying...' : `Apply My ${displayAmount} Credit`}
+              {claiming ? 'Applying...' : `Claim Your ${displayAmount} Credit`}
             </button>
 
             <p style={styles.terms}>
               Valid toward Social Butterfly or higher plans. Terms apply.
             </p>
           </>
-        )}
-
-        {/* Thank-you nudge modal */}
-        {showNudge && (
-          <div style={styles.nudgeOverlay} onClick={() => setShowNudge(false)}>
-            <div style={styles.nudgeCard} onClick={(e) => e.stopPropagation()}>
-              <h2 style={styles.nudgeHeadline}>
-                Before you go &mdash; want to send a quick thank-you?
-              </h2>
-              <p style={styles.nudgeBody}>
-                You can thank the sender with a Greet-Me now, or skip and apply your {displayAmount} subscription credit.
-              </p>
-              <button onClick={async () => {
-                setShowNudge(false);
-                if (!isAuthenticated) {
-                  localStorage.setItem('greetme_pending_thankyou', credit.sourceJobId);
-                  localStorage.setItem('greetme_pending_credit', creditCode);
-                  navigate('/register');
-                  return;
-                }
-                await handleClaim();
-                navigate(`/thank-you?jobId=${credit.sourceJobId}`);
-              }} style={{ ...styles.cta, marginBottom: '0.75rem', width: '100%' }}>
-                Say Thanks with a Greet-Me
-              </button>
-              <button onClick={() => {
-                setShowNudge(false);
-                handleClaim();
-              }} style={{ ...styles.cta, ...styles.ctaSecondary, width: '100%' }}>
-                Skip for now
-              </button>
-            </div>
-          </div>
         )}
 
         <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
@@ -253,11 +173,15 @@ const styles = {
     background: '#fff', color: '#1B2A4A', border: 'none', borderRadius: '2rem',
     fontSize: '1.0625rem', fontWeight: 600, fontFamily: 'Georgia, serif',
     cursor: 'pointer', boxShadow: '0 4px 20px rgba(255,255,255,0.15)',
+    width: '100%',
   },
   ctaSecondary: {
+    display: 'inline-block', padding: '0.875rem 2.5rem',
     background: 'transparent', color: 'rgba(255,255,255,0.7)',
-    border: '1px solid rgba(255,255,255,0.3)',
-    boxShadow: 'none', fontSize: '0.9375rem',
+    border: '1px solid rgba(255,255,255,0.3)', borderRadius: '2rem',
+    fontSize: '0.9375rem', fontWeight: 600, fontFamily: 'Georgia, serif',
+    cursor: 'pointer', boxShadow: 'none',
+    width: '100%',
   },
   terms: {
     fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)',
@@ -265,26 +189,5 @@ const styles = {
   },
   footer: {
     fontSize: '0.7rem', color: 'rgba(255,255,255,0.15)', margin: '2rem 0 0',
-  },
-  nudgeOverlay: {
-    position: 'fixed', inset: 0,
-    background: 'rgba(0,0,0,0.6)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    zIndex: 1000, padding: '1.5rem',
-  },
-  nudgeCard: {
-    background: '#fff', borderRadius: '16px',
-    padding: '2rem', maxWidth: '400px', width: '100%',
-    textAlign: 'center',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-  },
-  nudgeHeadline: {
-    fontSize: '1.25rem', fontWeight: 600, color: '#1B2A4A',
-    margin: '0 0 0.75rem', fontFamily: 'Georgia, serif',
-    lineHeight: 1.4,
-  },
-  nudgeBody: {
-    fontSize: '0.9375rem', color: '#555',
-    lineHeight: 1.6, margin: '0 0 1.5rem',
   },
 };
