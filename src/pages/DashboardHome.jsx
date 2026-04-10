@@ -1735,7 +1735,7 @@ export default function DashboardHome() {
           {/* Desktop: inline button in header */}
           {!isNarrow && (
             <button
-              onClick={() => navigate('/dashboard/contacts')}
+              onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
               style={{
                 padding: '0.5rem 1rem',
                 background: '#667eea',
