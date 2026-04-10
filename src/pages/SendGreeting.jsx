@@ -1015,12 +1015,14 @@ if (typeof window !== "undefined") {
             value={formData.customMessage}
             onChange={handleChange}
             rows={3}
+            maxLength={280}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
             placeholder="Add a personal touch or give Greet-Me™ a hint about what to say..."
           />
-          <p className="mt-1 text-xs text-gray-500">
-            This will be included in your Greet-Me message
-          </p>
+          <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
+            <span>Your message will appear on the card. Longer messages may not be spoken aloud.</span>
+            <span className="text-gray-400 ml-2 flex-shrink-0">{(formData.customMessage || '').length}/280</span>
+          </div>
         </div>
 
         {/* Photo Selection Section */}

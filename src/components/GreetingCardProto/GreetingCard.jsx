@@ -160,6 +160,7 @@ export default function GreetingCard({ greeting }) {
             occasionKey={greeting.occasionKey}
             relationshipKey={greeting.relationshipKey}
             poemText={greeting.render?.poemText ?? greeting.poemText}
+            personalSentiment={greeting.personalSentiment}
           />
         );
       case SCREENS.FEATURED:
@@ -381,6 +382,7 @@ export default function GreetingCard({ greeting }) {
               occasionKey={greeting.occasionKey}
               relationshipKey={greeting.relationshipKey}
               poemText={greeting.render?.poemText ?? greeting.poemText}
+              personalSentiment={greeting.personalSentiment}
               onClick={advanceScreen}
             />
           )}

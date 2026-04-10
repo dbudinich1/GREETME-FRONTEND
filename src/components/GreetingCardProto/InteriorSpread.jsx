@@ -110,7 +110,7 @@ function tightenLineHeight(el, varTarget) {
 // Constant closing text — no occasion variations (spec: always this exact string)
 const CLOSING_TEXT = 'With Warmest Wishes';
 
-export default function InteriorSpread({ recipientName, message, senderName, occasionKey, poemText, onClick }) {
+export default function InteriorSpread({ recipientName, message, senderName, occasionKey, poemText, personalSentiment, onClick }) {
   // Refs for runtime fit check
   const messageRef = useRef(null);
   const poemRef = useRef(null);
@@ -151,7 +151,7 @@ export default function InteriorSpread({ recipientName, message, senderName, occ
 
   useLayoutEffect(() => {
     runAutoFit();
-  }, [message, poemText, senderName, runAutoFit]);
+  }, [message, poemText, senderName, personalSentiment, runAutoFit]);
 
   useEffect(() => {
     document.fonts.ready.then(() => runAutoFit());
@@ -202,7 +202,7 @@ export default function InteriorSpread({ recipientName, message, senderName, occ
     // Check on mount and when message changes
     const timer = setTimeout(checkFit, 100);
     return () => clearTimeout(timer);
-  }, [message, senderName]);
+  }, [message, senderName, personalSentiment]);
 
   const displayName = formatPersonName((recipientName || 'Friend').split(' ')[0]);
 
@@ -263,6 +263,8 @@ export default function InteriorSpread({ recipientName, message, senderName, occ
   // Strip trailing punctuation after phrase removal
   bodyMessage = bodyMessage.replace(/[,\s]+$/, '');
 
+  const sentimentTrimmed = (personalSentiment || '').trim();
+
   return (
     <div
       className="gc-spread-wrapper"
@@ -295,6 +297,9 @@ export default function InteriorSpread({ recipientName, message, senderName, occ
                 .replace(/\n\s*\n+/g, '\n')
               }
             </div>
+            {sentimentTrimmed && (
+              <p className="gc-personal-sentiment">{sentimentTrimmed}</p>
+            )}
             <p className="gc-signature" ref={signatureRef}>{displaySender}</p>
           </div>
         </div>
