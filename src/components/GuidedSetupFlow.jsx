@@ -1431,7 +1431,8 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         color: 'var(--text-primary)',
         marginBottom: '0.75rem',
       }}>
-        Congratulations! Your Greet-Me is on its way!
+        Congratulations!<br />
+        Your Greet-Me is on its way!
       </h2>
 
       {/* First-send reward */}
@@ -1497,18 +1498,18 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const renderGiftReveal = () => (
     <div style={{ textAlign: 'center', padding: isMobile ? '2rem 1.5rem' : '2.5rem 2rem' }}>
       <div style={{
-        width: '5rem', height: '5rem', borderRadius: '50%',
+        width: '4rem', height: '4rem', borderRadius: '50%',
         background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        margin: '0 auto 1.5rem', fontSize: '2.5rem',
+        margin: '0 auto 1rem', fontSize: '2rem',
       }}>
         🎁
       </div>
       <h2 style={{
-        fontSize: isMobile ? '1.5rem' : '1.75rem',
+        fontSize: isMobile ? '1.25rem' : '1.5rem',
         fontWeight: 700,
         color: 'var(--text-primary)',
-        marginBottom: '0.75rem',
+        marginBottom: '0.5rem',
         fontFamily: 'Georgia, serif',
       }}>
         G1G1 &mdash; Greet One. Gift One.&trade;
@@ -1516,31 +1517,31 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       <p style={{
         fontSize: '0.9375rem',
         color: 'var(--text-secondary)',
-        lineHeight: 1.7,
-        marginBottom: '1.25rem',
+        lineHeight: 1.6,
+        marginBottom: '1rem',
       }}>
         Because we believe in giving first, we&rsquo;ve included a little something to share.
       </p>
       <div style={{
         background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
         borderRadius: 'var(--radius-lg)',
-        padding: '1.5rem',
-        marginBottom: '1.5rem',
+        padding: '1rem',
+        marginBottom: '1rem',
         border: '1px solid #f59e0b33',
       }}>
         <p style={{
-          fontSize: '1.125rem',
+          fontSize: '1rem',
           fontWeight: 700,
           color: '#92400e',
-          marginBottom: '0.5rem',
+          marginBottom: '0.375rem',
           fontFamily: 'Georgia, serif',
         }}>
           🎁 Greet One. Gift One.&trade;
         </p>
         <p style={{
-          fontSize: '0.875rem',
+          fontSize: '0.8125rem',
           color: '#78350f',
-          lineHeight: 1.6,
+          lineHeight: 1.5,
           margin: 0,
         }}>
           Every Greet-Me subscription comes with one of equal value to share with a friend or loved one.
@@ -1683,8 +1684,8 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           </div>
         )}
 
-        {/* Close button (only on first step — Welcome) */}
-        {step === 0 && (
+        {/* Close button (all dismissable steps — exclude transient sending step 6) */}
+        {step !== 6 && (
           <button
             onClick={handleSkip}
             style={{
