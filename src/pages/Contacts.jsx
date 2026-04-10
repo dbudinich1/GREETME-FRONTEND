@@ -30,6 +30,7 @@ export default function Recipients() {
   const [viewMode, setViewMode] = useState('recipients');
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const hasAutoOpenedRef = useRef(false);
+  const hasAutoOpenedAddRef = useRef(false);
 
   // Handle resize for responsive layout
   useEffect(() => {
@@ -72,6 +73,17 @@ export default function Recipients() {
       }
     }
   }, [recipients, location.state, navigate, location.pathname]);
+
+  // Handle deep link from Dashboard to auto-open Add Recipient modal
+  useEffect(() => {
+    if (location.state?.openAddRecipient && !hasAutoOpenedAddRef.current) {
+      hasAutoOpenedAddRef.current = true;
+      try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch (e) {}
+      setShowAddModal(true);
+      // Clear the state so refresh doesn't re-open
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   const fetchRecipients = async () => {
     try {

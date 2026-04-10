@@ -518,7 +518,7 @@ export default function DashboardHome() {
           justifyContent: isNarrow ? 'center' : 'flex-end'
         }}>
         <button
-          onClick={() => navigate('/dashboard/contacts')}
+          onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
           style={{
             padding: isNarrow ? '0.625rem 1rem' : '0.75rem 1.5rem',
             background: '#667eea',
@@ -1291,7 +1291,7 @@ export default function DashboardHome() {
                 margin: 0
               }}>Recipients & Settings</h2>
               <button
-                onClick={() => navigate('/dashboard/contacts')}
+                onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
                 style={{
                   padding: '0.5rem 1rem',
                   background: '#667eea',
@@ -1422,7 +1422,7 @@ export default function DashboardHome() {
                     Add your first contact to start sending personalized Greet-Me messages automatically.
                   </p>
                   <button
-                    onClick={() => navigate('/dashboard/contacts')}
+                    onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
                     style={{
                       padding: '0.5rem 1.25rem',
                       background: '#6366f1',
@@ -1684,7 +1684,7 @@ export default function DashboardHome() {
 
             {/* Add Recipient button at bottom */}
             <button
-              onClick={() => navigate('/dashboard/contacts')}
+              onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
               style={{
                 width: '100%',
                 marginTop: '1rem',
@@ -1759,7 +1759,7 @@ export default function DashboardHome() {
           {/* Mobile: full-width button under title */}
           {isNarrow && (
             <button
-              onClick={() => navigate('/dashboard/contacts')}
+              onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
               style={{
                 width: '100%',
                 padding: '0.625rem 1rem',

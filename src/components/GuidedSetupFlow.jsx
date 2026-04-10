@@ -489,7 +489,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         fontStyle: 'italic',
         margin: 0,
       }}>
-        Your first test Greet-Me is on us &mdash; it won&rsquo;t count toward your 3 sends.
+        This test Greet-Me is on us &mdash; it won&rsquo;t count toward your 3 sends.
       </p>
     </div>
   );
@@ -1065,7 +1065,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         color: 'var(--text-primary)',
         marginBottom: '0.75rem',
       }}>
-        Add your first recipient.
+        Recipient Details
       </h3>
       <p style={{
         fontSize: '0.9375rem',
@@ -1165,7 +1165,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         color: '#10b981',
         marginBottom: '1.5rem',
       }}>
-        Your first test Greet-Me is on us &mdash; it won&rsquo;t count toward your 3 sends.
+        This test Greet-Me is on us &mdash; it won&rsquo;t count toward your 3 sends.
       </p>
       <button
         onClick={() => {
