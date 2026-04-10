@@ -71,7 +71,6 @@ export default function PublicGreetingCard() {
           writtenIntroText: g.writtenIntroText || '',
           poemText: g.poemText || '',
           finaleText: g.finaleText || '',
-          personalSentiment: g.personalSentiment || '',
           occasionKey: g.occasionKey || 'general',
           relationshipKey: g.relationshipKey || '',
           videoUrl: g.videoUrl || null,

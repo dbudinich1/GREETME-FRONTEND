@@ -601,24 +601,6 @@
   letter-spacing: 2px;
 }
 
-/* Personal sentiment line — literal sender text, rendered below the AI body and
-   above the signature. Independent sizing (NOT shared with --fit-message-font-size). */
-.gc-personal-sentiment {
-  flex-shrink: 0;
-  margin-top: 0.6em;
-  font-family: var(--lock-ink-font-family, var(--gc-font-handwritten));
-  font-size: 0.85em;
-  font-weight: 400;
-  font-style: italic;
-  color: var(--lock-ink-color);
-  opacity: 0.85;
-  line-height: 1.35;
-  text-align: left;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-}
-
 .gc-signature {
   /* Flex-anchored: margin-top auto pushes to bottom of flex container */
   margin-top: auto;
