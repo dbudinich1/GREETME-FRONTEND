@@ -739,26 +739,6 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         Record your voice so your greetings sound like you.
       </h3>
 
-      {/* Script */}
-      <div style={{
-        background: 'var(--gray-50)',
-        borderRadius: 'var(--radius-md)',
-        padding: '1rem',
-        marginBottom: '1rem',
-        borderLeft: '4px solid #6366f1',
-      }}>
-        <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-          Read this script:
-        </p>
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.6, margin: 0 }}>
-          "Hello, I hope this greeting finds you well. I'm recording my voice so my greetings sound natural and warm. I look forward to creating many meaningful memories with friends and family for years to come. Thank you for using Greet-Me™."
-        </p>
-      </div>
-
-      <p style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', marginBottom: '1.25rem', textAlign: 'center' }}>
-        A short message is perfect.
-      </p>
-
       {voiceError && (
         <p style={{ fontSize: '0.8125rem', color: 'var(--error)', marginBottom: '1rem', textAlign: 'center' }}>
           {voiceError}
@@ -770,6 +750,23 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         <div style={{ textAlign: 'center' }}>
           {!audioBlob ? (
             <>
+              {/* Pre-record guidance prompts — idle only */}
+              {!isRecording && (
+                <ul style={{
+                  listStyle: 'none',
+                  padding: 0,
+                  margin: '0 auto 1rem',
+                  maxWidth: '20rem',
+                  fontSize: '0.8125rem',
+                  color: 'var(--text-secondary)',
+                  textAlign: 'left',
+                }}>
+                  <li style={{ marginBottom: '0.25rem' }}>• Find a quiet place</li>
+                  <li style={{ marginBottom: '0.25rem' }}>• Speak naturally and clearly</li>
+                  <li style={{ marginBottom: '0.25rem' }}>• Read it once before recording</li>
+                  <li>• A warm, relaxed tone works best</li>
+                </ul>
+              )}
               <button
                 onClick={isRecording ? stopRecording : startRecording}
                 style={{
@@ -794,12 +791,40 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
                   {formatTime(recordingTime)}
                 </p>
               )}
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                 {isRecording ? 'Click to stop' : 'Click to start recording'}
               </p>
+              {/* Script (relocated below mic per Batch C) */}
+              <div style={{
+                background: 'var(--gray-50)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                borderLeft: '4px solid #6366f1',
+                textAlign: 'left',
+              }}>
+                <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                  Read this script:
+                </p>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.6, margin: 0 }}>
+                  "Hello, I hope this greeting finds you well. I'm recording my voice so my greetings sound natural and warm. I look forward to creating many meaningful memories with friends and family for years to come. Thank you for using Greet-Me™."
+                </p>
+              </div>
             </>
           ) : (
             <>
+              {/* Green check — recording captured */}
+              <div style={{
+                width: '3rem',
+                height: '3rem',
+                borderRadius: '50%',
+                background: '#10b981',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1rem',
+              }}>
+                <Check size={24} color="white" />
+              </div>
               <audio ref={audioPlayerRef} src={audioUrl} onEnded={() => setIsPlaying(false)} style={{ display: 'none' }} />
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem' }}>
                 <button
@@ -858,7 +883,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
                   }}
                 >
                   <Upload size={16} />
-                  {voiceUploading ? 'Saving...' : 'Save Voice'}
+                  {voiceUploading ? 'Saving...' : 'Save & Continue'}
                 </button>
               </div>
             </>
