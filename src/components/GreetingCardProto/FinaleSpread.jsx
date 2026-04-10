@@ -45,7 +45,7 @@ const stripSignature = (text) => {
   const SIGNOFF_PATTERNS = [
     /,?\s*(with all my love|all my love|with love|love always|yours truly|yours forever|always yours|forever yours|warmly|fondly|xoxo|thinking of you)[,\s]*[\w]+\.?\s*$/i,
     /,?\s*(with all my love|all my love|with love|love always|yours truly|yours forever|always yours|forever yours|warmly|fondly|xoxo|thinking of you)[,\s]*$/i,
-    /\n+[\w]+\.?\s*$/i, // Standalone name at end after newline
+    /\n+[A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,2}\.?\s*$/, // Standalone 1-3 word name at end after newline
   ];
 
   let cleaned = text.trim();
