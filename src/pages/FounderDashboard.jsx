@@ -16,11 +16,32 @@ async function fetchHealth() {
   return res.json();
 }
 
+async function fetchPayouts() {
+  const [claimedRes, fulfilledRes] = await Promise.all([
+    fetch(`${API_BASE}/api/gifts/admin/list?status=claimed`, { headers: { 'x-admin-key': ADMIN_KEY } }),
+    fetch(`${API_BASE}/api/gifts/admin/list?status=fulfilled`, { headers: { 'x-admin-key': ADMIN_KEY } }),
+  ]);
+  const claimed = await claimedRes.json();
+  const fulfilled = await fulfilledRes.json();
+  return [
+    ...(claimed.gifts || []),
+    ...(fulfilled.gifts || []),
+  ].filter(g => g.claimMethod && g.claimMethod !== 'stripe_connect')
+   .sort((a, b) => {
+     if ((a.payoutStatus === 'pending') !== (b.payoutStatus === 'pending'))
+       return a.payoutStatus === 'pending' ? -1 : 1;
+     return new Date(b.claimedAt || 0) - new Date(a.claimedAt || 0);
+   });
+}
+
 export default function FounderDashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(null);
+  const [payouts, setPayouts] = useState([]);
+  const [payoutsLoading, setPayoutsLoading] = useState(false);
+  const [markingPaid, setMarkingPaid] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -36,7 +57,30 @@ export default function FounderDashboard() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  const loadPayouts = async () => {
+    setPayoutsLoading(true);
+    try { setPayouts(await fetchPayouts()); }
+    catch (err) { console.error('Payouts fetch failed:', err); }
+    finally { setPayoutsLoading(false); }
+  };
+
+  const markPaid = async (claimToken) => {
+    if (!confirm('Mark this payout as paid?')) return;
+    setMarkingPaid(claimToken);
+    try {
+      const res = await fetch(`${API_BASE}/api/gifts/admin/fulfill/${claimToken}`, {
+        method: 'POST',
+        headers: { 'x-admin-key': ADMIN_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const result = await res.json();
+      if (result.ok) { loadPayouts(); }
+      else { alert(result.error || 'Failed to mark as paid'); }
+    } catch (err) { alert(`Error: ${err.message}`); }
+    finally { setMarkingPaid(null); }
+  };
+
+  useEffect(() => { load(); loadPayouts(); }, []);
 
   // Auto-refresh every 30s
   useEffect(() => {
@@ -121,6 +165,98 @@ export default function FounderDashboard() {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* QR Cash Payouts */}
+        <div style={{ background: '#1e293b', borderRadius: '8px', padding: '1.25rem', marginTop: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, margin: 0, color: '#f1f5f9' }}>
+              QR Cash Payouts ({payouts.filter(p => p.payoutStatus === 'pending').length} pending)
+            </h2>
+            <button onClick={loadPayouts} disabled={payoutsLoading} style={{
+              padding: '0.375rem 0.75rem', background: '#334155', color: '#e2e8f0',
+              border: '1px solid #475569', borderRadius: '4px', cursor: 'pointer',
+              fontSize: '0.75rem', fontFamily: FONT,
+            }}>
+              {payoutsLoading ? '...' : 'Refresh'}
+            </button>
+          </div>
+          {payouts.length === 0 ? (
+            <p style={{ color: '#64748b', fontSize: '0.875rem' }}>No QR Cash claims found.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #334155', textAlign: 'left' }}>
+                    <th style={{ padding: '0.5rem 0.5rem', color: '#94a3b8', fontWeight: 600 }}>Status</th>
+                    <th style={{ padding: '0.5rem 0.5rem', color: '#94a3b8', fontWeight: 600 }}>Recipient</th>
+                    <th style={{ padding: '0.5rem 0.5rem', color: '#94a3b8', fontWeight: 600 }}>Amount</th>
+                    <th style={{ padding: '0.5rem 0.5rem', color: '#94a3b8', fontWeight: 600 }}>Method</th>
+                    <th style={{ padding: '0.5rem 0.5rem', color: '#94a3b8', fontWeight: 600 }}>Destination</th>
+                    <th style={{ padding: '0.5rem 0.5rem', color: '#94a3b8', fontWeight: 600 }}>Claimed</th>
+                    <th style={{ padding: '0.5rem 0.5rem', color: '#94a3b8', fontWeight: 600 }}>Paid</th>
+                    <th style={{ padding: '0.5rem 0.5rem', color: '#94a3b8', fontWeight: 600 }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payouts.map((p) => (
+                    <tr key={p.id} style={{ borderBottom: '1px solid #334155' }}>
+                      <td style={{ padding: '0.5rem' }}>
+                        <span style={{
+                          display: 'inline-block', padding: '0.125rem 0.5rem', borderRadius: '9999px',
+                          fontSize: '0.6875rem', fontWeight: 600,
+                          background: p.payoutStatus === 'pending' ? '#fef3c7' : '#d1fae5',
+                          color: p.payoutStatus === 'pending' ? '#92400e' : '#065f46',
+                        }}>
+                          {p.payoutStatus || 'pending'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.5rem', color: '#e2e8f0' }}>
+                        <div>{p.recipientName || '—'}</div>
+                        <div style={{ fontSize: '0.6875rem', color: '#64748b' }}>{p.recipientEmail || ''}</div>
+                      </td>
+                      <td style={{ padding: '0.5rem', color: '#10b981', fontWeight: 600 }}>
+                        ${((p.giftAmountCents || 0) / 100).toFixed(2)}
+                      </td>
+                      <td style={{ padding: '0.5rem', color: '#e2e8f0' }}>{p.claimMethod || '—'}</td>
+                      <td style={{ padding: '0.5rem', color: '#e2e8f0', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.claimDetails?.destination || '—'}
+                      </td>
+                      <td style={{ padding: '0.5rem', color: '#94a3b8', fontSize: '0.75rem' }}>
+                        {p.claimedAt ? new Date(p.claimedAt).toLocaleDateString() : '—'}
+                      </td>
+                      <td style={{ padding: '0.5rem', color: '#94a3b8', fontSize: '0.75rem' }}>
+                        {p.paidAt ? new Date(p.paidAt).toLocaleDateString() : '—'}
+                      </td>
+                      <td style={{ padding: '0.5rem' }}>
+                        {p.payoutStatus === 'pending' ? (
+                          <button
+                            onClick={() => markPaid(p.id)}
+                            disabled={markingPaid === p.id}
+                            style={{
+                              padding: '0.25rem 0.5rem', background: '#059669', color: 'white',
+                              border: 'none', borderRadius: '4px', cursor: 'pointer',
+                              fontSize: '0.6875rem', fontWeight: 600, fontFamily: FONT,
+                              opacity: markingPaid === p.id ? 0.5 : 1,
+                            }}
+                          >
+                            {markingPaid === p.id ? '...' : 'Mark Paid'}
+                          </button>
+                        ) : (
+                          <span style={{ color: '#64748b', fontSize: '0.6875rem' }}>✓</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {payouts.some(p => p.fraudFlags?.length) && (
+            <p style={{ color: '#f87171', fontSize: '0.75rem', marginTop: '0.75rem' }}>
+              ⚠️ Some claims have fraud flags — check admin/list details before paying out.
+            </p>
           )}
         </div>
       </div>
