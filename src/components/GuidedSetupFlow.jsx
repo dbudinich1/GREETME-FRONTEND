@@ -752,128 +752,121 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         </p>
       )}
 
-      {/* Recording UI */}
+      {/* Recording UI — single persistent layout, no branch swap */}
         <div style={{ textAlign: 'center' }}>
-          {!audioBlob ? (
-            <>
-              {/* Pre-record guidance prompts — idle only */}
-              {!isRecording && (
-                <ul style={{
-                  listStyle: 'none',
-                  padding: 0,
-                  margin: '0 auto 1rem',
-                  maxWidth: '20rem',
-                  fontSize: '0.8125rem',
-                  color: 'var(--text-secondary)',
-                  textAlign: 'left',
-                }}>
-                  <li style={{ marginBottom: '0.25rem' }}>• Find a quiet place</li>
-                  <li style={{ marginBottom: '0.25rem' }}>• Speak naturally and clearly</li>
-                  <li style={{ marginBottom: '0.25rem' }}>• Read it once before recording</li>
-                  <li>• A warm, relaxed tone works best</li>
-                </ul>
-              )}
-              <button
-                onClick={isRecording ? stopRecording : startRecording}
-                style={{
-                  width: '5rem',
-                  height: '5rem',
-                  borderRadius: '50%',
-                  background: '#ef4444',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 1rem',
-                  boxShadow: isRecording ? '0 0 0 8px rgba(239, 68, 68, 0.2)' : 'none',
-                  animation: isRecording ? 'pulse 1.5s infinite' : 'none',
-                }}
-              >
-                {isRecording ? <Square size={32} color="white" /> : <Mic size={32} color="white" />}
-              </button>
-              {isRecording && (
-                <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ef4444' }}>
-                  {formatTime(recordingTime)}
-                </p>
-              )}
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                {isRecording ? 'Click to stop' : 'Click to start recording'}
-              </p>
-              {/* Script (relocated below mic per Batch C) */}
-              <div style={{
-                background: 'var(--gray-50)',
-                borderRadius: 'var(--radius-md)',
-                padding: '1rem',
-                borderLeft: '4px solid #6366f1',
-                textAlign: 'left',
-              }}>
-                <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                  Read this script:
-                </p>
-                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.6, margin: 0 }}>
-                  "Hello, I hope this greeting finds you well. I'm recording my voice so my greetings sound natural and warm. I look forward to creating many meaningful memories with friends and family for years to come. Thank you for using Greet-Me™."
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Post-record: green check replaces mic, two action buttons */}
-              <div style={{
-                width: '5rem',
-                height: '5rem',
-                borderRadius: '50%',
-                background: '#10b981',
+          {/* Guidance prompts — idle only */}
+          {!isRecording && !audioBlob && (
+            <ul style={{
+              listStyle: 'none',
+              padding: 0,
+              margin: '0 auto 1rem',
+              maxWidth: '20rem',
+              fontSize: '0.8125rem',
+              color: 'var(--text-secondary)',
+              textAlign: 'left',
+            }}>
+              <li style={{ marginBottom: '0.25rem' }}>• Find a quiet place</li>
+              <li style={{ marginBottom: '0.25rem' }}>• Speak naturally and clearly</li>
+              <li style={{ marginBottom: '0.25rem' }}>• Read it once before recording</li>
+              <li>• A warm, relaxed tone works best</li>
+            </ul>
+          )}
+
+          {/* Mic / Check circle — always visible, color changes by state */}
+          <button
+            onClick={audioBlob ? undefined : (isRecording ? stopRecording : startRecording)}
+            style={{
+              width: '5rem',
+              height: '5rem',
+              borderRadius: '50%',
+              background: audioBlob ? '#10b981' : '#ef4444',
+              border: 'none',
+              cursor: audioBlob ? 'default' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              boxShadow: isRecording ? '0 0 0 8px rgba(239, 68, 68, 0.2)' : audioBlob ? '0 4px 10px rgba(0,0,0,0.08)' : 'none',
+              animation: isRecording ? 'pulse 1.5s infinite' : 'none',
+            }}
+          >
+            {audioBlob ? <Check size={32} color="white" /> : isRecording ? <Square size={32} color="white" /> : <Mic size={32} color="white" />}
+          </button>
+
+          {/* Timer — recording only */}
+          {isRecording && (
+            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ef4444' }}>
+              {formatTime(recordingTime)}
+            </p>
+          )}
+
+          {/* Status label — idle and recording only */}
+          {!audioBlob && (
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+              {isRecording ? 'Click to stop' : 'Click to start recording'}
+            </p>
+          )}
+
+          {/* Script — always visible */}
+          <div style={{
+            background: 'var(--gray-50)',
+            borderRadius: 'var(--radius-md)',
+            padding: '1rem',
+            borderLeft: '4px solid #6366f1',
+            textAlign: 'left',
+            marginBottom: '1rem',
+          }}>
+            <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+              Read this script:
+            </p>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.6, margin: 0 }}>
+              "Hello, I hope this greeting finds you well. I'm recording my voice so my greetings sound natural and warm. I look forward to creating many meaningful memories with friends and family for years to come. Thank you for using Greet-Me™."
+            </p>
+          </div>
+
+          {/* CTA row — always visible, disabled until recording complete */}
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+            <button
+              onClick={audioBlob ? reRecord : undefined}
+              disabled={!audioBlob}
+              style={{
+                padding: '0.625rem 1rem',
+                background: 'var(--gray-100)',
+                color: 'var(--text-primary)',
                 border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                cursor: audioBlob ? 'pointer' : 'default',
+                fontFamily: 'inherit',
+                opacity: audioBlob ? 1 : 0.4,
+              }}
+            >
+              Re-record
+            </button>
+            <button
+              onClick={audioBlob ? uploadVoice : undefined}
+              disabled={!audioBlob || voiceUploading}
+              style={{
+                padding: '0.625rem 1rem',
+                background: (!audioBlob || voiceUploading) ? 'var(--gray-300)' : '#6366f1',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: (audioBlob && !voiceUploading) ? 'pointer' : 'default',
+                fontFamily: 'inherit',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 1rem',
-                boxShadow: '0 4px 10px rgba(0,0,0,0.08)',
-              }}>
-                <Check size={32} color="white" />
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                <button
-                  onClick={reRecord}
-                  style={{
-                    padding: '0.625rem 1rem',
-                    background: 'var(--gray-100)',
-                    color: 'var(--text-primary)',
-                    border: 'none',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  Re-record
-                </button>
-                <button
-                  onClick={uploadVoice}
-                  disabled={voiceUploading}
-                  style={{
-                    padding: '0.625rem 1rem',
-                    background: voiceUploading ? 'var(--gray-300)' : '#6366f1',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: voiceUploading ? 'not-allowed' : 'pointer',
-                    fontFamily: 'inherit',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.375rem',
-                  }}
-                >
-                  <Upload size={16} />
-                  {voiceUploading ? 'Saving...' : 'Save & Continue'}
-                </button>
-              </div>
-            </>
-          )}
+                gap: '0.375rem',
+                opacity: audioBlob ? 1 : 0.4,
+              }}
+            >
+              <Upload size={16} />
+              {voiceUploading ? 'Saving...' : 'Save & Continue'}
+            </button>
+          </div>
         </div>
     </div>
   );
