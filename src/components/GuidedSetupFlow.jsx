@@ -183,6 +183,11 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     setIsPlaying(false);
   };
 
+  const reRecord = async () => {
+    resetRecording();
+    await startRecording();
+  };
+
   const uploadVoice = async () => {
     if (!audioBlob) return;
 
@@ -813,45 +818,24 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
             </>
           ) : (
             <>
-              {/* Post-record: playback + upload */}
+              {/* Post-record: green check replaces mic, two action buttons */}
               <div style={{
-                width: '3.25rem',
-                height: '3.25rem',
+                width: '5rem',
+                height: '5rem',
                 borderRadius: '50%',
                 background: '#10b981',
+                border: 'none',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                margin: '1rem auto 0.75rem',
+                margin: '0 auto 1rem',
                 boxShadow: '0 4px 10px rgba(0,0,0,0.08)',
               }}>
-                <Check size={20} color="white" />
-              </div>
-              <audio ref={audioPlayerRef} src={audioUrl} onEnded={() => setIsPlaying(false)} style={{ display: 'none' }} />
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                <button
-                  onClick={isPlaying ? pauseAudio : playAudio}
-                  style={{
-                    width: '3.5rem',
-                    height: '3.5rem',
-                    borderRadius: '50%',
-                    background: '#6366f1',
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {isPlaying ? <Pause size={24} color="white" /> : <Play size={24} color="white" />}
-                </button>
-                <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                  Duration: {formatTime(recordingTime)}
-                </span>
+                <Check size={32} color="white" />
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
                 <button
-                  onClick={resetRecording}
+                  onClick={reRecord}
                   style={{
                     padding: '0.625rem 1rem',
                     background: 'var(--gray-100)',
