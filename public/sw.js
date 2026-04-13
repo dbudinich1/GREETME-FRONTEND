@@ -1,7 +1,7 @@
 // Service Worker — basic cache-first for static assets only.
 // No API call caching. No offline-first strategy for dynamic content.
 
-const CACHE_NAME = 'greetme-v1';
+const CACHE_NAME = 'greetme-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
