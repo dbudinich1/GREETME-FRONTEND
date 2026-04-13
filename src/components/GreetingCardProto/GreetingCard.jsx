@@ -274,12 +274,24 @@ export default function GreetingCard({ greeting }) {
   const handleTouchStart = useCallback((e) => {
     // Disable swipe navigation on envelope (envelope has its own gestures)
     if (currentScreen === SCREENS.ENVELOPE) return;
+    // Suppress page-turn during pinch-zoom (two+ fingers)
+    if (e.touches.length > 1) {
+      touchStartX.current = null;
+      touchStartY.current = null;
+      return;
+    }
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
   }, [currentScreen]);
 
   const handleTouchEnd = useCallback((e) => {
     if (touchStartX.current === null) return;
+    // Suppress if pinch-zoom is still active (second finger lifted)
+    if (e.touches.length > 0) {
+      touchStartX.current = null;
+      touchStartY.current = null;
+      return;
+    }
 
     const touchEndX = e.changedTouches[0].clientX;
     const touchEndY = e.changedTouches[0].clientY;

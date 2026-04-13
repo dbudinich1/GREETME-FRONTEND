@@ -198,6 +198,12 @@
   border-radius: 50%;
   cursor: pointer;
   z-index: 20;
+  animation: gc-sealBreathe 2.5s ease-in-out 2;
+}
+
+@keyframes gc-sealBreathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  50%      { transform: translate(-50%, -50%) scale(1.06); opacity: 0.85; }
 }
 
 .gc-wax-seal:hover {

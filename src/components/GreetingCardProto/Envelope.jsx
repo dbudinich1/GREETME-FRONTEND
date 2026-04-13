@@ -135,9 +135,6 @@ export default function Envelope({ recipientName, onSealClick, onPlaySound, onPl
         </div>
       </div>
       
-      <p className="gc-hint">
-        {showingBack ? 'Click the seal to open' : 'Drag to flip'}
-      </p>
     </div>
   );
 }
