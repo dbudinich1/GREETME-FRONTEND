@@ -1594,7 +1594,7 @@ export default function DashboardHome() {
               {(() => {
                 // Gather all unique occasions from contacts
                 const occasionMap = {};
-                displayContacts.forEach(contact => {
+                filteredContacts.forEach(contact => {
                   (contact.occasions || []).forEach(occ => {
                     const occasionType = typeof occ === 'object' ? occ.type : occ;
                     if (!occasionMap[occasionType]) {
