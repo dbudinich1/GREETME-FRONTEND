@@ -103,6 +103,8 @@ export default function DashboardHome() {
       if (savedVoice) {
         setVoiceFileUrl(savedVoice);
         setVoiceRecorded(true);
+      } else if (user?.voiceId || user?.voiceUrl) {
+        setVoiceRecorded(true);
       }
 
       // Photo status from backend via AuthContext (user.photoUrl)
