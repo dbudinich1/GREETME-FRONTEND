@@ -230,6 +230,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       setVoiceSaved(true);
       updateSetupState({ voiceDone: true });
       setSetupState(prev => ({ ...prev, voiceDone: true }));
+      nextStep();
     } catch (err) {
       console.error('Voice upload failed:', err);
       setVoiceError('Voice upload failed. Please try again.');
@@ -810,7 +811,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
                 </p>
               </div>
             </>
-          ) : !voiceSaved ? (
+          ) : (
             <>
               {/* Post-record: playback + upload */}
               <div style={{
@@ -887,45 +888,6 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
                   {voiceUploading ? 'Saving...' : 'Save & Continue'}
                 </button>
               </div>
-            </>
-          ) : (
-            <>
-              {/* Inline voice saved — no separate screen */}
-              <div style={{
-                width: '3.25rem',
-                height: '3.25rem',
-                borderRadius: '50%',
-                background: '#10b981',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '1rem auto 0.75rem',
-                boxShadow: '0 4px 10px rgba(0,0,0,0.08)',
-              }}>
-                <Check size={20} color="white" />
-              </div>
-              <p style={{ fontSize: '1rem', fontWeight: 600, color: '#10b981', marginBottom: '1.5rem' }}>
-                Voice saved
-              </p>
-              <button
-                onClick={nextStep}
-                style={{
-                  padding: '0.875rem 2rem',
-                  background: '#6366f1',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 'var(--radius-lg)',
-                  fontSize: '0.9375rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
-              >
-                Continue <ArrowRight size={18} />
-              </button>
             </>
           )}
         </div>
