@@ -281,6 +281,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       setPhotoSaved(true);
       updateSetupState({ photoDone: true });
       setSetupState(prev => ({ ...prev, photoDone: true }));
+      nextStep();
     } catch (err) {
       console.error('Photo upload failed:', err);
       setPhotoError('Photo upload failed. Please try again.');
@@ -746,7 +747,6 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       )}
 
       {/* Recording UI */}
-      {!voiceSaved ? (
         <div style={{ textAlign: 'center' }}>
           {!audioBlob ? (
             <>
@@ -810,20 +810,21 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
                 </p>
               </div>
             </>
-          ) : (
+          ) : !voiceSaved ? (
             <>
-              {/* Green check — recording captured */}
+              {/* Post-record: playback + upload */}
               <div style={{
-                width: '3rem',
-                height: '3rem',
+                width: '3.25rem',
+                height: '3.25rem',
                 borderRadius: '50%',
                 background: '#10b981',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                margin: '0 auto 1rem',
+                margin: '1rem auto 0.75rem',
+                boxShadow: '0 4px 10px rgba(0,0,0,0.08)',
               }}>
-                <Check size={24} color="white" />
+                <Check size={20} color="white" />
               </div>
               <audio ref={audioPlayerRef} src={audioUrl} onEnded={() => setIsPlaying(false)} style={{ display: 'none' }} />
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem' }}>
@@ -887,46 +888,47 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
                 </button>
               </div>
             </>
+          ) : (
+            <>
+              {/* Inline voice saved — no separate screen */}
+              <div style={{
+                width: '3.25rem',
+                height: '3.25rem',
+                borderRadius: '50%',
+                background: '#10b981',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '1rem auto 0.75rem',
+                boxShadow: '0 4px 10px rgba(0,0,0,0.08)',
+              }}>
+                <Check size={20} color="white" />
+              </div>
+              <p style={{ fontSize: '1rem', fontWeight: 600, color: '#10b981', marginBottom: '1.5rem' }}>
+                Voice saved
+              </p>
+              <button
+                onClick={nextStep}
+                style={{
+                  padding: '0.875rem 2rem',
+                  background: '#6366f1',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--radius-lg)',
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                Continue <ArrowRight size={18} />
+              </button>
+            </>
           )}
         </div>
-      ) : (
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '4rem',
-            height: '4rem',
-            borderRadius: '50%',
-            background: '#10b981',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 1rem',
-          }}>
-            <Check size={32} color="white" />
-          </div>
-          <p style={{ fontSize: '1rem', fontWeight: 600, color: '#10b981', marginBottom: '1.5rem' }}>
-            Voice saved
-          </p>
-          <button
-            onClick={nextStep}
-            style={{
-              padding: '0.875rem 2rem',
-              background: '#6366f1',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.9375rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-            }}
-          >
-            Continue <ArrowRight size={18} />
-          </button>
-        </div>
-      )}
     </div>
   );
   };
@@ -954,7 +956,6 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         </p>
       )}
 
-      {!photoSaved ? (
         <div style={{ textAlign: 'center' }}>
           {!photoPreview ? (
             <div
@@ -1024,7 +1025,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
                   }}
                 >
                   <Upload size={16} />
-                  {photoUploading ? 'Saving...' : 'Save Photo'}
+                  {photoUploading ? 'Saving...' : 'Save & Continue'}
                 </button>
               </div>
             </div>
@@ -1037,44 +1038,6 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
             style={{ display: 'none' }}
           />
         </div>
-      ) : (
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '4rem',
-            height: '4rem',
-            borderRadius: '50%',
-            background: '#10b981',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 1rem',
-          }}>
-            <Check size={32} color="white" />
-          </div>
-          <p style={{ fontSize: '1rem', fontWeight: 600, color: '#10b981', marginBottom: '0.75rem' }}>
-            Photo saved
-          </p>
-          <button
-            onClick={nextStep}
-            style={{
-              padding: '0.875rem 2rem',
-              background: '#6366f1',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.9375rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-            }}
-          >
-            Continue <ArrowRight size={18} />
-          </button>
-        </div>
-      )}
     </div>
   );
 
