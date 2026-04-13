@@ -896,20 +896,38 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       )}
 
         <div style={{ textAlign: 'center' }}>
+          {/* Guidance prompts — before photo selected only */}
+          {!photoPreview && (
+            <ul style={{
+              listStyle: 'none',
+              padding: 0,
+              margin: '0 auto 1rem',
+              maxWidth: '20rem',
+              fontSize: '0.8125rem',
+              color: 'var(--text-secondary)',
+              textAlign: 'left',
+            }}>
+              <li style={{ marginBottom: '0.25rem' }}>• Use a clear photo where your face is visible</li>
+              <li style={{ marginBottom: '0.25rem' }}>• Good lighting makes a big difference</li>
+              <li style={{ marginBottom: '0.25rem' }}>• Face forward for best animation results</li>
+              <li>• A natural expression works best</li>
+            </ul>
+          )}
           {!photoPreview ? (
             <div
               onClick={() => fileInputRef.current?.click()}
               style={{
-                border: '2px dashed var(--border)',
+                border: '2px solid #6366f1',
                 borderRadius: 'var(--radius-lg)',
                 padding: '2rem',
                 cursor: 'pointer',
                 marginBottom: '1rem',
+                background: 'rgba(99, 102, 241, 0.04)',
               }}
             >
-              <ImageIcon size={48} style={{ color: 'var(--text-tertiary)', marginBottom: '0.75rem' }} />
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                Click to upload
+              <Camera size={56} style={{ color: '#6366f1', marginBottom: '0.75rem' }} />
+              <p style={{ fontSize: '1rem', fontWeight: 600, color: '#6366f1', marginBottom: '0.25rem' }}>
+                Tap to upload your photo
               </p>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
                 PNG, JPG up to 5MB
