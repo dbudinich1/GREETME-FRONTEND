@@ -54,8 +54,11 @@ jobs:
                 </rules>
               </rewrite>
               <staticContent>
+                <remove fileExtension=".json" />
                 <mimeMap fileExtension=".json" mimeType="application/json" />
+                <remove fileExtension=".js" />
                 <mimeMap fileExtension=".js" mimeType="application/javascript" />
+                <remove fileExtension=".css" />
                 <mimeMap fileExtension=".css" mimeType="text/css" />
               </staticContent>
               <httpErrors errorMode="Custom" existingResponse="Replace">
