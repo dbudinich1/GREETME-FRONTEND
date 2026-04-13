@@ -45,6 +45,7 @@ import QAInspector from "./pages/QAInspector";
 import Support from "./pages/Support";
 import Legal from "./Legal";
 import VerifyEmail from "./pages/VerifyEmail";
+import AppInstall from "./pages/AppInstall";
 
 export default function App() {
   return (
@@ -114,6 +115,7 @@ export default function App() {
           {/* Founder Dashboard (admin key protected at API level) */}
           <Route path="/admin" element={<FounderDashboard />} />
           <Route path="/qa" element={<QAInspector />} />
+          <Route path="/app" element={<AppInstall />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -130,6 +130,15 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
   const closingMessageRef = useRef(null);
   const [qrImageError, setQrImageError] = useState(false);
   const [courtesyQrUrl, setCourtesyQrUrl] = useState(null);
+  const [appQrUrl, setAppQrUrl] = useState(null);
+
+  // Generate app install QR
+  useEffect(() => {
+    QRCode.toDataURL('https://greet-me.com/#/app', {
+      width: 200, margin: 1,
+      color: { dark: '#4F2D7F', light: '#ffffff' },
+    }).then(setAppQrUrl).catch(() => {});
+  }, []);
 
   // Generate courtesy credit QR ONLY when a real tracked credit code exists
   useEffect(() => {
@@ -372,6 +381,22 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
             >
               Create your own Greet-Me &rarr;
             </a>
+            {appQrUrl && (
+              <div style={{ marginTop: '1.25em', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4em' }}>
+                <img src={appQrUrl} alt="Install the app" style={{ width: '64px', height: '64px', borderRadius: '4px' }} />
+                <a
+                  href="/#/app"
+                  style={{
+                    fontSize: '0.6em',
+                    color: 'rgba(139, 125, 107, 0.6)',
+                    textDecoration: 'none',
+                    fontFamily: 'Georgia, serif',
+                  }}
+                >
+                  Install the app &rarr;
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </div>
