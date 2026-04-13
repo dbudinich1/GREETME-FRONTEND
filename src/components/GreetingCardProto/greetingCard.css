@@ -2991,21 +2991,21 @@
 
 @keyframes gc-turnForwardOut {
   0%   { transform: rotateY(0deg);   opacity: 1; }
-  100% { transform: rotateY(-90deg); opacity: 0; }
+  100% { transform: rotateY(-35deg); opacity: 0.6; }
 }
 
 @keyframes gc-turnForwardIn {
-  0%   { transform: rotateY(90deg);  opacity: 0; }
+  0%   { transform: rotateY(35deg);  opacity: 0.6; }
   100% { transform: rotateY(0deg);   opacity: 1; }
 }
 
 @keyframes gc-turnBackOut {
   0%   { transform: rotateY(0deg);   opacity: 1; }
-  100% { transform: rotateY(90deg);  opacity: 0; }
+  100% { transform: rotateY(35deg);  opacity: 0.6; }
 }
 
 @keyframes gc-turnBackIn {
-  0%   { transform: rotateY(-90deg); opacity: 0; }
+  0%   { transform: rotateY(-35deg); opacity: 0.6; }
   100% { transform: rotateY(0deg);   opacity: 1; }
 }
 

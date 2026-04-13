@@ -51,11 +51,11 @@ function formatPoemToFit(poemText, maxLines = MAX_POEM_LINES, maxCharsPerLine = 
 }
 
 const MIN_MESSAGE_PX_DEFAULT = 19;
-const MIN_MESSAGE_PX_PORTRAIT = 16;
+const MIN_MESSAGE_PX_PORTRAIT = 18;
 const MIN_POEM_PX = 13;
 const MAX_STEPS_MESSAGE = 16;
 const MAX_STEPS_POEM = 16;
-const MIN_LH = 1.05;
+const MIN_LH = 1.12;
 const LH_TIGHTEN_STEP = 0.03;
 
 function countSentences(el) {
