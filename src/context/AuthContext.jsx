@@ -2,6 +2,12 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { getErrorMessage } from '../utils/errorMessages';
 
+// Safari private browsing throws SecurityError on localStorage access.
+// These helpers prevent that from crashing the app.
+function safeGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
+function safeSet(key, val) { try { localStorage.setItem(key, val); } catch {} }
+function safeRemove(key) { try { localStorage.removeItem(key); } catch {} }
+
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
@@ -28,7 +34,7 @@ export const AuthProvider = ({ children }) => {
       const subscriptionStatus = data.profile?.subscriptionStatus || null;
       const paymentLocked = data.profile?.paymentLocked || false;
       const updatedUser = { ...currentUser, photoUrl, voiceId, voiceUrl, plan, tier, entitlements, subscriptionStatus, paymentLocked };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      safeSet('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
     } catch (err) {
       // Silent fail: do not break login flow
@@ -37,14 +43,14 @@ export const AuthProvider = ({ children }) => {
 
   // Force re-hydrate profile from backend (call after photo/voice upload)
   const refreshProfile = async () => {
-    const token = localStorage.getItem('token');
+    const token = safeGet('token');
     if (!token || !user) return;
     await fetchAndHydrateProfile(token, user);
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
+    const token = safeGet('token');
+    const userData = safeGet('user');
     if (token && userData && userData !== 'undefined') {
       try {
         const parsed = JSON.parse(userData);
@@ -53,8 +59,8 @@ export const AuthProvider = ({ children }) => {
         fetchAndHydrateProfile(token, parsed);
       } catch (error) {
         console.error('Failed to parse user data:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        safeRemove('token');
+        safeRemove('user');
       }
     }
     setLoading(false);
@@ -74,10 +80,10 @@ export const AuthProvider = ({ children }) => {
         err.status = response.status;
         throw err;
       }
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      safeSet('token', data.token);
+      safeSet('user', JSON.stringify(data.user));
       // Clear stale media from previous session to prevent cross-account bleed
-      localStorage.removeItem('greetme_voice_file');
+      safeRemove('greetme_voice_file');
       setUser(data.user);
       // Hydrate photoUrl from backend profile (fire-and-forget)
       fetchAndHydrateProfile(data.token, data.user);
@@ -102,14 +108,14 @@ export const AuthProvider = ({ children }) => {
         err.status = response.status;
         throw err;
       }
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      safeSet('token', data.token);
+      safeSet('user', JSON.stringify(data.user));
       // Clear stale onboarding state so new registration always gets fresh onboarding
-      localStorage.removeItem('greetme_setup_state');
+      safeRemove('greetme_setup_state');
       // Clear account-specific cached media from any previous account
-      localStorage.removeItem('greetme_media_library');
-      localStorage.removeItem('greetme_voice_file');
-      localStorage.removeItem('greetme_recipients');
+      safeRemove('greetme_media_library');
+      safeRemove('greetme_voice_file');
+      safeRemove('greetme_recipients');
       setUser(data.user);
       // Hydrate photoUrl from backend profile (fire-and-forget)
       fetchAndHydrateProfile(data.token, data.user);
@@ -121,14 +127,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    safeRemove('token');
+    safeRemove('user');
     // Clear account-specific cached media to prevent bleed-through on next login
-    localStorage.removeItem('greetme_media_library');
-    localStorage.removeItem('greetme_voice_file');
-    localStorage.removeItem('greetme_recipients');
-    localStorage.removeItem('greetme_cart');
-    localStorage.removeItem('greetme_drafts');
+    safeRemove('greetme_media_library');
+    safeRemove('greetme_voice_file');
+    safeRemove('greetme_recipients');
+    safeRemove('greetme_cart');
+    safeRemove('greetme_drafts');
     setUser(null);
   };
 
@@ -136,17 +142,17 @@ export const AuthProvider = ({ children }) => {
     if (!user) return;
 
     const updatedUser = { ...user, ...updates };
-    localStorage.setItem('user', JSON.stringify(updatedUser));
+    safeSet('user', JSON.stringify(updatedUser));
 
     try {
-      const rehydrated = JSON.parse(localStorage.getItem('user'));
+      const rehydrated = JSON.parse(safeGet('user'));
       setUser(rehydrated);
     } catch (e) {
       setUser(updatedUser);
     }
   };
 
-  const getToken = () => localStorage.getItem('token');
+  const getToken = () => safeGet('token');
 
   return (
     <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser, getToken, refreshProfile, isAuthenticated: !!user }}>
