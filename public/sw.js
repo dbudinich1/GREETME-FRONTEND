@@ -1,37 +1,24 @@
-// Service Worker — basic cache-first for static assets only.
-// No API call caching. No offline-first strategy for dynamic content.
+// Service Worker — PWA installability only.
+// No fetch interception. No caching. All requests go to network.
 
-const CACHE_NAME = 'greetme-v2';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/vite.svg',
-];
+const CACHE_NAME = 'greetme-v3';
 
 self.addEventListener('install', (event) => {
+  // Clear any previously cached assets
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.keys().then((keys) =>
+      Promise.all(keys.map((k) => caches.delete(k)))
+    )
   );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
+  // Clear all caches on activate (belt and suspenders)
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(keys.map((k) => caches.delete(k)))
     )
   );
   self.clients.claim();
-});
-
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  // Only cache-first for same-origin static assets — never cache API calls
-  if (url.origin !== location.origin) return;
-  if (url.pathname.startsWith('/api')) return;
-
-  event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
-  );
 });
