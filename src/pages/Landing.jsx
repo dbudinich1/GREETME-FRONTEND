@@ -14,11 +14,13 @@ export default function Landing() {
   const [demoMuted, setDemoMuted] = useState(true);
   const demoRef = useRef(null);
 
-  // Force autoplay on mount (some browsers need explicit .play() even with autoPlay attr)
+  // Delayed autoplay — let page paint first, then attempt video after 2s
   useEffect(() => {
-    if (demoRef.current && !isAuthenticated && !loading) {
-      demoRef.current.play().catch(() => {});
-    }
+    if (!demoRef.current || isAuthenticated || loading) return;
+    const timer = setTimeout(() => {
+      if (demoRef.current) demoRef.current.play().catch(() => {});
+    }, 2000);
+    return () => clearTimeout(timer);
   }, [isAuthenticated, loading]);
 
   // Demo mode: ?demo=1 prevents auth redirect so founder can show landing while logged in
@@ -102,11 +104,10 @@ export default function Landing() {
         <video
           ref={demoRef}
           src="https://greetmedanny.blob.core.windows.net/public/greetme-demo.mp4.mp4"
-          autoPlay
+          preload="none"
           muted
           playsInline
-          loop
-          style={{ width: '100%', display: 'block' }}
+          style={{ width: '100%', display: 'block', background: '#1f2937' }}
         />
         {demoMuted && (
           <div style={{
