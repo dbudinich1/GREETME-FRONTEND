@@ -10,7 +10,7 @@ const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
 
 // Centralized sample data — edit these to match real test records
 const QA = {
-  testJobId: localStorage.getItem('greetme_onboarding_test_jobId') || 'demo-job-id',
+  testJobId: (() => { try { return localStorage.getItem('greetme_onboarding_test_jobId'); } catch { return null; } })() || 'demo-job-id',
   validGiftCode: 'demo-valid-g1g1',
   invalidGiftCode: 'invalid-code-xyz',
   claimedGiftCode: 'demo-claimed-code',
