@@ -15,8 +15,8 @@ export default function CourtesyCredit() {
   const source = searchParams.get('source');
   const displayAmount = `$${amount}`;
 
-  // Onboarding test flow: authenticated user arriving from finale → single CTA, no thank-you option
-  const isOnboardingClaim = source === 'finale' && isAuthenticated;
+  // Only suppress thank-you for onboarding test sends (test=1 param added by Finale for test greetings)
+  const isOnboardingClaim = source === 'finale' && searchParams.get('test') === '1';
 
   // Stash credit in localStorage so it persists through registration
   const stashCredit = () => {
