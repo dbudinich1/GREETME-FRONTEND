@@ -48,79 +48,12 @@ import VerifyEmail from "./pages/VerifyEmail";
 import AppInstall from "./pages/AppInstall";
 
 export default function App() {
+  // TEMPORARY DIAGNOSTIC — remove after confirming App-level imports don't crash
   return (
-    <AuthProvider>
-      <HashRouter>
-        <Routes>
-          {/* Default route: landing page for guests, redirects auth users to dashboard */}
-          <Route path="/" element={<Landing />} />
-
-          {/* Public Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/redeem/qr-cash/:id" element={<RedeemQRCash />} />
-          <Route path="/greeting/:greetingId" element={<RecipientGreeting />} />
-          <Route path="/g/:jobId" element={<PublicGreetingCard />} />
-          <Route path="/gift/g1g1/:giftCode" element={<G1G1Claim />} />
-          <Route path="/gift/:claimToken" element={<GiftClaim />} />
-          <Route path="/credit/:referralCode" element={<ReferralCredit />} />
-          <Route path="/thank-you" element={<ThankYouFlow />} />
-          <Route path="/courtesy-credit" element={<CourtesyCredit />} />
-          <Route path="/claim-credit/:creditCode" element={<CreditClaim />} />
-
-          {/* Protected Routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<DashboardHome />} />
-            <Route path="contacts" element={<Recipients />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="send" element={<SendGreeting />} />
-            <Route path="sent" element={<SentGreetings />} />
-            <Route path="media" element={<MediaLibrary />} />
-            <Route path="cart" element={<Cart />} />
-            <Route path="checkout" element={<Checkout />} />
-            <Route path="merch" element={<Merch />} />
-            <Route path="gifts" element={<Gifts />} />
-            <Route path="hero" element={<HeroProgram />} />
-            <Route path="animations" element={<AnimationBank />} />
-            <Route path="invitations" element={<Invitations />} />
-            <Route path="rewards" element={<Rewards />} />
-            <Route path="notifications" element={<Notifications />} />
-          </Route>
-
-          {/* Public Landing and Pricing */}
-          <Route path="/landing" element={<LandingPage />} />
-          <Route path="/pricing" element={<DashboardLayout><Pricing /></DashboardLayout>} />
-          <Route path="/business" element={<DashboardLayout><ForBusiness /></DashboardLayout>} />
-
-          {/* Email Verification (Public) */}
-          <Route path="/verify-email" element={<VerifyEmail />} />
-
-          {/* Payment Routes (Public) */}
-          <Route path="/payment/success" element={<PaymentSuccess />} />
-          <Route path="/payment/canceled" element={<PaymentCanceled />} />
-
-          {/* Support & Legal (Public) */}
-          <Route path="/support" element={<Support />} />
-          <Route path="/legal" element={<Legal />} />
-
-          {/* Founder Dashboard (admin key protected at API level) */}
-          <Route path="/admin" element={<FounderDashboard />} />
-          <Route path="/qa" element={<QAInspector />} />
-          <Route path="/app" element={<AppInstall />} />
-
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </HashRouter>
-    </AuthProvider>
+    <div style={{ padding: '4rem', textAlign: 'center', fontFamily: 'sans-serif' }}>
+      <h1 style={{ color: '#10b981' }}>App.jsx Boot Test</h1>
+      <p>If you see this, all 48 imports resolved and App renders.</p>
+      <p>The crash is inside AuthProvider, HashRouter, or Routes.</p>
+    </div>
   );
 }
