@@ -1,9 +1,7 @@
 // src/api/api.js
 
-const API_BASE = import.meta.env.VITE_API_BASE;
-if (!API_BASE) {
-  throw new Error("VITE_API_BASE is required");
-}
+const API_BASE = import.meta.env.VITE_API_BASE || '';
+if (!API_BASE) console.error("VITE_API_BASE is missing — API calls will fail");
 
 /**
  * Sanitize memoryPhotos to prevent oversized payloads (Cosmos 413/500)
@@ -138,7 +136,8 @@ function sanitizeContactData(contactData) {
 
 class ApiService {
   async request(endpoint, options = {}) {
-    const token = localStorage.getItem("token");
+    let token = null;
+    try { token = localStorage.getItem("token"); } catch {}
 
     const headers = {
       ...(options.headers || {}),
@@ -321,7 +320,7 @@ class ApiService {
    * @returns {Promise<{ok: boolean, url: string, blobUrl: string}>}
    */
   async uploadContactMemoryPhoto(contactId, file) {
-    const token = localStorage.getItem("token");
+    let token = null; try { token = localStorage.getItem("token"); } catch {}
     const formData = new FormData();
     formData.append("photo", file);
 
@@ -370,7 +369,7 @@ class ApiService {
   // IMPORTANT: do NOT set Content-Type for FormData
   // --------------------
   async uploadPhoto(formData) {
-    const token = localStorage.getItem("token");
+    let token = null; try { token = localStorage.getItem("token"); } catch {}
 
     const res = await fetch(`${API_BASE}/api/profile/photo`, {
       method: "POST",
@@ -394,7 +393,7 @@ class ApiService {
   }
 
   async uploadVoice(formData) {
-    const token = localStorage.getItem("token");
+    let token = null; try { token = localStorage.getItem("token"); } catch {}
 
     const res = await fetch(`${API_BASE}/api/profile/voice`, {
       method: "POST",
