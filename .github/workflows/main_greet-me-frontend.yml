@@ -37,7 +37,7 @@ jobs:
 
       - name: Create web.config for Azure static hosting
         run: |
-          cat > dist/web.config << 'EOF'
+          cat > dist/web.config << 'WEBCONFIG'
           <?xml version="1.0" encoding="utf-8"?>
           <configuration>
             <system.webServer>
@@ -67,8 +67,9 @@ jobs:
               </httpErrors>
             </system.webServer>
           </configuration>
-          EOF
-          
+          WEBCONFIG
+          sed -i 's/^          //' dist/web.config
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
