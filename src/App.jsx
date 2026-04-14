@@ -43,9 +43,10 @@ import G1G1Claim from "./pages/G1G1Claim";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
 import FounderDashboard from "./pages/FounderDashboard";
-// import QAInspector from "./pages/QAInspector";
-// import Support from "./pages/Support";
-// import Legal from "./Legal";
+// BINARY SEARCH ROUND 4 — B2b-1 uncommented, B2b-2 still commented
+import QAInspector from "./pages/QAInspector";
+import Support from "./pages/Support";
+import Legal from "./Legal";
 // import VerifyEmail from "./pages/VerifyEmail";
 // import AppInstall from "./pages/AppInstall";
 
