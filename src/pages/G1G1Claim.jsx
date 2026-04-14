@@ -74,7 +74,7 @@ export default function G1G1Claim() {
       }
     } catch (err) {
       if (err?.status === 403) {
-        setError('This gift was sent by your account — you cannot claim your own gift. Share the link with the person you'd like to receive it.');
+        setError('This gift was sent by your account \u2014 you cannot claim your own gift. Share the link with the person you want to receive it.');
       } else if (err?.status === 409) {
         setError('This gift has already been claimed.');
         setClaimed(true);
