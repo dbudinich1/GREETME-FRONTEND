@@ -43,8 +43,8 @@ import G1G1Claim from "./pages/G1G1Claim";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
 import FounderDashboard from "./pages/FounderDashboard";
-// BINARY SEARCH ROUND 5 — Legal commented, QAInspector + Support active
-import QAInspector from "./pages/QAInspector";
+// BINARY SEARCH ROUND 6 — QAInspector commented, Support active
+// import QAInspector from "./pages/QAInspector";
 import Support from "./pages/Support";
 // import Legal from "./Legal";
 // import VerifyEmail from "./pages/VerifyEmail";
