@@ -68,12 +68,19 @@ export default function G1G1Claim() {
       const res = await api.claimG1G1Gift(giftCode);
       if (res?.ok) {
         setClaimed(true);
-        sessionStorage.setItem('greetme_g1g1_claimed', '1');
+        try { sessionStorage.setItem('greetme_g1g1_claimed', '1'); } catch {}
       } else {
         setError(res?.error || 'Failed to claim gift');
       }
     } catch (err) {
-      setError('Something went wrong. Please try again.');
+      if (err?.status === 403) {
+        setError('This gift was sent by your account — you cannot claim your own gift. Share the link with the person you'd like to receive it.');
+      } else if (err?.status === 409) {
+        setError('This gift has already been claimed.');
+        setClaimed(true);
+      } else {
+        setError(err?.message || 'Something went wrong. Please try again.');
+      }
     } finally {
       setClaiming(false);
     }
