@@ -7,9 +7,12 @@ import { useParams } from 'react-router-dom';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
 import { GreetingCard as GreetingCardProto } from '../components/GreetingCardProto';
+import { useAuth } from '../context/AuthContext';
 
 export default function PublicGreetingCard() {
   const { jobId } = useParams();
+  const { user } = useAuth();
+  const isPaid = user?.plan && user.plan !== 'free' && user?.subscriptionStatus === 'active';
 
   const [greeting, setGreeting] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -273,7 +276,7 @@ export default function PublicGreetingCard() {
       {/* QR Cash™ claim lives inside the FinaleSpread (right page of the card) */}
 
       {/* "Send Thank You" CTA — primary recipient action (suppressed for test sends) */}
-      {!greeting.isOnboardingTestSend && greeting.jobId && (
+      {!greeting.isOnboardingTestSend && greeting.jobId && !isPaid && (
         <div className="gc-public-chrome gc-public-chrome--thankyou" style={{
           maxWidth: '640px',
           margin: '2rem auto 0',
