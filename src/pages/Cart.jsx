@@ -54,6 +54,11 @@ export default function Cart() {
   };
 
   const handleCheckout = () => {
+    // G1G1 guard: must choose a delivery path — no silent pending gifts
+    if (g1g1Eligible && !receiveGiftLinkViaEmail && !g1g1RecipientEmail.trim()) {
+      alert("Please enter a recipient email or choose 'Send later'");
+      return;
+    }
     // Always stash G1G1 state so success page can render conditionally
     sessionStorage.setItem('greetme_g1g1_checkout', JSON.stringify({
       eligible: g1g1Eligible === true,
@@ -594,7 +599,7 @@ export default function Cart() {
                       gap: '0.375rem'
                     }}>
                       <Mail size={14} />
-                      Email me my gift link for later
+                      Send later (we'll email you the gift link)
                     </div>
                     <div style={{
                       fontSize: '0.75rem',

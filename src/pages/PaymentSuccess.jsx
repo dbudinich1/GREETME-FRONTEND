@@ -114,13 +114,24 @@ export default function PaymentSuccess() {
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a1a2e', margin: '0 0 0.75rem' }}>
               You&rsquo;re all set &mdash; your gift is ready 🎁
             </h1>
-            <p style={{ fontSize: '1rem', color: '#555', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
-              Your subscription is active. Send your included subscription gift now or later.
+            <p style={{ fontSize: '1rem', color: '#555', lineHeight: 1.6, margin: '0 0 1rem' }}>
+              Your subscription is active. We&rsquo;ve emailed you the gift link. You can also share it now:
             </p>
-            <button onClick={() => navigate('/dashboard/contacts')} style={{ ...btnStyle, marginBottom: '0.75rem' }}>
-              Send Your Gift Subscription
-            </button>
-            <button onClick={() => navigate('/dashboard/send')} style={btnSecondary}>
+            {g1g1State?.giftCode && (
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '1rem', marginBottom: '1.25rem', textAlign: 'left' }}>
+                <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#166534', margin: '0 0 0.5rem' }}>Your gift link:</p>
+                <a href={`/#/gift/g1g1/${g1g1State.giftCode}`} style={{ fontSize: '0.875rem', color: '#4F2D7F', wordBreak: 'break-all' }}>
+                  {`${window.location.origin}/#/gift/g1g1/${g1g1State.giftCode}`}
+                </a>
+                <button
+                  onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/#/gift/g1g1/${g1g1State.giftCode}`).catch(() => {}); }}
+                  style={{ display: 'block', marginTop: '0.5rem', background: 'none', border: '1px solid #bbf7d0', borderRadius: '4px', padding: '0.375rem 0.75rem', fontSize: '0.75rem', color: '#166534', cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  Copy Link
+                </button>
+              </div>
+            )}
+            <button onClick={() => navigate('/dashboard/send')} style={btnStyle}>
               Send Your First Greet-Me
             </button>
           </>
