@@ -634,13 +634,6 @@ export default function ThankYouFlow() {
           </div>
         )}
 
-        {/* D. Error display */}
-        {error && (
-          <div style={{ padding: '0.75rem 1rem', background: '#fef2f2', borderRadius: '0.5rem', border: '1px solid #fecaca', marginBottom: '1.5rem' }}>
-            <p style={{ fontSize: '0.875rem', color: '#dc2626', margin: 0 }}>{error}</p>
-          </div>
-        )}
-
         {/* E. Inline registration or login (guest path — never leaves page) */}
         {showInlineRegister && (
           <div style={styles.section}>
@@ -721,6 +714,13 @@ export default function ThankYouFlow() {
                 <>Already have an account? <button onClick={() => { setInlineMode('login'); setRegError(null); }} style={{ background: 'none', border: 'none', color: '#4F2D7F', fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer', padding: 0 }}>Log in</button></>
               )}
             </p>
+          </div>
+        )}
+
+        {/* D. Error display */}
+        {error && (
+          <div style={{ padding: '0.75rem 1rem', background: '#fef2f2', borderRadius: '0.5rem', border: '1px solid #fecaca', marginBottom: '1.5rem' }}>
+            <p style={{ fontSize: '0.875rem', color: '#dc2626', margin: 0 }}>{error}</p>
           </div>
         )}
 
