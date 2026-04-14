@@ -272,44 +272,7 @@ export default function PublicGreetingCard() {
 
       {/* QR Cash™ claim lives inside the FinaleSpread (right page of the card) */}
 
-      {/* "Send Thank You" CTA — primary recipient action (suppressed for test sends) */}
-      {!greeting.isOnboardingTestSend && greeting.jobId && (
-        <div className="gc-public-chrome gc-public-chrome--thankyou" style={{
-          maxWidth: '640px',
-          margin: '2rem auto 0',
-          padding: '0 1rem',
-        }}>
-          <div style={{
-            padding: '1.5rem',
-            background: 'linear-gradient(135deg, #ec4899 0%, #f472b6 100%)',
-            borderRadius: '16px',
-            textAlign: 'center',
-            color: '#FFF',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          }}>
-            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.2rem', fontWeight: 700 }}>
-              Touched by this greeting?
-            </h3>
-            <p style={{ margin: '0 0 1rem', fontSize: '0.95rem', opacity: 0.9, lineHeight: 1.5 }}>
-              Send a thank-you back — it only takes a moment.
-            </p>
-            <a href={`/#/thank-you?jobId=${greeting.jobId}`} style={{
-              display: 'inline-block',
-              padding: '12px 32px',
-              background: '#FFF',
-              color: '#ec4899',
-              borderRadius: '8px',
-              fontWeight: 700,
-              textDecoration: 'none',
-              fontSize: '1rem',
-              minHeight: '44px',
-              lineHeight: '20px',
-            }}>
-              Send Thank You
-            </a>
-          </div>
-        </div>
-      )}
+      {/* Thank-You CTA removed — recipients reach thank-you via T7 email, QR claim, or credit claim */}
 
       {/* "Send Your Own" CTA (Viral Loop) — hidden in landscape via CSS */}
       <div className="gc-public-chrome" style={{
