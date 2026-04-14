@@ -19,7 +19,7 @@ export default function AppInstall() {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      minHeight: '100dvh',
       background: `linear-gradient(135deg, ${PURPLE} 0%, #2D1B4E 100%)`,
       color: 'white',
       fontFamily: FONT,
