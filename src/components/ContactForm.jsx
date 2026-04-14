@@ -1,7 +1,7 @@
 // src/components/ContactForm.jsx
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { validateEmail, getOccasionsByCategory, calculateVaryingOccasionDate } from '../utils/helpers';
+import { validateEmail, getOccasionsByCategory, calculateVaryingOccasionDate, occasionTypes } from '../utils/helpers';
 import { getPhotoSrc } from '../utils/getPhotoSrc';
 import Alert from './Alert';
 import FaithBasedOccasionSelector from './FaithBasedOccasionSelector';
@@ -274,7 +274,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
 
         return {
           ...prev,
-          occasions: [...occasions, { type: occasionValue, date: dateValue, autoSend: true }],
+          occasions: [...occasions, { type: occasionValue, date: dateValue, autoSend: occasionTypes.find(o => o.value === occasionValue)?.recurring !== false }],
         };
       }
     });
