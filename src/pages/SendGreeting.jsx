@@ -443,7 +443,15 @@ export default function SendGreeting() {
       relationshipNote: selectedContact.relationshipContext || '',
       personalSentiment: formData.customMessage || '',
       tone: formData.tone || 'warm',
-      photos: (selectedContact.memoryPhotos || []).map(p => typeof p === 'string' ? p : p?.url).filter(Boolean),
+      photos: [...new Set([
+        ...memoryPhotos,
+        ...(useMemoryPhotos
+          ? (selectedContact.memoryPhotos || [])
+              .map(p => typeof p === 'string' ? p : p?.url)
+              .filter(Boolean)
+              .filter(url => !excludedMemoryPhotos.has(url))
+          : []),
+      ])].slice(0, MAX_MEMORY_PHOTOS),
       layoutBudget: { introMaxChars: 280 },
       includeGift: Boolean(giftSettings?.type && giftSettings.type !== 'none'),
     };
