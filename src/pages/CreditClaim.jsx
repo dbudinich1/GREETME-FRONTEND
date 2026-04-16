@@ -90,6 +90,29 @@ export default function CreditClaim() {
     );
   }
 
+  // Onboarding/test-send credit: ready-to-use state (no claim, no thank-you)
+  if (credit?.isOnboardingTestSend) {
+    return (
+      <div style={styles.page}>
+        <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
+          <div style={styles.icon}>🎁</div>
+          <p style={styles.eyebrow}>A gift from Greet-Me</p>
+          <h1 style={styles.headline}>Your {displayAmount} credit is ready</h1>
+          <p style={styles.body}>
+            Use it toward your first Greet-Me subscription.
+          </p>
+          <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
+            View Plans &amp; Pricing
+          </button>
+          <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
+            Go to Dashboard
+          </button>
+          <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.page}>
       <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
