@@ -104,7 +104,7 @@ export default function CreditClaim() {
               This {displayAmount} credit has already been applied to a purchase.
             </p>
 
-            {credit?.sourceJobId && (
+            {credit?.sourceJobId && !credit?.isOnboardingTestSend && (
               <button
                 onClick={() => navigate(`/thank-you?jobId=${credit.sourceJobId}`)}
                 style={{ ...styles.cta, marginBottom: '0.75rem' }}
@@ -126,7 +126,7 @@ export default function CreditClaim() {
               Your {displayAmount} credit has been saved and will be applied at checkout.
             </p>
 
-            {credit?.sourceJobId && (
+            {credit?.sourceJobId && !credit?.isOnboardingTestSend && (
               <button
                 onClick={() => navigate(`/thank-you?jobId=${credit.sourceJobId}`)}
                 style={{ ...styles.cta, marginBottom: '0.75rem' }}

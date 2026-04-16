@@ -1497,7 +1497,15 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         </button>
       )}
       <button
-        onClick={() => setStep(8)}
+        onClick={() => {
+          const jobId = localStorage.getItem('greetme_onboarding_test_jobId');
+          handleComplete();
+          if (jobId) {
+            window.location.href = `/#/g/${jobId}`;
+          } else {
+            navigate('/dashboard');
+          }
+        }}
         style={{
           width: '100%',
           padding: '1rem',
@@ -1511,7 +1519,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           fontFamily: 'inherit',
         }}
       >
-        See Your Gift
+        View My Greet-Me
       </button>
     </div>
   );
@@ -1642,7 +1650,6 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     5: renderSendPrep,
     6: renderSending,
     7: renderSuccess,
-    8: renderGiftReveal,
   };
 
   // Calculate progress (steps 0-6)
