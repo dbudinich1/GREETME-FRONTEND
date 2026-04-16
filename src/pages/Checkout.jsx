@@ -122,6 +122,14 @@ export default function Checkout() {
           g1g1SendLater: !!g1g1Raw.sendLater,
         }),
       });
+      const creditEligible = item.planTier !== 'close_circle';
+      if (creditAmount > 0 && creditEligible && !data.creditApplied) {
+        localStorage.removeItem('greetme_courtesy_credit');
+        localStorage.removeItem('greetme_referral_code');
+        setErrors({ submit: 'Your credit could not be applied. Please try again or continue at full price.' });
+        setIsProcessing(false);
+        return;
+      }
       window.location.href = data.url;
     } catch (error) {
       console.error('Stripe checkout error:', error);
