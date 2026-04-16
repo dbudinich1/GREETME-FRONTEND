@@ -104,6 +104,14 @@ export default function CreditClaim() {
               Your {displayAmount} credit has been saved and will be applied at checkout.
             </p>
 
+            {credit?.sourceJobId && (
+              <button
+                onClick={() => navigate(`/thank-you?jobId=${credit.sourceJobId}`)}
+                style={{ ...styles.cta, marginBottom: '0.75rem' }}
+              >
+                Send a Thank-You
+              </button>
+            )}
             <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
               Plans and Pricing
             </button>
