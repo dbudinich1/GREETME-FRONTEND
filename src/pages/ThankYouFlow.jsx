@@ -280,14 +280,31 @@ export default function ThankYouFlow() {
       body: JSON.stringify({ jobId, action: 'share' }),
     }).catch(() => {});
 
-    // Native share or clipboard fallback
+    // Mint/fetch share-recipient credit BEFORE building the share text
+    let creditUrl = null;
+    let reward = null;
+    try {
+      reward = await api.request('/api/events/share-reward', {
+        method: 'POST',
+        body: JSON.stringify({ sourceJobId: jobId }),
+      });
+      if (reward?.creditCode) {
+        creditUrl = `${window.location.origin}/#/claim-credit/${reward.creditCode}`;
+      }
+    } catch { /* non-fatal — share still proceeds without credit URL */ }
+
+    // Build share payload with both URLs (or greeting only if credit unavailable)
     const shareUrl = `${window.location.origin}/#/g/${jobId}`;
+    const shareText = creditUrl
+      ? `I just sent a Greet-Me \u2014 and it started something. Come see what I mean.\n\nP.S. We\u2019ve included $5 toward your first Greet-Me subscription. Terms apply.\n\n${creditUrl}`
+      : 'I just sent a Greet-Me \u2014 and it started something. Come see what I mean.';
+
     let shareCompleted = false;
     if (navigator.share) {
       try {
         await navigator.share({
           title: 'Greet-Me',
-          text: 'I just sent a Greet-Me \u2014 and it started something. Come see what I mean.',
+          text: shareText,
           url: shareUrl,
         });
         shareCompleted = true;
@@ -297,22 +314,16 @@ export default function ThankYouFlow() {
       }
     } else {
       try {
-        await navigator.clipboard?.writeText(
-          `I just sent a Greet-Me \u2014 and it started something. Come see what I mean. ${shareUrl}`
-        );
+        const clipboardText = creditUrl
+          ? `I just sent a Greet-Me \u2014 and it started something. Come see what I mean. ${shareUrl}\n\nP.S. We\u2019ve included $5 toward your first Greet-Me subscription. Terms apply.\n${creditUrl}`
+          : `I just sent a Greet-Me \u2014 and it started something. Come see what I mean. ${shareUrl}`;
+        await navigator.clipboard?.writeText(clipboardText);
         setCopied(true);
         shareCompleted = true;
       } catch { shareCompleted = true; }
     }
 
-    // Call reward unlock API AFTER share sheet closes (so user sees the result)
-    try {
-      const reward = await api.request('/api/events/share-reward', {
-        method: 'POST',
-        body: JSON.stringify({ sourceJobId: jobId }),
-      });
-      setRewardResult(reward);
-    } catch { /* non-fatal — share still counts */ }
+    if (reward) setRewardResult(reward);
 
     setSharing(false);
     setShared(true);
@@ -440,6 +451,18 @@ export default function ThankYouFlow() {
             >
               {sharing ? 'Sharing\u2026' : 'Share the Moment'}
             </button>
+          )}
+          {!shared && (
+            <p style={{
+              fontSize: '0.8125rem',
+              color: 'rgba(255,255,255,0.55)',
+              fontStyle: 'italic',
+              margin: '0 auto 1.5rem',
+              maxWidth: '320px',
+              lineHeight: 1.5,
+            }}>
+              We&rsquo;ll include a little surprise for the person you share it with.
+            </p>
           )}
 
           {/* Exit options */}
