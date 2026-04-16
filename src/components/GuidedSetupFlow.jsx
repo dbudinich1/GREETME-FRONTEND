@@ -1436,6 +1436,35 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       }}>
         This test send is free and does not count against your 3 free sends.
       </p>
+
+      {/* G1G1 informational preview — no CTA, no flow change */}
+      <div style={{
+        background: 'var(--bg-secondary, #f8fafc)',
+        border: '1px solid var(--border, #e5e7eb)',
+        borderRadius: 'var(--radius-md, 8px)',
+        padding: '0.875rem 1rem',
+        marginBottom: '1.5rem',
+        textAlign: 'left',
+      }}>
+        <p style={{
+          fontSize: '0.8125rem',
+          fontWeight: 600,
+          color: 'var(--text-primary)',
+          margin: '0 0 0.25rem',
+          letterSpacing: '0.01em',
+        }}>
+          Greet One, Gift One&trade;
+        </p>
+        <p style={{
+          fontSize: '0.8125rem',
+          color: 'var(--text-secondary)',
+          margin: 0,
+          lineHeight: 1.5,
+        }}>
+          When you subscribe, you&rsquo;ll get a full second subscription to give away.
+        </p>
+      </div>
+
       <p style={{
         fontSize: '0.9375rem',
         color: 'var(--text-secondary)',
