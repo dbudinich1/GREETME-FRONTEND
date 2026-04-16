@@ -30,6 +30,9 @@ export default function PaymentSuccess() {
   // Clean up stale sessionStorage (no longer used as source of truth)
   useEffect(() => {
     sessionStorage.removeItem('greetme_g1g1_checkout');
+    // Courtesy credit was consumed by the backend when the Stripe session was created.
+    // Clear the client-side stash so it isn't offered again on the next purchase.
+    localStorage.removeItem('greetme_courtesy_credit');
   }, []);
 
   const hasG1G1 = g1g1State?.eligible === true;
