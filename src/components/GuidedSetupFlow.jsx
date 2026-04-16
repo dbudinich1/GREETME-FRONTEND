@@ -53,6 +53,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const { user, refreshProfile } = useAuth();
   // Steps: 0=Welcome, 1=QuickStart, 2=Voice, 3=Photo, 4=Recipient, 5=SendPrep, 6=Sending, 7=Success, 8=GiftReveal
   const [step, setStep] = useState(0);
+  const [courtesyCreditCode, setCourtesyCreditCode] = useState(null);
   const [setupState, setSetupState] = useState(getSetupState());
 
   // Voice recording state
@@ -109,6 +110,30 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         } catch { /* silently ignore if confetti fails */ }
       })();
     }
+  }, [step]);
+
+  // Poll for courtesy credit code after test send completes (step 7)
+  useEffect(() => {
+    if (step !== 7) return;
+    const jobId = localStorage.getItem('greetme_onboarding_test_jobId');
+    if (!jobId) return;
+    let stopped = false;
+    let attempts = 0;
+    const poll = async () => {
+      while (!stopped && attempts < 20) {
+        try {
+          const res = await api.getPublicGreeting(jobId);
+          if (res?.ok && res.greeting?.courtesyCreditCode) {
+            setCourtesyCreditCode(res.greeting.courtesyCreditCode);
+            return;
+          }
+        } catch {}
+        attempts++;
+        await new Promise(r => setTimeout(r, 3000));
+      }
+    };
+    poll();
+    return () => { stopped = true; };
   }, [step]);
 
   // ==================== VOICE FUNCTIONS ====================
@@ -1419,6 +1444,29 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       }}>
         But first &mdash; we have something for you.
       </p>
+      {courtesyCreditCode && (
+        <button
+          onClick={() => {
+            handleComplete();
+            navigate(`/claim-credit/${courtesyCreditCode}`);
+          }}
+          style={{
+            width: '100%',
+            padding: '1rem',
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            color: 'white',
+            border: 'none',
+            borderRadius: 'var(--radius-lg)',
+            fontSize: '1rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            marginBottom: '0.75rem',
+          }}
+        >
+          Claim your $5 credit
+        </button>
+      )}
       <button
         onClick={() => setStep(8)}
         style={{
