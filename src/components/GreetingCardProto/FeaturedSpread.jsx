@@ -12,6 +12,7 @@ import cardInteriorImg from '../../assets/card/card-interior.png';
 
 export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnded, onVideoEnd, posterUrl }) {
   const [showVideo, setShowVideo] = useState(false);
+  const [showSwipeCue, setShowSwipeCue] = useState(false);
 
   // GS-04: 2-second pause before video fades in
   useEffect(() => {
@@ -20,6 +21,17 @@ export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnde
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Show swipe cue after video ends or 5s timeout (whichever first)
+  useEffect(() => {
+    if (showSwipeCue) return;
+    const timer = setTimeout(() => setShowSwipeCue(true), 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (videoHasEnded) setShowSwipeCue(true);
+  }, [videoHasEnded]);
 
   return (
     <div
@@ -59,6 +71,13 @@ export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnde
           <h3 className="gc-album-title">Cherished Moments</h3>
           <PhotoAlbum photos={photos} disabled={!videoHasEnded} />
         </div>
+
+        {showSwipeCue && (
+          <div className="gc-swipe-cue" aria-hidden="true">
+            <span className="gc-swipe-cue-chevron" />
+            <span className="gc-swipe-cue-chevron" />
+          </div>
+        )}
       </div>
     </div>
   );

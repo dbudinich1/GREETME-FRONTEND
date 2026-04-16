@@ -2937,6 +2937,20 @@
   .gc-swipe-cue { animation: none; display: none; }
 }
 
+/* ===== COVER LIFT PULSE — subtle scale hint on mount ===== */
+.gc-cover {
+  animation: gc-coverLift 1.8s ease-in-out 1s 2;
+}
+
+@keyframes gc-coverLift {
+  0%, 100% { transform: scale(1); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15); }
+  50%      { transform: scale(1.015); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.22); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gc-cover { animation: none; }
+}
+
 /* ===== PAGE TURN TRANSITIONS (Phase 4D-2) ===== */
 
 /* Stage: fills gc-container, provides 3D perspective */
