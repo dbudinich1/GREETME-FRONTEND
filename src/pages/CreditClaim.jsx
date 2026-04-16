@@ -97,7 +97,29 @@ export default function CreditClaim() {
 
         <p style={styles.eyebrow}>A gift from Greet-Me</p>
 
-        {claimed ? (
+        {claimed && credit?.consumed ? (
+          <>
+            <h1 style={styles.headline}>Credit Already Used</h1>
+            <p style={styles.body}>
+              This {displayAmount} credit has already been applied to a purchase.
+            </p>
+
+            {credit?.sourceJobId && (
+              <button
+                onClick={() => navigate(`/thank-you?jobId=${credit.sourceJobId}`)}
+                style={{ ...styles.cta, marginBottom: '0.75rem' }}
+              >
+                Send a Thank-You
+              </button>
+            )}
+            <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
+              View Plans
+            </button>
+            <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
+              Go to Dashboard
+            </button>
+          </>
+        ) : claimed ? (
           <>
             <h1 style={styles.headline}>Credit Applied</h1>
             <p style={styles.body}>
