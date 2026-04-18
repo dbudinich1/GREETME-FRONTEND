@@ -144,18 +144,32 @@ export default function CreditClaim() {
           </>
         ) : claimed ? (
           <>
-            <h1 style={styles.headline}>Credit Applied</h1>
-            <p style={styles.body}>
-              Your {displayAmount} credit has been saved and will be applied at checkout.
-            </p>
-
-            {credit?.sourceJobId && !credit?.isOnboardingTestSend && (
-              <button
-                onClick={() => navigate(`/thank-you?jobId=${credit.sourceJobId}`)}
-                style={{ ...styles.cta, marginBottom: '0.75rem' }}
-              >
-                Send a Thank-You
-              </button>
+            {credit?.sourceJobId && !credit?.isOnboardingTestSend ? (
+              <>
+                <h1 style={styles.headline}>You&rsquo;re all set</h1>
+                <p style={styles.body}>
+                  Your {displayAmount} credit is saved. Now &mdash; send a thank-you back to the person who made your day.
+                </p>
+                <button
+                  onClick={() => navigate(`/thank-you?jobId=${credit.sourceJobId}`)}
+                  style={{
+                    ...styles.cta,
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: 'white',
+                    boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)',
+                    marginBottom: '0.75rem',
+                  }}
+                >
+                  Send a Thank-You
+                </button>
+              </>
+            ) : (
+              <>
+                <h1 style={styles.headline}>Credit Applied</h1>
+                <p style={styles.body}>
+                  Your {displayAmount} credit has been saved and will be applied at checkout.
+                </p>
+              </>
             )}
             <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
               Plans and Pricing
