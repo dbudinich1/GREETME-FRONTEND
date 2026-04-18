@@ -14,7 +14,6 @@ function isFastMode() {
   return !!(
     localStorage.getItem('greetme_pending_credit') ||
     localStorage.getItem('greetme_g1g1_gift_code') ||
-    localStorage.getItem('greetme_pending_thankyou') ||
     localStorage.getItem('greetme_referral_code')
   );
 }
@@ -41,14 +40,11 @@ export default function Register() {
     if (result.success) {
       const pendingG1G1 = localStorage.getItem('greetme_g1g1_gift_code');
       const pendingCredit = localStorage.getItem('greetme_pending_credit');
-      const pendingThankYou = localStorage.getItem('greetme_pending_thankyou');
       const pendingReferral = localStorage.getItem('greetme_referral_code');
       const dest = pendingG1G1
         ? (localStorage.removeItem('greetme_g1g1_gift_code'), `/gift/g1g1/${pendingG1G1}`)
         : pendingCredit
         ? (localStorage.removeItem('greetme_pending_credit'), `/claim-credit/${pendingCredit}`)
-        : pendingThankYou
-        ? (localStorage.removeItem('greetme_pending_thankyou'), `/thank-you?jobId=${pendingThankYou}`)
         : pendingReferral
         ? (localStorage.removeItem('greetme_referral_code'), `/dashboard/send?referral=${pendingReferral}`)
         : '/dashboard';

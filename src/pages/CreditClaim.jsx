@@ -19,6 +19,7 @@ export default function CreditClaim() {
   const [error, setError] = useState(null);
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
+  const [autoClaimed, setAutoClaimed] = useState(null);
 
   useEffect(() => {
     if (!creditCode) {
@@ -68,6 +69,44 @@ export default function CreditClaim() {
     }
   };
 
+  // Auto-claim onboarding test-send credits silently
+  useEffect(() => {
+    if (!credit?.isOnboardingTestSend || !isAuthenticated) return;
+    let cancelled = false;
+    (async () => {
+      // Already claimed in Cosmos — just ensure localStorage stash exists
+      if (credit.claimed) {
+        localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
+          creditCode,
+          amount: (credit.amountCents || 500) / 100,
+          source: 'courtesy',
+          claimedAt: new Date().toISOString(),
+        }));
+        setAutoClaimed(true);
+        return;
+      }
+      // Not yet claimed — claim now
+      try {
+        const result = await api.request(`/api/credits/${creditCode}/claim`, { method: 'POST' });
+        if (cancelled) return;
+        if (result?.ok) {
+          localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
+            creditCode,
+            amount: (result.amountCents || credit.amountCents || 500) / 100,
+            source: 'courtesy',
+            claimedAt: new Date().toISOString(),
+          }));
+          setAutoClaimed(true);
+        } else {
+          setAutoClaimed(false);
+        }
+      } catch {
+        if (!cancelled) setAutoClaimed(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [credit, isAuthenticated, creditCode]);
+
   const displayAmount = credit ? `$${(credit.amountCents / 100).toFixed(0)}` : '$5';
 
   if (loading) {
@@ -90,17 +129,38 @@ export default function CreditClaim() {
     );
   }
 
-  // Onboarding/test-send credit: ready-to-use state (no claim, no thank-you)
+  // Onboarding/test-send credit: auto-claimed state (no thank-you)
   if (credit?.isOnboardingTestSend) {
     return (
       <div style={styles.page}>
         <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
           <div style={styles.icon}>🎁</div>
           <p style={styles.eyebrow}>A gift from Greet-Me</p>
-          <h1 style={styles.headline}>Your {displayAmount} credit is ready</h1>
-          <p style={styles.body}>
-            Use it toward your first Greet-Me subscription.
-          </p>
+
+          {autoClaimed === false ? (
+            <>
+              <h1 style={styles.headline}>Your {displayAmount} credit is waiting</h1>
+              <p style={styles.body}>
+                Tap below to claim it before checking out.
+              </p>
+              <button onClick={handleClaim} disabled={claiming} style={{
+                ...styles.cta,
+                opacity: claiming ? 0.7 : 1,
+                cursor: claiming ? 'default' : 'pointer',
+                marginBottom: '0.75rem',
+              }}>
+                {claiming ? 'Claiming...' : `Claim Your ${displayAmount} Credit`}
+              </button>
+            </>
+          ) : (
+            <>
+              <h1 style={styles.headline}>Your {displayAmount} credit is ready</h1>
+              <p style={styles.body}>
+                Use it toward your first Greet-Me subscription.
+              </p>
+            </>
+          )}
+
           <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
             View Plans &amp; Pricing
           </button>

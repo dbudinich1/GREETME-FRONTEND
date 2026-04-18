@@ -40,18 +40,12 @@ export const Login = () => {
           localStorage.removeItem('greetme_pending_credit');
           navigate(`/claim-credit/${pendingCredit}`);
         } else {
-          const pendingThankYou = localStorage.getItem('greetme_pending_thankyou');
-          if (pendingThankYou) {
-            localStorage.removeItem('greetme_pending_thankyou');
-            navigate(`/thank-you?jobId=${pendingThankYou}`);
+          const pendingReferral = localStorage.getItem('greetme_referral_code');
+          if (pendingReferral) {
+            localStorage.removeItem('greetme_referral_code');
+            navigate(`/dashboard/send?referral=${pendingReferral}`);
           } else {
-            const pendingReferral = localStorage.getItem('greetme_referral_code');
-            if (pendingReferral) {
-              localStorage.removeItem('greetme_referral_code');
-              navigate(`/dashboard/send?referral=${pendingReferral}`);
-            } else {
-              navigate("/dashboard");
-            }
+            navigate("/dashboard");
           }
         }
       }

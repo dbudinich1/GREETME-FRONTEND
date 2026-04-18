@@ -1766,28 +1766,10 @@ if (typeof window !== "undefined") {
           paddingTop: '2rem',
           borderTop: '1px solid var(--border)',
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-end',
           alignItems: 'center',
           gap: '1rem'
         }}>
-          <button
-            type="button"
-            onClick={() => alert('Draft saved!')}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: 'white',
-              border: '2px solid #d1d5db',
-              borderRadius: '0.5rem',
-              fontSize: '0.9375rem',
-              fontWeight: 600,
-              color: '#374151',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              fontFamily: 'inherit'
-            }}
-          >
-            Save Draft
-          </button>
           <button
             type="submit"
             disabled={contacts.length === 0 || sending}
