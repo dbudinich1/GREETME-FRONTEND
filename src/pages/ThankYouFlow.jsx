@@ -329,11 +329,15 @@ export default function ThankYouFlow() {
     setShared(true);
   };
 
-  const handleDismiss = () => {
+  const fireDismissEvent = () => {
     api.request('/api/events/exponential-moment', {
       method: 'POST',
       body: JSON.stringify({ jobId, action: 'dismissed' }),
     }).catch(() => {});
+  };
+
+  const handleDismiss = () => {
+    fireDismissEvent();
     window.location.href = '/#/dashboard';
   };
 
@@ -468,6 +472,26 @@ export default function ThankYouFlow() {
           {/* Exit options */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
             <button
+              onClick={() => {
+                fireDismissEvent();
+                window.location.href = '/#/dashboard/send';
+              }}
+              style={{
+                display: 'inline-block',
+                padding: '0.75rem 2rem',
+                background: 'rgba(255,255,255,0.15)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '2rem',
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                fontFamily: 'Georgia, serif',
+                cursor: 'pointer',
+              }}
+            >
+              Send your own Greet-Me
+            </button>
+            <button
               onClick={handleDismiss}
               style={{
                 background: 'transparent',
@@ -480,17 +504,6 @@ export default function ThankYouFlow() {
             >
               Continue to dashboard
             </button>
-            <a
-              href="/#/pricing"
-              style={{
-                color: 'rgba(255,255,255,0.4)',
-                fontSize: '0.75rem',
-                textDecoration: 'none',
-                fontFamily: FONT_STACK,
-              }}
-            >
-              View plans &amp; pricing
-            </a>
           </div>
 
           <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)', margin: '3rem 0 0' }}>
