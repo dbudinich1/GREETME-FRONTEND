@@ -23,6 +23,11 @@ export default function SendGreeting() {
   const location = useLocation();
   const { user } = useAuth();
   const [contacts, setContacts] = useState([]);
+  const [showInlineAdd, setShowInlineAdd] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactEmail, setNewContactEmail] = useState('');
+  const [addingContact, setAddingContact] = useState(false);
+  const [addContactError, setAddContactError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [jobId, setJobId] = useState(null);
@@ -351,6 +356,32 @@ export default function SendGreeting() {
   }
 };
 
+  const handleInlineAddContact = async () => {
+    if (!newContactName.trim() || !newContactEmail.trim()) {
+      setAddContactError('Name and email are required.');
+      return;
+    }
+    setAddingContact(true);
+    setAddContactError(null);
+    try {
+      const result = await api.createContact({
+        name: newContactName.trim(),
+        email: newContactEmail.trim(),
+      });
+      const newId = result?.contact?.id || result?.id;
+      await fetchContacts();
+      if (newId) {
+        setFormData(prev => ({ ...prev, contactId: newId }));
+      }
+      setNewContactName('');
+      setNewContactEmail('');
+      setShowInlineAdd(false);
+    } catch (err) {
+      setAddContactError(err?.message || 'Failed to add contact.');
+    } finally {
+      setAddingContact(false);
+    }
+  };
 
   const pollJobStatus = async () => {
     try {
@@ -853,7 +884,7 @@ if (typeof window !== "undefined") {
             fontStyle: 'italic'
           }}>Just Because</p>
         </div>
-        {contacts.length === 0 && (
+        {contacts.length === 0 && !showInlineAdd && (
           <div style={{
             background: '#fffbeb',
             border: '1px solid #fde68a',
@@ -867,11 +898,11 @@ if (typeof window !== "undefined") {
             gap: '0.75rem'
           }}>
             <span style={{ color: '#92400e', fontSize: '0.875rem' }}>
-              You don't have any contacts yet. Add a recipient to send a Greet-Me.
+              Add your first recipient to send a Greet-Me.
             </span>
             <button
               type="button"
-              onClick={() => navigate('/dashboard/contacts')}
+              onClick={() => setShowInlineAdd(true)}
               style={{
                 padding: '0.4rem 1rem',
                 background: '#667eea',
@@ -886,6 +917,81 @@ if (typeof window !== "undefined") {
             >
               + Add Recipient
             </button>
+          </div>
+        )}
+        {showInlineAdd && (
+          <div style={{
+            background: 'white',
+            border: '1px solid var(--border, #e5e7eb)',
+            borderRadius: 'var(--radius-md)',
+            padding: '1rem 1.25rem',
+            marginBottom: '1rem',
+          }}>
+            <p style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+              Add a recipient
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <input
+                type="text"
+                placeholder="Name"
+                value={newContactName}
+                onChange={(e) => setNewContactName(e.target.value)}
+                style={{
+                  width: '100%', padding: '0.5rem 0.75rem',
+                  border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius-md)',
+                  fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none',
+                }}
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={newContactEmail}
+                onChange={(e) => setNewContactEmail(e.target.value)}
+                style={{
+                  width: '100%', padding: '0.5rem 0.75rem',
+                  border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius-md)',
+                  fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none',
+                }}
+              />
+              {addContactError && (
+                <p style={{ color: 'var(--error, #ef4444)', fontSize: '0.75rem', margin: 0 }}>{addContactError}</p>
+              )}
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <button
+                  type="button"
+                  onClick={handleInlineAddContact}
+                  disabled={addingContact}
+                  style={{
+                    padding: '0.5rem 1.25rem',
+                    background: addingContact ? '#d1d5db' : '#667eea',
+                    color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
+                    fontSize: '0.8125rem', fontWeight: 600,
+                    cursor: addingContact ? 'default' : 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  {addingContact ? 'Adding...' : 'Add & Continue'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowInlineAdd(false); setAddContactError(null); }}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: 'transparent', color: 'var(--text-secondary, #6b7280)',
+                    border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius-md)',
+                    fontSize: '0.8125rem', fontWeight: 500,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+            <a
+              href="#/dashboard/contacts"
+              style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-tertiary, #9ca3af)', marginTop: '0.75rem', textDecoration: 'underline' }}
+            >
+              Or manage all contacts
+            </a>
           </div>
         )}
 
@@ -932,12 +1038,13 @@ if (typeof window !== "undefined") {
               <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>
                 Recipient <span style={{ color: 'var(--error)' }}>*</span>
               </label>
-              <a
-                href="#/dashboard/contacts"
-                style={{ fontSize: '0.75rem', color: '#667eea', textDecoration: 'none', fontWeight: 500 }}
+              <button
+                type="button"
+                onClick={() => setShowInlineAdd(true)}
+                style={{ fontSize: '0.75rem', color: '#667eea', background: 'none', border: 'none', fontWeight: 500, cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}
               >
                 + Add New
-              </a>
+              </button>
             </div>
             <select
               name="contactId"
