@@ -225,9 +225,9 @@ export default function CreditClaim() {
               </>
             ) : (
               <>
-                <h1 style={styles.headline}>Credit Applied</h1>
+                <h1 style={styles.headline}>You&rsquo;re all set</h1>
                 <p style={styles.body}>
-                  Your {displayAmount} credit has been saved and will be applied at checkout.
+                  Your {displayAmount} is ready when you are.
                 </p>
               </>
             )}
@@ -241,10 +241,10 @@ export default function CreditClaim() {
         ) : (
           <>
             <h1 style={styles.headline}>
-              You&rsquo;ve received {displayAmount} toward your first Greet-Me subscription.
+              You&rsquo;ve received {displayAmount} from Greet-Me
             </h1>
             <p style={styles.body}>
-              Apply your credit and start sending unforgettable greetings to the people who matter most.
+              It&rsquo;s yours to use when you&rsquo;re ready to send your first Greet-Me.
             </p>
 
             <button onClick={handleClaim} disabled={claiming} style={{
@@ -252,11 +252,11 @@ export default function CreditClaim() {
               opacity: claiming ? 0.7 : 1,
               cursor: claiming ? 'default' : 'pointer',
             }}>
-              {claiming ? 'Applying...' : `Claim Your ${displayAmount} Credit`}
+              {claiming ? 'Unlocking...' : `Unlock Your ${displayAmount}`}
             </button>
 
             <p style={styles.terms}>
-              Valid toward Social Butterfly or higher plans. Terms apply.
+              Applies to your first Greet-Me subscription.
             </p>
           </>
         )}
