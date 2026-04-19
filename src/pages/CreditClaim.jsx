@@ -14,6 +14,16 @@ export default function CreditClaim() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
+  // Session isolation: clear sender session on credit-claim entry
+  useEffect(() => {
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('greetme_voice_file');
+    } catch {}
+    sessionStorage.setItem('greetme_session_mode', 'recipient');
+  }, []);
+
   const [loading, setLoading] = useState(true);
   const [credit, setCredit] = useState(null);
   const [error, setError] = useState(null);
@@ -164,7 +174,7 @@ export default function CreditClaim() {
           <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
             View Plans &amp; Pricing
           </button>
-          <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
+          <button onClick={() => navigate(sessionStorage.getItem('greetme_session_mode') === 'recipient' ? '/register' : '/dashboard')} style={styles.ctaSecondary}>
             Go to Dashboard
           </button>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
@@ -198,7 +208,7 @@ export default function CreditClaim() {
             <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
               View Plans
             </button>
-            <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
+            <button onClick={() => navigate(sessionStorage.getItem('greetme_session_mode') === 'recipient' ? '/register' : '/dashboard')} style={styles.ctaSecondary}>
               Go to Dashboard
             </button>
           </>
@@ -234,7 +244,7 @@ export default function CreditClaim() {
             <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
               Plans and Pricing
             </button>
-            <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
+            <button onClick={() => navigate(sessionStorage.getItem('greetme_session_mode') === 'recipient' ? '/register' : '/dashboard')} style={styles.ctaSecondary}>
               Go to Dashboard
             </button>
           </>

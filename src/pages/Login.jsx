@@ -30,6 +30,7 @@ export const Login = () => {
     const result = await login(email, password);
 
     if (result?.success) {
+      sessionStorage.removeItem('greetme_session_mode');
       const pendingG1G1 = localStorage.getItem('greetme_g1g1_gift_code');
       if (pendingG1G1) {
         localStorage.removeItem('greetme_g1g1_gift_code');

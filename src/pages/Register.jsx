@@ -38,6 +38,7 @@ export default function Register() {
     const result = await register(fullName, email, password);
 
     if (result.success) {
+      sessionStorage.removeItem('greetme_session_mode');
       const pendingG1G1 = localStorage.getItem('greetme_g1g1_gift_code');
       const pendingCredit = localStorage.getItem('greetme_pending_credit');
       const pendingReferral = localStorage.getItem('greetme_referral_code');

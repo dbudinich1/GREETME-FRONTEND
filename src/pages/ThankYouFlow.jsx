@@ -600,7 +600,7 @@ export default function ThankYouFlow() {
               Optional, but highly recommended.
             </p>
 
-            {user ? (
+            {user && sessionStorage.getItem('greetme_session_mode') !== 'recipient' ? (
               <>
                 {/* Voice row — always visible for authenticated users */}
                 <div style={styles.enhanceRow}>

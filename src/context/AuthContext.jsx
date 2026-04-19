@@ -49,6 +49,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    // Recipient mode: skip hydration, stay as guest
+    if (sessionStorage.getItem('greetme_session_mode') === 'recipient') {
+      setLoading(false);
+      return;
+    }
     const token = safeGet('token');
     const userData = safeGet('user');
     if (token && userData && userData !== 'undefined') {
