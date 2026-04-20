@@ -14,15 +14,20 @@ export default function CreditClaim() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
-  // Session isolation: clear sender session on credit-claim entry
+  // Session isolation: clear sender session on FIRST entry for this credit code only
   useEffect(() => {
+    const claimKey = `greetme_claim_session_cleared_${creditCode}`;
+    if (sessionStorage.getItem(claimKey) === '1') return;
+
     try {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('greetme_voice_file');
     } catch {}
+
     sessionStorage.setItem('greetme_session_mode', 'recipient');
-  }, []);
+    sessionStorage.setItem(claimKey, '1');
+  }, [creditCode]);
 
   const [loading, setLoading] = useState(true);
   const [credit, setCredit] = useState(null);
