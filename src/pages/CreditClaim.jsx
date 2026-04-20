@@ -12,7 +12,7 @@ const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 export default function CreditClaim() {
   const { creditCode } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, register } = useAuth();
 
   // Session isolation: clear sender session on FIRST entry for this credit code only
   useEffect(() => {
@@ -35,6 +35,14 @@ export default function CreditClaim() {
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [autoClaimed, setAutoClaimed] = useState(null);
+
+  // Recipient conversion flow state
+  const [recipientPrefill, setRecipientPrefill] = useState(null);
+  const [prefillLoading, setPrefillLoading] = useState(false);
+  const [regPassword, setRegPassword] = useState('');
+  const [registering, setRegistering] = useState(false);
+  const [regError, setRegError] = useState(null);
+  const [chosenAction, setChosenAction] = useState(null);
 
   useEffect(() => {
     if (!creditCode) {
@@ -84,6 +92,70 @@ export default function CreditClaim() {
     }
   };
 
+  // Recipient conversion: register → claim → route (deterministic chaining)
+  const handleRecipientConversion = async (action) => {
+    const name = recipientPrefill?.name || '';
+    const email = recipientPrefill?.email || '';
+
+    if (!email || !regPassword) {
+      setRegError('Email and password are required.');
+      return;
+    }
+
+    if (regPassword.length < 8) {
+      setRegError('Password must be at least 8 characters.');
+      return;
+    }
+
+    setRegistering(true);
+    setRegError(null);
+    setChosenAction(action);
+
+    // STEP 1 — REGISTER
+    const regResult = await register(name, email, regPassword);
+
+    if (!regResult?.success) {
+      if (regResult?.code === 'EMAIL_EXISTS') {
+        setRegError('This email already has an account. Log in to continue.');
+      } else {
+        setRegError(regResult?.error || 'Registration failed. Please try again.');
+      }
+      setRegistering(false);
+      return;
+    }
+
+    // STEP 2 — CLAIM (after auth exists)
+    let creditApplied = false;
+
+    try {
+      const claimResult = await api.request(`/api/credits/${creditCode}/claim`, { method: 'POST' });
+
+      if (claimResult?.ok) {
+        creditApplied = true;
+
+        localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
+          creditCode,
+          amount: (claimResult.amountCents || credit?.amountCents || 500) / 100,
+          source: 'courtesy',
+          claimedAt: new Date().toISOString(),
+        }));
+      }
+    } catch {}
+
+    // STEP 3 — ROUTE
+    sessionStorage.removeItem('greetme_session_mode');
+
+    if (action === 'thankyou' && credit?.sourceJobId) {
+      navigate(`/thank-you?jobId=${credit.sourceJobId}`);
+    } else {
+      navigate('/pricing');
+    }
+
+    if (!creditApplied) {
+      console.warn(`[CreditClaim] Credit ${creditCode} claim failed post-registration`);
+    }
+  };
+
   // Auto-claim onboarding test-send credits silently
   useEffect(() => {
     if (!credit?.isOnboardingTestSend || !isAuthenticated) return;
@@ -121,6 +193,23 @@ export default function CreditClaim() {
     })();
     return () => { cancelled = true; };
   }, [credit, isAuthenticated, creditCode]);
+
+  // Fetch recipient prefill for inline registration (unregistered recipients only)
+  useEffect(() => {
+    if (isAuthenticated || !credit?.sourceJobId || credit?.isOnboardingTestSend) return;
+    setPrefillLoading(true);
+    api.getThankyouPrefill(credit.sourceJobId)
+      .then((data) => {
+        if (data?.ok && data.prefill) {
+          setRecipientPrefill({
+            name: data.prefill.senderRecipientName || '',
+            email: data.prefill.senderRecipientEmail || '',
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setPrefillLoading(false));
+  }, [credit, isAuthenticated]);
 
   const displayAmount = credit ? `$${(credit.amountCents / 100).toFixed(0)}` : '$5';
 
@@ -258,21 +347,107 @@ export default function CreditClaim() {
             <h1 style={styles.headline}>
               You&rsquo;ve received {displayAmount} from Greet-Me
             </h1>
-            <p style={styles.body}>
-              It&rsquo;s yours to use when you&rsquo;re ready to send your first Greet-Me.
-            </p>
 
-            <button onClick={handleClaim} disabled={claiming} style={{
-              ...styles.cta,
-              opacity: claiming ? 0.7 : 1,
-              cursor: claiming ? 'default' : 'pointer',
-            }}>
-              {claiming ? 'Unlocking...' : `Unlock Your ${displayAmount}`}
-            </button>
-
-            <p style={styles.terms}>
-              Applies to your first Greet-Me subscription.
-            </p>
+            {isAuthenticated ? (
+              <>
+                <p style={styles.body}>
+                  Your gift is ready. Say thank you, or continue when you&rsquo;re ready.
+                </p>
+                <button onClick={handleClaim} disabled={claiming} style={{
+                  ...styles.cta,
+                  background: claiming ? 'rgba(255,255,255,0.5)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: 'white',
+                  boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)',
+                  cursor: claiming ? 'default' : 'pointer',
+                  marginBottom: '0.75rem',
+                }}>
+                  {claiming ? 'Claiming...' : 'Say Thank You'}
+                </button>
+                <p style={styles.terms}>
+                  Applies to your first Greet-Me subscription.
+                </p>
+              </>
+            ) : prefillLoading ? (
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', margin: '1.5rem 0' }}>
+                Preparing your experience&hellip;
+              </p>
+            ) : (
+              <>
+                <p style={styles.body}>
+                  {recipientPrefill?.name
+                    ? `A Greet-Me was made just for you, ${recipientPrefill.name}. Create your free account to continue.`
+                    : 'A Greet-Me was made just for you. Create your free account to continue.'}
+                </p>
+                <div style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  borderRadius: '12px',
+                  padding: '1rem',
+                  marginBottom: '1rem',
+                  textAlign: 'left',
+                }}>
+                  {recipientPrefill?.name && (
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', margin: '0 0 0.125rem', fontWeight: 600 }}>Name</p>
+                      <p style={{ fontSize: '0.9375rem', color: '#fff', margin: 0 }}>{recipientPrefill.name}</p>
+                    </div>
+                  )}
+                  {recipientPrefill?.email && (
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', margin: '0 0 0.125rem', fontWeight: 600 }}>Email</p>
+                      <p style={{ fontSize: '0.9375rem', color: '#fff', margin: 0 }}>{recipientPrefill.email}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', margin: '0 0 0.125rem', fontWeight: 600 }}>Create a password</p>
+                    <input
+                      type="password"
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      placeholder="Choose a password"
+                      minLength={8}
+                      style={{
+                        width: '100%', padding: '0.625rem 0.75rem',
+                        background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: '8px', color: '#fff', fontSize: '0.9375rem',
+                        fontFamily: FONT_STACK, outline: 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+                {regError && (
+                  <p style={{ color: '#fca5a5', fontSize: '0.8125rem', marginBottom: '0.75rem' }}>{regError}</p>
+                )}
+                <button
+                  onClick={() => handleRecipientConversion('thankyou')}
+                  disabled={registering}
+                  style={{
+                    ...styles.cta,
+                    background: registering ? 'rgba(255,255,255,0.5)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: 'white',
+                    boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)',
+                    cursor: registering ? 'default' : 'pointer',
+                    marginBottom: '0.75rem',
+                  }}
+                >
+                  {registering && chosenAction === 'thankyou' ? 'Creating account...' : 'Say Thank You'}
+                </button>
+                <button
+                  onClick={() => handleRecipientConversion('continue')}
+                  disabled={registering}
+                  style={{
+                    ...styles.cta,
+                    opacity: registering ? 0.7 : 1,
+                    cursor: registering ? 'default' : 'pointer',
+                    marginBottom: '0.75rem',
+                  }}
+                >
+                  {registering && chosenAction === 'continue' ? 'Creating account...' : 'Continue'}
+                </button>
+                <p style={styles.terms}>
+                  Applies to your first Greet-Me subscription.
+                </p>
+              </>
+            )}
           </>
         )}
 
