@@ -250,6 +250,7 @@ export default function CreditClaim() {
           setRecipientPrefill({
             name: data.prefill.senderRecipientName || '',
             email: data.prefill.senderRecipientEmail || '',
+            senderName: data.prefill.recipientName || '',
           });
         }
       })
@@ -268,12 +269,41 @@ export default function CreditClaim() {
   }
 
   if (error) {
+    const isResolvedState = error === 'This credit has already been claimed.';
     return (
       <div style={styles.page}>
-        <div style={{ textAlign: 'center', maxWidth: '400px' }}>
-          <h2 style={{ color: '#fff', marginBottom: '1rem', fontFamily: 'Georgia, serif' }}>Oops</h2>
-          <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '1.5rem' }}>{error}</p>
-          <a href="/#/pricing" style={{ color: '#10b981', textDecoration: 'underline' }}>View plans</a>
+        <div style={{ textAlign: 'center', maxWidth: '440px', width: '100%' }}>
+          {isResolvedState ? (
+            <>
+              <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>&#10003;</div>
+              <h2 style={{ color: '#10b981', marginBottom: '1rem', fontFamily: 'Georgia, serif' }}>This credit has already been applied</h2>
+              <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '1.5rem' }}>
+                You&rsquo;re all set to send your next Greet-Me.
+              </p>
+              <button
+                onClick={() => navigate('/dashboard/send')}
+                style={{
+                  ...styles.cta,
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: 'white',
+                  boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)',
+                  cursor: 'pointer',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                Send a Greet-Me
+              </button>
+              <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
+                Go to Dashboard
+              </button>
+            </>
+          ) : (
+            <>
+              <h2 style={{ color: '#fff', marginBottom: '1rem', fontFamily: 'Georgia, serif' }}>Something went wrong</h2>
+              <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '1.5rem' }}>{error}</p>
+              <a href="/#/pricing" style={{ color: '#10b981', textDecoration: 'underline' }}>View plans</a>
+            </>
+          )}
         </div>
       </div>
     );
@@ -391,7 +421,7 @@ export default function CreditClaim() {
         ) : (
           <>
             <h1 style={styles.headline}>
-              You&rsquo;ve received {displayAmount} from Greet-Me
+              You just experienced your first Greet-Me{recipientPrefill?.name ? `, ${recipientPrefill.name}` : ''}.
             </h1>
 
             {isReturningUser ? (
@@ -498,9 +528,11 @@ export default function CreditClaim() {
             ) : (
               <>
                 <p style={styles.body}>
-                  {recipientPrefill?.name
-                    ? `A Greet-Me was made just for you, ${recipientPrefill.name}. Create your free account to continue.`
-                    : 'A Greet-Me was made just for you. Create your free account to continue.'}
+                  We hope it made your day.<br/><br/>
+                  We&rsquo;ve included a {displayAmount} gift for you, just because.<br/><br/>
+                  {recipientPrefill?.senderName
+                    ? `As a courtesy, we\u2019ve also prepared a thank-you Greet-Me for ${recipientPrefill.senderName}\u2014if you\u2019d like to send one back.`
+                    : 'As a courtesy, we\u2019ve also prepared a thank-you\u2014if you\u2019d like to send one back.'}
                 </p>
                 <div style={{
                   background: 'rgba(255,255,255,0.08)',
@@ -573,9 +605,6 @@ export default function CreditClaim() {
                     style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', fontWeight: 600, fontSize: '0.8125rem', padding: 0, fontFamily: 'inherit' }}>
                     Log in
                   </button>
-                </p>
-                <p style={styles.terms}>
-                  Applies to your first Greet-Me subscription.
                 </p>
               </>
             )}

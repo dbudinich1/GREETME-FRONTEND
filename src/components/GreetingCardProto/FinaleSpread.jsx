@@ -194,6 +194,12 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
       const escaped = so.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\./, '\\.?');
       cleanedFinale = cleanedFinale.replace(new RegExp('\\s*' + escaped + '\\s*', 'gi'), ' ').trim();
     }
+    // Generic sign-off strip: catch AI variants not in the canonical list
+    cleanedFinale = cleanedFinale
+      .replace(/with\s+\w+\s+(wishes|regards|love)[.,]?/gi, '')
+      .replace(/warm\s+(wishes|regards)[.,]?/gi, '')
+      .replace(/wishing you[^.!\n]*/gi, '')
+      .trim();
   }
   if (signoff && cleanedFinale) {
     cleanedFinale = `${cleanedFinale}\n\n${signoff}`;
