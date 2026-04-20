@@ -12,7 +12,7 @@ const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 export default function CreditClaim() {
   const { creditCode } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated, register } = useAuth();
+  const { isAuthenticated, register, login } = useAuth();
 
   // Session isolation: clear sender session on FIRST entry for this credit code only
   useEffect(() => {
@@ -43,6 +43,9 @@ export default function CreditClaim() {
   const [registering, setRegistering] = useState(false);
   const [regError, setRegError] = useState(null);
   const [chosenAction, setChosenAction] = useState(null);
+  const [isLoginMode, setIsLoginMode] = useState(false);
+  const [loginPassword, setLoginPassword] = useState('');
+  const [isReturningUser, setIsReturningUser] = useState(false);
 
   useEffect(() => {
     if (!creditCode) {
@@ -116,7 +119,8 @@ export default function CreditClaim() {
 
     if (!regResult?.success) {
       if (regResult?.code === 'EMAIL_EXISTS') {
-        setRegError('This email already has an account. Log in to continue.');
+        setIsLoginMode(true);
+        setRegError('Welcome back \u2014 enter your password to continue.');
       } else {
         setRegError(regResult?.error || 'Registration failed. Please try again.');
       }
@@ -154,6 +158,48 @@ export default function CreditClaim() {
     if (!creditApplied) {
       console.warn(`[CreditClaim] Credit ${creditCode} claim failed post-registration`);
     }
+  };
+
+  // Returning-user login: login → claim → loop-closure
+  const handleReturningLogin = async () => {
+    const email = recipientPrefill?.email || '';
+
+    if (!email || !loginPassword) {
+      setRegError('Email and password are required.');
+      return;
+    }
+
+    setRegistering(true);
+    setRegError(null);
+
+    // STEP 1 — LOGIN
+    const loginResult = await login(email, loginPassword);
+
+    if (!loginResult?.success) {
+      setRegError(loginResult?.error || 'Login failed. Please try again.');
+      setRegistering(false);
+      return;
+    }
+
+    // STEP 2 — CLAIM (now authenticated)
+    try {
+      const claimResult = await api.request(`/api/credits/${creditCode}/claim`, { method: 'POST' });
+      if (claimResult?.ok) {
+        localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
+          creditCode,
+          amount: (claimResult.amountCents || credit?.amountCents || 500) / 100,
+          source: 'courtesy',
+          claimedAt: new Date().toISOString(),
+        }));
+      }
+    } catch {}
+
+    // STEP 3 — SHOW LOOP-CLOSURE
+    sessionStorage.removeItem('greetme_session_mode');
+    setIsLoginMode(false);
+    setLoginPassword('');
+    setRegistering(false);
+    setIsReturningUser(true);
   };
 
   // Auto-claim onboarding test-send credits silently
@@ -348,7 +394,33 @@ export default function CreditClaim() {
               You&rsquo;ve received {displayAmount} from Greet-Me
             </h1>
 
-            {isAuthenticated ? (
+            {isReturningUser ? (
+              <>
+                <h1 style={styles.headline}>Your {displayAmount} is ready</h1>
+                <p style={styles.body}>
+                  It&rsquo;s ready whenever you are.
+                </p>
+                <button
+                  onClick={() => { sessionStorage.removeItem('greetme_session_mode'); navigate('/dashboard/send'); }}
+                  style={{
+                    ...styles.cta,
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: 'white',
+                    boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)',
+                    cursor: 'pointer',
+                    marginBottom: '0.75rem',
+                  }}
+                >
+                  Send a Greet-Me
+                </button>
+                <button
+                  onClick={() => { sessionStorage.removeItem('greetme_session_mode'); navigate('/dashboard'); }}
+                  style={styles.ctaSecondary}
+                >
+                  Go to Dashboard
+                </button>
+              </>
+            ) : isAuthenticated ? (
               <>
                 <p style={styles.body}>
                   Your gift is ready. Say thank you, or continue when you&rsquo;re ready.
@@ -371,6 +443,58 @@ export default function CreditClaim() {
               <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', margin: '1.5rem 0' }}>
                 Preparing your experience&hellip;
               </p>
+            ) : isLoginMode ? (
+              <>
+                <p style={styles.body}>
+                  Welcome back. Enter your password to continue.
+                </p>
+                <div style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  borderRadius: '12px',
+                  padding: '1rem',
+                  marginBottom: '1rem',
+                  textAlign: 'left',
+                }}>
+                  {recipientPrefill?.email && (
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', margin: '0 0 0.125rem', fontWeight: 600 }}>Email</p>
+                      <p style={{ fontSize: '0.9375rem', color: '#fff', margin: 0 }}>{recipientPrefill.email}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', margin: '0 0 0.125rem', fontWeight: 600 }}>Password</p>
+                    <input
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="Your password"
+                      style={{
+                        width: '100%', padding: '0.625rem 0.75rem',
+                        background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: '8px', color: '#fff', fontSize: '0.9375rem',
+                        fontFamily: FONT_STACK, outline: 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+                {regError && (
+                  <p style={{ color: '#fca5a5', fontSize: '0.8125rem', marginBottom: '0.75rem' }}>{regError}</p>
+                )}
+                <button
+                  onClick={handleReturningLogin}
+                  disabled={registering}
+                  style={{
+                    ...styles.cta,
+                    background: registering ? 'rgba(255,255,255,0.5)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: 'white',
+                    boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)',
+                    cursor: registering ? 'default' : 'pointer',
+                    marginBottom: '0.75rem',
+                  }}
+                >
+                  {registering ? 'Logging in...' : 'Log In'}
+                </button>
+              </>
             ) : (
               <>
                 <p style={styles.body}>
@@ -443,6 +567,13 @@ export default function CreditClaim() {
                 >
                   {registering && chosenAction === 'continue' ? 'Creating account...' : 'Continue'}
                 </button>
+                <p style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.6)', marginTop: '0.75rem' }}>
+                  Already have an account?{' '}
+                  <button type="button" onClick={() => { setIsLoginMode(true); setRegError(null); }}
+                    style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', fontWeight: 600, fontSize: '0.8125rem', padding: 0, fontFamily: 'inherit' }}>
+                    Log in
+                  </button>
+                </p>
                 <p style={styles.terms}>
                   Applies to your first Greet-Me subscription.
                 </p>
