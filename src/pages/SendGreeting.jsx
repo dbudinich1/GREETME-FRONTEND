@@ -176,6 +176,16 @@ export default function SendGreeting() {
     }
   }, [location.search]);
 
+  // Pre-select recipient from contactId URL param (e.g., Contacts page "Send" button)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const contactId = params.get('contactId');
+    if (!contactId) return;
+    if (params.get('demo') === 'true') return;   // demo mode handles this
+    if (params.get('returnTo')) return;           // browse-return handles this
+    setFormData(prev => ({ ...prev, contactId }));
+  }, [location.search]);
+
   // Prefill occasion from query param (explosion layer — new user entry)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -184,7 +194,6 @@ export default function SendGreeting() {
     // Only prefill if no contact is also specified (draft restore handles that case)
     if (params.get('contactId')) return;
     setFormData(prev => ({ ...prev, occasionType: occasion }));
-    console.log('EXPLOSION_LAYER_SEND_PREFILL_APPLIED', { occasion });
   }, [location.search]);
 
   // Detect referral code from URL and validate
@@ -250,7 +259,7 @@ export default function SendGreeting() {
           // Save restored memory photos to combine with new selections
           restoredMemoryPhotos = parsed.memoryPhotos || [];
         } catch (e) {
-          console.error('Failed to restore saved state:', e);
+          // State restoration failed — non-critical, proceed with defaults
         }
         // Clean up saved state - delay to handle React Strict Mode double-render
         setTimeout(() => {
@@ -283,7 +292,6 @@ export default function SendGreeting() {
               setMemoryPhotos(restoredMemoryPhotos);
             }
           } catch (e) {
-            console.error('Failed to parse selected photos:', e);
             setMemoryPhotos(restoredMemoryPhotos);
           }
           // Clean up
@@ -349,7 +357,6 @@ export default function SendGreeting() {
 
     setContacts(contacts);
   } catch (error) {
-    console.error("Failed to fetch contacts:", error);
     setContacts([]);
   } finally {
     setLoading(false);
@@ -412,7 +419,7 @@ export default function SendGreeting() {
         setJobId(null);
       }
     } catch (error) {
-      console.error('Failed to poll job status:', error);
+      // Poll failure — will retry on next interval
     }
   };
 
@@ -448,7 +455,7 @@ export default function SendGreeting() {
       photoUrl.includes('dummyimage.com');
 
     if (isDataUrl || isPlaceholder) {
-      newErrors.photo = 'Please upload a Default Photo in the Your Presence section on the Dashboard.';
+      newErrors.photo = 'Please upload your photo first \u2014 go to Dashboard \u2192 Your Presence and add a profile photo.';
     }
 
     setErrors(newErrors);
@@ -703,7 +710,7 @@ if (typeof window !== "undefined") {
   const resetForm = () => {
     setFormData({
       contactId: '',
-      occasionType: '',
+      occasionType: 'Thinking of You',
       customOccasion: '',
       customMessage: '',
       isRecurring: false,
@@ -731,7 +738,6 @@ if (typeof window !== "undefined") {
 
   // Success State
   if (jobStatus === 'completed') {
-    console.log('EXPLOSION_LAYER_POST_SEND_SHOWN');
     return (
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
@@ -831,10 +837,10 @@ if (typeof window !== "undefined") {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <Loader className="mx-auto text-blue-500 mb-4 animate-spin" size={64} />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            {jobStatus === 'queued' ? 'Preparing...' : 'Creating Your Greet-Me...'}
+            {jobStatus === 'queued' ? 'Preparing your moment...' : 'Bringing your greeting to life...'}
           </h2>
           <p className="text-gray-600">
-            This may take a minute while we generate your personalized video.
+            This may take a moment. Something special is being created just for them.
           </p>
           <div className="mt-8 bg-blue-50 rounded-lg p-4">
             <div className="flex items-center justify-center space-x-2 text-blue-600">
@@ -843,7 +849,7 @@ if (typeof window !== "undefined") {
               <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
             <p className="text-sm text-blue-800 mt-2">
-              Generating AI voice, animating photo, and preparing email...
+              Making it personal, making it unforgettable...
             </p>
           </div>
         </div>
@@ -1097,6 +1103,39 @@ if (typeof window !== "undefined") {
               }}
             />
             {errors.occasionType && <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.occasionType}</p>}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '0.375rem' }}>
+              {[
+                { label: 'Birthday', value: 'Birthday' },
+                { label: 'Anniversary', value: 'Anniversary' },
+                { label: 'Thank You', value: 'Thank You' },
+                { label: 'Get Well', value: 'Get Well' },
+                { label: 'Congrats', value: 'Congratulations' },
+                { label: 'Just Because', value: 'Just Because' },
+              ].map((chip) => (
+                <button
+                  key={chip.value}
+                  type="button"
+                  onClick={() => {
+                    setFormData(prev => ({ ...prev, occasionType: chip.value }));
+                    if (errors.occasionType) setErrors(prev => ({ ...prev, occasionType: '' }));
+                  }}
+                  style={{
+                    padding: '2px 8px',
+                    fontSize: '0.6875rem',
+                    borderRadius: '999px',
+                    border: `1px solid ${formData.occasionType === chip.value ? '#667eea' : 'var(--border, #e5e7eb)'}`,
+                    background: formData.occasionType === chip.value ? '#eef2ff' : 'transparent',
+                    color: formData.occasionType === chip.value ? '#667eea' : 'var(--text-tertiary, #9ca3af)',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    lineHeight: 1.6,
+                    fontWeight: formData.occasionType === chip.value ? 600 : 400,
+                  }}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Tone Dropdown */}

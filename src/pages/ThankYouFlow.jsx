@@ -480,7 +480,7 @@ export default function ThankYouFlow() {
             <button
               onClick={() => {
                 fireDismissEvent();
-                window.location.href = '/#/dashboard/send';
+                window.location.href = '/#/dashboard/send?occasion=thank_you';
               }}
               style={{
                 display: 'inline-block',

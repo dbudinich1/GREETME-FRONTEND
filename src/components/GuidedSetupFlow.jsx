@@ -1528,6 +1528,23 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
           Your $5 credit will be available in your dashboard shortly.
         </p>
       ) : null}
+
+      {/* Tertiary: direct path to send flow */}
+      <div
+        onClick={() => {
+          handleComplete();
+          navigate('/dashboard/send');
+        }}
+        style={{
+          fontSize: '0.8125rem',
+          color: 'var(--text-tertiary, #9ca3af)',
+          cursor: 'pointer',
+          textAlign: 'center',
+          marginTop: '1rem',
+        }}
+      >
+        Send to someone you love
+      </div>
     </div>
   );
 
