@@ -272,7 +272,7 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
 
                 <p className="gc-gift-instruction">
                   {(gift.qrUrl || gift.qrImageUrl) && !qrImageError
-                    ? 'Scan to claim your QR Cash\u2122 gift'
+                    ? 'Scan or tap to claim your gift'
                     : 'A QR Cash\u2122 gift is included with this greeting'}
                 </p>
 
@@ -325,7 +325,7 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
                       </div>
                     </a>
                     <p className="gc-gift-instruction">
-                      Scan to claim $5 toward your first Greet-Me
+                      Scan or tap to claim your gift
                     </p>
                   </>
                 ) : (
@@ -357,32 +357,6 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
               <span className="gc-brand-name">Greet-Me™</span>
             </div>
             <p className="gc-brand-tagline">This moment was lovingly prepared for you.</p>
-            <div className="gc-finale-end-flourish">
-              <span className="gc-flourish-line"></span>
-              <span className="gc-flourish-diamond">✦</span>
-              <span className="gc-flourish-line"></span>
-            </div>
-            <p style={{
-              fontSize: '0.65em',
-              color: 'rgba(139, 125, 107, 0.55)',
-              fontStyle: 'italic',
-              margin: '0.8em 0 0.25em',
-              fontFamily: 'Georgia, serif',
-            }}>
-              Want to create something like this?
-            </p>
-            <a
-              href="/#/register"
-              style={{
-                fontSize: '0.65em',
-                color: 'rgba(139, 125, 107, 0.7)',
-                textDecoration: 'none',
-                fontFamily: 'Georgia, serif',
-                letterSpacing: '0.02em',
-              }}
-            >
-              Create your own Greet-Me &rarr;
-            </a>
           </div>
         </div>
       </div>
