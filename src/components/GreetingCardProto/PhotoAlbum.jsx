@@ -13,7 +13,7 @@ function getPhotoSrc(photo) {
   return null;
 }
 
-export default function PhotoAlbum({ photos, disabled = false }) {
+export default function PhotoAlbum({ photos, disabled = false, unlocking = false }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFading, setIsFading] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -140,7 +140,7 @@ export default function PhotoAlbum({ photos, disabled = false }) {
 
   return (
     <div
-      className={`gc-photo-album ${disabled ? 'gc-album-disabled' : ''}`}
+      className={`gc-photo-album ${disabled ? 'gc-album-disabled' : ''} ${unlocking ? 'gc-album-unlocked' : ''}`}
       onClick={handleAlbumClick}
     >
       {/* Mute/unmute button */}

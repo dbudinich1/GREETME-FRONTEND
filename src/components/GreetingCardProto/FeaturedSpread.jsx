@@ -5,7 +5,7 @@
  * GS-05: Video inset layout with centered ribbon
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import VideoPlayer from './VideoPlayer';
 import PhotoAlbum from './PhotoAlbum';
 import cardInteriorImg from '../../assets/card/card-interior.png';
@@ -13,6 +13,8 @@ import cardInteriorImg from '../../assets/card/card-interior.png';
 export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnded, onVideoEnd, posterUrl }) {
   const [showVideo, setShowVideo] = useState(false);
   const [showSwipeCue, setShowSwipeCue] = useState(false);
+  const [albumUnlocking, setAlbumUnlocking] = useState(false);
+  const prevVideoEnded = useRef(videoHasEnded);
 
   // GS-04: 2-second pause before video fades in
   useEffect(() => {
@@ -31,6 +33,16 @@ export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnde
 
   useEffect(() => {
     if (videoHasEnded) setShowSwipeCue(true);
+  }, [videoHasEnded]);
+
+  // E6: Brief unlock pulse when album becomes interactive
+  useEffect(() => {
+    if (videoHasEnded && !prevVideoEnded.current) {
+      setAlbumUnlocking(true);
+      const timer = setTimeout(() => setAlbumUnlocking(false), 800);
+      return () => clearTimeout(timer);
+    }
+    prevVideoEnded.current = videoHasEnded;
   }, [videoHasEnded]);
 
   return (
@@ -69,7 +81,7 @@ export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnde
           onClick={(e) => e.stopPropagation()}
         >
           <h3 className="gc-album-title">Cherished Moments</h3>
-          <PhotoAlbum photos={photos} disabled={!videoHasEnded} />
+          <PhotoAlbum photos={photos} disabled={!videoHasEnded} unlocking={albumUnlocking} />
         </div>
 
         {showSwipeCue && (

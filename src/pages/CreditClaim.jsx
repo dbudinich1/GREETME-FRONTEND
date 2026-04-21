@@ -156,7 +156,7 @@ export default function CreditClaim() {
     }
 
     if (!creditApplied) {
-      console.warn(`[CreditClaim] Credit ${creditCode} claim failed post-registration`);
+      // Credit claim failed silently post-registration — non-blocking
     }
   };
 

@@ -51,9 +51,10 @@ export function shouldShowGuidedSetup() {
 export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const navigate = useNavigate();
   const { user, refreshProfile } = useAuth();
-  // Steps: 0=Welcome, 1=QuickStart, 2=Voice, 3=Photo, 4=Recipient, 5=SendPrep, 6=Sending, 7=Success, 8=GiftReveal
+  // Steps: 0=Welcome, 1=QuickStart, 2=Voice, 3=Photo, 4=Recipient, 5=SendPrep, 6=Sending, 7=Success
   const [step, setStep] = useState(0);
   const [courtesyCreditCode, setCourtesyCreditCode] = useState(null);
+  const [creditPollExhausted, setCreditPollExhausted] = useState(false);
   const [setupState, setSetupState] = useState(getSetupState());
 
   // Voice recording state
@@ -131,6 +132,8 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         attempts++;
         await new Promise(r => setTimeout(r, 3000));
       }
+      // Poll exhausted without finding credit code
+      if (!stopped) setCreditPollExhausted(true);
     };
     poll();
     return () => { stopped = true; };
@@ -262,7 +265,6 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       setSetupState(prev => ({ ...prev, voiceDone: true }));
       nextStep();
     } catch (err) {
-      console.error('Voice upload failed:', err);
       setVoiceError('Voice upload failed. Please try again.');
     } finally {
       setVoiceUploading(false);
@@ -314,7 +316,6 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       setSetupState(prev => ({ ...prev, photoDone: true }));
       nextStep();
     } catch (err) {
-      console.error('Photo upload failed:', err);
       setPhotoError('Photo upload failed. Please try again.');
     } finally {
       setPhotoUploading(false);
@@ -373,23 +374,50 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     }).then(result => {
       if (result?.jobId) localStorage.setItem('greetme_onboarding_test_jobId', result.jobId);
       return result;
-    }).catch(err => {
-      console.warn('Greeting send failed, continuing anyway:', err);
+    }).catch(() => {
       return null;
     });
 
+    // Track API completion so animation phases can react
+    // Note: sendPromise .catch returns null, so it always resolves (never rejects).
+    // apiDone=true means resolved with result; apiFailed=true means resolved to null (error was caught).
+    let apiDone = false;
+    let apiFailed = false;
+    sendPromise.then((result) => {
+      if (result === null) { apiFailed = true; } else { apiDone = true; }
+    });
+
     try {
-      // Animate progress stages while API runs in parallel
+      // Phase 1: voice (2s) — if API already done, skip ahead
       await new Promise(resolve => setTimeout(resolve, 2000));
-      setSendingStatus('video');
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      setSendingStatus('finalizing');
-
-      // Wait for API to finish (may already be done)
-      await sendPromise;
-
-      // Brief pause on "finalizing" so it doesn't flash
-      await new Promise(resolve => setTimeout(resolve, 800));
+      if (apiFailed) throw new Error('send failed');
+      if (apiDone) {
+        setSendingStatus('finalizing');
+        await new Promise(resolve => setTimeout(resolve, 600));
+      } else {
+        // Phase 2: video (3s)
+        setSendingStatus('video');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        if (apiFailed) throw new Error('send failed');
+        if (apiDone) {
+          setSendingStatus('finalizing');
+          await new Promise(resolve => setTimeout(resolve, 600));
+        } else {
+          // Phase 3: finalizing — hold until API completes
+          setSendingStatus('finalizing');
+          await new Promise(resolve => setTimeout(resolve, 800));
+          if (!apiDone && !apiFailed) {
+            setSendingStatus('waiting');
+            await sendPromise; // Block until resolved
+            // Re-check after await (sendPromise always resolves)
+            if (!apiDone && !apiFailed) {
+              // Determine from result — if still neither, treat as success
+              apiDone = true;
+            }
+          }
+          if (apiFailed) throw new Error('send failed');
+        }
+      }
 
       // Mark as complete and advance
       updateSetupState({ firstGreetingSent: true });
@@ -409,9 +437,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
   const handleComplete = () => {
     // Fire-and-forget: call backend to send onboarding email (idempotent)
-    api.completeOnboarding().catch((err) => {
-      console.warn('Onboarding completion email failed:', err);
-    });
+    api.completeOnboarding().catch(() => {});
     updateSetupState({ onboardingCompleted: true });
     sessionStorage.removeItem('greetme_g1g1_claimed');
     onComplete?.();
@@ -1137,8 +1163,20 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       }}>
         This test Greet-Me is on us &mdash; it won&rsquo;t count toward your 3 sends.
       </p>
+      {sendingError && (
+        <div style={{
+          padding: '0.625rem 0.875rem',
+          background: '#fef2f2',
+          borderRadius: 'var(--radius-md, 8px)',
+          border: '1px solid #fecaca',
+          marginBottom: '1rem',
+        }}>
+          <p style={{ fontSize: '0.8125rem', color: '#dc2626', margin: 0 }}>{sendingError}</p>
+        </div>
+      )}
       <button
         onClick={() => {
+          setSendingError(null);
           setGreetingRecipient(userName);
           setGreetingEmail(userEmail);
           sendTestGreeting();
@@ -1158,7 +1196,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         }}
       >
         <Send size={18} style={{ marginRight: '0.5rem', verticalAlign: 'middle' }} />
-        Send My First Greet-Me
+        {sendingError ? 'Try Again' : 'Send My First Greet-Me'}
       </button>
     </div>
   );
@@ -1272,97 +1310,61 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         color: 'var(--text-primary)',
         marginBottom: '1.5rem',
       }}>
-        Creating your greeting…
+        {sendingStatus === 'waiting' ? 'Almost there\u2026' : 'Creating your greeting\u2026'}
       </h3>
 
       <div style={{ marginBottom: '0.5rem' }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.5rem',
-          marginBottom: '0.75rem',
-        }}>
+        {/* Voice phase */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
           <div style={{
-            width: '1.25rem',
-            height: '1.25rem',
-            borderRadius: '50%',
-            background: sendingStatus === 'voice' || sendingStatus === 'video' || sendingStatus === 'finalizing' ? '#10b981' : 'var(--gray-200)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            width: '1.25rem', height: '1.25rem', borderRadius: '50%',
+            background: ['voice', 'video', 'finalizing', 'waiting'].includes(sendingStatus) ? '#10b981' : 'var(--gray-200)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {(sendingStatus === 'video' || sendingStatus === 'finalizing') ? (
+            {sendingStatus !== 'voice' && ['video', 'finalizing', 'waiting'].includes(sendingStatus) ? (
               <Check size={12} color="white" />
             ) : sendingStatus === 'voice' ? (
               <Loader size={12} color="white" style={{ animation: 'spin 1s linear infinite' }} />
             ) : null}
           </div>
-          <span style={{
-            fontSize: '0.875rem',
-            color: sendingStatus === 'voice' ? 'var(--text-primary)' : 'var(--text-secondary)',
-            fontWeight: sendingStatus === 'voice' ? 600 : 400,
-          }}>
+          <span style={{ fontSize: '0.875rem', color: sendingStatus === 'voice' ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: sendingStatus === 'voice' ? 600 : 400 }}>
             Generating voice
           </span>
         </div>
 
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.5rem',
-          marginBottom: '0.75rem',
-        }}>
+        {/* Video phase */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
           <div style={{
-            width: '1.25rem',
-            height: '1.25rem',
-            borderRadius: '50%',
-            background: sendingStatus === 'video' || sendingStatus === 'finalizing' ? '#10b981' : 'var(--gray-200)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            width: '1.25rem', height: '1.25rem', borderRadius: '50%',
+            background: ['video', 'finalizing', 'waiting'].includes(sendingStatus) ? '#10b981' : 'var(--gray-200)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {sendingStatus === 'finalizing' ? (
+            {['finalizing', 'waiting'].includes(sendingStatus) ? (
               <Check size={12} color="white" />
             ) : sendingStatus === 'video' ? (
               <Loader size={12} color="white" style={{ animation: 'spin 1s linear infinite' }} />
             ) : null}
           </div>
-          <span style={{
-            fontSize: '0.875rem',
-            color: sendingStatus === 'video' ? 'var(--text-primary)' : 'var(--text-secondary)',
-            fontWeight: sendingStatus === 'video' ? 600 : 400,
-          }}>
+          <span style={{ fontSize: '0.875rem', color: sendingStatus === 'video' ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: sendingStatus === 'video' ? 600 : 400 }}>
             Creating video
           </span>
         </div>
 
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.5rem',
-        }}>
+        {/* Finalizing phase */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
           <div style={{
-            width: '1.25rem',
-            height: '1.25rem',
-            borderRadius: '50%',
-            background: sendingStatus === 'finalizing' ? '#10b981' : 'var(--gray-200)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            width: '1.25rem', height: '1.25rem', borderRadius: '50%',
+            background: ['finalizing', 'waiting'].includes(sendingStatus) ? '#10b981' : 'var(--gray-200)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {sendingStatus === 'finalizing' ? (
+            {sendingStatus === 'waiting' ? (
+              <Check size={12} color="white" />
+            ) : sendingStatus === 'finalizing' ? (
               <Loader size={12} color="white" style={{ animation: 'spin 1s linear infinite' }} />
             ) : null}
           </div>
-          <span style={{
-            fontSize: '0.875rem',
-            color: sendingStatus === 'finalizing' ? 'var(--text-primary)' : 'var(--text-secondary)',
-            fontWeight: sendingStatus === 'finalizing' ? 600 : 400,
-          }}>
-            Finalizing
+          <span style={{ fontSize: '0.875rem', color: ['finalizing', 'waiting'].includes(sendingStatus) ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: ['finalizing', 'waiting'].includes(sendingStatus) ? 600 : 400 }}>
+            {sendingStatus === 'waiting' ? 'Finalizing' : 'Finalizing'}
           </span>
         </div>
       </div>
@@ -1392,6 +1394,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         alignItems: 'center',
         justifyContent: 'center',
         margin: '0 auto 1.5rem',
+        animation: 'scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
       }}>
         <Check size={40} color="white" />
       </div>
@@ -1465,37 +1468,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         </p>
       </div>
 
-      <p style={{
-        fontSize: '0.9375rem',
-        color: 'var(--text-secondary)',
-        marginBottom: '1.5rem',
-        lineHeight: 1.6,
-      }}>
-        But first &mdash; we have something for you.
-      </p>
-      {courtesyCreditCode && (
-        <button
-          onClick={() => {
-            handleComplete();
-            navigate(`/claim-credit/${courtesyCreditCode}`);
-          }}
-          style={{
-            width: '100%',
-            padding: '1rem',
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            color: 'white',
-            border: 'none',
-            borderRadius: 'var(--radius-lg)',
-            fontSize: '1rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            marginBottom: '0.75rem',
-          }}
-        >
-          Claim your $5 credit
-        </button>
-      )}
+      {/* E14: Emotional payoff first — see what you created */}
       <button
         onClick={() => {
           const jobId = localStorage.getItem('greetme_onboarding_test_jobId');
@@ -1521,122 +1494,40 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       >
         View My Greet-Me
       </button>
-    </div>
-  );
 
-  // ==================== STEP 7: GIFT REVEAL ====================
-  const renderGiftReveal = () => (
-    <div style={{ textAlign: 'center', padding: isMobile ? '2rem 1.5rem' : '2.5rem 2rem' }}>
-      <div style={{
-        width: '4rem', height: '4rem', borderRadius: '50%',
-        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        margin: '0 auto 1rem', fontSize: '2rem',
-      }}>
-        🎁
-      </div>
-      <h2 style={{
-        fontSize: isMobile ? '1.25rem' : '1.5rem',
-        fontWeight: 700,
-        color: 'var(--text-primary)',
-        marginBottom: '0.5rem',
-        fontFamily: 'Georgia, serif',
-      }}>
-        G1G1 &mdash; Greet One. Gift One.&trade;
-      </h2>
-      <p style={{
-        fontSize: '0.9375rem',
-        color: 'var(--text-secondary)',
-        lineHeight: 1.6,
-        marginBottom: '1rem',
-      }}>
-        Because we believe in giving first, we&rsquo;ve included a little something to share.
-      </p>
-      <div style={{
-        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '1rem',
-        marginBottom: '1rem',
-        border: '1px solid #f59e0b33',
-      }}>
-        <p style={{
-          fontSize: '1rem',
-          fontWeight: 700,
-          color: '#92400e',
-          marginBottom: '0.375rem',
-          fontFamily: 'Georgia, serif',
-        }}>
-          🎁 Greet One. Gift One.&trade;
-        </p>
+      {/* E15: Credit claim — secondary CTA with poll fallback */}
+      {courtesyCreditCode ? (
+        <button
+          onClick={() => {
+            handleComplete();
+            navigate(`/claim-credit/${courtesyCreditCode}`);
+          }}
+          style={{
+            width: '100%',
+            padding: '0.875rem',
+            background: 'transparent',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border, #e5e7eb)',
+            borderRadius: 'var(--radius-lg)',
+            fontSize: '0.9375rem',
+            fontWeight: 500,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            marginTop: '0.75rem',
+          }}
+        >
+          Claim your $5 credit
+        </button>
+      ) : creditPollExhausted ? (
         <p style={{
           fontSize: '0.8125rem',
-          color: '#78350f',
+          color: 'var(--text-tertiary)',
+          marginTop: '1rem',
           lineHeight: 1.5,
-          margin: 0,
         }}>
-          Every Greet-Me subscription comes with one of equal value to share with a friend or loved one.
+          Your $5 credit will be available in your dashboard shortly.
         </p>
-      </div>
-      {/* $5 credit apply moment */}
-      <div style={{
-        background: '#f0fdf4',
-        borderRadius: 'var(--radius-lg)',
-        padding: '1rem',
-        marginBottom: '1.25rem',
-        border: '1px solid #bbf7d0',
-      }}>
-        <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#166534', margin: '0 0 0.25rem' }}>
-          You&rsquo;ve got $5 waiting.
-        </p>
-        <p style={{ fontSize: '0.8125rem', color: '#15803d', margin: 0, lineHeight: 1.5 }}>
-          Apply it to your first subscription &mdash; and share the Greet-Me experience with someone you love.
-        </p>
-      </div>
-
-      {/* Primary CTA — view the generated greeting */}
-      <button
-        onClick={() => {
-          const jobId = localStorage.getItem('greetme_onboarding_test_jobId');
-          if (jobId) {
-            window.location.href = `/#/g/${jobId}`;
-          } else {
-            goToPricing();
-          }
-        }}
-        style={{
-          width: '100%', padding: '1rem',
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-          color: 'white', border: 'none', borderRadius: 'var(--radius-lg)',
-          fontSize: '1rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-          marginBottom: '0.75rem',
-        }}
-      >
-        View My Greet-Me
-      </button>
-      {/* Secondary CTA */}
-      <button
-        onClick={goToPricing}
-        style={{
-          width: '100%', padding: '0.75rem',
-          background: 'transparent', color: 'var(--text-primary)',
-          border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius-lg)',
-          fontSize: '0.9375rem', fontWeight: 500,
-          cursor: 'pointer', fontFamily: 'inherit',
-          marginBottom: '0.75rem',
-        }}
-      >
-        Explore Plans
-      </button>
-      {/* Tertiary link */}
-      <div
-        onClick={goToDashboard}
-        style={{
-          fontSize: '0.8125rem', color: 'var(--text-tertiary, #9ca3af)',
-          cursor: 'pointer', textAlign: 'center', marginTop: '0.25rem',
-        }}
-      >
-        Go to Dashboard
-      </div>
+      ) : null}
     </div>
   );
 
@@ -1661,8 +1552,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
     if (step === 4) return 52;
     if (step === 5) return 64;
     if (step === 6) return 76;
-    if (step === 7) return 90;
-    if (step >= 8) return 100;
+    if (step === 7) return 100;
     return 0;
   };
 
@@ -1752,6 +1642,10 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         @keyframes pulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.8; transform: scale(1.05); }
+        }
+        @keyframes scaleIn {
+          from { transform: scale(0); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
         }
       `}</style>
     </div>

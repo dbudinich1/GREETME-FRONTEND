@@ -73,8 +73,6 @@ export default function ThankYouFlow() {
   const [searchParams] = useSearchParams();
   const jobId = searchParams.get('jobId');
   const { user, refreshProfile, register, login } = useAuth();
-  // TEMP DIAGNOSTIC — remove after verification
-  console.log('[ThankYouFlow] render cycle — jobId:', jobId, 'user:', user?.email || 'guest');
 
   // Inline registration/login state (guest send path)
   const [showInlineRegister, setShowInlineRegister] = useState(false);
@@ -98,6 +96,7 @@ export default function ThankYouFlow() {
   const hasPhoto = !!user?.photoUrl;
   const [addedVoiceThisSession, setAddedVoiceThisSession] = useState(false);
   const [addedPhotoThisSession, setAddedPhotoThisSession] = useState(false);
+  const [uploadWarning, setUploadWarning] = useState(null);
   const [shared, setShared] = useState(false);
   const [rewardResult, setRewardResult] = useState(null);
 
@@ -107,10 +106,8 @@ export default function ThankYouFlow() {
       setLoading(false);
       return;
     }
-    console.log('[ThankYouFlow] fetching prefill for:', jobId);
     api.getThankyouPrefill(jobId)
       .then((data) => {
-        console.log('[ThankYouFlow] prefill response:', data?.ok, data?.prefill ? 'has prefill' : 'no prefill');
         if (data?.ok && data.prefill) {
           setPrefill(data.prefill);
           setScript(data.prefill.script || '');
@@ -138,7 +135,6 @@ export default function ThankYouFlow() {
     setSending(true);
     setError(null);
     try {
-      console.log('[ThankYouFlow] sending greeting, sourceJobId:', jobId);
       const result = await api.submitThankYouGreeting({
         recipientName: prefill.recipientName,
         recipientEmail: prefill.recipientEmail,
@@ -147,7 +143,6 @@ export default function ThankYouFlow() {
         script,
         sourceJobId: jobId,
       });
-      console.log('[ThankYouFlow] send result:', { ok: result?.ok, status: result?.status, code: result?.code, error: result?.error });
       if (result?.status === 401) {
         setShowInlineRegister(true);
         setSending(false);
@@ -160,7 +155,6 @@ export default function ThankYouFlow() {
       setSent(true);
       setSentAt(Date.now());
     } catch (err) {
-      console.error('[ThankYouFlow] send error:', err?.message, err?.code, err?.status);
       setError(err?.message || 'Failed to send. Please try again.');
     } finally {
       setSending(false);
@@ -172,9 +166,7 @@ export default function ThankYouFlow() {
     setRegError(null);
     setRegistering(true);
     try {
-      console.log('[ThankYouFlow] registering:', regEmail.trim().toLowerCase());
       const result = await register(regName.trim(), regEmail.trim().toLowerCase(), regPassword);
-      console.log('[ThankYouFlow] register result:', { success: result?.success, code: result?.code, status: result?.status, error: result?.error });
       if (!result?.success) {
         const isEmailExists = result?.code === 'EMAIL_EXISTS';
         const isServerError = result?.status >= 500 || result?.code === 'SERVER_ERROR';
@@ -196,7 +188,6 @@ export default function ThankYouFlow() {
       setRegistering(false);
       await doSend();
     } catch (err) {
-      console.error('[ThankYouFlow] register exception:', err);
       setRegError(err?.message || 'Registration failed.');
       setRegistering(false);
     }
@@ -207,9 +198,7 @@ export default function ThankYouFlow() {
     setRegError(null);
     setRegistering(true);
     try {
-      console.log('[ThankYouFlow] logging in:', regEmail.trim().toLowerCase());
       const result = await login(regEmail.trim().toLowerCase(), regPassword);
-      console.log('[ThankYouFlow] login result:', { success: result?.success, code: result?.code });
       if (!result?.success) {
         setRegError(result?.error || 'Login failed. Please try again.');
         setRegistering(false);
@@ -219,7 +208,6 @@ export default function ThankYouFlow() {
       setRegistering(false);
       await doSend();
     } catch (err) {
-      console.error('[ThankYouFlow] login exception:', err);
       setRegError(err?.message || 'Login failed.');
       setRegistering(false);
     }
@@ -231,7 +219,11 @@ export default function ThankYouFlow() {
       await api.uploadVoice(formData);
       await refreshProfile();
       setAddedVoiceThisSession(true);
-    } catch { /* non-fatal */ }
+      setUploadWarning(null);
+    } catch {
+      setUploadWarning('Voice upload didn\u2019t go through \u2014 your greeting will still send without it.');
+      setTimeout(() => setUploadWarning(null), 5000);
+    }
   };
 
   const handlePhotoUpload = async (formData) => {
@@ -239,7 +231,11 @@ export default function ThankYouFlow() {
       await api.uploadPhoto(formData);
       await refreshProfile();
       setAddedPhotoThisSession(true);
-    } catch { /* non-fatal */ }
+      setUploadWarning(null);
+    } catch {
+      setUploadWarning('Photo upload didn\u2019t go through \u2014 your greeting will still send without it.');
+      setTimeout(() => setUploadWarning(null), 5000);
+    }
   };
 
   // Fire EXPONENTIAL_MOMENT_SEEN once when sent becomes true
@@ -341,13 +337,15 @@ export default function ThankYouFlow() {
     window.location.href = '/#/dashboard';
   };
 
+  // Derive recipient first name (used in success screen and main flow)
+  const recipientFirst = (prefill?.recipientName || 'them').split(' ')[0];
+
   // ---- Exponential Moment (post-send success) ----
   // Gate: only show within 90 minutes of send
   const EXPIRY_MS = 90 * 60 * 1000;
   const momentExpired = sentAt && (Date.now() - sentAt > EXPIRY_MS);
 
   if (sent && !momentExpired) {
-    const isQrCash = prefill?.giftType === 'qrcash';
     const hasGiftContext = prefill?.hasGift;
 
     return (
@@ -364,6 +362,7 @@ export default function ThankYouFlow() {
           maxWidth: '520px',
           width: '100%',
           textAlign: 'center',
+          animation: 'fadeInUp 0.6s ease-out',
         }}>
           {/* Success checkmark */}
           <div style={{
@@ -382,7 +381,7 @@ export default function ThankYouFlow() {
             &#10003;
           </div>
 
-          {/* Sent confirmation */}
+          {/* Sent confirmation — personal, then brand */}
           <p style={{
             fontSize: '0.875rem',
             color: 'rgba(255,255,255,0.5)',
@@ -393,19 +392,28 @@ export default function ThankYouFlow() {
             Sent
           </p>
 
-          {/* Canonical line — exact, once only */}
           <h1 style={{
             fontSize: '1.5rem',
             fontWeight: 500,
             color: '#fff',
             lineHeight: 1.5,
-            margin: '0 0 2.5rem',
+            margin: '0 0 1rem',
             fontFamily: 'Georgia, serif',
           }}>
-            This is how Greet-Me &mdash; and you &mdash; make life&rsquo;s moments truly unforgettable.
+            Your thank-you is on its way to {recipientFirst}.
           </h1>
+          <p style={{
+            fontSize: '0.9375rem',
+            color: 'rgba(255,255,255,0.45)',
+            lineHeight: 1.6,
+            margin: '0 0 2.5rem',
+            fontFamily: 'Georgia, serif',
+            fontStyle: 'italic',
+          }}>
+            This is how we make life&rsquo;s moments unforgettable.
+          </p>
 
-          {/* Incentive copy */}
+          {/* Share incentive — emotional lead, financial fine print */}
           {hasGiftContext && (
             <p style={{
               fontSize: '0.9375rem',
@@ -413,9 +421,7 @@ export default function ThankYouFlow() {
               lineHeight: 1.6,
               margin: '0 0 2rem',
             }}>
-              {isQrCash
-                ? 'Share and we\u2019ll match your gift with up to $10 in Greet-Me credit.'
-                : 'Share and we\u2019ll double your Greet-Me credit.'}
+              Pass the feeling forward &mdash; share this moment with someone who matters.
             </p>
           )}
 
@@ -514,12 +520,57 @@ export default function ThankYouFlow() {
     );
   }
 
+  // ---- Exponential moment expired ----
+  if (sent && momentExpired) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 50%, #f5f3ff 100%)',
+        padding: '2rem 1.5rem',
+        fontFamily: FONT_STACK,
+      }}>
+        <div style={{
+          maxWidth: '480px',
+          width: '100%',
+          textAlign: 'center',
+        }}>
+          <div style={styles.successIcon}>&#10003;</div>
+          <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: '#1f2937', margin: '0 0 0.75rem', fontFamily: 'Georgia, serif' }}>
+            Your thank-you was sent
+          </h1>
+          <p style={{ fontSize: '0.9375rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 2rem' }}>
+            {recipientFirst !== 'them'
+              ? `${recipientFirst} should have it by now.`
+              : 'Your recipient should have it by now.'}
+          </p>
+          <a
+            href="/#/dashboard/send"
+            style={{
+              ...styles.linkBtn,
+              display: 'inline-block',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Send your own Greet-Me
+          </a>
+          <br />
+          <a href="/#/dashboard" style={{ color: '#6b7280', fontSize: '0.8125rem', textDecoration: 'none' }}>
+            Go to dashboard
+          </a>
+          <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+        </div>
+      </div>
+    );
+  }
+
   // ---- Loading ----
   if (loading) {
     return (
       <div style={styles.page}>
         <p style={{ color: '#6b7280', fontFamily: FONT_STACK }}>Loading your thank-you...</p>
-        <p style={{ fontSize: '11px', color: '#999', marginTop: '8px' }}>jobId: {jobId || 'missing'}</p>
       </div>
     );
   }
@@ -529,11 +580,11 @@ export default function ThankYouFlow() {
     return (
       <div style={styles.page}>
         <div style={styles.card}>
-          <h1 style={styles.title}>Could not load thank-you</h1>
-          <p style={{ fontSize: '1rem', color: '#6b7280', margin: '0 0 1rem' }}>
-            {error || 'Prefill data missing.'}
+          <h1 style={styles.title}>We couldn&rsquo;t find this greeting</h1>
+          <p style={{ fontSize: '1rem', color: '#6b7280', margin: '0 0 1.5rem', lineHeight: 1.6 }}>
+            The link may have expired or the greeting is no longer available.
+            If someone sent you a Greet-Me, ask them to resend the link.
           </p>
-          <p style={{ fontSize: '11px', color: '#999', margin: '0 0 1.5rem' }}>jobId: {jobId || 'missing'}</p>
           <a href="/#/dashboard/send" style={{ color: '#4F2D7F', textDecoration: 'underline', fontSize: '0.9rem' }}>
             Send a greeting instead
           </a>
@@ -544,7 +595,6 @@ export default function ThankYouFlow() {
   }
 
   // ---- Main flow ----
-  const recipientFirst = (prefill.recipientName || 'them').split(' ')[0];
 
   return (
     <div style={styles.page}>
@@ -670,6 +720,19 @@ export default function ThankYouFlow() {
           </div>
         )}
 
+        {/* Upload warning — non-blocking, auto-clears */}
+        {uploadWarning && (
+          <div style={{
+            padding: '0.625rem 0.875rem',
+            background: '#fffbeb',
+            borderRadius: '0.5rem',
+            border: '1px solid #fde68a',
+            marginBottom: '1rem',
+          }}>
+            <p style={{ fontSize: '0.8125rem', color: '#92400e', margin: 0 }}>{uploadWarning}</p>
+          </div>
+        )}
+
         {/* E. Inline registration or login (guest path — never leaves page) */}
         {showInlineRegister && (
           <div style={styles.section}>
@@ -777,13 +840,39 @@ export default function ThankYouFlow() {
             fontFamily: 'Georgia, serif',
             cursor: sending ? 'not-allowed' : 'pointer',
             boxShadow: sending ? 'none' : '0 4px 14px rgba(79, 45, 127, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
           }}
         >
-          {sending ? 'Sending...' : 'Send'}
+          {sending && (
+            <span style={{
+              width: '1rem',
+              height: '1rem',
+              border: '2px solid rgba(255,255,255,0.3)',
+              borderTopColor: '#fff',
+              borderRadius: '50%',
+              display: 'inline-block',
+              animation: 'thankyouSpin 0.6s linear infinite',
+            }} />
+          )}
+          {sending ? 'Sending\u2026' : (user ? 'Send' : 'Sign Up & Send')}
         </button>
         )}
 
         <p style={{ ...styles.footer, textAlign: 'center' }}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+
+        {/* Keyframes for send spinner and success entrance */}
+        <style>{`
+          @keyframes thankyouSpin {
+            to { transform: rotate(360deg); }
+          }
+          @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
       </div>
     </div>
   );

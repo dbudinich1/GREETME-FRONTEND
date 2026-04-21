@@ -198,12 +198,16 @@
   border-radius: 50%;
   cursor: pointer;
   z-index: 20;
-  animation: gc-sealBreathe 2.5s ease-in-out 2;
+  animation: gc-sealBreathe 2.5s ease-in-out infinite;
 }
 
 @keyframes gc-sealBreathe {
   0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
   50%      { transform: translate(-50%, -50%) scale(1.06); opacity: 0.85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gc-wax-seal { animation: none; }
 }
 
 .gc-wax-seal:hover {
@@ -239,6 +243,11 @@
 
 .gc-cover:hover {
   transform: scale(1.02);
+}
+
+.gc-cover:active {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
 }
 
 .gc-cover-content {
@@ -859,10 +868,31 @@
   opacity: 0;
 }
 
-/* Disabled state - visible but non-interactive */
+/* Disabled state - visible but non-interactive, breathing signals "waiting" */
 .gc-photo-album.gc-album-disabled {
   pointer-events: none;
-  opacity: 0.5;
+  animation: gc-albumBreathe 2s ease-in-out infinite;
+}
+
+@keyframes gc-albumBreathe {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 0.55; }
+}
+
+/* Unlock pulse — brief feedback when album becomes interactive */
+.gc-photo-album.gc-album-unlocked {
+  animation: gc-albumUnlock 0.6s ease-out;
+}
+
+@keyframes gc-albumUnlock {
+  0%   { opacity: 0.4; transform: scale(0.97); }
+  50%  { opacity: 1;   transform: scale(1.02); }
+  100% { opacity: 1;   transform: scale(1);    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gc-photo-album.gc-album-disabled { animation: none; opacity: 0.5; }
+  .gc-photo-album.gc-album-unlocked { animation: none; }
 }
 
 /* Hover: tighten stack (reduce offsets/rotation) */
@@ -1170,6 +1200,28 @@
   font-size: 21px;
   color: var(--gc-text-brown-light);
   margin: 16px 0 0 0;
+}
+
+/* Finale end-flourish — visual bookend mirroring cover flourish */
+.gc-finale-end-flourish {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 12px 0 4px;
+  opacity: 0.35;
+}
+
+.gc-finale-end-flourish .gc-flourish-line {
+  width: 28px;
+  height: 1px;
+  background: var(--gc-text-brown-light, rgba(139, 125, 107, 0.5));
+}
+
+.gc-finale-end-flourish .gc-flourish-diamond {
+  font-size: 8px;
+  color: var(--gc-text-brown-light, rgba(139, 125, 107, 0.5));
+  line-height: 1;
   text-align: center;
 }
 
@@ -2899,7 +2951,7 @@
   }
 }
 
-/* ===== SWIPE CUE — subtle edge chevron, fades after 3s ===== */
+/* ===== SWIPE CUE — subtle edge chevron, settles to low opacity ===== */
 .gc-swipe-cue {
   position: absolute;
   right: 12px;
@@ -2910,7 +2962,7 @@
   align-items: center;
   gap: 2px;
   opacity: 0;
-  animation: gc-swipePulse 1.4s ease-in-out 1s 2, gc-swipeFadeOut 0.6s ease 4.2s forwards;
+  animation: gc-swipePulse 1.4s ease-in-out 1s 2, gc-swipeSettle 0.6s ease 4.2s forwards;
   pointer-events: none;
   z-index: 5;
 }
@@ -2929,17 +2981,40 @@
   100% { opacity: 0;   transform: translateY(-50%) translateX(0);   }
 }
 
-@keyframes gc-swipeFadeOut {
-  to { opacity: 0; visibility: hidden; }
+@keyframes gc-swipeSettle {
+  to { opacity: 0.2; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .gc-swipe-cue { animation: none; display: none; }
 }
 
+/* ===== PAGE DOTS — minimal position indicator ===== */
+.gc-page-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 0 4px;
+  pointer-events: none;
+}
+
+.gc-page-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(139, 125, 107, 0.25);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.gc-page-dot-active {
+  opacity: 1;
+  background: rgba(139, 125, 107, 0.7);
+  transform: scale(1.3);
+}
+
 /* ===== COVER LIFT PULSE — subtle scale hint on mount ===== */
 .gc-cover {
-  animation: gc-coverLift 1.8s ease-in-out 1s 2;
+  animation: gc-coverLift 1.8s ease-in-out 1s infinite;
 }
 
 @keyframes gc-coverLift {

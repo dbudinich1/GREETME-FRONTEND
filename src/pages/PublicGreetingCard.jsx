@@ -86,7 +86,6 @@ export default function PublicGreetingCard() {
         setError('not_found');
       }
     } catch (err) {
-      console.error('Error loading greeting:', err);
       const status = err?.status || err?.response?.status;
       if (status === 410) {
         setError('expired');
@@ -106,17 +105,39 @@ export default function PublicGreetingCard() {
       <div style={{
         minHeight: '100vh',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         background: '#f5f3f0',
+        gap: '1rem',
       }}>
+        <div style={{
+          display: 'flex',
+          gap: '6px',
+        }}>
+          {[0, 1, 2].map((i) => (
+            <div key={i} style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#9ca3af',
+              animation: `greetPulse 1.2s ease-in-out ${i * 0.2}s infinite`,
+            }} />
+          ))}
+        </div>
         <p style={{
           color: '#6b7280',
           fontSize: '1rem',
           fontFamily: 'Georgia, serif',
         }}>
-          Loading your greeting...
+          Loading your greeting&hellip;
         </p>
+        <style>{`
+          @keyframes greetPulse {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -231,12 +252,12 @@ export default function PublicGreetingCard() {
           textAlign: 'center',
           padding: '2rem',
         }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✨</div>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem', animation: 'greetPulse 1.2s ease-in-out infinite' }}>✨</div>
           <h2 style={{ color: '#1B2A4A', margin: '0 0 0.75rem', fontSize: '1.5rem', fontWeight: 700 }}>
-            Your greeting is being prepared...
+            Your greeting is being prepared
           </h2>
           <p style={{ color: '#666', fontSize: '1rem', lineHeight: 1.6 }}>
-            Someone special is crafting a personalized greeting just for you. Please check back in a few minutes.
+            Someone special is crafting a personalized greeting just for you. This page will update automatically.
           </p>
           <p style={{ marginTop: '2rem', fontSize: '0.8rem', color: '#AAA' }}>
             Powered by Greet-Me™ · Forget Them Not!™
@@ -292,7 +313,7 @@ export default function PublicGreetingCard() {
           <p style={{ margin: '0 0 1rem', fontSize: '0.95rem', opacity: 0.9, lineHeight: 1.5 }}>
             Send a Greet-Me in under a minute.
           </p>
-          <a href="/#/register?fast=1" onClick={() => console.log('EXPLOSION_LAYER_VIEWER_CTA_CLICK')} style={{
+          <a href="/#/register?fast=1" style={{
             display: 'inline-block',
             padding: '12px 32px',
             background: '#FFF',

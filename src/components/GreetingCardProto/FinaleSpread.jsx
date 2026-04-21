@@ -357,6 +357,11 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
               <span className="gc-brand-name">Greet-Me™</span>
             </div>
             <p className="gc-brand-tagline">This moment was lovingly prepared for you.</p>
+            <div className="gc-finale-end-flourish">
+              <span className="gc-flourish-line"></span>
+              <span className="gc-flourish-diamond">✦</span>
+              <span className="gc-flourish-line"></span>
+            </div>
             <p style={{
               fontSize: '0.65em',
               color: 'rgba(139, 125, 107, 0.55)',

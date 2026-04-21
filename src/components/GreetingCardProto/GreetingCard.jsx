@@ -443,6 +443,18 @@ export default function GreetingCard({ greeting }) {
         </div>
       )}
 
+      {/* E3: Page position dots — hidden on envelope and during transitions */}
+      {currentScreen !== SCREENS.ENVELOPE && !transitionState && !envelopeExiting && (
+        <div className="gc-page-dots">
+          {SCREEN_ORDER.slice(1).map((screen) => (
+            <div
+              key={screen}
+              className={`gc-page-dot ${currentScreen === screen ? 'gc-page-dot-active' : ''}`}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Hidden audio elements — DOM preload (browser buffers these reliably) */}
       <audio ref={waxAudioRef} src={WAX_CRACKLE_SRC} preload="auto" />
       <audio ref={paperAudioRef} src={PAPER_SLIDE_SRC} preload="auto" />
