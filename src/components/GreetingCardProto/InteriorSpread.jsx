@@ -51,7 +51,7 @@ function formatPoemToFit(poemText, maxLines = MAX_POEM_LINES, maxCharsPerLine = 
 }
 
 const MIN_MESSAGE_PX_DEFAULT = 19;
-const MIN_MESSAGE_PX_PORTRAIT = 18;
+const MIN_MESSAGE_PX_PORTRAIT = 15;
 const MIN_POEM_PX = 13;
 const MAX_STEPS_MESSAGE = 16;
 const MAX_STEPS_POEM = 16;

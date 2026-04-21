@@ -87,6 +87,8 @@
   -ms-user-select: none;
   /* Prevent browser gestures from interfering with swipe */
   touch-action: pan-y pinch-zoom;
+  /* Positioning context for absolute page dots */
+  position: relative;
 }
 
 /* FIT-FIRST: Landscape mode - enforce height = 100dvh exactly */
@@ -99,6 +101,11 @@
   }
 
   .gc-public-chrome {
+    display: none;
+  }
+
+  /* Page dots hidden in landscape — card fills screen edge-to-edge */
+  .gc-page-dots {
     display: none;
   }
   .gc-public-chrome.gc-public-chrome--thankyou {
@@ -2112,7 +2119,7 @@
     width: calc(100vw - 32px);
     height: auto;
     aspect-ratio: var(--gc-landscape-ar);
-    margin-left: -8px;
+    margin-left: auto;
   }
 
   .gc-finale-spread .gc-page-left,
@@ -2767,6 +2774,11 @@
     margin: 0;
   }
 
+  .gc-finale-spread .gc-page-right .gc-page-content {
+    overflow: hidden;
+    max-height: 100%;
+  }
+
   .gc-gift-title {
     font-size: 21px;
     font-weight: 800;
@@ -2907,6 +2919,11 @@
     line-height: var(--fit-finale-line-height, 1.2);
   }
 
+  .gc-finale-spread .gc-page-right .gc-page-content {
+    overflow: hidden;
+    max-height: 100%;
+  }
+
   .gc-gift-content {
     padding: 12px;
   }
@@ -2991,10 +3008,13 @@
 
 /* ===== PAGE DOTS — minimal position indicator ===== */
 .gc-page-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
   display: flex;
   justify-content: center;
   gap: 6px;
-  padding: 12px 0 4px;
   pointer-events: none;
 }
 
