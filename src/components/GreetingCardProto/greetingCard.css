@@ -1417,6 +1417,13 @@
     margin-top: 24px;
   }
 
+  /* Poem column constraint — prevent wide sprawl on large displays */
+  .gc-poem {
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
   /* Finale left page — symmetric padding, centered content */
   .gc-finale-spread .gc-page-left {
     display: flex;
@@ -1424,6 +1431,13 @@
     justify-content: center;
     align-items: center;
     padding: 24px;
+  }
+
+  /* Finale message constraint — prevent horizontal spray on large displays */
+  .gc-closing-message {
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 
@@ -1912,6 +1926,7 @@
   .gc-interior-spread .gc-greeting-message {
     margin: var(--lock-message-margin);
     overflow: hidden; /* LOCK: Must be hidden for containment */
+    padding-bottom: 1.2em; /* Breathing room before signature */
   }
 
   /* Signature uses flex anchoring (margin-top: auto) - no position override needed */
