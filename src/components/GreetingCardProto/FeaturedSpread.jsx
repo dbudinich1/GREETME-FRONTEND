@@ -20,7 +20,7 @@ export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnde
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowVideo(true);
-    }, 2000);
+    }, 700);
     return () => clearTimeout(timer);
   }, []);
 
@@ -64,14 +64,10 @@ export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnde
           onClick={(e) => e.stopPropagation()}
         >
           <div className={`gc-video-container ${showVideo ? 'gc-video-visible' : ''}`}>
-            {showVideo && (
-              <>
-                <VideoPlayer videoUrl={videoUrl} onEnded={onVideoEnd} hasEnded={videoHasEnded} posterUrl={posterUrl} />
-                <p className="gc-video-caption">
-                  <em>From the heart, with love</em>
-                </p>
-              </>
-            )}
+            <VideoPlayer videoUrl={videoUrl} onEnded={onVideoEnd} hasEnded={videoHasEnded} />
+            <p className="gc-video-caption">
+              <em>From the heart, with love</em>
+            </p>
           </div>
         </div>
 

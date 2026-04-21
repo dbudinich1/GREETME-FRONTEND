@@ -2924,10 +2924,10 @@
   }
 
   .gc-qr-frame {
-    width: 80px;
-    height: 80px;
-    padding: 6px;
-    border-width: 3px;
+    width: 60px;
+    height: 60px;
+    padding: 4px;
+    border-width: 2px;
     margin-bottom: 8px;
   }
 
@@ -2938,17 +2938,17 @@
   }
 
   .gc-logo-seal {
-    width: 28px;
-    height: 28px;
+    width: 20px;
+    height: 20px;
   }
 
   .gc-logo-seal span {
-    font-size: 18px;
+    font-size: 12px;
   }
 
   .gc-brand-name {
-    font-size: 18px;
-    font-weight: 600; /* Restore from ≤700px 700 */
+    font-size: 11px;
+    font-weight: 600;
   }
 
   .gc-brand-tagline {

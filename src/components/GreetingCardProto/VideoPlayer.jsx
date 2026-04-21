@@ -4,7 +4,7 @@
 
 import React, { useRef, useState } from 'react';
 
-export default function VideoPlayer({ videoUrl, onEnded, hasEnded, posterUrl }) {
+export default function VideoPlayer({ videoUrl, onEnded, hasEnded }) {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -55,8 +55,7 @@ export default function VideoPlayer({ videoUrl, onEnded, hasEnded, posterUrl }) 
           src={videoUrl}
           className="gc-video"
           playsInline
-          preload="metadata"
-          poster={posterUrl || undefined}
+          preload="auto"
           onEnded={handleVideoEnd}
           onError={() => setHasError(true)}
         />
