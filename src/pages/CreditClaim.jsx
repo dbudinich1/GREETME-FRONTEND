@@ -375,30 +375,26 @@ export default function CreditClaim() {
           <div style={styles.icon}>🎁</div>
           <p style={styles.eyebrow}>A gift from Greet-Me</p>
 
-          {autoClaimed === false ? (
-            <>
-              <h1 style={styles.headline}>Your {displayAmount} credit is waiting</h1>
-              <p style={styles.body}>
-                Tap below to claim it before checking out.
-              </p>
-              <button onClick={handleClaim} disabled={claiming} style={{
-                ...styles.cta,
-                opacity: claiming ? 0.7 : 1,
-                cursor: claiming ? 'default' : 'pointer',
-                marginBottom: '0.75rem',
-              }}>
-                {claiming ? 'Claiming...' : `Claim Your ${displayAmount} Credit`}
-              </button>
-            </>
-          ) : (
-            <>
-              <h1 style={styles.headline}>Your {displayAmount} credit is ready</h1>
-              <p style={styles.body}>
-                Use it toward your first Greet-Me subscription.
-              </p>
-            </>
-          )}
+          <h1 style={styles.headline}>Your {displayAmount} credit is ready</h1>
+          <p style={styles.body}>
+            You&rsquo;re all set to start sending.
+          </p>
 
+          {credit?.sourceJobId && (
+            <button
+              onClick={() => navigate(`/g/${credit.sourceJobId}`)}
+              style={{
+                ...styles.cta,
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: 'white',
+                boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)',
+                cursor: 'pointer',
+                marginBottom: '0.75rem',
+              }}
+            >
+              View Greet-Me
+            </button>
+          )}
           <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
             View Plans &amp; Pricing
           </button>
