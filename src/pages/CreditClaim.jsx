@@ -546,7 +546,7 @@ export default function CreditClaim() {
         ) : (
           <>
             <h1 style={styles.headline}>
-              A Greet-Me was sent your way{recipientPrefill?.name ? `, ${recipientPrefill.name}` : ''}.
+              You&rsquo;ve received a {displayAmount} Greet-Me credit
             </h1>
 
             {isReturningUser ? (
@@ -668,11 +668,7 @@ export default function CreditClaim() {
             ) : (
               <>
                 <p style={styles.body}>
-                  We hope it made your day.<br/><br/>
-                  We&rsquo;ve included a {displayAmount} gift for you, just because.<br/><br/>
-                  {recipientPrefill?.senderName
-                    ? `As a courtesy, we\u2019ve also prepared a thank-you Greet-Me for ${recipientPrefill.senderName}\u2014if you\u2019d like to send one back.`
-                    : 'As a courtesy, we\u2019ve also prepared a thank-you\u2014if you\u2019d like to send one back.'}
+                  Send a quick thank-you to let them know it landed.
                 </p>
                 <div style={{
                   background: 'rgba(255,255,255,0.08)',

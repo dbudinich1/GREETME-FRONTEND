@@ -90,6 +90,7 @@ export default function ThankYouFlow() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [sentAt, setSentAt] = useState(null);
+  const [sentJobId, setSentJobId] = useState(null);
 
   // Track whether user has added assets (refreshes after upload)
   const hasVoice = !!user?.voiceId;
@@ -154,6 +155,7 @@ export default function ThankYouFlow() {
       }
       setSent(true);
       setSentAt(Date.now());
+      setSentJobId(result?.jobId || null);
     } catch (err) {
       setError(err?.message || 'Failed to send. Please try again.');
     } finally {
@@ -477,26 +479,28 @@ export default function ThankYouFlow() {
 
           {/* Exit options */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-            <button
-              onClick={() => {
-                fireDismissEvent();
-                window.location.href = '/#/dashboard/send?occasion=thank_you';
-              }}
-              style={{
-                display: 'inline-block',
-                padding: '0.75rem 2rem',
-                background: 'rgba(255,255,255,0.15)',
-                color: '#fff',
-                border: '1px solid rgba(255,255,255,0.3)',
-                borderRadius: '2rem',
-                fontSize: '0.9375rem',
-                fontWeight: 600,
-                fontFamily: 'Georgia, serif',
-                cursor: 'pointer',
-              }}
-            >
-              Send your own Greet-Me
-            </button>
+            {sentJobId && (
+              <button
+                onClick={() => {
+                  fireDismissEvent();
+                  window.location.href = `/#/g/${sentJobId}`;
+                }}
+                style={{
+                  display: 'inline-block',
+                  padding: '0.75rem 2rem',
+                  background: 'rgba(255,255,255,0.15)',
+                  color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: '2rem',
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  fontFamily: 'Georgia, serif',
+                  cursor: 'pointer',
+                }}
+              >
+                View Greet-Me
+              </button>
+            )}
             <button
               onClick={handleDismiss}
               style={{
@@ -508,7 +512,7 @@ export default function ThankYouFlow() {
                 fontFamily: FONT_STACK,
               }}
             >
-              Continue to dashboard
+              Go to Dashboard
             </button>
           </div>
 
