@@ -14,10 +14,11 @@ export default function CreditClaim() {
   const navigate = useNavigate();
   const { isAuthenticated, register, login } = useAuth();
 
-  // Session isolation: clear sender session on FIRST entry for this credit code only
-  useEffect(() => {
+  // Session isolation: clear sender session SYNCHRONOUSLY before first render.
+  // Must run before AuthContext hydration can use stale token.
+  const [sessionCleared] = useState(() => {
     const claimKey = `greetme_claim_session_cleared_${creditCode}`;
-    if (sessionStorage.getItem(claimKey) === '1') return;
+    if (sessionStorage.getItem(claimKey) === '1') return true;
 
     try {
       localStorage.removeItem('token');
@@ -27,7 +28,8 @@ export default function CreditClaim() {
 
     sessionStorage.setItem('greetme_session_mode', 'recipient');
     sessionStorage.setItem(claimKey, '1');
-  }, [creditCode]);
+    return true;
+  });
 
   const [loading, setLoading] = useState(true);
   const [credit, setCredit] = useState(null);
@@ -47,6 +49,7 @@ export default function CreditClaim() {
   const [loginPassword, setLoginPassword] = useState('');
   const [isReturningUser, setIsReturningUser] = useState(false);
   const [claimInProgress, setClaimInProgress] = useState(false);
+  const [claimedByOther, setClaimedByOther] = useState(false);
 
   useEffect(() => {
     if (!creditCode) {
@@ -88,12 +91,14 @@ export default function CreditClaim() {
         }));
       } else if (result?.code === 'CREDIT_ALREADY_CLAIMED') {
         setClaimed(true);
+      } else if (result?.status === 401) {
+        setError('Your session has expired. Please refresh and try again.');
       } else {
         setError(result?.error || 'Could not claim credit.');
       }
     } catch (err) {
       if (err?.code === 'CREDIT_ALREADY_CLAIMED' || err?.message?.includes('already been claimed')) {
-        setClaimed(true);
+        setClaimedByOther(true);
       } else {
         setError(err?.message || 'Claim failed.');
       }
@@ -156,7 +161,10 @@ export default function CreditClaim() {
       }
     } catch (claimErr) {
       if (claimErr?.code === 'CREDIT_ALREADY_CLAIMED' || claimErr?.message?.includes('already been claimed')) {
-        creditApplied = true;
+        setClaimedByOther(true);
+        setRegistering(false);
+        setClaimInProgress(false);
+        return;
       }
     }
 
@@ -203,9 +211,11 @@ export default function CreditClaim() {
     }
 
     // STEP 2 — CLAIM (now authenticated)
+    let loginClaimSuccess = false;
     try {
       const claimResult = await api.request(`/api/credits/${creditCode}/claim`, { method: 'POST' });
       if (claimResult?.ok) {
+        loginClaimSuccess = true;
         localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
           creditCode,
           amount: (claimResult.amountCents || credit?.amountCents || 500) / 100,
@@ -213,9 +223,23 @@ export default function CreditClaim() {
           claimedAt: new Date().toISOString(),
         }));
       }
-    } catch {}
+    } catch (claimErr) {
+      if (claimErr?.code === 'CREDIT_ALREADY_CLAIMED' || claimErr?.message?.includes('already been claimed')) {
+        setClaimedByOther(true);
+        setRegistering(false);
+        setClaimInProgress(false);
+        return;
+      }
+    }
 
-    // STEP 3 — SHOW LOOP-CLOSURE
+    if (!loginClaimSuccess) {
+      setRegError('Credit could not be applied. You can claim it later from your dashboard.');
+      setRegistering(false);
+      setClaimInProgress(false);
+      return;
+    }
+
+    // STEP 3 — SHOW LOOP-CLOSURE (only on success)
     sessionStorage.removeItem('greetme_session_mode');
     setIsLoginMode(false);
     setLoginPassword('');
@@ -474,7 +498,20 @@ export default function CreditClaim() {
               </>
             ) : claimInProgress ? (
               <p style={styles.body}>Completing your claim&hellip;</p>
-            ) : isAuthenticated ? (
+            ) : claimedByOther ? (
+              <>
+                <h1 style={styles.headline}>This credit was claimed by another account</h1>
+                <p style={styles.body}>
+                  If you believe this is an error, please contact support.
+                </p>
+                <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
+                  View Plans
+                </button>
+                <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
+                  Go to Dashboard
+                </button>
+              </>
+            ) : (isAuthenticated && sessionCleared) ? (
               <>
                 <p style={styles.body}>
                   Your gift is ready. Say thank you, or continue when you&rsquo;re ready.
