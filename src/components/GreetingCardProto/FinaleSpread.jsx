@@ -196,8 +196,8 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
     }
     // Generic sign-off strip: catch AI variants not in the canonical list
     cleanedFinale = cleanedFinale
-      .replace(/with\s+\w+\s+(wishes|regards|love)[.,]?/gi, '')
-      .replace(/warm\s+(wishes|regards)[.,]?/gi, '')
+      .replace(/with\s+(?:\w+\s+){1,3}(wishes|regards|love)[.,]?/gi, '')
+      .replace(/warm\w*\s+(wishes|regards)[.,]?/gi, '')
       .replace(/wishing you[^.!\n]*/gi, '')
       .trim();
   }

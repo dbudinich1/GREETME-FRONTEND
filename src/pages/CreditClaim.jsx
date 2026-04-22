@@ -46,6 +46,7 @@ export default function CreditClaim() {
   const [isLoginMode, setIsLoginMode] = useState(false);
   const [loginPassword, setLoginPassword] = useState('');
   const [isReturningUser, setIsReturningUser] = useState(false);
+  const [claimInProgress, setClaimInProgress] = useState(false);
 
   useEffect(() => {
     if (!creditCode) {
@@ -85,11 +86,17 @@ export default function CreditClaim() {
           source: 'courtesy',
           claimedAt: new Date().toISOString(),
         }));
+      } else if (result?.code === 'CREDIT_ALREADY_CLAIMED') {
+        setClaimed(true);
       } else {
         setError(result?.error || 'Could not claim credit.');
       }
     } catch (err) {
-      setError(err?.message || 'Claim failed.');
+      if (err?.code === 'CREDIT_ALREADY_CLAIMED' || err?.message?.includes('already been claimed')) {
+        setClaimed(true);
+      } else {
+        setError(err?.message || 'Claim failed.');
+      }
     } finally {
       setClaiming(false);
     }
@@ -110,6 +117,8 @@ export default function CreditClaim() {
       return;
     }
 
+    setClaimInProgress(true);
+
     setRegistering(true);
     setRegError(null);
     setChosenAction(action);
@@ -125,6 +134,7 @@ export default function CreditClaim() {
         setRegError(regResult?.error || 'Registration failed. Please try again.');
       }
       setRegistering(false);
+      setClaimInProgress(false);
       return;
     }
 
@@ -144,28 +154,38 @@ export default function CreditClaim() {
           claimedAt: new Date().toISOString(),
         }));
       }
-    } catch {}
+    } catch (claimErr) {
+      if (claimErr?.code === 'CREDIT_ALREADY_CLAIMED' || claimErr?.message?.includes('already been claimed')) {
+        creditApplied = true;
+      }
+    }
 
-    // STEP 3 — ROUTE
+    // STEP 3 — ROUTE (only if credit was applied)
     sessionStorage.removeItem('greetme_session_mode');
 
+    if (!creditApplied) {
+      setRegError('Your account was created, but the credit could not be applied. You can claim it later from your dashboard.');
+      setRegistering(false);
+      setClaimInProgress(false);
+      return;
+    }
+
+    setClaimInProgress(false);
     if (action === 'thankyou' && credit?.sourceJobId) {
       navigate(`/thank-you?jobId=${credit.sourceJobId}`);
     } else {
       navigate('/pricing');
     }
-
-    if (!creditApplied) {
-      // Credit claim failed silently post-registration — non-blocking
-    }
   };
 
   // Returning-user login: login → claim → loop-closure
   const handleReturningLogin = async () => {
+    setClaimInProgress(true);
     const email = recipientPrefill?.email || '';
 
     if (!email || !loginPassword) {
       setRegError('Email and password are required.');
+      setClaimInProgress(false);
       return;
     }
 
@@ -178,6 +198,7 @@ export default function CreditClaim() {
     if (!loginResult?.success) {
       setRegError(loginResult?.error || 'Login failed. Please try again.');
       setRegistering(false);
+      setClaimInProgress(false);
       return;
     }
 
@@ -199,6 +220,7 @@ export default function CreditClaim() {
     setIsLoginMode(false);
     setLoginPassword('');
     setRegistering(false);
+    setClaimInProgress(false);
     setIsReturningUser(true);
   };
 
@@ -344,7 +366,7 @@ export default function CreditClaim() {
           <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
             View Plans &amp; Pricing
           </button>
-          <button onClick={() => navigate(sessionStorage.getItem('greetme_session_mode') === 'recipient' ? '/register' : '/dashboard')} style={styles.ctaSecondary}>
+          <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
             Go to Dashboard
           </button>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
@@ -378,7 +400,7 @@ export default function CreditClaim() {
             <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
               View Plans
             </button>
-            <button onClick={() => navigate(sessionStorage.getItem('greetme_session_mode') === 'recipient' ? '/register' : '/dashboard')} style={styles.ctaSecondary}>
+            <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
               Go to Dashboard
             </button>
           </>
@@ -414,14 +436,14 @@ export default function CreditClaim() {
             <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
               Plans and Pricing
             </button>
-            <button onClick={() => navigate(sessionStorage.getItem('greetme_session_mode') === 'recipient' ? '/register' : '/dashboard')} style={styles.ctaSecondary}>
+            <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
               Go to Dashboard
             </button>
           </>
         ) : (
           <>
             <h1 style={styles.headline}>
-              You just experienced your first Greet-Me{recipientPrefill?.name ? `, ${recipientPrefill.name}` : ''}.
+              A Greet-Me was sent your way{recipientPrefill?.name ? `, ${recipientPrefill.name}` : ''}.
             </h1>
 
             {isReturningUser ? (
@@ -450,6 +472,8 @@ export default function CreditClaim() {
                   Go to Dashboard
                 </button>
               </>
+            ) : claimInProgress ? (
+              <p style={styles.body}>Completing your claim&hellip;</p>
             ) : isAuthenticated ? (
               <>
                 <p style={styles.body}>

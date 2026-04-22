@@ -211,6 +211,17 @@ export default function InteriorSpread({ recipientName, message, senderName, occ
 
   const displaySender = formatPersonName((senderName || 'Me').split(' ')[0]);
 
+  // Normalize ALL-CAPS recipient name in poem (AI sometimes capitalizes for emphasis)
+  const poemDisplay = (() => {
+    const formatted = formatPoemToFit(poemText);
+    if (!formatted || !recipientName) return formatted;
+    const firstName = (recipientName || '').split(' ')[0];
+    if (!firstName || firstName.length < 2) return formatted;
+    const upperName = firstName.toUpperCase();
+    if (!formatted.includes(upperName)) return formatted;
+    return formatted.replaceAll(upperName, firstName);
+  })();
+
   const normalizedRawMessage = (() => {
     const lines = String(rawMessage || '').split('\n');
     // Remove leading blank lines
@@ -302,7 +313,7 @@ export default function InteriorSpread({ recipientName, message, senderName, occ
         {/* Right Page */}
         <div className="gc-page gc-page-right">
           <div className="gc-page-content gc-poem-content">
-            <p className="gc-poem" ref={poemRef}>{formatPoemToFit(poemText)}</p>
+            <p className="gc-poem" ref={poemRef}>{poemDisplay}</p>
             <h3 className="gc-warm-wishes">{CLOSING_TEXT}</h3>
           </div>
         </div>
