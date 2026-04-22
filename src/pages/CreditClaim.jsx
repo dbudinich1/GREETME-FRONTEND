@@ -380,7 +380,7 @@ export default function CreditClaim() {
             You&rsquo;re all set to start sending.
           </p>
 
-          {credit?.sourceJobId && (
+          {credit?.sourceJobId && !claimed && (
             <button
               onClick={() => navigate(`/g/${credit.sourceJobId}`)}
               style={{
