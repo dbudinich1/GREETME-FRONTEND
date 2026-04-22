@@ -14,21 +14,17 @@ export default function CreditClaim() {
   const navigate = useNavigate();
   const { isAuthenticated, register, login } = useAuth();
 
-  // Session isolation: clear sender session SYNCHRONOUSLY before first render.
-  // Must run before AuthContext hydration can use stale token.
-  const [sessionCleared] = useState(() => {
-    const claimKey = `greetme_claim_session_cleared_${creditCode}`;
-    if (sessionStorage.getItem(claimKey) === '1') return true;
-
+  // Identity snapshot: capture current auth BEFORE any clearing decision.
+  // Clearing is deferred to after credit fetch — conditional on credit state + visitor identity.
+  const [preAuthSnapshot] = useState(() => {
     try {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('greetme_voice_file');
+      const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('user');
+      if (token && userData && userData !== 'undefined') {
+        return { userId: JSON.parse(userData).id || null, token };
+      }
     } catch {}
-
-    sessionStorage.setItem('greetme_session_mode', 'recipient');
-    sessionStorage.setItem(claimKey, '1');
-    return true;
+    return { userId: null, token: null };
   });
 
   const [loading, setLoading] = useState(true);
@@ -61,7 +57,23 @@ export default function CreditClaim() {
       .then((data) => {
         if (data?.ok && data.credit) {
           setCredit(data.credit);
-          if (data.credit.claimed) setClaimed(true);
+          if (data.credit.claimed) {
+            setClaimed(true);
+            // Q3 detection: claimed by someone other than the current visitor
+            if (data.credit.claimedBy && data.credit.claimedBy !== preAuthSnapshot.userId) {
+              setClaimedByOther(true);
+            }
+          }
+          // Conditional session clearing: only for unclaimed credits with no existing auth
+          const shouldClearSession = !data.credit.claimed && !preAuthSnapshot.userId;
+          if (shouldClearSession) {
+            try {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              localStorage.removeItem('greetme_voice_file');
+            } catch {}
+            sessionStorage.setItem('greetme_session_mode', 'recipient');
+          }
         } else {
           setError('This credit is no longer valid.');
         }
@@ -511,7 +523,7 @@ export default function CreditClaim() {
                   Go to Dashboard
                 </button>
               </>
-            ) : (isAuthenticated && sessionCleared) ? (
+            ) : isAuthenticated ? (
               <>
                 <p style={styles.body}>
                   Your gift is ready. Say thank you, or continue when you&rsquo;re ready.
