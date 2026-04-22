@@ -418,21 +418,19 @@ export default function CreditClaim() {
           <p style={styles.body}>
             This moment has come full circle.
           </p>
-          {credit?.sourceJobId && (
-            <button
-              onClick={() => navigate(`/g/${credit.sourceJobId}`)}
-              style={{
-                ...styles.cta,
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: 'white',
-                boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)',
-                cursor: 'pointer',
-                marginBottom: '0.75rem',
-              }}
-            >
-              View Greet-Me
-            </button>
-          )}
+          <button
+            onClick={() => navigate('/dashboard/send')}
+            style={{
+              ...styles.cta,
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white',
+              boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)',
+              cursor: 'pointer',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Send your own Greet-Me
+          </button>
           <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
             Go to Dashboard
           </button>
