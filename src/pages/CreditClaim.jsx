@@ -442,6 +442,42 @@ export default function CreditClaim() {
     );
   }
 
+  // Sender viewing own greeting's credit
+  const isSenderViewingOwnCredit =
+    credit?.senderUserId &&
+    credit.senderUserId === preAuthSnapshot.userId;
+
+  if (isSenderViewingOwnCredit) {
+    return (
+      <div style={styles.page}>
+        <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>&#10003;</div>
+          <h1 style={styles.headline}>The loop is closed</h1>
+          <p style={styles.body}>
+            This moment has come full circle.
+          </p>
+          <button
+            onClick={() => navigate('/dashboard/send')}
+            style={{
+              ...styles.cta,
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white',
+              boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)',
+              cursor: 'pointer',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Send your own Greet-Me
+          </button>
+          <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
+            Go to Dashboard
+          </button>
+          <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.page}>
       <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>

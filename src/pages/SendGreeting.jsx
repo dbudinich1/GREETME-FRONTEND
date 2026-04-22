@@ -742,43 +742,29 @@ if (typeof window !== "undefined") {
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <CheckCircle className="mx-auto text-green-500 mb-4" size={64} />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">You just made someone's day.</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Greet-Me has been sent</h2>
           <p className="text-gray-600 mb-1">
             That Greet-Me is on its way.
           </p>
           <p className="text-gray-400 mb-8" style={{ fontSize: '0.875rem', fontStyle: 'italic' }}>
             Personal. Instant. Unforgettable.
           </p>
-          <div className="flex justify-center space-x-4">
+          <div className="flex flex-col items-center space-y-3">
+            {jobId && (
+              <button
+                onClick={() => navigate(`/g/${jobId}`)}
+                className="px-6 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 font-medium w-64"
+              >
+                View Greet-Me
+              </button>
+            )}
             <button
               onClick={() => navigate('/dashboard')}
-              className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium"
+              className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium w-64"
             >
-              Back to Dashboard
-            </button>
-            <button
-              onClick={resetForm}
-              className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium"
-            >
-              Send Another
+              Go to Dashboard
             </button>
           </div>
-        </div>
-
-        {/* QR Cash Microcopy */}
-        <div style={{
-          marginTop: '1.5rem',
-          padding: '1rem',
-          background: 'var(--gray-50)',
-          borderRadius: '0.5rem',
-          borderLeft: '4px solid #f59e0b',
-          fontSize: '0.875rem',
-          color: 'var(--text-secondary)'
-        }}>
-          <strong style={{ color: 'var(--text-primary)' }}>Add QR Cash — Send · Scan · Spend</strong>
-          <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>
-            It prints inside the card so the recipient can deposit it like cash.
-          </p>
         </div>
       </div>
     );
