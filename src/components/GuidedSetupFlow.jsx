@@ -1601,7 +1601,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         maxWidth: '440px',
         maxHeight: 'calc(100vh - 4rem)',
         maxHeight: 'calc(100dvh - 4rem)',
-        overflowY: 'auto',
+        overflowY: 'hidden',
         overflowX: 'hidden',
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
       }}>
@@ -1626,21 +1626,18 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
             onClick={handleSkip}
             style={{
               position: 'absolute',
-              top: '1rem',
-              right: '1rem',
-              width: '2rem',
-              height: '2rem',
-              borderRadius: '50%',
-              background: 'var(--gray-100)',
+              top: '12px',
+              right: '12px',
+              fontSize: '18px',
+              background: 'transparent',
               border: 'none',
               cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               color: 'var(--text-tertiary)',
+              padding: '4px',
+              lineHeight: 1,
             }}
           >
-            <X size={16} />
+            &#10005;
           </button>
         )}
 

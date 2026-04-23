@@ -380,21 +380,6 @@ export default function CreditClaim() {
             You&rsquo;re all set to start sending.
           </p>
 
-          {credit?.sourceJobId && !claimed && (
-            <button
-              onClick={() => navigate(`/g/${credit.sourceJobId}`)}
-              style={{
-                ...styles.cta,
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: 'white',
-                boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)',
-                cursor: 'pointer',
-                marginBottom: '0.75rem',
-              }}
-            >
-              View Greet-Me
-            </button>
-          )}
           <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
             View Plans &amp; Pricing
           </button>

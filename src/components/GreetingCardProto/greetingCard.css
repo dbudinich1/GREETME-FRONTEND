@@ -217,7 +217,41 @@
   transform: translate(-50%, -50%) scale(1.05);
 }
 
+/* Envelope interaction cues — subtle text hints */
+.gc-envelope-cue {
+  position: absolute;
+  bottom: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: Georgia, serif;
+  font-size: 14px;
+  color: rgba(139, 125, 107, 0.6);
+  font-style: italic;
+  pointer-events: none;
+  animation: gc-cueFade 3s ease-in-out infinite;
+}
 
+.gc-seal-cue {
+  position: absolute;
+  bottom: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: Georgia, serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  pointer-events: none;
+  animation: gc-cueFade 3s ease-in-out infinite;
+}
+
+@keyframes gc-cueFade {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gc-envelope-cue, .gc-seal-cue { animation: none; opacity: 0.6; }
+}
 
 /* ===== COVER ===== */
 .gc-cover-wrapper {

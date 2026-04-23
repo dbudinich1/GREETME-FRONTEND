@@ -118,10 +118,11 @@ export default function Envelope({ recipientName, onSealClick, onPlaySound, onPl
           style={{ backgroundImage: `url(${envelopeFrontImg})` }}
         >
           <span className="gc-recipient-name">{capitalize((recipientName || 'Friend').split(' ')[0])}</span>
+          <span className="gc-envelope-cue">Tap to open</span>
         </div>
 
         {/* Back */}
-        <div 
+        <div
           className="gc-envelope-face gc-envelope-back"
           style={{ backgroundImage: `url(${envelopeBackImg})` }}
         >
@@ -130,8 +131,9 @@ export default function Envelope({ recipientName, onSealClick, onPlaySound, onPl
             onClick={handleSealClick}
             aria-label="Break seal to open"
           >
-            
+
           </button>
+          <span className="gc-seal-cue">Tap the seal</span>
         </div>
       </div>
       
