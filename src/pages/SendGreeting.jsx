@@ -31,6 +31,7 @@ export default function SendGreeting() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [jobId, setJobId] = useState(null);
+  const [completedJobId, setCompletedJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
   const [formData, setFormData] = useState({
     contactId: '',
@@ -397,6 +398,7 @@ export default function SendGreeting() {
 
       if (response.status === 'completed') {
         setSending(false);
+        setCompletedJobId(jobId);
         setJobId(null);
         // Mark draft as sent so it won't be restored
         if (formData.contactId && formData.occasionType) {
@@ -719,6 +721,7 @@ if (typeof window !== "undefined") {
       tone: 'warm',
     });
     setJobId(null);
+    setCompletedJobId(null);
     setJobStatus(null);
     setSending(false);
     setErrors({});
@@ -750,9 +753,9 @@ if (typeof window !== "undefined") {
             Personal. Instant. Unforgettable.
           </p>
           <div className="flex flex-col items-center space-y-3">
-            {jobId && (
+            {completedJobId && (
               <button
-                onClick={() => navigate(`/g/${jobId}`)}
+                onClick={() => navigate(`/g/${completedJobId}`)}
                 className="px-6 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 font-medium w-64"
               >
                 View Greet-Me
