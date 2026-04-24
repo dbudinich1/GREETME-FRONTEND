@@ -118,7 +118,6 @@ export default function Envelope({ recipientName, onSealClick, onPlaySound, onPl
           style={{ backgroundImage: `url(${envelopeFrontImg})` }}
         >
           <span className="gc-recipient-name">{capitalize((recipientName || 'Friend').split(' ')[0])}</span>
-          <span className="gc-envelope-cue">Tap to open</span>
         </div>
 
         {/* Back */}
@@ -133,7 +132,6 @@ export default function Envelope({ recipientName, onSealClick, onPlaySound, onPl
           >
 
           </button>
-          <span className="gc-seal-cue">Tap the seal</span>
         </div>
       </div>
       

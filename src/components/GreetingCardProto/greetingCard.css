@@ -205,8 +205,8 @@
 }
 
 @keyframes gc-sealBreathe {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  50%      { transform: translate(-50%, -50%) scale(1.06); opacity: 0.85; }
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; box-shadow: 0 0 0 rgba(180, 80, 40, 0); }
+  50%      { transform: translate(-50%, -50%) scale(1.06); opacity: 0.85; box-shadow: 0 0 18px rgba(180, 80, 40, 0.4); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -217,40 +217,31 @@
   transform: translate(-50%, -50%) scale(1.05);
 }
 
-/* Envelope interaction cues — subtle text hints */
-.gc-envelope-cue {
+/* Envelope visual affordance — light sweep shimmer (no text) */
+.gc-envelope-front::after {
+  content: '';
   position: absolute;
-  bottom: 15%;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: Georgia, serif;
-  font-size: 14px;
-  color: rgba(139, 125, 107, 0.6);
-  font-style: italic;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.12) 45%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.12) 55%,
+    transparent 60%
+  );
+  animation: gc-envelopeShimmer 4s ease-in-out 2s infinite;
   pointer-events: none;
-  animation: gc-cueFade 3s ease-in-out infinite;
+  border-radius: inherit;
 }
 
-.gc-seal-cue {
-  position: absolute;
-  bottom: 20%;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: Georgia, serif;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
-  font-style: italic;
-  pointer-events: none;
-  animation: gc-cueFade 3s ease-in-out infinite;
-}
-
-@keyframes gc-cueFade {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.8; }
+@keyframes gc-envelopeShimmer {
+  0%, 100% { transform: translateX(-120%); }
+  50% { transform: translateX(120%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gc-envelope-cue, .gc-seal-cue { animation: none; opacity: 0.6; }
+  .gc-envelope-front::after { animation: none; opacity: 0; }
 }
 
 /* ===== COVER ===== */
