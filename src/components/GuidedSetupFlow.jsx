@@ -1440,34 +1440,6 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         This test send is free and does not count against your 3 free sends.
       </p>
 
-      {/* G1G1 informational preview — no CTA, no flow change */}
-      <div style={{
-        background: 'var(--bg-secondary, #f8fafc)',
-        border: '1px solid var(--border, #e5e7eb)',
-        borderRadius: 'var(--radius-md, 8px)',
-        padding: '0.875rem 1rem',
-        marginBottom: '1.5rem',
-        textAlign: 'left',
-      }}>
-        <p style={{
-          fontSize: '0.8125rem',
-          fontWeight: 600,
-          color: 'var(--text-primary)',
-          margin: '0 0 0.25rem',
-          letterSpacing: '0.01em',
-        }}>
-          Greet One, Gift One&trade;
-        </p>
-        <p style={{
-          fontSize: '0.8125rem',
-          color: 'var(--text-secondary)',
-          margin: 0,
-          lineHeight: 1.5,
-        }}>
-          When you subscribe, you&rsquo;ll get a full second subscription to give away.
-        </p>
-      </div>
-
       {/* E14: Emotional payoff first — see what you created */}
       <button
         onClick={() => {
@@ -1495,56 +1467,27 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         View My Greet-Me
       </button>
 
-      {/* E15: Credit claim — secondary CTA with poll fallback */}
-      {courtesyCreditCode ? (
-        <button
-          onClick={() => {
-            handleComplete();
-            navigate(`/claim-credit/${courtesyCreditCode}`);
-          }}
-          style={{
-            width: '100%',
-            padding: '0.875rem',
-            background: 'transparent',
-            color: 'var(--text-primary)',
-            border: '1px solid var(--border, #e5e7eb)',
-            borderRadius: 'var(--radius-lg)',
-            fontSize: '0.9375rem',
-            fontWeight: 500,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            marginTop: '0.75rem',
-          }}
-        >
-          Claim your $5 credit
-        </button>
-      ) : creditPollExhausted ? (
-        <p style={{
-          fontSize: '0.8125rem',
-          color: 'var(--text-tertiary)',
-          marginTop: '1rem',
-          lineHeight: 1.5,
-        }}>
-          Your $5 credit will be available in your dashboard shortly.
-        </p>
-      ) : null}
-
-      {/* Tertiary: direct path to send flow */}
-      <div
+      <button
         onClick={() => {
           handleComplete();
-          navigate('/dashboard/send');
+          navigate('/dashboard');
         }}
         style={{
-          fontSize: '0.8125rem',
-          color: 'var(--text-tertiary, #9ca3af)',
+          width: '100%',
+          padding: '0.875rem',
+          background: 'transparent',
+          color: 'var(--text-primary)',
+          border: '1px solid var(--border, #e5e7eb)',
+          borderRadius: 'var(--radius-lg)',
+          fontSize: '0.9375rem',
+          fontWeight: 500,
           cursor: 'pointer',
-          textAlign: 'center',
-          marginTop: '1rem',
+          fontFamily: 'inherit',
+          marginTop: '0.75rem',
         }}
       >
-        Send to someone you love
-      </div>
+        Go to Dashboard
+      </button>
     </div>
   );
 
