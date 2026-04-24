@@ -72,6 +72,7 @@ const styles = {
 export default function ThankYouFlow() {
   const [searchParams] = useSearchParams();
   const jobId = searchParams.get('jobId');
+  const creditCode = searchParams.get('creditCode');
   const { user, refreshProfile, register, login } = useAuth();
 
   // Inline registration/login state (guest send path)
@@ -185,7 +186,24 @@ export default function ThankYouFlow() {
         setRegistering(false);
         return;
       }
-      // Registration succeeded — token is set, user is in context. Now send.
+      // Registration succeeded �� token is set, user is in context.
+      // Claim courtesy credit if routed from QR
+      if (creditCode) {
+        try {
+          const claimResult = await api.request(`/api/credits/${creditCode}/claim`, { method: 'POST' });
+          if (claimResult?.ok) {
+            localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
+              creditCode,
+              amount: (claimResult.amountCents || 500) / 100,
+              source: 'courtesy',
+              claimedAt: new Date().toISOString(),
+            }));
+          }
+        } catch (e) {
+          // Non-blocking — credit claim failure shouldn't prevent send
+          console.warn('Credit claim failed:', e?.message);
+        }
+      }
       setShowInlineRegister(false);
       setRegistering(false);
       await doSend();
@@ -205,6 +223,23 @@ export default function ThankYouFlow() {
         setRegError(result?.error || 'Login failed. Please try again.');
         setRegistering(false);
         return;
+      }
+      // Claim courtesy credit if routed from QR
+      if (creditCode) {
+        try {
+          const claimResult = await api.request(`/api/credits/${creditCode}/claim`, { method: 'POST' });
+          if (claimResult?.ok) {
+            localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
+              creditCode,
+              amount: (claimResult.amountCents || 500) / 100,
+              source: 'courtesy',
+              claimedAt: new Date().toISOString(),
+            }));
+          }
+        } catch (e) {
+          // Non-blocking — credit claim failure shouldn't prevent send
+          console.warn('Credit claim failed:', e?.message);
+        }
       }
       setShowInlineRegister(false);
       setRegistering(false);

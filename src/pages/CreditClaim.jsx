@@ -667,64 +667,35 @@ export default function CreditClaim() {
                     </div>
                   )}
                   {recipientPrefill?.email && (
-                    <div style={{ marginBottom: '0.5rem' }}>
+                    <div>
                       <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', margin: '0 0 0.125rem', fontWeight: 600 }}>Email</p>
                       <p style={{ fontSize: '0.9375rem', color: '#fff', margin: 0 }}>{recipientPrefill.email}</p>
                     </div>
                   )}
-                  <div>
-                    <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', margin: '0 0 0.125rem', fontWeight: 600 }}>Create a password</p>
-                    <input
-                      type="password"
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      placeholder="Choose a password"
-                      minLength={8}
-                      style={{
-                        width: '100%', padding: '0.625rem 0.75rem',
-                        background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-                        borderRadius: '8px', color: '#fff', fontSize: '0.9375rem',
-                        fontFamily: FONT_STACK, outline: 'none',
-                      }}
-                    />
-                  </div>
                 </div>
-                {regError && (
-                  <p style={{ color: '#fca5a5', fontSize: '0.8125rem', marginBottom: '0.75rem' }}>{regError}</p>
-                )}
                 <button
-                  onClick={() => handleRecipientConversion('thankyou')}
-                  disabled={registering}
+                  onClick={() => navigate(`/thank-you?jobId=${credit.sourceJobId}&creditCode=${creditCode}`)}
                   style={{
                     ...styles.cta,
-                    background: registering ? 'rgba(255,255,255,0.5)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                     color: 'white',
                     boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)',
-                    cursor: registering ? 'default' : 'pointer',
+                    cursor: 'pointer',
                     marginBottom: '0.75rem',
                   }}
                 >
-                  {registering && chosenAction === 'thankyou' ? 'Creating account...' : 'Say Thank You'}
+                  Say Thank You
                 </button>
                 <button
-                  onClick={() => handleRecipientConversion('continue')}
-                  disabled={registering}
+                  onClick={() => navigate('/pricing')}
                   style={{
                     ...styles.cta,
-                    opacity: registering ? 0.7 : 1,
-                    cursor: registering ? 'default' : 'pointer',
+                    cursor: 'pointer',
                     marginBottom: '0.75rem',
                   }}
                 >
-                  {registering && chosenAction === 'continue' ? 'Creating account...' : 'Continue'}
+                  Continue
                 </button>
-                <p style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.6)', marginTop: '0.75rem' }}>
-                  Already have an account?{' '}
-                  <button type="button" onClick={() => { setIsLoginMode(true); setRegError(null); }}
-                    style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', fontWeight: 600, fontSize: '0.8125rem', padding: 0, fontFamily: 'inherit' }}>
-                    Log in
-                  </button>
-                </p>
               </>
             )}
           </>
