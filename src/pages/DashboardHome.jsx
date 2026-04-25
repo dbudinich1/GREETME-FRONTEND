@@ -10,6 +10,7 @@ import { COMMS_EVENTS } from '../utils/commsCatalog';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
+import { safeSet } from '../utils/safeStorage';
 import OnboardingCoach from '../components/OnboardingCoach';
 import TutorialVideo from '../components/TutorialVideo';
 
@@ -216,7 +217,7 @@ export default function DashboardHome() {
       const dataUrl = await fileToDataUrl(file);
 
       // Save to localStorage for persistence
-      localStorage.setItem('greetme_voice_file', dataUrl);
+      safeSet('greetme_voice_file', dataUrl);
 
       setVoiceFileUrl(dataUrl);
       setVoiceRecorded(true);
@@ -286,7 +287,7 @@ export default function DashboardHome() {
         const dataUrl = await fileToDataUrl(blob);
 
         // Save to localStorage
-        localStorage.setItem('greetme_voice_file', dataUrl);
+        safeSet('greetme_voice_file', dataUrl);
 
         setVoiceFileUrl(dataUrl);
         setVoiceRecorded(true);
