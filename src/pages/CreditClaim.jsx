@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
+import { safeSet, safeSessionSet, safeSessionRemove } from '../utils/safeStorage';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -72,7 +73,7 @@ export default function CreditClaim() {
               localStorage.removeItem('user');
               localStorage.removeItem('greetme_voice_file');
             } catch {}
-            sessionStorage.setItem('greetme_session_mode', 'recipient');
+            safeSessionSet('greetme_session_mode', 'recipient');
           }
         } else {
           setError('This credit is no longer valid.');
@@ -84,7 +85,7 @@ export default function CreditClaim() {
 
   const handleClaim = async () => {
     if (!isAuthenticated) {
-      localStorage.setItem('greetme_pending_credit', creditCode);
+      safeSet('greetme_pending_credit', creditCode);
       navigate('/login');
       return;
     }
@@ -95,7 +96,7 @@ export default function CreditClaim() {
       });
       if (result?.ok) {
         setClaimed(true);
-        localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
+        safeSet('greetme_courtesy_credit', JSON.stringify({
           creditCode,
           amount: (result.amountCents || credit?.amountCents || 500) / 100,
           source: 'courtesy',
@@ -164,7 +165,7 @@ export default function CreditClaim() {
       if (claimResult?.ok) {
         creditApplied = true;
 
-        localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
+        safeSet('greetme_courtesy_credit', JSON.stringify({
           creditCode,
           amount: (claimResult.amountCents || credit?.amountCents || 500) / 100,
           source: 'courtesy',
@@ -181,7 +182,7 @@ export default function CreditClaim() {
     }
 
     // STEP 3 — ROUTE (only if credit was applied)
-    sessionStorage.removeItem('greetme_session_mode');
+    safeSessionRemove('greetme_session_mode');
 
     if (!creditApplied) {
       setRegError('Your account was created, but the credit could not be applied. You can claim it later from your dashboard.');
@@ -228,7 +229,7 @@ export default function CreditClaim() {
       const claimResult = await api.request(`/api/credits/${creditCode}/claim`, { method: 'POST' });
       if (claimResult?.ok) {
         loginClaimSuccess = true;
-        localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
+        safeSet('greetme_courtesy_credit', JSON.stringify({
           creditCode,
           amount: (claimResult.amountCents || credit?.amountCents || 500) / 100,
           source: 'courtesy',
@@ -252,7 +253,7 @@ export default function CreditClaim() {
     }
 
     // STEP 3 — SHOW LOOP-CLOSURE (only on success)
-    sessionStorage.removeItem('greetme_session_mode');
+    safeSessionRemove('greetme_session_mode');
     setIsLoginMode(false);
     setLoginPassword('');
     setRegistering(false);
@@ -267,7 +268,7 @@ export default function CreditClaim() {
     (async () => {
       // Already claimed in Cosmos — just ensure localStorage stash exists
       if (credit.claimed) {
-        localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
+        safeSet('greetme_courtesy_credit', JSON.stringify({
           creditCode,
           amount: (credit.amountCents || 500) / 100,
           source: 'courtesy',
@@ -281,7 +282,7 @@ export default function CreditClaim() {
         const result = await api.request(`/api/credits/${creditCode}/claim`, { method: 'POST' });
         if (cancelled) return;
         if (result?.ok) {
-          localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
+          safeSet('greetme_courtesy_credit', JSON.stringify({
             creditCode,
             amount: (result.amountCents || credit.amountCents || 500) / 100,
             source: 'courtesy',
@@ -539,7 +540,7 @@ export default function CreditClaim() {
                   It&rsquo;s ready whenever you are.
                 </p>
                 <button
-                  onClick={() => { sessionStorage.removeItem('greetme_session_mode'); navigate('/dashboard/send'); }}
+                  onClick={() => { safeSessionRemove('greetme_session_mode'); navigate('/dashboard/send'); }}
                   style={{
                     ...styles.cta,
                     background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
@@ -552,7 +553,7 @@ export default function CreditClaim() {
                   Send a Greet-Me
                 </button>
                 <button
-                  onClick={() => { sessionStorage.removeItem('greetme_session_mode'); navigate('/dashboard'); }}
+                  onClick={() => { safeSessionRemove('greetme_session_mode'); navigate('/dashboard'); }}
                   style={styles.ctaSecondary}
                 >
                   Go to Dashboard
