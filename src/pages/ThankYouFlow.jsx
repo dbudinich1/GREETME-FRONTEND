@@ -290,66 +290,69 @@ export default function ThankYouFlow() {
     };
   }, [sent, jobId, shared]);
 
-  const [sharing, setSharing] = useState(false);
-  const [copied, setCopied] = useState(false);
+  // In-app share modal state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareName, setShareName] = useState('');
+  const [shareEmail, setShareEmail] = useState('');
+  const [shareError, setShareError] = useState(null);
+  const [shareSending, setShareSending] = useState(false);
 
-  const handleShare = async () => {
-    // Immediately show visual transition
-    setSharing(true);
+  const handleInAppShare = async () => {
+    if (!shareName.trim()) { setShareError('Please enter their name.'); return; }
+    if (!shareEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shareEmail.trim())) {
+      setShareError('Please enter a valid email.'); return;
+    }
+    setShareError(null);
+    setShareSending(true);
 
-    // Fire share event log (fire-and-forget, use API_BASE)
+    // Fire share event log (fire-and-forget)
     api.request('/api/events/exponential-moment', {
       method: 'POST',
       body: JSON.stringify({ jobId, action: 'share' }),
     }).catch(() => {});
 
-    // Mint/fetch share-recipient credit BEFORE building the share text
-    let creditUrl = null;
-    let reward = null;
+    // Step 1: mint/reuse share credit
+    let creditCode = null;
     try {
-      reward = await api.request('/api/events/share-reward', {
+      const reward = await api.request('/api/events/share-reward', {
         method: 'POST',
         body: JSON.stringify({ sourceJobId: jobId }),
       });
-      if (reward?.creditCode) {
-        creditUrl = `${window.location.origin}/#/claim-credit/${reward.creditCode}`;
-      }
-    } catch { /* non-fatal — share still proceeds without credit URL */ }
-
-    // Build share payload with both URLs (or greeting only if credit unavailable)
-    const shareUrl = `${window.location.origin}/#/g/${jobId}`;
-    const shareText = creditUrl
-      ? `I just sent a Greet-Me \u2014 and it started something. Come see what I mean.\n\nP.S. We\u2019ve included $5 toward your first Greet-Me subscription. Terms apply.\n\n${creditUrl}`
-      : 'I just sent a Greet-Me \u2014 and it started something. Come see what I mean.';
-
-    let shareCompleted = false;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Greet-Me',
-          text: shareText,
-          url: shareUrl,
-        });
-        shareCompleted = true;
-      } catch {
-        // User cancelled share sheet — still count as share intent
-        shareCompleted = true;
-      }
-    } else {
-      try {
-        const clipboardText = creditUrl
-          ? `I just sent a Greet-Me \u2014 and it started something. Come see what I mean. ${shareUrl}\n\nP.S. We\u2019ve included $5 toward your first Greet-Me subscription. Terms apply.\n${creditUrl}`
-          : `I just sent a Greet-Me \u2014 and it started something. Come see what I mean. ${shareUrl}`;
-        await navigator.clipboard?.writeText(clipboardText);
-        setCopied(true);
-        shareCompleted = true;
-      } catch { shareCompleted = true; }
+      creditCode = reward?.creditCode || null;
+    } catch {
+      setShareError('Could not prepare share credit. Please try again.');
+      setShareSending(false);
+      return;
     }
 
-    if (reward) setRewardResult(reward);
+    if (!creditCode) {
+      setShareError('Could not prepare share credit. Please try again.');
+      setShareSending(false);
+      return;
+    }
 
-    setSharing(false);
-    setShared(true);
+    // Step 2: send share invite email (backend verifies credit)
+    try {
+      const result = await api.request('/api/events/share-invite', {
+        method: 'POST',
+        body: JSON.stringify({
+          sourceJobId: jobId,
+          recipientName: shareName.trim(),
+          recipientEmail: shareEmail.trim().toLowerCase(),
+          creditCode,
+        }),
+      });
+      if (result?.ok) {
+        setShowShareModal(false);
+        setShared(true);
+      } else {
+        setShareError(result?.error || 'Could not send share email. Please try again.');
+      }
+    } catch (err) {
+      setShareError(err?.message || 'Could not send share email. Please try again.');
+    } finally {
+      setShareSending(false);
+    }
   };
 
   const fireDismissEvent = () => {
@@ -385,6 +388,76 @@ export default function ThankYouFlow() {
         padding: '2rem 1.5rem',
         fontFamily: FONT_STACK,
       }}>
+        {/* In-app share modal */}
+        {showShareModal && !shared && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.6)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: '1rem',
+          }}>
+            <div style={{
+              maxWidth: '400px', width: '100%', background: '#fff',
+              borderRadius: '1rem', padding: '2rem', textAlign: 'center',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+            }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1f2937', margin: '0 0 0.5rem', fontFamily: 'Georgia, serif' }}>
+                Share this moment
+              </h2>
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0 0 1.25rem', lineHeight: 1.5 }}>
+                We&rsquo;ll send them your Greet-Me and a $5 credit.
+              </p>
+              {shareError && (
+                <div style={{ padding: '0.5rem 0.75rem', background: '#fef2f2', borderRadius: '0.375rem', border: '1px solid #fecaca', marginBottom: '0.75rem' }}>
+                  <p style={{ fontSize: '0.8125rem', color: '#dc2626', margin: 0 }}>{shareError}</p>
+                </div>
+              )}
+              <form onSubmit={(e) => { e.preventDefault(); handleInAppShare(); }} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', textAlign: 'left' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Their name</label>
+                  <input
+                    type="text"
+                    value={shareName}
+                    onChange={(e) => setShareName(e.target.value)}
+                    placeholder="Their name"
+                    required
+                    style={{ width: '100%', padding: '0.625rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.9375rem', fontFamily: FONT_STACK, boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Their email</label>
+                  <input
+                    type="email"
+                    value={shareEmail}
+                    onChange={(e) => setShareEmail(e.target.value)}
+                    placeholder="Their email"
+                    required
+                    style={{ width: '100%', padding: '0.625rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.9375rem', fontFamily: FONT_STACK, boxSizing: 'border-box' }}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={shareSending}
+                  style={{
+                    width: '100%', padding: '0.75rem', background: shareSending ? '#d1d5db' : '#4F2D7F',
+                    color: '#fff', border: 'none', borderRadius: '0.75rem', fontSize: '1rem',
+                    fontWeight: 600, fontFamily: 'Georgia, serif',
+                    cursor: shareSending ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {shareSending ? 'Sending\u2026' : 'Send'}
+                </button>
+              </form>
+              <button
+                onClick={() => { setShowShareModal(false); setShareError(null); }}
+                style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.8125rem', cursor: 'pointer', marginTop: '0.75rem', fontFamily: FONT_STACK }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <div style={{
           maxWidth: '520px',
           width: '100%',
@@ -522,25 +595,24 @@ export default function ThankYouFlow() {
             <>
               {/* Pre-share: share CTA + exit options */}
               <button
-                onClick={handleShare}
-                disabled={sharing}
+                onClick={() => setShowShareModal(true)}
                 style={{
                   display: 'inline-block',
                   padding: '0.875rem 2.5rem',
-                  background: sharing ? 'rgba(255,255,255,0.7)' : '#fff',
+                  background: '#fff',
                   color: '#1B2A4A',
                   border: 'none',
                   borderRadius: '2rem',
                   fontSize: '1.0625rem',
                   fontWeight: 600,
                   fontFamily: 'Georgia, serif',
-                  cursor: sharing ? 'default' : 'pointer',
+                  cursor: 'pointer',
                   boxShadow: '0 4px 20px rgba(255,255,255,0.15)',
                   marginBottom: '1.5rem',
                   transition: 'background 0.2s',
                 }}
               >
-                {sharing ? 'Sharing\u2026' : 'Share the Moment'}
+                Share the Moment
               </button>
               <p style={{
                 fontSize: '0.8125rem',
