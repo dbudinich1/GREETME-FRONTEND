@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
+import { safeSet } from '../utils/safeStorage';
 import VoiceRecorder from '../components/VoiceRecorder';
 import PhotoUpload from '../components/PhotoUpload';
 
@@ -185,7 +186,7 @@ export default function ThankYouFlow() {
         try {
           const claimResult = await api.request(`/api/credits/${creditCode}/claim`, { method: 'POST' });
           if (claimResult?.ok) {
-            localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
+            safeSet('greetme_courtesy_credit', JSON.stringify({
               creditCode,
               amount: (claimResult.amountCents || 500) / 100,
               source: 'courtesy',
