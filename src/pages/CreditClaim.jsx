@@ -47,6 +47,7 @@ export default function CreditClaim() {
   const [isReturningUser, setIsReturningUser] = useState(false);
   const [claimInProgress, setClaimInProgress] = useState(false);
   const [claimedByOther, setClaimedByOther] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
     if (!creditCode) {
@@ -75,11 +76,13 @@ export default function CreditClaim() {
             } catch {}
             safeSessionSet('greetme_session_mode', 'recipient');
           }
+          setSessionReady(true);
         } else {
           setError('This credit is no longer valid.');
+          setSessionReady(true);
         }
       })
-      .catch(() => setError('Could not load credit.'))
+      .catch(() => { setError('Could not load credit.'); setSessionReady(true); })
       .finally(() => setLoading(false));
   }, [creditCode]);
 
@@ -329,7 +332,7 @@ export default function CreditClaim() {
 
   const displayAmount = credit ? `$${(credit.amountCents / 100).toFixed(0)}` : '$5';
 
-  if (loading) {
+  if (loading || !sessionReady) {
     return (
       <div style={styles.page}>
         <p style={{ color: 'rgba(255,255,255,0.5)', fontFamily: FONT_STACK }}>Loading...</p>
