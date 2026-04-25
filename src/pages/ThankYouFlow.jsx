@@ -408,138 +408,190 @@ export default function ThankYouFlow() {
             &#10003;
           </div>
 
-          {/* Sent confirmation — personal, then brand */}
-          <p style={{
-            fontSize: '0.875rem',
-            color: 'rgba(255,255,255,0.5)',
-            letterSpacing: '0.15em',
-            textTransform: 'uppercase',
-            margin: '0 0 0.75rem',
-          }}>
-            Sent
-          </p>
-
-          <h1 style={{
-            fontSize: '1.5rem',
-            fontWeight: 500,
-            color: '#fff',
-            lineHeight: 1.5,
-            margin: '0 0 1rem',
-            fontFamily: 'Georgia, serif',
-          }}>
-            Your thank-you is on its way to {recipientFirst}.
-          </h1>
-          <p style={{
-            fontSize: '0.9375rem',
-            color: 'rgba(255,255,255,0.45)',
-            lineHeight: 1.6,
-            margin: '0 0 2.5rem',
-            fontFamily: 'Georgia, serif',
-            fontStyle: 'italic',
-          }}>
-            This is how we make life&rsquo;s moments unforgettable.
-          </p>
-
-          {/* Share incentive — emotional lead, financial fine print */}
-          {hasGiftContext && (
-            <p style={{
-              fontSize: '0.9375rem',
-              color: 'rgba(255,255,255,0.7)',
-              lineHeight: 1.6,
-              margin: '0 0 2rem',
-            }}>
-              Pass the feeling forward &mdash; share this moment with someone who matters.
-            </p>
-          )}
-
-          {/* Primary CTA / Shared confirmation */}
-          {shared ? (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <p style={{ fontSize: '1.0625rem', fontWeight: 600, color: '#10b981', fontFamily: 'Georgia, serif' }}>
-                &#10003; Shared{copied ? ' \u2014 link copied' : ''}
-              </p>
-              <p style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.375rem' }}>
-                {rewardResult?.rewardCreditCents > 0
-                  ? `$${(rewardResult.rewardCreditCents / 100).toFixed(0)} credit unlocked \u2014 applied to your next subscription.`
-                  : rewardResult?.duplicate
-                    ? 'Reward already applied to your account.'
-                    : 'Thanks for sharing \u2014 send with a gift to unlock credit.'}
-              </p>
-            </div>
-          ) : (
-            <button
-              onClick={handleShare}
-              disabled={sharing}
-              style={{
-                display: 'inline-block',
-                padding: '0.875rem 2.5rem',
-                background: sharing ? 'rgba(255,255,255,0.7)' : '#fff',
-                color: '#1B2A4A',
-                border: 'none',
-                borderRadius: '2rem',
-                fontSize: '1.0625rem',
-                fontWeight: 600,
-                fontFamily: 'Georgia, serif',
-                cursor: sharing ? 'default' : 'pointer',
-                boxShadow: '0 4px 20px rgba(255,255,255,0.15)',
-                marginBottom: '1.5rem',
-                transition: 'background 0.2s',
-              }}
-            >
-              {sharing ? 'Sharing\u2026' : 'Share the Moment'}
-            </button>
-          )}
+          {/* Pre-share: sent confirmation header */}
           {!shared && (
-            <p style={{
-              fontSize: '0.8125rem',
-              color: 'rgba(255,255,255,0.55)',
-              fontStyle: 'italic',
-              margin: '0 auto 1.5rem',
-              maxWidth: '320px',
-              lineHeight: 1.5,
-            }}>
-              We&rsquo;ll include a little surprise for the person you share it with.
-            </p>
+            <>
+              <p style={{
+                fontSize: '0.875rem',
+                color: 'rgba(255,255,255,0.5)',
+                letterSpacing: '0.15em',
+                textTransform: 'uppercase',
+                margin: '0 0 0.75rem',
+              }}>
+                Sent
+              </p>
+
+              <h1 style={{
+                fontSize: '1.5rem',
+                fontWeight: 500,
+                color: '#fff',
+                lineHeight: 1.5,
+                margin: '0 0 1rem',
+                fontFamily: 'Georgia, serif',
+              }}>
+                Your thank-you is on its way to {recipientFirst}.
+              </h1>
+              <p style={{
+                fontSize: '0.9375rem',
+                color: 'rgba(255,255,255,0.45)',
+                lineHeight: 1.6,
+                margin: '0 0 2.5rem',
+                fontFamily: 'Georgia, serif',
+                fontStyle: 'italic',
+              }}>
+                This is how we make life&rsquo;s moments unforgettable.
+              </p>
+
+              {hasGiftContext && (
+                <p style={{
+                  fontSize: '0.9375rem',
+                  color: 'rgba(255,255,255,0.7)',
+                  lineHeight: 1.6,
+                  margin: '0 0 2rem',
+                }}>
+                  Pass the feeling forward &mdash; share this moment with someone who matters.
+                </p>
+              )}
+            </>
           )}
 
-          {/* Exit options */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-            {sentJobId && (
+          {/* Post-share: completion screen */}
+          {shared ? (
+            <>
+              <h1 style={{
+                fontSize: '1.5rem',
+                fontWeight: 500,
+                color: '#fff',
+                lineHeight: 1.5,
+                margin: '0 0 1rem',
+                fontFamily: 'Georgia, serif',
+              }}>
+                That was a beautiful move.
+              </h1>
+              <p style={{
+                fontSize: '0.9375rem',
+                color: 'rgba(255,255,255,0.7)',
+                lineHeight: 1.6,
+                margin: '0 0 1rem',
+              }}>
+                You just shared the moment.
+              </p>
+              <p style={{
+                fontSize: '0.8125rem',
+                color: 'rgba(255,255,255,0.5)',
+                lineHeight: 1.5,
+                margin: '0 0 2.5rem',
+              }}>
+                When you&rsquo;re ready, your $5 credit will be waiting for you at checkout.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                <button
+                  onClick={() => { window.location.href = '/#/pricing'; }}
+                  style={{
+                    display: 'inline-block',
+                    padding: '0.75rem 2rem',
+                    background: 'rgba(255,255,255,0.15)',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    borderRadius: '2rem',
+                    fontSize: '0.9375rem',
+                    fontWeight: 600,
+                    fontFamily: 'Georgia, serif',
+                    cursor: 'pointer',
+                  }}
+                >
+                  View Plans &amp; Pricing
+                </button>
+                <button
+                  onClick={handleDismiss}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'rgba(255,255,255,0.6)',
+                    fontSize: '0.8125rem',
+                    cursor: 'pointer',
+                    fontFamily: FONT_STACK,
+                  }}
+                >
+                  Go to Dashboard
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Pre-share: share CTA + exit options */}
               <button
-                onClick={() => {
-                  fireDismissEvent();
-                  window.location.href = `/#/g/${sentJobId}`;
-                }}
+                onClick={handleShare}
+                disabled={sharing}
                 style={{
                   display: 'inline-block',
-                  padding: '0.75rem 2rem',
-                  background: 'rgba(255,255,255,0.15)',
-                  color: '#fff',
-                  border: '1px solid rgba(255,255,255,0.3)',
+                  padding: '0.875rem 2.5rem',
+                  background: sharing ? 'rgba(255,255,255,0.7)' : '#fff',
+                  color: '#1B2A4A',
+                  border: 'none',
                   borderRadius: '2rem',
-                  fontSize: '0.9375rem',
+                  fontSize: '1.0625rem',
                   fontWeight: 600,
                   fontFamily: 'Georgia, serif',
-                  cursor: 'pointer',
+                  cursor: sharing ? 'default' : 'pointer',
+                  boxShadow: '0 4px 20px rgba(255,255,255,0.15)',
+                  marginBottom: '1.5rem',
+                  transition: 'background 0.2s',
                 }}
               >
-                View Greet-Me
+                {sharing ? 'Sharing\u2026' : 'Share the Moment'}
               </button>
-            )}
-            <button
-              onClick={handleDismiss}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'rgba(255,255,255,0.6)',
+              <p style={{
                 fontSize: '0.8125rem',
-                cursor: 'pointer',
-                fontFamily: FONT_STACK,
-              }}
-            >
-              Go to Dashboard
-            </button>
-          </div>
+                color: 'rgba(255,255,255,0.55)',
+                fontStyle: 'italic',
+                margin: '0 auto 1.5rem',
+                maxWidth: '320px',
+                lineHeight: 1.5,
+              }}>
+                We&rsquo;ll include a little surprise for the person you share it with.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                {sentJobId && (
+                  <button
+                    onClick={() => {
+                      fireDismissEvent();
+                      window.location.href = `/#/g/${sentJobId}`;
+                    }}
+                    style={{
+                      display: 'inline-block',
+                      padding: '0.75rem 2rem',
+                      background: 'rgba(255,255,255,0.15)',
+                      color: '#fff',
+                      border: '1px solid rgba(255,255,255,0.3)',
+                      borderRadius: '2rem',
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      fontFamily: 'Georgia, serif',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    View Greet-Me
+                  </button>
+                )}
+                <button
+                  onClick={handleDismiss}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'rgba(255,255,255,0.6)',
+                    fontSize: '0.8125rem',
+                    cursor: 'pointer',
+                    fontFamily: FONT_STACK,
+                  }}
+                >
+                  Go to Dashboard
+                </button>
+              </div>
+            </>
+          )}
 
           <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)', margin: '3rem 0 0' }}>
             &copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;
