@@ -10,6 +10,7 @@ import api from '../api/api';
 import { safeSet } from '../utils/safeStorage';
 import VoiceRecorder from '../components/VoiceRecorder';
 import PhotoUpload from '../components/PhotoUpload';
+import HeartsBurst from '../components/HeartsBurst';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -102,6 +103,7 @@ export default function ThankYouFlow() {
   const [uploadWarning, setUploadWarning] = useState(null);
   const [shared, setShared] = useState(false);
   const [rewardResult, setRewardResult] = useState(null);
+  const [heartsBurstKey, setHeartsBurstKey] = useState(0);
 
   useEffect(() => {
     if (!jobId) {
@@ -149,6 +151,7 @@ export default function ThankYouFlow() {
       setSent(true);
       setSentAt(Date.now());
       setSentJobId(result?.jobId || null);
+      setHeartsBurstKey((k) => k + 1);
     } catch (err) {
       setError(err?.message || 'Failed to send. Please try again.');
     } finally {
@@ -346,6 +349,7 @@ export default function ThankYouFlow() {
       if (result?.ok) {
         setShowShareModal(false);
         setShared(true);
+        setHeartsBurstKey((k) => k + 1);
       } else {
         setShareError(result?.error || 'Could not send share email. Please try again.');
       }
@@ -389,6 +393,7 @@ export default function ThankYouFlow() {
         padding: '2rem 1.5rem',
         fontFamily: FONT_STACK,
       }}>
+        <HeartsBurst triggerKey={heartsBurstKey} />
         {/* In-app share modal */}
         {showShareModal && !shared && (
           <div style={{

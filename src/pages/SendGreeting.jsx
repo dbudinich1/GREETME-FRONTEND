@@ -9,6 +9,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import GiftSelectorModal from '../components/GiftSelectorModal';
 import GiftConfirmationModal from '../components/GiftConfirmationModal';
+import HeartsBurst from '../components/HeartsBurst';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import draftService from '../services/draftService';
@@ -33,6 +34,7 @@ export default function SendGreeting() {
   const [jobId, setJobId] = useState(null);
   const [completedJobId, setCompletedJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
+  const [heartsBurstKey, setHeartsBurstKey] = useState(0);
   const [formData, setFormData] = useState({
     contactId: '',
     occasionType: 'Thinking of You',
@@ -399,6 +401,7 @@ export default function SendGreeting() {
       if (response.status === 'completed') {
         setSending(false);
         setCompletedJobId(jobId);
+        setHeartsBurstKey((k) => k + 1);
         setJobId(null);
         // Mark draft as sent so it won't be restored
         if (formData.contactId && formData.occasionType) {
@@ -742,6 +745,7 @@ if (typeof window !== "undefined") {
   if (jobStatus === 'completed') {
     return (
       <div className="max-w-2xl mx-auto">
+        <HeartsBurst triggerKey={heartsBurstKey} />
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <CheckCircle className="mx-auto text-green-500 mb-4" size={64} />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Greet-Me has been sent</h2>
