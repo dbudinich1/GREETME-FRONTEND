@@ -214,7 +214,15 @@ export default function CreditClaim() {
     setRegError(null);
 
     // STEP 1 — LOGIN
-    const loginResult = await login(email, loginPassword);
+    let loginResult;
+    try {
+      loginResult = await login(email, loginPassword);
+    } catch (err) {
+      setRegError(err?.message || 'Login failed. Please try again.');
+      setRegistering(false);
+      setClaimInProgress(false);
+      return;
+    }
 
     if (!loginResult?.success) {
       setRegError(loginResult?.error || 'Login failed. Please try again.');
