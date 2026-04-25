@@ -680,84 +680,78 @@ export default function ThankYouFlow() {
         </div>
 
         {/* C. Enhancement card — optional, above Send, shown to all users */}
-        {(
-          <div style={styles.enhanceCard}>
-            <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1f2937', margin: '0 0 0.25rem' }}>
-              Make it even more special
-            </p>
-            <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: '0 0 1.25rem' }}>
-              Optional, but highly recommended.
-            </p>
+        <div style={styles.enhanceCard}>
+          <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1f2937', margin: '0 0 0.25rem' }}>
+            Make it even more special
+          </p>
+          <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: '0 0 1.25rem' }}>
+            Optional, but highly recommended.
+          </p>
 
-            {user && sessionStorage.getItem('greetme_session_mode') !== 'recipient' ? (
-              <>
-                {/* Voice row — always visible for authenticated users */}
-                <div style={styles.enhanceRow}>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
-                      {addedVoiceThisSession ? 'Voice added' : hasVoice ? 'Your voice' : 'Add your voice'}
-                    </p>
-                    <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
-                      {addedVoiceThisSession
-                        ? 'Your new voice recording will be used for this greeting.'
-                        : hasVoice
-                          ? 'Using your profile voice. Record a new one below to replace it.'
-                          : 'Read a quick line so your thank-you feels unmistakably you.'}
-                    </p>
-                  </div>
-                  {addedVoiceThisSession && (
-                    <span style={{ ...styles.successChip, marginBottom: '0.5rem', display: 'inline-block' }}>&#10003; Voice added</span>
-                  )}
-                  <VoiceRecorder onUpload={handleVoiceUpload} existingVoice={user?.voiceId || null} />
+          {user ? (
+            <>
+              {/* Voice row — authenticated users get full controls */}
+              <div style={styles.enhanceRow}>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
+                    {addedVoiceThisSession ? 'Voice added' : hasVoice ? 'Your voice' : 'Add your voice'}
+                  </p>
+                  <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
+                    {addedVoiceThisSession
+                      ? 'Your new voice recording will be used for this greeting.'
+                      : hasVoice
+                        ? 'Using your profile voice. Record a new one below to replace it.'
+                        : 'Read a quick line so your thank-you feels unmistakably you.'}
+                  </p>
                 </div>
-
-                {/* Photo row — always visible for authenticated users */}
-                <div style={{ ...styles.enhanceRow, marginBottom: 0 }}>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
-                      {addedPhotoThisSession ? 'Photo added' : hasPhoto ? 'Your photo' : 'Add a photo'}
-                    </p>
-                    <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
-                      {addedPhotoThisSession
-                        ? 'Your new photo will be used for this greeting.'
-                        : hasPhoto
-                          ? 'Using your profile photo. Upload a new one below to replace it.'
-                          : 'Use a selfie or upload a favorite photo to bring your Greet-Me to life.'}
-                    </p>
-                  </div>
-                  {addedPhotoThisSession && (
-                    <span style={{ ...styles.successChip, marginBottom: '0.5rem', display: 'inline-block' }}>&#10003; Photo added</span>
-                  )}
-                  <PhotoUpload onUpload={handlePhotoUpload} existingPhoto={user?.photoUrl || null} compact />
-                </div>
-              </>
-            ) : (
-              /* Guest — show sign-up prompt instead of non-functional upload controls */
-              <div style={{ textAlign: 'center', padding: '0.5rem 0' }}>
-                <p style={{ fontSize: '0.875rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 0.75rem' }}>
-                  Create your free account to add your voice and photo.
-                </p>
-                <a
-                  href="/#/register"
-                  onClick={() => localStorage.setItem('greetme_thankyou_prefill', JSON.stringify({ ...prefill, script, jobId }))}
-                  style={{
-                    display: 'inline-block',
-                    padding: '0.5rem 1.25rem',
-                    background: '#4F2D7F',
-                    color: '#fff',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                    fontFamily: FONT_STACK,
-                  }}
-                >
-                  Create Account
-                </a>
+                {addedVoiceThisSession && (
+                  <span style={{ ...styles.successChip, marginBottom: '0.5rem', display: 'inline-block' }}>&#10003; Voice added</span>
+                )}
+                <VoiceRecorder onUpload={handleVoiceUpload} existingVoice={user?.voiceId || null} />
               </div>
-            )}
-          </div>
-        )}
+
+              {/* Photo row — authenticated users get full controls */}
+              <div style={{ ...styles.enhanceRow, marginBottom: 0 }}>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
+                    {addedPhotoThisSession ? 'Photo added' : hasPhoto ? 'Your photo' : 'Add a photo'}
+                  </p>
+                  <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
+                    {addedPhotoThisSession
+                      ? 'Your new photo will be used for this greeting.'
+                      : hasPhoto
+                        ? 'Using your profile photo. Upload a new one below to replace it.'
+                        : 'Use a selfie or upload a favorite photo to bring your Greet-Me to life.'}
+                  </p>
+                </div>
+                {addedPhotoThisSession && (
+                  <span style={{ ...styles.successChip, marginBottom: '0.5rem', display: 'inline-block' }}>&#10003; Photo added</span>
+                )}
+                <PhotoUpload onUpload={handlePhotoUpload} existingPhoto={user?.photoUrl || null} compact />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Guest — informational voice/photo rows */}
+              <div style={styles.enhanceRow}>
+                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
+                  Add your voice
+                </p>
+                <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: 0, lineHeight: 1.5 }}>
+                  Voice and photo are available after quick sign-up below.
+                </p>
+              </div>
+              <div style={{ ...styles.enhanceRow, marginBottom: 0 }}>
+                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
+                  Add a photo
+                </p>
+                <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: 0, lineHeight: 1.5 }}>
+                  Upload after sign-up — your greeting still sends without it.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
 
         {/* Upload warning — non-blocking, auto-clears */}
         {uploadWarning && (
@@ -772,56 +766,55 @@ export default function ThankYouFlow() {
           </div>
         )}
 
-        {/* E. Inline registration or login (guest path — never leaves page) */}
-        {showInlineRegister && (
+        {/* D. Error display */}
+        {error && (
+          <div style={{ padding: '0.75rem 1rem', background: '#fef2f2', borderRadius: '0.5rem', border: '1px solid #fecaca', marginBottom: '1.5rem' }}>
+            <p style={{ fontSize: '0.875rem', color: '#dc2626', margin: 0 }}>{error}</p>
+          </div>
+        )}
+
+        {/* E. Guest: quick registration + Sign Up & Send (always visible) */}
+        {!user && (
           <div style={styles.section}>
             <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1f2937', margin: '0 0 0.25rem' }}>
-              {inlineMode === 'login' ? 'Log in to send' : 'Quick sign-up to send'}
+              Quick sign-up to send
             </p>
             <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: '0 0 1rem' }}>
-              {inlineMode === 'login'
-                ? 'Log in and your Greet-Me sends instantly.'
-                : 'Create your free account and your Greet-Me sends instantly.'}
+              Create your free account and your Greet-Me sends instantly.
             </p>
             {regError && (
               <div style={{ padding: '0.5rem 0.75rem', background: '#fef2f2', borderRadius: '0.375rem', border: '1px solid #fecaca', marginBottom: '0.75rem' }}>
                 <p style={{ fontSize: '0.8125rem', color: '#dc2626', margin: 0 }}>{regError}</p>
               </div>
             )}
-            <form onSubmit={inlineMode === 'login' ? handleInlineLogin : handleInlineRegister} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {inlineMode === 'register' && (
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Name</label>
-                  <input
-                    type="text"
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
-                    placeholder="Your name"
-                    required
-                    style={styles.input}
-                  />
-                </div>
-              )}
+            <form onSubmit={handleInlineRegister} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Email</label>
-                <input
-                  type="email"
-                  value={regEmail}
-                  onChange={(e) => setRegEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  required
-                  style={styles.input}
-                />
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Name</label>
+                <p style={{
+                  ...styles.input,
+                  margin: 0,
+                  background: '#f9fafb',
+                  color: '#374151',
+                }}>{regName || 'Your name'}</p>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Password</label>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Email</label>
+                <p style={{
+                  ...styles.input,
+                  margin: 0,
+                  background: '#f9fafb',
+                  color: '#374151',
+                }}>{regEmail || 'your@email.com'}</p>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Create a password</label>
                 <input
                   type="password"
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
-                  placeholder={inlineMode === 'login' ? 'Your password' : 'Create a password'}
+                  placeholder="Choose a password"
                   required
-                  minLength={inlineMode === 'login' ? 1 : 8}
+                  minLength={8}
                   style={styles.input}
                 />
               </div>
@@ -842,62 +835,48 @@ export default function ThankYouFlow() {
                   boxShadow: (registering || sending) ? 'none' : '0 4px 14px rgba(79, 45, 127, 0.2)',
                 }}
               >
-                {registering ? (inlineMode === 'login' ? 'Logging in...' : 'Creating account...') : sending ? 'Sending...' : (inlineMode === 'login' ? 'Log In & Send' : 'Create Account & Send')}
+                {registering ? 'Creating account...' : sending ? 'Sending\u2026' : 'Sign Up & Send'}
               </button>
             </form>
-            <p style={{ fontSize: '0.8125rem', color: '#6b7280', textAlign: 'center', margin: '0.75rem 0 0' }}>
-              {inlineMode === 'login' ? (
-                <>Don&rsquo;t have an account? <button onClick={() => { setInlineMode('register'); setRegError(null); }} style={{ background: 'none', border: 'none', color: '#4F2D7F', fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer', padding: 0 }}>Sign up</button></>
-              ) : (
-                <>Already have an account? <button onClick={() => { setInlineMode('login'); setRegError(null); }} style={{ background: 'none', border: 'none', color: '#4F2D7F', fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer', padding: 0 }}>Log in</button></>
-              )}
-            </p>
           </div>
         )}
 
-        {/* D. Error display */}
-        {error && (
-          <div style={{ padding: '0.75rem 1rem', background: '#fef2f2', borderRadius: '0.5rem', border: '1px solid #fecaca', marginBottom: '1.5rem' }}>
-            <p style={{ fontSize: '0.875rem', color: '#dc2626', margin: 0 }}>{error}</p>
-          </div>
-        )}
-
-        {/* F. Primary CTA — always available */}
-        {!showInlineRegister && (
-        <button
-          onClick={handleSend}
-          disabled={sending}
-          style={{
-            width: '100%',
-            padding: '1rem',
-            background: sending ? '#d1d5db' : '#4F2D7F',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '0.75rem',
-            fontSize: '1.125rem',
-            fontWeight: 600,
-            fontFamily: 'Georgia, serif',
-            cursor: sending ? 'not-allowed' : 'pointer',
-            boxShadow: sending ? 'none' : '0 4px 14px rgba(79, 45, 127, 0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          {sending && (
-            <span style={{
-              width: '1rem',
-              height: '1rem',
-              border: '2px solid rgba(255,255,255,0.3)',
-              borderTopColor: '#fff',
-              borderRadius: '50%',
-              display: 'inline-block',
-              animation: 'thankyouSpin 0.6s linear infinite',
-            }} />
-          )}
-          {sending ? 'Sending\u2026' : (user ? 'Send' : 'Sign Up & Send')}
-        </button>
+        {/* F. Authenticated edge case: simple Send button */}
+        {user && (
+          <button
+            onClick={doSend}
+            disabled={sending}
+            style={{
+              width: '100%',
+              padding: '1rem',
+              background: sending ? '#d1d5db' : '#4F2D7F',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '0.75rem',
+              fontSize: '1.125rem',
+              fontWeight: 600,
+              fontFamily: 'Georgia, serif',
+              cursor: sending ? 'not-allowed' : 'pointer',
+              boxShadow: sending ? 'none' : '0 4px 14px rgba(79, 45, 127, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+            }}
+          >
+            {sending && (
+              <span style={{
+                width: '1rem',
+                height: '1rem',
+                border: '2px solid rgba(255,255,255,0.3)',
+                borderTopColor: '#fff',
+                borderRadius: '50%',
+                display: 'inline-block',
+                animation: 'thankyouSpin 0.6s linear infinite',
+              }} />
+            )}
+            {sending ? 'Sending\u2026' : 'Send'}
+          </button>
         )}
 
         <p style={{ ...styles.footer, textAlign: 'center' }}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
