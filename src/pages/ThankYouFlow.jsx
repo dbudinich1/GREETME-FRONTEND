@@ -73,11 +73,9 @@ export default function ThankYouFlow() {
   const [searchParams] = useSearchParams();
   const jobId = searchParams.get('jobId');
   const creditCode = searchParams.get('creditCode');
-  const { user, refreshProfile, register, login } = useAuth();
+  const { user, refreshProfile, register } = useAuth();
 
-  // Inline registration/login state (guest send path)
-  const [showInlineRegister, setShowInlineRegister] = useState(false);
-  const [inlineMode, setInlineMode] = useState('register'); // 'register' | 'login'
+  // Inline registration state (guest send path)
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
@@ -98,6 +96,8 @@ export default function ThankYouFlow() {
   const hasPhoto = !!user?.photoUrl;
   const [addedVoiceThisSession, setAddedVoiceThisSession] = useState(false);
   const [addedPhotoThisSession, setAddedPhotoThisSession] = useState(false);
+  const [pendingVoice, setPendingVoice] = useState(null);
+  const [pendingPhoto, setPendingPhoto] = useState(null);
   const [uploadWarning, setUploadWarning] = useState(null);
   const [shared, setShared] = useState(false);
   const [rewardResult, setRewardResult] = useState(null);
@@ -124,15 +124,6 @@ export default function ThankYouFlow() {
       .finally(() => setLoading(false));
   }, [jobId]);
 
-  // Send: if authenticated → send directly. If not → show inline registration.
-  const handleSend = async () => {
-    if (!user) {
-      setShowInlineRegister(true);
-      return;
-    }
-    await doSend();
-  };
-
   const doSend = async () => {
     setSending(true);
     setError(null);
@@ -146,7 +137,7 @@ export default function ThankYouFlow() {
         sourceJobId: jobId,
       });
       if (result?.status === 401) {
-        setShowInlineRegister(true);
+        setError('Session expired. Please refresh and try again.');
         setSending(false);
         return;
       }
@@ -169,24 +160,26 @@ export default function ThankYouFlow() {
     setRegError(null);
     setRegistering(true);
     try {
-      const result = await register(regName.trim(), regEmail.trim().toLowerCase(), regPassword);
-      if (!result?.success) {
-        const isEmailExists = result?.code === 'EMAIL_EXISTS';
-        const isServerError = result?.status >= 500 || result?.code === 'SERVER_ERROR';
-        if (isEmailExists) {
-          setInlineMode('login');
-          setRegError('This email already has an account. Enter your password to log in.');
-        } else {
-          setRegError(
-            isServerError
-              ? 'Our server had a hiccup. Please try again in a moment.'
-              : (result?.error || 'Registration failed. Please try again.')
-          );
+      // Retry guard: if already registered (e.g. retry after upload failure), skip registration
+      if (!user) {
+        const result = await register(regName.trim(), regEmail.trim().toLowerCase(), regPassword);
+        if (!result?.success) {
+          const isEmailExists = result?.code === 'EMAIL_EXISTS';
+          const isServerError = result?.status >= 500 || result?.code === 'SERVER_ERROR';
+          if (isEmailExists) {
+            setRegError('This email already has an account. Please try again or refresh the page.');
+          } else {
+            setRegError(
+              isServerError
+                ? 'Our server had a hiccup. Please try again in a moment.'
+                : (result?.error || 'Registration failed. Please try again.')
+            );
+          }
+          setRegistering(false);
+          return;
         }
-        setRegistering(false);
-        return;
       }
-      // Registration succeeded �� token is set, user is in context.
+      // Registered — token is set, user is in context.
       // Claim courtesy credit if routed from QR
       if (creditCode) {
         try {
@@ -204,7 +197,28 @@ export default function ThankYouFlow() {
           console.warn('Credit claim failed:', e?.message);
         }
       }
-      setShowInlineRegister(false);
+      // Upload pending voice/photo now that auth exists
+      if (pendingVoice) {
+        try {
+          await api.uploadVoice(pendingVoice);
+        } catch (e) {
+          setRegError('Voice upload failed. Please try again.');
+          setRegistering(false);
+          return;
+        }
+      }
+      if (pendingPhoto) {
+        try {
+          await api.uploadPhoto(pendingPhoto);
+        } catch (e) {
+          setRegError('Photo upload failed. Please try again.');
+          setRegistering(false);
+          return;
+        }
+      }
+      if (pendingVoice || pendingPhoto) {
+        await refreshProfile();
+      }
       setRegistering(false);
       await doSend();
     } catch (err) {
@@ -213,42 +227,7 @@ export default function ThankYouFlow() {
     }
   };
 
-  const handleInlineLogin = async (e) => {
-    e.preventDefault();
-    setRegError(null);
-    setRegistering(true);
-    try {
-      const result = await login(regEmail.trim().toLowerCase(), regPassword);
-      if (!result?.success) {
-        setRegError(result?.error || 'Login failed. Please try again.');
-        setRegistering(false);
-        return;
-      }
-      // Claim courtesy credit if routed from QR
-      if (creditCode) {
-        try {
-          const claimResult = await api.request(`/api/credits/${creditCode}/claim`, { method: 'POST' });
-          if (claimResult?.ok) {
-            localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
-              creditCode,
-              amount: (claimResult.amountCents || 500) / 100,
-              source: 'courtesy',
-              claimedAt: new Date().toISOString(),
-            }));
-          }
-        } catch (e) {
-          // Non-blocking — credit claim failure shouldn't prevent send
-          console.warn('Credit claim failed:', e?.message);
-        }
-      }
-      setShowInlineRegister(false);
-      setRegistering(false);
-      await doSend();
-    } catch (err) {
-      setRegError(err?.message || 'Login failed.');
-      setRegistering(false);
-    }
-  };
+
 
   // Optional enhancement handlers (never block send)
   const handleVoiceUpload = async (formData) => {
@@ -273,6 +252,17 @@ export default function ThankYouFlow() {
       setUploadWarning('Photo upload didn\u2019t go through \u2014 your greeting will still send without it.');
       setTimeout(() => setUploadWarning(null), 5000);
     }
+  };
+
+  // Guest handlers: store FormData locally (no API call, no auth needed)
+  const handleGuestVoiceUpload = async (formData) => {
+    setPendingVoice(formData);
+    setAddedVoiceThisSession(true);
+  };
+
+  const handleGuestPhotoUpload = async (formData) => {
+    setPendingPhoto(formData);
+    setAddedPhotoThisSession(true);
   };
 
   // Fire EXPONENTIAL_MOMENT_SEEN once when sent becomes true
@@ -732,22 +722,38 @@ export default function ThankYouFlow() {
             </>
           ) : (
             <>
-              {/* Guest — informational voice/photo rows */}
+              {/* Guest — real controls, files stored locally until registration */}
               <div style={styles.enhanceRow}>
-                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
-                  Add your voice
-                </p>
-                <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: 0, lineHeight: 1.5 }}>
-                  Voice and photo are available after quick sign-up below.
-                </p>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
+                    {addedVoiceThisSession ? 'Voice added' : 'Add your voice'}
+                  </p>
+                  <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
+                    {addedVoiceThisSession
+                      ? 'Your voice recording will be uploaded when you sign up below.'
+                      : 'Read a quick line so your thank-you feels unmistakably you.'}
+                  </p>
+                </div>
+                {addedVoiceThisSession && (
+                  <span style={{ ...styles.successChip, marginBottom: '0.5rem', display: 'inline-block' }}>&#10003; Voice added</span>
+                )}
+                <VoiceRecorder onUpload={handleGuestVoiceUpload} existingVoice={null} />
               </div>
               <div style={{ ...styles.enhanceRow, marginBottom: 0 }}>
-                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
-                  Add a photo
-                </p>
-                <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: 0, lineHeight: 1.5 }}>
-                  Upload after sign-up — your greeting still sends without it.
-                </p>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', margin: '0 0 0.25rem' }}>
+                    {addedPhotoThisSession ? 'Photo added' : 'Add a photo'}
+                  </p>
+                  <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
+                    {addedPhotoThisSession
+                      ? 'Your photo will be uploaded when you sign up below.'
+                      : 'Use a selfie or upload a favorite photo to bring your Greet-Me to life.'}
+                  </p>
+                </div>
+                {addedPhotoThisSession && (
+                  <span style={{ ...styles.successChip, marginBottom: '0.5rem', display: 'inline-block' }}>&#10003; Photo added</span>
+                )}
+                <PhotoUpload onUpload={handleGuestPhotoUpload} existingPhoto={null} compact />
               </div>
             </>
           )}
