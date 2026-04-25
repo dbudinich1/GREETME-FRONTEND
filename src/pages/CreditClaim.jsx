@@ -477,7 +477,7 @@ export default function CreditClaim() {
 
             {credit?.sourceJobId && !credit?.isOnboardingTestSend && (
               <button
-                onClick={() => navigate(`/recipient-thankyou?jobId=${credit.sourceJobId}`)}
+                onClick={() => navigate(`/thank-you?jobId=${credit.sourceJobId}`)}
                 style={{ ...styles.cta, marginBottom: '0.75rem' }}
               >
                 Send a Thank-You
@@ -499,7 +499,7 @@ export default function CreditClaim() {
                   Your {displayAmount} credit is saved. Now &mdash; send a thank-you back to the person who made your day.
                 </p>
                 <button
-                  onClick={() => navigate(`/recipient-thankyou?jobId=${credit.sourceJobId}`)}
+                  onClick={() => navigate(`/thank-you?jobId=${credit.sourceJobId}`)}
                   style={{
                     ...styles.cta,
                     background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
