@@ -449,9 +449,9 @@ export default function CreditClaim() {
       <div style={styles.page}>
         <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>&#10003;</div>
-          <h1 style={styles.headline}>The loop is closed</h1>
+          <h1 style={styles.headline}>This credit is for your recipient</h1>
           <p style={styles.body}>
-            This moment has come full circle.
+            This gift was included with your Greet-Me for them to enjoy.
           </p>
           <button
             onClick={() => navigate('/dashboard/send')}
