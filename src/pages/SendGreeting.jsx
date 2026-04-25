@@ -725,7 +725,6 @@ if (typeof window !== "undefined") {
     setJobStatus(null);
     setSending(false);
     setErrors({});
-    setShowMoreOptions(false);
     // Reset gift state so next send starts fresh
     setGiftSettings({ type: 'none', amount: 25, customAmount: '', maxSpend: 50, autoGift: false });
     setIsGiftModalOpen(false);
