@@ -401,12 +401,13 @@ export default function ThankYouFlow() {
               maxWidth: '400px', width: '100%', background: '#fff',
               borderRadius: '1rem', padding: '2rem', textAlign: 'center',
               boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+              maxHeight: '90vh', overflowY: 'auto',
             }}>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1f2937', margin: '0 0 0.5rem', fontFamily: 'Georgia, serif' }}>
                 Share this moment
               </h2>
               <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0 0 1.25rem', lineHeight: 1.5 }}>
-                We&rsquo;ll send them your Greet-Me and a $5 credit.
+                Send them your Greet-Me &mdash; they&rsquo;ll get $5 to start their own.
               </p>
               {shareError && (
                 <div style={{ padding: '0.5rem 0.75rem', background: '#fef2f2', borderRadius: '0.375rem', border: '1px solid #fecaca', marginBottom: '0.75rem' }}>
@@ -420,8 +421,10 @@ export default function ThankYouFlow() {
                     type="text"
                     value={shareName}
                     onChange={(e) => setShareName(e.target.value)}
-                    placeholder="Their name"
+                    placeholder="Jamie Smith"
                     required
+                    autoComplete="name"
+                    autoFocus
                     style={{ width: '100%', padding: '0.625rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.9375rem', fontFamily: FONT_STACK, boxSizing: 'border-box' }}
                   />
                 </div>
@@ -431,8 +434,9 @@ export default function ThankYouFlow() {
                     type="email"
                     value={shareEmail}
                     onChange={(e) => setShareEmail(e.target.value)}
-                    placeholder="Their email"
+                    placeholder="jamie@example.com"
                     required
+                    autoComplete="email"
                     style={{ width: '100%', padding: '0.625rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.9375rem', fontFamily: FONT_STACK, boxSizing: 'border-box' }}
                   />
                 </div>
@@ -444,8 +448,19 @@ export default function ThankYouFlow() {
                     color: '#fff', border: 'none', borderRadius: '0.75rem', fontSize: '1rem',
                     fontWeight: 600, fontFamily: 'Georgia, serif',
                     cursor: shareSending ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
                   }}
                 >
+                  {shareSending && (
+                    <span style={{
+                      width: '0.875rem', height: '0.875rem',
+                      border: '2px solid rgba(255,255,255,0.3)',
+                      borderTopColor: '#fff',
+                      borderRadius: '50%',
+                      display: 'inline-block',
+                      animation: 'thankyouSpin 0.6s linear infinite',
+                    }} />
+                  )}
                   {shareSending ? 'Sending\u2026' : 'Send'}
                 </button>
               </form>
