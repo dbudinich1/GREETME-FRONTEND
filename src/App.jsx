@@ -1,6 +1,6 @@
 // src/App.jsx
 import React from "react";
-import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -35,7 +35,11 @@ import PublicGreetingCard from "./pages/PublicGreetingCard";
 import GiftClaim from "./pages/GiftClaim";
 import ReferralCredit from "./pages/ReferralCredit";
 import ThankYouFlow from "./pages/ThankYouFlow";
-import RecipientThankYouWizard from "./pages/RecipientThankYouWizard";
+// RecipientThankYouWizard decommissioned — redirect below
+function RecipientThankYouRedirect() {
+  const location = useLocation();
+  return <Navigate to={`/thank-you${location.search || ''}`} replace />;
+}
 import CourtesyCredit from "./pages/CourtesyCredit";
 import CreditClaim from "./pages/CreditClaim";
 import G1G1Claim from "./pages/G1G1Claim";
@@ -67,7 +71,7 @@ export default function App() {
           <Route path="/gift/:claimToken" element={<GiftClaim />} />
           <Route path="/credit/:referralCode" element={<ReferralCredit />} />
           <Route path="/thank-you" element={<ThankYouFlow />} />
-          <Route path="/recipient-thankyou" element={<RecipientThankYouWizard />} />
+          <Route path="/recipient-thankyou" element={<RecipientThankYouRedirect />} />
           <Route path="/courtesy-credit" element={<CourtesyCredit />} />
           <Route path="/claim-credit/:creditCode" element={<CreditClaim />} />
 
