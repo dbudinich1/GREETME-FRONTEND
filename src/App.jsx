@@ -40,6 +40,50 @@ function RecipientThankYouRedirect() {
   const location = useLocation();
   return <Navigate to={`/thank-you${location.search || ''}`} replace />;
 }
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('[ErrorBoundary] Caught rendering error:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: '#f9fafb', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          padding: '2rem', textAlign: 'center',
+        }}>
+          <div style={{ maxWidth: '400px' }}>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1f2937', margin: '0 0 0.75rem' }}>
+              Something went wrong
+            </h1>
+            <p style={{ fontSize: '1rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
+              We hit a small hiccup. Let&rsquo;s get you back.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                padding: '0.75rem 2rem', background: '#4F2D7F', color: '#fff',
+                border: 'none', borderRadius: '0.5rem', fontSize: '1rem',
+                fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 import CourtesyCredit from "./pages/CourtesyCredit";
 import CreditClaim from "./pages/CreditClaim";
 import G1G1Claim from "./pages/G1G1Claim";
@@ -56,6 +100,7 @@ export default function App() {
   return (
     <AuthProvider>
       <HashRouter>
+        <ErrorBoundary>
         <Routes>
           {/* Default route: landing page for guests, redirects auth users to dashboard */}
           <Route path="/" element={<Landing />} />
@@ -126,6 +171,7 @@ export default function App() {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </ErrorBoundary>
       </HashRouter>
     </AuthProvider>
   );
