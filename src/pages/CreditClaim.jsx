@@ -653,26 +653,6 @@ export default function CreditClaim() {
                 <p style={styles.body}>
                   Send a quick thank-you to let them know it landed.
                 </p>
-                <div style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  borderRadius: '12px',
-                  padding: '1rem',
-                  marginBottom: '1rem',
-                  textAlign: 'left',
-                }}>
-                  {recipientPrefill?.name && (
-                    <div style={{ marginBottom: '0.5rem' }}>
-                      <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', margin: '0 0 0.125rem', fontWeight: 600 }}>Name</p>
-                      <p style={{ fontSize: '0.9375rem', color: '#fff', margin: 0 }}>{recipientPrefill.name}</p>
-                    </div>
-                  )}
-                  {recipientPrefill?.email && (
-                    <div>
-                      <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', margin: '0 0 0.125rem', fontWeight: 600 }}>Email</p>
-                      <p style={{ fontSize: '0.9375rem', color: '#fff', margin: 0 }}>{recipientPrefill.email}</p>
-                    </div>
-                  )}
-                </div>
                 <button
                   onClick={() => navigate(`/thank-you?jobId=${credit.sourceJobId}&creditCode=${creditCode}`)}
                   style={{
