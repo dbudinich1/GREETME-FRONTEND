@@ -112,6 +112,8 @@ export default function CreditClaim() {
     } catch (err) {
       if (err?.code === 'CREDIT_ALREADY_CLAIMED' || err?.message?.includes('already been claimed')) {
         setClaimedByOther(true);
+      } else if (err?.status === 401) {
+        setError('Your session has expired. Please refresh and try again.');
       } else {
         setError(err?.message || 'Claim failed.');
       }
