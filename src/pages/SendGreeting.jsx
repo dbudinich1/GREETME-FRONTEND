@@ -329,7 +329,7 @@ export default function SendGreeting() {
   useEffect(() => {
     if (jobId) {
       const MAX_POLL_DURATION = 5 * 60 * 1000;
-      const POLL_INTERVAL = 3000;
+      const POLL_INTERVAL = 1500;
       const pollStart = Date.now();
 
       const interval = setInterval(async () => {

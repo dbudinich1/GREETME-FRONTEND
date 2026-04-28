@@ -89,6 +89,15 @@ export default function DashboardHome() {
     setRewardsBalance(getRewardsBalance());
   }, []);
 
+  // Refresh rewards balance when tab regains focus (e.g. after a send)
+  useEffect(() => {
+    const handleFocus = () => {
+      setRewardsBalance(getRewardsBalance());
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
   // Sync photoUploaded state when user.photoUrl changes (e.g., after hydration)
   useEffect(() => {
     if (user?.photoUrl) {
