@@ -453,6 +453,9 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               name="name"
               value={formData.name}
               onChange={handleChange}
+              autoCapitalize="words"
+              autoCorrect="off"
+              spellCheck={false}
               style={{
                 width: '100%',
                 padding: '0.625rem 0.875rem',
@@ -538,7 +541,6 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               <option value="">Prefer not to say</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
-              <option value="other">Other</option>
             </select>
             <p style={{
               marginTop: '0.25rem',

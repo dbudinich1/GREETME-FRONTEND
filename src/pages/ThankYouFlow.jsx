@@ -988,8 +988,23 @@ export default function ThankYouFlow() {
                   fontFamily: 'Georgia, serif',
                   cursor: (registering || sending) ? 'not-allowed' : 'pointer',
                   boxShadow: (registering || sending) ? 'none' : '0 4px 14px rgba(79, 45, 127, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
                 }}
               >
+                {(registering || sending) && (
+                  <span style={{
+                    width: '1rem',
+                    height: '1rem',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTopColor: '#fff',
+                    borderRadius: '50%',
+                    display: 'inline-block',
+                    animation: 'thankyouSpin 0.6s linear infinite',
+                  }} />
+                )}
                 {registering
                   ? 'Creating account...'
                   : sending

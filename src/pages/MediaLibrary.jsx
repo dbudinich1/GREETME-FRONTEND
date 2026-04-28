@@ -285,30 +285,7 @@ export default function MediaLibrary() {
       {!isSelectionMode && (
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           <button
-            onClick={() => {
-              const voiceSection = document.getElementById('media-voice-section');
-              if (voiceSection) voiceSection.scrollIntoView({ behavior: 'smooth' });
-            }}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#667eea',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              fontFamily: 'inherit',
-            }}
-          >
-            <Mic size={14} />
-            Record Voice
-          </button>
-          <button
-            onClick={() => navigate('/dashboard/send')}
+            onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
             style={{
               padding: '0.5rem 1rem',
               background: '#22c55e',
@@ -324,8 +301,8 @@ export default function MediaLibrary() {
               fontFamily: 'inherit',
             }}
           >
-            <Send size={14} />
-            Send Greet-Me
+            <Users size={14} />
+            Add Recipient
           </button>
         </div>
       )}
