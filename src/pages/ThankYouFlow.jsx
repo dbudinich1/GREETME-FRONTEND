@@ -1013,50 +1013,74 @@ export default function ThankYouFlow() {
                       ? `Sign up & send ${recipientFirst} a thank-you Greet-Me`
                       : 'Sign up & send a thank-you Greet-Me'}
               </button>
+              {(registering || sending) && (
+                <p style={{
+                  fontSize: '0.8125rem',
+                  color: '#6b7280',
+                  fontStyle: 'italic',
+                  textAlign: 'center',
+                  margin: '0.625rem 0 0',
+                }}>
+                  Hang tight \u2014 this usually takes about 5\u201310 seconds.
+                </p>
+              )}
             </form>
           </div>
         )}
 
         {/* F. Authenticated edge case: simple Send button */}
         {user && (
-          <button
-            onClick={doSend}
-            disabled={sending}
-            style={{
-              width: '100%',
-              padding: '1rem',
-              background: sending ? '#d1d5db' : '#4F2D7F',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '0.75rem',
-              fontSize: '1.125rem',
-              fontWeight: 600,
-              fontFamily: 'Georgia, serif',
-              cursor: sending ? 'not-allowed' : 'pointer',
-              boxShadow: sending ? 'none' : '0 4px 14px rgba(79, 45, 127, 0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-            }}
-          >
-            {sending && (
-              <span style={{
-                width: '1rem',
-                height: '1rem',
-                border: '2px solid rgba(255,255,255,0.3)',
-                borderTopColor: '#fff',
-                borderRadius: '50%',
-                display: 'inline-block',
-                animation: 'thankyouSpin 0.6s linear infinite',
-              }} />
+          <>
+            <button
+              onClick={doSend}
+              disabled={sending}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                background: sending ? '#d1d5db' : '#4F2D7F',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '0.75rem',
+                fontSize: '1.125rem',
+                fontWeight: 600,
+                fontFamily: 'Georgia, serif',
+                cursor: sending ? 'not-allowed' : 'pointer',
+                boxShadow: sending ? 'none' : '0 4px 14px rgba(79, 45, 127, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              {sending && (
+                <span style={{
+                  width: '1rem',
+                  height: '1rem',
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  borderTopColor: '#fff',
+                  borderRadius: '50%',
+                  display: 'inline-block',
+                  animation: 'thankyouSpin 0.6s linear infinite',
+                }} />
+              )}
+              {sending
+                ? 'Sending\u2026'
+                : hasRecipientName
+                  ? `Send ${recipientFirst} a thank-you Greet-Me`
+                  : 'Send a thank-you Greet-Me'}
+            </button>
+            {(registering || sending) && (
+              <p style={{
+                fontSize: '0.8125rem',
+                color: '#6b7280',
+                fontStyle: 'italic',
+                textAlign: 'center',
+                margin: '0.625rem 0 0',
+              }}>
+                Hang tight \u2014 this usually takes about 5\u201310 seconds.
+              </p>
             )}
-            {sending
-              ? 'Sending\u2026'
-              : hasRecipientName
-                ? `Send ${recipientFirst} a thank-you Greet-Me`
-                : 'Send a thank-you Greet-Me'}
-          </button>
+          </>
         )}
 
         <p style={{ ...styles.footer, textAlign: 'center' }}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
