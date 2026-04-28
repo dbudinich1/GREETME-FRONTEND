@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { showManualToast } from '../utils/notify';
 import { COMMS_CATEGORIES } from '../utils/commsCatalog';
 import { getErrorMessage } from '../utils/errorMessages';
+import { formatPersonName } from '../utils/formatPersonName';
 import api from '../api/api';
 
 // Session storage key for preserving form data during gift selection navigation
@@ -239,6 +240,14 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
     }
   }, [contact]);
 
+  const handleNameBlur = () => {
+    setFormData(prev => {
+      const formatted = formatPersonName(prev.name);
+      if (formatted === prev.name) return prev;
+      return { ...prev, name: formatted };
+    });
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -453,6 +462,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               name="name"
               value={formData.name}
               onChange={handleChange}
+              onBlur={handleNameBlur}
               autoCapitalize="words"
               autoCorrect="off"
               spellCheck={false}
