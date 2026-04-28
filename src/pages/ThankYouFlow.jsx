@@ -8,6 +8,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { safeSet } from '../utils/safeStorage';
+import { formatPersonName } from '../utils/formatPersonName';
 import VoiceRecorder from '../components/VoiceRecorder';
 import PhotoUpload from '../components/PhotoUpload';
 import HeartsBurst from '../components/HeartsBurst';
@@ -40,7 +41,7 @@ const styles = {
   },
   enhanceRow: {
     padding: '1rem', background: '#fff', borderRadius: '0.75rem',
-    border: '1px solid #e5e7eb', marginBottom: '0.75rem',
+    border: '1px solid #e5e7eb', marginBottom: '0.875rem',
   },
   chipRow: { marginBottom: '0.75rem' },
   successChip: {
@@ -373,7 +374,10 @@ export default function ThankYouFlow() {
   };
 
   // Derive recipient first name (used in success screen and main flow)
-  const recipientFirst = (prefill?.recipientName || 'them').split(' ')[0];
+  const hasRecipientName = !!prefill?.recipientName;
+  const recipientFirst = hasRecipientName
+    ? formatPersonName(prefill.recipientName).split(' ')[0]
+    : 'them';
 
   // ---- Exponential Moment (post-send success) ----
   // Gate: only show within 90 minutes of send
@@ -661,7 +665,7 @@ export default function ThankYouFlow() {
                       border: '1px solid rgba(255,255,255,0.3)',
                       borderRadius: '2rem',
                       fontSize: '0.9375rem',
-                      fontWeight: 600,
+                      fontWeight: 500,
                       fontFamily: 'Georgia, serif',
                       cursor: 'pointer',
                     }}
@@ -775,21 +779,21 @@ export default function ThankYouFlow() {
       <div style={styles.container}>
 
         {/* A. Header block */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2.25rem' }}>
           <p style={{ fontSize: '0.8rem', color: '#9ca3af', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 0.5rem' }}>
             Your turn
           </p>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#1f2937', margin: '0 0 0.75rem', fontFamily: 'Georgia, serif' }}>
-            Send a Greet-Me back
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#1f2937', margin: '0 0 0.75rem', fontFamily: 'Georgia, serif', lineHeight: 1.3 }}>
+            Say thanks in seconds
           </h1>
-          <p style={{ fontSize: '0.95rem', color: '#6b7280', lineHeight: 1.6, margin: 0, maxWidth: '480px', marginLeft: 'auto', marginRight: 'auto' }}>
-            Say thanks to {recipientFirst} in seconds &mdash; then make it even more personal with your voice or photo.
+          <p style={{ fontSize: '0.95rem', color: '#6b7280', lineHeight: 1.65, margin: 0, maxWidth: '480px', marginLeft: 'auto', marginRight: 'auto' }}>
+            Make it personal in just a few words.
           </p>
         </div>
 
         {/* B. Message card */}
         <div style={styles.section}>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>
+          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.625rem' }}>
             Your message
           </label>
           <textarea
@@ -809,7 +813,7 @@ export default function ThankYouFlow() {
               background: '#fff',
             }}
           />
-          <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: '0.5rem 0 0' }}>
+          <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: '0.625rem 0 0' }}>
             This is already written for you &mdash; edit anything you like.
           </p>
         </div>
@@ -986,7 +990,13 @@ export default function ThankYouFlow() {
                   boxShadow: (registering || sending) ? 'none' : '0 4px 14px rgba(79, 45, 127, 0.2)',
                 }}
               >
-                {registering ? 'Creating account...' : sending ? 'Sending\u2026' : 'Sign Up & Send'}
+                {registering
+                  ? 'Creating account...'
+                  : sending
+                    ? 'Sending\u2026'
+                    : hasRecipientName
+                      ? `Sign up & send ${recipientFirst} a thank-you Greet-Me`
+                      : 'Sign up & send a thank-you Greet-Me'}
               </button>
             </form>
           </div>
@@ -1026,7 +1036,11 @@ export default function ThankYouFlow() {
                 animation: 'thankyouSpin 0.6s linear infinite',
               }} />
             )}
-            {sending ? 'Sending\u2026' : 'Send'}
+            {sending
+              ? 'Sending\u2026'
+              : hasRecipientName
+                ? `Send ${recipientFirst} a thank-you Greet-Me`
+                : 'Send a thank-you Greet-Me'}
           </button>
         )}
 
