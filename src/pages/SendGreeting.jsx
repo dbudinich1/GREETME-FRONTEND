@@ -35,6 +35,8 @@ export default function SendGreeting() {
   const [completedJobId, setCompletedJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
   const [heartsBurstKey, setHeartsBurstKey] = useState(0);
+  const [waitMessage, setWaitMessage] = useState('Composing your message...');
+  const [showReadyBeat, setShowReadyBeat] = useState(false);
   const [formData, setFormData] = useState({
     contactId: '',
     occasionType: 'Thinking of You',
@@ -348,6 +350,22 @@ export default function SendGreeting() {
     }
   }, [jobId]);
 
+  // Timed wait messages while sending — purely emotional pacing, decoupled from backend
+  useEffect(() => {
+    const isWaiting = sending || jobStatus === 'processing' || jobStatus === 'queued';
+    if (!isWaiting) return;
+    const start = Date.now();
+    setWaitMessage('Composing your message...');
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - start;
+      if (elapsed < 6000) setWaitMessage('Composing your message...');
+      else if (elapsed < 12000) setWaitMessage('Recording your voice...');
+      else if (elapsed < 20000) setWaitMessage('Bringing your photo to life...');
+      else setWaitMessage('Almost ready...');
+    }, 500);
+    return () => clearInterval(interval);
+  }, [sending, jobStatus]);
+
   const fetchContacts = async () => {
     try {
       const response = await api.getContacts();
@@ -401,6 +419,8 @@ export default function SendGreeting() {
       if (response.status === 'completed') {
         setSending(false);
         setCompletedJobId(jobId);
+        setShowReadyBeat(true);
+        setTimeout(() => setShowReadyBeat(false), 400);
         setTimeout(() => setHeartsBurstKey((k) => k + 1), 150);
         setJobId(null);
         // Mark draft as sent so it won't be restored
@@ -741,6 +761,18 @@ if (typeof window !== "undefined") {
     return <LoadingSpinner text="Loading contacts..." />;
   }
 
+  // Ready Beat — brief 400ms intermediate state before success card lands
+  if (showReadyBeat) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center transition-opacity duration-300">
+          <CheckCircle className="mx-auto text-green-500 mb-4" size={64} />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Your moment is ready</h2>
+        </div>
+      </div>
+    );
+  }
+
   // Success State
   if (jobStatus === 'completed') {
     return (
@@ -840,8 +872,8 @@ if (typeof window !== "undefined") {
               <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
               <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
-            <p className="text-sm text-blue-800 mt-2">
-              Making it personal, making it unforgettable...
+            <p className="text-sm text-blue-800 mt-2 transition-opacity duration-300">
+              {waitMessage}
             </p>
           </div>
         </div>
