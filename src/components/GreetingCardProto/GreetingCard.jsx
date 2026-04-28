@@ -360,7 +360,7 @@ export default function GreetingCard({ greeting }) {
 
   return (
     <div
-      className="gc-container"
+      className="gc-container gc-card-enter"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onMouseDown={handleMouseDown}

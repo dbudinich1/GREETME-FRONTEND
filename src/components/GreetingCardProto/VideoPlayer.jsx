@@ -22,7 +22,17 @@ export default function VideoPlayer({ videoUrl, onEnded, hasEnded }) {
         videoRef.current.currentTime = 0;
       }
       videoRef.current.playbackRate = 0.88; // Slow down tempo
+      // Audio fade-in: start silent, ramp to full volume over ~600ms
+      videoRef.current.volume = 0;
       videoRef.current.play().catch(() => setHasError(true));
+      const fadeStep = 0.05;
+      const fadeIntervalMs = 30;
+      const fadeInterval = setInterval(() => {
+        if (!videoRef.current) { clearInterval(fadeInterval); return; }
+        const next = Math.min(1, videoRef.current.volume + fadeStep);
+        videoRef.current.volume = next;
+        if (next >= 1) clearInterval(fadeInterval);
+      }, fadeIntervalMs);
     }
     setIsPlaying(!isPlaying);
   };

@@ -244,6 +244,21 @@
   .gc-envelope-front::after { animation: none; opacity: 0; }
 }
 
+/* ===== CARD ENTRY ===== */
+/* Soft fade + scale on initial mount of the greeting card root */
+.gc-card-enter {
+  animation: gc-cardEnter 300ms ease-out both;
+}
+
+@keyframes gc-cardEnter {
+  0%   { opacity: 0; transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gc-card-enter { animation: none; }
+}
+
 /* ===== COVER ===== */
 .gc-cover-wrapper {
   perspective: 1500px;
