@@ -151,7 +151,7 @@ export default function ThankYouFlow() {
       setSent(true);
       setSentAt(Date.now());
       setSentJobId(result?.jobId || null);
-      setHeartsBurstKey((k) => k + 1);
+      setTimeout(() => setHeartsBurstKey((k) => k + 1), 150);
     } catch (err) {
       setError(err?.message || 'Failed to send. Please try again.');
     } finally {
@@ -349,7 +349,7 @@ export default function ThankYouFlow() {
       if (result?.ok) {
         setShowShareModal(false);
         setShared(true);
-        setHeartsBurstKey((k) => k + 1);
+        setTimeout(() => setHeartsBurstKey((k) => k + 1), 150);
       } else {
         setShareError(result?.error || 'Could not send share email. Please try again.');
       }

@@ -401,7 +401,7 @@ export default function SendGreeting() {
       if (response.status === 'completed') {
         setSending(false);
         setCompletedJobId(jobId);
-        setHeartsBurstKey((k) => k + 1);
+        setTimeout(() => setHeartsBurstKey((k) => k + 1), 150);
         setJobId(null);
         // Mark draft as sent so it won't be restored
         if (formData.contactId && formData.occasionType) {
