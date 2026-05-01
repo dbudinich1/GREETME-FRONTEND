@@ -871,7 +871,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
               Read this script:
             </p>
             <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.6, margin: 0 }}>
-              "Hello, I hope this greeting finds you well. I'm recording my voice so my greetings sound natural and warm. I look forward to creating many meaningful memories with friends and family for years to come. Thank you for using Greet-Me™."
+              "Hello, I hope this greeting finds you well. I'm recording my voice so my Greet-Me sounds natural and warm. I look forward to creating many meaningful memories with friends and family for years to come. Thank you for using Greet-Me™."
             </p>
           </div>
 
@@ -933,11 +933,11 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         marginBottom: '0.75rem',
         textAlign: 'center',
       }}>
-        Upload a photo so your greetings look like you.
+        Upload a photo that is unmistakably you
       </h3>
 
       <p style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', marginBottom: '1.25rem', textAlign: 'center' }}>
-        This image will be used for your animated greeting.
+        This image will be used to animate your Greet-Me.
       </p>
 
       {photoError && (
