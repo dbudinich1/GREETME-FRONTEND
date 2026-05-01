@@ -707,19 +707,6 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       >
         Let&rsquo;s go
       </button>
-      <button
-        onClick={handleSkip}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: 'var(--text-tertiary)',
-          fontSize: '0.875rem',
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-        }}
-      >
-        I&rsquo;ll set up later
-      </button>
     </div>
   );
 
