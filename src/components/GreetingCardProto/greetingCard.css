@@ -570,7 +570,6 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start; /* start at top, warm wishes uses margin-top: auto */
-  height: auto; /* override base height:100% - let inset positioning control height */
   overflow: hidden; /* keep within inset frame */
   padding-top: var(--lock-poem-top-gap);
   padding-bottom: var(--lock-warm-wishes-bottom-gap);

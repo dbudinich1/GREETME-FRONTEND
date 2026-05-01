@@ -107,9 +107,6 @@ function tightenLineHeight(el, varTarget) {
   }
 }
 
-// Constant closing text — no occasion variations (spec: always this exact string)
-const CLOSING_TEXT = 'With Warmest Wishes';
-
 export default function InteriorSpread({ recipientName, message, senderName, occasionKey, poemText, onClick }) {
   // Refs for runtime fit check
   const messageRef = useRef(null);
@@ -314,7 +311,6 @@ export default function InteriorSpread({ recipientName, message, senderName, occ
         <div className="gc-page gc-page-right">
           <div className="gc-page-content gc-poem-content">
             <p className="gc-poem" ref={poemRef}>{poemDisplay}</p>
-            <h3 className="gc-warm-wishes">{CLOSING_TEXT}</h3>
           </div>
         </div>
       </div>
