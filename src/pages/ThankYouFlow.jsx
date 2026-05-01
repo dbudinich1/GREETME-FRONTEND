@@ -4,7 +4,7 @@
 // Zero blank fields. Send enabled immediately. Auth redirect preserves prefill.
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { safeSet } from '../utils/safeStorage';
@@ -74,9 +74,18 @@ const styles = {
 
 export default function ThankYouFlow() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const jobId = searchParams.get('jobId');
   const creditCode = searchParams.get('creditCode');
   const { user, refreshProfile, register } = useAuth();
+
+  // LI-039: Thank-you flow is for unregistered recipients only.
+  // Authenticated users get redirected to their dashboard.
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   // Inline registration state (guest send path)
   const [regName, setRegName] = useState('');

@@ -66,14 +66,10 @@ export default function CreditClaim() {
               setClaimedByOther(true);
             }
           }
-          // Conditional session clearing: only for unclaimed credits with no existing auth
-          const shouldClearSession = !data.credit.claimed && !preAuthSnapshot.userId;
-          if (shouldClearSession) {
-            try {
-              localStorage.removeItem('token');
-              localStorage.removeItem('user');
-              localStorage.removeItem('greetme_voice_file');
-            } catch {}
+          // Recipient mode flag — only set for true unauth visitors viewing
+          // an unclaimed credit. Do NOT delete localStorage tokens; that would
+          // destroy a registered user's session and force them through sign-in.
+          if (!preAuthSnapshot.userId && !data.credit.claimed) {
             safeSessionSet('greetme_session_mode', 'recipient');
           }
           setSessionReady(true);
@@ -489,7 +485,7 @@ export default function CreditClaim() {
               This {displayAmount} credit has already been applied to a purchase.
             </p>
 
-            {credit?.sourceJobId && !credit?.isOnboardingTestSend && (
+            {credit?.sourceJobId && !credit?.isOnboardingTestSend && !isAuthenticated && (
               <button
                 onClick={() => navigate(`/thank-you?jobId=${credit.sourceJobId}`)}
                 style={{ ...styles.cta, marginBottom: '0.75rem' }}
@@ -506,7 +502,7 @@ export default function CreditClaim() {
           </>
         ) : claimed ? (
           <>
-            {credit?.sourceJobId && !credit?.isOnboardingTestSend ? (
+            {credit?.sourceJobId && !credit?.isOnboardingTestSend && !isAuthenticated ? (
               <>
                 <h1 style={styles.headline}>You&rsquo;re all set</h1>
                 <p style={styles.body}>
@@ -590,7 +586,7 @@ export default function CreditClaim() {
             ) : isAuthenticated ? (
               <>
                 <p style={styles.body}>
-                  Your gift is ready. Say thank you, or continue when you&rsquo;re ready.
+                  Your gift is ready. Continue when you&rsquo;re ready.
                 </p>
                 <button onClick={handleClaim} disabled={claiming} style={{
                   ...styles.cta,
@@ -600,7 +596,7 @@ export default function CreditClaim() {
                   cursor: claiming ? 'default' : 'pointer',
                   marginBottom: '0.75rem',
                 }}>
-                  {claiming ? 'Claiming...' : 'Say Thank You'}
+                  {claiming ? 'Claiming...' : 'Claim & Continue'}
                 </button>
                 <p style={styles.terms}>
                   Applies to your first Greet-Me subscription.
