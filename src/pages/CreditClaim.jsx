@@ -327,6 +327,7 @@ export default function CreditClaim() {
   }, [credit, isAuthenticated]);
 
   const displayAmount = credit ? `$${(credit.amountCents / 100).toFixed(0)}` : '$5';
+  const senderFirstName = (recipientPrefill?.senderName || '').trim().split(/\s+/)[0];
 
   if (loading || !sessionReady) {
     return (
@@ -661,7 +662,7 @@ export default function CreditClaim() {
             ) : (
               <>
                 <p style={styles.body}>
-                  Send a quick thank-you to let them know it landed.
+                  Send a quick thank-you to let {senderFirstName || 'them'} know you got it.
                 </p>
                 <button
                   onClick={() => navigate(`/thank-you?jobId=${credit.sourceJobId}&creditCode=${creditCode}`)}
