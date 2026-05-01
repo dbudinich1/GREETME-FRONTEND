@@ -603,10 +603,6 @@ export default function CreditClaim() {
                   Applies to your first Greet-Me subscription.
                 </p>
               </>
-            ) : prefillLoading ? (
-              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', margin: '1.5rem 0' }}>
-                Preparing your experience&hellip;
-              </p>
             ) : isLoginMode ? (
               <>
                 <p style={styles.body}>
