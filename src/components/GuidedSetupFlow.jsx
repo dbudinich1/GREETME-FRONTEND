@@ -500,8 +500,8 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         lineHeight: 1.35,
       }}>
         {sessionStorage.getItem('greetme_g1g1_claimed')
-          ? `Welcome${user?.name ? `, ${user.name.split(' ')[0]}` : ''}.`
-          : `Congratulations${user?.name ? `, ${user.name.split(' ')[0]}` : ''} \u2014 welcome to Greet-Me.`}
+          ? `Welcome to Greet-Me${user?.name?.trim() ? `, ${user.name.trim().split(/\s+/)[0]}` : ''}.`
+          : `Welcome to Greet-Me${user?.name?.trim() ? `, ${user.name.trim().split(/\s+/)[0]}` : ''}.`}
       </h2>
       <p style={{
         fontSize: '1rem',
