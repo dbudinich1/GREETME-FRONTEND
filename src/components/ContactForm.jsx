@@ -782,47 +782,6 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
             {errors.relationship}
           </p>
         )}
-
-        {/* Context Text Area */}
-        <div>
-          <label style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            fontSize: '0.8125rem',
-            fontWeight: 600,
-            color: 'var(--text-secondary)',
-            marginBottom: '0.375rem'
-          }}>
-            <span>Relationship Context</span>
-            <Info size={14} style={{ color: 'var(--text-tertiary)' }} />
-          </label>
-          <textarea
-            name="relationshipContext"
-            value={formData.relationshipContext}
-            onChange={handleChange}
-            rows={2}
-            style={{
-              width: '100%',
-              padding: '0.625rem 0.875rem',
-              border: '1.5px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.875rem',
-              fontFamily: 'inherit',
-              resize: 'vertical',
-              minHeight: '60px'
-            }}
-            placeholder="How did you meet? What memories do you share?"
-            maxLength={500}
-          />
-          <p style={{
-            marginTop: '0.25rem',
-            fontSize: '0.6875rem',
-            color: 'var(--text-tertiary)'
-          }}>
-            {formData.relationshipContext?.length || 0}/500 characters
-          </p>
-        </div>
       </div>
 
       {/* Cultural & Personal Context - Collapsible Section */}
@@ -1515,7 +1474,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         <div>
           <h4 className="text-sm font-semibold text-gray-700 mb-3">Personal Occasions</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {occasionCategories.personal.map((occasion) => {
+            {occasionCategories.personal.filter(o => o.value !== 'getwell').map((occasion) => {
               const isSelected = selectedOccasions.includes(occasion.value);
               const occasionData = formData.occasions?.find(o => o.type === occasion.value);
               const giftSetting = getOccasionGiftSetting(occasion.value);

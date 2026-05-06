@@ -1106,60 +1106,34 @@ if (typeof window !== "undefined") {
             {errors.contactId && <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.contactId}</p>}
           </div>
 
-          {/* Occasion - Free Text Input */}
+          {/* Occasion - Dropdown */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Occasion <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
+            <select
               name="occasionType"
               value={formData.occasionType}
               onChange={handleChange}
-              placeholder="e.g., Thinking of you"
               style={{
                 width: '100%',
                 padding: '0.5rem 0.75rem',
                 border: errors.occasionType ? '2px solid var(--error)' : '1px solid var(--border)',
                 borderRadius: 'var(--radius-md)',
                 fontSize: '0.875rem',
-                outline: 'none'
+                outline: 'none',
+                background: 'white',
+                cursor: 'pointer'
               }}
-            />
+            >
+              <option value="">Select an occasion</option>
+              <option value="Birthday">Birthday</option>
+              <option value="Anniversary">Anniversary</option>
+              <option value="Thank You">Thank You</option>
+              <option value="Congratulations">Congratulations</option>
+              <option value="Just Because">Just Because</option>
+            </select>
             {errors.occasionType && <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.occasionType}</p>}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '0.375rem' }}>
-              {[
-                { label: 'Birthday', value: 'Birthday' },
-                { label: 'Anniversary', value: 'Anniversary' },
-                { label: 'Thank You', value: 'Thank You' },
-                { label: 'Get Well', value: 'Get Well' },
-                { label: 'Congrats', value: 'Congratulations' },
-                { label: 'Just Because', value: 'Just Because' },
-              ].map((chip) => (
-                <button
-                  key={chip.value}
-                  type="button"
-                  onClick={() => {
-                    setFormData(prev => ({ ...prev, occasionType: chip.value }));
-                    if (errors.occasionType) setErrors(prev => ({ ...prev, occasionType: '' }));
-                  }}
-                  style={{
-                    padding: '2px 8px',
-                    fontSize: '0.6875rem',
-                    borderRadius: '999px',
-                    border: `1px solid ${formData.occasionType === chip.value ? '#667eea' : 'var(--border, #e5e7eb)'}`,
-                    background: formData.occasionType === chip.value ? '#eef2ff' : 'transparent',
-                    color: formData.occasionType === chip.value ? '#667eea' : 'var(--text-tertiary, #9ca3af)',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    lineHeight: 1.6,
-                    fontWeight: formData.occasionType === chip.value ? 600 : 400,
-                  }}
-                >
-                  {chip.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Tone Dropdown */}
