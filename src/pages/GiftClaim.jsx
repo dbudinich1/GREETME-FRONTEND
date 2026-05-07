@@ -239,6 +239,7 @@ export default function GiftClaim() {
               : typeof error === 'string' ? error : 'Please try again later.'}
           </p>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
         </div>
       </div>
     );
@@ -303,6 +304,7 @@ export default function GiftClaim() {
 
           <a href="/" style={styles.secondaryLink}>Learn about Greet-Me&trade;</a>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
         </div>
       </div>
     );
@@ -380,6 +382,7 @@ export default function GiftClaim() {
           })()}
 
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
         </div>
       </div>
     );
@@ -396,6 +399,7 @@ export default function GiftClaim() {
             This QR Cash&trade; gift is no longer available. Gifts expire {gift.expiryDays || 30} days after delivery. Expired gifts are not automatically refunded &mdash; contact support for assistance.
           </p>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
         </div>
       </div>
     );
@@ -438,6 +442,7 @@ export default function GiftClaim() {
           </button>
 
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
         </div>
       </div>
     );
@@ -665,6 +670,7 @@ export default function GiftClaim() {
         </p>
 
         <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
       </div>
     </div>
   );
@@ -778,3 +784,13 @@ const styles = {
     gap: '0.5rem',
   }),
 };
+
+const trustLinks = (
+  <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#b0b0b0', textAlign: 'center' }}>
+    <a href="#/support" style={{ color: 'inherit', textDecoration: 'underline' }}>Support</a>
+    {' · '}
+    <a href="#/legal#privacy" style={{ color: 'inherit', textDecoration: 'underline' }}>Privacy</a>
+    {' · '}
+    <a href="#/legal#terms" style={{ color: 'inherit', textDecoration: 'underline' }}>Terms</a>
+  </p>
+);

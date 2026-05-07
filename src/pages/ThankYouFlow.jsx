@@ -748,6 +748,7 @@ export default function ThankYouFlow() {
             Go to dashboard
           </a>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
         </div>
       </div>
     );
@@ -776,6 +777,7 @@ export default function ThankYouFlow() {
             Send a greeting instead
           </a>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
         </div>
       </div>
     );
@@ -1093,6 +1095,7 @@ export default function ThankYouFlow() {
         )}
 
         <p style={{ ...styles.footer, textAlign: 'center' }}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+        {trustLinks}
 
         {/* Keyframes for send spinner and success entrance */}
         <style>{`
@@ -1108,4 +1111,14 @@ export default function ThankYouFlow() {
     </div>
   );
 }
+
+const trustLinks = (
+  <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#b0b0b0', textAlign: 'center' }}>
+    <a href="#/support" style={{ color: 'inherit', textDecoration: 'underline' }}>Support</a>
+    {' · '}
+    <a href="#/legal#privacy" style={{ color: 'inherit', textDecoration: 'underline' }}>Privacy</a>
+    {' · '}
+    <a href="#/legal#terms" style={{ color: 'inherit', textDecoration: 'underline' }}>Terms</a>
+  </p>
+);
 

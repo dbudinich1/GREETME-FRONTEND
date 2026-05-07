@@ -398,6 +398,7 @@ export default function CreditClaim() {
             Go to Dashboard
           </button>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
         </div>
       </div>
     );
@@ -431,6 +432,7 @@ export default function CreditClaim() {
             Go to Dashboard
           </button>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
         </div>
       </div>
     );
@@ -467,6 +469,7 @@ export default function CreditClaim() {
             Go to Dashboard
           </button>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
         </div>
       </div>
     );
@@ -689,6 +692,7 @@ export default function CreditClaim() {
         )}
 
         <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
       </div>
     </div>
   );
@@ -745,3 +749,13 @@ const styles = {
     fontSize: '0.7rem', color: 'rgba(255,255,255,0.15)', margin: '2rem 0 0',
   },
 };
+
+const trustLinks = (
+  <p style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.55)', textAlign: 'center' }}>
+    <a href="#/support" style={{ color: 'inherit', textDecoration: 'underline' }}>Support</a>
+    {' · '}
+    <a href="#/legal#privacy" style={{ color: 'inherit', textDecoration: 'underline' }}>Privacy</a>
+    {' · '}
+    <a href="#/legal#terms" style={{ color: 'inherit', textDecoration: 'underline' }}>Terms</a>
+  </p>
+);
