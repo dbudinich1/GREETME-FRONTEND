@@ -198,6 +198,14 @@ export default function G1G1Claim() {
         )}
 
         <p style={styles.footer}>Greet One, Give One&trade; — included with full memberships.</p>
+        <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+        <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#9ca3af', textAlign: 'center' }}>
+          <a href="#/support" style={{ color: 'inherit', textDecoration: 'underline' }}>Support</a>
+          {' · '}
+          <a href="#/legal#privacy" style={{ color: 'inherit', textDecoration: 'underline' }}>Privacy</a>
+          {' · '}
+          <a href="#/legal#terms" style={{ color: 'inherit', textDecoration: 'underline' }}>Terms</a>
+        </p>
       </div>
     </div>
   );

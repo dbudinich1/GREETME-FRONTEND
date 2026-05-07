@@ -175,6 +175,13 @@ export default function PaymentSuccess() {
         textAlign: 'center'
       }}>
         <p>&copy; 2026 Greet-Me&trade;. All rights reserved. | Forget Them Not!&trade;</p>
+        <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)' }}>
+          <a href="#/support" style={{ color: 'inherit', textDecoration: 'underline' }}>Support</a>
+          {' · '}
+          <a href="#/legal#privacy" style={{ color: 'inherit', textDecoration: 'underline' }}>Privacy</a>
+          {' · '}
+          <a href="#/legal#terms" style={{ color: 'inherit', textDecoration: 'underline' }}>Terms</a>
+        </p>
       </footer>
     </div>
   );
