@@ -218,6 +218,15 @@ export default function Landing() {
       }}>
         &copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;
       </p>
+      <p style={{
+        marginTop: '0.5rem',
+        fontSize: '0.75rem',
+        color: '#9ca3af',
+      }}>
+        <a href="#/support" style={{ color: '#9ca3af', textDecoration: 'underline' }}>Support</a>
+        {' · '}
+        <a href="#/legal" style={{ color: '#9ca3af', textDecoration: 'underline' }}>Legal</a>
+      </p>
     </div>
   );
 }

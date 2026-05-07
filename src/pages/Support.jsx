@@ -108,7 +108,7 @@ export default function Support() {
         color: '#999',
         fontSize: '0.8125rem'
       }}>
-        <p>&copy; 2026 Greet-Me™. All rights reserved.</p>
+        <p>&copy; 2026 Greet-Me™. All rights reserved. &middot; <a href="#/legal" style={{ color: '#999', textDecoration: 'underline' }}>Legal</a></p>
       </footer>
     </div>
   );
