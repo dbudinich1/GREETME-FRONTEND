@@ -485,7 +485,20 @@ export default function CreditClaim() {
 
         <p style={styles.eyebrow}>A gift from Greet-Me</p>
 
-        {claimed && credit?.consumed ? (
+        {claimedByOther ? (
+          <>
+            <h1 style={styles.headline}>This credit was claimed by another account</h1>
+            <p style={styles.body}>
+              If you believe this is an error, please contact support.
+            </p>
+            <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
+              View Plans
+            </button>
+            <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
+              Go to Dashboard
+            </button>
+          </>
+        ) : claimed && credit?.consumed ? (
           <>
             <h1 style={styles.headline}>Credit Already Used</h1>
             <p style={styles.body}>
@@ -577,19 +590,6 @@ export default function CreditClaim() {
               </>
             ) : claimInProgress ? (
               <p style={styles.body}>Completing your claim&hellip;</p>
-            ) : claimedByOther ? (
-              <>
-                <h1 style={styles.headline}>This credit was claimed by another account</h1>
-                <p style={styles.body}>
-                  If you believe this is an error, please contact support.
-                </p>
-                <button onClick={() => navigate('/pricing')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
-                  View Plans
-                </button>
-                <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
-                  Go to Dashboard
-                </button>
-              </>
             ) : isAuthenticated ? (
               <>
                 <p style={styles.body}>
