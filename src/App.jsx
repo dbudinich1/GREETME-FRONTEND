@@ -10,6 +10,7 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Landing from "./pages/Landing";
 import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import DashboardHome from "./pages/DashboardHome";
 import Profile from "./pages/Profile";
 import Recipients from "./pages/Contacts";
@@ -109,6 +110,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/redeem/qr-cash/:id" element={<RedeemQRCash />} />
           <Route path="/greeting/:greetingId" element={<RecipientGreeting />} />
           <Route path="/g/:jobId" element={<PublicGreetingCard />} />
