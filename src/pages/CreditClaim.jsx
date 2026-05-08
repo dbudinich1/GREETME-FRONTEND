@@ -2,7 +2,7 @@
 // Public landing page for tracked courtesy credit
 // Route: /claim-credit/:creditCode
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
@@ -48,6 +48,7 @@ export default function CreditClaim() {
   const [claimInProgress, setClaimInProgress] = useState(false);
   const [claimedByOther, setClaimedByOther] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
+  const sessionClearedRef = useRef(false);
 
   useEffect(() => {
     if (!creditCode) {
@@ -69,7 +70,7 @@ export default function CreditClaim() {
           // Recipient mode flag — only set for true unauth visitors viewing
           // an unclaimed credit. Do NOT delete localStorage tokens; that would
           // destroy a registered user's session and force them through sign-in.
-          if (!preAuthSnapshot.userId && !data.credit.claimed) {
+          if (!preAuthSnapshot.userId && !data.credit.claimed && !sessionClearedRef.current) {
             safeSessionSet('greetme_session_mode', 'recipient');
           }
           setSessionReady(true);
@@ -183,6 +184,7 @@ export default function CreditClaim() {
     }
 
     // STEP 3 — ROUTE (only if credit was applied)
+    sessionClearedRef.current = true;
     safeSessionRemove('greetme_session_mode');
 
     if (!creditApplied) {
@@ -262,6 +264,7 @@ export default function CreditClaim() {
     }
 
     // STEP 3 — SHOW LOOP-CLOSURE (only on success)
+    sessionClearedRef.current = true;
     safeSessionRemove('greetme_session_mode');
     setIsLoginMode(false);
     setLoginPassword('');
