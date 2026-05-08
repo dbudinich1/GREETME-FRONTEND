@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
-import { safeSet, safeSessionSet, safeSessionRemove } from '../utils/safeStorage';
+import { safeGet, safeSet, safeSessionSet, safeSessionRemove } from '../utils/safeStorage';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -19,8 +19,8 @@ export default function CreditClaim() {
   // Clearing is deferred to after credit fetch — conditional on credit state + visitor identity.
   const [preAuthSnapshot] = useState(() => {
     try {
-      const token = localStorage.getItem('token');
-      const userData = localStorage.getItem('user');
+      const token = safeGet('token');
+      const userData = safeGet('user');
       if (token && userData && userData !== 'undefined') {
         return { userId: JSON.parse(userData).id || null, token };
       }
