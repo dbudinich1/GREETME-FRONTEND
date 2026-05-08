@@ -2,20 +2,29 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import GreetMeLogo from '../components/GreetMeLogo';
+import api from '../api/api';
 
 export const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
     setLoading(true);
-    // TODO: Implement password reset API call
-    setTimeout(() => {
+    try {
+      await api.request('/api/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
       setSent(true);
+    } catch (err) {
+      setError(err?.message || 'Could not send reset email. Please try again.');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -45,6 +54,12 @@ export const ForgotPassword = () => {
                 required
               />
             </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
 
             <button
               type="submit"
