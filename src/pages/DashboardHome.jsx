@@ -10,7 +10,7 @@ import { COMMS_EVENTS } from '../utils/commsCatalog';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
-import { safeSet } from '../utils/safeStorage';
+import { safeGet, safeSet, safeSessionGet, safeSessionSet } from '../utils/safeStorage';
 import OnboardingCoach from '../components/OnboardingCoach';
 import TutorialVideo from '../components/TutorialVideo';
 
@@ -61,7 +61,7 @@ export default function DashboardHome() {
 
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(PRESENCE_KEY);
+      const raw = safeSessionGet(PRESENCE_KEY);
       if (!raw) return;
       const saved = JSON.parse(raw);
 
@@ -73,7 +73,7 @@ export default function DashboardHome() {
 
   useEffect(() => {
     try {
-      sessionStorage.setItem(
+      safeSessionSet(
         PRESENCE_KEY,
         JSON.stringify({ voiceRecorded, photoUploaded, voiceFileUrl })
       );
@@ -108,7 +108,7 @@ export default function DashboardHome() {
   // Load persisted media from localStorage (voice only; photo comes from user.photoUrl)
   const loadPersistedMedia = () => {
     try {
-      const savedVoice = localStorage.getItem('greetme_voice_file');
+      const savedVoice = safeGet('greetme_voice_file');
 
       if (savedVoice) {
         setVoiceFileUrl(savedVoice);
@@ -125,7 +125,7 @@ export default function DashboardHome() {
       // Sent greetings now loaded from API in fetchDashboardData()
 
       // Load QR Cash gifts
-      const savedQrCash = localStorage.getItem('greetme_qrcash_gifts');
+      const savedQrCash = safeGet('greetme_qrcash_gifts');
       if (savedQrCash) {
         setQrCashGifts(JSON.parse(savedQrCash));
       }
@@ -154,14 +154,14 @@ export default function DashboardHome() {
           setContacts(contactsRes.data || []);
         } else {
           // If API fails, try localStorage (same as Recipients page)
-          const stored = localStorage.getItem('greetme_recipients');
+          const stored = safeGet('greetme_recipients');
           if (stored) {
             setContacts(JSON.parse(stored));
           }
         }
       } catch (err) {
         console.log('Contacts endpoint not available yet, checking localStorage');
-        const stored = localStorage.getItem('greetme_recipients');
+        const stored = safeGet('greetme_recipients');
         if (stored) {
           setContacts(JSON.parse(stored));
         }
