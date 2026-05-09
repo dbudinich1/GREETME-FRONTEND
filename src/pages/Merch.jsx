@@ -4,138 +4,44 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, Briefcase, Users, Check, ArrowLeft } from 'lucide-react';
 import cartService from '../services/cartService';
 import AddToCartModal from '../components/AddToCartModal';
+import api from '../api/api';
 import greetmeFlags from '../assets/greetme-flags.jpg';
-
-const merchItems = [
-  {
-    id: 1,
-    name: 'Greet-Me™ Premium T-Shirt',
-    price: 29.99,
-    description: 'Soft cotton tee with signature logo',
-    category: 'Apparel',
-    colors: ['Black', 'White', 'Navy'],
-    whiteLabel: true
-  },
-  {
-    id: 2,
-    name: 'Stainless Steel Travel Mug',
-    price: 24.99,
-    description: 'Insulated 16oz mug keeps drinks hot or cold',
-    category: 'Drinkware',
-    colors: ['Silver', 'Black', 'Rose Gold'],
-    whiteLabel: true
-  },
-  {
-    id: 3,
-    name: 'Premium Notebook Set',
-    price: 19.99,
-    description: 'Set of 3 quality notebooks with branded covers',
-    category: 'Stationery',
-    colors: ['Assorted'],
-    whiteLabel: true
-  },
-  {
-    id: 4,
-    name: 'Classic Baseball Cap',
-    price: 22.99,
-    description: 'Adjustable cotton cap with embroidered logo',
-    category: 'Apparel',
-    colors: ['Black', 'Navy', 'Khaki'],
-    whiteLabel: true
-  },
-  {
-    id: 5,
-    name: 'Cozy Hoodie',
-    price: 49.99,
-    description: 'Premium fleece hoodie with front pocket',
-    category: 'Apparel',
-    colors: ['Gray', 'Black', 'Navy'],
-    whiteLabel: true
-  },
-  {
-    id: 6,
-    name: 'Sticker Pack',
-    price: 9.99,
-    description: 'Set of 10 premium die-cut stickers',
-    category: 'Accessories',
-    colors: ['Multi-color'],
-    whiteLabel: false
-  },
-  {
-    id: 7,
-    name: 'Wireless Phone Charger',
-    price: 34.99,
-    description: 'Fast-charging pad with LED indicator',
-    category: 'Tech',
-    colors: ['Black', 'White'],
-    whiteLabel: true
-  },
-  {
-    id: 8,
-    name: 'Canvas Tote Bag',
-    price: 16.99,
-    description: 'Eco-friendly canvas bag with reinforced handles',
-    category: 'Accessories',
-    colors: ['Natural', 'Black'],
-    whiteLabel: true
-  },
-  {
-    id: 9,
-    name: 'Desk Organizer',
-    price: 27.99,
-    description: 'Bamboo desk organizer with multiple compartments',
-    category: 'Office',
-    colors: ['Natural Wood'],
-    whiteLabel: true
-  },
-  {
-    id: 10,
-    name: 'Premium Pen Set',
-    price: 39.99,
-    description: 'Set of 2 luxury ballpoint pens in gift box',
-    category: 'Stationery',
-    colors: ['Black', 'Silver'],
-    whiteLabel: true
-  }
-];
-
-// Get unique categories from merch items
-const merchCategories = ['All', ...new Set(merchItems.map(item => item.category))];
 
 export default function Merch() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [showCorporateModal, setShowCorporateModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('All');
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
   const [addedItems, setAddedItems] = useState(new Set());
   const [showCartModal, setShowCartModal] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Check if user came from recipient form (has category param or returnRecipientId)
+  // Session context: recipient gift flow vs SendGreeting Just-Because flow
   const returnRecipientId = searchParams.get('returnRecipientId');
-  const cameFromRecipientForm = searchParams.has('category') || !!returnRecipientId;
-
-  // Check if user came from SendGreeting page (Just Because)
   const returnTo = searchParams.get('returnTo');
-  const giftType = searchParams.get('giftType');
   const cameFromSendGreeting = returnTo === 'send';
 
-  // Handle category from URL query param
+  // Fetch curated products from /api/merch/products on mount
   useEffect(() => {
-    const categoryParam = searchParams.get('category');
-    if (categoryParam) {
-      const categoryMap = {
-        'merch': 'All',
-        'apparel': 'Apparel',
-        'drinkware': 'Drinkware',
-        'accessories': 'Accessories',
-        'stationery': 'Stationery'
-      };
-      const mappedCategory = categoryMap[categoryParam.toLowerCase()] || 'All';
-      setSelectedCategory(mappedCategory);
-    }
-  }, [searchParams]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.request('/api/merch/products');
+        if (!cancelled) {
+          setProducts(res?.products || []);
+          setError(null);
+        }
+      } catch (err) {
+        if (!cancelled) setError(err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Handle resize for mobile detection
   useEffect(() => {
@@ -147,36 +53,31 @@ export default function Merch() {
   const handleAddToCart = (item, e) => {
     e.stopPropagation();
     try {
+      // Stage 2 cart pricing is provisional until Stage 3 variant-aware checkout pricing.
+      const provisionalPriceDollars = item.priceCentsMin / 100;
       cartService.addItem({
-        merchId: item.id,
+        merchId: item.syncProductId,
         name: item.name,
-        price: item.price,
-        description: item.description,
-        category: item.category,
-        icon: '🛍️'
+        price: provisionalPriceDollars,
+        category: 'Merch',
+        icon: '🛍️',
       });
 
-      // Show feedback
-      setAddedItems(prev => new Set(prev).add(item.id));
-
-      // Trigger cart count update
+      setAddedItems(prev => new Set(prev).add(item.syncProductId));
       window.dispatchEvent(new Event('cartUpdated'));
-
-      // Store the added item and show the modal
       setLastAddedItem(item);
       setShowCartModal(true);
-    } catch (error) {
-      console.error('Error adding to cart:', error);
+    } catch (err) {
+      console.error('Error adding to cart:', err);
     }
   };
 
   const handleContinueShopping = () => {
     setShowCartModal(false);
-    // Remove the "Added" state after closing
     if (lastAddedItem) {
       setAddedItems(prev => {
         const next = new Set(prev);
-        next.delete(lastAddedItem.id);
+        next.delete(lastAddedItem.syncProductId);
         return next;
       });
     }
@@ -191,24 +92,16 @@ export default function Merch() {
   const handleReturnToRecipient = () => {
     setShowCartModal(false);
     if (returnRecipientId) {
-      // Navigate to contacts with state to auto-open the edit modal
       navigate('/dashboard/contacts', { state: { openEditRecipientId: returnRecipientId } });
     } else {
-      // Fallback: just go to contacts page
       navigate('/dashboard/contacts');
     }
   };
 
   const handleReturnToGreeting = () => {
     setShowCartModal(false);
-    // Navigate back to SendGreeting page with params to reopen gift modal
     navigate('/dashboard/send?returnTo=send&giftType=merch');
   };
-
-  // Filter items by category
-  const filteredItems = selectedCategory === 'All'
-    ? merchItems
-    : merchItems.filter(item => item.category === selectedCategory);
 
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
@@ -476,225 +369,168 @@ export default function Merch() {
         </button>
       </div>
 
-      {/* Category Filter Pills */}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '0.5rem',
-        marginBottom: '1.5rem',
-        maxWidth: '100%',
-        overflowX: 'hidden'
-      }}>
-        {merchCategories.map((category) => (
-          <button
-            key={category}
-            onClick={() => setSelectedCategory(category)}
-            style={{
-              padding: '0.5rem 1rem',
-              background: selectedCategory === category ? 'var(--primary)' : 'var(--gray-100)',
-              color: selectedCategory === category ? 'white' : 'var(--text-secondary)',
-              border: 'none',
-              borderRadius: '9999px',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              transition: 'all 0.2s'
-            }}
-          >
-            {category}
-          </button>
-        ))}
-      </div>
-
-      {/* Merch Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: isNarrow
-          ? '1fr 1fr'
-          : 'repeat(auto-fill, minmax(300px, 1fr))',
-        gap: isNarrow ? '0.75rem' : '1.5rem',
-        maxWidth: '100%',
-        overflowX: 'hidden'
-      }}>
-        {filteredItems.map((item) => (
-          <div
-            key={item.id}
-            style={{
-              background: 'var(--bg-primary)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-xl)',
-              overflow: 'hidden',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              position: 'relative'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-4px)';
-              e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            {/* White Label Badge */}
-            {item.whiteLabel && (
-              <div style={{
-                position: 'absolute',
-                top: '1rem',
-                right: '1rem',
-                background: 'rgba(30, 58, 138, 0.9)',
-                color: 'white',
-                padding: '0.375rem 0.75rem',
-                borderRadius: '9999px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                zIndex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem'
-              }}>
-                <Briefcase size={12} />
-                White Label
-              </div>
-            )}
-
-            {/* Image Placeholder */}
-            <div style={{
-              width: '100%',
-              height: isNarrow ? '120px' : '200px',
-              background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: isNarrow ? '2.5rem' : '4rem'
-            }}>
-              🛍️
-            </div>
-
-            {/* Content */}
-            <div style={{ padding: isNarrow ? '0.75rem' : '1.5rem' }}>
-              {/* Category Badge */}
-              {!isNarrow && (
+      {/* Merch Grid — loading / error / empty / products */}
+      {loading ? (
+        <div style={{
+          padding: '4rem 2rem',
+          textAlign: 'center',
+          color: 'var(--text-secondary)',
+          fontSize: '0.9375rem',
+          fontStyle: 'italic'
+        }}>
+          Loading…
+        </div>
+      ) : error ? (
+        <div style={{
+          padding: '3rem 2rem',
+          textAlign: 'center',
+          color: 'var(--text-secondary)',
+          fontSize: '0.9375rem',
+          lineHeight: 1.6
+        }}>
+          We&rsquo;re having trouble loading our merchandise right now. Please try again shortly.
+        </div>
+      ) : products.length === 0 ? (
+        <div style={{
+          padding: '3rem 2rem',
+          textAlign: 'center',
+          color: 'var(--text-secondary)',
+          fontSize: '0.9375rem',
+          lineHeight: 1.6
+        }}>
+          Our curated collection is being refreshed. Please check back soon.
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isNarrow
+            ? '1fr 1fr'
+            : 'repeat(auto-fill, minmax(300px, 1fr))',
+          gap: isNarrow ? '0.75rem' : '1.5rem',
+          maxWidth: '100%',
+          overflowX: 'hidden'
+        }}>
+          {products.map((item) => {
+            const minDollars = (item.priceCentsMin / 100).toFixed(item.priceCentsMin % 100 === 0 ? 0 : 2);
+            const maxDollars = (item.priceCentsMax / 100).toFixed(item.priceCentsMax % 100 === 0 ? 0 : 2);
+            const displayPrice = item.priceCentsMin === item.priceCentsMax
+              ? `$${minDollars}`
+              : `$${minDollars} – $${maxDollars}`;
+            const hasMultipleOptions = item.variantCount > 1;
+            return (
+              <div
+                key={item.syncProductId}
+                style={{
+                  background: 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-xl)',
+                  overflow: 'hidden',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer',
+                  position: 'relative'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                {/* Product image — Printful CDN URL with gradient/emoji fallback */}
                 <div style={{
-                  display: 'inline-block',
-                  padding: '0.25rem 0.75rem',
-                  background: 'var(--gray-100)',
-                  borderRadius: '9999px',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  color: 'var(--text-tertiary)',
-                  marginBottom: '0.75rem'
+                  width: '100%',
+                  height: isNarrow ? '120px' : '200px',
+                  background: item.imageUrl
+                    ? `url(${item.imageUrl}) center/cover no-repeat`
+                    : 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: isNarrow ? '2.5rem' : '4rem'
                 }}>
-                  {item.category}
+                  {!item.imageUrl && '🛍️'}
                 </div>
-              )}
 
-              <h3 style={{
-                fontSize: isNarrow ? '0.875rem' : '1.125rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                marginBottom: '0.25rem'
-              }}>
-                {item.name}
-              </h3>
-
-              {!isNarrow && (
-                <p style={{
-                  fontSize: '0.875rem',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '0.75rem',
-                  lineHeight: 1.5
-                }}>
-                  {item.description}
-                </p>
-              )}
-
-              {/* Colors - hide on narrow */}
-              {!isNarrow && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <p style={{
-                    fontSize: '0.75rem',
+                {/* Content */}
+                <div style={{ padding: isNarrow ? '0.75rem' : '1.5rem' }}>
+                  <h3 style={{
+                    fontSize: isNarrow ? '0.875rem' : '1.125rem',
                     fontWeight: 600,
-                    color: 'var(--text-tertiary)',
-                    marginBottom: '0.5rem'
+                    color: 'var(--text-primary)',
+                    marginBottom: '0.25rem'
                   }}>
-                    Available Colors:
-                  </p>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {item.colors.map((color) => (
-                      <span
-                        key={color}
-                        style={{
-                          padding: '0.25rem 0.625rem',
-                          background: 'var(--gray-100)',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '0.75rem',
-                          color: 'var(--text-secondary)'
-                        }}
-                      >
-                        {color}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    {item.name}
+                  </h3>
 
-              {/* Price and Actions */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: isNarrow ? '0.5rem' : '1rem',
-                borderTop: isNarrow ? 'none' : '1px solid var(--border)',
-                flexWrap: isNarrow ? 'wrap' : 'nowrap',
-                gap: '0.5rem'
-              }}>
-                <div>
-                  <span style={{
-                    fontSize: isNarrow ? '1rem' : '1.5rem',
-                    fontWeight: 700,
-                    color: 'var(--primary)'
-                  }}>
-                    ${item.price}
-                  </span>
-                </div>
-                <button
-                  onClick={(e) => handleAddToCart(item, e)}
-                  style={{
-                    padding: isNarrow ? '0.375rem 0.75rem' : '0.5rem 1.25rem',
-                    background: addedItems.has(item.id) ? '#22c55e' : 'var(--primary)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 'var(--radius-md)',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontWeight: 600,
-                    fontSize: isNarrow ? '0.75rem' : '0.875rem',
+                  {hasMultipleOptions && (
+                    <p style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--text-tertiary)',
+                      fontStyle: 'italic',
+                      marginBottom: '0.75rem'
+                    }}>
+                      Additional sizes/models available
+                    </p>
+                  )}
+
+                  {/* Price and Actions */}
+                  <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {addedItems.has(item.id) ? (
-                    <>
-                      <Check size={isNarrow ? 14 : 18} />
-                      {isNarrow ? '✓' : 'Added!'}
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart size={isNarrow ? 14 : 18} />
-                      {isNarrow ? 'Add' : 'Add to Cart'}
-                    </>
-                  )}
-                </button>
+                    justifyContent: 'space-between',
+                    paddingTop: isNarrow ? '0.5rem' : '1rem',
+                    borderTop: isNarrow ? 'none' : '1px solid var(--border)',
+                    flexWrap: isNarrow ? 'wrap' : 'nowrap',
+                    gap: '0.5rem'
+                  }}>
+                    <div>
+                      <span style={{
+                        fontSize: isNarrow ? '1rem' : '1.5rem',
+                        fontWeight: 700,
+                        color: 'var(--primary)'
+                      }}>
+                        {displayPrice}
+                      </span>
+                    </div>
+                    <button
+                      onClick={(e) => handleAddToCart(item, e)}
+                      style={{
+                        padding: isNarrow ? '0.375rem 0.75rem' : '0.5rem 1.25rem',
+                        background: addedItems.has(item.syncProductId) ? '#22c55e' : 'var(--primary)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 'var(--radius-md)',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        fontWeight: 600,
+                        fontSize: isNarrow ? '0.75rem' : '0.875rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {addedItems.has(item.syncProductId) ? (
+                        <>
+                          <Check size={isNarrow ? 14 : 18} />
+                          {isNarrow ? '✓' : 'Added!'}
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart size={isNarrow ? 14 : 18} />
+                          {isNarrow ? 'Add' : 'Add to Cart'}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
       </div>
       {/* End Background Frame */}
 
