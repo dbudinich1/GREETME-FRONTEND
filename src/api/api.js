@@ -557,6 +557,13 @@ class ApiService {
       method: "POST",
     });
   }
+
+  // --------------------
+  // Merch orders (Phase 3C Stage 5)
+  // --------------------
+  getMerchOrders() {
+    return this.request("/api/merch/orders");
+  }
 }
 
 const api = new ApiService();

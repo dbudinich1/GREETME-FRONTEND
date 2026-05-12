@@ -68,6 +68,7 @@ export default function DashboardLayout({ children }) {
     { name: 'Plans & Pricing', path: '/pricing', icon: null },
     { name: 'For Business', path: '/business', icon: null },
     { name: 'American Gift Place', path: '/dashboard/gifts', icon: Gift },
+    { name: 'My Orders', path: '/dashboard/merch/orders', icon: ShoppingBag },
     { name: '❤️ Rewards', path: '/dashboard/rewards', icon: null },
     { name: '🥇 Greet-Me™ Hero™', path: '/dashboard/hero', icon: null },
   ];

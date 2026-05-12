@@ -24,6 +24,7 @@ import Gifts from "./pages/Gifts";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Merch from "./pages/Merch";
+import MerchOrders from "./pages/MerchOrders";
 import HeroProgram from "./pages/HeroProgram";
 import AnimationBank from "./pages/AnimationBank";
 import Invitations from "./pages/Invitations";
@@ -141,6 +142,7 @@ export default function App() {
             <Route path="cart" element={<Cart />} />
             <Route path="checkout" element={<Checkout />} />
             <Route path="merch" element={<Merch />} />
+            <Route path="merch/orders" element={<MerchOrders />} />
             <Route path="gifts" element={<Gifts />} />
             <Route path="hero" element={<HeroProgram />} />
             <Route path="animations" element={<AnimationBank />} />
