@@ -1,8 +1,24 @@
 // src/components/AddToCartModal.jsx
 import { Check, ShoppingCart, ArrowRight, ArrowLeft } from 'lucide-react';
 
-export default function AddToCartModal({ isOpen, onClose, item, onContinueShopping, onGoToCheckout, onReturnToRecipient, showReturnToRecipient, returnToLabel = "Return to Recipient Settings" }) {
+export default function AddToCartModal({
+  isOpen,
+  onClose,
+  item,
+  // Variant-picker mode (Phase 3C Stage 3): caller passes variants + productName.
+  // When variants is a non-empty array AND no item is set, the modal renders the picker.
+  variants,
+  productName,
+  onVariantSelected,
+  onContinueShopping,
+  onGoToCheckout,
+  onReturnToRecipient,
+  showReturnToRecipient,
+  returnToLabel = "Return to Recipient Settings",
+}) {
   if (!isOpen) return null;
+
+  const isPickerMode = Array.isArray(variants) && variants.length > 0 && !item;
 
   return (
     <div style={{
@@ -46,161 +62,249 @@ export default function AddToCartModal({ isOpen, onClose, item, onContinueShoppi
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Success Icon */}
-        <div style={{
-          width: '64px',
-          height: '64px',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '0 auto 1.5rem',
-          boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
-        }}>
-          <Check size={32} color="white" strokeWidth={3} />
-        </div>
-
-        {/* Title */}
-        <h3 style={{
-          fontSize: '1.375rem',
-          fontWeight: 700,
-          color: '#111827',
-          marginBottom: '0.5rem'
-        }}>
-          Added to Cart!
-        </h3>
-
-        {/* Item Info */}
-        {item && (
-          <div style={{
-            background: '#f9fafb',
-            borderRadius: '0.75rem',
-            padding: '1rem',
-            marginBottom: '1.5rem'
-          }}>
-            <p style={{
-              fontSize: '1rem',
-              fontWeight: 600,
-              color: '#374151',
-              marginBottom: '0.25rem'
-            }}>
-              {item.name}
-            </p>
-            <p style={{
+        {isPickerMode ? (
+          <>
+            {/* Picker title */}
+            <h3 style={{
               fontSize: '1.125rem',
               fontWeight: 700,
-              color: '#667eea'
+              color: '#111827',
+              marginBottom: '0.25rem'
             }}>
-              ${typeof item.price === 'number' ? item.price.toFixed(2) : item.price}
-            </p>
-          </div>
-        )}
+              Choose your size
+            </h3>
+            {productName && (
+              <p style={{
+                fontSize: '0.875rem',
+                color: '#6b7280',
+                marginBottom: '1.25rem'
+              }}>
+                {productName}
+              </p>
+            )}
 
-        {/* Action Buttons */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.75rem'
-        }}>
-          {/* Continue Shopping Button */}
-          <button
-            onClick={onContinueShopping}
-            style={{
-              width: '100%',
-              padding: '0.875rem 1.5rem',
-              background: 'white',
-              color: '#667eea',
-              border: '2px solid #667eea',
-              borderRadius: '0.75rem',
-              fontSize: '0.9375rem',
-              fontWeight: 600,
-              cursor: 'pointer',
+            {/* Variant chips — wrap, full-width tap targets on mobile */}
+            <div style={{
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              flexWrap: 'wrap',
               gap: '0.5rem',
-              transition: 'all 0.2s',
-              fontFamily: 'inherit'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#f5f3ff';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'white';
-            }}
-          >
-            <ShoppingCart size={18} />
-            Continue Shopping
-          </button>
+              marginBottom: '1.25rem',
+              justifyContent: 'center'
+            }}>
+              {variants.map((v) => (
+                <button
+                  key={v.syncVariantId}
+                  onClick={() => onVariantSelected && onVariantSelected(v)}
+                  style={{
+                    padding: '0.625rem 0.875rem',
+                    minHeight: '44px',
+                    background: 'white',
+                    color: '#374151',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '0.625rem',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.15s',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#667eea';
+                    e.currentTarget.style.background = '#f5f3ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#e5e7eb';
+                    e.currentTarget.style.background = 'white';
+                  }}
+                >
+                  <span>{v.label}</span>
+                  <span style={{ color: '#667eea', fontWeight: 700 }}>
+                    ${(v.priceCents / 100).toFixed(v.priceCents % 100 === 0 ? 0 : 2)}
+                  </span>
+                </button>
+              ))}
+            </div>
 
-          {/* Go to Checkout Button */}
-          <button
-            onClick={onGoToCheckout}
-            style={{
-              width: '100%',
-              padding: '0.875rem 1.5rem',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.75rem',
-              fontSize: '0.9375rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              transition: 'all 0.2s',
-              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
-              fontFamily: 'inherit'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-            }}
-          >
-            Go to Checkout
-            <ArrowRight size={18} />
-          </button>
-
-          {/* Return to Recipient Settings Button - only show if came from recipient form */}
-          {showReturnToRecipient && onReturnToRecipient && (
             <button
-              onClick={onReturnToRecipient}
+              onClick={onClose}
               style={{
                 width: '100%',
-                padding: '0.875rem 1.5rem',
+                padding: '0.75rem 1rem',
                 background: '#f3f4f6',
                 color: '#374151',
                 border: 'none',
-                borderRadius: '0.75rem',
-                fontSize: '0.9375rem',
+                borderRadius: '0.625rem',
+                fontSize: '0.875rem',
                 fontWeight: 600,
                 cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                transition: 'all 0.2s',
                 fontFamily: 'inherit'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#e5e7eb';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#f3f4f6';
-              }}
             >
-              <ArrowLeft size={18} />
-              {returnToLabel}
+              Cancel
             </button>
-          )}
-        </div>
+          </>
+        ) : (
+          <>
+            {/* Success Icon */}
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.5rem',
+              boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
+            }}>
+              <Check size={32} color="white" strokeWidth={3} />
+            </div>
+
+            {/* Title */}
+            <h3 style={{
+              fontSize: '1.375rem',
+              fontWeight: 700,
+              color: '#111827',
+              marginBottom: '0.5rem'
+            }}>
+              Added to Cart!
+            </h3>
+
+            {/* Item Info */}
+            {item && (
+              <div style={{
+                background: '#f9fafb',
+                borderRadius: '0.75rem',
+                padding: '1rem',
+                marginBottom: '1.5rem'
+              }}>
+                <p style={{
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: '#374151',
+                  marginBottom: '0.25rem'
+                }}>
+                  {item.name}
+                </p>
+                <p style={{
+                  fontSize: '1.125rem',
+                  fontWeight: 700,
+                  color: '#667eea'
+                }}>
+                  ${typeof item.price === 'number' ? item.price.toFixed(2) : item.price}
+                </p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem'
+            }}>
+              {/* Continue Shopping Button */}
+              <button
+                onClick={onContinueShopping}
+                style={{
+                  width: '100%',
+                  padding: '0.875rem 1.5rem',
+                  background: 'white',
+                  color: '#667eea',
+                  border: '2px solid #667eea',
+                  borderRadius: '0.75rem',
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s',
+                  fontFamily: 'inherit'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#f5f3ff';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'white';
+                }}
+              >
+                <ShoppingCart size={18} />
+                Continue Shopping
+              </button>
+
+              {/* Go to Checkout Button */}
+              <button
+                onClick={onGoToCheckout}
+                style={{
+                  width: '100%',
+                  padding: '0.875rem 1.5rem',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.75rem',
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                  fontFamily: 'inherit'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                }}
+              >
+                Go to Checkout
+                <ArrowRight size={18} />
+              </button>
+
+              {/* Return to Recipient Settings Button - only show if came from recipient form */}
+              {showReturnToRecipient && onReturnToRecipient && (
+                <button
+                  onClick={onReturnToRecipient}
+                  style={{
+                    width: '100%',
+                    padding: '0.875rem 1.5rem',
+                    background: '#f3f4f6',
+                    color: '#374151',
+                    border: 'none',
+                    borderRadius: '0.75rem',
+                    fontSize: '0.9375rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s',
+                    fontFamily: 'inherit'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#e5e7eb';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#f3f4f6';
+                  }}
+                >
+                  <ArrowLeft size={18} />
+                  {returnToLabel}
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

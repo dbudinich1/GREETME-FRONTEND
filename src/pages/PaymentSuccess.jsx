@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
+import cartService from '../services/cartService';
 import GreetMeLogo from '../components/GreetMeLogo';
 
 export default function PaymentSuccess() {
@@ -33,6 +34,12 @@ export default function PaymentSuccess() {
     // Courtesy credit was consumed by the backend when the Stripe session was created.
     // Clear the client-side stash so it isn't offered again on the next purchase.
     localStorage.removeItem('greetme_courtesy_credit');
+    // Phase 3C Stage 3 — clear merch from cart only after confirmed payment.
+    // Targeted clear preserves existing subscription cart behavior.
+    if (cartService.hasMerch()) {
+      cartService.clearMerch();
+      window.dispatchEvent(new Event('cartUpdated'));
+    }
   }, []);
 
   const hasG1G1 = g1g1State?.eligible === true;

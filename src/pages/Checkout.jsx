@@ -1,5 +1,5 @@
 // src/pages/Checkout.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CreditCard, Lock, ArrowLeft, CheckCircle, ShoppingBag, Truck, Shield } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
@@ -8,6 +8,36 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
 import { getCurrentPriceMap } from '../config/plans';
+
+// US state list for the recipient shipping dropdown (Phase 3C Stage 3 founder refinement #6)
+const US_STATES = [
+  { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' },
+  { code: 'AZ', name: 'Arizona' }, { code: 'AR', name: 'Arkansas' },
+  { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
+  { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' },
+  { code: 'DC', name: 'District of Columbia' }, { code: 'FL', name: 'Florida' },
+  { code: 'GA', name: 'Georgia' }, { code: 'HI', name: 'Hawaii' },
+  { code: 'ID', name: 'Idaho' }, { code: 'IL', name: 'Illinois' },
+  { code: 'IN', name: 'Indiana' }, { code: 'IA', name: 'Iowa' },
+  { code: 'KS', name: 'Kansas' }, { code: 'KY', name: 'Kentucky' },
+  { code: 'LA', name: 'Louisiana' }, { code: 'ME', name: 'Maine' },
+  { code: 'MD', name: 'Maryland' }, { code: 'MA', name: 'Massachusetts' },
+  { code: 'MI', name: 'Michigan' }, { code: 'MN', name: 'Minnesota' },
+  { code: 'MS', name: 'Mississippi' }, { code: 'MO', name: 'Missouri' },
+  { code: 'MT', name: 'Montana' }, { code: 'NE', name: 'Nebraska' },
+  { code: 'NV', name: 'Nevada' }, { code: 'NH', name: 'New Hampshire' },
+  { code: 'NJ', name: 'New Jersey' }, { code: 'NM', name: 'New Mexico' },
+  { code: 'NY', name: 'New York' }, { code: 'NC', name: 'North Carolina' },
+  { code: 'ND', name: 'North Dakota' }, { code: 'OH', name: 'Ohio' },
+  { code: 'OK', name: 'Oklahoma' }, { code: 'OR', name: 'Oregon' },
+  { code: 'PA', name: 'Pennsylvania' }, { code: 'RI', name: 'Rhode Island' },
+  { code: 'SC', name: 'South Carolina' }, { code: 'SD', name: 'South Dakota' },
+  { code: 'TN', name: 'Tennessee' }, { code: 'TX', name: 'Texas' },
+  { code: 'UT', name: 'Utah' }, { code: 'VT', name: 'Vermont' },
+  { code: 'VA', name: 'Virginia' }, { code: 'WA', name: 'Washington' },
+  { code: 'WV', name: 'West Virginia' }, { code: 'WI', name: 'Wisconsin' },
+  { code: 'WY', name: 'Wyoming' },
+];
 
 // TODO: VITE_STRIPE_PUBLISHABLE_KEY must be set in .env before Stripe checkout is functional
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
@@ -58,6 +88,18 @@ export default function Checkout() {
 
   const [errors, setErrors] = useState({});
 
+  // ===== Phase 3C Stage 3 — merch shipping state =====
+  const cartHasMerch = cartItems.some((it) => !!it.printfulSyncVariantId);
+  const [recipientName, setRecipientName] = useState('');
+  const [shipForm, setShipForm] = useState({
+    address1: '', city: '', state_code: '', zip: '',
+  });
+  const [shipping, setShipping] = useState({
+    rateCents: null, label: null, loading: false, error: null,
+  });
+  const lastFetchKeyRef = useRef('');
+  // ====================================================
+
   useEffect(() => {
     window.scrollTo(0, 0);
     loadCart();
@@ -68,6 +110,59 @@ export default function Checkout() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Auto-recalculate shipping when address materially changes (founder directive #2, 500ms debounce)
+  useEffect(() => {
+    if (!cartHasMerch) return;
+    const ready = ['address1', 'city', 'state_code', 'zip']
+      .every((f) => (shipForm[f] || '').trim().length > 0);
+    if (!ready) {
+      setShipping((s) => ({ ...s, rateCents: null, label: null, error: null }));
+      return;
+    }
+    const key = JSON.stringify({
+      ...shipForm,
+      items: cartItems
+        .filter((i) => i.printfulSyncVariantId)
+        .map((i) => i.printfulSyncVariantId).sort(),
+    });
+    if (key === lastFetchKeyRef.current) return;
+    lastFetchKeyRef.current = key;
+
+    const handle = setTimeout(async () => {
+      setShipping({ rateCents: null, label: null, loading: true, error: null });
+      try {
+        const items = cartItems
+          .filter((i) => i.printfulSyncVariantId)
+          .map((i) => ({ syncVariantId: i.printfulSyncVariantId, quantity: 1 }));
+        const res = await api.post('/api/merch/shipping-rates', {
+          items,
+          recipient: {
+            address1: shipForm.address1.trim(),
+            city: shipForm.city.trim(),
+            state_code: shipForm.state_code.trim().toUpperCase(),
+            zip: shipForm.zip.trim(),
+            country_code: 'US',
+          },
+        });
+        setShipping({
+          rateCents: res?.shipping?.rateCents ?? null,
+          label: res?.shipping?.label || 'Standard Shipping',
+          loading: false,
+          error: null,
+        });
+      } catch (err) {
+        setShipping({
+          rateCents: null,
+          label: null,
+          loading: false,
+          error:
+            "We're having trouble calculating shipping right now. Please verify the shipping address or try again shortly.",
+        });
+      }
+    }, 500);
+    return () => clearTimeout(handle);
+  }, [cartHasMerch, shipForm.address1, shipForm.city, shipForm.state_code, shipForm.zip, cartItems]);
 
   const loadCart = () => {
     const items = cartService.getCart();
@@ -81,6 +176,52 @@ export default function Checkout() {
 
   // Stripe Checkout — redirect to Stripe hosted checkout page
   const handleStripeCheckout = async () => {
+    // ====== MERCH PATH (Phase 3C Stage 3) ======
+    // Founder directive #1: subscription path untouched.
+    // Founder refinement #3: cart is NOT cleared before redirect — only after success.
+    if (cartHasMerch) {
+      // Block on shipping failure (founder Q10)
+      if (shipping.error || shipping.rateCents == null) {
+        setErrors({
+          submit:
+            "We're having trouble calculating shipping right now. Please verify the shipping address or try again shortly.",
+        });
+        return;
+      }
+      if (!recipientName.trim()) {
+        setErrors({ submit: 'Please enter the recipient name.' });
+        return;
+      }
+      setIsProcessing(true);
+      setErrors({});
+      try {
+        const items = cartItems
+          .filter((i) => i.printfulSyncVariantId)
+          .map((i) => ({ syncVariantId: i.printfulSyncVariantId }));
+        const data = await api.post('/api/payments/create-checkout', {
+          purchaseType: 'merch',
+          items,
+          recipientName: recipientName.trim(),
+          shippingAddress: {
+            address1: shipForm.address1.trim(),
+            city: shipForm.city.trim(),
+            state_code: shipForm.state_code.trim().toUpperCase(),
+            zip: shipForm.zip.trim(),
+            country_code: 'US',
+          },
+        });
+        // NOTE: do NOT clear the cart here — the success page is responsible for clearing
+        // after Stripe confirms payment. Protects against canceled checkout / browser interruption.
+        window.location.href = data.url;
+      } catch (error) {
+        console.error('Stripe merch checkout error:', error);
+        setErrors({ submit: getErrorMessage(error) });
+        setIsProcessing(false);
+      }
+      return;
+    }
+    // ====== END MERCH PATH ======
+
     // Refresh stale cart priceIds against current plan definitions
     const priceMap = getCurrentPriceMap();
     const validatedItems = cartItems.map(item => {
@@ -462,6 +603,112 @@ export default function Checkout() {
         }}>
           {/* Left Column - Form */}
           <div>
+            {/* ===== Phase 3C Stage 3 — Recipient Shipping Address (merch only) ===== */}
+            {cartHasMerch && (
+              <div style={{
+                background: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '1.5rem',
+                marginBottom: '1.5rem'
+              }}>
+                <h2 style={{
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  marginBottom: '1rem'
+                }}>Recipient Shipping Address</h2>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={labelStyle}>Recipient Name</label>
+                  <input
+                    type="text"
+                    value={recipientName}
+                    onChange={(e) => setRecipientName(e.target.value)}
+                    style={inputStyle}
+                    placeholder="Who should we ship this to?"
+                  />
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={labelStyle}>Address</label>
+                  <input
+                    type="text"
+                    value={shipForm.address1}
+                    onChange={(e) => setShipForm((s) => ({ ...s, address1: e.target.value }))}
+                    style={inputStyle}
+                    placeholder="123 Main Street"
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div>
+                    <label style={labelStyle}>City</label>
+                    <input
+                      type="text"
+                      value={shipForm.city}
+                      onChange={(e) => setShipForm((s) => ({ ...s, city: e.target.value }))}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>State</label>
+                    <select
+                      value={shipForm.state_code}
+                      onChange={(e) => setShipForm((s) => ({ ...s, state_code: e.target.value }))}
+                      style={inputStyle}
+                    >
+                      <option value="">Select…</option>
+                      {US_STATES.map((s) => (
+                        <option key={s.code} value={s.code}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>ZIP</label>
+                    <input
+                      type="text"
+                      value={shipForm.zip}
+                      onChange={(e) => setShipForm((s) => ({ ...s, zip: e.target.value }))}
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Country</label>
+                  <input
+                    type="text"
+                    value="United States"
+                    disabled
+                    style={{ ...inputStyle, background: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed' }}
+                  />
+                </div>
+
+                {shipping.loading && (
+                  <p style={{ marginTop: '0.75rem', fontSize: '0.8125rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                    Calculating shipping…
+                  </p>
+                )}
+                {shipping.error && (
+                  <div style={{
+                    marginTop: '0.75rem',
+                    padding: '0.75rem',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    borderRadius: 'var(--radius-md)',
+                    color: '#b91c1c',
+                    fontSize: '0.8125rem'
+                  }}>
+                    {shipping.error}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ===== Legacy dev-only billing form — hidden when merch is in cart ===== */}
+            {!cartHasMerch && (
+            <>
             {/* Contact Information */}
             <div style={{
               background: 'var(--bg-primary)',
@@ -652,6 +899,9 @@ export default function Checkout() {
                 {errors.nameOnCard && <p style={errorStyle}>{errors.nameOnCard}</p>}
               </div>
             </div>
+            </>
+            )}
+            {/* ===== End legacy dev-only billing form ===== */}
 
             {errors.submit && (
               <div style={{
@@ -729,8 +979,36 @@ export default function Checkout() {
                   ))}
                 </div>
 
-                {/* Totals — normalized pricing structure */}
-                {(() => {
+                {/* Totals — Phase 3C Stage 3: merch path renders Subtotal/Shipping/Total */}
+                {cartHasMerch ? (() => {
+                  const subtotalCents = cartItems.reduce(
+                    (s, i) => s + (i.priceCents || Math.round((i.price || 0) * 100)),
+                    0
+                  );
+                  const shippingCents = shipping.rateCents || 0;
+                  const totalCents = subtotalCents + shippingCents;
+                  return (
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.625rem', fontSize: '1rem', color: 'var(--text-secondary)' }}>
+                        <span>Subtotal</span>
+                        <span>${(subtotalCents / 100).toFixed(2)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.625rem', fontSize: '1rem', color: 'var(--text-secondary)' }}>
+                        <span>Shipping{shipping.label ? ` (${shipping.label})` : ''}</span>
+                        <span>{shipping.rateCents != null ? `$${(shippingCents / 100).toFixed(2)}` : '—'}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '2px solid var(--border)', fontSize: '1.25rem', fontWeight: 800 }}>
+                        <span>Total</span>
+                        <span style={{ color: '#667eea' }}>
+                          {shipping.rateCents != null ? `$${(totalCents / 100).toFixed(2)}` : '—'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#777', marginTop: '0.5rem' }}>
+                        🔒 Secure checkout
+                      </div>
+                    </div>
+                  );
+                })() : (() => {
                   const subscriptionItem = cartItems.find(i => i.type === 'subscription');
                   const planPrice = subscriptionItem?.price || total;
                   const hasReferralCredit = !!referralCode;

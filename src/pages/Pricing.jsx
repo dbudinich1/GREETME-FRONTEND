@@ -74,6 +74,15 @@ export default function Pricing() {
   };
 
   const handleAddPlanToCart = (plan) => {
+    // Mixed-cart block (Phase 3C Stage 3): subscription/G1G1 cannot mix with merch
+    if (cartService.hasMerch()) {
+      alert(
+        'Your cart already contains merchandise. ' +
+        'Please complete that purchase or clear your cart before adding a subscription.'
+      );
+      return;
+    }
+
     const cartItem = {
       type: 'subscription',
       name: `${plan.name} Plan`,

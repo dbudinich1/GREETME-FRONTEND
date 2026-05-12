@@ -76,6 +76,27 @@ class CartService {
   hasItem(giftId) {
     return this.getCart().some(item => item.giftId === giftId);
   }
+
+  // Phase 3C Stage 3 — mixed-cart block helpers.
+  // Merch items are identified by printfulSyncVariantId.
+  hasMerch() {
+    return this.getCart().some(item => !!item.printfulSyncVariantId);
+  }
+
+  hasNonMerch() {
+    return this.getCart().some(item => !item.printfulSyncVariantId);
+  }
+
+  // Clear only merch items (called by PaymentSuccess after a confirmed merch checkout).
+  // Leaves any non-merch items intact to preserve existing subscription cart behavior.
+  clearMerch() {
+    try {
+      const remaining = this.getCart().filter(item => !item.printfulSyncVariantId);
+      localStorage.setItem(CART_KEY, JSON.stringify(remaining));
+    } catch (error) {
+      console.error('Error clearing merch from cart:', error);
+    }
+  }
 }
 
 export default new CartService();

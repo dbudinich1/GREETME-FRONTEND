@@ -15,6 +15,7 @@ export default function Merch() {
   const [addedItems, setAddedItems] = useState(new Set());
   const [showCartModal, setShowCartModal] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState(null);
+  const [pickerProduct, setPickerProduct] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -50,30 +51,65 @@ export default function Merch() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleAddToCart = (item, e) => {
+  const handleAddToCart = (product, e) => {
     e.stopPropagation();
+
+    // Mixed-cart block (founder refinement #9): merch ↔ subscription/G1G1
+    if (cartService.hasNonMerch()) {
+      alert(
+        'Your cart already contains a subscription or other item. ' +
+        'Please complete that purchase or clear your cart before adding merch.'
+      );
+      return;
+    }
+
+    if (!Array.isArray(product.variants) || product.variants.length === 0) {
+      console.warn('Merch product missing variants', product);
+      return;
+    }
+
+    if (product.variants.length === 1) {
+      addVariantToCart(product, product.variants[0]);
+    } else {
+      setPickerProduct(product);
+      setLastAddedItem(null);
+      setShowCartModal(true);
+    }
+  };
+
+  const addVariantToCart = (product, variant) => {
     try {
-      // Stage 2 cart pricing is provisional until Stage 3 variant-aware checkout pricing.
-      const provisionalPriceDollars = item.priceCentsMin / 100;
       cartService.addItem({
-        merchId: item.syncProductId,
-        name: item.name,
-        price: provisionalPriceDollars,
+        printfulSyncProductId: product.syncProductId,
+        printfulSyncVariantId: variant.syncVariantId,
+        variantLabel: variant.label,
+        name: `${product.name} — ${variant.label}`,
+        price: variant.priceCents / 100,
+        priceCents: variant.priceCents,
         category: 'Merch',
         icon: '🛍️',
       });
-
-      setAddedItems(prev => new Set(prev).add(item.syncProductId));
+      setAddedItems((prev) => new Set(prev).add(product.syncProductId));
       window.dispatchEvent(new Event('cartUpdated'));
-      setLastAddedItem(item);
+      setPickerProduct(null);
+      setLastAddedItem({
+        syncProductId: product.syncProductId,
+        name: `${product.name} — ${variant.label}`,
+        price: variant.priceCents / 100,
+      });
       setShowCartModal(true);
     } catch (err) {
       console.error('Error adding to cart:', err);
     }
   };
 
+  const handleVariantSelected = (variant) => {
+    if (pickerProduct) addVariantToCart(pickerProduct, variant);
+  };
+
   const handleContinueShopping = () => {
     setShowCartModal(false);
+    setPickerProduct(null);
     if (lastAddedItem) {
       setAddedItems(prev => {
         const next = new Set(prev);
@@ -682,11 +718,14 @@ export default function Merch() {
         </div>
       )}
 
-      {/* Add to Cart Confirmation Modal */}
+      {/* Add to Cart Confirmation Modal — picker mode when pickerProduct is set */}
       <AddToCartModal
         isOpen={showCartModal}
         onClose={handleContinueShopping}
         item={lastAddedItem}
+        variants={pickerProduct ? pickerProduct.variants : null}
+        productName={pickerProduct ? pickerProduct.name : null}
+        onVariantSelected={handleVariantSelected}
         onContinueShopping={handleContinueShopping}
         onGoToCheckout={handleGoToCheckout}
         onReturnToRecipient={returnRecipientId ? handleReturnToRecipient : (cameFromSendGreeting ? handleReturnToGreeting : null)}
