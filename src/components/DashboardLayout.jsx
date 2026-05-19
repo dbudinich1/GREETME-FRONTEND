@@ -81,7 +81,11 @@ export default function DashboardLayout({ children }) {
         borderBottom: '1px solid var(--border)',
         position: 'sticky',
         top: 0,
-        zIndex: 50
+        zIndex: 50,
+        // Phase 3D Batch B — B.3.1: protect sticky header from iOS notch /
+        // Dynamic Island. env() returns 0px on non-notched devices and in
+        // landscape, so desktop and Android visual rhythm is preserved.
+        paddingTop: 'env(safe-area-inset-top, 0px)',
       }}>
         
         <div style={{

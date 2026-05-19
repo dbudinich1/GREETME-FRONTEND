@@ -68,8 +68,11 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
         paddingTop: '5rem',
         zIndex: 9999
       }}>
-        {/* Modal - PHASE 3: Fixed max-height 90vh, internal scroll, no background scroll */}
+        {/* Modal - Internal scroll, no background scroll. Phase 3D Batch B B.2.1:
+            max-height moved to gm-max-h-modal class (dual-line vh/dvh fallback).
+            Internal scroll containment (overflow: hidden) preserved verbatim. */}
         <div
+          className="gm-max-h-modal"
           style={{
             position: 'relative',
             zIndex: 10000,
@@ -78,7 +81,6 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             width: '100%',
             maxWidth: sizeStyles[size] || sizeStyles.md,
-            maxHeight: '90vh',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden'

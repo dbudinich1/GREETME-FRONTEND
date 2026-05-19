@@ -112,9 +112,12 @@ export default function PreSendReviewModal({
         }}
       />
 
-      {/* Modal panel */}
+      {/* Modal panel — Phase 3D Batch B B.2.2: max-height moved to
+          gm-max-h-modal-fullsize class (dual-line vh/dvh fallback).
+          Internal scroll containment (overflowY: 'auto') preserved verbatim. */}
       <div
         onClick={(e) => e.stopPropagation()}
+        className="gm-max-h-modal-fullsize"
         style={{
           position: 'relative',
           zIndex: 10000,
@@ -123,7 +126,6 @@ export default function PreSendReviewModal({
           boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.25)',
           width: '100%',
           maxWidth: '500px',
-          maxHeight: 'calc(100vh - 2rem)',
           overflowY: 'auto',
           padding: '2rem 2rem 1.75rem',
         }}

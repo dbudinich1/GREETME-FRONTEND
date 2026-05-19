@@ -88,7 +88,12 @@ html {
 body {
   margin: 0;
   min-width: 320px;
+  /* Phase 3D Batch B — B.1.1: dual-line vh/dvh.
+     First line is the fallback for legacy browsers (Safari <15.4, Chrome <108).
+     Second line is the canonical value — modern browsers ignore the first and
+     apply 100dvh which respects the iOS Safari dynamic toolbar. */
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg-secondary);
   color: var(--text-primary);
   overflow-x: hidden;
@@ -96,7 +101,9 @@ body {
 
 #root {
   width: 100%;
+  /* Phase 3D Batch B — B.1.1: dual-line vh/dvh (matches body) */
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Typography */
@@ -396,4 +403,34 @@ input::placeholder, textarea::placeholder {
   button {
     min-height: var(--tap-target-min);
   }
+}
+
+/* ───────────────────────────────────────────────
+   Phase 3D Batch B — Containment utilities (B.1.2)
+   ───────────────────────────────────────────────
+   Dual-line vh/dvh patterns for React components that cannot use
+   duplicate object keys in inline styles. Apply via className alongside
+   existing inline style. Pattern: first line = legacy fallback, second
+   line = canonical (modern browsers ignore the first and use the second). */
+
+.gm-max-h-modal {
+  max-height: 90vh;
+  max-height: 90dvh;
+}
+
+.gm-max-h-modal-fullsize {
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+}
+
+/* Safe-area inset utilities. env() returns 0px on devices without notch /
+   home indicator and the real inset on iPhone X+ / iPad with status bar.
+   Explicit 0px fallback for deterministic behavior on older embedded webviews. */
+
+.gm-safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.gm-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
