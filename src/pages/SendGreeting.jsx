@@ -9,7 +9,9 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import GiftSelectorModal from '../components/GiftSelectorModal';
 import GiftConfirmationModal from '../components/GiftConfirmationModal';
+import PreSendReviewModal from '../components/PreSendReviewModal';
 import HeartsBurst from '../components/HeartsBurst';
+import cartService from '../services/cartService';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import draftService from '../services/draftService';
@@ -66,6 +68,9 @@ export default function SendGreeting() {
   const [pendingGreetingData, setPendingGreetingData] = useState(null);
   const [giftRequestId, setGiftRequestId] = useState(null);
   const [giftConfirmed, setGiftConfirmed] = useState(false);
+
+  // Phase 3D Batch A — A2.3: Pre-send ceremonial review modal state
+  const [isPreSendReviewOpen, setIsPreSendReviewOpen] = useState(false);
 
   // Referral state (viral loop)
   const [referralCode, setReferralCode] = useState(null);
@@ -556,12 +561,47 @@ export default function SendGreeting() {
 
     if (!validate()) return;
 
+    // Phase 3D Batch A — A2.3: defer dispatch to PreSendReviewModal.
+    // The terminal actions formerly inlined here now fire via modal callback
+    // handlers (handleReviewDirectSend, handleReviewQRCashFresh).
+    // executeGreetingSend remains the sole send dispatcher; modal does not
+    // bypass it.
+    setIsPreSendReviewOpen(true);
+  };
+
+  // ───────────────────────────────────────────────
+  // Phase 3D Batch A — A2.3: PreSendReviewModal callback handlers
+  // ───────────────────────────────────────────────
+  // The modal does NOT dispatch sends. It collects intent and routes to the
+  // SAME terminal actions that existed pre-A2.3:
+  //   - executeGreetingSend (for none / curated / qrcash-referral)
+  //   - setIsGiftConfirmOpen(true) → handleGiftConfirm (for qrcash fresh)
+  // No new dispatch logic is introduced.
+
+  const handleReviewClose = () => {
+    // "Edit greeting" / backdrop / Escape: pause and reconsider.
+    // No state mutation. No cart cleanup. No draft side effects.
+    setIsPreSendReviewOpen(false);
+  };
+
+  const handleReviewRemoveAttachment = (cartItemId) => {
+    // Marketplace per-item removal. Modal does not mutate cart itself —
+    // it routes the action here, where the cartService mutation lives.
+    if (cartItemId == null) return;
+    cartService.removeItem(cartItemId);
+    window.dispatchEvent(new Event('cartUpdated'));
+  };
+
+  // Direct send path: none / curated / qrcash-referral.
+  // Reuses the existing terminal logic that previously lived in
+  // handleSubmit branches A and C (pre-A2.3).
+  const handleReviewDirectSend = async () => {
     const selectedContact = contacts.find(c => c.id === formData.contactId);
     if (!selectedContact) return;
-
     const greetingData = buildGreetingData(selectedContact);
+    setIsPreSendReviewOpen(false);
 
-    // QR Cash™ referral: skip payment, redeem referral code instead
+    // QR Cash™ referral: skip payment, redeem referral code instead.
     if (giftSettings.type === 'qrcash' && referralCode) {
       setSending(true);
       try {
@@ -601,17 +641,28 @@ export default function SendGreeting() {
       return;
     }
 
-    // QR Cash™ intercept: open confirmation modal instead of sending directly
-    if (giftSettings.type === 'qrcash') {
-      setPendingGreetingData(greetingData);
-      setGiftChargeError(null);
-      setGiftRequestId(crypto.randomUUID());
-      setIsGiftConfirmOpen(true);
-      return;
-    }
-
-    // Non-QR-Cash: send directly
+    // None / curated / marketplace-empty / (dead) merch: direct dispatch.
     await executeGreetingSend(greetingData);
+  };
+
+  // QR Cash fresh-charge path: opens the existing GiftConfirmationModal.
+  // Reuses the terminal logic that previously lived in handleSubmit branch B.
+  const handleReviewQRCashFresh = () => {
+    const selectedContact = contacts.find(c => c.id === formData.contactId);
+    if (!selectedContact) return;
+    const greetingData = buildGreetingData(selectedContact);
+    setPendingGreetingData(greetingData);
+    setGiftChargeError(null);
+    setGiftRequestId(crypto.randomUUID());
+    setIsPreSendReviewOpen(false);
+    setIsGiftConfirmOpen(true);
+  };
+
+  // A2.3 stub. The marketplace primary CTA in PreSendReviewModal is hardcoded
+  // disabled, so this should never fire. A2.4 will replace this with a
+  // draft-save → Stripe redirect → post-success resume path.
+  const handleReviewMarketplaceBlocked = () => {
+    // Intentionally no-op.
   };
 
   // QR Cash™ confirmation handler: charge then send (with 3DS support)
@@ -1868,6 +1919,50 @@ if (typeof window !== "undefined") {
             navigate('/dashboard/gifts?returnTo=send&giftType=marketplace');
           }
         }}
+      />
+
+      {/* Phase 3D Batch A — A2.3: Pre-send ceremonial review */}
+      <PreSendReviewModal
+        isOpen={isPreSendReviewOpen}
+        onClose={handleReviewClose}
+        recipientName={(contacts.find(c => c.id === formData.contactId) || {}).name || ''}
+        recipientEmail={(contacts.find(c => c.id === formData.contactId) || {}).email || ''}
+        occasionLabel={formData.occasionType || 'Just Because'}
+        messagePreview={(formData.customMessage || '').trim()}
+        photoCount={(memoryPhotos?.length || 0) + (defaultPhoto ? 1 : 0)}
+        giftMode={giftSettings.type}
+        qrCashAttachment={
+          giftSettings.type === 'qrcash'
+            ? (() => {
+                const amt = giftSettings.amount === 0
+                  ? (giftSettings.customAmount || 0)
+                  : (giftSettings.amount || 25);
+                const amtCents = Math.round(amt * 100);
+                const isReferral = !!referralCode;
+                return {
+                  amountCents: amtCents,
+                  feeCents: isReferral ? 0 : 199 + Math.round(amtCents * 0.03),
+                  totalCents: isReferral ? 0 : amtCents + 199 + Math.round(amtCents * 0.03),
+                  kind: isReferral ? 'referral' : 'fresh',
+                };
+              })()
+            : null
+        }
+        curatedAttachment={
+          giftSettings.type === 'curated'
+            ? { maxSpendCents: (giftSettings.maxSpend || 0) * 100 }
+            : null
+        }
+        marketplaceAttachments={
+          giftSettings.type === 'marketplace'
+            ? cartService.getCart().filter(i => i.sendContext === 'greeting-flow')
+            : null
+        }
+        sending={sending}
+        onConfirmDirectSend={handleReviewDirectSend}
+        onConfirmQRCashFresh={handleReviewQRCashFresh}
+        onMarketplaceBlocked={handleReviewMarketplaceBlocked}
+        onRemoveAttachment={handleReviewRemoveAttachment}
       />
 
       {/* QR Cash™ Confirmation Modal */}
