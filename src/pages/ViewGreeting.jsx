@@ -11,9 +11,6 @@ import ThankYouModal from '../components/ThankYouModal';
 import GreetingCardViewer, { convertToMultiPageFormat } from '../components/GreetingCardViewer';
 import { hasThankYouBeenSent } from '../utils/thankYou';
 
-// Mobile detection
-const isMobile = window.innerWidth <= 480;
-
 export default function ViewGreeting() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -24,6 +21,15 @@ export default function ViewGreeting() {
   const [thankYouSent, setThankYouSent] = useState(false);
   const [cardCompleted, setCardCompleted] = useState(false);
   const [giftRevealed, setGiftRevealed] = useState(false);
+  // Phase 3D Batch B — B.4: module-scope `isMobile = window.innerWidth <= 480;`
+  // was frozen at module load and never updated on rotation/resize. Promoted
+  // to component state with a resize listener.
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 480);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 480);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     loadGreeting();

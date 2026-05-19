@@ -89,7 +89,15 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const [sendingStatus, setSendingStatus] = useState(''); // 'voice', 'video', 'finalizing'
   const [sendingError, setSendingError] = useState(null);
 
-  const isMobile = window.innerWidth <= 480;
+  // Phase 3D Batch B — B.4: in-render `const isMobile = window.innerWidth <= 480;`
+  // re-computed on every render but never updated on resize alone. Promoted to
+  // state with a resize listener so rotation and viewport changes are honored.
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 480);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 480);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {

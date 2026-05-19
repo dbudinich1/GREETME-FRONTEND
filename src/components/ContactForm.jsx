@@ -66,6 +66,17 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
   const [giftModalOpen, setGiftModalOpen] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(0); // Track number of photos currently uploading
 
+  // Phase 3D Batch B — B.4: three inline `window.innerWidth > 600` reads
+  // (gridTemplateColumns at lines 445/525/590) recomputed on render but never
+  // updated on resize. Promoted to a single boolean in state with a resize
+  // listener. Scope intentionally narrow — no surrounding restructuring.
+  const [isWideForm, setIsWideForm] = useState(window.innerWidth > 600);
+  useEffect(() => {
+    const handleResize = () => setIsWideForm(window.innerWidth > 600);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Ref for the form container - used for scroll restoration
   const formRef = useRef(null);
   // Ref for the first input field - used for auto-focus
@@ -442,7 +453,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         {/* Two-column layout on desktop */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: window.innerWidth > 600 ? '1fr 1fr' : '1fr',
+          gridTemplateColumns: isWideForm ? '1fr 1fr' : '1fr',
           gap: '1rem'
         }}>
           {/* Name */}
@@ -522,7 +533,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           </div>
 
           {/* Gender - spans both columns on desktop */}
-          <div style={{ gridColumn: window.innerWidth > 600 ? 'span 2' : 'span 1' }}>
+          <div style={{ gridColumn: isWideForm ? 'span 2' : 'span 1' }}>
             <label style={{
               display: 'block',
               fontSize: '0.8125rem',
@@ -587,7 +598,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         {/* 3 Cascading Relationship Dropdowns */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: window.innerWidth > 600 ? '1fr 1fr 1fr' : '1fr',
+          gridTemplateColumns: isWideForm ? '1fr 1fr 1fr' : '1fr',
           gap: '1rem',
           marginBottom: '1rem'
         }}>

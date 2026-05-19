@@ -1,7 +1,7 @@
 // src/components/ThankYouModal.jsx
 // Cost-controlled text-only thank you greeting modal
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Send, CheckCircle, Heart } from 'lucide-react';
 import { generateThankYouMessage, sendThankYouEmail, hasThankYouBeenSent } from '../utils/thankYou';
 
@@ -10,6 +10,15 @@ export default function ThankYouModal({ isOpen, onClose, greeting }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  // Phase 3D Batch B — B.4: in-render `const isMobile = window.innerWidth <= 480;`
+  // re-computed on every render but never updated on resize alone. Promoted to
+  // state with a resize listener so rotation and viewport changes are honored.
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 480);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 480);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   if (!isOpen || !greeting) return null;
 
@@ -49,9 +58,6 @@ export default function ThankYouModal({ isOpen, onClose, greeting }) {
     setError('');
     onClose();
   };
-
-  // Mobile detection
-  const isMobile = window.innerWidth <= 480;
 
   return (
     <div style={{

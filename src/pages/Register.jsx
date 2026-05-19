@@ -1,12 +1,10 @@
 // src/pages/Register.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
 // lucide icons removed — QR/Smartphone section removed
 import GreetMeLogo from '../components/GreetMeLogo';
-
-const isMobile = window.innerWidth <= 480;
 
 // Fast mode: skip name fields when entering from a viral loop
 function isFastMode() {
@@ -26,6 +24,16 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // Phase 3D Batch B — B.4: module-scope `isMobile = window.innerWidth <= 480;`
+  // was frozen at module load and never updated on rotation/resize. Promoted
+  // to component state with a resize listener — matches the pattern already
+  // used in Login.jsx / DashboardLayout.jsx / Cart.jsx / Checkout.jsx etc.
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 480);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 480);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const { register } = useAuth();
   const navigate = useNavigate();
 
