@@ -1521,20 +1521,25 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         zIndex: 1,
       }} />
 
-      {/* Modal */}
-      <div style={{
-        position: 'relative',
-        zIndex: 2,
-        background: 'white',
-        borderRadius: 'var(--radius-xl)',
-        width: '100%',
-        maxWidth: '440px',
-        maxHeight: 'calc(100vh - 4rem)',
-        maxHeight: 'calc(100dvh - 4rem)',
-        overflowY: 'hidden',
-        overflowX: 'hidden',
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-      }}>
+      {/* Modal — Phase 3D Batch B B.2.4: duplicate-key warning resolved by
+          moving max-height to gm-max-h-modal-onboarding (dual-line vh/dvh
+          fallback in CSS). overflow-x/y: 'hidden' scroll containment preserved
+          verbatim. Visual rhythm unchanged on modern browsers; legacy browsers
+          now correctly receive the calc(100vh - 4rem) fallback. */}
+      <div
+        className="gm-max-h-modal-onboarding"
+        style={{
+          position: 'relative',
+          zIndex: 2,
+          background: 'white',
+          borderRadius: 'var(--radius-xl)',
+          width: '100%',
+          maxWidth: '440px',
+          overflowY: 'hidden',
+          overflowX: 'hidden',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+        }}>
+
         {/* Progress bar (shown during welcome/demo/voice/photo/test greeting steps) */}
         {step >= 0 && step <= 5 && (
           <div style={{

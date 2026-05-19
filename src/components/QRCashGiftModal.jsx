@@ -168,21 +168,25 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
         }}
       />
 
-      {/* Modal */}
-      <div style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        background: 'white',
-        borderRadius: 'var(--radius-xl)',
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-        zIndex: 1000,
-        width: '90%',
-        maxWidth: '500px',
-        maxHeight: '90vh',
-        overflow: 'auto'
-      }}>
+      {/* Modal — Phase 3D Batch B B.2.3: max-height moved to gm-max-h-modal
+          class (dual-line vh/dvh fallback). Internal scroll preserved via
+          overflow: 'auto'. */}
+      <div
+        className="gm-max-h-modal"
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'white',
+          borderRadius: 'var(--radius-xl)',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+          zIndex: 1000,
+          width: '90%',
+          maxWidth: '500px',
+          overflow: 'auto'
+        }}>
+
         {/* Header */}
         <div style={{
           padding: '1.5rem',

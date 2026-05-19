@@ -423,6 +423,13 @@ input::placeholder, textarea::placeholder {
   max-height: calc(100dvh - 2rem);
 }
 
+.gm-max-h-modal-onboarding {
+  /* Onboarding modal uses a larger viewport offset (4rem) for breathing room
+     around the ceremonial card. Same dual-line pattern. */
+  max-height: calc(100vh - 4rem);
+  max-height: calc(100dvh - 4rem);
+}
+
 /* Safe-area inset utilities. env() returns 0px on devices without notch /
    home indicator and the real inset on iPhone X+ / iPad with status bar.
    Explicit 0px fallback for deterministic behavior on older embedded webviews. */
