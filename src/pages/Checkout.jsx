@@ -55,6 +55,11 @@ export default function Checkout() {
     || localStorage.getItem('greetme_referral_code')
     || null;
 
+  // Phase 3D Batch A — A2.4: send-flow resume token. Passed through to the
+  // backend so the Stripe success URL carries it back; consumed by
+  // PaymentSuccess.jsx + SendGreeting.jsx on return.
+  const sendDraftId = new URLSearchParams(location.search).get('sendDraftId') || null;
+
   // Credit: referral ($10 from gift) or courtesy ($5 from finale QR)
   const courtesyCredit = (() => {
     try {
@@ -209,6 +214,8 @@ export default function Checkout() {
             zip: shipForm.zip.trim(),
             country_code: 'US',
           },
+          // Phase 3D Batch A — A2.4: opaque send-flow resume token (when present)
+          ...(sendDraftId && { sendDraftId }),
         });
         // NOTE: do NOT clear the cart here — the success page is responsible for clearing
         // after Stripe confirms payment. Protects against canceled checkout / browser interruption.

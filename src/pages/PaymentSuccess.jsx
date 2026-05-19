@@ -5,11 +5,88 @@ import api from '../api/api';
 import cartService from '../services/cartService';
 import GreetMeLogo from '../components/GreetMeLogo';
 
+// Phase 3D Batch A — A2.4: parse query from a HashRouter URL like
+//   "#/payment/success?session_id=...&sendDraftId=..."
+// Inline helper kept local — not a routing abstraction change.
+function parseHashQuery(hash) {
+  if (!hash || typeof hash !== 'string') return new URLSearchParams('');
+  const q = hash.indexOf('?');
+  if (q < 0) return new URLSearchParams('');
+  return new URLSearchParams(hash.slice(q + 1));
+}
+
+// Phase 3D Batch A — A2.4: brief success flash for the resume happy path.
+// No copy, no spinner — minimal-dwell visual that bridges Stripe close
+// and SendGreeting re-mount. Founder-locked: <100ms target.
+function ResumeSuccessFlash() {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    }}>
+      <div style={{
+        width: '64px',
+        height: '64px',
+        borderRadius: '50%',
+        background: '#22c55e',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '2rem',
+        color: 'white',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+      }}>
+        ✓
+      </div>
+    </div>
+  );
+}
+
 export default function PaymentSuccess() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [g1g1State, setG1g1State] = useState(null);
   const [g1g1Loading, setG1g1Loading] = useState(true);
+
+  // Phase 3D Batch A — A2.4: send-flow resume routing state.
+  // null         → standard payment-success path (existing four G1G1 states)
+  // 'fast-resume'→ brief check visual + navigate to /dashboard/send
+  // 'fallback'   → unified "Payment received" generic state (token lost/expired/corrupt)
+  const [resumeStatus, setResumeStatus] = useState(null);
+
+  // Phase 3D Batch A — A2.4: read sendDraftId from URL; if present and a valid
+  // non-expired resume entry exists in localStorage, fast-redirect to
+  // /dashboard/send so the resume effect there completes the dispatch.
+  // Otherwise render the unified fallback. Runs synchronously on mount.
+  useEffect(() => {
+    const params = parseHashQuery(window.location.hash);
+    const sendDraftId = params.get('sendDraftId');
+    if (!sendDraftId) return;
+
+    let parsed = null;
+    try {
+      const raw = localStorage.getItem(`greetme_send_resume_${sendDraftId}`);
+      if (raw) parsed = JSON.parse(raw);
+    } catch { /* fall through to fallback */ }
+
+    const isValid = parsed && parsed.expiresAt && Date.now() <= new Date(parsed.expiresAt).getTime();
+
+    if (!isValid) {
+      // Stale/missing/corrupt — clean up if expired, render unified fallback.
+      if (parsed) {
+        try { localStorage.removeItem(`greetme_send_resume_${sendDraftId}`); } catch {}
+      }
+      setResumeStatus('fallback');
+      return;
+    }
+
+    // Happy path: brief visual + replace navigate so back-button skips this page.
+    setResumeStatus('fast-resume');
+    navigate(`/dashboard/send?resumeDraft=${sendDraftId}`, { replace: true });
+  }, []);
 
   // Backend is the ONLY source of truth for G1G1 state
   useEffect(() => {
@@ -65,6 +142,76 @@ export default function PaymentSuccess() {
     color: '#667eea',
     border: '2px solid #667eea',
   };
+
+  // Phase 3D Batch A — A2.4: render guards for resume routing.
+  // fast-resume — minimal-dwell check while navigate() takes effect.
+  // fallback    — unified generic "Payment received" state, no technical detail.
+  if (resumeStatus === 'fast-resume') {
+    return <ResumeSuccessFlash />;
+  }
+  if (resumeStatus === 'fallback') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: '2rem',
+        fontFamily: 'system-ui, -apple-system, sans-serif'
+      }}>
+        <div style={{
+          background: 'white',
+          borderRadius: '16px',
+          padding: '2.5rem 2rem',
+          maxWidth: '480px',
+          width: '100%',
+          textAlign: 'center',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+        }}>
+          <GreetMeLogo size="medium" clickable={false} />
+          <div style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            background: '#22c55e',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '1.5rem auto',
+            fontSize: '2rem',
+            color: 'white'
+          }}>
+            ✓
+          </div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a1a2e', margin: '0 0 0.75rem' }}>
+            Payment received
+          </h1>
+          <p style={{ fontSize: '1rem', color: '#555', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
+            Your payment was successful. We&rsquo;re finalizing your Greet-Me now and will follow up shortly.
+          </p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.875rem 2rem',
+              fontSize: '1rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              width: '100%',
+              fontFamily: 'inherit',
+            }}
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{

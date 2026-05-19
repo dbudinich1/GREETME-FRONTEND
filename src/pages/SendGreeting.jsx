@@ -21,6 +21,55 @@ import { awardGreetingHearts } from '../utils/rewards';
 import { normalizeOccasionKey } from '../utils/normalizeOccasionKey';
 import { getErrorMessage } from '../utils/errorMessages';
 
+// ───────────────────────────────────────────────────────────────
+// Phase 3D Batch A — A2.4: ephemeral checkout-resume persistence
+// ───────────────────────────────────────────────────────────────
+// Single-purpose, UUID-keyed, 60-minute TTL. Stored entirely client-side
+// in localStorage; never touches draftService (lifecycle and payload
+// shapes are intentionally distinct). Used only by the marketplace
+// gift-attachment Stripe redirect path. Lifecycle:
+//   write → user redirected to Stripe → Stripe success → one-shot
+//   consume + delete inside the resume effect → executeGreetingSend.
+// Founder-locked: no backend draft mirror, no service abstraction.
+
+const SEND_RESUME_TTL_MS = 60 * 60 * 1000; // 60 minutes
+const SEND_RESUME_KEY_PREFIX = 'greetme_send_resume_';
+
+function writeResumeDraft(uuid, payload) {
+  const now = Date.now();
+  const wrapped = {
+    uuid,
+    createdAt: new Date(now).toISOString(),
+    expiresAt: new Date(now + SEND_RESUME_TTL_MS).toISOString(),
+    ...payload,
+  };
+  try {
+    localStorage.setItem(SEND_RESUME_KEY_PREFIX + uuid, JSON.stringify(wrapped));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readResumeDraft(uuid) {
+  try {
+    const raw = localStorage.getItem(SEND_RESUME_KEY_PREFIX + uuid);
+    if (!raw) return { status: 'missing', draft: null };
+    let parsed;
+    try { parsed = JSON.parse(raw); } catch { return { status: 'corrupt', draft: null }; }
+    if (!parsed.expiresAt || Date.now() > new Date(parsed.expiresAt).getTime()) {
+      return { status: 'expired', draft: parsed };
+    }
+    return { status: 'ok', draft: parsed };
+  } catch {
+    return { status: 'missing', draft: null };
+  }
+}
+
+function deleteResumeDraft(uuid) {
+  try { localStorage.removeItem(SEND_RESUME_KEY_PREFIX + uuid); } catch { /* best-effort */ }
+}
+
 export default function SendGreeting() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -87,6 +136,20 @@ export default function SendGreeting() {
   const memoryPhotoInputRef = useRef(null);
   const addToMemoryInputRef = useRef(null);
   const hasRestoredStateRef = useRef(false); // Track if we've already restored state
+
+  // Phase 3D Batch A — A2.4: single-shot guard for the Stripe redirect resume
+  // effect. Set synchronously before any state mutation or async work to
+  // protect against React strict-mode double-fire, navigation re-mounts, and
+  // back-button replay during the same SendGreeting page lifetime.
+  // Intentionally never reset on the success path — resume is one-shot.
+  const resumeInProgressRef = useRef(false);
+
+  // Phase 3D Batch A — A2.4: in-memory retry affordance if resume dispatch
+  // fails after a paid Stripe success. Holds the already-hydrated
+  // greetingDataWithGift so retry uses the same in-memory payload — no
+  // second Stripe roundtrip, no token replay. Ephemeral by design:
+  // cleared on successful retry; vanishes on page unmount.
+  const [resumeRetryContext, setResumeRetryContext] = useState(null);
 
   // Memory photos picker modal state
   const [showMemoryPhotosPicker, setShowMemoryPhotosPicker] = useState(false);
@@ -332,6 +395,129 @@ export default function SendGreeting() {
       }, 0);
     }
   }, [location.search, navigate]);
+
+  // ───────────────────────────────────────────────────────────────
+  // Phase 3D Batch A — A2.4: Stripe redirect resume orchestration
+  // ───────────────────────────────────────────────────────────────
+  // Reads ?resumeDraft=<uuid> from URL on return from PaymentSuccess.
+  // Hydrates state from localStorage, builds the marketplace gift object
+  // from the snapshot, and dispatches send via executeGreetingSend
+  // (the single dispatcher — preserved invariant).
+  //
+  // Idempotency layers (in fire order):
+  //   1. resumeInProgressRef synchronous guard (strict-mode + re-renders)
+  //   2. localStorage one-shot consume (deleteResumeDraft immediately after read)
+  //   3. URL cleanup BEFORE awaiting dispatch (founder-locked)
+  //   4. existing sending flag in executeGreetingSend
+  //   5. existing backend dedupeKey 10s window
+  useEffect(() => {
+    if (resumeInProgressRef.current) return; // Layer 1
+    const params = new URLSearchParams(location.search);
+    const resumeDraft = params.get('resumeDraft');
+    if (!resumeDraft) return;
+
+    // Wait until contacts have loaded so we can resolve selectedContact.
+    if (loading) return;
+
+    resumeInProgressRef.current = true; // synchronous — before any async work
+
+    const { status, draft } = readResumeDraft(resumeDraft);
+    deleteResumeDraft(resumeDraft); // Layer 2
+
+    if (status !== 'ok' || !draft) {
+      navigate('/dashboard/send', { replace: true });
+      setErrors({
+        submit: "Your Greet-Me couldn't be completed automatically. Please rebuild and send again.",
+      });
+      return;
+    }
+
+    // Hydrate parent state from snapshot.
+    setFormData(draft.formData || {});
+    setGiftSettings(draft.giftSettings || {});
+    setDefaultPhoto(draft.defaultPhoto || null);
+    setMemoryPhotos(Array.isArray(draft.memoryPhotos) ? draft.memoryPhotos : []);
+    setUseMemoryPhotos(!!draft.useMemoryPhotos);
+    setExcludedMemoryPhotos(new Set(draft.excludedMemoryPhotos || []));
+    if (draft.referralCode) setReferralCode(draft.referralCode);
+    if (draft.referralValue) setReferralValue(draft.referralValue);
+
+    (async () => {
+      const selectedContact = contacts.find(c => c.id === draft.contactId);
+      if (!selectedContact) {
+        navigate('/dashboard/send', { replace: true });
+        setErrors({
+          submit: "Recipient details were lost during checkout. Please re-select and send again.",
+        });
+        return;
+      }
+
+      const greetingData = buildGreetingData(selectedContact);
+      const snapshot = Array.isArray(draft.marketplaceItemsSnapshot)
+        ? draft.marketplaceItemsSnapshot
+        : [];
+      const totalCents = snapshot.reduce(
+        (s, i) => s + (typeof i.price === 'number' ? Math.round(i.price * 100) : 0),
+        0
+      );
+      const greetingDataWithGift = {
+        ...greetingData,
+        includeGift: true,
+        hasGift: true,
+        gift: {
+          type: 'marketplace',
+          items: snapshot,
+          status: 'paid',
+          totalCents,
+        },
+      };
+
+      // Layer 3: clean URL BEFORE awaiting dispatch.
+      navigate('/dashboard/send', { replace: true });
+
+      try {
+        await executeGreetingSend(greetingDataWithGift);
+        // Successful dispatch → cart-clear effect (below) handles cleanup.
+      } catch (err) {
+        // Founder option (b): in-memory retry affordance.
+        // The same hydrated payload is held in component state so retry
+        // dispatches without a second Stripe roundtrip and without token replay.
+        setResumeRetryContext({ greetingDataWithGift });
+        setErrors({ submit: getErrorMessage(err) });
+      }
+    })();
+  }, [location.search, loading, contacts]);
+
+  // Phase 3D Batch A — A2.4: post-dispatch cart cleanup on the resume path.
+  // Fires when jobId is first set AND resume is the active path. Clears
+  // every send-flow-tagged item from cartService. Skips standalone sends.
+  // Founder-locked: cart-clear happens AFTER dispatch succeeds, never before.
+  useEffect(() => {
+    if (!jobId) return;
+    if (!resumeInProgressRef.current) return;
+    const cart = cartService.getCart();
+    const sendFlowItems = cart.filter(i => i.sendContext === 'greeting-flow');
+    if (sendFlowItems.length === 0) return;
+    sendFlowItems.forEach(i => cartService.removeItem(i.id));
+    window.dispatchEvent(new Event('cartUpdated'));
+    // Retry context cleared — dispatch succeeded, no recovery needed.
+    setResumeRetryContext(null);
+  }, [jobId]);
+
+  // Phase 3D Batch A — A2.4: in-memory retry from cached gift snapshot.
+  // Founder option (b). Used only after a failed resume dispatch when
+  // resumeRetryContext is populated. Calls executeGreetingSend (the single
+  // dispatcher) with the same in-memory hydrated payload. No token replay.
+  // No second Stripe roundtrip. Cart cleanup runs via the jobId effect on success.
+  const handleResumeRetry = async () => {
+    if (!resumeRetryContext?.greetingDataWithGift) return;
+    setErrors({});
+    try {
+      await executeGreetingSend(resumeRetryContext.greetingDataWithGift);
+    } catch (err) {
+      setErrors({ submit: getErrorMessage(err) });
+    }
+  };
 
   useEffect(() => {
     if (jobId) {
@@ -658,11 +844,42 @@ export default function SendGreeting() {
     setIsGiftConfirmOpen(true);
   };
 
-  // A2.3 stub. The marketplace primary CTA in PreSendReviewModal is hardcoded
-  // disabled, so this should never fire. A2.4 will replace this with a
-  // draft-save → Stripe redirect → post-success resume path.
-  const handleReviewMarketplaceBlocked = () => {
-    // Intentionally no-op.
+  // Phase 3D Batch A — A2.4: marketplace-attachment Stripe redirect path.
+  // Snapshots in-progress send state to localStorage under a UUID token,
+  // then navigates to the existing Checkout.jsx with the token in the URL.
+  // Resume is handled in the dedicated useEffect below on return from Stripe.
+  // executeGreetingSend remains the sole dispatcher; this handler only
+  // initiates a checkout that will eventually route back into the resume
+  // effect which calls executeGreetingSend itself.
+  const handleReviewMarketplaceCheckout = () => {
+    const selectedContact = contacts.find(c => c.id === formData.contactId);
+    if (!selectedContact) return;
+
+    const marketplaceSnapshot = cartService.getCart()
+      .filter(i => i.sendContext === 'greeting-flow');
+    if (marketplaceSnapshot.length === 0) return; // defensive — CTA is disabled in empty state
+
+    const uuid = crypto.randomUUID();
+    const ok = writeResumeDraft(uuid, {
+      contactId: selectedContact.id,
+      formData,
+      giftSettings,
+      defaultPhoto,
+      memoryPhotos,
+      useMemoryPhotos,
+      excludedMemoryPhotos: Array.from(excludedMemoryPhotos),
+      referralCode,
+      referralValue,
+      marketplaceItemsSnapshot: marketplaceSnapshot,
+    });
+
+    if (!ok) {
+      setErrors({ submit: "We're having trouble preparing checkout. Please try again." });
+      return;
+    }
+
+    setIsPreSendReviewOpen(false);
+    navigate(`/dashboard/checkout?sendDraftId=${uuid}`);
   };
 
   // QR Cash™ confirmation handler: charge then send (with 3DS support)
@@ -1104,6 +1321,48 @@ if (typeof window !== "undefined") {
           <Alert type="error" message={referralError} />
         )}
         {errors.submit && <Alert type="error" message={errors.submit} />}
+        {/* Phase 3D Batch A — A2.4: in-memory retry affordance after failed
+            resume dispatch (founder option b). Ephemeral — appears only when
+            resumeRetryContext is set; vanishes on page unmount; cleared on
+            successful retry. */}
+        {resumeRetryContext && (
+          <div style={{
+            marginTop: '0.5rem',
+            padding: '0.875rem 1rem',
+            background: '#f5f3ff',
+            border: '1px solid #ddd6fe',
+            borderRadius: '0.625rem',
+          }}>
+            <p style={{
+              fontSize: '0.875rem',
+              color: '#4338ca',
+              margin: '0 0 0.625rem',
+              lineHeight: 1.55,
+            }}>
+              Your payment was successful, but we couldn&rsquo;t finish sending your Greet-Me just now.
+            </p>
+            <button
+              type="button"
+              onClick={handleResumeRetry}
+              disabled={sending}
+              style={{
+                background: sending
+                  ? '#e5e7eb'
+                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: sending ? '#9ca3af' : 'white',
+                border: 'none',
+                borderRadius: '0.5rem',
+                padding: '0.625rem 1rem',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: sending ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              Try sending again
+            </button>
+          </div>
+        )}
         {errors.photo && <Alert type="error" message={errors.photo} />}
 
         {/* Recipient, Occasion, and Tone - Side by Side */}
@@ -1961,7 +2220,7 @@ if (typeof window !== "undefined") {
         sending={sending}
         onConfirmDirectSend={handleReviewDirectSend}
         onConfirmQRCashFresh={handleReviewQRCashFresh}
-        onMarketplaceBlocked={handleReviewMarketplaceBlocked}
+        onMarketplaceCheckout={handleReviewMarketplaceCheckout}
         onRemoveAttachment={handleReviewRemoveAttachment}
       />
 

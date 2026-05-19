@@ -39,7 +39,7 @@ export default function PreSendReviewModal({
   sending,
   onConfirmDirectSend,
   onConfirmQRCashFresh,
-  onMarketplaceBlocked,       // A2.3 no-op stub (A2.4 will replace)
+  onMarketplaceCheckout,      // A2.4: active handler (replaces A2.3 onMarketplaceBlocked stub)
   onRemoveAttachment,
 }) {
   if (!isOpen) return null;
@@ -63,13 +63,15 @@ export default function PreSendReviewModal({
       return { label: 'Send Request', onClick: onConfirmDirectSend, disabled: !!sending, icon: 'send' };
     }
     if (giftMode === 'marketplace') {
+      // Phase 3D Batch A — A2.4: CTA enabled when items present and not sending.
+      // The "next step" explanatory note is gone — the orchestration is real now.
       return {
         label: 'Continue to Secure Checkout',
-        onClick: onMarketplaceBlocked,
-        disabled: true, // A2.3: always disabled. A2.4 will enable.
+        onClick: onMarketplaceCheckout,
+        disabled: !hasMarketplaceItems || !!sending,
         icon: 'checkout',
         note: hasMarketplaceItems
-          ? 'Marketplace gift checkout will finalize in the next step.'
+          ? null
           : 'Add a marketplace gift below, or return to the greeting to change the gift type.',
       };
     }
