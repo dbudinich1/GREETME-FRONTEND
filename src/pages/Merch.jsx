@@ -731,6 +731,10 @@ export default function Merch() {
         onReturnToRecipient={returnRecipientId ? handleReturnToRecipient : (cameFromSendGreeting ? handleReturnToGreeting : null)}
         showReturnToRecipient={!!returnRecipientId || cameFromSendGreeting}
         returnToLabel={cameFromSendGreeting && !returnRecipientId ? "Return to Greeting" : "Return to Recipient Settings"}
+        // Phase 3D Batch A — A2.1: defensive suppression for any residual
+        // send-flow URL that lands here. Per A2.6 Merch is removed from the
+        // gift chooser, but this guards stale links / deep links.
+        showGoToCheckout={!cameFromSendGreeting}
       />
     </div>
   );

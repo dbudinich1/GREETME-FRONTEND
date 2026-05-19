@@ -15,6 +15,11 @@ export default function AddToCartModal({
   onReturnToRecipient,
   showReturnToRecipient,
   returnToLabel = "Return to Recipient Settings",
+  // Phase 3D Batch A — A2.1: when false (typically in send-flow context),
+  // the "Go to Checkout" CTA is suppressed so the user must return to the
+  // greeting flow rather than leaking out to checkout mid-build.
+  // Defaults to true to preserve all standalone storefront behavior.
+  showGoToCheckout = true,
 }) {
   if (!isOpen) return null;
 
@@ -236,39 +241,41 @@ export default function AddToCartModal({
                 Continue Shopping
               </button>
 
-              {/* Go to Checkout Button */}
-              <button
-                onClick={onGoToCheckout}
-                style={{
-                  width: '100%',
-                  padding: '0.875rem 1.5rem',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.75rem',
-                  fontSize: '0.9375rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
-                  fontFamily: 'inherit'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-                }}
-              >
-                Go to Checkout
-                <ArrowRight size={18} />
-              </button>
+              {/* Go to Checkout Button — A2.1: suppressed in send-flow context */}
+              {showGoToCheckout && (
+                <button
+                  onClick={onGoToCheckout}
+                  style={{
+                    width: '100%',
+                    padding: '0.875rem 1.5rem',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.75rem',
+                    fontSize: '0.9375rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                    fontFamily: 'inherit'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                  }}
+                >
+                  Go to Checkout
+                  <ArrowRight size={18} />
+                </button>
+              )}
 
               {/* Return to Recipient Settings Button - only show if came from recipient form */}
               {showReturnToRecipient && onReturnToRecipient && (

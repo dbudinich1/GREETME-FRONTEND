@@ -6,7 +6,10 @@ const GIFT_OPTIONS = [
   { value: 'none', label: 'None', description: 'No gift for now' },
   { value: 'qrcash', label: 'QR Cash\u2122', description: 'Send cash they can scan and spend' },
   { value: 'curated', label: 'Let Greet-Me™ Select', description: 'We\'ll select something thoughtful within your limit' },
-  { value: 'merch', label: 'Merch', description: 'Greet-Me™ merch & keepsakes' },
+  // Phase 3D Batch A — A2.6: 'merch' option removed. The Merch storefront at
+  // /dashboard/merch remains fully operational; it is no longer surfaced as a
+  // gift-attachment option in the send flow per the strategic frame
+  // (emotional-expression engine with commerce attached, not the inverse).
   { value: 'marketplace', label: 'American Gift Place', description: 'Browse made-in-USA gifts' }
 ];
 
@@ -310,42 +313,9 @@ export default function GiftSelectorModal({
                     </div>
                   )}
 
-                  {/* Merch Browse Button */}
-                  {giftSetting.type === 'merch' && onBrowse && (
-                    <div style={{
-                      marginTop: '1rem',
-                      padding: '1.125rem',
-                      background: 'linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%)',
-                      borderRadius: '0.625rem',
-                      border: '1px solid #e879f9'
-                    }}>
-                      <p style={{
-                        fontSize: '0.8125rem',
-                        color: '#a21caf',
-                        marginBottom: '0.75rem'
-                      }}>
-                        Browse our collection of Greet-Me™ merch and keepsakes
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => onBrowse('merch')}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem 1.25rem',
-                          background: 'linear-gradient(135deg, #d946ef 0%, #a21caf 100%)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '0.5rem',
-                          fontSize: '0.9375rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          fontFamily: 'inherit'
-                        }}
-                      >
-                        Browse Merch
-                      </button>
-                    </div>
-                  )}
+                  {/* Phase 3D Batch A — A2.6: Merch Browse Button removed
+                      from gift chooser. Merch storefront at /dashboard/merch
+                      remains accessible via dashboard nav. */}
 
                   {/* Marketplace Browse Button */}
                   {giftSetting.type === 'marketplace' && onBrowse && (

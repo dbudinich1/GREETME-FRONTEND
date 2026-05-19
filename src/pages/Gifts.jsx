@@ -155,7 +155,12 @@ export default function Gifts() {
         description: gift.description,
         category: gift.category,
         partner: gift.partner,
-        icon: '🎁'
+        icon: '🎁',
+        // Phase 3D Batch A — A2.2: opaque tag identifying items added during
+        // greeting send flow. Future PreSendReviewModal (A2.3) will use this
+        // for attachment reconciliation. cartService treats it as opaque;
+        // standalone storefront items remain untagged.
+        ...(cameFromSendGreeting && { sendContext: 'greeting-flow' }),
       });
 
       // Show feedback
@@ -678,6 +683,8 @@ export default function Gifts() {
         onReturnToRecipient={returnRecipientId ? handleReturnToRecipient : (cameFromSendGreeting ? handleReturnToGreeting : null)}
         showReturnToRecipient={!!returnRecipientId || cameFromSendGreeting}
         returnToLabel={cameFromSendGreeting && !returnRecipientId ? "Return to Greeting" : "Return to Recipient Settings"}
+        // Phase 3D Batch A — A2.1: suppress Go-to-Checkout when entered from greeting flow.
+        showGoToCheckout={!cameFromSendGreeting}
       />
 
       {/* How QR Cash Works Modal */}
