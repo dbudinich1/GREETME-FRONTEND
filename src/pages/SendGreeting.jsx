@@ -708,6 +708,20 @@ export default function SendGreeting() {
       ])].slice(0, MAX_MEMORY_PHOTOS),
       layoutBudget: { introMaxChars: 280 },
       includeGift: Boolean(giftSettings?.type && giftSettings.type !== 'none'),
+      // Phase 3D Batch A — A2.5: curated intent attachment.
+      // Curated is founder-fulfilled out-of-band — no payment, no claim token,
+      // no items list. Backend recognizes type 'curated' and emits the
+      // CURATED_GIFT_INTENT log line. Worker passes the gift object through
+      // verbatim into the Cosmos greetings record (no claim-link UI rendered).
+      // qrcash / marketplace gift objects continue to attach at terminal
+      // handlers (charge / referral / paid snapshot) — unchanged.
+      ...(giftSettings?.type === 'curated' && {
+        gift: {
+          type: 'curated',
+          maxSpendCents: (giftSettings.maxSpend || 0) * 100,
+          status: 'intent_recorded',
+        },
+      }),
     };
 
     // Demo mode: attach pre-written content to skip AI generation
