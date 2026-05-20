@@ -4,6 +4,7 @@
 
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useAccountState } from '../hooks/useAccountState';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -11,6 +12,11 @@ export default function CourtesyCredit() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  // Phase 3D Batch D Slice 2 — account-state gate. Subscribed users get
+  // subdued copy and route to /dashboard rather than /dashboard/send.
+  // Onboarding test-send path (isOnboardingClaim) takes precedence in the
+  // copy ternary so the demo flow is preserved.
+  const accountState = useAccountState();
   const amount = parseInt(searchParams.get('amount') || '5', 10);
   const source = searchParams.get('source');
   const displayAmount = `$${amount}`;
@@ -29,7 +35,11 @@ export default function CourtesyCredit() {
 
   const handlePrimary = () => {
     stashCredit();
-    if (isAuthenticated) {
+    if (accountState.isSubscribed) {
+      // Phase 3D Batch D Slice 2 — subscribed users route to /dashboard
+      // (neutral landing) instead of /dashboard/send (action-oriented).
+      navigate('/dashboard');
+    } else if (isAuthenticated) {
       navigate('/dashboard/send');
     } else {
       navigate('/register', { state: { returnTo: '/dashboard/send' } });
@@ -132,9 +142,11 @@ export default function CourtesyCredit() {
         >
           {isOnboardingClaim
             ? `Claim & Apply Your ${displayAmount} Credit`
-            : isAuthenticated
-              ? `Use ${displayAmount} Now \u2014 Send a Greet-Me`
-              : `Claim Your ${displayAmount} \u2014 Create Your Account`}
+            : accountState.isSubscribed
+              ? `Apply ${displayAmount} to Your Account`
+              : isAuthenticated
+                ? `Use ${displayAmount} Now \u2014 Send a Greet-Me`
+                : `Claim Your ${displayAmount} \u2014 Create Your Account`}
         </button>
 
         {/* Smart loop: Thank You — hidden during onboarding test flow */}

@@ -7,6 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import GreetMeLogo from '../components/GreetMeLogo';
+import { useAccountState } from '../hooks/useAccountState';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 const G1G1_STORAGE_KEY = 'greetme_g1g1_gift_code';
@@ -15,6 +16,11 @@ export default function G1G1Claim() {
   const { giftCode } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  // Phase 3D Batch D Slice 2 — account-state gate. Suppresses the
+  // "Activate My Membership" CTA for already-subscribed users; they route
+  // to the dashboard instead and the gift code remains stashed for
+  // manual application or sender-side resolution.
+  const accountState = useAccountState();
 
   const [gift, setGift] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -166,7 +172,18 @@ export default function G1G1Claim() {
           <div style={styles.errorBox}>{error}</div>
         )}
 
-        {isAuthenticated ? (
+        {/* Phase 3D Batch D Slice 2 — three-way CTA branch. Subscribed users
+            no longer see "Activate My Membership"; they route to dashboard. */}
+        {accountState.isSubscribed ? (
+          <>
+            <p style={styles.subtitle}>
+              You&rsquo;re already a Greet-Me member. Visit your dashboard to manage this gift.
+            </p>
+            <button onClick={() => navigate('/dashboard')} style={styles.primaryBtn}>
+              Go to Dashboard
+            </button>
+          </>
+        ) : isAuthenticated ? (
           <button
             onClick={handleClaim}
             disabled={claiming}

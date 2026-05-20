@@ -7,6 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { safeGet, safeSet, safeSessionSet, safeSessionRemove } from '../utils/safeStorage';
+import { useAccountState } from '../hooks/useAccountState';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -14,6 +15,12 @@ export default function CreditClaim() {
   const { creditCode } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated, register, login } = useAuth();
+  // Phase 3D Batch D Slice 2 — account-state gate. Only used for subdued
+  // terms-copy refinement (subscribed users see "Applied to your account"
+  // instead of "your first Greet-Me subscription"). The existing
+  // preAuthSnapshot identity logic, isLoopCloser block, and
+  // isSenderViewingOwnCredit block are untouched.
+  const accountState = useAccountState();
 
   // Identity snapshot: capture current auth BEFORE any clearing decision.
   // Clearing is deferred to after credit fetch — conditional on credit state + visitor identity.
@@ -606,7 +613,9 @@ export default function CreditClaim() {
                   {claiming ? 'Claiming...' : 'Claim & Continue'}
                 </button>
                 <p style={styles.terms}>
-                  Applies to your first Greet-Me subscription.
+                  {accountState.isSubscribed
+                    ? 'Applied to your account balance.'
+                    : 'Applies to your first Greet-Me subscription.'}
                 </p>
               </>
             ) : isLoginMode ? (
