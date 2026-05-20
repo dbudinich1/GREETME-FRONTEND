@@ -23,6 +23,17 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
   const [savedRecipients, setSavedRecipients] = useState([]);
   const [showRecipientDropdown, setShowRecipientDropdown] = useState(false);
 
+  // Phase 3D Batch B Slice 3 I1 — responsive header detection. Matches the
+  // resize-listener pattern from Slice 2B. Used only to reduce the title's
+  // fontSize on narrow portrait viewports so the heading + close button no
+  // longer collide on iPhone SE / narrow Android.
+  const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
+  useEffect(() => {
+    const handleResize = () => setIsNarrow(window.innerWidth < 420);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const presetAmounts = ['5', '10', '25'];
 
   // Load saved recipients from localStorage
@@ -199,17 +210,18 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
           borderTopRightRadius: 'var(--radius-xl)',
           color: 'white'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isNarrow ? '0.5rem' : '1rem', minWidth: 0, flex: 1 }}>
             <GreetMeLogo size="small" clickable={false} />
-            <div>
+            <div style={{ minWidth: 0 }}>
               <h2 style={{
-                fontSize: '1.5rem',
+                // Phase 3D Batch B Slice 3 I1 — responsive heading on narrow portrait.
+                fontSize: isNarrow ? '1.125rem' : '1.5rem',
                 fontWeight: 700,
                 margin: 0,
                 marginBottom: '0.25rem'
               }}>Send QR Cash</h2>
               <p style={{
-                fontSize: '0.875rem',
+                fontSize: isNarrow ? '0.75rem' : '0.875rem',
                 opacity: 0.9,
                 margin: 0
               }}>Send · Scan · Spend</p>
@@ -921,8 +933,12 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                     src={qrCodeUrl}
                     alt="QR Cash Gift Code"
                     style={{
+                      // Phase 3D Batch B Slice 3 I2 — responsive QR containment.
+                      // Image scales down on narrow viewports while keeping
+                      // aspect ratio and 250px design intent at desktop.
+                      maxWidth: '100%',
                       width: '250px',
-                      height: '250px',
+                      height: 'auto',
                       display: 'block'
                     }}
                   />

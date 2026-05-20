@@ -73,7 +73,12 @@ export default function FaithBasedOccasionSelector({ selectedFaiths = [], onChan
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        // Phase 3D Batch B Slice 3 I3 — containment fix.
+        // The 280px lower bound previously forced grid cells past narrow
+        // parent containers (ContactForm faith section on portrait).
+        // min(280px, 100%) lets cells shrink with the container while
+        // preserving the 280px design intent when room permits.
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
         gap: 'var(--space-md)'
       }}>
         {faithsWithOccasions.map(faith => {

@@ -526,17 +526,22 @@ export default function DashboardLayout({ children }) {
       {/* Mobile Slide-out Menu */}
       {isNarrow && mobileMenuOpen && (
         <>
-          {/* Overlay */}
+          {/* Overlay — Phase 3D Batch B Slice 3 I4: bumped from z=40 to z=55
+              so it stays below the drawer (z=60) while remaining above the
+              sticky header (z=50) and all in-chrome elements. */}
           <div
             style={{
               position: 'fixed',
               inset: 0,
               background: 'rgba(0, 0, 0, 0.5)',
-              zIndex: 40
+              zIndex: 55
             }}
             onClick={() => setMobileMenuOpen(false)}
           />
-          {/* Slide-out Menu */}
+          {/* Slide-out Menu — Phase 3D Batch B Slice 3 I4: z=60 breaks the tie
+              with the sticky header (z=50). paddingTop with env(safe-area-inset-top)
+              prevents drawer content from sliding under the iPhone notch /
+              Dynamic Island. Other drawer behavior preserved verbatim. */}
           <div style={{
             position: 'fixed',
             top: 0,
@@ -544,7 +549,8 @@ export default function DashboardLayout({ children }) {
             bottom: 0,
             width: '280px',
             background: 'var(--bg-primary)',
-            zIndex: 50,
+            zIndex: 60,
+            paddingTop: 'env(safe-area-inset-top, 0px)',
             boxShadow: '4px 0 20px rgba(0, 0, 0, 0.15)',
             display: 'flex',
             flexDirection: 'column',
