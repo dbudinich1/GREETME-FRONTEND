@@ -126,7 +126,14 @@ function tightenLineHeight(el) {
   }
 }
 
-export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, courtesyCreditCode }) {
+// Phase 3D Batch D D6 frontend — `isOwner` is true when the authenticated
+// viewer is the original sender of this greeting (resolved upstream by
+// useAccountState + senderUserId from the public greeting API). When true,
+// the claim affordances on this spread are suppressed: anchor wrappers are
+// removed and copy is swapped to neutral "included with your greeting"
+// variants. No layout, animation, autofit, typography, or card-motion
+// changes — only conditional removal of <a> tap targets around existing art.
+export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, courtesyCreditCode, isOwner }) {
   const closingMessageRef = useRef(null);
   const [qrImageError, setQrImageError] = useState(false);
   const [courtesyQrUrl, setCourtesyQrUrl] = useState(null);
@@ -230,9 +237,21 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
               <>
                 <h3 className="gc-gift-title">A little something extra</h3>
 
-                {/* Real QR image from backend, wrapped as tap target */}
+                {/* Real QR image from backend. Owner view = art only (no anchor tap target). */}
                 {(gift.qrUrl || gift.qrImageUrl) && !qrImageError ? (
-                  <a
+                  isOwner ? (
+                    <div className="gc-qr-frame">
+                      <div className="gc-qr-code">
+                        <img
+                          src={gift.qrUrl || gift.qrImageUrl}
+                          alt="QR Cash gift preview"
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          onError={() => setQrImageError(true)}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <a
                     href={gift.claimUrl}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -250,8 +269,9 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
                       </div>
                     </div>
                   </a>
-                ) : gift.claimUrl ? (
-                  /* QR image failed or missing — minimal text-link fallback */
+                  )
+                ) : gift.claimUrl && !isOwner ? (
+                  /* QR image failed or missing — recipient-only text-link fallback */
                   <a
                     href={gift.claimUrl}
                     target="_blank"
@@ -271,8 +291,10 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
                 ) : null}
 
                 <p className="gc-gift-instruction">
-                  {(gift.qrUrl || gift.qrImageUrl) && !qrImageError
-                    ? 'Scan or tap to claim your gift'
+                  {isOwner
+                    ? 'A QR Cash gift is included with this greeting'
+                    : (gift.qrUrl || gift.qrImageUrl) && !qrImageError
+                      ? 'Scan or tap to claim your gift'
                     : 'A QR Cash\u2122 gift is included with this greeting'}
                 </p>
 
@@ -284,22 +306,25 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
                 <p className="gc-gift-instruction" style={{ marginBottom: '0.75em' }}>
                   Treat yourself to something that makes you smile!
                 </p>
-                <a
-                  href="/#/pricing"
-                  style={{
-                    display: 'inline-block',
-                    padding: '0.45em 1.2em',
-                    background: 'linear-gradient(135deg, #3A7BD5 0%, #1B2A4A 100%)',
-                    color: '#fff',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                    fontSize: '0.7em',
-                    fontWeight: 600,
-                    borderRadius: '20px',
-                    textDecoration: 'none',
-                  }}
-                >
-                  Browse Plans
-                </a>
+                {/* Browse Plans CTA is recipient-facing; suppressed for owner self-view. */}
+                {!isOwner && (
+                  <a
+                    href="/#/pricing"
+                    style={{
+                      display: 'inline-block',
+                      padding: '0.45em 1.2em',
+                      background: 'linear-gradient(135deg, #3A7BD5 0%, #1B2A4A 100%)',
+                      color: '#fff',
+                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                      fontSize: '0.7em',
+                      fontWeight: 600,
+                      borderRadius: '20px',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Browse Plans
+                  </a>
+                )}
               </>
             ) : (
               <>
@@ -307,25 +332,38 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
 
                 {courtesyQrUrl && courtesyCreditCode ? (
                   <>
-                    <a
-                      href={`${window.location.origin}/#/claim-credit/${courtesyCreditCode}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="Claim your $5 Greet-Me credit"
-                      style={{ display: 'block', textDecoration: 'none' }}
-                    >
+                    {/* Owner views see the QR as art (no anchor wrapper). */}
+                    {isOwner ? (
                       <div className="gc-qr-frame">
                         <div className="gc-qr-code">
                           <img
                             src={courtesyQrUrl}
-                            alt="Scan to claim your $5 Greet-Me credit"
+                            alt="Courtesy credit QR preview"
                             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                           />
                         </div>
                       </div>
-                    </a>
+                    ) : (
+                      <a
+                        href={`${window.location.origin}/#/claim-credit/${courtesyCreditCode}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Claim your $5 Greet-Me credit"
+                        style={{ display: 'block', textDecoration: 'none' }}
+                      >
+                        <div className="gc-qr-frame">
+                          <div className="gc-qr-code">
+                            <img
+                              src={courtesyQrUrl}
+                              alt="Scan to claim your $5 Greet-Me credit"
+                              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                            />
+                          </div>
+                        </div>
+                      </a>
+                    )}
                     <p className="gc-gift-instruction">
-                      Scan or tap to claim your gift
+                      {isOwner ? 'Included with your greeting' : 'Scan or tap to claim your gift'}
                     </p>
                   </>
                 ) : (
@@ -333,19 +371,22 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
                     <p className="gc-gift-instruction" style={{ marginBottom: '0.5em' }}>
                       We've included $5 toward your first Greet-Me subscription.
                     </p>
-                    <a
-                      href="/#/courtesy-credit?amount=5&source=finale"
-                      style={{
-                        display: 'inline-block',
-                        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                        fontSize: '0.85em',
-                        color: '#10b981',
-                        textDecoration: 'underline',
-                        marginBottom: '0.5em',
-                      }}
-                    >
-                      Tap to claim your $5 credit
-                    </a>
+                    {/* Claim link is recipient-facing; suppressed for owner self-view. */}
+                    {!isOwner && (
+                      <a
+                        href="/#/courtesy-credit?amount=5&source=finale"
+                        style={{
+                          display: 'inline-block',
+                          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                          fontSize: '0.85em',
+                          color: '#10b981',
+                          textDecoration: 'underline',
+                          marginBottom: '0.5em',
+                        }}
+                      >
+                        Tap to claim your $5 credit
+                      </a>
+                    )}
                   </>
                 )}
               </>

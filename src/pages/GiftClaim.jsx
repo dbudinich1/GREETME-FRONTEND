@@ -6,6 +6,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
+import { useAccountState } from '../hooks/useAccountState';
+import { isSenderViewingOwnGift } from '../utils/accountState';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -46,6 +48,12 @@ export default function GiftClaim() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  // Phase 3D Batch D D6 frontend — owner-self-encounter detection. When the
+  // authenticated viewer is the original sender of this gift (matched via
+  // senderUserId from the backend), the entire payout-method picker is
+  // suppressed and the early-return SenderOwnGiftView renders instead.
+  // The existing recipient flow is untouched.
+  const accountState = useAccountState();
 
   // Route helper: authenticated → direct, guest → register with returnTo
   const authRoute = (dest) => {
@@ -219,6 +227,36 @@ export default function GiftClaim() {
           <p style={{ fontSize: '1rem', fontFamily: FONT_STACK }}>
             {isConnectReturn ? 'Processing your payout...' : 'Loading your gift...'}
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Sender viewing own gift (Phase 3D Batch D D6 frontend) ----
+  // Intercepts BEFORE fulfilled/claimed/expired/connect_pending/form branches
+  // so senders never see recipient-facing claim UX for their own gift.
+  if (gift && isSenderViewingOwnGift({ gift, userId: accountState.userId })) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.card}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>&#10003;</div>
+          <h1 style={styles.title}>This gift is for your recipient</h1>
+          <p style={styles.subtitle}>
+            Your {fmt(gift.giftAmountCents)} QR Cash&trade; gift was included with your greeting.
+            They&rsquo;ll claim it from their end.
+          </p>
+          <button
+            onClick={() => navigate('/dashboard/send')}
+            style={{
+              ...styles.ctaButton(false),
+              marginBottom: '0.75rem',
+            }}
+          >
+            Send another Greet-Me
+          </button>
+          <a href="/#/dashboard" style={styles.secondaryLink}>Go to Dashboard</a>
+          <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
         </div>
       </div>
     );

@@ -48,7 +48,7 @@ const TRANSITION_MS = 420;
 const ENVELOPE_EXIT_MS = 280;
 const REDUCED_MOTION_MS = 150;
 
-export default function GreetingCard({ greeting }) {
+export default function GreetingCard({ greeting, isOwner }) {
   const [currentScreen, setCurrentScreen] = useState(SCREENS.ENVELOPE);
   const [transitionState, setTransitionState] = useState(null); // { from, to, direction }
   const [envelopeExiting, setEnvelopeExiting] = useState(false);
@@ -181,12 +181,13 @@ export default function GreetingCard({ greeting }) {
             gift={greeting.isOnboardingTestSend ? null : greeting.gift}
             jobId={greeting.jobId}
             courtesyCreditCode={greeting.courtesyCreditCode}
+            isOwner={isOwner}
           />
         );
       default:
         return null;
     }
-  }, [greeting, videoHasEnded]);
+  }, [greeting, videoHasEnded, isOwner]);
 
   // Page-turn navigation (Cover ↔ Interior ↔ Featured ↔ Finale)
   const navigateTo = useCallback((toScreen, direction) => {
@@ -416,6 +417,7 @@ export default function GreetingCard({ greeting }) {
               gift={greeting.isOnboardingTestSend ? null : greeting.gift}
               jobId={greeting.jobId}
               courtesyCreditCode={greeting.courtesyCreditCode}
+              isOwner={isOwner}
             />
           )}
         </>

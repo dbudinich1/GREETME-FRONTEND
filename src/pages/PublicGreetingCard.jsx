@@ -8,7 +8,7 @@ import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
 import { GreetingCard as GreetingCardProto } from '../components/GreetingCardProto';
 import { useAccountState } from '../hooks/useAccountState';
-import { shouldShowFirstTimeCTA } from '../utils/accountState';
+import { shouldShowFirstTimeCTA, isSenderViewingOwnGreeting } from '../utils/accountState';
 
 export default function PublicGreetingCard() {
   const { jobId } = useParams();
@@ -87,6 +87,9 @@ export default function PublicGreetingCard() {
           gift: g.gift || null,
           courtesyCreditCode: g.courtesyCreditCode || null,
           isOnboardingTestSend: g.isOnboardingTestSend === true,
+          // Phase 3D Batch D D6 — opaque sender id (added in backend 5634cd4)
+          // for client-side owner-self-encounter detection only. Null if missing.
+          senderUserId: g.senderUserId || null,
         });
       } else {
         setError('not_found');
@@ -294,8 +297,13 @@ export default function PublicGreetingCard() {
         </p>
       </div>
 
-      {/* Premium greeting card experience */}
-      <GreetingCardProto greeting={greeting} />
+      {/* Premium greeting card experience.
+          Phase 3D Batch D D6 — isOwner prop pass-through for sender-self-encounter
+          suppression of claim CTAs on the Finale spread. No layout/animation impact. */}
+      <GreetingCardProto
+        greeting={greeting}
+        isOwner={isSenderViewingOwnGreeting({ greeting, userId: accountState.userId })}
+      />
 
       {/* QR Cash™ claim lives inside the FinaleSpread (right page of the card) */}
 
