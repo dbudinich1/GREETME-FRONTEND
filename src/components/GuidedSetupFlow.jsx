@@ -48,6 +48,15 @@ export function shouldShowGuidedSetup() {
   return true;
 }
 
+// Phase 3D Batch D Slice 5 — account-state-aware variant. Additionally
+// suppresses for subscribed users (founder D5 rule: subscription wins over
+// localStorage onboarding flags). Backward-compat preserved: legacy callers
+// of shouldShowGuidedSetup() retain the original env+localStorage behavior.
+export function shouldShowGuidedSetupForUser(accountState) {
+  if (accountState?.isSubscribed) return false;
+  return shouldShowGuidedSetup();
+}
+
 export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const navigate = useNavigate();
   const { user, refreshProfile } = useAuth();

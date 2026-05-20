@@ -1,11 +1,15 @@
 // src/components/OnboardingTour.jsx
 import { useState, useEffect } from 'react';
 import { X, ChevronRight, Mic, Camera, UserPlus } from 'lucide-react';
+import { useAccountState } from '../hooks/useAccountState';
+import { shouldShowOnboarding } from '../utils/accountState';
 
 export default function OnboardingTour() {
   const [isVisible, setIsVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [hasOptedOut, setHasOptedOut] = useState(false);
+  // Phase 3D Batch D Slice 5 — account-state gate (subscription wins).
+  const state = useAccountState();
 
   const ONBOARDING_KEY = 'greetme_onboarding_completed';
 
@@ -67,6 +71,7 @@ export default function OnboardingTour() {
   };
 
   if (!isVisible || hasOptedOut) return null;
+  if (!shouldShowOnboarding(state)) return null;
 
   const step = steps[currentStep];
 

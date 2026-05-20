@@ -1,6 +1,8 @@
 // src/components/OnboardingCoach.jsx
 import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Copy, CheckCircle } from 'lucide-react';
+import { useAccountState } from '../hooks/useAccountState';
+import { shouldShowOnboarding } from '../utils/accountState';
 
 
 const ONBOARDING_KEYS = {
@@ -13,6 +15,10 @@ export default function OnboardingCoach({ voiceDone, photoDone, recipientDone })
   const [isVisible, setIsVisible] = useState(false);
   const [showScripts, setShowScripts] = useState(false);
   const [copiedScript, setCopiedScript] = useState(null);
+  // Phase 3D Batch D Slice 5 — account-state gate. Subscription wins over
+  // localStorage onboarding flags, so paying users never re-enter onboarding
+  // even if storage is wiped.
+  const state = useAccountState();
 
   useEffect(() => {
     // Check if onboarding should be shown
@@ -63,6 +69,7 @@ export default function OnboardingCoach({ voiceDone, photoDone, recipientDone })
   };
 
   if (!isVisible) return null;
+  if (!shouldShowOnboarding(state)) return null;
 
   const allComplete = voiceDone && photoDone && recipientDone;
 

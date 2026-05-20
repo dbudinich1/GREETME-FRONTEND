@@ -13,10 +13,14 @@ import { getErrorMessage } from '../utils/errorMessages';
 import { safeGet, safeSet, safeSessionGet, safeSessionSet } from '../utils/safeStorage';
 import OnboardingCoach from '../components/OnboardingCoach';
 import TutorialVideo from '../components/TutorialVideo';
+import { useAccountState } from '../hooks/useAccountState';
+import { shouldShowOnboarding } from '../utils/accountState';
 
 export default function DashboardHome() {
   const navigate = useNavigate();
   const { user, getToken, refreshProfile } = useAuth();
+  // Phase 3D Batch D Slice 5 — account-state gate for the dashboard onboarding nudge.
+  const accountState = useAccountState();
 
   // Refs
   const voiceInputRef = useRef(null);
@@ -597,11 +601,15 @@ export default function DashboardHome() {
       </div>
 
       {/* Onboarding Coach (dashboard nudge for incomplete setup) */}
-      <OnboardingCoach
-        voiceDone={voiceRecorded || !!user?.voiceId || !!user?.voiceUrl}
-        photoDone={photoUploaded || !!user?.photoUrl}
-        recipientDone={contacts.length > 0}
-      />
+      {/* Phase 3D Batch D Slice 5 — mount only when account state allows.
+          Subscription/payment state wins over localStorage flags. */}
+      {shouldShowOnboarding(accountState) && (
+        <OnboardingCoach
+          voiceDone={voiceRecorded || !!user?.voiceId || !!user?.voiceUrl}
+          photoDone={photoUploaded || !!user?.photoUrl}
+          recipientDone={contacts.length > 0}
+        />
+      )}
 
       {/* Dashboard Cards - All same height */}
       {/* Green G1G1 Card - Full Width */}
