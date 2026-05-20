@@ -10,10 +10,16 @@ import GreetMeLogo from '../components/GreetMeLogo';
 import ThankYouModal from '../components/ThankYouModal';
 import GreetingCardViewer, { convertToMultiPageFormat } from '../components/GreetingCardViewer';
 import { hasThankYouBeenSent } from '../utils/thankYou';
+import { useAccountState } from '../hooks/useAccountState';
+import { shouldShowFirstTimeCTA } from '../utils/accountState';
 
 export default function ViewGreeting() {
   const { id } = useParams();
   const navigate = useNavigate();
+  // Phase 3D Batch D Slice 3 — gate the viral-loop "Create Your Own" CTA on
+  // first-time visitor state. Authenticated viewers (paying senders, etc.)
+  // see the card + thank-you affordance without the register-loop CTA.
+  const accountState = useAccountState();
   const [greeting, setGreeting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -261,38 +267,41 @@ export default function ViewGreeting() {
           </div>
         )}
 
-        {/* Create Your Own CTA */}
-        <div style={{
-          textAlign: 'center',
-          marginTop: '1.5rem',
-        }}>
-          <button
-            onClick={() => navigate('/register')}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: 'rgba(255, 255, 255, 0.15)',
-              color: 'white',
-              border: '2px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              backdropFilter: 'blur(10px)',
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
-              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-            }}
-          >
-            Create Your Own Greeting
-          </button>
-        </div>
+        {/* Create Your Own CTA — Phase 3D Batch D Slice 3: first-time visitors only.
+            Authenticated viewers see the card without the register-loop CTA. */}
+        {shouldShowFirstTimeCTA(accountState) && (
+          <div style={{
+            textAlign: 'center',
+            marginTop: '1.5rem',
+          }}>
+            <button
+              onClick={() => navigate('/register')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: 'rgba(255, 255, 255, 0.15)',
+                color: 'white',
+                border: '2px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: 'var(--radius-lg)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                backdropFilter: 'blur(10px)',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+              }}
+            >
+              Create Your Own Greeting
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Thank You Modal */}

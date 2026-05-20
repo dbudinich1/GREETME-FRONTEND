@@ -1,10 +1,24 @@
 // src/pages/LandingPage.jsx
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Calendar, Zap, Smartphone } from 'lucide-react';
 import GreetMeLogo from '../components/GreetMeLogo';
+import { useAccountState } from '../hooks/useAccountState';
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  // Phase 3D Batch D Slice 3 — redirect authenticated users to dashboard,
+  // mirroring the canonical pattern in Landing.jsx. Preserves the
+  // recipient-mode escape hatch so guest claim flows are unaffected.
+  const accountState = useAccountState();
+  useEffect(() => {
+    if (accountState.isAuthenticated && !accountState.isRecipientMode) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [accountState.isAuthenticated, accountState.isRecipientMode, navigate]);
+  if (accountState.isAuthenticated && !accountState.isRecipientMode) {
+    return null;
+  }
 
   return (
     <div style={{

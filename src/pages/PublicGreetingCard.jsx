@@ -7,9 +7,15 @@ import { useParams } from 'react-router-dom';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
 import { GreetingCard as GreetingCardProto } from '../components/GreetingCardProto';
+import { useAccountState } from '../hooks/useAccountState';
+import { shouldShowFirstTimeCTA } from '../utils/accountState';
 
 export default function PublicGreetingCard() {
   const { jobId } = useParams();
+  // Phase 3D Batch D Slice 3 — gate the viral-loop CTA panel on first-time
+  // visitor state. Authenticated viewers (senders, recipients with accounts)
+  // still see the card and footer; only the register-loop CTA is suppressed.
+  const accountState = useAccountState();
 
   const [greeting, setGreeting] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -293,42 +299,46 @@ export default function PublicGreetingCard() {
 
       {/* QR Cash™ claim lives inside the FinaleSpread (right page of the card) */}
 
-      {/* "Send Your Own" CTA (Viral Loop) — hidden in landscape via CSS */}
-      <div className="gc-public-chrome" style={{
-        maxWidth: '640px',
-        margin: '2rem auto 0',
-        padding: '0 1rem',
-      }}>
-        <div style={{
-          padding: '1.5rem',
-          background: 'linear-gradient(135deg, #3A7BD5 0%, #1B2A4A 100%)',
-          borderRadius: '16px',
-          textAlign: 'center',
-          color: '#FFF',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      {/* "Send Your Own" CTA (Viral Loop) — hidden in landscape via CSS.
+          Phase 3D Batch D Slice 3: first-time visitors only.
+          Authenticated viewers see the card and footer without this panel. */}
+      {shouldShowFirstTimeCTA(accountState) && (
+        <div className="gc-public-chrome" style={{
+          maxWidth: '640px',
+          margin: '2rem auto 0',
+          padding: '0 1rem',
         }}>
-          <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.2rem', fontWeight: 700 }}>
-            Create one of your own
-          </h3>
-          <p style={{ margin: '0 0 1rem', fontSize: '0.95rem', opacity: 0.9, lineHeight: 1.5 }}>
-            Send a Greet-Me in under a minute.
-          </p>
-          <a href="/#/register?fast=1" style={{
-            display: 'inline-block',
-            padding: '12px 32px',
-            background: '#FFF',
-            color: '#3A7BD5',
-            borderRadius: '8px',
-            fontWeight: 700,
-            textDecoration: 'none',
-            fontSize: '1rem',
-            minHeight: '44px',
-            lineHeight: '20px',
+          <div style={{
+            padding: '1.5rem',
+            background: 'linear-gradient(135deg, #3A7BD5 0%, #1B2A4A 100%)',
+            borderRadius: '16px',
+            textAlign: 'center',
+            color: '#FFF',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
           }}>
-            Create Yours
-          </a>
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.2rem', fontWeight: 700 }}>
+              Create one of your own
+            </h3>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.95rem', opacity: 0.9, lineHeight: 1.5 }}>
+              Send a Greet-Me in under a minute.
+            </p>
+            <a href="/#/register?fast=1" style={{
+              display: 'inline-block',
+              padding: '12px 32px',
+              background: '#FFF',
+              color: '#3A7BD5',
+              borderRadius: '8px',
+              fontWeight: 700,
+              textDecoration: 'none',
+              fontSize: '1rem',
+              minHeight: '44px',
+              lineHeight: '20px',
+            }}>
+              Create Yours
+            </a>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Footer — hidden in landscape via CSS */}
       <footer className="gc-public-chrome" style={{

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
 // lucide icons removed — QR/Smartphone section removed
 import GreetMeLogo from '../components/GreetMeLogo';
+import { useAccountState } from '../hooks/useAccountState';
 
 // Fast mode: skip name fields when entering from a viral loop
 function isFastMode() {
@@ -36,6 +37,18 @@ export default function Register() {
   }, []);
   const { register } = useAuth();
   const navigate = useNavigate();
+  // Phase 3D Batch D Slice 3 — suppress the registration form for users who
+  // are already authenticated, BUT preserve the recipient-mode escape hatch:
+  // a visitor with sessionStorage.greetme_session_mode === 'recipient' is
+  // explicitly in a guest claim flow (set by CreditClaim.jsx for unauth
+  // visitors) and must still see the form so inline recipient registration
+  // can complete. The QR/credit/G1G1 claim ecosystem depends on this.
+  const accountState = useAccountState();
+  useEffect(() => {
+    if (accountState.isAuthenticated && !accountState.isRecipientMode) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [accountState.isAuthenticated, accountState.isRecipientMode, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
