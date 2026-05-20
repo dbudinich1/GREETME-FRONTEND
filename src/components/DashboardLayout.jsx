@@ -7,7 +7,8 @@ import GreetMeLogo from './GreetMeLogo';
 import NotificationBell from './NotificationBell';
 import cartService from '../services/cartService';
 import imageCreditsService from '../services/imageCreditsService';
-import GuidedSetupFlow, { shouldShowGuidedSetup } from './GuidedSetupFlow';
+import GuidedSetupFlow, { shouldShowGuidedSetupForUser } from './GuidedSetupFlow';
+import { useAccountState } from '../hooks/useAccountState';
 
 export default function DashboardLayout({ children }) {
   const { user, logout } = useAuth();
@@ -19,7 +20,21 @@ export default function DashboardLayout({ children }) {
 
   const [imageCredits, setImageCredits] = useState(0);
   const [cartCount, setCartCount] = useState(0);
-  const [showOnboarding, setShowOnboarding] = useState(() => shouldShowGuidedSetup());
+  // Phase 3D Batch D D5-R1 — account-state-aware gate for GuidedSetupFlow.
+  // Wires the existing shouldShowGuidedSetupForUser helper into the modal's
+  // visibility gate so subscribed users no longer see the welcome modal after
+  // registration/login. Free users and unsubscribed new users see no change.
+  const accountState = useAccountState();
+  const [showOnboarding, setShowOnboarding] = useState(() => shouldShowGuidedSetupForUser(accountState));
+  // Handles the AuthContext hydration race: if subscriptionStatus arrives from
+  // /api/profile after mount, hide the modal. Never auto-shows — a dismissed
+  // modal stays dismissed, and a newly-subscribed mid-session user is not
+  // re-shown the modal.
+  useEffect(() => {
+    if (showOnboarding && !shouldShowGuidedSetupForUser(accountState)) {
+      setShowOnboarding(false);
+    }
+  }, [accountState.isAuthenticated, accountState.isSubscribed, accountState.isOnboardingComplete, showOnboarding]);
 
   // Handle resize for mobile detection
   useEffect(() => {
