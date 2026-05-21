@@ -56,8 +56,8 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
-          minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        <div className="gm-min-h-screen" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: '#f9fafb', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
           padding: '2rem', textAlign: 'center',
         }}>

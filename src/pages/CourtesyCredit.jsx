@@ -60,8 +60,7 @@ export default function CourtesyCredit() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
+    <div className="gm-min-h-screen" style={{
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',

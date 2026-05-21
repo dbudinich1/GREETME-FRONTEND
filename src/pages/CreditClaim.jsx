@@ -341,7 +341,7 @@ export default function CreditClaim() {
 
   if (loading || !sessionReady) {
     return (
-      <div style={styles.page}>
+      <div className="gm-min-h-screen" style={styles.page}>
         <p style={{ color: 'rgba(255,255,255,0.5)', fontFamily: FONT_STACK }}>Loading...</p>
       </div>
     );
@@ -350,7 +350,7 @@ export default function CreditClaim() {
   if (error) {
     const isResolvedState = error === 'This credit has already been claimed.';
     return (
-      <div style={styles.page}>
+      <div className="gm-min-h-screen" style={styles.page}>
         <div style={{ textAlign: 'center', maxWidth: '440px', width: '100%' }}>
           {isResolvedState ? (
             <>
@@ -391,7 +391,7 @@ export default function CreditClaim() {
   // Onboarding/test-send credit: auto-claimed state (no thank-you)
   if (credit?.isOnboardingTestSend) {
     return (
-      <div style={styles.page}>
+      <div className="gm-min-h-screen" style={styles.page}>
         <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
           <div style={styles.icon}>🎁</div>
           <p style={styles.eyebrow}>A gift from Greet-Me</p>
@@ -418,7 +418,7 @@ export default function CreditClaim() {
   const isLoopCloser = credit?.isLoopSend && preAuthSnapshot.userId;
   if (isLoopCloser) {
     return (
-      <div style={styles.page}>
+      <div className="gm-min-h-screen" style={styles.page}>
         <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>&#10003;</div>
           <h1 style={styles.headline}>The loop is closed</h1>
@@ -455,7 +455,7 @@ export default function CreditClaim() {
 
   if (isSenderViewingOwnCredit) {
     return (
-      <div style={styles.page}>
+      <div className="gm-min-h-screen" style={styles.page}>
         <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>&#10003;</div>
           <h1 style={styles.headline}>This credit is for your recipient</h1>
@@ -486,7 +486,7 @@ export default function CreditClaim() {
   }
 
   return (
-    <div style={styles.page}>
+    <div className="gm-min-h-screen" style={styles.page}>
       <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
         <div style={styles.icon}>🎁</div>
 
@@ -712,7 +712,9 @@ export default function CreditClaim() {
 
 const styles = {
   page: {
-    minHeight: '100vh',
+    // Phase 3D Batch B B-S3: min-height moved to the .gm-min-h-screen utility
+    // class (dual-line vh/dvh fallback). Every page-level <div> that uses this
+    // styles.page object also carries className="gm-min-h-screen".
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

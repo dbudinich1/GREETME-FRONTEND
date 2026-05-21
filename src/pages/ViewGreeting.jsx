@@ -85,8 +85,7 @@ export default function ViewGreeting() {
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh',
+      <div className="gm-min-h-screen" style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -102,8 +101,7 @@ export default function ViewGreeting() {
 
   if (error || !greeting) {
     return (
-      <div style={{
-        minHeight: '100vh',
+      <div className="gm-min-h-screen" style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -176,8 +174,7 @@ export default function ViewGreeting() {
   } : null;
 
   return (
-    <div style={{
-      minHeight: '100vh',
+    <div className="gm-min-h-screen" style={{
       background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)',
       padding: isMobile ? '1rem' : '2rem',
       display: 'flex',

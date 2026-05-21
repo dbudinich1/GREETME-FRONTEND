@@ -430,6 +430,15 @@ input::placeholder, textarea::placeholder {
   max-height: calc(100dvh - 4rem);
 }
 
+.gm-min-h-screen {
+  /* Phase 3D Batch B B-S3: viewport min-height with dvh fallback.
+     Browsers without dvh support honor the first declaration (100vh);
+     browsers with dvh (modern Safari, Chrome 108+) honor the second.
+     Resolves iOS Safari address-bar collapse jump on full-screen wrappers. */
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
 /* Safe-area inset utilities. env() returns 0px on devices without notch /
    home indicator and the real inset on iPhone X+ / iPad with status bar.
    Explicit 0px fallback for deterministic behavior on older embedded webviews. */

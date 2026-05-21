@@ -89,7 +89,7 @@ export default function DashboardLayout({ children }) {
   ];
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-secondary)' }}>
+    <div className="gm-min-h-screen" style={{ display: 'flex', flexDirection: 'column', background: 'var(--bg-secondary)' }}>
       {/* Header */}
       <header style={{
         background: 'var(--bg-primary)',

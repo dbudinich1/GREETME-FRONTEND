@@ -221,7 +221,7 @@ export default function GiftClaim() {
   // ---- Loading ----
   if (loading || (submitting && (isConnectReturn || isConnectRefresh))) {
     return (
-      <div style={styles.page}>
+      <div className="gm-min-h-screen" style={styles.page}>
         <div style={{ textAlign: 'center', color: '#92400e' }}>
           <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🎁</div>
           <p style={{ fontSize: '1rem', fontFamily: FONT_STACK }}>
@@ -237,7 +237,7 @@ export default function GiftClaim() {
   // so senders never see recipient-facing claim UX for their own gift.
   if (gift && isSenderViewingOwnGift({ gift, userId: accountState.userId })) {
     return (
-      <div style={styles.page}>
+      <div className="gm-min-h-screen" style={styles.page}>
         <div style={styles.card}>
           <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>&#10003;</div>
           <h1 style={styles.title}>This gift is for your recipient</h1>
@@ -265,7 +265,7 @@ export default function GiftClaim() {
   // ---- Error / Not Found ----
   if (error || !gift) {
     return (
-      <div style={styles.page}>
+      <div className="gm-min-h-screen" style={styles.page}>
         <div style={styles.card}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎁</div>
           <h1 style={styles.title}>
@@ -286,7 +286,7 @@ export default function GiftClaim() {
   // ---- Fulfilled (payout completed) ----
   if (fulfilled) {
     return (
-      <div style={styles.page}>
+      <div className="gm-min-h-screen" style={styles.page}>
         <div style={styles.card}>
           <div style={styles.successIcon}>&#10003;</div>
           <h1 style={styles.title}>Gift Received!</h1>
@@ -351,7 +351,7 @@ export default function GiftClaim() {
   // ---- Already Claimed ----
   if (claimed) {
     return (
-      <div style={styles.page}>
+      <div className="gm-min-h-screen" style={styles.page}>
         <div style={styles.card}>
           <div style={styles.successIcon}>&#10003;</div>
           <h1 style={styles.title}>You&rsquo;re all set.</h1>
@@ -429,7 +429,7 @@ export default function GiftClaim() {
   // ---- Expired ----
   if (gift.status === 'expired') {
     return (
-      <div style={styles.page}>
+      <div className="gm-min-h-screen" style={styles.page}>
         <div style={styles.card}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>&#9200;</div>
           <h1 style={styles.title}>Gift Expired</h1>
@@ -446,7 +446,7 @@ export default function GiftClaim() {
   // ---- Connect Pending (resume onboarding) ----
   if (connectPending) {
     return (
-      <div style={styles.page}>
+      <div className="gm-min-h-screen" style={styles.page}>
         <div style={styles.card}>
           <div style={{ marginBottom: '1.5rem' }}>
             <p style={styles.brandLine}>
@@ -488,7 +488,7 @@ export default function GiftClaim() {
 
   // ---- Claim Form (Payout Method Choice) ----
   return (
-    <div style={styles.page}>
+    <div className="gm-min-h-screen" style={styles.page}>
       <div style={styles.card}>
         {/* Header */}
         <div style={{ marginBottom: '1.5rem' }}>
@@ -716,7 +716,9 @@ export default function GiftClaim() {
 
 const styles = {
   page: {
-    minHeight: '100vh',
+    // Phase 3D Batch B B-S3: min-height moved to the .gm-min-h-screen utility
+    // class (dual-line vh/dvh fallback). Every page-level <div> that uses this
+    // styles.page object also carries className="gm-min-h-screen".
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
