@@ -193,6 +193,7 @@ export default function CreditClaim() {
     // STEP 3 — ROUTE (only if credit was applied)
     sessionClearedRef.current = true;
     safeSessionRemove('greetme_session_mode');
+    try { localStorage.setItem('greetme_origin_recipient', 'true'); } catch {}
 
     if (!creditApplied) {
       setRegError('Your account was created, but the credit could not be applied. You can claim it later from your dashboard.');

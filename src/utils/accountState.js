@@ -64,10 +64,12 @@ export function deriveAccountState({ user, isAuthenticated, sessionMode } = {}) 
   const isAuthed = !!isAuthenticated;
   const isRecipientMode = sessionMode === 'recipient';
   const isSubscribed = computeIsSubscribed(user);
+  const isRegisteredViaRecipientFlow = safeLocalGet('greetme_origin_recipient') === 'true';
   return {
     userId: user?.id || null,
     isAuthenticated: isAuthed,
     isRecipientMode,
+    isRegisteredViaRecipientFlow,
     isGuest: !isAuthed && isRecipientMode,
     isAnonymous: !isAuthed && !isRecipientMode,
     isSubscribed,
@@ -115,5 +117,7 @@ export function shouldShowClaimCTA(state, credit) {
 // re-enters onboarding even if localStorage flags are wiped.
 export function shouldShowOnboarding(state) {
   if (!state) return false;
+  // Recipient-origin users should not receive sender onboarding overlays immediately after claim/thank-you flows.
+  if (state.isRegisteredViaRecipientFlow) return false;
   return state.isAuthenticated && !state.isOnboardingComplete && !state.isSubscribed;
 }

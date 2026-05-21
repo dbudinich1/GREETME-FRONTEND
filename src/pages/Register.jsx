@@ -59,7 +59,11 @@ export default function Register() {
     const result = await register(fullName, email, password);
 
     if (result.success) {
+      const wasRecipientMode = sessionStorage.getItem('greetme_session_mode') === 'recipient';
       sessionStorage.removeItem('greetme_session_mode');
+      if (wasRecipientMode) {
+        try { localStorage.setItem('greetme_origin_recipient', 'true'); } catch {}
+      }
       const pendingG1G1 = localStorage.getItem('greetme_g1g1_gift_code');
       const pendingCredit = localStorage.getItem('greetme_pending_credit');
       const pendingReferral = localStorage.getItem('greetme_referral_code');

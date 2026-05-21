@@ -54,6 +54,7 @@ export function shouldShowGuidedSetup() {
 // of shouldShowGuidedSetup() retain the original env+localStorage behavior.
 export function shouldShowGuidedSetupForUser(accountState) {
   if (accountState?.isSubscribed) return false;
+  if (accountState?.isRegisteredViaRecipientFlow) return false;
   return shouldShowGuidedSetup();
 }
 
