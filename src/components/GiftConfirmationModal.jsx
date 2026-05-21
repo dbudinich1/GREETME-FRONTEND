@@ -7,6 +7,7 @@ import { stripePromise } from '../stripe/stripeProvider';
 
 // CardElement styling to match the warm gift palette
 const CARD_ELEMENT_OPTIONS = {
+  hidePostalCode: true,
   style: {
     base: {
       fontSize: '16px',

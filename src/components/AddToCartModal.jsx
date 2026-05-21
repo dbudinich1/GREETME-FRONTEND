@@ -36,7 +36,8 @@ export default function AddToCartModal({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '1rem'
+      padding: '1rem',
+      paddingTop: 'env(safe-area-inset-top, 0px)'
     }}>
       {/* Backdrop */}
       <div
@@ -54,6 +55,7 @@ export default function AddToCartModal({
 
       {/* Modal */}
       <div
+        className="gm-max-h-modal"
         style={{
           position: 'relative',
           zIndex: 10000,
@@ -63,7 +65,8 @@ export default function AddToCartModal({
           width: '100%',
           maxWidth: '400px',
           padding: '2rem',
-          textAlign: 'center'
+          textAlign: 'center',
+          overflowY: 'auto'
         }}
         onClick={(e) => e.stopPropagation()}
       >

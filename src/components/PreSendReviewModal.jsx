@@ -99,6 +99,7 @@ export default function PreSendReviewModal({
       alignItems: 'center',
       justifyContent: 'center',
       padding: '1rem',
+      paddingTop: 'env(safe-area-inset-top, 0px)',
     }}>
       {/* Backdrop */}
       <div
@@ -489,7 +490,7 @@ export default function PreSendReviewModal({
           onClick={onClose}
           style={{
             width: '100%',
-            marginTop: '0.75rem',
+            marginTop: '1rem',
             padding: '0.75rem 1.25rem',
             background: 'transparent',
             color: '#6b7280',

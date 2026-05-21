@@ -195,7 +195,8 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
           zIndex: 1000,
           width: '90%',
           maxWidth: '500px',
-          overflow: 'auto'
+          overflow: 'auto',
+          paddingTop: 'env(safe-area-inset-top, 0px)'
         }}>
 
         {/* Header */}
