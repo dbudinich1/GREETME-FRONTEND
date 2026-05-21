@@ -10,6 +10,7 @@ import Alert from '../components/Alert';
 import GiftSelectorModal from '../components/GiftSelectorModal';
 import GiftConfirmationModal from '../components/GiftConfirmationModal';
 import PreSendReviewModal from '../components/PreSendReviewModal';
+import AttachmentIndicator from '../components/AttachmentIndicator';
 import HeartsBurst from '../components/HeartsBurst';
 import cartService from '../services/cartService';
 import { useAuth } from '../context/AuthContext';
@@ -125,6 +126,11 @@ export default function SendGreeting() {
   const [referralCode, setReferralCode] = useState(null);
   const [referralValue, setReferralValue] = useState(null);
   const [referralError, setReferralError] = useState(null);
+
+  // Phase 3D Batch A — A3: persistent attached-items indicator state.
+  // Tracks count of greeting-flow-tagged cart items so the on-page indicator
+  // can render reactively. Read-only consumer of cartService; no orchestration.
+  const [attachedMarketplaceCount, setAttachedMarketplaceCount] = useState(0);
 
   // Photo state
   const [defaultPhoto, setDefaultPhoto] = useState(null);
@@ -487,6 +493,24 @@ export default function SendGreeting() {
       }
     })();
   }, [location.search, loading, contacts]);
+
+  // Phase 3D Batch A — A3: keep marketplace-attachment count in sync with cart.
+  // Listens to the existing `cartUpdated` window event (dispatched from Gifts.jsx,
+  // Merch.jsx, and SendGreeting's own remove-attachment handler) plus `focus`
+  // for cross-tab safety when the user returns from /dashboard/gifts.
+  useEffect(() => {
+    const recompute = () => {
+      const items = cartService.getCart().filter(i => i.sendContext === 'greeting-flow');
+      setAttachedMarketplaceCount(items.length);
+    };
+    recompute();
+    window.addEventListener('cartUpdated', recompute);
+    window.addEventListener('focus', recompute);
+    return () => {
+      window.removeEventListener('cartUpdated', recompute);
+      window.removeEventListener('focus', recompute);
+    };
+  }, []);
 
   // Phase 3D Batch A — A2.4: post-dispatch cart cleanup on the resume path.
   // Fires when jobId is first set AND resume is the active path. Clears
@@ -1429,6 +1453,23 @@ if (typeof window !== "undefined") {
             </select>
             {errors.contactId && <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.contactId}</p>}
           </div>
+
+          {/* Phase 3D Batch A — A3: persistent attached-items indicator.
+              Renders only when an attachment exists. Pure presentational read
+              from giftSettings + cart count. No orchestration / checkout /
+              send-logic side effects. */}
+          <AttachmentIndicator
+            giftMode={giftSettings.type}
+            qrCashAmountCents={(() => {
+              const amt = giftSettings.amount === 0
+                ? (giftSettings.customAmount || 0)
+                : (giftSettings.amount || 25);
+              return Math.round(amt * 100);
+            })()}
+            qrCashIsReferral={!!referralCode}
+            curatedMaxSpendCents={(giftSettings.maxSpend || 0) * 100}
+            marketplaceItemCount={attachedMarketplaceCount}
+          />
 
           {/* Occasion - Dropdown */}
           <div>
