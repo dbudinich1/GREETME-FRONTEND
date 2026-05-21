@@ -207,7 +207,7 @@ export default function GiftSelectorModal({
                             fontWeight: 500,
                             background: 'white',
                             cursor: 'pointer',
-                            minWidth: '120px'
+                            minWidth: 0
                           }}
                         >
                           {QR_CASH_PRESETS.map((amt) => (
@@ -303,7 +303,7 @@ export default function GiftSelectorModal({
                           fontWeight: 500,
                           background: 'white',
                           cursor: 'pointer',
-                          minWidth: '120px'
+                          minWidth: 0
                         }}
                       >
                         {CURATED_MAX_TIERS.map((amt) => (
@@ -420,7 +420,7 @@ export default function GiftSelectorModal({
                               fontWeight: 500,
                               background: 'white',
                               cursor: 'pointer',
-                              minWidth: '100px'
+                              minWidth: 0
                             }}
                           >
                             {QR_CASH_PRESETS.map((amt) => (
