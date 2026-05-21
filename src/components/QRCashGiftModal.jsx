@@ -174,7 +174,7 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
           right: 0,
           bottom: 0,
           background: 'rgba(0, 0, 0, 0.5)',
-          zIndex: 999,
+          zIndex: 9998,
           backdropFilter: 'blur(4px)'
         }}
       />
@@ -191,8 +191,8 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
           transform: 'translate(-50%, -50%)',
           background: 'white',
           borderRadius: 'var(--radius-xl)',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-          zIndex: 1000,
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          zIndex: 10000,
           width: '90%',
           maxWidth: '500px',
           overflow: 'auto',
@@ -278,7 +278,7 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(4, 1fr)',
-                  gap: '0.5rem',
+                  gap: '0.75rem',
                   marginBottom: '0.75rem'
                 }}>
                   {presetAmounts.map((preset) => (

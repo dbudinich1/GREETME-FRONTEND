@@ -113,7 +113,7 @@ export default function GiftSelectorModal({
                   </div>
 
                   {/* Gift Type Selection - Card-style Radio Options */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {GIFT_OPTIONS.map((option) => {
                       const isSelected = giftSetting.type === option.value;
                       return (
