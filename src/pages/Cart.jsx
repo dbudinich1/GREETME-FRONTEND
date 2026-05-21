@@ -72,7 +72,7 @@ export default function Cart() {
   // Empty cart state
   if (cartItems.length === 0) {
     return (
-      <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+      <div style={{ maxWidth: '100%' }}>
         {/* Header */}
         <div style={{
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -189,7 +189,7 @@ export default function Cart() {
 
   // Cart with items
   return (
-    <div style={{ maxWidth: '100%', overflowX: 'hidden', padding: '0 1rem' }}>
+    <div style={{ maxWidth: '100%', padding: '0 1rem' }}>
       {/* Header Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
