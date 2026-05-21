@@ -1743,7 +1743,9 @@ export default function DashboardHome() {
         borderRadius: 'var(--radius-xl)',
         padding: '1.5rem',
         border: '1px solid var(--border)',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+        maxHeight: isNarrow ? '70vh' : '600px',
+        overflowY: 'auto'
       }}>
         <div style={{ display: 'flex', flexDirection: isNarrow ? 'column' : 'row', alignItems: isNarrow ? 'stretch' : 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: isNarrow ? '0.75rem' : '0' }}>
           <h2 style={{
@@ -2064,7 +2066,9 @@ export default function DashboardHome() {
         padding: '1.5rem',
         border: '2px solid var(--border)',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-        marginTop: '2rem'
+        marginTop: '2rem',
+        maxHeight: isNarrow ? '70vh' : '600px',
+        overflowY: 'auto'
       }}>
         <div style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid var(--border)' }}>
           <h2 style={{
@@ -2086,7 +2090,11 @@ export default function DashboardHome() {
           fontWeight: 600,
           color: 'var(--text-secondary)',
           textTransform: 'uppercase',
-          letterSpacing: '0.05em'
+          letterSpacing: '0.05em',
+          position: 'sticky',
+          top: 0,
+          background: 'var(--bg-primary)',
+          zIndex: 1
         }}>
           <div style={{ textAlign: 'center' }}>STATUS</div>
           <div style={{ textAlign: 'center' }}>CASH</div>
@@ -2097,8 +2105,8 @@ export default function DashboardHome() {
         </div>
         )}
 
-        {/* Table Rows — scrollable, ~5 items visible */}
-        <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
+        {/* Table Rows — outer card handles scroll; sticky header keeps columns visible */}
+        <div>
           {(() => {
             // Combine sent greetings and QR Cash gifts
             const allItems = [
