@@ -328,7 +328,9 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
               </>
             ) : (
               <>
-                <h3 className="gc-gift-title" style={{ whiteSpace: 'nowrap' }}>A Gift From Greet-Me</h3>
+                <h3 className="gc-gift-title">
+                  A Gift From <span style={{ whiteSpace: 'nowrap' }}>Greet-Me</span>
+                </h3>
 
                 {courtesyQrUrl && courtesyCreditCode ? (
                   <>
