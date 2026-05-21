@@ -64,7 +64,7 @@ export const Login = () => {
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
-      maxWidth: '100vw'
+      maxWidth: '100%'
     }}>
       {/* Header */}
       <header style={{
