@@ -10,7 +10,7 @@ const GIFT_OPTIONS = [
   // /dashboard/merch remains fully operational; it is no longer surfaced as a
   // gift-attachment option in the send flow per the strategic frame
   // (emotional-expression engine with commerce attached, not the inverse).
-  { value: 'marketplace', label: 'American Gift Place', description: 'Browse made-in-USA gifts' }
+  { value: 'marketplace', label: 'Greet-Me Gift Place', description: 'Browse made-in-USA gifts' }
 ];
 
 const QR_CASH_PRESETS = [10, 25, 50, 100];
@@ -331,7 +331,7 @@ export default function GiftSelectorModal({
                         color: '#047857',
                         marginBottom: '0.75rem'
                       }}>
-                        Explore made-in-USA gifts from the American Gift Place
+                        Explore made-in-USA gifts from the Greet-Me Gift Place
                       </p>
                       <button
                         type="button"
@@ -349,7 +349,7 @@ export default function GiftSelectorModal({
                           fontFamily: 'inherit'
                         }}
                       >
-                        Browse Marketplace
+                        Browse the Greet-Me Gift Place
                       </button>
                     </div>
                   )}

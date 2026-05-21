@@ -398,7 +398,7 @@ export default function PreSendReviewModal({
                     color: '#6b7280',
                     lineHeight: 1.5,
                   }}>
-                    No gift items selected yet. Return to the greeting to browse the American Gift Place, or change the gift type.
+                    No gift items selected yet. Return to the greeting to browse the Greet-Me Gift Place, or change the gift type.
                   </div>
                 )}
               </>

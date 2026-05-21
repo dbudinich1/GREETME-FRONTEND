@@ -2135,11 +2135,8 @@ if (typeof window !== "undefined") {
                   {giftSettings.type === 'curated' && (
                     <>Gift: Curated (Max ${giftSettings.maxSpend}){giftSettings.qrCashAddOn && ` + QR Cash ($${giftSettings.qrCashAddOnAmount === 0 ? giftSettings.qrCashAddOnCustomAmount || '0' : giftSettings.qrCashAddOnAmount || 25})`}</>
                   )}
-                  {giftSettings.type === 'merch' && (
-                    <>Gift: Merch{giftSettings.qrCashAddOn && ` + QR Cash ($${giftSettings.qrCashAddOnAmount === 0 ? giftSettings.qrCashAddOnCustomAmount || '0' : giftSettings.qrCashAddOnAmount || 25})`}</>
-                  )}
                   {giftSettings.type === 'marketplace' && (
-                    <>Gift: American Gift Place{giftSettings.qrCashAddOn && ` + QR Cash ($${giftSettings.qrCashAddOnAmount === 0 ? giftSettings.qrCashAddOnCustomAmount || '0' : giftSettings.qrCashAddOnAmount || 25})`}</>
+                    <>Gift: Greet-Me Gift Place{giftSettings.qrCashAddOn && ` + QR Cash ($${giftSettings.qrCashAddOnAmount === 0 ? giftSettings.qrCashAddOnCustomAmount || '0' : giftSettings.qrCashAddOnAmount || 25})`}</>
                   )}
                 </span>
                 <button
@@ -2227,9 +2224,7 @@ if (typeof window !== "undefined") {
 
           // Close the modal and navigate to the appropriate page
           setIsGiftModalOpen(false);
-          if (type === 'merch') {
-            navigate('/dashboard/merch?returnTo=send&giftType=merch');
-          } else if (type === 'marketplace') {
+          if (type === 'marketplace') {
             navigate('/dashboard/gifts?returnTo=send&giftType=marketplace');
           }
         }}
