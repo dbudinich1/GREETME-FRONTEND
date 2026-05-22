@@ -1,7 +1,7 @@
 // src/pages/DashboardHome.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square, CheckCircle, Copy, Image as ImageIcon, Smartphone, QrCode, DollarSign, X, Send, Gift, CreditCard, Pencil, Heart } from 'lucide-react';
+import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square, CheckCircle, Copy, Image as ImageIcon, Smartphone, QrCode, DollarSign, X, Send, Gift, CreditCard, Heart } from 'lucide-react';
 import api from "../api/api";
 import { getOccasionIcon } from '../utils/helpers';
 import { getRewardsBalance, getRemainingDailyHearts } from '../utils/rewards';
@@ -12,7 +12,6 @@ import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
 import { safeGet, safeSet, safeSessionGet, safeSessionSet } from '../utils/safeStorage';
 import OnboardingCoach from '../components/OnboardingCoach';
-import TutorialVideo from '../components/TutorialVideo';
 import { useAccountState } from '../hooks/useAccountState';
 import { shouldShowOnboarding } from '../utils/accountState';
 
@@ -426,12 +425,6 @@ export default function DashboardHome() {
       setUploadingPhoto(false);
     }
   };
-
-  const comingUpOccasions = [
-    { id: 1, recipient: 'Jane Smith', relationship: 'Spouse', icons: ['🎂', '❤️', '❤️'], occasions: ['Birthday', 'Anniversary'], date: 'Jan 15' },
-    { id: 2, recipient: 'John Doe', relationship: 'Dad', icons: ['🎂'], occasions: ['Birthday'], date: 'Jan 18' },
-    { id: 3, recipient: 'Bob Johnson', relationship: 'Friend', icons: ['🎄'], occasions: ['Christmas'], date: 'Dec 25' },
-  ];
 
   if (loading) {
     return (
@@ -1806,154 +1799,15 @@ export default function DashboardHome() {
           )}
         </div>
 
-        {/* Table Header */}
-        {!isNarrow && (
+        {/* Empty state — real upcoming-occasions data wiring deferred to a future slice */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: '2fr 1fr 2fr 1fr auto',
-          padding: '0.75rem 1rem',
-          borderBottom: '1px solid var(--border)',
-          fontSize: '0.8125rem',
-          fontWeight: 600,
+          padding: '3rem 1.5rem',
+          textAlign: 'center',
           color: 'var(--text-secondary)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em'
+          fontSize: '0.9375rem',
+          lineHeight: 1.6
         }}>
-          <div>RECIPIENT</div>
-          <div>ICONS</div>
-          <div>OCCASIONS</div>
-          <div style={{ textAlign: 'right' }}>DATE</div>
-          <div style={{ width: '2rem' }}></div>
-        </div>
-        )}
-
-        {/* Table Rows */}
-        <div>
-          {comingUpOccasions.map((item, index) => (
-            <div
-              key={item.id}
-              style={{
-                display: isNarrow ? 'flex' : 'grid',
-                flexDirection: isNarrow ? 'column' : undefined,
-                gridTemplateColumns: isNarrow ? undefined : '2fr 1fr 2fr 1fr auto',
-                padding: isNarrow ? '0.75rem' : '1rem',
-                gap: isNarrow ? '0.5rem' : undefined,
-                borderBottom: index < comingUpOccasions.length - 1 ? '1px solid var(--border)' : 'none',
-                alignItems: isNarrow ? 'flex-start' : 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--gray-50)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: isNarrow ? '100%' : 'auto' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{
-                    width: isNarrow ? '2rem' : '2.5rem',
-                    height: isNarrow ? '2rem' : '2.5rem',
-                    borderRadius: '50%',
-                    background: 'var(--gray-200)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: isNarrow ? '1rem' : '1.25rem',
-                    position: 'relative'
-                  }}>
-                    👤
-                    <div style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      right: 0,
-                      width: '0.625rem',
-                      height: '0.625rem',
-                      background: '#22c55e',
-                      border: '2px solid white',
-                      borderRadius: '50%'
-                    }}></div>
-                  </div>
-                  <div>
-                    <div style={{
-                      fontSize: isNarrow ? '0.875rem' : '0.9375rem',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)'
-                    }}>{item.recipient}</div>
-                    <div style={{
-                      fontSize: isNarrow ? '0.75rem' : '0.8125rem',
-                      color: 'var(--text-secondary)'
-                    }}>{item.relationship}</div>
-                  </div>
-                </div>
-                {isNarrow && (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                    {item.date}
-                  </div>
-                )}
-              </div>
-              {!isNarrow && (
-              <div style={{ display: 'flex', gap: '0.25rem' }}>
-                {item.icons.map((icon, idx) => (
-                  <span key={idx} style={{ fontSize: '1.25rem' }}>{icon}</span>
-                ))}
-              </div>
-              )}
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                {item.occasions.map((occasion, idx) => (
-                  <span
-                    key={idx}
-                    style={{
-                      padding: '0.25rem 0.625rem',
-                      background: idx === 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(102, 126, 234, 0.1)',
-                      color: idx === 0 ? '#22c55e' : '#667eea',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.75rem',
-                      fontWeight: 500
-                    }}
-                  >
-                    🎂 {occasion}
-                  </span>
-                ))}
-              </div>
-              {!isNarrow && (
-              <div style={{ textAlign: 'right', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>
-                {item.date}
-              </div>
-              )}
-              {/* Edit Pencil Icon */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate('/dashboard/contacts', { state: { openEditRecipientId: item.id } });
-                }}
-                title="Edit recipient"
-                style={{
-                  padding: '0.375rem',
-                  background: 'transparent',
-                  border: 'none',
-                  borderRadius: '0.375rem',
-                  cursor: 'pointer',
-                  color: '#9ca3af',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#374151';
-                  e.currentTarget.style.background = '#e5e7eb';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#9ca3af';
-                  e.currentTarget.style.background = 'transparent';
-                }}
-              >
-                <Pencil size={16} />
-              </button>
-            </div>
-          ))}
+          Upcoming occasions will appear here as you add recipients.
         </div>
       </div>
 
@@ -2051,13 +1905,6 @@ export default function DashboardHome() {
           </div>
         </div>
       </div>
-
-      {/* Tutorial Video Teaser (for users with incomplete setup) */}
-      {(!(voiceRecorded || user?.voiceId || user?.voiceUrl) || !(photoUploaded || user?.photoUrl) || contacts.length === 0) && (
-        <section style={{ marginTop: '1.5rem' }}>
-          <TutorialVideo variant="teaser" />
-        </section>
-      )}
 
       {/* Past Greetings Section */}
       <div style={{
