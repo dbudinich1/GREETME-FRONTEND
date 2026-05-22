@@ -695,7 +695,7 @@ export default function SendGreeting() {
       photoUrl.includes('dummyimage.com');
 
     if (isDataUrl || isPlaceholder) {
-      newErrors.photo = 'Please upload your photo first \u2014 go to Dashboard \u2192 Your Presence and add a profile photo.';
+      newErrors.photo = 'Please upload your photo first \u2014 go to Dashboard \u2192 Personalization and add a profile photo.';
     }
 
     setErrors(newErrors);

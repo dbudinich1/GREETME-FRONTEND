@@ -906,7 +906,7 @@ export default function DashboardHome() {
                 fontWeight: 700,
                 color: 'var(--text-primary)',
                 margin: 0
-              }}>Your Presence</h2>
+              }}>Personalization</h2>
               <button
                 onClick={() => navigate('/dashboard/media')}
                 style={{
@@ -1309,7 +1309,7 @@ export default function DashboardHome() {
                 fontWeight: 700,
                 color: 'var(--text-primary)',
                 margin: 0
-              }}>Recipients & Settings</h2>
+              }}>Recipients & Occasions</h2>
               <button
                 onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
                 style={{

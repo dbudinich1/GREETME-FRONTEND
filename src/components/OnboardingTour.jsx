@@ -35,7 +35,7 @@ export default function OnboardingTour() {
       title: 'Record Your Voice',
       description: 'Start by recording your voice message. This is what your recipients will hear in their greetings.',
       icon: <Mic size={32} />,
-      action: 'Go to Your Presence section and click "Use Microphone" or "Upload File"'
+      action: 'Go to Personalization section and click "Use Microphone" or "Upload File"'
     },
     {
       title: 'Upload Your Photo',
