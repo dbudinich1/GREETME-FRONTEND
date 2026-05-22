@@ -14,12 +14,22 @@ import { safeGet, safeSet, safeSessionGet, safeSessionSet } from '../utils/safeS
 import OnboardingCoach from '../components/OnboardingCoach';
 import { useAccountState } from '../hooks/useAccountState';
 import { shouldShowOnboarding } from '../utils/accountState';
+import QRCode from 'qrcode';
 
 export default function DashboardHome() {
   const navigate = useNavigate();
   const { user, getToken, refreshProfile } = useAuth();
   // Phase 3D Batch D Slice 5 — account-state gate for the dashboard onboarding nudge.
   const accountState = useAccountState();
+
+  // F5: real install QR for the "Download Mobile App" panel
+  const [appQrUrl, setAppQrUrl] = useState(null);
+  useEffect(() => {
+    QRCode.toDataURL('https://greet-me.com/#/app', {
+      width: 200, margin: 1,
+      color: { dark: '#667eea', light: '#ffffff' },
+    }).then(setAppQrUrl).catch(() => {});
+  }, []);
 
   // Refs
   const voiceInputRef = useRef(null);
@@ -1865,6 +1875,7 @@ export default function DashboardHome() {
           transition: 'all 0.2s',
           position: 'relative'
         }}
+        onClick={() => navigate('/app')}
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = 'scale(1.05)';
           e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
@@ -1873,36 +1884,12 @@ export default function DashboardHome() {
           e.currentTarget.style.transform = 'scale(1)';
           e.currentTarget.style.boxShadow = 'none';
         }}
-        title="Scan to download mobile app"
+        title="Scan to install Greet-Me mobile app"
         >
-          <QrCode size={40} style={{ color: '#667eea' }} />
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '0.5rem',
-            fontWeight: 700,
-            color: '#667eea',
-            pointerEvents: 'none'
-          }}>
-            <div style={{
-              width: '70%',
-              height: '70%',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(8, 1fr)',
-              gridTemplateRows: 'repeat(8, 1fr)',
-              gap: '1px'
-            }}>
-              {[...Array(64)].map((_, i) => (
-                <div key={i} style={{
-                  background: Math.random() > 0.5 ? '#667eea' : 'transparent',
-                  borderRadius: '1px'
-                }} />
-              ))}
-            </div>
-          </div>
+          {appQrUrl
+            ? <img src={appQrUrl} alt="Scan to install Greet-Me" style={{ width: '70%', height: '70%' }} />
+            : <QrCode size={40} style={{ color: '#667eea', opacity: 0.3 }} />
+          }
         </div>
       </div>
 
