@@ -1569,7 +1569,7 @@ if (typeof window !== "undefined") {
             color: 'var(--text-secondary)',
             marginBottom: '1rem'
           }}>
-            Select photos to include with this Greet-Me™. If no photos are added, your saved memory photos will be included by default unless disabled.
+            Select photos to include with this Greet-Me™. If no photos are added, your saved photos will be included by default unless disabled.
           </p>
 
           {/* Hidden file inputs */}
@@ -1700,7 +1700,7 @@ if (typeof window !== "undefined") {
                     fontWeight: 700
                   }}>1</div>
                   <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: useMemoryPhotos ? '#1e40af' : '#6b7280', margin: 0 }}>
-                    {selectedContact?.name}'s Memory Photos
+                    {selectedContact?.name}'s Photos
                   </h4>
                 </div>
                 {/* Checkbox to enable/disable memory photos */}
@@ -1730,7 +1730,7 @@ if (typeof window !== "undefined") {
               <p style={{ fontSize: '0.75rem', color: useMemoryPhotos ? '#1d4ed8' : '#9ca3af', marginBottom: '0.75rem' }}>
                 {contactMemoryPhotos.length > 0
                   ? 'Use photos you\'ve already saved for this recipient'
-                  : 'No memory photos saved yet - add some below!'}
+                  : 'No photos saved yet - add some below!'}
               </p>
               {useMemoryPhotos && (
                 <div style={{

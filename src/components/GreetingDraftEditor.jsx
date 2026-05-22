@@ -434,7 +434,7 @@ export default function GreetingDraftEditor({
                   {/* Contact Memory Photos Grid */}
                   {contact?.memoryPhotos?.length > 0 && (
                     <div>
-                      <p className="text-xs text-gray-600 mb-2">Or choose from memory photos:</p>
+                      <p className="text-xs text-gray-600 mb-2">Or choose from photos:</p>
                       <div className="grid grid-cols-4 gap-2">
                         {contact.memoryPhotos.map((photo, idx) => (
                           <div
@@ -531,7 +531,7 @@ export default function GreetingDraftEditor({
                 {/* Add Photos from Contact Memories */}
                 {contact?.memoryPhotos?.length > 0 && (
                   <div>
-                    <p className="text-xs text-gray-600 mb-2">Add from memory photos:</p>
+                    <p className="text-xs text-gray-600 mb-2">Add from photos:</p>
                     <div className="grid grid-cols-6 gap-2">
                       {contact.memoryPhotos.map((photo, idx) => (
                         <div
