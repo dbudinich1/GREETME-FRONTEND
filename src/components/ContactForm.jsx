@@ -592,7 +592,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           marginBottom: '1.25rem'
         }}>
           <Heart size={18} style={{ color: '#ec4899' }} fill="#ec4899" />
-          <span>Relationship</span>
+          <span>Relation</span>
         </h3>
 
         {/* 3 Cascading Relationship Dropdowns */}
@@ -611,7 +611,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               color: 'var(--text-secondary)',
               marginBottom: '0.375rem'
             }}>
-              Category <span style={{ color: '#ef4444' }}>*</span>
+              Type <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <select
               name="relationshipCategory"
@@ -655,7 +655,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               color: 'var(--text-secondary)',
               marginBottom: '0.375rem'
             }}>
-              Relationship <span style={{ color: '#ef4444' }}>*</span>
+              Relation <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <select
               name="relationship"
@@ -744,7 +744,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               color: 'var(--text-secondary)',
               marginBottom: '0.375rem'
             }}>
-              Closeness <span style={{ color: '#ef4444' }}>*</span>
+              Description <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <select
               name="relationshipCloseness"
@@ -1047,7 +1047,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           marginBottom: '0.5rem'
         }}>
           <Camera size={18} style={{ color: '#3b82f6' }} />
-          <span>Memory Photos</span>
+          <span>Photos</span>
         </h3>
         <p style={{
           fontSize: '0.8125rem',
@@ -1999,7 +1999,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                         <span style={{ fontSize: '1.5rem' }}>{occasion.icon}</span>
                         <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{occasion.label}</span>
                         {!occasion.fixedDate && (
-                          <span style={{ fontSize: '0.625rem', color: 'var(--text-tertiary)', fontWeight: 400 }}>(varies)</span>
+                          <span style={{ fontSize: '0.625rem', color: 'var(--text-tertiary)', fontWeight: 400 }}>(varying dates auto-adjust annually)</span>
                         )}
                       </label>
                     </div>

@@ -149,7 +149,7 @@ export default function RelationshipSelectorHoverLadder({ value, onChange, class
             textTransform: 'uppercase',
             letterSpacing: '0.05em'
           }}>
-            Category
+            Type
           </div>
           {Object.entries(relationshipData).map(([key, data]) => (
             <div
