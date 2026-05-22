@@ -1,7 +1,8 @@
 // src/pages/LandingPage.jsx
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Calendar, Zap, Smartphone } from 'lucide-react';
+import { Heart, Calendar, Zap, Smartphone, QrCode } from 'lucide-react';
+import QRCode from 'qrcode';
 import GreetMeLogo from '../components/GreetMeLogo';
 import { useAccountState } from '../hooks/useAccountState';
 
@@ -11,6 +12,16 @@ export default function LandingPage() {
   // mirroring the canonical pattern in Landing.jsx. Preserves the
   // recipient-mode escape hatch so guest claim flows are unaffected.
   const accountState = useAccountState();
+
+  // F5b: real install QR for the "Get the Mobile App" hero section
+  const [appQrUrl, setAppQrUrl] = useState(null);
+  useEffect(() => {
+    QRCode.toDataURL('https://greet-me.com/#/app', {
+      width: 400, margin: 1,
+      color: { dark: '#667eea', light: '#ffffff' },
+    }).then(setAppQrUrl).catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (accountState.isAuthenticated && !accountState.isRecipientMode) {
       navigate('/dashboard', { replace: true });
@@ -297,20 +308,22 @@ export default function LandingPage() {
             Scan the QR code to download Greet-Me™ on your phone
           </p>
 
-          {/* QR Code Placeholder */}
-          <div style={{
-            display: 'inline-block',
-            padding: '2rem',
-            background: 'white',
-            borderRadius: 'var(--radius-xl)',
-            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)'
-          }}>
+          {/* Install QR — real generated, tappable */}
+          <div
+            onClick={() => navigate('/app')}
+            title="Scan to install Greet-Me mobile app"
+            style={{
+              display: 'inline-block',
+              padding: '2rem',
+              background: 'white',
+              borderRadius: 'var(--radius-xl)',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}>
             <div style={{
               width: '200px',
               height: '200px',
-              background: 'linear-gradient(45deg, #f0f0f0 25%, transparent 25%, transparent 75%, #f0f0f0 75%, #f0f0f0), linear-gradient(45deg, #f0f0f0 25%, transparent 25%, transparent 75%, #f0f0f0 75%, #f0f0f0)',
-              backgroundSize: '20px 20px',
-              backgroundPosition: '0 0, 10px 10px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -318,15 +331,10 @@ export default function LandingPage() {
               border: '3px solid #667eea',
               position: 'relative'
             }}>
-              <div style={{
-                textAlign: 'center',
-                color: '#667eea',
-                fontWeight: 600
-              }}>
-                <Smartphone size={48} style={{ marginBottom: '0.5rem' }} />
-                <div style={{ fontSize: '0.875rem' }}>QR Code</div>
-                <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Coming Soon</div>
-              </div>
+              {appQrUrl
+                ? <img src={appQrUrl} alt="Scan to install Greet-Me" style={{ width: '200px', height: '200px', borderRadius: 'var(--radius-lg)' }} />
+                : <QrCode size={96} style={{ color: '#667eea', opacity: 0.3 }} />
+              }
             </div>
           </div>
 

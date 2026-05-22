@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getErrorMessage } from "../utils/errorMessages";
 import { Mail, Lock, QrCode, Smartphone } from "lucide-react";
+import QRCode from 'qrcode';
 import GreetMeLogo from "../components/GreetMeLogo";
 
 export const Login = () => {
@@ -20,6 +21,15 @@ export const Login = () => {
     const handleResize = () => setIsNarrow(window.innerWidth < 420);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // F5b: real install QR for the "Get the Mobile App" card
+  const [appQrUrl, setAppQrUrl] = useState(null);
+  useEffect(() => {
+    QRCode.toDataURL('https://greet-me.com/#/app', {
+      width: 200, margin: 1,
+      color: { dark: '#667eea', light: '#ffffff' },
+    }).then(setAppQrUrl).catch(() => {});
   }, []);
 
   const handleSubmit = async (e) => {
@@ -398,14 +408,19 @@ export const Login = () => {
             }}>
               Scan to download and send greetings on the go
             </p>
-            <div style={{
-              display: 'inline-flex',
-              padding: '0.75rem',
-              background: 'white',
-              borderRadius: 'var(--radius-lg)',
-              border: '2px solid var(--border)',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
-            }}>
+            <div
+              onClick={() => navigate('/app')}
+              title="Scan to install Greet-Me mobile app"
+              style={{
+                display: 'inline-flex',
+                padding: '0.75rem',
+                background: 'white',
+                borderRadius: 'var(--radius-lg)',
+                border: '2px solid var(--border)',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}>
               <div style={{
                 width: '80px',
                 height: '80px',
@@ -414,23 +429,10 @@ export const Login = () => {
                 justifyContent: 'center',
                 position: 'relative'
               }}>
-                <QrCode size={64} style={{ color: '#667eea' }} />
-                <div style={{
-                  position: 'absolute',
-                  inset: '8px',
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(8, 1fr)',
-                  gridTemplateRows: 'repeat(8, 1fr)',
-                  gap: '1px',
-                  pointerEvents: 'none'
-                }}>
-                  {[...Array(64)].map((_, i) => (
-                    <div key={i} style={{
-                      background: [0,1,2,5,6,7,8,15,16,23,40,47,48,55,56,57,58,61,62,63,9,14,17,22,41,46,49,54,10,13,18,21,42,45,50,53,11,12,19,20,43,44,51,52,27,28,35,36].includes(i) ? '#667eea' : 'transparent',
-                      borderRadius: '1px'
-                    }} />
-                  ))}
-                </div>
+                {appQrUrl
+                  ? <img src={appQrUrl} alt="Scan to install Greet-Me" style={{ width: '64px', height: '64px' }} />
+                  : <QrCode size={64} style={{ color: '#667eea', opacity: 0.3 }} />
+                }
               </div>
             </div>
           </div>
