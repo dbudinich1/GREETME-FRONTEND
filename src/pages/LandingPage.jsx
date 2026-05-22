@@ -1,7 +1,7 @@
 // src/pages/LandingPage.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Calendar, Zap, Smartphone, QrCode } from 'lucide-react';
+import { Sparkles, Heart, Calendar, Zap, Smartphone, QrCode } from 'lucide-react';
 import QRCode from 'qrcode';
 import GreetMeLogo from '../components/GreetMeLogo';
 import { useAccountState } from '../hooks/useAccountState';
