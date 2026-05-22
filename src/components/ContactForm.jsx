@@ -330,39 +330,47 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
   };
 
   const handleFaithSelectionChange = (newSelectedFaiths) => {
+    // Phase 3D Batch H H12+H13 — diff-based reconciliation. Replaces the
+    // prior full-rebuild logic so untouched occasions preserve their autoSend
+    // and date edits, removed faiths remove ONLY their own occasions, and
+    // toggling secular does not rebuild unrelated faith occasions. Orphan
+    // occasions (types not in any category) are intentionally preserved to
+    // avoid silent data loss for legacy/deprecated saved contact data.
+    const addedFaiths = newSelectedFaiths.filter(f => !selectedFaiths.includes(f));
+    const removedFaiths = selectedFaiths.filter(f => !newSelectedFaiths.includes(f));
+
     setSelectedFaiths(newSelectedFaiths);
 
-    // Update occasions based on faith selection
+    if (addedFaiths.length === 0 && removedFaiths.length === 0) return;
+
     setFormData(prev => {
       const currentOccasions = prev.occasions || [];
 
-      // Keep personal occasions
-      const personalOccasions = currentOccasions.filter(occ => {
-        const occasion = occasionCategories.personal.find(o => o.value === occ.type);
-        return !!occasion;
+      const removedOccasionTypes = new Set();
+      removedFaiths.forEach(faithId => {
+        (occasionCategories[faithId] || []).forEach(o => removedOccasionTypes.add(o.value));
       });
 
-      // Add/remove faith-based occasions based on selected faiths
-      const faithOccasions = [];
-      newSelectedFaiths.forEach(faithId => {
-        const occasions = occasionCategories[faithId] || [];
-        occasions.forEach(occasion => {
-          // Check if this occasion already exists in current occasions (preserve date if exists)
-          const existing = currentOccasions.find(o => o.type === occasion.value);
-          const currentYear = new Date().getFullYear();
-          const dateValue = existing?.date || (occasion.fixedDate ? `${currentYear}-${occasion.fixedDate}` : '');
+      const preservedOccasions = currentOccasions.filter(occ => !removedOccasionTypes.has(occ.type));
 
-          faithOccasions.push({
+      const existingTypes = new Set(preservedOccasions.map(o => o.type));
+      const currentYear = new Date().getFullYear();
+      const newOccasions = [];
+      addedFaiths.forEach(faithId => {
+        (occasionCategories[faithId] || []).forEach(occasion => {
+          if (existingTypes.has(occasion.value)) return;
+          newOccasions.push({
             type: occasion.value,
-            date: dateValue,
+            date: occasion.fixedDate ? `${currentYear}-${occasion.fixedDate}` : '',
             autoSend: true
           });
+          existingTypes.add(occasion.value);
         });
       });
 
       return {
         ...prev,
-        occasions: [...personalOccasions, ...faithOccasions]
+        occasions: [...preservedOccasions, ...newOccasions]
       };
     });
   };
