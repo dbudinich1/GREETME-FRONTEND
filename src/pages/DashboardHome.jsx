@@ -1442,7 +1442,7 @@ export default function DashboardHome() {
                     No recipients yet
                   </p>
                   <p style={{ fontSize: '0.8125rem', margin: '0 0 1rem', lineHeight: 1.5 }}>
-                    Add your first contact to start sending personalized Greet-Me messages automatically.
+                    Add your first recipient to start sending personalized Greet-Me greetings automatically for every occasion. You can also send a Greet-Me anytime.
                   </p>
                   <button
                     onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
@@ -1576,6 +1576,27 @@ export default function DashboardHome() {
                         </span>
                       )}
                     </div>
+                    {/* Quick Send button — preselects this recipient in the send flow */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/dashboard/send?contactId=${contact.id}`);
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '0.25rem',
+                        color: 'var(--text-tertiary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      title={`Send a Greet-Me to ${contact.name}`}
+                      aria-label={`Send a Greet-Me to ${contact.name}`}
+                    >
+                      <Send size={16} />
+                    </button>
                     {/* Settings Icon */}
                     <button
                       onClick={(e) => {
