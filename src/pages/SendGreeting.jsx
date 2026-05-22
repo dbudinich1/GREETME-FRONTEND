@@ -1537,7 +1537,7 @@ if (typeof window !== "undefined") {
             placeholder="Add a personal touch or give Greet-Me™ a hint about what to say..."
           />
           <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
-            <span>Your message will appear on the card. Longer messages may not be spoken aloud.</span>
+            <span>Your sentiment shapes the heart of every Greet-Me. Shorter notes feel most natural.</span>
             <span className="text-gray-400 ml-2 flex-shrink-0">{(formData.customMessage || '').length}/280</span>
           </div>
         </div>
