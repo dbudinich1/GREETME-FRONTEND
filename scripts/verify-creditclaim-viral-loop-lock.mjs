@@ -1,12 +1,14 @@
 // scripts/verify-creditclaim-viral-loop-lock.mjs
 //
-// Locked Viral Loop + Verification Gate Regression Guard
+// Locked Viral Loop + Verification Gate + Voice Integrity Regression Guard
 // Files protected:
 //   - src/pages/CreditClaim.jsx
 //   - src/pages/ThankYouFlow.jsx
 //   - src/pages/SendGreeting.jsx
+//   - src/pages/Profile.jsx
 //   - src/components/GuidedSetupFlow.jsx
 //   - src/components/EmailVerificationModal.jsx
+//   - src/components/VoiceMissingModal.jsx
 //
 // Background:
 //   On 2026-05-01, commit d056822c silently broke the new-recipient credit-claim →
@@ -50,6 +52,8 @@ const tyfPath = path.join(__dirname, "..", "src", "pages", "ThankYouFlow.jsx");
 const sgPath = path.join(__dirname, "..", "src", "pages", "SendGreeting.jsx");
 const gsfPath = path.join(__dirname, "..", "src", "components", "GuidedSetupFlow.jsx");
 const evmPath = path.join(__dirname, "..", "src", "components", "EmailVerificationModal.jsx");
+const vmmPath = path.join(__dirname, "..", "src", "components", "VoiceMissingModal.jsx");
+const profilePath = path.join(__dirname, "..", "src", "pages", "Profile.jsx");
 
 function readOrDie(p) {
   try {
@@ -65,6 +69,8 @@ const tyf = readOrDie(tyfPath);
 const sg = readOrDie(sgPath);
 const gsf = readOrDie(gsfPath);
 const evm = readOrDie(evmPath);
+const vmm = readOrDie(vmmPath);
+const profile = readOrDie(profilePath);
 
 const checks = [
   // --- CreditClaim.jsx ---
@@ -136,6 +142,45 @@ const checks = [
   { file: "EmailVerificationModal.jsx", required: false,
     name: "Regression: corporate/security copy ('protect' / 'secure your account' / 'verify your identity')",
     test: () => /\b(protect your delivery|secure your account|verify your identity|for your safety)\b/i.test(evm) },
+
+  // --- VoiceMissingModal.jsx (Voice Integrity warm recovery modal) ---
+  { file: "VoiceMissingModal.jsx", required: true,
+    name: "PROTECTED SUBSYSTEM governance marker",
+    test: () => /PROTECTED SUBSYSTEM/.test(vmm) },
+  { file: "VoiceMissingModal.jsx", required: true,
+    name: "Warm heading copy: 'Your voice needs a fresh recording'",
+    test: () => /Your voice needs a fresh recording/.test(vmm) },
+  { file: "VoiceMissingModal.jsx", required: true,
+    name: "CTA 'Re-record my voice' present",
+    test: () => /Re-record my voice/.test(vmm) },
+  { file: "VoiceMissingModal.jsx", required: true,
+    name: "CTA 'Save my draft for later' present",
+    test: () => /Save my draft for later/.test(vmm) },
+  { file: "VoiceMissingModal.jsx", required: false,
+    name: "Regression: technical jargon ('ElevenLabs' / 'voice clone' / 'voice service' / '404')",
+    test: () => /\b(ElevenLabs|voice clone|voice service|404)\b/i.test(vmm) },
+
+  // --- SendGreeting.jsx (voice integrity wiring) ---
+  { file: "SendGreeting.jsx", required: true,
+    name: "Imports VoiceMissingModal",
+    test: () => /import\s+VoiceMissingModal\s+from\s+['"`][^'"`]*VoiceMissingModal['"`]/.test(sg) },
+  { file: "SendGreeting.jsx", required: true,
+    name: "Renders <VoiceMissingModal",
+    test: () => /<VoiceMissingModal\b/.test(sg) },
+  { file: "SendGreeting.jsx", required: true,
+    name: "Handles VOICE_CLONE_MISSING code on send catch",
+    test: () => /error\?\.code\s*===\s*['"`]VOICE_CLONE_MISSING['"`]/.test(sg) },
+  { file: "SendGreeting.jsx", required: true,
+    name: "Handles VOICE_CLONE_MISSING from worker job-status poll",
+    test: () => /response\.errorCode\s*===\s*['"`]VOICE_CLONE_MISSING['"`]/.test(sg) },
+
+  // --- Profile.jsx (persistent banner) ---
+  { file: "Profile.jsx", required: true,
+    name: "PROTECTED SUBSYSTEM governance marker",
+    test: () => /PROTECTED SUBSYSTEM/.test(profile) },
+  { file: "Profile.jsx", required: true,
+    name: "Persistent voice-stale recovery banner",
+    test: () => /user\?\.voiceIdStaleAt/.test(profile) && /get you back on the air/i.test(profile) },
 ];
 
 const failures = [];

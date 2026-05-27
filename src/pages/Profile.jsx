@@ -1,4 +1,20 @@
 // src/pages/Profile.jsx - Renamed to Media Library
+//
+// 🔒 PROTECTED SUBSYSTEM — Locked Viral Loop + Verification Gate + Voice Integrity
+//
+// This page hosts the persistent voice-stale recovery banner. When the
+// authenticated user has `voiceIdStaleAt` set (from the API pre-flight or
+// worker safety net), a warm parchment-toned banner appears above the voice
+// section inviting them to re-record. The banner disappears immediately on
+// successful re-record (backend clears the stale fields atomically).
+//
+// Any change to this file MUST:
+//   1. Declare affected locked milestones (commit SHAs)
+//   2. Declare potential regressions
+//   3. Pass scripts/verify-creditclaim-viral-loop-lock.mjs
+//   4. Fail build if guard violates
+// Last reviewed: 2026-05-27 (Stage 3 implementation).
+
 import { useState, useEffect } from 'react';
 import { Mic, Camera, Play, Trash2, CheckCircle, Upload, Link as LinkIcon, Star } from 'lucide-react';
 import api from "../api/api";
@@ -228,6 +244,61 @@ export default function Profile() {
           message={alert.message}
           onClose={() => setAlert(null)}
         />
+      )}
+
+      {/* Voice Integrity Recovery Banner (Protected Subsystem) —
+          Persistent calm prompt shown when user.voiceIdStaleAt is set.
+          Disappears immediately on successful re-record. */}
+      {user?.voiceIdStaleAt && (
+        <div
+          style={{
+            backgroundColor: '#fffdf8',
+            border: '1px solid #d4c5b3',
+            borderLeft: '3px solid #c8a06b',
+            borderRadius: '12px',
+            padding: '18px 22px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <p
+            style={{
+              fontFamily: 'Georgia, serif',
+              fontSize: '15px',
+              lineHeight: 1.5,
+              color: '#3a2a1f',
+              margin: 0,
+              flex: '1 1 auto',
+              minWidth: '240px',
+            }}
+          >
+            Your voice could use a fresh recording — let&rsquo;s get you back on the air.
+          </p>
+          <label
+            style={{
+              backgroundColor: '#6b3a2a',
+              color: '#ffffff',
+              padding: '10px 22px',
+              borderRadius: '14px',
+              fontFamily: 'Georgia, serif',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Record my voice
+            <input
+              type="file"
+              accept="audio/*"
+              style={{ display: 'none' }}
+              onChange={handleVoiceUpload}
+            />
+          </label>
+        </div>
       )}
 
       {/* Voice Recordings Section */}

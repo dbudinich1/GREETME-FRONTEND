@@ -22,6 +22,7 @@ import GiftSelectorModal from '../components/GiftSelectorModal';
 import GiftConfirmationModal from '../components/GiftConfirmationModal';
 import PreSendReviewModal from '../components/PreSendReviewModal';
 import EmailVerificationModal from '../components/EmailVerificationModal';
+import VoiceMissingModal from '../components/VoiceMissingModal';
 import AttachmentIndicator from '../components/AttachmentIndicator';
 import HeartsBurst from '../components/HeartsBurst';
 import cartService from '../services/cartService';
@@ -140,6 +141,13 @@ export default function SendGreeting() {
   // verbatim after the user verifies. Draft state in formData is untouched.
   const [showVerificationCheckpoint, setShowVerificationCheckpoint] = useState(false);
   const [pendingSendPayload, setPendingSendPayload] = useState(null);
+
+  // Voice Missing Checkpoint (Protected Subsystem) —
+  // Shown when backend responds 422 VOICE_CLONE_MISSING on pre-flight or when
+  // the worker marks a job failed with the same code (race window). Same draft
+  // preservation contract as the verification checkpoint.
+  const [showVoiceMissingCheckpoint, setShowVoiceMissingCheckpoint] = useState(false);
+  const [voiceMissingContext, setVoiceMissingContext] = useState(null);
 
   // Referral state (viral loop)
   const [referralCode, setReferralCode] = useState(null);
@@ -675,6 +683,16 @@ export default function SendGreeting() {
           });
         }
       } else if (response.status === 'failed') {
+        // Worker safety-net race window: TTS hit VOICE_CLONE_MISSING after the
+        // API pre-flight had passed. Surface the warm recovery modal so the
+        // sender gets the same in-place re-record experience as the pre-flight path.
+        if (response.errorCode === 'VOICE_CLONE_MISSING') {
+          setVoiceMissingContext({
+            voiceUrl: user?.voiceUrl || null,
+            voiceIdStaleAt: new Date().toISOString(),
+          });
+          setShowVoiceMissingCheckpoint(true);
+        }
         setJobId(null);
       }
     } catch (error) {
@@ -794,6 +812,19 @@ export default function SendGreeting() {
       setJobId(response.jobId);
       setJobStatus('queued');
     } catch (error) {
+      // Locked Voice Integrity: backend VOICE_CLONE_MISSING responses surface
+      // the warm VoiceMissingModal checkpoint instead of a generic alert.
+      // Draft preserved via pendingSendPayload — retried verbatim after re-record.
+      if (error?.code === 'VOICE_CLONE_MISSING') {
+        setPendingSendPayload(greetingData);
+        setVoiceMissingContext({
+          voiceUrl: error?.voiceUrl || user?.voiceUrl || null,
+          voiceIdStaleAt: error?.voiceIdStaleAt || null,
+        });
+        setShowVoiceMissingCheckpoint(true);
+        setSending(false);
+        return;
+      }
       // Locked Verification Gate: backend EMAIL_NOT_VERIFIED responses surface
       // the warm EmailVerificationModal checkpoint instead of a generic alert.
       // The payload is preserved for verbatim retry after verification.
@@ -1062,6 +1093,17 @@ if (typeof window !== "undefined") {
   // no-op for V1
 }
     } catch (error) {
+      // Locked Voice Integrity: same warm checkpoint path as executeGreetingSend.
+      if (error?.code === 'VOICE_CLONE_MISSING' && greetingData) {
+        setPendingSendPayload(greetingData);
+        setVoiceMissingContext({
+          voiceUrl: error?.voiceUrl || user?.voiceUrl || null,
+          voiceIdStaleAt: error?.voiceIdStaleAt || null,
+        });
+        setShowVoiceMissingCheckpoint(true);
+        setSending(false);
+        return;
+      }
       // Locked Verification Gate: same warm checkpoint path as executeGreetingSend.
       if (error?.code === 'EMAIL_NOT_VERIFIED' && greetingData) {
         setPendingSendPayload(greetingData);
@@ -2362,6 +2404,33 @@ if (typeof window !== "undefined") {
         })()}
         charging={giftCharging}
         chargeError={giftChargeError}
+      />
+
+      {/* Locked Voice Integrity — warm checkpoint when the user's voice is missing.
+          Sibling-rendered to the send form; draft state in formData untouched. */}
+      <VoiceMissingModal
+        open={showVoiceMissingCheckpoint}
+        voiceUrl={voiceMissingContext?.voiceUrl}
+        onRerecordSuccess={async () => {
+          await refreshProfile();
+          setShowVoiceMissingCheckpoint(false);
+          setVoiceMissingContext(null);
+          await retryPendingSend();
+        }}
+        onSaveDraft={() => {
+          if (formData.contactId && formData.occasionType) {
+            try {
+              draftService.saveDraft({
+                contactId: formData.contactId,
+                occasionType: formData.occasionType,
+                ...formData,
+              });
+            } catch {}
+          }
+          setShowVoiceMissingCheckpoint(false);
+          setVoiceMissingContext(null);
+          navigate('/dashboard');
+        }}
       />
 
       {/* Locked Verification Gate — warm checkpoint for first real outbound send. */}
