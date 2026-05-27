@@ -14,7 +14,7 @@
 import { useState, useEffect } from 'react';
 import { getPhotoSrc } from '../utils/getPhotoSrc';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Send, CheckCircle, XCircle, Edit3, Gift, ArrowLeft, Camera, Plus, X, Check } from 'lucide-react';
+import { Send, Edit3, Gift, ArrowLeft, Camera, Plus, X, Check } from 'lucide-react';
 import { useRef } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
@@ -1319,28 +1319,109 @@ if (typeof window !== "undefined") {
     );
   }
 
-  // Error State
+  // Failure State — parchment card, intensity-tier-1 seal (opacity 0.6,
+  // signals "the moment didn't arrive"), warm body copy in soft-amber
+  // attention notice, stacked bronze CTAs (Try Again primary, Back to
+  // Dashboard secondary). Premium completion-state spec: warmth over
+  // robotic, gentle attention, never alarm-red.
   if (jobStatus === 'failed') {
     return (
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-          <XCircle className="mx-auto text-red-500 mb-4" size={64} />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">We couldn't send your Greet-Me</h2>
-          <p className="text-gray-600 mb-8">
-            Something went wrong. Please try again, or contact support if this continues.
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '40px 20px',
+        }}
+      >
+        <div
+          className="ceremony-card-enter"
+          style={{
+            width: '100%',
+            maxWidth: '480px',
+            backgroundColor: 'var(--ceremony-parchment)',
+            borderRadius: '14px',
+            padding: '32px 28px',
+            boxShadow: 'var(--ceremony-shadow-card)',
+            textAlign: 'center',
+            boxSizing: 'border-box',
+          }}
+        >
+          <img
+            src="/assets/email/red-wax-seal.jpeg"
+            alt=""
+            aria-hidden="true"
+            className="ceremony-seal-enter"
+            style={{
+              display: 'block',
+              width: '64px',
+              height: '64px',
+              margin: '0 auto 22px',
+              borderRadius: '50%',
+              opacity: 0.6,
+              objectFit: 'cover',
+            }}
+          />
+          <h2 className="ceremony-heading">We couldn&rsquo;t send your Greet-Me</h2>
+          <p
+            style={{
+              marginTop: '14px',
+              padding: '12px 14px',
+              backgroundColor: 'var(--ceremony-tint-warm)',
+              borderLeft: '3px solid var(--ceremony-warm-amber)',
+              borderRadius: '8px',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+              fontSize: '15px',
+              lineHeight: 1.5,
+              color: 'var(--ceremony-charcoal)',
+              textAlign: 'left',
+            }}
+          >
+            We weren&rsquo;t able to deliver this Greet-Me. Let&rsquo;s try once more.
           </p>
-          <div className="flex justify-center space-x-4">
+          <div
+            style={{
+              marginTop: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+            }}
+          >
             <button
-              onClick={() => navigate('/dashboard')}
-              className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium"
-            >
-              Back to Dashboard
-            </button>
-            <button
+              type="button"
               onClick={resetForm}
-              className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium"
+              style={{
+                width: '100%',
+                height: '48px',
+                borderRadius: '14px',
+                border: 'none',
+                backgroundColor: 'var(--ceremony-bronze)',
+                color: '#ffffff',
+                fontFamily: 'Georgia, serif',
+                fontSize: '16px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'background-color 0.18s ease',
+              }}
             >
               Try Again
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard')}
+              style={{
+                width: '100%',
+                height: '48px',
+                borderRadius: '14px',
+                border: '1px solid var(--ceremony-bronze)',
+                backgroundColor: 'transparent',
+                color: 'var(--ceremony-bronze)',
+                fontFamily: 'Georgia, serif',
+                fontSize: '16px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Back to Dashboard
             </button>
           </div>
         </div>
@@ -1348,17 +1429,49 @@ if (typeof window !== "undefined") {
     );
   }
 
-  // QR Cash™ payment confirmed — brief interstitial
+  // QR Cash™ payment confirmed — brief 2000ms parchment interstitial.
+  // Bronze-fill seal mark (intensity tier 2 — payment confirmed,
+  // greeting forthcoming). Auto-advances to processing state, completing
+  // the parchment ceremony continuity: QR → processing → ready → success.
   if (giftConfirmed) {
     return (
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-          <CheckCircle className="mx-auto mb-4" size={64} style={{ color: '#d97706' }} />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            QR Cash™ payment confirmed
-          </h2>
-          <p className="text-gray-600">
-            Your gift has been attached to this Greet-Me
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '40px 20px',
+        }}
+      >
+        <div
+          className="ceremony-card-enter"
+          style={{
+            width: '100%',
+            maxWidth: '480px',
+            backgroundColor: 'var(--ceremony-parchment)',
+            borderRadius: '14px',
+            padding: '32px 28px',
+            boxShadow: 'var(--ceremony-shadow-card)',
+            textAlign: 'center',
+            boxSizing: 'border-box',
+          }}
+        >
+          <img
+            src="/assets/email/red-wax-seal.jpeg"
+            alt=""
+            aria-hidden="true"
+            className="ceremony-seal-enter"
+            style={{
+              display: 'block',
+              width: '64px',
+              height: '64px',
+              margin: '0 auto 22px',
+              borderRadius: '50%',
+              objectFit: 'cover',
+            }}
+          />
+          <h2 className="ceremony-heading">QR Cash&trade; payment confirmed</h2>
+          <p className="ceremony-body" style={{ marginTop: '12px' }}>
+            Your gift has been attached to this Greet-Me.
           </p>
         </div>
       </div>
