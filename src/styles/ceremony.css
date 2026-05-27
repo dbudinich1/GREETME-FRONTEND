@@ -1,0 +1,99 @@
+/*
+ * ceremony.css
+ *
+ * Premium Completion-State Design Tokens.
+ *
+ * This stylesheet defines the canonical visual language for all
+ * completion / loading / transitional ceremonial surfaces (send-completion,
+ * processing, ready beat, payment success, etc.).
+ *
+ * 📖 Full specification:
+ *    c:/1_GREET-ME/reports/premium-completion-state-stage-a-specification.pdf
+ *    (predecessor: premium-completion-state-stage1-audit.pdf)
+ *
+ * Approved by founder on 2026-05-27:
+ *   - Parchment-warm becomes the canonical completion-state language
+ *   - Georgia serif reserved for moment-of-meaning surfaces only
+ *   - Bronze (#6b3a2a) is the only ceremonial action color
+ *   - Wax-seal mark is the singular ceremonial icon
+ *   - Motion vocabulary: quiet, brief, intentional. No casino energy.
+ *   - No emoji on ceremonial surfaces. No Lucide stock icons in moments.
+ *
+ * USAGE NOTE FOR FUTURE CONTRIBUTORS
+ *   This file is INTENTIONALLY NOT IMPORTED ANYWHERE YET. Stage A
+ *   establishes the token vocabulary; subsequent stages (B, C, D, E, G)
+ *   migrate individual surfaces by importing this file and consuming the
+ *   tokens. Do not import this file from production code paths until the
+ *   relevant Stage 2 design is approved for the surface being migrated.
+ *
+ *   Do NOT use these tokens for admin/dashboard/form chrome. Those surfaces
+ *   are intentionally left in the existing Tailwind + sans-serif system.
+ *   The ceremony tokens are reserved for moment-of-meaning surfaces.
+ *
+ * SCOPE
+ *   - 8 named color tokens
+ *   - 2 utility values (backdrop, shadow)
+ *   - 3 typography classes (heading, body, emphasis)
+ *
+ * Last reviewed: 2026-05-27 (Stage A initial commit).
+ */
+
+:root {
+  /* ─── Color tokens ─── */
+  --ceremony-parchment: #fffdf8;
+  --ceremony-charcoal: #3a2a1f;
+  --ceremony-bronze: #6b3a2a;
+  --ceremony-warm-grey: #7b6a59;
+  --ceremony-soft-tan: #d4c5b3;
+  --ceremony-warm-amber: #c8a06b;
+  --ceremony-tint-light: #f7efe2;
+  --ceremony-tint-warm: #faf3e8;
+
+  /* ─── Utility values ─── */
+  --ceremony-backdrop: rgba(74, 71, 67, 0.55);
+  --ceremony-shadow-card: 0 16px 48px rgba(74, 71, 67, 0.25);
+}
+
+/*
+ * Typography — three styles. Use sparingly.
+ *
+ * .ceremony-heading: Georgia serif heading for moment-of-meaning surfaces.
+ *                    Use exactly ONE per ceremonial card.
+ * .ceremony-body:    Warm body copy beneath a ceremony heading.
+ * .ceremony-emphasis: <strong>-style emphasis inside ceremony body (a name,
+ *                     a recipient email, the wait-message rotation, etc.).
+ */
+
+.ceremony-heading {
+  font-family: Georgia, serif;
+  font-size: 22px;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--ceremony-charcoal);
+  margin: 0;
+}
+
+@media (min-width: 768px) {
+  .ceremony-heading {
+    font-size: 24px;
+  }
+}
+
+.ceremony-body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ceremony-warm-grey);
+  margin: 0;
+}
+
+@media (min-width: 768px) {
+  .ceremony-body {
+    font-size: 16px;
+  }
+}
+
+.ceremony-emphasis {
+  color: var(--ceremony-charcoal);
+  font-weight: 600;
+}
