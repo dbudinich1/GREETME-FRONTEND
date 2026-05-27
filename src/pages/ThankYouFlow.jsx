@@ -79,13 +79,13 @@ export default function ThankYouFlow() {
   const creditCode = searchParams.get('creditCode');
   const { user, refreshProfile, register } = useAuth();
 
-  // LI-039: Thank-you flow is for unregistered recipients only.
-  // Authenticated users get redirected to their dashboard.
-  useEffect(() => {
-    if (user) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [user, navigate]);
+  // LOCKED VIRAL LOOP: do NOT redirect authenticated users to /dashboard here.
+  // The "LI-039" intent (block senders from landing on their own thank-you) was
+  // implemented with the wrong discriminator — it caught every new recipient
+  // who became authenticated during inline claim/register on CreditClaim. The
+  // rest of this file already gracefully handles both unauth (inline-reg path)
+  // and auth (skip-reg, send-direct path) states; see `if (!user)` / `{user ?}`
+  // conditionals below. Sister regression of d056822c (May 1, 2026).
 
   // Inline registration state (guest send path)
   const [regName, setRegName] = useState('');
