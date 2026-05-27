@@ -14,7 +14,7 @@
 import { useState, useEffect } from 'react';
 import { getPhotoSrc } from '../utils/getPhotoSrc';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Send, CheckCircle, XCircle, Loader, Edit3, Gift, ArrowLeft, Camera, Plus, X, Check } from 'lucide-react';
+import { Send, CheckCircle, XCircle, Edit3, Gift, ArrowLeft, Camera, Plus, X, Check } from 'lucide-react';
 import { useRef } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
@@ -1365,27 +1365,70 @@ if (typeof window !== "undefined") {
     );
   }
 
-  // Processing State
+  // Processing State — parchment card, single seal-pulse animator,
+  // Georgia heading, warm body, wait-message rotates inside a tinted pill.
+  // No spinner. No bouncing dots. No blue Tailwind info box.
+  // Premium completion-state spec: ceremony over SaaS, single animator,
+  // anticipation not anxiety.
   if (sending || jobStatus === 'processing' || jobStatus === 'queued') {
     return (
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-          <Loader className="mx-auto text-blue-500 mb-4 animate-spin" size={64} />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            {jobStatus === 'queued' ? 'Preparing your moment...' : 'Bringing your greeting to life...'}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '40px 20px',
+        }}
+      >
+        <div
+          className="ceremony-card-enter"
+          style={{
+            width: '100%',
+            maxWidth: '480px',
+            backgroundColor: 'var(--ceremony-parchment)',
+            borderRadius: '14px',
+            padding: '32px 28px',
+            boxShadow: 'var(--ceremony-shadow-card)',
+            textAlign: 'center',
+            boxSizing: 'border-box',
+          }}
+        >
+          <img
+            src="/assets/email/red-wax-seal.jpeg"
+            alt=""
+            aria-hidden="true"
+            className="ceremony-seal-enter ceremony-seal-pulse"
+            style={{
+              display: 'block',
+              width: '72px',
+              height: '72px',
+              margin: '0 auto 22px',
+              borderRadius: '50%',
+              objectFit: 'cover',
+            }}
+          />
+          <h2 className="ceremony-heading">
+            {jobStatus === 'queued' ? 'Preparing your moment…' : 'Bringing your greeting to life…'}
           </h2>
-          <p className="text-gray-600">
+          <p
+            className="ceremony-body"
+            style={{ marginTop: '12px' }}
+          >
             This may take a moment. Something special is being created just for them.
           </p>
-          <div className="mt-8 bg-blue-50 rounded-lg p-4">
-            <div className="flex items-center justify-center space-x-2 text-blue-600">
-              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-            <p className="text-sm text-blue-800 mt-2 transition-opacity duration-300">
-              {waitMessage}
-            </p>
+          <div
+            style={{
+              marginTop: '22px',
+              display: 'inline-block',
+              padding: '10px 16px',
+              backgroundColor: 'var(--ceremony-tint-light)',
+              borderRadius: '8px',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+              fontSize: '14px',
+              lineHeight: 1.4,
+              color: 'var(--ceremony-charcoal)',
+            }}
+          >
+            {waitMessage}
           </div>
         </div>
       </div>

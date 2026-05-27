@@ -145,11 +145,33 @@
   animation-delay: 350ms;
 }
 
+/*
+ * gmCeremonySealPulse — gentle infinite breathing on the seal mark for
+ * processing / "anticipation" surfaces. Single animator per Stage A §7.
+ * 1800ms cycle: a heartbeat tempo. 4% scale + opacity 0.85 ↔ 1 — visible
+ * but never distracting.
+ *
+ * Note: pairs with .ceremony-seal-enter (one-time entrance) by starting
+ * with animation-delay: 340ms so the pulse takes over after the entrance
+ * completes (260ms entrance + 80ms delay = 340ms total).
+ */
+
+@keyframes gmCeremonySealPulse {
+  0%   { opacity: 0.85; transform: scale(1);    }
+  50%  { opacity: 1;    transform: scale(1.04); }
+  100% { opacity: 0.85; transform: scale(1);    }
+}
+
+.ceremony-seal-pulse {
+  animation: gmCeremonySealPulse 1800ms ease-in-out 340ms infinite both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ceremony-card-enter,
   .ceremony-seal-enter,
   .ceremony-fade-in,
-  .ceremony-fade-in-late {
+  .ceremony-fade-in-late,
+  .ceremony-seal-pulse {
     animation: none;
   }
 }
