@@ -33,7 +33,8 @@ export const AuthProvider = ({ children }) => {
       const entitlements = data.profile?.entitlements || currentUser.entitlements || null;
       const subscriptionStatus = data.profile?.subscriptionStatus || null;
       const paymentLocked = data.profile?.paymentLocked || false;
-      const updatedUser = { ...currentUser, photoUrl, voiceId, voiceUrl, plan, tier, entitlements, subscriptionStatus, paymentLocked };
+      const emailVerified = data.profile?.emailVerified === true;
+      const updatedUser = { ...currentUser, photoUrl, voiceId, voiceUrl, plan, tier, entitlements, subscriptionStatus, paymentLocked, emailVerified };
       safeSet('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
     } catch (err) {

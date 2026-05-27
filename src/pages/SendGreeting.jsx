@@ -1,4 +1,15 @@
 // src/pages/SendGreeting.jsx
+//
+// 🔒 PROTECTED SUBSYSTEM — Locked Viral Loop + Verification Gate
+//
+// This page contains the two real-outbound send callsites that must surface
+// the EmailVerificationModal warm checkpoint when the backend responds
+// EMAIL_NOT_VERIFIED. Any change MUST:
+//   1. Declare affected locked milestones (commit SHAs)
+//   2. Declare potential regressions
+//   3. Pass scripts/verify-creditclaim-viral-loop-lock.mjs
+//   4. Fail build if guard violates
+// Last reviewed: 2026-05-27 (Stage 3 implementation)
 
 import { useState, useEffect } from 'react';
 import { getPhotoSrc } from '../utils/getPhotoSrc';
@@ -10,6 +21,7 @@ import Alert from '../components/Alert';
 import GiftSelectorModal from '../components/GiftSelectorModal';
 import GiftConfirmationModal from '../components/GiftConfirmationModal';
 import PreSendReviewModal from '../components/PreSendReviewModal';
+import EmailVerificationModal from '../components/EmailVerificationModal';
 import AttachmentIndicator from '../components/AttachmentIndicator';
 import HeartsBurst from '../components/HeartsBurst';
 import cartService from '../services/cartService';
@@ -74,7 +86,7 @@ function deleteResumeDraft(uuid) {
 export default function SendGreeting() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [contacts, setContacts] = useState([]);
   const [showInlineAdd, setShowInlineAdd] = useState(false);
   const [newContactName, setNewContactName] = useState('');
@@ -121,6 +133,13 @@ export default function SendGreeting() {
 
   // Phase 3D Batch A — A2.3: Pre-send ceremonial review modal state
   const [isPreSendReviewOpen, setIsPreSendReviewOpen] = useState(false);
+
+  // Email Verification Checkpoint (Protected Subsystem) —
+  // Shown when backend responds 403 EMAIL_NOT_VERIFIED on a real outbound send.
+  // pendingSendPayload preserves the exact request body so the retry replays it
+  // verbatim after the user verifies. Draft state in formData is untouched.
+  const [showVerificationCheckpoint, setShowVerificationCheckpoint] = useState(false);
+  const [pendingSendPayload, setPendingSendPayload] = useState(null);
 
   // Referral state (viral loop)
   const [referralCode, setReferralCode] = useState(null);
@@ -775,6 +794,15 @@ export default function SendGreeting() {
       setJobId(response.jobId);
       setJobStatus('queued');
     } catch (error) {
+      // Locked Verification Gate: backend EMAIL_NOT_VERIFIED responses surface
+      // the warm EmailVerificationModal checkpoint instead of a generic alert.
+      // The payload is preserved for verbatim retry after verification.
+      if (error?.code === 'EMAIL_NOT_VERIFIED') {
+        setPendingSendPayload(greetingData);
+        setShowVerificationCheckpoint(true);
+        setSending(false);
+        return;
+      }
       setErrors({ submit: getErrorMessage(error) });
       setSending(false);
     }
@@ -1021,8 +1049,9 @@ export default function SendGreeting() {
     setSending(true);
     setJobStatus(null);
 
+    let greetingData;
     try {
-      const greetingData = convertDraftToSendFormat(draft, selectedContact, user);
+      greetingData = convertDraftToSendFormat(draft, selectedContact, user);
       const response = await api.sendGreeting(greetingData);
       setJobId(response.jobId);
       setJobStatus('queued');
@@ -1033,6 +1062,35 @@ if (typeof window !== "undefined") {
   // no-op for V1
 }
     } catch (error) {
+      // Locked Verification Gate: same warm checkpoint path as executeGreetingSend.
+      if (error?.code === 'EMAIL_NOT_VERIFIED' && greetingData) {
+        setPendingSendPayload(greetingData);
+        setShowVerificationCheckpoint(true);
+        setSending(false);
+        return;
+      }
+      setErrors({ submit: getErrorMessage(error) });
+      setSending(false);
+    }
+  };
+
+  // Locked Verification Gate retry primitive: replays the exact preserved payload
+  // after the user verifies. Isolates the retry surface — does NOT re-run
+  // validation, draft mutation, or pre-send review.
+  const retryPendingSend = async () => {
+    if (!pendingSendPayload) return;
+    setSending(true);
+    setJobStatus(null);
+    try {
+      const response = await api.sendGreeting(pendingSendPayload);
+      setJobId(response.jobId);
+      setJobStatus('queued');
+      setPendingSendPayload(null);
+    } catch (error) {
+      if (error?.code === 'EMAIL_NOT_VERIFIED') {
+        setSending(false);
+        return false; // still unverified — modal stays open
+      }
       setErrors({ submit: getErrorMessage(error) });
       setSending(false);
     }
@@ -2304,6 +2362,29 @@ if (typeof window !== "undefined") {
         })()}
         charging={giftCharging}
         chargeError={giftChargeError}
+      />
+
+      {/* Locked Verification Gate — warm checkpoint for first real outbound send. */}
+      <EmailVerificationModal
+        open={showVerificationCheckpoint}
+        email={user?.email || ''}
+        onResend={async () => api.resendVerificationEmail()}
+        onContinueAfterVerify={async () => {
+          await refreshProfile();
+          // refreshProfile mutates the user object in AuthContext; we read the
+          // freshly-stored copy from localStorage (synchronous, no re-render wait).
+          let verifiedNow = false;
+          try {
+            const stored = JSON.parse(localStorage.getItem('user') || '{}');
+            verifiedNow = stored?.emailVerified === true;
+          } catch {}
+          if (verifiedNow) {
+            setShowVerificationCheckpoint(false);
+            await retryPendingSend();
+            return true;
+          }
+          return false;
+        }}
       />
     </div>
   );

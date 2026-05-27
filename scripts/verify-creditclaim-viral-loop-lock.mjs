@@ -1,9 +1,12 @@
 // scripts/verify-creditclaim-viral-loop-lock.mjs
 //
-// Locked Viral Loop Regression Guard
+// Locked Viral Loop + Verification Gate Regression Guard
 // Files protected:
 //   - src/pages/CreditClaim.jsx
 //   - src/pages/ThankYouFlow.jsx
+//   - src/pages/SendGreeting.jsx
+//   - src/components/GuidedSetupFlow.jsx
+//   - src/components/EmailVerificationModal.jsx
 //
 // Background:
 //   On 2026-05-01, commit d056822c silently broke the new-recipient credit-claim →
@@ -44,6 +47,9 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ccPath = path.join(__dirname, "..", "src", "pages", "CreditClaim.jsx");
 const tyfPath = path.join(__dirname, "..", "src", "pages", "ThankYouFlow.jsx");
+const sgPath = path.join(__dirname, "..", "src", "pages", "SendGreeting.jsx");
+const gsfPath = path.join(__dirname, "..", "src", "components", "GuidedSetupFlow.jsx");
+const evmPath = path.join(__dirname, "..", "src", "components", "EmailVerificationModal.jsx");
 
 function readOrDie(p) {
   try {
@@ -56,6 +62,9 @@ function readOrDie(p) {
 
 const cc = readOrDie(ccPath);
 const tyf = readOrDie(tyfPath);
+const sg = readOrDie(sgPath);
+const gsf = readOrDie(gsfPath);
+const evm = readOrDie(evmPath);
 
 const checks = [
   // --- CreditClaim.jsx ---
@@ -91,6 +100,42 @@ const checks = [
   { file: "ThankYouFlow.jsx", required: false,
     name: "Regression: useEffect redirects authenticated user to /dashboard",
     test: () => /if\s*\(\s*user\s*\)\s*\{[\s\S]{0,200}navigate\(\s*['"`]\/dashboard/m.test(tyf) },
+
+  // --- SendGreeting.jsx ---
+  { file: "SendGreeting.jsx", required: true,
+    name: "PROTECTED SUBSYSTEM governance marker",
+    test: () => /PROTECTED SUBSYSTEM/.test(sg) },
+  { file: "SendGreeting.jsx", required: true,
+    name: "Imports EmailVerificationModal",
+    test: () => /import\s+EmailVerificationModal\s+from\s+['"`][^'"`]*EmailVerificationModal['"`]/.test(sg) },
+  { file: "SendGreeting.jsx", required: true,
+    name: "Renders <EmailVerificationModal",
+    test: () => /<EmailVerificationModal\b/.test(sg) },
+  { file: "SendGreeting.jsx", required: true,
+    name: "Handles EMAIL_NOT_VERIFIED code on send catch",
+    test: () => /error\?\.code\s*===\s*['"`]EMAIL_NOT_VERIFIED['"`]/.test(sg) },
+  { file: "SendGreeting.jsx", required: true,
+    name: "Preserves payload via setPendingSendPayload",
+    test: () => /setPendingSendPayload\(/.test(sg) },
+
+  // --- GuidedSetupFlow.jsx ---
+  { file: "GuidedSetupFlow.jsx", required: true,
+    name: "PROTECTED SUBSYSTEM governance marker",
+    test: () => /PROTECTED SUBSYSTEM/.test(gsf) },
+  { file: "GuidedSetupFlow.jsx", required: true,
+    name: "Onboarding test send flagged isOnboardingTestSend: true",
+    test: () => /isOnboardingTestSend\s*:\s*true/.test(gsf) },
+
+  // --- EmailVerificationModal.jsx ---
+  { file: "EmailVerificationModal.jsx", required: true,
+    name: "PROTECTED SUBSYSTEM governance marker",
+    test: () => /PROTECTED SUBSYSTEM/.test(evm) },
+  { file: "EmailVerificationModal.jsx", required: true,
+    name: "Warm heading copy: 'Before your Greet-Me is delivered'",
+    test: () => /Before your Greet-Me is delivered/.test(evm) },
+  { file: "EmailVerificationModal.jsx", required: false,
+    name: "Regression: corporate/security copy ('protect' / 'secure your account' / 'verify your identity')",
+    test: () => /\b(protect your delivery|secure your account|verify your identity|for your safety)\b/i.test(evm) },
 ];
 
 const failures = [];
@@ -108,9 +153,9 @@ for (const c of checks) {
 if (failures.length > 0) {
   console.error("");
   console.error("=========================================================");
-  console.error("VIRAL LOOP LOCK GUARD FAILED");
-  console.error("CreditClaim.jsx or ThankYouFlow.jsx has drifted from the");
-  console.error("locked new-recipient flow.");
+  console.error("VIRAL LOOP + VERIFICATION GATE LOCK GUARD FAILED");
+  console.error("One or more Protected Subsystem files have drifted from");
+  console.error("the locked new-recipient flow or verification checkpoint.");
   console.error("");
   for (const f of failures) console.error(f);
   console.error("");

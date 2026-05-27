@@ -1,5 +1,16 @@
 // src/components/GuidedSetupFlow.jsx
 // Guided first-time user setup flow - in-context actions, no navigation
+//
+// 🔒 PROTECTED SUBSYSTEM — Locked Viral Loop + Verification Gate
+//
+// The onboarding test send MUST include `isOnboardingTestSend: true` in the
+// api.sendGreeting payload so the backend exempts it from the verification gate.
+// Any change MUST:
+//   1. Declare affected locked milestones (commit SHAs)
+//   2. Declare potential regressions
+//   3. Pass scripts/verify-creditclaim-viral-loop-lock.mjs
+//   4. Fail build if guard violates
+// Last reviewed: 2026-05-27 (Stage 3 implementation)
 
 import { useState, useRef, useEffect } from 'react';
 import { X, Mic, Square, Play, Pause, Upload, Image as ImageIcon, Check, ArrowRight, Send, Loader, Camera } from 'lucide-react';

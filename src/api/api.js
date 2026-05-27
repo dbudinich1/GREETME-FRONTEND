@@ -427,6 +427,13 @@ class ApiService {
   }
 
   // --------------------
+  // Email Verification (Protected Subsystem — checkpoint flow)
+  // --------------------
+  resendVerificationEmail() {
+    return this.request("/api/auth/resend-verification", { method: "POST" });
+  }
+
+  // --------------------
   // QR Cash™ Gifts
   // --------------------
   chargeGift(payload) {

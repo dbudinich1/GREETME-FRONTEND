@@ -14,6 +14,7 @@ const ERROR_MESSAGES = {
   SUBSCRIPTION_EXPIRED: 'Your Greet-Me\u2122 subscription has expired. Renew to continue.',
   INVALID_CREDENTIALS: 'The email or password you entered is incorrect. Please try again.',
   EMAIL_EXISTS: 'This email already has an account. Try logging in instead.',
+  EMAIL_NOT_VERIFIED: 'Please verify your email before delivering your greeting.',
   FORBIDDEN: "You don't have access to this feature.",
   SERVICE_UNAVAILABLE: 'Payments are temporarily unavailable. Please try again later.',
   SERVER_ERROR: "Something unexpected occurred. We're already on it \u2014 please try again shortly.",
