@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "vite",
-    "prebuild": "npm run validate:conformity",
+    "prebuild": "npm run validate:conformity && npm run verify:viral-loop-lock",
+    "verify:viral-loop-lock": "node scripts/verify-creditclaim-viral-loop-lock.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",

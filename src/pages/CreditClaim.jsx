@@ -513,7 +513,10 @@ export default function CreditClaim() {
               This {displayAmount} credit has already been applied to a purchase.
             </p>
 
-            {credit?.sourceJobId && !credit?.isOnboardingTestSend && !isAuthenticated && (
+            {/* LOCKED VIRAL LOOP: do not gate thank-you CTA on isAuthenticated alone.
+                New recipients become authenticated during claim. Sender-viewing-own
+                early-returns at the isSenderViewingOwnCredit check above. */}
+            {credit?.sourceJobId && !credit?.isOnboardingTestSend && (
               <button
                 onClick={() => navigate(`/thank-you?jobId=${credit.sourceJobId}`)}
                 style={{ ...styles.cta, marginBottom: '0.75rem' }}
@@ -530,7 +533,10 @@ export default function CreditClaim() {
           </>
         ) : claimed ? (
           <>
-            {credit?.sourceJobId && !credit?.isOnboardingTestSend && !isAuthenticated ? (
+            {/* LOCKED VIRAL LOOP: do not gate thank-you CTA on isAuthenticated alone.
+                New recipients become authenticated during claim. Sender-viewing-own
+                early-returns at the isSenderViewingOwnCredit check above. */}
+            {credit?.sourceJobId && !credit?.isOnboardingTestSend ? (
               <>
                 <h1 style={styles.headline}>You&rsquo;re all set</h1>
                 <p style={styles.body}>
@@ -600,8 +606,11 @@ export default function CreditClaim() {
               <p style={styles.body}>Completing your claim&hellip;</p>
             ) : isAuthenticated ? (
               <>
+                {/* LOCKED VIRAL LOOP: restored pre-regression copy + CTA. The April-16
+                    locked-state milestone showed "Say thank you, or continue when you're
+                    ready" + "Say Thank You" button here. d056822c (May 1) broke this. */}
                 <p style={styles.body}>
-                  Your gift is ready. Continue when you&rsquo;re ready.
+                  Your gift is ready. Say thank you, or continue when you&rsquo;re ready.
                 </p>
                 <button onClick={handleClaim} disabled={claiming} style={{
                   ...styles.cta,
@@ -611,7 +620,7 @@ export default function CreditClaim() {
                   cursor: claiming ? 'default' : 'pointer',
                   marginBottom: '0.75rem',
                 }}>
-                  {claiming ? 'Claiming...' : 'Claim & Continue'}
+                  {claiming ? 'Claiming...' : 'Say Thank You'}
                 </button>
                 <p style={styles.terms}>
                   {accountState.isSubscribed
