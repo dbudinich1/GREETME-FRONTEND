@@ -23,6 +23,7 @@ import GiftConfirmationModal from '../components/GiftConfirmationModal';
 import PreSendReviewModal from '../components/PreSendReviewModal';
 import EmailVerificationModal from '../components/EmailVerificationModal';
 import VoiceMissingModal from '../components/VoiceMissingModal';
+import '../styles/ceremony.css';
 import AttachmentIndicator from '../components/AttachmentIndicator';
 import HeartsBurst from '../components/HeartsBurst';
 import cartService from '../services/cartService';
@@ -662,7 +663,8 @@ export default function SendGreeting() {
         setSending(false);
         setCompletedJobId(jobId);
         setShowReadyBeat(true);
-        setTimeout(() => setShowReadyBeat(false), 400);
+        // 800ms: a breath, not a flash (Stage B premium completion-state spec).
+        setTimeout(() => setShowReadyBeat(false), 800);
         setTimeout(() => setHeartsBurstKey((k) => k + 1), 150);
         setJobId(null);
         // Mark draft as sent so it won't be restored
@@ -1167,44 +1169,147 @@ if (typeof window !== "undefined") {
     return <LoadingSpinner text="Loading contacts..." />;
   }
 
-  // Ready Beat — brief 400ms intermediate state before success card lands
+  // Ready Beat — 800ms breath between processing and success.
+  // Parchment card, outlined-feel seal mark (reduced opacity), Georgia heading.
+  // Premium completion-state spec: ceremony over SaaS.
   if (showReadyBeat) {
     return (
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center transition-opacity duration-300">
-          <CheckCircle className="mx-auto text-green-500 mb-4" size={64} />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Your moment is ready</h2>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '40px 20px',
+        }}
+      >
+        <div
+          className="ceremony-card-enter"
+          style={{
+            width: '100%',
+            maxWidth: '480px',
+            backgroundColor: 'var(--ceremony-parchment)',
+            borderRadius: '14px',
+            padding: '32px 28px',
+            boxShadow: 'var(--ceremony-shadow-card)',
+            textAlign: 'center',
+            boxSizing: 'border-box',
+          }}
+        >
+          <img
+            src="/assets/email/red-wax-seal.jpeg"
+            alt=""
+            aria-hidden="true"
+            className="ceremony-seal-enter"
+            style={{
+              display: 'block',
+              width: '64px',
+              height: '64px',
+              margin: '0 auto 22px',
+              borderRadius: '50%',
+              opacity: 0.78,
+              objectFit: 'cover',
+            }}
+          />
+          <h2 className="ceremony-heading">Your moment is ready</h2>
         </div>
       </div>
     );
   }
 
-  // Success State
+  // Success State — parchment card, full wax-seal mark, Georgia heading.
+  // HeartsBurst (warm radial glow) preserved as-is; renders behind the card.
+  // Premium completion-state spec: ceremony over SaaS, restraint over confetti.
   if (jobStatus === 'completed') {
     return (
-      <div className="max-w-2xl mx-auto">
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '40px 20px',
+          position: 'relative',
+        }}
+      >
         <HeartsBurst triggerKey={heartsBurstKey} />
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-          <CheckCircle className="mx-auto text-green-500 mb-4" size={64} />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Greet-Me has been sent</h2>
-          <p className="text-gray-600 mb-1">
+        <div
+          className="ceremony-card-enter"
+          style={{
+            width: '100%',
+            maxWidth: '480px',
+            backgroundColor: 'var(--ceremony-parchment)',
+            borderRadius: '14px',
+            padding: '32px 28px',
+            boxShadow: 'var(--ceremony-shadow-card)',
+            textAlign: 'center',
+            boxSizing: 'border-box',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          <img
+            src="/assets/email/red-wax-seal.jpeg"
+            alt=""
+            aria-hidden="true"
+            className="ceremony-seal-enter"
+            style={{
+              display: 'block',
+              width: '72px',
+              height: '72px',
+              margin: '0 auto 22px',
+              borderRadius: '50%',
+              objectFit: 'cover',
+            }}
+          />
+          <h2 className="ceremony-heading">Your Greet-Me has been sent</h2>
+          <p
+            className="ceremony-body ceremony-fade-in"
+            style={{ marginTop: '12px' }}
+          >
             That Greet-Me is on its way.
           </p>
-          <p className="text-gray-400 mb-8" style={{ fontSize: '0.875rem', fontStyle: 'italic' }}>
-            Personal. Instant. Unforgettable.
-          </p>
-          <div className="flex flex-col items-center space-y-3">
+          <div
+            className="ceremony-fade-in-late"
+            style={{
+              marginTop: '28px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+            }}
+          >
             {completedJobId && (
               <button
+                type="button"
                 onClick={() => navigate(`/g/${completedJobId}`)}
-                className="px-6 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 font-medium w-64"
+                style={{
+                  width: '100%',
+                  height: '48px',
+                  borderRadius: '14px',
+                  border: 'none',
+                  backgroundColor: 'var(--ceremony-bronze)',
+                  color: '#ffffff',
+                  fontFamily: 'Georgia, serif',
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'background-color 0.18s ease',
+                }}
               >
                 View Greet-Me
               </button>
             )}
             <button
+              type="button"
               onClick={() => navigate('/dashboard')}
-              className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium w-64"
+              style={{
+                width: '100%',
+                height: '48px',
+                borderRadius: '14px',
+                border: '1px solid var(--ceremony-bronze)',
+                backgroundColor: 'transparent',
+                color: 'var(--ceremony-bronze)',
+                fontFamily: 'Georgia, serif',
+                fontSize: '16px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
             >
               Go to Dashboard
             </button>
