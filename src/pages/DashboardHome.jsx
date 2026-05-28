@@ -15,6 +15,7 @@ import OnboardingCoach from '../components/OnboardingCoach';
 import WarmReentryWelcome from '../components/WarmReentryWelcome';
 import { useAccountState } from '../hooks/useAccountState';
 import { shouldShowOnboarding, shouldShowWarmReentry } from '../utils/accountState';
+import { getHoverHandlers } from '../utils/hoverable';
 import QRCode from 'qrcode';
 
 export default function DashboardHome() {
@@ -524,14 +525,16 @@ export default function DashboardHome() {
               boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
               fontFamily: 'inherit'
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
-            }}
+            {...getHoverHandlers({
+              onEnter: (e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+              },
+              onLeave: (e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+              },
+            })}
             title="Access the Greet-Me Hero™ Program"
           >
             🥇 Greet-Me Hero™
@@ -565,14 +568,16 @@ export default function DashboardHome() {
             flex: isNarrow ? 1 : 'none',
             whiteSpace: 'nowrap'
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#5568d3';
-            e.currentTarget.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#667eea';
-            e.currentTarget.style.boxShadow = '0 2px 4px rgba(102, 126, 234, 0.2)';
-          }}
+          {...getHoverHandlers({
+            onEnter: (e) => {
+              e.currentTarget.style.background = '#5568d3';
+              e.currentTarget.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.3)';
+            },
+            onLeave: (e) => {
+              e.currentTarget.style.background = '#667eea';
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(102, 126, 234, 0.2)';
+            },
+          })}
         >
           <Plus size={isNarrow ? 16 : 18} style={{ flexShrink: 0 }} />
           Add Recipient
@@ -597,14 +602,16 @@ export default function DashboardHome() {
             fontFamily: 'inherit',
             flex: isNarrow ? 1 : 'none'
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#16a34a';
-            e.currentTarget.style.boxShadow = '0 4px 8px rgba(34, 197, 94, 0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#22c55e';
-            e.currentTarget.style.boxShadow = '0 2px 4px rgba(34, 197, 94, 0.2)';
-          }}
+          {...getHoverHandlers({
+            onEnter: (e) => {
+              e.currentTarget.style.background = '#16a34a';
+              e.currentTarget.style.boxShadow = '0 4px 8px rgba(34, 197, 94, 0.3)';
+            },
+            onLeave: (e) => {
+              e.currentTarget.style.background = '#22c55e';
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(34, 197, 94, 0.2)';
+            },
+          })}
         >
           <Send size={isNarrow ? 14 : 16} style={{ flexShrink: 0 }} />
           Send Greet-Me
@@ -944,14 +951,16 @@ export default function DashboardHome() {
                   transition: 'all 0.2s',
                   fontFamily: 'inherit'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#667eea';
-                  e.currentTarget.style.color = 'white';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = '#667eea';
-                }}
+                {...getHoverHandlers({
+                  onEnter: (e) => {
+                    e.currentTarget.style.background = '#667eea';
+                    e.currentTarget.style.color = 'white';
+                  },
+                  onLeave: (e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = '#667eea';
+                  },
+                })}
                 title="Open Media Library"
               >
                 <ImageIcon size={14} />
@@ -1064,16 +1073,18 @@ export default function DashboardHome() {
                     justifyContent: 'center',
                     gap: '0.5rem'
                   }}
-                  onMouseEnter={(e) => {
-                    if (!uploadingVoice) {
-                      e.currentTarget.style.background = isRecording ? '#b91c1c' : '#dc2626';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!uploadingVoice) {
-                      e.currentTarget.style.background = isRecording ? '#dc2626' : '#ef4444';
-                    }
-                  }}
+                  {...getHoverHandlers({
+                    onEnter: (e) => {
+                      if (!uploadingVoice) {
+                        e.currentTarget.style.background = isRecording ? '#b91c1c' : '#dc2626';
+                      }
+                    },
+                    onLeave: (e) => {
+                      if (!uploadingVoice) {
+                        e.currentTarget.style.background = isRecording ? '#dc2626' : '#ef4444';
+                      }
+                    },
+                  })}
                 >
                   {isRecording ? <Square size={16} /> : <Mic size={16} />}
                   {isRecording ? 'Stop' : 'Record'}
@@ -1100,14 +1111,16 @@ export default function DashboardHome() {
                     justifyContent: 'center',
                     gap: '0.5rem'
                   }}
-                  onMouseEnter={(e) => {
-                    if (voiceRecorded && !isRecording) {
-                      e.currentTarget.style.background = '#2563eb';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#3b82f6';
-                  }}
+                  {...getHoverHandlers({
+                    onEnter: (e) => {
+                      if (voiceRecorded && !isRecording) {
+                        e.currentTarget.style.background = '#2563eb';
+                      }
+                    },
+                    onLeave: (e) => {
+                      e.currentTarget.style.background = '#3b82f6';
+                    },
+                  })}
                 >
                   {isPlayingVoice ? <Pause size={16} /> : <Play size={16} />}
                   Play
@@ -1136,16 +1149,18 @@ export default function DashboardHome() {
                   justifyContent: 'center',
                   gap: '0.5rem'
                 }}
-                onMouseEnter={(e) => {
-                  if (voiceRecorded && !uploadingVoice) {
-                    e.currentTarget.style.background = '#16a34a';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (voiceRecorded && !uploadingVoice) {
-                    e.currentTarget.style.background = '#22c55e';
-                  }
-                }}
+                {...getHoverHandlers({
+                  onEnter: (e) => {
+                    if (voiceRecorded && !uploadingVoice) {
+                      e.currentTarget.style.background = '#16a34a';
+                    }
+                  },
+                  onLeave: (e) => {
+                    if (voiceRecorded && !uploadingVoice) {
+                      e.currentTarget.style.background = '#22c55e';
+                    }
+                  },
+                })}
               >
                 <CheckCircle size={16} />
                 Save & Done
@@ -1220,12 +1235,14 @@ export default function DashboardHome() {
                     justifyContent: 'center',
                     gap: '0.5rem'
                   }}
-                  onMouseEnter={(e) => {
-                    if (!uploadingPhoto) e.currentTarget.style.background = '#5568d3';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!uploadingPhoto) e.currentTarget.style.background = '#667eea';
-                  }}
+                  {...getHoverHandlers({
+                    onEnter: (e) => {
+                      if (!uploadingPhoto) e.currentTarget.style.background = '#5568d3';
+                    },
+                    onLeave: (e) => {
+                      if (!uploadingPhoto) e.currentTarget.style.background = '#667eea';
+                    },
+                  })}
                 >
                   <Upload size={16} />
                   {uploadingPhoto ? 'Uploading...' : 'Add Photo'}
@@ -1250,14 +1267,16 @@ export default function DashboardHome() {
                     justifyContent: 'center',
                     gap: '0.5rem'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#667eea';
-                    e.currentTarget.style.color = 'white';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'white';
-                    e.currentTarget.style.color = '#667eea';
-                  }}
+                  {...getHoverHandlers({
+                    onEnter: (e) => {
+                      e.currentTarget.style.background = '#667eea';
+                      e.currentTarget.style.color = 'white';
+                    },
+                    onLeave: (e) => {
+                      e.currentTarget.style.background = 'white';
+                      e.currentTarget.style.color = '#667eea';
+                    },
+                  })}
                 >
                   <ImageIcon size={16} />
                   Select from Media Library
@@ -1284,16 +1303,18 @@ export default function DashboardHome() {
                     justifyContent: 'center',
                     gap: '0.5rem'
                   }}
-                  onMouseEnter={(e) => {
-                    if (photoUploaded && !uploadingPhoto) {
-                      e.currentTarget.style.background = '#16a34a';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (photoUploaded && !uploadingPhoto) {
-                      e.currentTarget.style.background = '#22c55e';
-                    }
-                  }}
+                  {...getHoverHandlers({
+                    onEnter: (e) => {
+                      if (photoUploaded && !uploadingPhoto) {
+                        e.currentTarget.style.background = '#16a34a';
+                      }
+                    },
+                    onLeave: (e) => {
+                      if (photoUploaded && !uploadingPhoto) {
+                        e.currentTarget.style.background = '#22c55e';
+                      }
+                    },
+                  })}
                 >
                   <CheckCircle size={16} />
                   Save & Done
@@ -1501,12 +1522,10 @@ export default function DashboardHome() {
                     transition: 'all 0.2s'
                   }}
                   onClick={() => navigate('/dashboard/contacts', { state: { openEditRecipientId: contact.id } })}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--gray-50)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                  }}
+                  {...getHoverHandlers({
+                    onEnter: (e) => { e.currentTarget.style.background = 'var(--gray-50)'; },
+                    onLeave: (e) => { e.currentTarget.style.background = 'transparent'; },
+                  })}
                 >
                   <div style={{ position: 'relative' }}>
                     <div style={{
@@ -1691,12 +1710,10 @@ export default function DashboardHome() {
                       transition: 'all 0.2s'
                     }}
                     onClick={() => navigate('/dashboard/contacts')}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--gray-100)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'var(--gray-50)';
-                    }}
+                    {...getHoverHandlers({
+                      onEnter: (e) => { e.currentTarget.style.background = 'var(--gray-100)'; },
+                      onLeave: (e) => { e.currentTarget.style.background = 'var(--gray-50)'; },
+                    })}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
                       <span style={{ fontSize: '1.5rem' }}>{getOccasionIcon(occasionType)}</span>
@@ -1764,12 +1781,10 @@ export default function DashboardHome() {
                 transition: 'all 0.2s',
                 fontFamily: 'inherit'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#5568d3';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#667eea';
-              }}
+              {...getHoverHandlers({
+                onEnter: (e) => { e.currentTarget.style.background = '#5568d3'; },
+                onLeave: (e) => { e.currentTarget.style.background = '#667eea'; },
+              })}
             >
               <Plus size={16} />
               Add Recipient
@@ -1914,14 +1929,16 @@ export default function DashboardHome() {
           position: 'relative'
         }}
         onClick={() => navigate('/app')}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.05)';
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.boxShadow = 'none';
-        }}
+        {...getHoverHandlers({
+          onEnter: (e) => {
+            e.currentTarget.style.transform = 'scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+          },
+          onLeave: (e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = 'none';
+          },
+        })}
         title="Scan to install Greet-Me mobile app"
         >
           {appQrUrl
@@ -2049,12 +2066,10 @@ export default function DashboardHome() {
                   cursor: 'pointer',
                   transition: 'all 0.2s'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--gray-50)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent';
-                }}
+                {...getHoverHandlers({
+                  onEnter: (e) => { e.currentTarget.style.background = 'var(--gray-50)'; },
+                  onLeave: (e) => { e.currentTarget.style.background = 'transparent'; },
+                })}
               >
                 {!isNarrow && (
                 <div style={{ textAlign: 'center' }}>
@@ -2283,12 +2298,10 @@ export default function DashboardHome() {
                   fontWeight: 600,
                   fontFamily: 'inherit'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
+                {...getHoverHandlers({
+                  onEnter: (e) => { e.currentTarget.style.transform = 'scale(1.05)'; },
+                  onLeave: (e) => { e.currentTarget.style.transform = 'scale(1)'; },
+                })}
                 title="Close"
               >
                 <X size={16} strokeWidth={3} />
@@ -2480,14 +2493,16 @@ export default function DashboardHome() {
                   justifyContent: 'center',
                   gap: '0.5rem'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(251, 191, 36, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.3)';
-                }}
+                {...getHoverHandlers({
+                  onEnter: (e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(251, 191, 36, 0.4)';
+                  },
+                  onLeave: (e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.3)';
+                  },
+                })}
               >
                 <DollarSign size={20} />
                 Send QR Cash Now
@@ -2551,12 +2566,10 @@ export default function DashboardHome() {
                 transition: 'all 0.2s',
                 zIndex: 10
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              }}
+              {...getHoverHandlers({
+                onEnter: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'; },
+                onLeave: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'; },
+              })}
             >
               <span style={{ fontSize: '24px', fontWeight: 'bold', color: 'white', lineHeight: 1 }}>×</span>
             </button>

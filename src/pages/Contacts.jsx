@@ -11,6 +11,7 @@ import Alert from '../components/Alert';
 import { getOccasionIcon, getOccasionLabel } from '../utils/helpers';
 import { autoAddRecipientPhotosToLibrary } from '../utils/mediaLibrary';
 import { getErrorMessage } from '../utils/errorMessages';
+import { getHoverHandlers } from '../utils/hoverable';
 
 // Session storage key (must match ContactForm.jsx)
 const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
@@ -304,14 +305,16 @@ export default function Recipients() {
               boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)',
               fontFamily: 'inherit'
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#16a34a';
-              e.currentTarget.style.boxShadow = '0 4px 8px rgba(34, 197, 94, 0.3)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#22c55e';
-              e.currentTarget.style.boxShadow = '0 2px 4px rgba(34, 197, 94, 0.2)';
-            }}
+            {...getHoverHandlers({
+              onEnter: (e) => {
+                e.currentTarget.style.background = '#16a34a';
+                e.currentTarget.style.boxShadow = '0 4px 8px rgba(34, 197, 94, 0.3)';
+              },
+              onLeave: (e) => {
+                e.currentTarget.style.background = '#22c55e';
+                e.currentTarget.style.boxShadow = '0 2px 4px rgba(34, 197, 94, 0.2)';
+              },
+            })}
           >
             <Send size={isMobile ? 12 : 14} style={{ flexShrink: 0 }} />
             Send Greet-Me
@@ -390,14 +393,16 @@ export default function Recipients() {
               whiteSpace: 'nowrap',
               flexShrink: 0
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-            }}
+            {...getHoverHandlers({
+              onEnter: (e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+              },
+              onLeave: (e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+              },
+            })}
           >
             Add Recipient
           </button>
@@ -421,8 +426,10 @@ export default function Recipients() {
               whiteSpace: 'nowrap',
               flexShrink: 0
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+            {...getHoverHandlers({
+              onEnter: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'; },
+              onLeave: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'; },
+            })}
           >
             Import Contacts
           </button>
@@ -603,14 +610,16 @@ export default function Recipients() {
                   transition: 'all 0.2s',
                   gap: isMobile ? '12px' : '16px'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
-                  e.currentTarget.style.borderColor = '#667eea';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = 'none';
-                  e.currentTarget.style.borderColor = 'var(--border)';
-                }}
+                {...getHoverHandlers({
+                  onEnter: (e) => {
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
+                    e.currentTarget.style.borderColor = '#667eea';
+                  },
+                  onLeave: (e) => {
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.borderColor = 'var(--border)';
+                  },
+                })}
               >
                 {/* Left: Avatar + Name + Relationship */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: isMobile ? 'none' : '0 0 200px' }}>
@@ -748,14 +757,16 @@ export default function Recipients() {
                       transition: 'all 0.2s',
                       fontFamily: 'inherit'
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#16a34a';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#22c55e';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
+                    {...getHoverHandlers({
+                      onEnter: (e) => {
+                        e.currentTarget.style.background = '#16a34a';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      },
+                      onLeave: (e) => {
+                        e.currentTarget.style.background = '#22c55e';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      },
+                    })}
                   >
                     <Send size={14} />
                     Send
@@ -777,14 +788,16 @@ export default function Recipients() {
                       transition: 'all 0.2s',
                       fontFamily: 'inherit'
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.4)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
+                    {...getHoverHandlers({
+                      onEnter: (e) => {
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.4)';
+                      },
+                      onLeave: (e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      },
+                    })}
                   >
                     <Edit size={14} />
                     Edit
@@ -804,14 +817,16 @@ export default function Recipients() {
                       cursor: 'pointer',
                       transition: 'all 0.2s'
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#fee2e2';
-                      e.currentTarget.style.color = '#dc2626';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'var(--gray-100)';
-                      e.currentTarget.style.color = 'var(--text-secondary)';
-                    }}
+                    {...getHoverHandlers({
+                      onEnter: (e) => {
+                        e.currentTarget.style.background = '#fee2e2';
+                        e.currentTarget.style.color = '#dc2626';
+                      },
+                      onLeave: (e) => {
+                        e.currentTarget.style.background = 'var(--gray-100)';
+                        e.currentTarget.style.color = 'var(--text-secondary)';
+                      },
+                    })}
                     title="Delete"
                   >
                     <Trash2 size={16} />
@@ -919,14 +934,16 @@ export default function Recipients() {
                   transition: 'all 0.2s',
                   gap: isMobile ? '12px' : '16px'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
-                  e.currentTarget.style.borderColor = '#667eea';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = 'none';
-                  e.currentTarget.style.borderColor = 'var(--border)';
-                }}
+                {...getHoverHandlers({
+                  onEnter: (e) => {
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
+                    e.currentTarget.style.borderColor = '#667eea';
+                  },
+                  onLeave: (e) => {
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.borderColor = 'var(--border)';
+                  },
+                })}
               >
                 {/* Left: Occasion icon + label */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: isMobile ? 'none' : '0 0 180px' }}>

@@ -21,6 +21,7 @@
 // Last reviewed: 2026-05-28 (Stage 3 implementation, Tier 2 warm re-entry).
 
 import { useNavigate } from 'react-router-dom';
+import { getHoverHandlers } from '../utils/hoverable';
 
 export default function WarmReentryWelcome({ isNarrow = false }) {
   const navigate = useNavigate();
@@ -76,18 +77,12 @@ export default function WarmReentryWelcome({ isNarrow = false }) {
           width: isNarrow ? '100%' : 'auto',
           transition: 'background 0.2s',
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = '#5a3022';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = '#6b3a2a';
-        }}
-        onMouseDown={(e) => {
-          e.currentTarget.style.background = '#4a2618';
-        }}
-        onMouseUp={(e) => {
-          e.currentTarget.style.background = '#5a3022';
-        }}
+        {...getHoverHandlers({
+          onEnter: (e) => { e.currentTarget.style.background = '#5a3022'; },
+          onLeave: (e) => { e.currentTarget.style.background = '#6b3a2a'; },
+          onDown:  (e) => { e.currentTarget.style.background = '#4a2618'; },
+          onUp:    (e) => { e.currentTarget.style.background = '#5a3022'; },
+        })}
       >
         Add your first recipient &rarr;
       </button>

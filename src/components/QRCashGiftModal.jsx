@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { X, Copy, Download, QrCode, ChevronDown, Bell } from 'lucide-react';
 import QRCode from 'qrcode';
 import GreetMeLogo from './GreetMeLogo';
+import { getHoverHandlers } from '../utils/hoverable';
 
 export default function QRCashGiftModal({ isOpen, onClose }) {
   const DEFAULT_GREETING = 'Just a little something for you — hope it makes your day a bit brighter.';
@@ -247,12 +248,10 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
               fontSize: '0.875rem',
               fontWeight: 600
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-            }}
+            {...getHoverHandlers({
+              onEnter: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'; },
+              onLeave: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'; },
+            })}
             title="Close"
           >
             <X size={16} />
@@ -297,16 +296,18 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                         transition: 'all 0.2s',
                         fontFamily: 'inherit'
                       }}
-                      onMouseEnter={(e) => {
-                        if (amount !== preset) {
-                          e.currentTarget.style.borderColor = '#f59e0b';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (amount !== preset) {
-                          e.currentTarget.style.borderColor = 'var(--border)';
-                        }
-                      }}
+                      {...getHoverHandlers({
+                        onEnter: (e) => {
+                          if (amount !== preset) {
+                            e.currentTarget.style.borderColor = '#f59e0b';
+                          }
+                        },
+                        onLeave: (e) => {
+                          if (amount !== preset) {
+                            e.currentTarget.style.borderColor = 'var(--border)';
+                          }
+                        },
+                      })}
                     >
                       ${preset}
                     </button>
@@ -325,16 +326,18 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                       transition: 'all 0.2s',
                       fontFamily: 'inherit'
                     }}
-                    onMouseEnter={(e) => {
-                      if (amount !== 'custom') {
-                        e.currentTarget.style.borderColor = '#f59e0b';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (amount !== 'custom') {
-                        e.currentTarget.style.borderColor = 'var(--border)';
-                      }
-                    }}
+                    {...getHoverHandlers({
+                      onEnter: (e) => {
+                        if (amount !== 'custom') {
+                          e.currentTarget.style.borderColor = '#f59e0b';
+                        }
+                      },
+                      onLeave: (e) => {
+                        if (amount !== 'custom') {
+                          e.currentTarget.style.borderColor = 'var(--border)';
+                        }
+                      },
+                    })}
                   >
                     Custom
                   </button>
@@ -464,12 +467,10 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                           transition: 'all 0.2s',
                           fontFamily: 'inherit'
                         }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'var(--gray-50)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent';
-                        }}
+                        {...getHoverHandlers({
+                          onEnter: (e) => { e.currentTarget.style.background = 'var(--gray-50)'; },
+                          onLeave: (e) => { e.currentTarget.style.background = 'transparent'; },
+                        })}
                       >
                         <div style={{
                           fontSize: '0.875rem',
@@ -635,16 +636,18 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                     transition: 'all 0.2s',
                     background: deliveryMethod === 'auto' ? 'rgba(251, 191, 36, 0.05)' : 'transparent'
                   }}
-                  onMouseEnter={(e) => {
-                    if (deliveryMethod !== 'auto') {
-                      e.currentTarget.style.borderColor = '#f59e0b';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (deliveryMethod !== 'auto') {
-                      e.currentTarget.style.borderColor = 'var(--border)';
-                    }
-                  }}
+                  {...getHoverHandlers({
+                    onEnter: (e) => {
+                      if (deliveryMethod !== 'auto') {
+                        e.currentTarget.style.borderColor = '#f59e0b';
+                      }
+                    },
+                    onLeave: (e) => {
+                      if (deliveryMethod !== 'auto') {
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                      }
+                    },
+                  })}
                 >
                   <div style={{ display: 'flex', alignItems: 'start', gap: '0.75rem' }}>
                     <input
@@ -691,16 +694,18 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                     transition: 'all 0.2s',
                     background: deliveryMethod === 'manual' ? 'rgba(251, 191, 36, 0.05)' : 'transparent'
                   }}
-                  onMouseEnter={(e) => {
-                    if (deliveryMethod !== 'manual') {
-                      e.currentTarget.style.borderColor = '#f59e0b';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (deliveryMethod !== 'manual') {
-                      e.currentTarget.style.borderColor = 'var(--border)';
-                    }
-                  }}
+                  {...getHoverHandlers({
+                    onEnter: (e) => {
+                      if (deliveryMethod !== 'manual') {
+                        e.currentTarget.style.borderColor = '#f59e0b';
+                      }
+                    },
+                    onLeave: (e) => {
+                      if (deliveryMethod !== 'manual') {
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                      }
+                    },
+                  })}
                 >
                   <div style={{ display: 'flex', alignItems: 'start', gap: '0.75rem' }}>
                     <input
@@ -783,18 +788,20 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                   gap: '0.5rem',
                   opacity: (!recipientName.trim() || !recipientEmail.trim()) ? 0.7 : 1
                 }}
-                onMouseEnter={(e) => {
-                  if (recipientName.trim() && recipientEmail.trim()) {
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (recipientName.trim() && recipientEmail.trim()) {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(251, 191, 36, 0.3)';
-                  }
-                }}
+                {...getHoverHandlers({
+                  onEnter: (e) => {
+                    if (recipientName.trim() && recipientEmail.trim()) {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
+                    }
+                  },
+                  onLeave: (e) => {
+                    if (recipientName.trim() && recipientEmail.trim()) {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(251, 191, 36, 0.3)';
+                    }
+                  },
+                })}
               >
                 <QrCode size={18} />
                 Generate QR Code
@@ -900,14 +907,16 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                   boxShadow: '0 2px 8px rgba(251, 191, 36, 0.3)',
                   fontFamily: 'inherit'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(251, 191, 36, 0.3)';
-                }}
+                {...getHoverHandlers({
+                  onEnter: (e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
+                  },
+                  onLeave: (e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(251, 191, 36, 0.3)';
+                  },
+                })}
               >
                 Done
               </button>
@@ -1017,14 +1026,16 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                     gap: '0.5rem',
                     boxShadow: '0 2px 8px rgba(251, 191, 36, 0.3)'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(251, 191, 36, 0.3)';
-                  }}
+                  {...getHoverHandlers({
+                    onEnter: (e) => {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
+                    },
+                    onLeave: (e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(251, 191, 36, 0.3)';
+                    },
+                  })}
                 >
                   <span style={{ fontSize: '1rem' }}>🖨️</span>
                   Print QR Code
@@ -1048,14 +1059,16 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                     gap: '0.5rem',
                     boxShadow: '0 2px 8px rgba(251, 191, 36, 0.3)'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(251, 191, 36, 0.3)';
-                  }}
+                  {...getHoverHandlers({
+                    onEnter: (e) => {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.4)';
+                    },
+                    onLeave: (e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(251, 191, 36, 0.3)';
+                    },
+                  })}
                 >
                   <Download size={16} />
                   Download QR Code
@@ -1082,18 +1095,20 @@ export default function QRCashGiftModal({ isOpen, onClose }) {
                   justifyContent: 'center',
                   gap: '0.5rem'
                 }}
-                onMouseEnter={(e) => {
-                  if (!copied) {
-                    e.currentTarget.style.background = '#f59e0b';
-                    e.currentTarget.style.color = 'white';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!copied) {
-                    e.currentTarget.style.background = 'white';
-                    e.currentTarget.style.color = '#f59e0b';
-                  }
-                }}
+                {...getHoverHandlers({
+                  onEnter: (e) => {
+                    if (!copied) {
+                      e.currentTarget.style.background = '#f59e0b';
+                      e.currentTarget.style.color = 'white';
+                    }
+                  },
+                  onLeave: (e) => {
+                    if (!copied) {
+                      e.currentTarget.style.background = 'white';
+                      e.currentTarget.style.color = '#f59e0b';
+                    }
+                  },
+                })}
               >
                 <Copy size={16} />
                 {copied ? 'Copied!' : 'Copy Link'}

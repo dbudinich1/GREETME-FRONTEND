@@ -1,5 +1,6 @@
 // src/components/AddToCartModal.jsx
 import { Check, ShoppingCart, ArrowRight, ArrowLeft } from 'lucide-react';
+import { getHoverHandlers } from '../utils/hoverable';
 
 export default function AddToCartModal({
   isOpen,
@@ -119,14 +120,16 @@ export default function AddToCartModal({
                     alignItems: 'center',
                     gap: '0.5rem'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#667eea';
-                    e.currentTarget.style.background = '#f5f3ff';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#e5e7eb';
-                    e.currentTarget.style.background = 'white';
-                  }}
+                  {...getHoverHandlers({
+                    onEnter: (e) => {
+                      e.currentTarget.style.borderColor = '#667eea';
+                      e.currentTarget.style.background = '#f5f3ff';
+                    },
+                    onLeave: (e) => {
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                      e.currentTarget.style.background = 'white';
+                    },
+                  })}
                 >
                   <span>{v.label}</span>
                   <span style={{ color: '#667eea', fontWeight: 700 }}>
@@ -233,12 +236,10 @@ export default function AddToCartModal({
                   transition: 'all 0.2s',
                   fontFamily: 'inherit'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#f5f3ff';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'white';
-                }}
+                {...getHoverHandlers({
+                  onEnter: (e) => { e.currentTarget.style.background = '#f5f3ff'; },
+                  onLeave: (e) => { e.currentTarget.style.background = 'white'; },
+                })}
               >
                 <ShoppingCart size={18} />
                 Continue Shopping
@@ -266,14 +267,16 @@ export default function AddToCartModal({
                     boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
                     fontFamily: 'inherit'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-                  }}
+                  {...getHoverHandlers({
+                    onEnter: (e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
+                    },
+                    onLeave: (e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                    },
+                  })}
                 >
                   Go to Checkout
                   <ArrowRight size={18} />
@@ -301,12 +304,10 @@ export default function AddToCartModal({
                     transition: 'all 0.2s',
                     fontFamily: 'inherit'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#e5e7eb';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#f3f4f6';
-                  }}
+                  {...getHoverHandlers({
+                    onEnter: (e) => { e.currentTarget.style.background = '#e5e7eb'; },
+                    onLeave: (e) => { e.currentTarget.style.background = '#f3f4f6'; },
+                  })}
                 >
                   <ArrowLeft size={18} />
                   {returnToLabel}
