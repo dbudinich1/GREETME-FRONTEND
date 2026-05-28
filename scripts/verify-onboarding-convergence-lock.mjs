@@ -53,6 +53,7 @@ const authContextPath = path.join(__dirname, "..", "src", "context", "AuthContex
 const tyfPath = path.join(__dirname, "..", "src", "pages", "ThankYouFlow.jsx");
 const dashboardHomePath = path.join(__dirname, "..", "src", "pages", "DashboardHome.jsx");
 const warmReentryPath = path.join(__dirname, "..", "src", "components", "WarmReentryWelcome.jsx");
+const guidedSetupFlowPath = path.join(__dirname, "..", "src", "components", "GuidedSetupFlow.jsx");
 const backendIndexPath = path.join(__dirname, "..", "..", "BACKEND", "index.js");
 
 function readOrDie(p) {
@@ -77,6 +78,7 @@ const authContextSrc = readOrDie(authContextPath);
 const tyfSrc = readOrDie(tyfPath);
 const dashboardHomeSrc = readOrDie(dashboardHomePath);
 const warmReentrySrc = readOrDie(warmReentryPath);
+const guidedSetupFlowSrc = readOrDie(guidedSetupFlowPath);
 const backendIndexSrc = readOrAdvisory(backendIndexPath);
 
 const checks = [
@@ -169,6 +171,19 @@ const checks = [
     test: () =>
       /export\s+default\s+function\s+WarmReentryWelcome\b/.test(warmReentrySrc) &&
       /\/dashboard\/contacts/.test(warmReentrySrc),
+  },
+
+  // --- GuidedSetupFlow.jsx — Convergence Part 2 suppression ---
+  {
+    file: "GuidedSetupFlow.jsx",
+    required: true,
+    name: "shouldShowGuidedSetupForUser checks accountState.isOnboardingComplete (Convergence Part 2)",
+    test: () => {
+      const fnMatch = guidedSetupFlowSrc.match(
+        /export\s+function\s+shouldShowGuidedSetupForUser[\s\S]{0,600}?\n\}/
+      );
+      return !!(fnMatch && /isOnboardingComplete/.test(fnMatch[0]));
+    },
   },
 
   // --- BACKEND/index.js (advisory) ---

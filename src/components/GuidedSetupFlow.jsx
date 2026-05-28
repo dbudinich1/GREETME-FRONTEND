@@ -65,6 +65,10 @@ export function shouldShowGuidedSetup() {
 // of shouldShowGuidedSetup() retain the original env+localStorage behavior.
 export function shouldShowGuidedSetupForUser(accountState) {
   if (accountState?.isSubscribed) return false;
+  // Convergence Part 2: a user with Cosmos-authoritative personalization
+  // (voiceId + photoUrl) should never be re-prompted for assets they already
+  // provided via ThankYouFlow inline-register, Profile, or MediaLibrary.
+  if (accountState?.isOnboardingComplete) return false;
   if (accountState?.isRegisteredViaRecipientFlow) return false;
   return shouldShowGuidedSetup();
 }
