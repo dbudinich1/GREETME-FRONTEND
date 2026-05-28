@@ -41,6 +41,9 @@ function computeIsPaidTier(user) {
 // - the GuidedSetupFlow state is dismissed/completed/satisfied
 function computeIsOnboardingComplete(user, isSubscribed) {
   if (isSubscribed) return true;
+  // Convergence: Cosmos-authoritative signal that voice + photo are persisted.
+  // Derived server-side on each /api/profile fetch.
+  if (user?.personalizationComplete === true) return true;
   if (user?.entitlements?.profileComplete === true) return true;
   const tour = safeLocalGet('greetme_onboarding_completed') === 'true';
   const coach = safeLocalGet('greetme_onboarding_v1_completed') === 'true';

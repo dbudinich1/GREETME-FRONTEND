@@ -192,6 +192,9 @@ export default function ThankYouFlow() {
           setRegistering(false);
           return;
         }
+        // Onboarding convergence: mark recipient-origin so dashboard suppresses
+        // sender onboarding overlays after thank-you completion.
+        try { localStorage.setItem('greetme_origin_recipient', 'true'); } catch {}
       }
       // Registered — token is set, user is in context.
       // Claim courtesy credit if routed from QR

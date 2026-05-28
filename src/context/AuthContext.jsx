@@ -36,7 +36,10 @@ export const AuthProvider = ({ children }) => {
       const emailVerified = data.profile?.emailVerified === true;
       const voiceIdStaleAt = data.profile?.voiceIdStaleAt || null;
       const voiceIdStaleReason = data.profile?.voiceIdStaleReason || null;
-      const updatedUser = { ...currentUser, photoUrl, voiceId, voiceUrl, plan, tier, entitlements, subscriptionStatus, paymentLocked, emailVerified, voiceIdStaleAt, voiceIdStaleReason };
+      // Onboarding convergence: Cosmos-authoritative signal that voice +
+      // photo are persisted. Derived server-side on every /api/profile fetch.
+      const personalizationComplete = data.profile?.personalizationComplete === true;
+      const updatedUser = { ...currentUser, photoUrl, voiceId, voiceUrl, plan, tier, entitlements, subscriptionStatus, paymentLocked, emailVerified, voiceIdStaleAt, voiceIdStaleReason, personalizationComplete };
       safeSet('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
     } catch (err) {
