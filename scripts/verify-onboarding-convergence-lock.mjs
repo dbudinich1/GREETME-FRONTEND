@@ -51,6 +51,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const accountStatePath = path.join(__dirname, "..", "src", "utils", "accountState.js");
 const authContextPath = path.join(__dirname, "..", "src", "context", "AuthContext.jsx");
 const tyfPath = path.join(__dirname, "..", "src", "pages", "ThankYouFlow.jsx");
+const dashboardHomePath = path.join(__dirname, "..", "src", "pages", "DashboardHome.jsx");
+const warmReentryPath = path.join(__dirname, "..", "src", "components", "WarmReentryWelcome.jsx");
 const backendIndexPath = path.join(__dirname, "..", "..", "BACKEND", "index.js");
 
 function readOrDie(p) {
@@ -73,6 +75,8 @@ function readOrAdvisory(p) {
 const accountStateSrc = readOrDie(accountStatePath);
 const authContextSrc = readOrDie(authContextPath);
 const tyfSrc = readOrDie(tyfPath);
+const dashboardHomeSrc = readOrDie(dashboardHomePath);
+const warmReentrySrc = readOrDie(warmReentryPath);
 const backendIndexSrc = readOrAdvisory(backendIndexPath);
 
 const checks = [
@@ -117,6 +121,54 @@ const checks = [
       /handleInlineRegister[\s\S]{0,2000}localStorage\.setItem\(\s*['"]greetme_origin_recipient['"]\s*,\s*['"]true['"]\s*\)/.test(
         tyfSrc
       ),
+  },
+
+  // --- accountState.js — warm re-entry gate ---
+  {
+    file: "accountState.js",
+    required: true,
+    name: "Exports shouldShowWarmReentry function (Tier 2 warm dashboard re-entry)",
+    test: () => /export\s+function\s+shouldShowWarmReentry\b/.test(accountStateSrc),
+  },
+  {
+    file: "accountState.js",
+    required: true,
+    name: "shouldShowWarmReentry checks isOnboardingComplete + isRegisteredViaRecipientFlow + contactsCount",
+    test: () => {
+      const fnMatch = accountStateSrc.match(
+        /export\s+function\s+shouldShowWarmReentry[\s\S]{0,1200}?\n\}/
+      );
+      if (!fnMatch) return false;
+      const body = fnMatch[0];
+      return (
+        /isOnboardingComplete/.test(body) &&
+        /isRegisteredViaRecipientFlow/.test(body) &&
+        /contactsCount/.test(body)
+      );
+    },
+  },
+
+  // --- DashboardHome.jsx — warm re-entry mount ---
+  {
+    file: "DashboardHome.jsx",
+    required: true,
+    name: "Imports WarmReentryWelcome, calls shouldShowWarmReentry, mounts <WarmReentryWelcome />",
+    test: () =>
+      /import\s+WarmReentryWelcome\s+from\s+['"]\.\.\/components\/WarmReentryWelcome['"]/.test(
+        dashboardHomeSrc
+      ) &&
+      /shouldShowWarmReentry\(/.test(dashboardHomeSrc) &&
+      /<WarmReentryWelcome\b/.test(dashboardHomeSrc),
+  },
+
+  // --- WarmReentryWelcome.jsx — file exists with expected shape ---
+  {
+    file: "WarmReentryWelcome.jsx",
+    required: true,
+    name: "Default-exports a function component navigating to /dashboard/contacts on CTA",
+    test: () =>
+      /export\s+default\s+function\s+WarmReentryWelcome\b/.test(warmReentrySrc) &&
+      /\/dashboard\/contacts/.test(warmReentrySrc),
   },
 
   // --- BACKEND/index.js (advisory) ---

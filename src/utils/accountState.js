@@ -124,3 +124,21 @@ export function shouldShowOnboarding(state) {
   if (state.isRegisteredViaRecipientFlow) return false;
   return state.isAuthenticated && !state.isOnboardingComplete && !state.isSubscribed;
 }
+
+// Warm "already personalized" dashboard re-entry gate. Mounts WarmReentryWelcome
+// for recipient-origin users who have finished personalization but haven't yet
+// added their own recipients. Structurally disjoint from shouldShowOnboarding —
+// both gates require opposing values of isOnboardingComplete and
+// isRegisteredViaRecipientFlow, so they cannot both return true. contactsCount
+// is null while the dashboard's contacts fetch is in flight; the gate returns
+// false during that window to avoid a flash before settled state.
+export function shouldShowWarmReentry(state, contactsCount) {
+  if (!state) return false;
+  if (!state.isAuthenticated) return false;
+  if (state.isSubscribed) return false;
+  if (!state.isOnboardingComplete) return false;
+  if (!state.isRegisteredViaRecipientFlow) return false;
+  if (typeof contactsCount !== 'number') return false;
+  if (contactsCount > 0) return false;
+  return true;
+}

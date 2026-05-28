@@ -12,8 +12,9 @@ import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
 import { safeGet, safeSet, safeSessionGet, safeSessionSet } from '../utils/safeStorage';
 import OnboardingCoach from '../components/OnboardingCoach';
+import WarmReentryWelcome from '../components/WarmReentryWelcome';
 import { useAccountState } from '../hooks/useAccountState';
-import { shouldShowOnboarding } from '../utils/accountState';
+import { shouldShowOnboarding, shouldShowWarmReentry } from '../utils/accountState';
 import QRCode from 'qrcode';
 
 export default function DashboardHome() {
@@ -42,6 +43,10 @@ export default function DashboardHome() {
 
   // State
   const [contacts, setContacts] = useState([]);
+  // Warm re-entry race mitigation: dashboard's contacts fetch is async, so the
+  // initial [] is ambiguous with a settled-empty result. The warm-reentry gate
+  // is gated on contactsLoaded so it does not flash before fetch resolves.
+  const [contactsLoaded, setContactsLoaded] = useState(false);
   const [upcomingOccasions, setUpcomingOccasions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [voiceRecorded, setVoiceRecorded] = useState(false);
@@ -178,6 +183,10 @@ export default function DashboardHome() {
         if (stored) {
           setContacts(JSON.parse(stored));
         }
+      } finally {
+        // Warm re-entry race mitigation: fetch settled (success or fall-through);
+        // gate may now read contacts.length authoritatively.
+        setContactsLoaded(true);
       }
 
       try {
@@ -612,6 +621,14 @@ export default function DashboardHome() {
           photoDone={photoUploaded || !!user?.photoUrl}
           recipientDone={contacts.length > 0}
         />
+      )}
+
+      {/* Warm "already personalized" dashboard re-entry — Tier 2 follow-on to
+          the convergence repair. Mutually exclusive with OnboardingCoach by
+          gate construction. contactsLoaded sentinel prevents flash before the
+          contacts fetch resolves. */}
+      {shouldShowWarmReentry(accountState, contactsLoaded ? contacts.length : null) && (
+        <WarmReentryWelcome isNarrow={isNarrow} />
       )}
 
       {/* Dashboard Cards - All same height */}
