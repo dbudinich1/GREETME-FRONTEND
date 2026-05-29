@@ -255,6 +255,14 @@ input::placeholder, textarea::placeholder {
   color: var(--gray-400);
 }
 
+@media (max-width: 480px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 /* Badges */
 .badge {
   display: inline-flex;

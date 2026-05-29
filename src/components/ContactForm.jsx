@@ -490,7 +490,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                 padding: '0.625rem 0.875rem',
                 border: errors.name ? '1.5px solid #ef4444' : '1.5px solid var(--border)',
                 borderRadius: 'var(--radius-md)',
-                fontSize: '0.9375rem',
+                fontSize: '1rem',
                 fontFamily: 'inherit',
                 background: 'white',
                 transition: 'border-color 0.2s'
@@ -529,7 +529,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                   padding: '0.625rem 0.875rem 0.625rem 2.25rem',
                   border: errors.email ? '1.5px solid #ef4444' : '1.5px solid var(--border)',
                   borderRadius: 'var(--radius-md)',
-                  fontSize: '0.9375rem',
+                  fontSize: '1rem',
                   fontFamily: 'inherit',
                   background: 'white',
                   transition: 'border-color 0.2s'
@@ -561,7 +561,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                 padding: '0.625rem 0.875rem',
                 border: '1.5px solid var(--border)',
                 borderRadius: 'var(--radius-md)',
-                fontSize: '0.9375rem',
+                fontSize: '1rem',
                 fontFamily: 'inherit',
                 background: 'white',
                 cursor: 'pointer'
@@ -641,7 +641,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                 padding: '0.625rem 0.875rem',
                 border: errors.relationship && !formData.relationshipCategory ? '1.5px solid #ef4444' : '1.5px solid var(--border)',
                 borderRadius: 'var(--radius-md)',
-                fontSize: '0.9375rem',
+                fontSize: '1rem',
                 fontFamily: 'inherit',
                 background: 'white',
                 cursor: 'pointer'
@@ -690,7 +690,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                 padding: '0.625rem 0.875rem',
                 border: errors.relationship && formData.relationshipCategory && !formData.relationship ? '1.5px solid #ef4444' : '1.5px solid var(--border)',
                 borderRadius: 'var(--radius-md)',
-                fontSize: '0.9375rem',
+                fontSize: '1rem',
                 fontFamily: 'inherit',
                 background: !formData.relationshipCategory ? 'var(--gray-100)' : 'white',
                 cursor: formData.relationshipCategory ? 'pointer' : 'not-allowed',
@@ -776,7 +776,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                 padding: '0.625rem 0.875rem',
                 border: errors.relationshipCloseness ? '1.5px solid #ef4444' : '1.5px solid var(--border)',
                 borderRadius: 'var(--radius-md)',
-                fontSize: '0.9375rem',
+                fontSize: '1rem',
                 fontFamily: 'inherit',
                 background: 'white',
                 cursor: 'pointer'
@@ -965,7 +965,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                 style={{
                   width: '100%',
                   padding: '0.75rem 1rem',
-                  fontSize: '0.9375rem',
+                  fontSize: '1rem',
                   border: '2px solid var(--border)',
                   borderRadius: 'var(--radius-md)',
                   background: 'white',

@@ -206,7 +206,7 @@ export const Login = () => {
                     paddingBottom: '0.75rem',
                     border: '2px solid var(--border)',
                     borderRadius: 'var(--radius-lg)',
-                    fontSize: '0.95rem',
+                    fontSize: '1rem',
                     outline: 'none',
                     transition: 'all 0.2s',
                     boxSizing: 'border-box'
@@ -248,7 +248,7 @@ export const Login = () => {
                     paddingBottom: '0.75rem',
                     border: '2px solid var(--border)',
                     borderRadius: 'var(--radius-lg)',
-                    fontSize: '0.95rem',
+                    fontSize: '1rem',
                     outline: 'none',
                     transition: 'all 0.2s',
                     boxSizing: 'border-box'

@@ -564,7 +564,7 @@ export default function Recipients() {
                 padding: '12px 16px 12px 44px',
                 border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-lg)',
-                fontSize: '0.875rem',
+                fontSize: '1rem',
                 fontFamily: 'inherit',
                 background: 'var(--bg-primary)',
                 color: 'var(--text-primary)',
