@@ -594,7 +594,13 @@ export default function Recipients() {
               </p>
             </div>
           ) : (
-            filteredRecipients.map((contact) => (
+            <div style={{
+              maxHeight: '60dvh',
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              paddingRight: '4px'
+            }}>
+              {filteredRecipients.map((contact) => (
               <div
                 key={contact.id}
                 style={{
@@ -836,7 +842,8 @@ export default function Recipients() {
                   </button>
                 </div>
               </div>
-            ))
+            ))}
+            </div>
           )}
 
           {/* Upcoming Occasions Section */}
@@ -921,7 +928,13 @@ export default function Recipients() {
               </p>
             </div>
           ) : (
-            allOccasions.map((occasion, index) => (
+            <div style={{
+              maxHeight: '60dvh',
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              paddingRight: '4px'
+            }}>
+              {allOccasions.map((occasion, index) => (
               <div
                 key={`${occasion.contactId}-${occasion.type}-${index}`}
                 style={{
@@ -995,7 +1008,8 @@ export default function Recipients() {
                   </span>
                 </div>
               </div>
-            ))
+            ))}
+            </div>
           )}
         </div>
       )}
