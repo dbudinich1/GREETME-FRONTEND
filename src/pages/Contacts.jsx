@@ -812,7 +812,7 @@ export default function Recipients() {
                       justifyContent: 'center',
                       width: '44px',
                       height: '44px',
-                      background: '#fee2e2',
+                      background: '#ffffff',
                       color: '#dc2626',
                       border: '2px solid #dc2626',
                       borderRadius: 'var(--radius-md)',
@@ -825,7 +825,7 @@ export default function Recipients() {
                         e.currentTarget.style.color = '#dc2626';
                       },
                       onLeave: (e) => {
-                        e.currentTarget.style.background = '#fee2e2';
+                        e.currentTarget.style.background = '#ffffff';
                         e.currentTarget.style.color = '#dc2626';
                       },
                     })}
