@@ -813,7 +813,7 @@ export default function Recipients() {
                       width: '44px',
                       height: '44px',
                       background: 'var(--gray-100)',
-                      color: 'var(--text-secondary)',
+                      color: '#dc2626',
                       border: 'none',
                       borderRadius: 'var(--radius-md)',
                       cursor: 'pointer',
@@ -826,7 +826,7 @@ export default function Recipients() {
                       },
                       onLeave: (e) => {
                         e.currentTarget.style.background = 'var(--gray-100)';
-                        e.currentTarget.style.color = 'var(--text-secondary)';
+                        e.currentTarget.style.color = '#dc2626';
                       },
                     })}
                     title="Delete"
