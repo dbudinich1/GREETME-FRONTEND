@@ -103,6 +103,15 @@ export default function SendGreeting() {
   const [heartsBurstKey, setHeartsBurstKey] = useState(0);
   const [waitMessage, setWaitMessage] = useState('Composing your message...');
   const [showReadyBeat, setShowReadyBeat] = useState(false);
+  // Phase M.2: portrait-first responsive flag (covers iPad portrait via <=768)
+  const [isNarrow, setIsNarrow] = useState(
+    typeof window !== 'undefined' && window.innerWidth <= 768
+  );
+  useEffect(() => {
+    const onResize = () => setIsNarrow(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const [formData, setFormData] = useState({
     contactId: '',
     occasionType: 'Thinking of You',
@@ -1556,26 +1565,26 @@ if (typeof window !== "undefined") {
         background: '#f8fafc',
         borderRadius: 'var(--radius-xl)',
         border: '1px solid #e2e8f0',
-        padding: '1.5rem',
+        padding: isNarrow ? '1rem' : '1.5rem',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
       }}>
         {/* Banner Header */}
         <div style={{
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           borderRadius: 'var(--radius-lg)',
-          padding: '1.5rem 1.5rem',
+          padding: isNarrow ? '1.25rem 1rem' : '1.5rem 1.5rem',
           marginBottom: '1.5rem',
           color: 'white',
           textAlign: 'center',
           boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
         }}>
           <h1 style={{
-            fontSize: '1.5rem',
+            fontSize: isNarrow ? '1.25rem' : '1.5rem',
             fontWeight: 700,
             margin: 0
           }}>Send a Greet-Me™</h1>
           <p style={{
-            fontSize: '0.9375rem',
+            fontSize: isNarrow ? '0.875rem' : '0.9375rem',
             opacity: 0.9,
             marginTop: '0.25rem',
             fontStyle: 'italic'
@@ -1767,9 +1776,9 @@ if (typeof window !== "undefined") {
         {/* Recipient, Occasion, and Tone - Side by Side */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr 1fr',
+          gridTemplateColumns: isNarrow ? '1fr' : '1fr 1fr 1fr',
           gap: '1rem',
-          marginBottom: '1.5rem'
+          marginBottom: isNarrow ? '1.25rem' : '1.5rem'
         }}>
           {/* Select Contact */}
           <div>
@@ -2522,11 +2531,11 @@ if (typeof window !== "undefined") {
 
         {/* Submit */}
         <div style={{
-          marginTop: '3rem',
-          paddingTop: '2rem',
+          marginTop: isNarrow ? '1.5rem' : '3rem',
+          paddingTop: isNarrow ? '1.25rem' : '2rem',
           borderTop: '1px solid var(--border)',
           display: 'flex',
-          justifyContent: 'flex-end',
+          justifyContent: isNarrow ? 'center' : 'flex-end',
           alignItems: 'center',
           gap: '1rem'
         }}>
@@ -2534,6 +2543,7 @@ if (typeof window !== "undefined") {
             type="submit"
             disabled={contacts.length === 0 || sending}
             style={{
+              width: isNarrow ? '100%' : 'auto',
               padding: '0.75rem 2rem',
               background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
               border: 'none',
@@ -2547,6 +2557,7 @@ if (typeof window !== "undefined") {
               fontFamily: 'inherit',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.5rem',
               boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
             }}
