@@ -812,6 +812,7 @@ export default function Recipients() {
                       justifyContent: 'center',
                       width: '44px',
                       height: '44px',
+                      padding: 0,
                       background: '#ffffff',
                       color: '#dc2626',
                       border: '2px solid #dc2626',
