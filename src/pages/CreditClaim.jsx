@@ -656,7 +656,7 @@ export default function CreditClaim() {
                       style={{
                         width: '100%', padding: '0.625rem 0.75rem',
                         background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-                        borderRadius: '8px', color: '#fff', fontSize: '0.9375rem',
+                        borderRadius: '8px', color: '#fff', fontSize: '1rem',
                         fontFamily: FONT_STACK, outline: 'none',
                       }}
                     />

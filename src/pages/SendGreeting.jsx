@@ -1636,7 +1636,7 @@ if (typeof window !== "undefined") {
                 style={{
                   width: '100%', padding: '0.5rem 0.75rem',
                   border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius-md)',
-                  fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none',
+                  fontSize: '1rem', fontFamily: 'inherit', outline: 'none',
                 }}
               />
               <input
@@ -1647,7 +1647,7 @@ if (typeof window !== "undefined") {
                 style={{
                   width: '100%', padding: '0.5rem 0.75rem',
                   border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius-md)',
-                  fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none',
+                  fontSize: '1rem', fontFamily: 'inherit', outline: 'none',
                 }}
               />
               {addContactError && (

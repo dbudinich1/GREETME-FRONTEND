@@ -54,7 +54,7 @@ const styles = {
   },
   input: {
     width: '100%', padding: '0.75rem', border: '1px solid #d1d5db',
-    borderRadius: '0.5rem', fontSize: '0.9375rem', fontFamily: FONT_STACK,
+    borderRadius: '0.5rem', fontSize: '1rem', fontFamily: FONT_STACK,
     boxSizing: 'border-box', outline: 'none',
   },
   title: { fontSize: '1.5rem', fontWeight: 700, color: '#1f2937', margin: '0 0 0.75rem' },
@@ -446,7 +446,7 @@ export default function ThankYouFlow() {
                     required
                     autoComplete="name"
                     autoFocus
-                    style={{ width: '100%', padding: '0.625rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.9375rem', fontFamily: FONT_STACK, boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '0.625rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem', fontFamily: FONT_STACK, boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
@@ -458,7 +458,7 @@ export default function ThankYouFlow() {
                     placeholder="jamie@example.com"
                     required
                     autoComplete="email"
-                    style={{ width: '100%', padding: '0.625rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '0.9375rem', fontFamily: FONT_STACK, boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '0.625rem 0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem', fontSize: '1rem', fontFamily: FONT_STACK, boxSizing: 'border-box' }}
                   />
                 </div>
                 <button
