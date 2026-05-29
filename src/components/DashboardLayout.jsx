@@ -115,12 +115,12 @@ export default function DashboardLayout({ children }) {
         }}>
           {/* Hamburger Menu Button - Mobile Only */}
           {isNarrow && (
-            <div style={{ minWidth: '2rem', flexShrink: 0 }}>
+            <div style={{ minWidth: '2.75rem', flexShrink: 0 }}>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               style={{
-                width: '2rem',
-                height: '2rem',
+                width: '2.75rem',
+                height: '2.75rem',
                 borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--border)',
                 background: mobileMenuOpen ? 'var(--gray-200)' : 'var(--gray-100)',
@@ -312,8 +312,8 @@ export default function DashboardLayout({ children }) {
             <button
               onClick={() => navigate('/dashboard/animations')}
               style={{
-                width: isNarrow ? '2rem' : '2.5rem',
-                height: isNarrow ? '2rem' : '2.5rem',
+                width: '2.75rem',
+                height: '2.75rem',
                 borderRadius: '50%',
                 border: 'none',
                 background: 'transparent',
@@ -383,8 +383,8 @@ export default function DashboardLayout({ children }) {
             <button
               onClick={() => navigate('/dashboard/cart')}
               style={{
-                width: isNarrow ? '2rem' : '2.5rem',
-                height: isNarrow ? '2rem' : '2.5rem',
+                width: '2.75rem',
+                height: '2.75rem',
                 borderRadius: '50%',
                 border: 'none',
                 background: 'transparent',
@@ -432,8 +432,8 @@ export default function DashboardLayout({ children }) {
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 style={{
-                  width: isNarrow ? '2rem' : '2.5rem',
-                  height: isNarrow ? '2rem' : '2.5rem',
+                  width: '2.75rem',
+                  height: '2.75rem',
                   borderRadius: '50%',
                   border: 'none',
                   background: 'var(--primary)',
@@ -583,8 +583,8 @@ export default function DashboardLayout({ children }) {
               <button
                 onClick={() => setMobileMenuOpen(false)}
                 style={{
-                  width: '2rem',
-                  height: '2rem',
+                  width: '2.75rem',
+                  height: '2.75rem',
                   borderRadius: 'var(--radius-md)',
                   border: 'none',
                   background: 'transparent',

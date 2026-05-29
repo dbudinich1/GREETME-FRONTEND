@@ -110,7 +110,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
                 border: 'none',
                 color: '#9ca3af',
                 cursor: 'pointer',
-                padding: '4px'
+                padding: '12px'
               }}
             >
               <X size={24} />

@@ -265,6 +265,7 @@ export default function Cart() {
               onClick={handleClearCart}
               style={{
                 padding: '0.25rem 0.5rem',
+                minHeight: '44px',
                 background: 'transparent',
                 color: '#ef4444',
                 border: '1px solid #fecaca',
@@ -358,7 +359,7 @@ export default function Cart() {
                   <button
                     onClick={() => handleRemoveItem(item.id)}
                     style={{
-                      padding: '0.125rem',
+                      padding: '0.9375rem',
                       background: 'transparent',
                       border: 'none',
                       color: 'var(--text-tertiary)',

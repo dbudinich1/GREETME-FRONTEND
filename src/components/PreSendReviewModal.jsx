@@ -370,7 +370,7 @@ export default function PreSendReviewModal({
                             style={{
                               background: 'transparent',
                               border: 'none',
-                              padding: '0.25rem',
+                              padding: '0.9375rem',
                               cursor: 'pointer',
                               color: '#10b981',
                               borderRadius: '0.25rem',

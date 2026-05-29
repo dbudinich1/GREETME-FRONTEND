@@ -329,6 +329,7 @@ export default function MediaLibrary() {
             onClick={handleCancelSelection}
             style={{
               padding: '0.5rem 1.25rem',
+              minHeight: '44px',
               background: '#f3f4f6',
               color: '#374151',
               border: '1px solid #d1d5db',
@@ -351,6 +352,7 @@ export default function MediaLibrary() {
             disabled={selectedPhotos.length === 0}
             style={{
               padding: '0.5rem 1.25rem',
+              minHeight: '44px',
               background: selectedPhotos.length === 0 ? '#e5e7eb' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: selectedPhotos.length === 0 ? '#9ca3af' : 'white',
               border: 'none',

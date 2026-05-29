@@ -219,6 +219,7 @@ export default function Notifications() {
               onClick={() => setShowClearConfirm(true)}
               style={{
                 padding: '0.625rem 1rem',
+                minHeight: '44px',
                 background: 'transparent',
                 color: '#ef4444',
                 border: '1px solid #ef4444',
