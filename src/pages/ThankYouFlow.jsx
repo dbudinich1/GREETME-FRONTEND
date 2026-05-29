@@ -422,7 +422,7 @@ export default function ThankYouFlow() {
               maxWidth: '400px', width: '100%', background: '#fff',
               borderRadius: '1rem', padding: '2rem', textAlign: 'center',
               boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
-              maxHeight: '90vh', overflowY: 'auto',
+              maxHeight: '90dvh', overflowY: 'auto',
             }}>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1f2937', margin: '0 0 0.5rem', fontFamily: 'Georgia, serif' }}>
                 Share this moment
