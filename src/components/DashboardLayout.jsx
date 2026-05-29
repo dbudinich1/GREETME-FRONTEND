@@ -101,11 +101,6 @@ export default function DashboardLayout({ children }) {
         // Dynamic Island. env() returns 0px on non-notched devices and in
         // landscape, so desktop and Android visual rhythm is preserved.
         paddingTop: 'env(safe-area-inset-top, 0px)',
-        // M.HEADER: opt out of flex parent's default align-items: stretch to
-        // restore iOS Safari sticky-positioning. width:100% preserves the
-        // header's full-width spanning that stretch was providing.
-        alignSelf: 'flex-start',
-        width: '100%',
       }}>
         
         <div style={{
