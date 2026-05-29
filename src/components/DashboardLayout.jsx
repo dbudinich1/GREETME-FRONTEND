@@ -759,7 +759,7 @@ export default function DashboardLayout({ children }) {
       )}
 
       {/* Main Content */}
-      <main style={{ flex: 1, padding: isNarrow ? '1rem' : '2rem', overflowY: 'auto', background: 'var(--bg-secondary)' }}>
+      <main style={{ flex: 1, padding: isNarrow ? '1rem' : '2rem', background: 'var(--bg-secondary)' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           {/* Page-level Welcome greeting - only show on home page */}
           {location.pathname === '/dashboard' && (
