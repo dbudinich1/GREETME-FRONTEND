@@ -1466,8 +1466,14 @@ export default function DashboardHome() {
               flexDirection: 'column',
               gap: '0.75rem',
               flex: 1,
+              minHeight: 0,
+              maxHeight: 'min(480px, 50dvh)',
               overflowY: 'auto',
-              minHeight: 0
+              WebkitOverflowScrolling: 'touch',
+              background: 'var(--gray-100)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '12px'
             }}>
               {contacts.length === 0 ? (
                 <div style={{
@@ -1666,8 +1672,14 @@ export default function DashboardHome() {
               flexDirection: 'column',
               gap: '0.75rem',
               flex: 1,
+              minHeight: 0,
+              maxHeight: 'min(480px, 50dvh)',
               overflowY: 'auto',
-              minHeight: 0
+              WebkitOverflowScrolling: 'touch',
+              background: 'var(--gray-100)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '12px'
             }}>
               {(() => {
                 // Gather all unique occasions from contacts
