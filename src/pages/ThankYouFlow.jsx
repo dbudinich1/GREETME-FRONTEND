@@ -984,6 +984,7 @@ export default function ThankYouFlow() {
                   placeholder="Choose a password"
                   required
                   minLength={8}
+                  autoComplete="new-password"
                   style={styles.input}
                 />
               </div>
