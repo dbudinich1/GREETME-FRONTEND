@@ -1815,7 +1815,20 @@ export default function DashboardHome() {
         maxHeight: isNarrow ? '70dvh' : '600px',
         overflowY: 'auto'
       }}>
-        <div style={{ display: 'flex', flexDirection: isNarrow ? 'column' : 'row', alignItems: isNarrow ? 'stretch' : 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: isNarrow ? '0.75rem' : '0' }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: isNarrow ? 'column' : 'row',
+          alignItems: isNarrow ? 'stretch' : 'center',
+          justifyContent: 'space-between',
+          marginBottom: '1.5rem',
+          gap: isNarrow ? '0.75rem' : '0',
+          ...(isNarrow && {
+            position: 'sticky',
+            top: 0,
+            background: 'var(--bg-primary)',
+            zIndex: 2,
+          }),
+        }}>
           <h2 style={{
             fontSize: '1.25rem',
             fontWeight: 700,
@@ -1971,7 +1984,17 @@ export default function DashboardHome() {
         maxHeight: isNarrow ? '70dvh' : '600px',
         overflowY: 'auto'
       }}>
-        <div style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid var(--border)' }}>
+        <div style={{
+          marginBottom: '1.5rem',
+          paddingBottom: '1rem',
+          borderBottom: '2px solid var(--border)',
+          ...(isNarrow && {
+            position: 'sticky',
+            top: 0,
+            background: 'var(--bg-primary)',
+            zIndex: 2,
+          }),
+        }}>
           <h2 style={{
             fontSize: '1.25rem',
             fontWeight: 700,
