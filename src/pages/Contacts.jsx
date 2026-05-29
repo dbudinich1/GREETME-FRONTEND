@@ -831,7 +831,7 @@ export default function Recipients() {
                     })}
                     title="Delete"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={20} />
                   </button>
                 </div>
               </div>
