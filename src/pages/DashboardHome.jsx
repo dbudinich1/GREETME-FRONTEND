@@ -66,11 +66,11 @@ export default function DashboardHome() {
   const [qrCashGifts, setQrCashGifts] = useState([]);
   const [rewardsBalance, setRewardsBalance] = useState(0);
   const [viewMode, setViewMode] = useState('recipients'); // 'recipients' or 'occasions'
-  const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
+  const [isNarrow, setIsNarrow] = useState(window.innerWidth <= 768);
 
   // Handle resize for mobile detection
   useEffect(() => {
-    const handleResize = () => setIsNarrow(window.innerWidth < 768);
+    const handleResize = () => setIsNarrow(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -493,7 +493,7 @@ export default function DashboardHome() {
         background: '#f8fafc',
         borderRadius: 'var(--radius-xl)',
         border: '1px solid #e2e8f0',
-        padding: '1.5rem',
+        padding: isNarrow ? '1rem' : '1.5rem',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
       }}>
       {/* Combined Navigation Header */}
@@ -1812,7 +1812,7 @@ export default function DashboardHome() {
         padding: '1.5rem',
         border: '1px solid var(--border)',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-        maxHeight: isNarrow ? '70vh' : '600px',
+        maxHeight: isNarrow ? '70dvh' : '600px',
         overflowY: 'auto'
       }}>
         <div style={{ display: 'flex', flexDirection: isNarrow ? 'column' : 'row', alignItems: isNarrow ? 'stretch' : 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: isNarrow ? '0.75rem' : '0' }}>
@@ -1968,7 +1968,7 @@ export default function DashboardHome() {
         border: '2px solid var(--border)',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
         marginTop: '2rem',
-        maxHeight: isNarrow ? '70vh' : '600px',
+        maxHeight: isNarrow ? '70dvh' : '600px',
         overflowY: 'auto'
       }}>
         <div style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid var(--border)' }}>
