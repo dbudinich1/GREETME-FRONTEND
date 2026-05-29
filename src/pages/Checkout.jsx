@@ -632,6 +632,7 @@ export default function Checkout() {
                     type="text"
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
+                    autoComplete="off"
                     style={inputStyle}
                     placeholder="Who should we ship this to?"
                   />
@@ -643,6 +644,7 @@ export default function Checkout() {
                     type="text"
                     value={shipForm.address1}
                     onChange={(e) => setShipForm((s) => ({ ...s, address1: e.target.value }))}
+                    autoComplete="off"
                     style={inputStyle}
                     placeholder="123 Main Street"
                   />
@@ -655,6 +657,7 @@ export default function Checkout() {
                       type="text"
                       value={shipForm.city}
                       onChange={(e) => setShipForm((s) => ({ ...s, city: e.target.value }))}
+                      autoComplete="off"
                       style={inputStyle}
                     />
                   </div>
@@ -663,6 +666,7 @@ export default function Checkout() {
                     <select
                       value={shipForm.state_code}
                       onChange={(e) => setShipForm((s) => ({ ...s, state_code: e.target.value }))}
+                      autoComplete="off"
                       style={inputStyle}
                     >
                       <option value="">Select…</option>
@@ -677,6 +681,7 @@ export default function Checkout() {
                       type="text"
                       value={shipForm.zip}
                       onChange={(e) => setShipForm((s) => ({ ...s, zip: e.target.value }))}
+                      autoComplete="off"
                       style={inputStyle}
                     />
                   </div>
@@ -688,6 +693,7 @@ export default function Checkout() {
                     type="text"
                     value="United States"
                     disabled
+                    autoComplete="off"
                     style={{ ...inputStyle, background: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed' }}
                   />
                 </div>
@@ -738,6 +744,7 @@ export default function Checkout() {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
+                  autoComplete="email"
                   style={{ ...inputStyle, borderColor: errors.email ? '#ef4444' : 'var(--border)' }}
                   placeholder="your@email.com"
                 />
@@ -768,6 +775,7 @@ export default function Checkout() {
                     name="firstName"
                     value={formData.firstName}
                     onChange={handleInputChange}
+                    autoComplete="given-name"
                     style={{ ...inputStyle, borderColor: errors.firstName ? '#ef4444' : 'var(--border)' }}
                   />
                   {errors.firstName && <p style={errorStyle}>{errors.firstName}</p>}
@@ -779,6 +787,7 @@ export default function Checkout() {
                     name="lastName"
                     value={formData.lastName}
                     onChange={handleInputChange}
+                    autoComplete="family-name"
                     style={{ ...inputStyle, borderColor: errors.lastName ? '#ef4444' : 'var(--border)' }}
                   />
                   {errors.lastName && <p style={errorStyle}>{errors.lastName}</p>}
@@ -792,6 +801,7 @@ export default function Checkout() {
                   name="address"
                   value={formData.address}
                   onChange={handleInputChange}
+                  autoComplete="address-line1"
                   style={{ ...inputStyle, borderColor: errors.address ? '#ef4444' : 'var(--border)' }}
                   placeholder="123 Main Street"
                 />
@@ -806,6 +816,7 @@ export default function Checkout() {
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
+                    autoComplete="address-level2"
                     style={{ ...inputStyle, borderColor: errors.city ? '#ef4444' : 'var(--border)' }}
                   />
                   {errors.city && <p style={errorStyle}>{errors.city}</p>}
@@ -817,6 +828,7 @@ export default function Checkout() {
                     name="state"
                     value={formData.state}
                     onChange={handleInputChange}
+                    autoComplete="address-level1"
                     style={{ ...inputStyle, borderColor: errors.state ? '#ef4444' : 'var(--border)' }}
                     placeholder="CA"
                   />
@@ -829,6 +841,7 @@ export default function Checkout() {
                     name="zipCode"
                     value={formData.zipCode}
                     onChange={handleInputChange}
+                    autoComplete="postal-code"
                     style={{ ...inputStyle, borderColor: errors.zipCode ? '#ef4444' : 'var(--border)' }}
                   />
                   {errors.zipCode && <p style={errorStyle}>{errors.zipCode}</p>}
@@ -860,6 +873,7 @@ export default function Checkout() {
                   name="cardNumber"
                   value={formData.cardNumber}
                   onChange={handleInputChange}
+                  autoComplete="cc-number"
                   style={{ ...inputStyle, borderColor: errors.cardNumber ? '#ef4444' : 'var(--border)' }}
                   placeholder="1234 5678 9012 3456"
                 />
@@ -874,6 +888,7 @@ export default function Checkout() {
                     name="expiryDate"
                     value={formData.expiryDate}
                     onChange={handleInputChange}
+                    autoComplete="cc-exp"
                     style={{ ...inputStyle, borderColor: errors.expiryDate ? '#ef4444' : 'var(--border)' }}
                     placeholder="MM/YY"
                   />
@@ -886,6 +901,7 @@ export default function Checkout() {
                     name="cvv"
                     value={formData.cvv}
                     onChange={handleInputChange}
+                    autoComplete="cc-csc"
                     style={{ ...inputStyle, borderColor: errors.cvv ? '#ef4444' : 'var(--border)' }}
                     placeholder="123"
                   />
@@ -901,6 +917,7 @@ export default function Checkout() {
                   name="nameOnCard"
                   value={formData.nameOnCard}
                   onChange={handleInputChange}
+                  autoComplete="cc-name"
                   style={{ ...inputStyle, borderColor: errors.nameOnCard ? '#ef4444' : 'var(--border)' }}
                 />
                 {errors.nameOnCard && <p style={errorStyle}>{errors.nameOnCard}</p>}

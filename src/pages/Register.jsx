@@ -164,6 +164,7 @@ export default function Register() {
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="First"
                   required
+                  autoComplete="given-name"
                   style={{
                     width: '100%',
                     padding: '0.75rem',
@@ -192,6 +193,7 @@ export default function Register() {
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="Last"
                   required
+                  autoComplete="family-name"
                   style={{
                     width: '100%',
                     padding: '0.75rem',
@@ -223,6 +225,7 @@ export default function Register() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
+              autoComplete="email"
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -253,6 +256,7 @@ export default function Register() {
               placeholder="Create a password"
               required
               minLength={8}
+              autoComplete="new-password"
               style={{
                 width: '100%',
                 padding: '0.75rem',

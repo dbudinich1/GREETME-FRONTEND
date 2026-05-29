@@ -559,6 +559,7 @@ export default function Recipients() {
               placeholder={viewMode === 'recipients' ? "Search recipients..." : "Search occasions..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              autoComplete="off"
               style={{
                 width: '100%',
                 padding: '12px 16px 12px 44px',

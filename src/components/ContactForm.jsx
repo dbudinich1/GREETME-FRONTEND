@@ -482,6 +482,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               value={formData.name}
               onChange={handleChange}
               onBlur={handleNameBlur}
+              autoComplete="off"
               autoCapitalize="words"
               autoCorrect="off"
               spellCheck={false}
@@ -524,6 +525,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
+                autoComplete="off"
                 style={{
                   width: '100%',
                   padding: '0.625rem 0.875rem 0.625rem 2.25rem',
@@ -1757,6 +1759,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                 ...prev,
                                 shippingAddress: { ...prev.shippingAddress, line1: e.target.value }
                               }))}
+                              autoComplete="off"
                               style={{
                                 width: '100%',
                                 padding: '0.5rem',
@@ -1774,6 +1777,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                 ...prev,
                                 shippingAddress: { ...prev.shippingAddress, line2: e.target.value }
                               }))}
+                              autoComplete="off"
                               style={{
                                 width: '100%',
                                 padding: '0.5rem',
@@ -1792,6 +1796,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                   ...prev,
                                   shippingAddress: { ...prev.shippingAddress, city: e.target.value }
                                 }))}
+                                autoComplete="off"
                                 style={{
                                   flex: 2,
                                   padding: '0.5rem',
@@ -1809,6 +1814,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                   ...prev,
                                   shippingAddress: { ...prev.shippingAddress, state: e.target.value }
                                 }))}
+                                autoComplete="off"
                                 style={{
                                   flex: 1,
                                   padding: '0.5rem',
@@ -1828,6 +1834,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                   ...prev,
                                   shippingAddress: { ...prev.shippingAddress, zip: e.target.value }
                                 }))}
+                                autoComplete="off"
                                 style={{
                                   flex: 1,
                                   padding: '0.5rem',
@@ -1845,6 +1852,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                   ...prev,
                                   shippingAddress: { ...prev.shippingAddress, country: e.target.value }
                                 }))}
+                                autoComplete="off"
                                 style={{
                                   flex: 1,
                                   padding: '0.5rem',
@@ -2241,6 +2249,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                 ...prev,
                                 shippingAddress: { ...prev.shippingAddress, line1: e.target.value }
                               }))}
+                              autoComplete="off"
                               style={{
                                 width: '100%',
                                 padding: '0.5rem',
@@ -2258,6 +2267,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                 ...prev,
                                 shippingAddress: { ...prev.shippingAddress, line2: e.target.value }
                               }))}
+                              autoComplete="off"
                               style={{
                                 width: '100%',
                                 padding: '0.5rem',
@@ -2276,6 +2286,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                   ...prev,
                                   shippingAddress: { ...prev.shippingAddress, city: e.target.value }
                                 }))}
+                                autoComplete="off"
                                 style={{
                                   flex: 2,
                                   padding: '0.5rem',
@@ -2293,6 +2304,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                   ...prev,
                                   shippingAddress: { ...prev.shippingAddress, state: e.target.value }
                                 }))}
+                                autoComplete="off"
                                 style={{
                                   flex: 1,
                                   padding: '0.5rem',
@@ -2312,6 +2324,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                   ...prev,
                                   shippingAddress: { ...prev.shippingAddress, zip: e.target.value }
                                 }))}
+                                autoComplete="off"
                                 style={{
                                   flex: 1,
                                   padding: '0.5rem',
@@ -2329,6 +2342,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                   ...prev,
                                   shippingAddress: { ...prev.shippingAddress, country: e.target.value }
                                 }))}
+                                autoComplete="off"
                                 style={{
                                   flex: 1,
                                   padding: '0.5rem',
