@@ -595,10 +595,13 @@ export default function Recipients() {
             </div>
           ) : (
             <div style={{
-              maxHeight: '60dvh',
+              maxHeight: 'min(480px, 50dvh)',
               overflowY: 'auto',
               WebkitOverflowScrolling: 'touch',
-              paddingRight: '4px'
+              background: 'var(--gray-100)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '12px'
             }}>
               {filteredRecipients.map((contact) => (
               <div
@@ -929,10 +932,13 @@ export default function Recipients() {
             </div>
           ) : (
             <div style={{
-              maxHeight: '60dvh',
+              maxHeight: 'min(480px, 50dvh)',
               overflowY: 'auto',
               WebkitOverflowScrolling: 'touch',
-              paddingRight: '4px'
+              background: 'var(--gray-100)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '12px'
             }}>
               {allOccasions.map((occasion, index) => (
               <div
