@@ -544,6 +544,7 @@ export default function DashboardHome() {
         {/* Action Buttons - Visible on all screens */}
         <div style={{
           display: 'flex',
+          flexDirection: isNarrow ? 'column-reverse' : 'row',
           gap: isNarrow ? '0.5rem' : '1rem',
           width: isNarrow ? '100%' : 'auto',
           justifyContent: isNarrow ? 'center' : 'flex-end'
@@ -552,9 +553,9 @@ export default function DashboardHome() {
           onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
           style={{
             padding: isNarrow ? '0.625rem 1rem' : '0.75rem 1.5rem',
-            background: '#667eea',
-            color: 'white',
-            border: 'none',
+            background: isNarrow ? 'transparent' : '#667eea',
+            color: isNarrow ? '#667eea' : 'white',
+            border: isNarrow ? '1.5px solid #667eea' : 'none',
             borderRadius: 'var(--radius-lg)',
             fontSize: isNarrow ? '0.8125rem' : '0.875rem',
             fontWeight: 600,
@@ -563,12 +564,12 @@ export default function DashboardHome() {
             alignItems: 'center',
             gap: '0.5rem',
             transition: 'all 0.2s',
-            boxShadow: '0 2px 4px rgba(102, 126, 234, 0.2)',
+            boxShadow: isNarrow ? 'none' : '0 2px 4px rgba(102, 126, 234, 0.2)',
             fontFamily: 'inherit',
             flex: isNarrow ? 1 : 'none',
             whiteSpace: 'nowrap'
           }}
-          {...getHoverHandlers({
+          {...(isNarrow ? {} : getHoverHandlers({
             onEnter: (e) => {
               e.currentTarget.style.background = '#5568d3';
               e.currentTarget.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.3)';
@@ -577,7 +578,7 @@ export default function DashboardHome() {
               e.currentTarget.style.background = '#667eea';
               e.currentTarget.style.boxShadow = '0 2px 4px rgba(102, 126, 234, 0.2)';
             },
-          })}
+          }))}
         >
           <Plus size={isNarrow ? 16 : 18} style={{ flexShrink: 0 }} />
           Add Recipient
@@ -1344,34 +1345,36 @@ export default function DashboardHome() {
             height: '100%',   /* Match parent height */
             minHeight: 0      /* Allow flex shrinking below content */
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '2px solid var(--border)' }}>
+            <div style={{ display: 'flex', flexDirection: isNarrow ? 'column' : 'row', alignItems: isNarrow ? 'stretch' : 'center', justifyContent: 'space-between', gap: isNarrow ? '0.75rem' : '0', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '2px solid var(--border)' }}>
               <h2 style={{
                 fontSize: '1.25rem',
                 fontWeight: 700,
                 color: 'var(--text-primary)',
                 margin: 0
               }}>Recipients & Occasions</h2>
-              <button
-                onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: '#667eea',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 'var(--radius-lg)',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  transition: 'all 0.2s',
-                  fontFamily: 'inherit'
-                }}
-              >
-                <Plus size={16} />
-                Add Recipient
-              </button>
+              {!isNarrow && (
+                <button
+                  onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: '#667eea',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 'var(--radius-lg)',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s',
+                    fontFamily: 'inherit'
+                  }}
+                >
+                  <Plus size={16} />
+                  Add Recipient
+                </button>
+              )}
             </div>
 
             {/* View Toggle */}
