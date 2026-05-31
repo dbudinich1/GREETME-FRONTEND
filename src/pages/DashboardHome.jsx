@@ -67,12 +67,22 @@ export default function DashboardHome() {
   const [rewardsBalance, setRewardsBalance] = useState(0);
   const [viewMode, setViewMode] = useState('recipients'); // 'recipients' or 'occasions'
   const [isNarrow, setIsNarrow] = useState(window.innerWidth <= 768);
+  const [isPortrait, setIsPortrait] = useState(
+    typeof window !== 'undefined' && window.innerHeight > window.innerWidth
+  );
 
-  // Handle resize for mobile detection
+  // Handle resize + orientation change for mobile/portrait detection
   useEffect(() => {
-    const handleResize = () => setIsNarrow(window.innerWidth <= 768);
+    const handleResize = () => {
+      setIsNarrow(window.innerWidth <= 768);
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
   }, []);
 
   // --- Presence persistence (navigation-safe) ---
@@ -501,12 +511,12 @@ export default function DashboardHome() {
         display: 'flex',
         gap: isNarrow ? '0.5rem' : '1rem',
         marginBottom: isNarrow ? '1rem' : '2rem',
-        justifyContent: isNarrow ? 'center' : 'space-between',
+        justifyContent: isPortrait ? 'center' : 'space-between',
         alignItems: 'center',
         flexWrap: isNarrow ? 'wrap' : 'nowrap'
       }}>
         {/* Hero Program Button - Left Side - Hidden on Mobile */}
-        {!isNarrow && (
+        {!isPortrait && (
           <button
             onClick={() => navigate('/dashboard/hero')}
             style={{
@@ -544,18 +554,18 @@ export default function DashboardHome() {
         {/* Action Buttons - Visible on all screens */}
         <div style={{
           display: 'flex',
-          flexDirection: isNarrow ? 'column-reverse' : 'row',
+          flexDirection: isPortrait ? 'column-reverse' : 'row',
           gap: isNarrow ? '0.5rem' : '1rem',
-          width: isNarrow ? '100%' : 'auto',
-          justifyContent: isNarrow ? 'center' : 'flex-end'
+          width: isPortrait ? '100%' : 'auto',
+          justifyContent: isPortrait ? 'center' : 'flex-end'
         }}>
         <button
           onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
           style={{
             padding: isNarrow ? '0.625rem 1rem' : '0.75rem 1.5rem',
-            background: isNarrow ? 'transparent' : '#667eea',
-            color: isNarrow ? '#667eea' : 'white',
-            border: isNarrow ? '1.5px solid #667eea' : 'none',
+            background: isPortrait ? 'transparent' : '#667eea',
+            color: isPortrait ? '#667eea' : 'white',
+            border: isPortrait ? '1.5px solid #667eea' : 'none',
             borderRadius: 'var(--radius-lg)',
             fontSize: isNarrow ? '0.8125rem' : '0.875rem',
             fontWeight: 600,
@@ -564,12 +574,12 @@ export default function DashboardHome() {
             alignItems: 'center',
             gap: '0.5rem',
             transition: 'all 0.2s',
-            boxShadow: isNarrow ? 'none' : '0 2px 4px rgba(102, 126, 234, 0.2)',
+            boxShadow: isPortrait ? 'none' : '0 2px 4px rgba(102, 126, 234, 0.2)',
             fontFamily: 'inherit',
-            flex: isNarrow ? 1 : 'none',
+            flex: isPortrait ? 1 : 'none',
             whiteSpace: 'nowrap'
           }}
-          {...(isNarrow ? {} : getHoverHandlers({
+          {...(isPortrait ? {} : getHoverHandlers({
             onEnter: (e) => {
               e.currentTarget.style.background = '#5568d3';
               e.currentTarget.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.3)';
@@ -601,7 +611,7 @@ export default function DashboardHome() {
             transition: 'all 0.2s',
             boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)',
             fontFamily: 'inherit',
-            flex: isNarrow ? 1 : 'none'
+            flex: isPortrait ? 1 : 'none'
           }}
           {...getHoverHandlers({
             onEnter: (e) => {
@@ -698,7 +708,7 @@ export default function DashboardHome() {
       {/* QR Cash + Rewards - Two Equal Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isNarrow ? '1fr' : '1fr 1fr',
+        gridTemplateColumns: isPortrait ? '1fr' : '1fr 1fr',
         gap: '1rem',
         marginBottom: isNarrow ? '1rem' : '1.5rem'
       }}>
@@ -893,7 +903,7 @@ export default function DashboardHome() {
         className="dashboard-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: isNarrow ? '1fr' : '1fr 1fr',
+          gridTemplateColumns: isPortrait ? '1fr' : '1fr 1fr',
           gap: '1.5rem',
           marginBottom: '2rem',
           alignItems: 'stretch',
@@ -1345,14 +1355,14 @@ export default function DashboardHome() {
             height: '100%',   /* Match parent height */
             minHeight: 0      /* Allow flex shrinking below content */
           }}>
-            <div style={{ display: 'flex', flexDirection: isNarrow ? 'column' : 'row', alignItems: isNarrow ? 'stretch' : 'center', justifyContent: 'space-between', gap: isNarrow ? '0.75rem' : '0', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '2px solid var(--border)' }}>
+            <div style={{ display: 'flex', flexDirection: isPortrait ? 'column' : 'row', alignItems: isPortrait ? 'stretch' : 'center', justifyContent: 'space-between', gap: isPortrait ? '0.75rem' : '0', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '2px solid var(--border)' }}>
               <h2 style={{
                 fontSize: '1.25rem',
                 fontWeight: 700,
                 color: 'var(--text-primary)',
                 margin: 0
               }}>Recipients & Occasions</h2>
-              {!isNarrow && (
+              {!isPortrait && (
                 <button
                   onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
                   style={{
@@ -1820,12 +1830,12 @@ export default function DashboardHome() {
       }}>
         <div style={{
           display: 'flex',
-          flexDirection: isNarrow ? 'column' : 'row',
-          alignItems: isNarrow ? 'stretch' : 'center',
+          flexDirection: isPortrait ? 'column' : 'row',
+          alignItems: isPortrait ? 'stretch' : 'center',
           justifyContent: 'space-between',
           marginBottom: '1.5rem',
           gap: isNarrow ? '0.75rem' : '0',
-          ...(isNarrow && {
+          ...(isPortrait && {
             position: 'sticky',
             top: 0,
             background: 'var(--bg-primary)',
@@ -1839,7 +1849,7 @@ export default function DashboardHome() {
             margin: 0
           }}>Upcoming Occasions <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>from your contacts</span></h2>
           {/* Desktop: inline button in header */}
-          {!isNarrow && (
+          {!isPortrait && (
             <button
               onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
               style={{
@@ -1863,7 +1873,7 @@ export default function DashboardHome() {
             </button>
           )}
           {/* Mobile: full-width button under title */}
-          {isNarrow && (
+          {isPortrait && (
             <button
               onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
               style={{
@@ -1909,8 +1919,8 @@ export default function DashboardHome() {
         padding: isNarrow ? '1rem' : '1rem 1.5rem',
         marginBottom: '2rem',
         display: 'flex',
-        flexDirection: isNarrow ? 'column' : 'row',
-        alignItems: isNarrow ? 'flex-start' : 'center',
+        flexDirection: isPortrait ? 'column' : 'row',
+        alignItems: isPortrait ? 'flex-start' : 'center',
         justifyContent: 'space-between',
         gap: isNarrow ? '1rem' : '0',
         border: '1px solid var(--border)',
@@ -1991,7 +2001,7 @@ export default function DashboardHome() {
           marginBottom: '1.5rem',
           paddingBottom: '1rem',
           borderBottom: '2px solid var(--border)',
-          ...(isNarrow && {
+          ...(isPortrait && {
             position: 'sticky',
             top: 0,
             background: 'var(--bg-primary)',
@@ -2007,7 +2017,7 @@ export default function DashboardHome() {
         </div>
 
         {/* Table Header */}
-        {!isNarrow && (
+        {!isPortrait && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: '0.5fr 0.5fr 2fr 1fr 2fr 1fr',
@@ -2094,13 +2104,13 @@ export default function DashboardHome() {
               <div
                 key={item.id}
                 style={{
-                  display: isNarrow ? 'flex' : 'grid',
-                  flexDirection: isNarrow ? 'column' : undefined,
-                  gridTemplateColumns: isNarrow ? undefined : '0.5fr 0.5fr 2fr 1fr 2fr 1fr',
+                  display: isPortrait ? 'flex' : 'grid',
+                  flexDirection: isPortrait ? 'column' : undefined,
+                  gridTemplateColumns: isPortrait ? undefined : '0.5fr 0.5fr 2fr 1fr 2fr 1fr',
                   padding: isNarrow ? '0.75rem' : '1rem',
                   gap: isNarrow ? '0.5rem' : undefined,
                   borderBottom: index < array.length - 1 ? '1px solid var(--border)' : 'none',
-                  alignItems: isNarrow ? 'flex-start' : 'center',
+                  alignItems: isPortrait ? 'flex-start' : 'center',
                   cursor: 'pointer',
                   transition: 'all 0.2s'
                 }}
@@ -2109,7 +2119,7 @@ export default function DashboardHome() {
                   onLeave: (e) => { e.currentTarget.style.background = 'transparent'; },
                 })}
               >
-                {!isNarrow && (
+                {!isPortrait && (
                 <div style={{ textAlign: 'center' }}>
                   <CheckCircle
                     size={24}
@@ -2122,7 +2132,7 @@ export default function DashboardHome() {
                 </div>
                 )}
                 {/* QR Cash Status Icon */}
-                {!isNarrow && (
+                {!isPortrait && (
                 <div style={{ textAlign: 'center' }}>
                   {item.qrCash ? (
                     <div
@@ -2151,9 +2161,9 @@ export default function DashboardHome() {
                   )}
                 </div>
                 )}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: isNarrow ? '100%' : 'auto' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: isPortrait ? '100%' : 'auto' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    {isNarrow && (
+                    {isPortrait && (
                       <CheckCircle
                         size={18}
                         style={{
@@ -2187,13 +2197,13 @@ export default function DashboardHome() {
                       }}>{item.relationship}</div>
                     </div>
                   </div>
-                  {isNarrow && (
+                  {isPortrait && (
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
                       {item.date}
                     </div>
                   )}
                 </div>
-                {!isNarrow && (
+                {!isPortrait && (
                 <div style={{ display: 'flex', gap: '0.25rem' }}>
                   {(item.icons || []).map((icon, idx) => (
                     <span key={idx} style={{ fontSize: '1.25rem' }}>{icon}</span>
@@ -2231,7 +2241,7 @@ export default function DashboardHome() {
                     </span>
                   )}
                 </div>
-                {!isNarrow && (
+                {!isPortrait && (
                 <div style={{
                   textAlign: 'right',
                   fontSize: '0.875rem',
