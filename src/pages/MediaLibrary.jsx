@@ -25,6 +25,16 @@ export default function MediaLibrary() {
   const audioRef = useRef(null);
   const voiceInputRef = useRef(null);
 
+  // M.MEDIA: portrait responsive state (<= 768 includes iPad portrait, matches M.2/D.2)
+  const [isNarrow, setIsNarrow] = useState(
+    typeof window !== 'undefined' && window.innerWidth <= 768
+  );
+  useEffect(() => {
+    const handleResize = () => setIsNarrow(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // F5: real install QR for the "Download Mobile App" panel
   const [appQrUrl, setAppQrUrl] = useState(null);
   useEffect(() => {
@@ -258,21 +268,21 @@ export default function MediaLibrary() {
         background: '#f8fafc',
         borderRadius: 'var(--radius-xl)',
         border: '1px solid #e2e8f0',
-        padding: '2rem',
+        padding: isNarrow ? '1rem' : '2rem',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
       }}>
         {/* Banner Header */}
         <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         borderRadius: 'var(--radius-lg)',
-        padding: '1.5rem 1.5rem',
+        padding: isNarrow ? '1rem' : '1.5rem 1.5rem',
         marginBottom: '1.5rem',
         color: 'white',
         textAlign: 'center',
         boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
       }}>
         <h1 style={{
-          fontSize: '1.5rem',
+          fontSize: isNarrow ? '1.25rem' : '1.5rem',
           fontWeight: 700,
           margin: 0,
           marginBottom: '0.5rem'
@@ -386,12 +396,14 @@ export default function MediaLibrary() {
         padding: '1rem 1.5rem',
         marginBottom: '2rem',
         display: 'flex',
+        flexDirection: isNarrow ? 'column' : 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: isNarrow ? 'center' : 'space-between',
+        gap: isNarrow ? '0.75rem' : undefined,
         border: '1px solid var(--border)',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: isNarrow ? 'center' : 'left' }}>
           <div style={{
             width: '3rem',
             height: '3rem',
@@ -775,7 +787,7 @@ export default function MediaLibrary() {
                 alt="Default greeting photo"
                 style={{
                   width: '100%',
-                  height: '250px',
+                  height: isNarrow ? '200px' : '250px',
                   objectFit: 'cover'
                 }}
               />
