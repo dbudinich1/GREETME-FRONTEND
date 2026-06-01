@@ -1598,25 +1598,27 @@ export default function DashboardHome() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: isNarrow ? '0.25rem' : '0.75rem', alignItems: 'center' }}>
-                    {/* Gift Indicator */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '26px',
-                        height: '26px',
-                        borderRadius: '50%',
-                        background: contact.giftSelected
-                          ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
-                          : 'var(--gray-100)',
-                        border: contact.giftSelected ? 'none' : '2px dashed var(--gray-300)',
-                        boxShadow: contact.giftSelected ? '0 2px 4px rgba(34, 197, 94, 0.3)' : 'none'
-                      }}
-                      title={contact.giftSelected ? 'Gift selected' : 'No gift selected'}
-                    >
-                      <Gift size={14} style={{ color: contact.giftSelected ? 'white' : 'var(--gray-400)' }} />
-                    </div>
+                    {/* Gift Indicator — inactive placeholder hidden on portrait (B1.5j) */}
+                    {(!isPortrait || contact.giftSelected) && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '26px',
+                          height: '26px',
+                          borderRadius: '50%',
+                          background: contact.giftSelected
+                            ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
+                            : 'var(--gray-100)',
+                          border: contact.giftSelected ? 'none' : '2px dashed var(--gray-300)',
+                          boxShadow: contact.giftSelected ? '0 2px 4px rgba(34, 197, 94, 0.3)' : 'none'
+                        }}
+                        title={contact.giftSelected ? 'Gift selected' : 'No gift selected'}
+                      >
+                        <Gift size={14} style={{ color: contact.giftSelected ? 'white' : 'var(--gray-400)' }} />
+                      </div>
+                    )}
                     {/* Occasion Icons */}
                     <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
                       {(contact.occasions || []).slice(0, isPortrait ? 2 : 3).map((occasion, idx) => {
