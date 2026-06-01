@@ -119,14 +119,24 @@ export default function Settings() {
             <Database className="text-blue-600" size={24} />
             <h2 className="text-xl font-semibold text-gray-900">Data & Privacy</h2>
           </div>
+          <p className="text-sm text-gray-600 mb-4">
+            To request a copy of your data or to delete your account, email us at the
+            address below. We process all requests within 30 days, as described in our{' '}
+            <a href="/#/legal" className="text-blue-600 hover:underline">privacy policy</a>.
+          </p>
           <div className="space-y-3">
-            <button className="text-blue-600 hover:text-blue-700 font-medium">
-              Download My Data
-            </button>
-            <br />
-            <button className="text-red-600 hover:text-red-700 font-medium">
-              Delete Account
-            </button>
+            <a
+              href="mailto:support@greet-me.com?subject=Data%20Export%20Request"
+              className="block text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Request a copy of my data — support@greet-me.com
+            </a>
+            <a
+              href="mailto:support@greet-me.com?subject=Account%20Deletion%20Request"
+              className="block text-red-600 hover:text-red-700 font-medium"
+            >
+              Request account deletion — support@greet-me.com
+            </a>
           </div>
         </div>
       </div>
