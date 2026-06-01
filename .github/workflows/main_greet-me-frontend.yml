@@ -32,7 +32,6 @@ jobs:
         env:
           VITE_API_BASE: https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net
           VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
-          VITE_ADMIN_KEY: ${{ secrets.VITE_ADMIN_KEY }}
         run: npm run build
 
       - name: Create web.config for Azure static hosting

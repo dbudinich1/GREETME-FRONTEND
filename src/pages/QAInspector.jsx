@@ -5,7 +5,8 @@
 import { useState } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_BASE;
-const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || '';
+// Admin key sourced via proper auth in a future slice; this page is dev-only (route-gated in App.jsx).
+const ADMIN_KEY = '';
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
 // Centralized sample data — edit these to match real test records

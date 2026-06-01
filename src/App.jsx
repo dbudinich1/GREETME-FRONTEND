@@ -1,5 +1,5 @@
 // src/App.jsx
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext";
@@ -94,8 +94,16 @@ import CreditClaim from "./pages/CreditClaim";
 import G1G1Claim from "./pages/G1G1Claim";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
-import FounderDashboard from "./pages/FounderDashboard";
-import QAInspector from "./pages/QAInspector";
+// FounderDashboard + QAInspector are dev-only (route-gated below). The lazy
+// imports sit inside a const-init dead branch in production builds, so Vite
+// tree-shakes the page chunks out of the production bundle entirely — none
+// of their code, admin endpoint URLs, or x-admin-key headers ship to prod.
+const FounderDashboard = import.meta.env.DEV
+  ? lazy(() => import("./pages/FounderDashboard"))
+  : null;
+const QAInspector = import.meta.env.DEV
+  ? lazy(() => import("./pages/QAInspector"))
+  : null;
 import Support from "./pages/Support";
 import Legal from "./Legal";
 import VerifyEmail from "./pages/VerifyEmail";
@@ -173,9 +181,13 @@ export default function App() {
           <Route path="/support" element={<Support />} />
           <Route path="/legal" element={<Legal />} />
 
-          {/* Founder Dashboard (admin key protected at API level) */}
-          <Route path="/admin" element={<FounderDashboard />} />
-          <Route path="/qa" element={<QAInspector />} />
+          {/* Founder Dashboard + QA Inspector — dev-only, route-gated. */}
+          {import.meta.env.DEV && FounderDashboard && (
+            <Route path="/admin" element={<Suspense fallback={null}><FounderDashboard /></Suspense>} />
+          )}
+          {import.meta.env.DEV && QAInspector && (
+            <Route path="/qa" element={<Suspense fallback={null}><QAInspector /></Suspense>} />
+          )}
           <Route path="/app" element={<AppInstall />} />
 
           {/* Fallback */}

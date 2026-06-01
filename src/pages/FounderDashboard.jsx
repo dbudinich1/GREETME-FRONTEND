@@ -5,7 +5,8 @@
 import { useState, useEffect } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_BASE;
-const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || '';
+// Admin key sourced via proper auth in a future slice; this page is dev-only (route-gated in App.jsx).
+const ADMIN_KEY = '';
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
 async function fetchHealth() {
@@ -93,7 +94,7 @@ export default function FounderDashboard() {
       <div style={{ padding: '3rem', textAlign: 'center', fontFamily: FONT }}>
         <h1 style={{ color: '#dc2626' }}>Dashboard Error</h1>
         <p style={{ color: '#666' }}>{error}</p>
-        <p style={{ color: '#999', fontSize: '0.875rem' }}>Check VITE_ADMIN_KEY is set and ADMIN_API_KEY matches on backend.</p>
+        <p style={{ color: '#999', fontSize: '0.875rem' }}>Dashboard disabled. Admin auth pending future slice.</p>
       </div>
     );
   }
