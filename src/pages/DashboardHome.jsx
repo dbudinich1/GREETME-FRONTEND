@@ -1347,7 +1347,7 @@ export default function DashboardHome() {
           <div style={{
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
-            padding: '1.5rem',
+            padding: isNarrow ? '0.75rem' : '1.5rem',
             border: '2px solid var(--border)',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
             flex: 1,
@@ -1577,14 +1577,23 @@ export default function DashboardHome() {
                       }}></div>
                     )}
                   </div>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
                       fontSize: '0.9375rem',
                       fontWeight: 600,
                       color: 'var(--text-primary)',
-                      marginBottom: '0.25rem'
-                    }}>{contact.name}</div>
-                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                      marginBottom: '0.25rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }} title={contact.name}>{contact.name}</div>
+                    <div style={{
+                      fontSize: '0.8125rem',
+                      color: 'var(--text-secondary)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }} title={contact.relationship}>
                       {contact.relationship}
                     </div>
                   </div>
