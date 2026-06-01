@@ -1484,6 +1484,7 @@ export default function DashboardHome() {
               minHeight: 0,
               maxHeight: 'min(480px, 50dvh)',
               overflowY: 'auto',
+              overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch',
               background: 'var(--gray-100)',
               border: '1px solid var(--border)',
@@ -1690,6 +1691,7 @@ export default function DashboardHome() {
               minHeight: 0,
               maxHeight: 'min(480px, 50dvh)',
               overflowY: 'auto',
+              overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch',
               background: 'var(--gray-100)',
               border: '1px solid var(--border)',
@@ -1828,7 +1830,8 @@ export default function DashboardHome() {
         border: '1px solid var(--border)',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
         maxHeight: isNarrow ? '70dvh' : '600px',
-        overflowY: 'auto'
+        overflowY: 'auto',
+        overflowX: 'hidden'
       }}>
         <div style={{
           display: 'flex',
@@ -1997,7 +2000,8 @@ export default function DashboardHome() {
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
         marginTop: '2rem',
         maxHeight: isNarrow ? '70dvh' : '600px',
-        overflowY: 'auto'
+        overflowY: 'auto',
+        overflowX: 'hidden'
       }}>
         <div style={{
           marginBottom: '1.5rem',

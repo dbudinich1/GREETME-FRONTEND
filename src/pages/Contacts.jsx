@@ -598,6 +598,7 @@ export default function Recipients() {
             <div style={{
               maxHeight: 'min(480px, 50dvh)',
               overflowY: 'auto',
+              overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch',
               background: 'var(--gray-100)',
               border: '1px solid var(--border)',
@@ -935,6 +936,7 @@ export default function Recipients() {
             <div style={{
               maxHeight: 'min(480px, 50dvh)',
               overflowY: 'auto',
+              overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch',
               background: 'var(--gray-100)',
               border: '1px solid var(--border)',
