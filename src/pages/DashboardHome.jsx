@@ -1412,6 +1412,7 @@ export default function DashboardHome() {
                   cursor: 'pointer',
                   transition: 'all 0.2s',
                   fontFamily: 'inherit',
+                  whiteSpace: 'nowrap',
                   boxShadow: viewMode === 'recipients' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
                 }}
               >
@@ -1431,6 +1432,7 @@ export default function DashboardHome() {
                   cursor: 'pointer',
                   transition: 'all 0.2s',
                   fontFamily: 'inherit',
+                  whiteSpace: 'nowrap',
                   boxShadow: viewMode === 'occasions' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
                 }}
               >
@@ -1608,7 +1610,7 @@ export default function DashboardHome() {
                     </div>
                     {/* Occasion Icons */}
                     <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                      {(contact.occasions || []).slice(0, 3).map((occasion, idx) => {
+                      {(contact.occasions || []).slice(0, isPortrait ? 2 : 3).map((occasion, idx) => {
                         const occasionType = typeof occasion === 'object' ? occasion.type : occasion;
                         const icon = getOccasionIcon(occasionType);
                         return (
@@ -1624,57 +1626,61 @@ export default function DashboardHome() {
                           </span>
                         );
                       })}
-                      {contact.occasions && contact.occasions.length > 3 && (
+                      {contact.occasions && contact.occasions.length > (isPortrait ? 2 : 3) && (
                         <span style={{
                           fontSize: '0.75rem',
                           color: 'var(--text-tertiary)',
                           fontWeight: 500
                         }}>
-                          +{contact.occasions.length - 3}
+                          +{contact.occasions.length - (isPortrait ? 2 : 3)}
                         </span>
                       )}
                     </div>
                     {/* Quick Send button — preselects this recipient in the send flow */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/dashboard/send?contactId=${contact.id}`);
-                      }}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '0.25rem',
-                        color: 'var(--text-tertiary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                      title={`Send a Greet-Me to ${contact.name}`}
-                      aria-label={`Send a Greet-Me to ${contact.name}`}
-                    >
-                      <Send size={16} />
-                    </button>
+                    {!isPortrait && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/dashboard/send?contactId=${contact.id}`);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '0.25rem',
+                          color: 'var(--text-tertiary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title={`Send a Greet-Me to ${contact.name}`}
+                        aria-label={`Send a Greet-Me to ${contact.name}`}
+                      >
+                        <Send size={16} />
+                      </button>
+                    )}
                     {/* Settings Icon */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate('/dashboard/contacts', { state: { openEditRecipientId: contact.id } });
-                      }}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '0.25rem',
-                        color: 'var(--text-tertiary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                      title="Edit contact"
-                    >
-                      <Settings size={16} />
-                    </button>
+                    {!isPortrait && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate('/dashboard/contacts', { state: { openEditRecipientId: contact.id } });
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '0.25rem',
+                          color: 'var(--text-tertiary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title="Edit contact"
+                      >
+                        <Settings size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
               )))}
