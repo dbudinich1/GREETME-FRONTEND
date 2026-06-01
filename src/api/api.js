@@ -189,6 +189,14 @@ class ApiService {
         data?.retryAfter ||
         60;
 
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('rate-limit:active', {
+            detail: { retryAfter: Number(retryAfter) }
+          }));
+        }
+      } catch {}
+
       const error = new Error(data?.error || 'Rate limit exceeded');
       error.status = 429;
       error.code = data?.code || 'RATE_LIMIT_GENERAL';
@@ -377,6 +385,25 @@ class ApiService {
       data = await res.json();
     } catch {}
 
+    if (res.status === 429) {
+      const retryAfter =
+        (res.headers?.get?.('Retry-After')) ||
+        data?.retryAfter ||
+        60;
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('rate-limit:active', {
+            detail: { retryAfter: Number(retryAfter) }
+          }));
+        }
+      } catch {}
+      const error = new Error(data?.error || 'Rate limit exceeded');
+      error.status = 429;
+      error.code = data?.code || 'RATE_LIMIT_GENERAL';
+      error.retryAfter = Number(retryAfter);
+      throw error;
+    }
+
     if (!res.ok) {
       throw new Error(data?.error || `HTTP ${res.status}`);
     }
@@ -436,6 +463,25 @@ class ApiService {
       data = await res.json();
     } catch {}
 
+    if (res.status === 429) {
+      const retryAfter =
+        (res.headers?.get?.('Retry-After')) ||
+        data?.retryAfter ||
+        60;
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('rate-limit:active', {
+            detail: { retryAfter: Number(retryAfter) }
+          }));
+        }
+      } catch {}
+      const error = new Error(data?.error || 'Rate limit exceeded');
+      error.status = 429;
+      error.code = data?.code || 'RATE_LIMIT_GENERAL';
+      error.retryAfter = Number(retryAfter);
+      throw error;
+    }
+
     if (!res.ok) {
       throw new Error(data?.error || `HTTP ${res.status}`);
     }
@@ -476,6 +522,25 @@ class ApiService {
     try {
       data = await res.json();
     } catch {}
+
+    if (res.status === 429) {
+      const retryAfter =
+        (res.headers?.get?.('Retry-After')) ||
+        data?.retryAfter ||
+        60;
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('rate-limit:active', {
+            detail: { retryAfter: Number(retryAfter) }
+          }));
+        }
+      } catch {}
+      const error = new Error(data?.error || 'Rate limit exceeded');
+      error.status = 429;
+      error.code = data?.code || 'RATE_LIMIT_GENERAL';
+      error.retryAfter = Number(retryAfter);
+      throw error;
+    }
 
     if (!res.ok) {
       throw new Error(data?.error || `HTTP ${res.status}`);
