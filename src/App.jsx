@@ -7,6 +7,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import DashboardLayout from "./components/DashboardLayout";
 import NetworkBanner from "./components/NetworkBanner";
 import RateLimitBanner from "./components/RateLimitBanner";
+import ServerErrorBanner from "./components/ServerErrorBanner";
 
 import Register from "./pages/Register";
 import Login from "./pages/Login";
@@ -105,6 +106,7 @@ export default function App() {
     <AuthProvider>
       <NetworkBanner />
       <RateLimitBanner />
+      <ServerErrorBanner />
       <HashRouter>
         <ErrorBoundary>
         <Routes>

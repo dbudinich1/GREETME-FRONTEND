@@ -217,6 +217,11 @@ class ApiService {
       const error = new Error(data?.error || 'Server error');
       error.status = res.status;
       error.code = data?.code || 'SERVER_ERROR';
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('server-error:active'));
+        }
+      } catch {}
       throw error;
     }
 
@@ -404,6 +409,18 @@ class ApiService {
       throw error;
     }
 
+    if (res.status >= 500) {
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('server-error:active'));
+        }
+      } catch {}
+      const error = new Error(data?.error || 'Server error');
+      error.status = res.status;
+      error.code = data?.code || 'SERVER_ERROR';
+      throw error;
+    }
+
     if (!res.ok) {
       throw new Error(data?.error || `HTTP ${res.status}`);
     }
@@ -482,6 +499,18 @@ class ApiService {
       throw error;
     }
 
+    if (res.status >= 500) {
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('server-error:active'));
+        }
+      } catch {}
+      const error = new Error(data?.error || 'Server error');
+      error.status = res.status;
+      error.code = data?.code || 'SERVER_ERROR';
+      throw error;
+    }
+
     if (!res.ok) {
       throw new Error(data?.error || `HTTP ${res.status}`);
     }
@@ -539,6 +568,18 @@ class ApiService {
       error.status = 429;
       error.code = data?.code || 'RATE_LIMIT_GENERAL';
       error.retryAfter = Number(retryAfter);
+      throw error;
+    }
+
+    if (res.status >= 500) {
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('server-error:active'));
+        }
+      } catch {}
+      const error = new Error(data?.error || 'Server error');
+      error.status = res.status;
+      error.code = data?.code || 'SERVER_ERROR';
       throw error;
     }
 
