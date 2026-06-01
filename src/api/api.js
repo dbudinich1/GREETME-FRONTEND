@@ -148,10 +148,20 @@ class ApiService {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    let res;
+    try {
+      res = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers,
+      });
+    } catch (err) {
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('network:unavailable'));
+        }
+      } catch {}
+      return { ok: false, status: 0, networkError: true };
+    }
 
     // Handle auth / missing endpoints cleanly
     if (res.status === 401) {
@@ -336,11 +346,21 @@ class ApiService {
       ? `${API_BASE}/api/contacts/${contactId}/memory-photo`
       : `${API_BASE}/api/contacts/memory-photo`;
 
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
+    let res;
+    try {
+      res = await fetch(endpoint, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+    } catch (err) {
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('network:unavailable'));
+        }
+      } catch {}
+      return { ok: false, status: 0, networkError: true };
+    }
 
     if (res.status === 401) {
       try {
@@ -385,11 +405,21 @@ class ApiService {
   async uploadPhoto(formData) {
     let token = null; try { token = localStorage.getItem("token"); } catch {}
 
-    const res = await fetch(`${API_BASE}/api/profile/photo`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
+    let res;
+    try {
+      res = await fetch(`${API_BASE}/api/profile/photo`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+    } catch (err) {
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('network:unavailable'));
+        }
+      } catch {}
+      return { ok: false, status: 0, networkError: true };
+    }
 
     if (res.status === 401) {
       try {
@@ -416,11 +446,21 @@ class ApiService {
   async uploadVoice(formData) {
     let token = null; try { token = localStorage.getItem("token"); } catch {}
 
-    const res = await fetch(`${API_BASE}/api/profile/voice`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
+    let res;
+    try {
+      res = await fetch(`${API_BASE}/api/profile/voice`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+    } catch (err) {
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('network:unavailable'));
+        }
+      } catch {}
+      return { ok: false, status: 0, networkError: true };
+    }
 
     if (res.status === 401) {
       try {

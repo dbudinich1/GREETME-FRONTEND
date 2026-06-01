@@ -5,6 +5,7 @@ import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-d
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import DashboardLayout from "./components/DashboardLayout";
+import NetworkBanner from "./components/NetworkBanner";
 
 import Register from "./pages/Register";
 import Login from "./pages/Login";
@@ -101,6 +102,7 @@ import AppInstall from "./pages/AppInstall";
 export default function App() {
   return (
     <AuthProvider>
+      <NetworkBanner />
       <HashRouter>
         <ErrorBoundary>
         <Routes>
