@@ -945,38 +945,40 @@ export default function DashboardHome() {
                 color: 'var(--text-primary)',
                 margin: 0
               }}>Personalization</h2>
-              <button
-                onClick={() => navigate('/dashboard/media')}
-                style={{
-                  padding: '0.375rem 0.75rem',
-                  background: 'transparent',
-                  color: '#667eea',
-                  border: '1px solid #667eea',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.375rem',
-                  transition: 'all 0.2s',
-                  fontFamily: 'inherit'
-                }}
-                {...getHoverHandlers({
-                  onEnter: (e) => {
-                    e.currentTarget.style.background = '#667eea';
-                    e.currentTarget.style.color = 'white';
-                  },
-                  onLeave: (e) => {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = '#667eea';
-                  },
-                })}
-                title="Open Media Library"
-              >
-                <ImageIcon size={14} />
-                Media Library
-              </button>
+              {!isPortrait && (
+                <button
+                  onClick={() => navigate('/dashboard/media')}
+                  style={{
+                    padding: '0.375rem 0.75rem',
+                    background: 'transparent',
+                    color: '#667eea',
+                    border: '1px solid #667eea',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    transition: 'all 0.2s',
+                    fontFamily: 'inherit'
+                  }}
+                  {...getHoverHandlers({
+                    onEnter: (e) => {
+                      e.currentTarget.style.background = '#667eea';
+                      e.currentTarget.style.color = 'white';
+                    },
+                    onLeave: (e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#667eea';
+                    },
+                  })}
+                  title="Open Media Library"
+                >
+                  <ImageIcon size={14} />
+                  Media Library
+                </button>
+              )}
             </div>
             <p style={{
               fontSize: '0.875rem',
@@ -1920,13 +1922,13 @@ export default function DashboardHome() {
         marginBottom: '2rem',
         display: 'flex',
         flexDirection: isPortrait ? 'column' : 'row',
-        alignItems: isPortrait ? 'flex-start' : 'center',
-        justifyContent: 'space-between',
+        alignItems: 'center',
+        justifyContent: isPortrait ? 'center' : 'space-between',
         gap: isNarrow ? '1rem' : '0',
         border: '1px solid var(--border)',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: isPortrait ? 'center' : 'left' }}>
           <div style={{
             width: isNarrow ? '2.5rem' : '3rem',
             height: isNarrow ? '2.5rem' : '3rem',
