@@ -1646,50 +1646,46 @@ export default function DashboardHome() {
                       )}
                     </div>
                     {/* Quick Send button — preselects this recipient in the send flow */}
-                    {!isPortrait && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/dashboard/send?contactId=${contact.id}`);
-                        }}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          padding: '0.25rem',
-                          color: 'var(--text-tertiary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                        title={`Send a Greet-Me to ${contact.name}`}
-                        aria-label={`Send a Greet-Me to ${contact.name}`}
-                      >
-                        <Send size={16} />
-                      </button>
-                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/dashboard/send?contactId=${contact.id}`);
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '0.25rem',
+                        color: 'var(--text-tertiary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      title={`Send a Greet-Me to ${contact.name}`}
+                      aria-label={`Send a Greet-Me to ${contact.name}`}
+                    >
+                      <Send size={16} />
+                    </button>
                     {/* Settings Icon */}
-                    {!isPortrait && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate('/dashboard/contacts', { state: { openEditRecipientId: contact.id } });
-                        }}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          padding: '0.25rem',
-                          color: 'var(--text-tertiary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                        title="Edit contact"
-                      >
-                        <Settings size={16} />
-                      </button>
-                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/dashboard/contacts', { state: { openEditRecipientId: contact.id } });
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '0.25rem',
+                        color: 'var(--text-tertiary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      title="Edit contact"
+                    >
+                      <Settings size={16} />
+                    </button>
                   </div>
                 </div>
               )))}
