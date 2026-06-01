@@ -1491,7 +1491,7 @@ export default function DashboardHome() {
               background: 'var(--gray-100)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-lg)',
-              padding: '12px'
+              padding: isNarrow ? '8px' : '12px'
             }}>
               {contacts.length === 0 ? (
                 <div style={{
@@ -1539,8 +1539,8 @@ export default function DashboardHome() {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '1rem',
-                    padding: '0.75rem',
+                    gap: isNarrow ? '0.5rem' : '1rem',
+                    padding: isNarrow ? '0.5rem' : '0.75rem',
                     borderRadius: 'var(--radius-lg)',
                     cursor: 'pointer',
                     transition: 'all 0.2s'
