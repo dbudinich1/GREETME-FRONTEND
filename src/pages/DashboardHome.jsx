@@ -1597,7 +1597,7 @@ export default function DashboardHome() {
                       {contact.relationship}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: isNarrow ? '0.25rem' : '0.75rem', alignItems: 'center' }}>
                     {/* Gift Indicator */}
                     <div
                       style={{
