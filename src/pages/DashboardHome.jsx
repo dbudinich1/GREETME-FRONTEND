@@ -1577,7 +1577,7 @@ export default function DashboardHome() {
                       }}></div>
                     )}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                     <div style={{
                       fontSize: '0.9375rem',
                       fontWeight: 600,
