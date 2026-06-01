@@ -77,6 +77,20 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  // Graceful expired-session handler. Listens for 'auth:session-expired'
+  // dispatched by api.js on 401 responses. Clears local auth state via
+  // existing logout(); ProtectedRoute then redirects to /login.
+  useEffect(() => {
+    let handling = false;
+    const handleSessionExpired = () => {
+      if (handling) return;
+      handling = true;
+      logout();
+    };
+    window.addEventListener('auth:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
+  }, []);
+
   const login = async (email, password) => {
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {

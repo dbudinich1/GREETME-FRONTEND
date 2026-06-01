@@ -154,7 +154,14 @@ class ApiService {
     });
 
     // Handle auth / missing endpoints cleanly
-    if (res.status === 401) return { ok: false, status: 401 };
+    if (res.status === 401) {
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        }
+      } catch {}
+      return { ok: false, status: 401 };
+    }
     if (res.status === 404) return { ok: false, status: 404 };
 
     let data = {};
@@ -335,7 +342,14 @@ class ApiService {
       body: formData,
     });
 
-    if (res.status === 401) return { ok: false, status: 401 };
+    if (res.status === 401) {
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        }
+      } catch {}
+      return { ok: false, status: 401 };
+    }
     if (res.status === 404) return { ok: false, status: 404 };
 
     let data = {};
@@ -377,7 +391,14 @@ class ApiService {
       body: formData,
     });
 
-    if (res.status === 401) return { ok: false, status: 401 };
+    if (res.status === 401) {
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        }
+      } catch {}
+      return { ok: false, status: 401 };
+    }
     if (res.status === 404) return { ok: false, status: 404 };
 
     let data = {};
@@ -401,7 +422,14 @@ class ApiService {
       body: formData,
     });
 
-    if (res.status === 401) return { ok: false, status: 401 };
+    if (res.status === 401) {
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        }
+      } catch {}
+      return { ok: false, status: 401 };
+    }
     if (res.status === 404) return { ok: false, status: 404 };
 
     let data = {};
