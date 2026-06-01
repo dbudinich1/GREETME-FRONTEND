@@ -84,11 +84,7 @@ export default function Checkout() {
     address: '',
     city: '',
     state: '',
-    zipCode: '',
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-    nameOnCard: ''
+    zipCode: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -313,87 +309,6 @@ export default function Checkout() {
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.email) newErrors.email = 'Email is required';
-    if (!formData.firstName) newErrors.firstName = 'First name is required';
-    if (!formData.lastName) newErrors.lastName = 'Last name is required';
-    if (!formData.address) newErrors.address = 'Address is required';
-    if (!formData.city) newErrors.city = 'City is required';
-    if (!formData.state) newErrors.state = 'State is required';
-    if (!formData.zipCode) newErrors.zipCode = 'ZIP code is required';
-    if (!formData.cardNumber || formData.cardNumber.replace(/\s/g, '').length < 16) {
-      newErrors.cardNumber = 'Valid card number is required';
-    }
-    if (!formData.expiryDate || formData.expiryDate.length < 5) {
-      newErrors.expiryDate = 'Valid expiry date is required';
-    }
-    if (!formData.cvv || formData.cvv.length < 3) {
-      newErrors.cvv = 'Valid CVV is required';
-    }
-    if (!formData.nameOnCard) newErrors.nameOnCard = 'Name on card is required';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!validateForm()) return;
-
-    setIsProcessing(true);
-
-    // Simulated payment processing (dev-only when Stripe is not configured)
-    if (!import.meta.env.DEV || import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
-      setErrors({ submit: getErrorMessage({ code: 'SERVICE_UNAVAILABLE' }) });
-      setIsProcessing(false);
-      return;
-    }
-
-    try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Generate order ID
-      const newOrderId = `GM-${Date.now().toString(36).toUpperCase()}`;
-      setOrderId(newOrderId);
-
-      // Save order summary to localStorage (slim version - no large data)
-      // In production, full order details would go to backend
-      const orderSummary = {
-        id: newOrderId,
-        itemCount: cartItems.length,
-        itemNames: cartItems.map(i => i.name).slice(0, 5), // Max 5 names
-        total: total,
-        email: formData.email,
-        status: 'confirmed',
-        createdAt: new Date().toISOString()
-      };
-
-      try {
-        const existingOrders = JSON.parse(localStorage.getItem('greetme_orders') || '[]');
-        existingOrders.push(orderSummary);
-        // Keep only last 10 orders to prevent storage bloat
-        const trimmedOrders = existingOrders.slice(-10);
-        localStorage.setItem('greetme_orders', JSON.stringify(trimmedOrders));
-      } catch (e) {
-        // If storage fails, continue silently - order is still confirmed
-        console.warn('Could not save order to localStorage:', e);
-      }
-
-      // Clear cart
-      cartService.clear();
-      window.dispatchEvent(new Event('cartUpdated'));
-
-      setOrderComplete(true);
-    } catch (error) {
-      setErrors({ submit: 'Payment failed. Please try again.' });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   // Order confirmation screen
   if (orderComplete) {
     return (
@@ -601,7 +516,8 @@ export default function Checkout() {
         <div>• Greet One, Give One™ (send one to someone you love)</div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      {/* Non-submitting container — legacy <form onSubmit> removed by P.LAUNCH.LEGACY-CHECKOUT-FORM */}
+      <div>
         <div style={{
           display: 'grid',
           gridTemplateColumns: isNarrow ? '1fr' : 'minmax(0, 1fr) minmax(480px, 520px)',
@@ -718,214 +634,6 @@ export default function Checkout() {
                 )}
               </div>
             )}
-
-            {/* ===== Legacy dev-only billing form — hidden when merch is in cart ===== */}
-            {!cartHasMerch && (
-            <>
-            {/* Contact Information */}
-            <div style={{
-              background: 'var(--bg-primary)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1.5rem',
-              marginBottom: '1.5rem'
-            }}>
-              <h2 style={{
-                fontSize: '1rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                marginBottom: '1rem'
-              }}>Contact Information</h2>
-
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={labelStyle}>Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  autoComplete="email"
-                  style={{ ...inputStyle, borderColor: errors.email ? '#ef4444' : 'var(--border)' }}
-                  placeholder="your@email.com"
-                />
-                {errors.email && <p style={errorStyle}>{errors.email}</p>}
-              </div>
-            </div>
-
-            {/* Shipping Address */}
-            <div style={{
-              background: 'var(--bg-primary)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1.5rem',
-              marginBottom: '1.5rem'
-            }}>
-              <h2 style={{
-                fontSize: '1rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                marginBottom: '1rem'
-              }}>Shipping Address</h2>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                <div>
-                  <label style={labelStyle}>First Name</label>
-                  <input
-                    type="text"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleInputChange}
-                    autoComplete="given-name"
-                    style={{ ...inputStyle, borderColor: errors.firstName ? '#ef4444' : 'var(--border)' }}
-                  />
-                  {errors.firstName && <p style={errorStyle}>{errors.firstName}</p>}
-                </div>
-                <div>
-                  <label style={labelStyle}>Last Name</label>
-                  <input
-                    type="text"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    autoComplete="family-name"
-                    style={{ ...inputStyle, borderColor: errors.lastName ? '#ef4444' : 'var(--border)' }}
-                  />
-                  {errors.lastName && <p style={errorStyle}>{errors.lastName}</p>}
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={labelStyle}>Address</label>
-                <input
-                  type="text"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  autoComplete="address-line1"
-                  style={{ ...inputStyle, borderColor: errors.address ? '#ef4444' : 'var(--border)' }}
-                  placeholder="123 Main Street"
-                />
-                {errors.address && <p style={errorStyle}>{errors.address}</p>}
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <label style={labelStyle}>City</label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    autoComplete="address-level2"
-                    style={{ ...inputStyle, borderColor: errors.city ? '#ef4444' : 'var(--border)' }}
-                  />
-                  {errors.city && <p style={errorStyle}>{errors.city}</p>}
-                </div>
-                <div>
-                  <label style={labelStyle}>State</label>
-                  <input
-                    type="text"
-                    name="state"
-                    value={formData.state}
-                    onChange={handleInputChange}
-                    autoComplete="address-level1"
-                    style={{ ...inputStyle, borderColor: errors.state ? '#ef4444' : 'var(--border)' }}
-                    placeholder="CA"
-                  />
-                  {errors.state && <p style={errorStyle}>{errors.state}</p>}
-                </div>
-                <div>
-                  <label style={labelStyle}>ZIP Code</label>
-                  <input
-                    type="text"
-                    name="zipCode"
-                    value={formData.zipCode}
-                    onChange={handleInputChange}
-                    autoComplete="postal-code"
-                    style={{ ...inputStyle, borderColor: errors.zipCode ? '#ef4444' : 'var(--border)' }}
-                  />
-                  {errors.zipCode && <p style={errorStyle}>{errors.zipCode}</p>}
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Information */}
-            <div style={{
-              background: 'var(--bg-primary)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1.5rem'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <CreditCard size={18} style={{ color: '#667eea' }} />
-                <h2 style={{
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  margin: 0
-                }}>Payment Information</h2>
-              </div>
-
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={labelStyle}>Card Number</label>
-                <input
-                  type="text"
-                  name="cardNumber"
-                  value={formData.cardNumber}
-                  onChange={handleInputChange}
-                  autoComplete="cc-number"
-                  style={{ ...inputStyle, borderColor: errors.cardNumber ? '#ef4444' : 'var(--border)' }}
-                  placeholder="1234 5678 9012 3456"
-                />
-                {errors.cardNumber && <p style={errorStyle}>{errors.cardNumber}</p>}
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                <div>
-                  <label style={labelStyle}>Expiry Date</label>
-                  <input
-                    type="text"
-                    name="expiryDate"
-                    value={formData.expiryDate}
-                    onChange={handleInputChange}
-                    autoComplete="cc-exp"
-                    style={{ ...inputStyle, borderColor: errors.expiryDate ? '#ef4444' : 'var(--border)' }}
-                    placeholder="MM/YY"
-                  />
-                  {errors.expiryDate && <p style={errorStyle}>{errors.expiryDate}</p>}
-                </div>
-                <div>
-                  <label style={labelStyle}>CVV</label>
-                  <input
-                    type="text"
-                    name="cvv"
-                    value={formData.cvv}
-                    onChange={handleInputChange}
-                    autoComplete="cc-csc"
-                    style={{ ...inputStyle, borderColor: errors.cvv ? '#ef4444' : 'var(--border)' }}
-                    placeholder="123"
-                  />
-                  {errors.cvv && <p style={errorStyle}>{errors.cvv}</p>}
-                </div>
-                <div></div>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Name on Card</label>
-                <input
-                  type="text"
-                  name="nameOnCard"
-                  value={formData.nameOnCard}
-                  onChange={handleInputChange}
-                  autoComplete="cc-name"
-                  style={{ ...inputStyle, borderColor: errors.nameOnCard ? '#ef4444' : 'var(--border)' }}
-                />
-                {errors.nameOnCard && <p style={errorStyle}>{errors.nameOnCard}</p>}
-              </div>
-            </div>
-            </>
-            )}
-            {/* ===== End legacy dev-only billing form ===== */}
 
             {errors.submit && (
               <div style={{
@@ -1159,7 +867,7 @@ export default function Checkout() {
             </div>
           </div>
         </div>
-      </form>
+      </div>
 
       <style>{`
         @keyframes spin {
