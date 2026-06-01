@@ -302,12 +302,17 @@ export default function DashboardHome() {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     streamRef.current = stream;
 
-    // Choose a sane mimeType (Chrome/Edge: webm/opus; Safari may be limited)
+    // Choose a sane mimeType. Canonical fallback chain mirrors VoiceRecorder.jsx:
+    // Chrome/Edge → webm/opus or webm; Safari/iOS → mp4 (or mpeg as last resort).
     let options = {};
     if (window.MediaRecorder?.isTypeSupported?.("audio/webm;codecs=opus")) {
       options = { mimeType: "audio/webm;codecs=opus" };
     } else if (window.MediaRecorder?.isTypeSupported?.("audio/webm")) {
       options = { mimeType: "audio/webm" };
+    } else if (window.MediaRecorder?.isTypeSupported?.("audio/mp4")) {
+      options = { mimeType: "audio/mp4" };
+    } else if (window.MediaRecorder?.isTypeSupported?.("audio/mpeg")) {
+      options = { mimeType: "audio/mpeg" };
     }
 
     mediaRecorderRef.current = new MediaRecorder(stream, options);
@@ -321,8 +326,10 @@ export default function DashboardHome() {
 
     mediaRecorderRef.current.onstop = async () => {
       try {
-        // Build audio blob from chunks
-        const mime = mediaRecorderRef.current?.mimeType || "audio/webm";
+        // Build audio blob from chunks. Prefer the recorder's actual mimeType
+        // (Safari populates it as audio/mp4 when we requested mp4). Fall back to
+        // the explicitly chosen options.mimeType, then to webm as a final guard.
+        const mime = mediaRecorderRef.current?.mimeType || options.mimeType || "audio/webm";
         const blob = new Blob(audioChunksRef.current, { type: mime });
 
         // Convert blob to data URL for persistence

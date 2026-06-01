@@ -93,6 +93,9 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const [voiceSaved, setVoiceSaved] = useState(setupState.voiceDone || false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  // Tracks the actual MIME selected by MediaRecorder (webm on Chrome, mp4 on Safari).
+  // Mirror of the proven pattern in components/VoiceRecorder.jsx.
+  const mimeTypeRef = useRef('audio/webm');
   const audioPlayerRef = useRef(null);
   const timerRef = useRef(null);
 
@@ -176,7 +179,20 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
+
+      // Detect supported MIME (Chrome → webm, Safari → mp4). Canonical pattern
+      // from components/VoiceRecorder.jsx; do not invent a new strategy.
+      let mimeType = 'audio/webm';
+      if (!MediaRecorder.isTypeSupported('audio/webm')) {
+        if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          mimeType = 'audio/mp4';
+        } else if (MediaRecorder.isTypeSupported('audio/mpeg')) {
+          mimeType = 'audio/mpeg';
+        }
+      }
+      mimeTypeRef.current = mimeType;
+
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
       audioChunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (e) => {
@@ -184,7 +200,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       };
 
       mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(audioChunksRef.current, { type: mimeTypeRef.current });
         const url = URL.createObjectURL(blob);
         setAudioBlob(blob);
         setAudioUrl(url);
@@ -261,7 +277,12 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       return;
     }
 
-    const file = new File([audioBlob], 'voice-recording.webm', { type: 'audio/webm' });
+    // Derive extension from the actually-recorded MIME so backend filename
+    // and ElevenLabs MIME inference both match the bytes we're uploading.
+    const ext = mimeTypeRef.current === 'audio/mp4' ? 'mp4'
+              : mimeTypeRef.current === 'audio/mpeg' ? 'mp3'
+              : 'webm';
+    const file = new File([audioBlob], `voice-recording.${ext}`, { type: mimeTypeRef.current });
     const validation = validateAudioFile(file);
     if (!validation.valid) {
       setVoiceError(validation.error);

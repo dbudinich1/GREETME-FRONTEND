@@ -55,10 +55,13 @@ export const validateFile = (file, options = {}) => {
   return { valid: true };
 };
 
+// Canonical audio MIME allowlist. Includes Safari/iOS formats (audio/mp4, audio/m4a)
+// so the same list passes validation for Chrome (webm/opus) and Safari (mp4/AAC).
+// Keep this in sync with BACKEND /api/profile/voice filename derivation.
 export const validateAudioFile = (file, options = {}) => {
   const {
     maxSize = 10 * 1024 * 1024, // 10MB default
-    allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/webm'],
+    allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/webm', 'audio/mp4', 'audio/m4a'],
   } = options;
 
   if (file.size > maxSize) {
@@ -66,7 +69,7 @@ export const validateAudioFile = (file, options = {}) => {
   }
 
   if (!allowedTypes.includes(file.type)) {
-    return { valid: false, error: 'Audio file must be MP3, WAV, or WebM format' };
+    return { valid: false, error: 'Audio file must be MP3, WAV, WebM, MP4, or M4A format' };
   }
 
   return { valid: true };

@@ -22,6 +22,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
+import { validateAudioFile } from '../utils/helpers';
 
 export default function Profile() {
   const [profile, setProfile] = useState(null);
@@ -86,15 +87,11 @@ export default function Profile() {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate file type
-    if (!['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/webm', 'audio/m4a'].includes(file.type)) {
-      showAlert('error', 'Please upload an audio file (MP3, WAV, WebM, or M4A)');
-      return;
-    }
-
-    // Validate file size (10MB max)
-    if (file.size > 10 * 1024 * 1024) {
-      showAlert('error', 'File size must be less than 10MB');
+    // Use the canonical audio allowlist from helpers.js so Safari (audio/mp4)
+    // and Chrome (audio/webm) pass the same validation rules everywhere.
+    const validation = validateAudioFile(file);
+    if (!validation.valid) {
+      showAlert('error', validation.error);
       return;
     }
 
