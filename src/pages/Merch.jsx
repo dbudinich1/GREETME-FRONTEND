@@ -366,7 +366,7 @@ export default function Merch() {
               whiteSpace: 'nowrap'
             }}
           >
-            {cat.label}{!cat.live && ' · Coming Soon'}
+            {cat.label}
           </button>
         ))}
       </div>
