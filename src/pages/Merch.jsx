@@ -257,57 +257,61 @@ export default function Merch() {
         <div style={{
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           borderRadius: 'var(--radius-lg)',
-          padding: '1.5rem 1.5rem',
-          marginBottom: '1.5rem',
+          padding: isNarrow ? '1.75rem 1.5rem' : '2.5rem 2rem',
+          marginBottom: '1rem',
           color: 'white',
           textAlign: 'center',
           boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
         }}>
-          <h1 style={{
-            fontSize: isNarrow ? '1.25rem' : '1.5rem',
-            fontWeight: 700,
-            margin: 0,
-            marginBottom: '0.375rem'
-          }}>
-            American Gift Place
-          </h1>
-          <p style={{
-            fontSize: '0.8125rem',
-            opacity: 0.9,
-            fontStyle: 'italic',
-            margin: 0,
-            marginBottom: '0.75rem'
-          }}>
-            Show your love for staying connected with branded merch while supporting American providers
-          </p>
-          {/* Crossed flags icon - above toggle inside banner */}
+          {/* AGP-04 — flag hero emblem (top of tile) */}
           <div style={{
             display: 'flex',
             justifyContent: 'center',
-            marginBottom: '0.75rem'
+            marginBottom: '1rem'
           }}>
             <img
               src={greetmeFlags}
               alt="Greet-Me™ American Made"
               style={{
-                height: isNarrow ? '50px' : '60px',
+                height: isNarrow ? '120px' : '150px',
                 width: 'auto',
                 objectFit: 'contain'
               }}
             />
           </div>
-          {/* AGP-01 — Gifts/Merch toggle removed (unified American Gift Place storefront) */}
+          <h1 style={{
+            fontSize: isNarrow ? '1.5rem' : '1.875rem',
+            fontWeight: 700,
+            margin: '0 0 0.5rem'
+          }}>
+            American Gift Place™
+          </h1>
+          <p style={{
+            fontSize: isNarrow ? '0.9375rem' : '1rem',
+            color: 'white',
+            opacity: 1,
+            fontWeight: 500,
+            lineHeight: 1.5,
+            margin: '0 auto',
+            maxWidth: '520px',
+            textShadow: '0 1px 2px rgba(0, 0, 0, 0.15)'
+          }}>
+            Supporting American businesses, veterans, and first responders through meaningful giving.
+          </p>
         </div>
 
       {/* AGP-02 — QR Cash™ featured tile (mirrors dashboard QR Cash card) */}
       <div style={{
         background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
         borderRadius: 'var(--radius-lg)',
-        padding: isNarrow ? '1.125rem' : '1.375rem',
+        padding: isNarrow ? '1.75rem 1.5rem' : '2.5rem 2rem',
         color: 'white',
         boxShadow: '0 4px 12px rgba(251, 191, 36, 0.25)',
         border: '1px solid rgba(255, 255, 255, 0.2)',
-        marginBottom: '1rem'
+        marginBottom: '1rem',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
@@ -316,7 +320,6 @@ export default function Merch() {
           </div>
           <div style={{ textAlign: 'right' }}>
             <p style={{ fontSize: isNarrow ? '1.25rem' : '1.5rem', fontWeight: 700, margin: 0 }}>$0.00</p>
-            <p style={{ fontSize: isNarrow ? '0.625rem' : '0.6875rem', opacity: 0.8, margin: 0 }}>Available balance</p>
           </div>
         </div>
         <button
