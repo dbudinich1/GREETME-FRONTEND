@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, CreditCard, User, Users, ShoppingCart, Film, X, Image as ImageIcon, QrCode } from 'lucide-react';
+import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, User, Users, ShoppingCart, Film, X, Image as ImageIcon, QrCode } from 'lucide-react';
 import GreetMeLogo from './GreetMeLogo';
 import NotificationBell from './NotificationBell';
 import cartService from '../services/cartService';
@@ -504,12 +504,12 @@ export default function DashboardLayout({ children }) {
                     </div>
                     {/* NAV-01 — account items moved from top nav into the user menu */}
                     <button
-                      onClick={() => { setUserMenuOpen(false); navigate('/dashboard/profile'); }}
+                      onClick={() => { setUserMenuOpen(false); navigate('/dashboard/settings'); }}
                       style={{ width: '100%', textAlign: 'left', padding: '0.625rem 0.75rem', fontSize: '0.875rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
                       onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                     >
-                      <User size={16} /><span>Profile</span>
+                      <User size={16} /><span>Account</span>
                     </button>
                     <button
                       onClick={() => { setUserMenuOpen(false); navigate('/dashboard/merch/orders'); }}
@@ -526,14 +526,6 @@ export default function DashboardLayout({ children }) {
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                     >
                       <SettingsIcon size={16} /><span>Settings</span>
-                    </button>
-                    <button
-                      onClick={() => { setUserMenuOpen(false); navigate('/dashboard/settings'); }}
-                      style={{ width: '100%', textAlign: 'left', padding: '0.625rem 0.75rem', fontSize: '0.875rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                    >
-                      <CreditCard size={16} /><span>Membership &amp; Billing</span>
                     </button>
                     <button
                       onClick={handleLogout}

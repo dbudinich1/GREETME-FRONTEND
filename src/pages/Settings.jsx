@@ -1,5 +1,6 @@
 // src/pages/Settings.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Lock, CreditCard, Database, Gift, ChevronRight, Download, Trash2, Key } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
@@ -47,6 +48,8 @@ function g1g1Label(g) {
 
 export default function Settings() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const firstName = user?.name?.split(' ')[0] || 'there';
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState(null);
   const [g1g1, setG1g1] = useState(undefined);
@@ -177,6 +180,10 @@ export default function Settings() {
             <CreditCard style={{ color: 'var(--primary)' }} size={24} />
             <h2 style={cardTitle}>Your Membership</h2>
           </div>
+
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '0 0 1rem' }}>
+            Welcome back, {firstName}
+          </p>
 
           {/* Premium membership banner */}
           <div style={{
@@ -328,6 +335,7 @@ export default function Settings() {
             <h2 style={cardTitle}>Security</h2>
           </div>
           <button
+            onClick={() => navigate('/forgot-password')}
             style={{
               display: 'flex',
               alignItems: 'center',
