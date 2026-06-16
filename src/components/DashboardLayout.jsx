@@ -311,8 +311,8 @@ export default function DashboardLayout({ children }) {
             <button
               onClick={() => navigate('/dashboard/animations')}
               style={{
-                width: '2.75rem',
-                height: '2.75rem',
+                width: '3.25rem',
+                height: '3.25rem',
                 borderRadius: '50%',
                 border: 'none',
                 background: 'transparent',
@@ -334,8 +334,8 @@ export default function DashboardLayout({ children }) {
             >
               {/* Custom Bank Icon with $ */}
               <svg
-                width={isNarrow ? 16 : 20}
-                height={isNarrow ? 16 : 20}
+                width={isNarrow ? 22 : 26}
+                height={isNarrow ? 22 : 26}
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="var(--text-secondary)"
@@ -382,8 +382,8 @@ export default function DashboardLayout({ children }) {
             <button
               onClick={() => navigate('/dashboard/cart')}
               style={{
-                width: '2.75rem',
-                height: '2.75rem',
+                width: '3.25rem',
+                height: '3.25rem',
                 borderRadius: '50%',
                 border: 'none',
                 background: 'transparent',
@@ -403,7 +403,7 @@ export default function DashboardLayout({ children }) {
               }}
               title="Shopping Cart"
             >
-              <ShoppingCart size={isNarrow ? 16 : 20} style={{ color: 'var(--text-secondary)' }} />
+              <ShoppingCart size={isNarrow ? 22 : 26} style={{ color: 'var(--text-secondary)' }} />
               {cartCount > 0 && (
                 <span style={{
                   position: 'absolute',
@@ -431,8 +431,8 @@ export default function DashboardLayout({ children }) {
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 style={{
-                  width: '2.75rem',
-                  height: '2.75rem',
+                  width: '3.25rem',
+                  height: '3.25rem',
                   borderRadius: '50%',
                   border: 'none',
                   background: 'var(--primary)',
@@ -443,7 +443,7 @@ export default function DashboardLayout({ children }) {
                   transition: 'all 0.2s',
                   color: 'white',
                   fontWeight: 600,
-                  fontSize: isNarrow ? '0.875rem' : '1rem',
+                  fontSize: isNarrow ? '1.125rem' : '1.25rem',
                   padding: 0
                 }}
                 onMouseEnter={(e) => {
