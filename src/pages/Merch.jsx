@@ -4,12 +4,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, Briefcase, Users, Check, ArrowLeft } from 'lucide-react';
 import cartService from '../services/cartService';
 import AddToCartModal from '../components/AddToCartModal';
+import QRCashGiftModal from '../components/QRCashGiftModal';
 import api from '../api/api';
 import greetmeFlags from '../assets/greetme-flags.jpg';
 
 // AGP-01 — American Gift Place category layer. Only 'merch' is live/purchasable.
 const AGP_CATEGORIES = [
   { key: 'merch', label: 'Greet-Me Merch', live: true },
+  { key: 'americana', label: 'Americana', live: false },
   { key: 'gift_cards', label: 'Gift Cards', live: false },
   { key: 'gift_baskets', label: 'Gift Baskets', live: false },
   { key: 'flowers', label: 'Flowers', live: false },
@@ -19,7 +21,7 @@ const AGP_CATEGORIES = [
 export default function Merch() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [showCorporateModal, setShowCorporateModal] = useState(false);
+  const [showQRCashModal, setShowQRCashModal] = useState(false); // AGP-02
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
   const [addedItems, setAddedItems] = useState(new Set());
   const [showCartModal, setShowCartModal] = useState(false);
@@ -297,6 +299,46 @@ export default function Merch() {
           {/* AGP-01 — Gifts/Merch toggle removed (unified American Gift Place storefront) */}
         </div>
 
+      {/* AGP-02 — QR Cash™ featured tile (mirrors dashboard QR Cash card) */}
+      <div style={{
+        background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+        borderRadius: 'var(--radius-lg)',
+        padding: isNarrow ? '1.125rem' : '1.375rem',
+        color: 'white',
+        boxShadow: '0 4px 12px rgba(251, 191, 36, 0.25)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        marginBottom: '1rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h3 style={{ fontSize: isNarrow ? '1rem' : '1.125rem', fontWeight: 700, margin: 0 }}>QR Cash™</h3>
+            <p style={{ fontSize: isNarrow ? '0.6875rem' : '0.75rem', opacity: 0.9, margin: '0.125rem 0 0', letterSpacing: '0.025em' }}>Send • Spend • Gift</p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ fontSize: isNarrow ? '1.25rem' : '1.5rem', fontWeight: 700, margin: 0 }}>$0.00</p>
+            <p style={{ fontSize: isNarrow ? '0.625rem' : '0.6875rem', opacity: 0.8, margin: 0 }}>Available balance</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowQRCashModal(true)}
+          style={{
+            marginTop: '0.75rem',
+            width: '100%',
+            padding: '0.5rem 0.75rem',
+            background: 'white',
+            color: '#f59e0b',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            fontSize: isNarrow ? '0.8125rem' : '0.875rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit'
+          }}
+        >
+          Send QR Cash™
+        </button>
+      </div>
+
       {/* AGP-01 — Category selector (American Gift Place) */}
       <div style={{
         display: 'flex',
@@ -348,74 +390,6 @@ export default function Merch() {
         </div>
       ) : (
       <>
-      {/* Corporate White Label Banner */}
-      <div style={{
-        background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '2rem 1.5rem',
-        marginBottom: '1.5rem',
-        color: 'white',
-        textAlign: 'center',
-        boxShadow: '0 4px 12px rgba(30, 58, 138, 0.3)'
-      }}>
-        {/* Centered 10% donated badge */}
-        <div style={{
-          display: 'inline-block',
-          background: 'rgba(0, 0, 0, 0.15)',
-          padding: '0.375rem 0.75rem',
-          borderRadius: 'var(--radius-lg)',
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          color: 'white',
-          marginBottom: '0.75rem'
-        }}>
-          🏅 10% donated
-        </div>
-        <h2 style={{
-          fontSize: isNarrow ? '1.25rem' : '1.5rem',
-          fontWeight: 700,
-          margin: 0,
-          marginBottom: '0.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.5rem'
-        }}>
-          <Briefcase size={isNarrow ? 20 : 24} />
-          White Label Services
-        </h2>
-        <p style={{
-          fontSize: '0.9375rem',
-          opacity: 0.9,
-          fontStyle: 'italic',
-          margin: 0,
-          marginBottom: '1rem'
-        }}>
-          Mission-driven, branded gifting for clients and teams
-        </p>
-        <button
-          onClick={() => setShowCorporateModal(true)}
-          style={{
-            padding: '0.5rem 1.5rem',
-            background: 'white',
-            color: '#1e3a8a',
-            border: 'none',
-            borderRadius: 'var(--radius-lg)',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem'
-          }}
-        >
-          <Users size={16} />
-          Request Corporate Quote
-        </button>
-      </div>
-
       {/* Merch Grid — loading / error / empty / products */}
       {loading ? (
         <div style={{
@@ -583,153 +557,12 @@ export default function Merch() {
       </div>
       {/* End Background Frame */}
 
-      {/* Corporate Quote Modal */}
-      {showCorporateModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 50,
-            padding: '1rem'
-          }}
-          onClick={() => setShowCorporateModal(false)}
-        >
-          <div
-            style={{
-              background: 'var(--bg-primary)',
-              borderRadius: 'var(--radius-xl)',
-              padding: '2rem',
-              maxWidth: '500px',
-              width: '100%',
-              boxShadow: 'var(--shadow-lg)'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 style={{
-              fontSize: '1.5rem',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              marginBottom: '1rem'
-            }}>
-              Request Corporate Quote
-            </h2>
-            <p style={{
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)',
-              marginBottom: '1.5rem'
-            }}>
-              Fill out this form and our team will contact you within 24 hours with a custom quote for your white-label merchandise needs.
-            </p>
+      {/* AGP-02 — QR Cash™ gift modal (mirrors dashboard usage) */}
+      <QRCashGiftModal
+        isOpen={showQRCashModal}
+        onClose={() => setShowQRCashModal(false)}
+      />
 
-            <form style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <input
-                type="text"
-                placeholder="Company Name"
-                style={{
-                  padding: '0.75rem',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.875rem',
-                  fontFamily: 'inherit'
-                }}
-              />
-              <input
-                type="email"
-                placeholder="Email Address"
-                style={{
-                  padding: '0.75rem',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.875rem',
-                  fontFamily: 'inherit'
-                }}
-              />
-              <input
-                type="tel"
-                placeholder="Phone Number"
-                style={{
-                  padding: '0.75rem',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.875rem',
-                  fontFamily: 'inherit'
-                }}
-              />
-              <select
-                style={{
-                  padding: '0.75rem',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.875rem',
-                  fontFamily: 'inherit',
-                  color: 'var(--text-primary)'
-                }}
-              >
-                <option>Estimated Quantity...</option>
-                <option>25-50 units</option>
-                <option>50-100 units</option>
-                <option>100-250 units</option>
-                <option>250-500 units</option>
-                <option>500+ units</option>
-              </select>
-              <textarea
-                placeholder="Items of interest and any special requirements..."
-                rows={4}
-                style={{
-                  padding: '0.75rem',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.875rem',
-                  fontFamily: 'inherit',
-                  resize: 'vertical'
-                }}
-              />
-
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowCorporateModal(false)}
-                  style={{
-                    flex: 1,
-                    padding: '0.75rem',
-                    background: 'var(--gray-100)',
-                    border: 'none',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    color: 'var(--text-secondary)'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  style={{
-                    flex: 1,
-                    padding: '0.75rem',
-                    background: 'var(--primary)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit'
-                  }}
-                >
-                  Submit Request
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Add to Cart Confirmation Modal — picker mode when pickerProduct is set */}
       <AddToCartModal
