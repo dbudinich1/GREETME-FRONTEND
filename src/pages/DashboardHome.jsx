@@ -18,6 +18,38 @@ import { shouldShowOnboarding, shouldShowWarmReentry } from '../utils/accountSta
 import { getHoverHandlers } from '../utils/hoverable';
 import QRCode from 'qrcode';
 
+// DASH-01 Membership Snapshot — display mappings (frontend-only, read-only)
+const PLAN_DISPLAY = {
+  free: 'Free',
+  close_circle: 'Close Circle',
+  social_butterfly: 'Social Butterfly',
+  unforgettable: 'Unlimited Unforgettable', // real backend key — NOT unlimited_unforgettable
+  small_business: 'Small Business',
+  medium_business: 'Medium Business',
+  enterprise: 'Enterprise',
+  basic: 'Basic',
+  pro: 'Pro',
+  premium: 'Premium',
+  unlimited: 'Unlimited',
+  founder: 'Founder',
+};
+const STATUS_DISPLAY = { active: 'Active', past_due: 'Payment Issue', canceled: 'Canceled', refunded: 'Refunded' };
+function g1g1Label(g) {
+  if (!g) return 'Not Included';
+  if (g.status === 'paused') return 'Not Included';
+  if (g.status === 'failed') return 'Ready to Gift';
+  if (g.status === 'created') return g.giftSent ? 'Gift Shared' : 'Ready to Gift';
+  return 'Not Included';
+}
+function MembershipRow({ label, value }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.375rem 0' }}>
+      <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{label}</span>
+      <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{value}</span>
+    </div>
+  );
+}
+
 export default function DashboardHome() {
   const navigate = useNavigate();
   const { user, getToken, refreshProfile } = useAuth();
@@ -65,6 +97,7 @@ export default function DashboardHome() {
   const [sentGreetings, setSentGreetings] = useState([]);
   const [qrCashGifts, setQrCashGifts] = useState([]);
   const [rewardsBalance, setRewardsBalance] = useState(0);
+  const [g1g1, setG1g1] = useState(undefined); // DASH-01: undefined=loading, null=none, object=loaded
   const [viewMode, setViewMode] = useState('recipients'); // 'recipients' or 'occasions'
   const [isNarrow, setIsNarrow] = useState(window.innerWidth <= 768);
   const [isPortrait, setIsPortrait] = useState(
@@ -116,6 +149,15 @@ export default function DashboardHome() {
     loadPersistedMedia();
     // Load rewards balance
     setRewardsBalance(getRewardsBalance());
+  }, []);
+
+  // DASH-01 Membership Snapshot — fetch G1G1 benefit status (fire-and-forget, non-blocking)
+  useEffect(() => {
+    let alive = true;
+    api.get('/api/payments/g1g1-status')
+      .then((res) => { if (alive) setG1g1(res?.g1g1 ?? null); })
+      .catch(() => { if (alive) setG1g1(null); });
+    return () => { alive = false; };
   }, []);
 
   // Refresh rewards balance when tab regains focus (e.g. after a send)
@@ -488,6 +530,12 @@ export default function DashboardHome() {
   };
   const bannerText = SUB_BANNER_TEXT[user?.subscriptionStatus];
 
+  // DASH-01 Membership Snapshot — derived display values (read-only)
+  const planKey = user?.plan || user?.tier || 'free';
+  const planName = PLAN_DISPLAY[planKey] || 'Active Plan';
+  const statusLabel = STATUS_DISPLAY[user?.subscriptionStatus] || (planKey === 'free' ? 'Free' : 'Active');
+  const recipientLabel = `${contacts.length} ${contacts.length === 1 ? 'Recipient' : 'Recipients'}`;
+
   return (
     <div style={{ maxWidth: '100%', overflow: 'hidden', overflowX: 'hidden' }}>
       {/* Subscription lifecycle banner */}
@@ -655,6 +703,24 @@ export default function DashboardHome() {
       {shouldShowWarmReentry(accountState, contactsLoaded ? contacts.length : null) && (
         <WarmReentryWelcome isNarrow={isNarrow} />
       )}
+
+      {/* Membership Snapshot (DASH-01) — read-only */}
+      <div style={{
+        background: 'var(--bg-primary)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-xl)',
+        padding: isNarrow ? '1rem' : '1.25rem',
+        marginBottom: '1rem',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+      }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.75rem' }}>
+          Membership
+        </h2>
+        <MembershipRow label="Plan" value={planName} />
+        <MembershipRow label="Status" value={statusLabel} />
+        <MembershipRow label="Recipients" value={recipientLabel} />
+        {g1g1 !== undefined && <MembershipRow label="Gift Benefit" value={g1g1Label(g1g1)} />}
+      </div>
 
       {/* Dashboard Cards - All same height */}
       {/* Green G1G1 Card - Full Width */}
