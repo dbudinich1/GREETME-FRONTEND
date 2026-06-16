@@ -140,6 +140,12 @@ export default function Recipients() {
     } catch (error) {
       console.error('Add recipient error:', error);
 
+      // SUB-RECIPIENT-CAPS — do NOT fall back to local/offline storage when the plan cap is hit.
+      if (error?.code === 'RECIPIENT_LIMIT_REACHED') {
+        showAlertMessage('error', getErrorMessage(error));
+        return;
+      }
+
       const newRecipient = {
         id: Date.now(),
         ...contactData,

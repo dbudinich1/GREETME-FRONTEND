@@ -9,6 +9,7 @@ const ERROR_MESSAGES = {
   RATE_LIMIT_GENERAL: "You're moving quickly. Please give it just a moment and try again.",
   RATE_LIMIT_PUBLIC: 'This greeting is temporarily unavailable. Please try again shortly.',
   GENERATION_CAP: "You've reached your current Greet-Me limit. You can continue tomorrow \u2014 or upgrade anytime to keep the celebrations flowing.",
+  RECIPIENT_LIMIT_REACHED: "You've reached your plan's recipient limit. Upgrade your plan to add more recipients.",
   PAYMENT_REQUIRED: 'A Greet-Me\u2122 subscription is required to send greetings.',
   PAYMENT_FAILED: "Your payment didn't go through. You can update your method and continue whenever you're ready.",
   SUBSCRIPTION_EXPIRED: 'Your Greet-Me\u2122 subscription has expired. Renew to continue.',

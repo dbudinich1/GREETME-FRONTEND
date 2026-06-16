@@ -657,7 +657,7 @@ export default function SendGreeting() {
       setNewContactEmail('');
       setShowInlineAdd(false);
     } catch (err) {
-      setAddContactError(err?.message || 'Failed to add contact.');
+      setAddContactError(getErrorMessage(err));
     } finally {
       setAddingContact(false);
     }
