@@ -7,6 +7,15 @@ import AddToCartModal from '../components/AddToCartModal';
 import api from '../api/api';
 import greetmeFlags from '../assets/greetme-flags.jpg';
 
+// AGP-01 — American Gift Place category layer. Only 'merch' is live/purchasable.
+const AGP_CATEGORIES = [
+  { key: 'merch', label: 'Greet-Me Merch', live: true },
+  { key: 'gift_cards', label: 'Gift Cards', live: false },
+  { key: 'gift_baskets', label: 'Gift Baskets', live: false },
+  { key: 'flowers', label: 'Flowers', live: false },
+  { key: 'faith', label: 'Faith & Inspiration', live: false },
+];
+
 export default function Merch() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -19,6 +28,7 @@ export default function Merch() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState('merch'); // AGP-01: default live category
 
   // Session context: recipient gift flow vs SendGreeting Just-Because flow
   const returnRecipientId = searchParams.get('returnRecipientId');
@@ -257,7 +267,7 @@ export default function Merch() {
             margin: 0,
             marginBottom: '0.375rem'
           }}>
-            Greet-Me™ Merchandise
+            American Gift Place
           </h1>
           <p style={{
             fontSize: '0.8125rem',
@@ -284,59 +294,60 @@ export default function Merch() {
               }}
             />
           </div>
-          {/* Toggle centered - inside banner */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: 'rgba(255, 255, 255, 0.2)',
-              borderRadius: '9999px',
-              padding: '0.25rem'
-            }}>
-              <button
-                onClick={() => {
-                  // Preserve returnRecipientId when toggling to Gifts
-                  const giftsUrl = returnRecipientId
-                    ? `/dashboard/gifts?returnRecipientId=${returnRecipientId}`
-                    : '/dashboard/gifts';
-                  navigate(giftsUrl);
-                }}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: 'transparent',
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  border: 'none',
-                  borderRadius: '9999px',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit'
-                }}
-              >
-                Gifts
-              </button>
-              <button
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: 'white',
-                  color: '#667eea',
-                  border: 'none',
-                  borderRadius: '9999px',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit'
-                }}
-              >
-                Merch
-              </button>
-            </div>
-          </div>
+          {/* AGP-01 — Gifts/Merch toggle removed (unified American Gift Place storefront) */}
         </div>
 
+      {/* AGP-01 — Category selector (American Gift Place) */}
+      <div style={{
+        display: 'flex',
+        gap: '0.5rem',
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        padding: '0 0 0.75rem',
+        marginBottom: '1rem'
+      }}>
+        {AGP_CATEGORIES.map((cat) => (
+          <button
+            key={cat.key}
+            onClick={() => setSelectedCategory(cat.key)}
+            style={{
+              flexShrink: 0,
+              padding: '0.5rem 1rem',
+              borderRadius: '9999px',
+              border: '1px solid var(--border)',
+              background: selectedCategory === cat.key ? 'var(--primary)' : 'var(--bg-primary)',
+              color: selectedCategory === cat.key ? 'white' : 'var(--text-secondary)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {cat.label}{!cat.live && ' · Coming Soon'}
+          </button>
+        ))}
+      </div>
+
+      {selectedCategory !== 'merch' ? (
+        /* AGP-01 — Coming Soon: non-purchasable placeholder (no products, no add-to-cart) */
+        <div style={{
+          padding: '4rem 2rem',
+          textAlign: 'center',
+          color: 'var(--text-secondary)',
+          border: '1px dashed var(--border)',
+          borderRadius: 'var(--radius-xl)'
+        }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>&#10024;</div>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
+            {AGP_CATEGORIES.find((c) => c.key === selectedCategory)?.label} &mdash; Coming Soon
+          </h3>
+          <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: 0 }}>
+            We&rsquo;re curating this collection. Check back soon.
+          </p>
+        </div>
+      ) : (
+      <>
       {/* Corporate White Label Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
@@ -566,6 +577,8 @@ export default function Merch() {
             );
           })}
         </div>
+      )}
+      </>
       )}
       </div>
       {/* End Background Frame */}

@@ -23,7 +23,7 @@ import SentGreetings from "./pages/SentGreetings";
 import MediaLibrary from "./pages/MediaLibrary";
 import LandingPage from "./pages/LandingPage";
 import Pricing from "./pages/Pricing";
-import Gifts from "./pages/Gifts";
+// AGP-01: Gifts (mock storefront) retired — unified into the American Gift Place (Merch)
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Merch from "./pages/Merch";
@@ -155,9 +155,9 @@ export default function App() {
             <Route path="media" element={<MediaLibrary />} />
             <Route path="cart" element={<Cart />} />
             <Route path="checkout" element={<Checkout />} />
-            <Route path="merch" element={<Merch />} />
+            <Route path="merch" element={<Navigate to="/dashboard/gifts" replace />} />
             <Route path="merch/orders" element={<MerchOrders />} />
-            <Route path="gifts" element={<Gifts />} />
+            <Route path="gifts" element={<Merch />} />
             <Route path="hero" element={<HeroProgram />} />
             <Route path="animations" element={<AnimationBank />} />
             <Route path="invitations" element={<Invitations />} />
