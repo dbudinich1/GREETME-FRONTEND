@@ -79,12 +79,12 @@ export default function DashboardLayout({ children }) {
   const navigation = [
     { name: 'Home', path: '/dashboard', icon: null },
     { name: 'Recipients', path: '/dashboard/contacts', icon: Users },
-    { name: 'Media Library', path: '/dashboard/media', icon: ImageIcon },
     { name: 'Plans & Pricing', path: '/pricing', icon: null },
-    { name: 'For Business', path: '/business', icon: null },
-    { name: 'American Gift Place', path: '/dashboard/gifts', icon: Gift },
+    { name: 'Greet-Me Gifts', path: '/dashboard/gifts', icon: Gift },
     { name: '❤️ Rewards', path: '/dashboard/rewards', icon: null },
     { name: '🥇 Greet-Me™ Hero™', path: '/dashboard/hero', icon: null },
+    { name: 'For Business', path: '/business', icon: null },
+    { name: 'Media Library', path: '/dashboard/media', icon: ImageIcon },
   ];
 
   return (

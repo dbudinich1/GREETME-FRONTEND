@@ -257,7 +257,7 @@ export default function Merch() {
         <div style={{
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           borderRadius: 'var(--radius-lg)',
-          padding: isNarrow ? '1.75rem 1.5rem' : '2.5rem 2rem',
+          padding: isNarrow ? '1.5rem 1.25rem' : '2rem 1.5rem',
           marginBottom: '1rem',
           color: 'white',
           textAlign: 'center',
@@ -267,13 +267,13 @@ export default function Merch() {
           <div style={{
             display: 'flex',
             justifyContent: 'center',
-            marginBottom: '1rem'
+            marginBottom: '0.75rem'
           }}>
             <img
               src={greetmeFlags}
               alt="Greet-Me™ American Made"
               style={{
-                height: isNarrow ? '120px' : '150px',
+                height: isNarrow ? '100px' : '120px',
                 width: 'auto',
                 objectFit: 'contain'
               }}
@@ -304,7 +304,7 @@ export default function Merch() {
       <div style={{
         background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
         borderRadius: 'var(--radius-lg)',
-        padding: isNarrow ? '1.75rem 1.5rem' : '2.5rem 2rem',
+        padding: isNarrow ? '1.5rem 1.25rem' : '2rem 1.5rem',
         color: 'white',
         boxShadow: '0 4px 12px rgba(251, 191, 36, 0.25)',
         border: '1px solid rgba(255, 255, 255, 0.2)',
