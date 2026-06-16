@@ -1,5 +1,5 @@
 // src/pages/Settings.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, Lock, CreditCard, Database } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
@@ -9,17 +9,42 @@ const TIER_DISPLAY = {
   free: 'Free',
   basic: 'Basic',
   close_circle: 'Close Circle',
+  social_butterfly: 'Social Butterfly',
+  unforgettable: 'Unlimited Unforgettable', // real backend key — NOT unlimited_unforgettable
   pro: 'Pro',
   premium: 'Premium',
   unlimited: 'Unlimited',
+  small_business: 'Small Business',
+  medium_business: 'Medium Business',
+  enterprise: 'Enterprise',
+  founder: 'Founder',
 };
+const STATUS_DISPLAY = { active: 'Active', past_due: 'Payment Issue', canceled: 'Canceled', refunded: 'Refunded' };
+function g1g1Label(g) {
+  if (!g) return 'Not Included';
+  if (g.status === 'paused') return 'Not Included';
+  if (g.status === 'failed') return 'Ready to Gift';
+  if (g.status === 'created') return g.giftSent ? 'Gift Shared' : 'Ready to Gift';
+  return 'Not Included';
+}
 
 export default function Settings() {
   const { user } = useAuth();
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState(null);
+  const [g1g1, setG1g1] = useState(undefined);
 
-  const tierLabel = TIER_DISPLAY[user?.tier] || TIER_DISPLAY[user?.plan] || user?.tier || 'Free';
+  const planKey = user?.tier || user?.plan || 'free';
+  const tierLabel = TIER_DISPLAY[planKey] || (planKey === 'free' ? 'Free' : 'Active Plan');
+  const statusLabel = STATUS_DISPLAY[user?.subscriptionStatus] || (planKey === 'free' ? 'Free' : 'Active');
+
+  useEffect(() => {
+    let alive = true;
+    api.get('/api/payments/g1g1-status')
+      .then((res) => { if (alive) setG1g1(res?.g1g1 ?? null); })
+      .catch(() => { if (alive) setG1g1(null); });
+    return () => { alive = false; };
+  }, []);
 
   const handleManageBilling = async () => {
     setBillingLoading(true);
@@ -86,6 +111,10 @@ export default function Settings() {
           </div>
           <div className="space-y-3">
             <p className="text-gray-600">Current Plan: <strong>{tierLabel}</strong></p>
+            <p className="text-gray-600">Status: <strong>{statusLabel}</strong></p>
+            {g1g1 !== undefined && (
+              <p className="text-gray-600">Gift Benefit: <strong>{g1g1Label(g1g1)}</strong></p>
+            )}
             {billingError && (
               <p className="text-sm text-red-600">{billingError}</p>
             )}
