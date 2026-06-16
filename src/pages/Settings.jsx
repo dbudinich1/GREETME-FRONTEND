@@ -1,6 +1,6 @@
 // src/pages/Settings.jsx
 import React, { useState, useEffect } from 'react';
-import { Bell, Lock, CreditCard, Database } from 'lucide-react';
+import { Bell, Lock, CreditCard, Database, Gift, ChevronRight, Download, Trash2, Key } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
@@ -19,7 +19,24 @@ const TIER_DISPLAY = {
   enterprise: 'Enterprise',
   founder: 'Founder',
 };
-const STATUS_DISPLAY = { active: 'Active', past_due: 'Payment Issue', canceled: 'Canceled', refunded: 'Refunded' };
+
+// Presentation-only banner descriptor (one line, per-plan; static fallback for any other plan).
+const PLAN_DESCRIPTOR = {
+  free: 'Get started with meaningful giving.',
+  close_circle: 'Designed for close friends and family.',
+  social_butterfly: 'Never miss an important occasion.',
+  unforgettable: 'Your complete relationship-building membership.',
+};
+const FALLBACK_DESCRIPTOR = 'Built for meaningful relationships.';
+
+// Presentation-only status pill labels + colors. Backend subscriptionStatus mappings untouched.
+const PILL = {
+  active:   { label: 'Active',           dot: '#16a34a', text: '#15803d', bg: '#dcfce7' },
+  past_due: { label: 'Attention Needed', dot: '#d97706', text: '#b45309', bg: '#fef3c7' },
+  canceled: { label: 'Inactive',         dot: '#9ca3af', text: '#6b7280', bg: '#f3f4f6' },
+  refunded: { label: 'Inactive',         dot: '#9ca3af', text: '#6b7280', bg: '#f3f4f6' },
+};
+
 function g1g1Label(g) {
   if (!g) return 'Not Included';
   if (g.status === 'paused') return 'Not Included';
@@ -33,10 +50,21 @@ export default function Settings() {
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState(null);
   const [g1g1, setG1g1] = useState(undefined);
+  const [isNarrow, setIsNarrow] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+
+  useEffect(() => {
+    const onResize = () => setIsNarrow(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const planKey = user?.tier || user?.plan || 'free';
   const tierLabel = TIER_DISPLAY[planKey] || (planKey === 'free' ? 'Free' : 'Active Plan');
-  const statusLabel = STATUS_DISPLAY[user?.subscriptionStatus] || (planKey === 'free' ? 'Free' : 'Active');
+  const descriptor = PLAN_DESCRIPTOR[planKey] || FALLBACK_DESCRIPTOR;
+  const pill = PILL[user?.subscriptionStatus] || {
+    label: planKey === 'free' ? 'Free' : 'Active',
+    dot: '#6366f1', text: '#4f46e5', bg: '#eef2ff',
+  };
 
   useEffect(() => {
     let alive = true;
@@ -63,111 +91,327 @@ export default function Settings() {
     }
   };
 
+  const hasBillingRelationship =
+    ['active', 'past_due', 'canceled', 'trialing'].includes(user?.subscriptionStatus) ||
+    user?.paymentLocked === true;
+
+  // --- Shared token-based styles ---
+  const card = (hero = false) => ({
+    background: 'var(--bg-primary)',
+    borderRadius: 'var(--radius-xl)',
+    border: '1px solid var(--border)',
+    boxShadow: hero ? '0 8px 24px rgba(99, 102, 241, 0.12)' : '0 1px 2px rgba(0, 0, 0, 0.04)',
+    padding: isNarrow ? '1.25rem' : '1.75rem',
+  });
+  const cardHeader = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    marginBottom: '1.25rem',
+  };
+  const cardTitle = {
+    fontSize: '1.25rem',
+    fontWeight: 600,
+    color: 'var(--text-primary)',
+    margin: 0,
+  };
+  const gridLabel = {
+    fontSize: '0.6875rem',
+    fontWeight: 700,
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase',
+    color: 'var(--text-secondary)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.375rem',
+    marginBottom: '0.25rem',
+  };
+  const gridValue = {
+    fontSize: '0.9375rem',
+    fontWeight: 600,
+    color: 'var(--text-primary)',
+  };
+
+  // Membership detail columns (G1G1 column hidden while g1g1 is still loading).
+  const detailCols = [
+    { label: 'CURRENT PLAN', value: tierLabel },
+    { label: 'STATUS', value: pill.label },
+  ];
+  if (g1g1 !== undefined) {
+    detailCols.push({ label: 'GREET ONE, GIVE ONE™', value: g1g1Label(g1g1), icon: Gift });
+  }
+
+  const StatusPill = ({ onBanner = false }) => (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.375rem',
+      padding: '0.25rem 0.625rem',
+      borderRadius: 'var(--radius-full, 9999px)',
+      fontSize: '0.75rem',
+      fontWeight: 700,
+      background: onBanner ? 'rgba(255, 255, 255, 0.95)' : pill.bg,
+      color: pill.text,
+      whiteSpace: 'nowrap',
+      flexShrink: 0,
+    }}>
+      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: pill.dot }} />
+      {pill.label}
+    </span>
+  );
+
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Settings</h1>
+      <h1 style={{ fontSize: isNarrow ? '1.5rem' : '1.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.25rem' }}>
+        Settings
+      </h1>
+      <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', margin: '0 0 1.5rem' }}>
+        Manage your membership, preferences, and account.
+      </p>
 
-      <div className="space-y-6">
-        {/* Notifications */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <Bell className="text-blue-600" size={24} />
-            <h2 className="text-xl font-semibold text-gray-900">Notifications</h2>
-          </div>
-          <div className="space-y-3">
-            <label className="flex items-center">
-              <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded" />
-              <span className="ml-3 text-gray-700">Email me when greetings are sent</span>
-            </label>
-            <label className="flex items-center">
-              <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded" />
-              <span className="ml-3 text-gray-700">Remind me 7 days before upcoming occasions</span>
-            </label>
-            <label className="flex items-center">
-              <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" />
-              <span className="ml-3 text-gray-700">Send me monthly summary reports</span>
-            </label>
-          </div>
-        </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: isNarrow ? '1.5rem' : '2rem' }}>
 
-        {/* Security */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <Lock className="text-blue-600" size={24} />
-            <h2 className="text-xl font-semibold text-gray-900">Security</h2>
+        {/* 1. Your Membership (HERO) */}
+        <div style={card(true)}>
+          <div style={cardHeader}>
+            <CreditCard style={{ color: 'var(--primary)' }} size={24} />
+            <h2 style={cardTitle}>Your Membership</h2>
           </div>
-          <div className="space-y-3">
-            <button className="text-blue-600 hover:text-blue-700 font-medium">
-              Change Password
+
+          {/* Premium membership banner */}
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: 'var(--radius-lg)',
+            padding: isNarrow ? '1.25rem' : '1.5rem 1.75rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            flexDirection: isNarrow ? 'column' : 'row',
+            alignItems: isNarrow ? 'flex-start' : 'center',
+            justifyContent: 'space-between',
+            gap: isNarrow ? '0.875rem' : '1rem',
+          }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{
+                fontSize: isNarrow ? '1.375rem' : '1.625rem',
+                fontWeight: 700,
+                color: '#ffffff',
+                lineHeight: 1.2,
+              }}>
+                {tierLabel}
+              </div>
+              <div style={{
+                fontSize: '0.8125rem',
+                fontWeight: 400,
+                color: 'rgba(255, 255, 255, 0.85)',
+                marginTop: '0.375rem',
+              }}>
+                {descriptor}
+              </div>
+            </div>
+            <StatusPill onBanner />
+          </div>
+
+          {/* Detail grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isNarrow ? '1fr' : `repeat(${detailCols.length}, 1fr)`,
+            gap: isNarrow ? '1rem' : '1.25rem',
+            marginBottom: '1.5rem',
+          }}>
+            {detailCols.map((col) => (
+              <div key={col.label}>
+                <div style={gridLabel}>
+                  {col.icon ? <col.icon size={14} style={{ color: 'var(--primary)' }} /> : null}
+                  {col.label}
+                </div>
+                <div style={gridValue}>{col.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {billingError && (
+            <p style={{ fontSize: '0.875rem', color: '#dc2626', margin: '0 0 0.875rem' }}>{billingError}</p>
+          )}
+
+          {/* Single primary filled brand button (logic unchanged) */}
+          {hasBillingRelationship ? (
+            <button
+              onClick={handleManageBilling}
+              disabled={billingLoading}
+              style={{
+                width: isNarrow ? '100%' : 'auto',
+                padding: '0.75rem 1.75rem',
+                background: 'var(--primary)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 'var(--radius-md, 0.5rem)',
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                cursor: billingLoading ? 'default' : 'pointer',
+                opacity: billingLoading ? 0.5 : 1,
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={(e) => { if (!billingLoading) e.currentTarget.style.background = 'var(--primary-dark)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--primary)'; }}
+            >
+              {billingLoading ? 'Opening...' : 'Manage Billing'}
             </button>
+          ) : (
+            <button
+              onClick={() => { window.location.href = '/pricing'; }}
+              style={{
+                width: isNarrow ? '100%' : 'auto',
+                padding: '0.75rem 1.75rem',
+                background: 'var(--primary)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 'var(--radius-md, 0.5rem)',
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary-dark)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--primary)'; }}
+            >
+              View Plans
+            </button>
+          )}
+        </div>
+
+        {/* 2. Notifications */}
+        <div style={card()}>
+          <div style={cardHeader}>
+            <Bell style={{ color: 'var(--primary)' }} size={24} />
+            <h2 style={cardTitle}>Notifications</h2>
+          </div>
+          <div>
+            {[
+              { title: 'Email me when greetings are sent', help: 'Get a receipt the moment a card delivers.', checked: true },
+              { title: 'Remind me 7 days before upcoming occasions', help: 'Never miss a birthday or anniversary.', checked: true },
+              { title: 'Send me monthly summary reports', help: 'A recap of everything you sent.', checked: false },
+            ].map((row, i, arr) => (
+              <label
+                key={row.title}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  padding: '0.875rem 0',
+                  borderBottom: i < arr.length - 1 ? '1px solid var(--border-light, #f3f4f6)' : 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: '0.9375rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+                    {row.title}
+                  </span>
+                  <span style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.125rem' }}>
+                    {row.help}
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  defaultChecked={row.checked}
+                  style={{ width: '1.125rem', height: '1.125rem', accentColor: 'var(--primary)', flexShrink: 0, cursor: 'pointer' }}
+                />
+              </label>
+            ))}
           </div>
         </div>
 
-        {/* Billing */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <CreditCard className="text-blue-600" size={24} />
-            <h2 className="text-xl font-semibold text-gray-900">Billing</h2>
+        {/* 3. Security */}
+        <div style={card()}>
+          <div style={cardHeader}>
+            <Lock style={{ color: 'var(--primary)' }} size={24} />
+            <h2 style={cardTitle}>Security</h2>
           </div>
-          <div className="space-y-3">
-            <p className="text-gray-600">Current Plan: <strong>{tierLabel}</strong></p>
-            <p className="text-gray-600">Status: <strong>{statusLabel}</strong></p>
-            {g1g1 !== undefined && (
-              <p className="text-gray-600">Gift Benefit: <strong>{g1g1Label(g1g1)}</strong></p>
-            )}
-            {billingError && (
-              <p className="text-sm text-red-600">{billingError}</p>
-            )}
-            {(() => {
-              const hasBillingRelationship =
-                ['active', 'past_due', 'canceled', 'trialing'].includes(user?.subscriptionStatus) ||
-                user?.paymentLocked === true;
-              return hasBillingRelationship ? (
-                <button
-                  onClick={handleManageBilling}
-                  disabled={billingLoading}
-                  className="text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
-                >
-                  {billingLoading ? 'Opening...' : 'Manage Billing'}
-                </button>
-              ) : (
-                <button
-                  onClick={() => window.location.href = '/pricing'}
-                  className="text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  View Plans
-                </button>
-              );
-            })()}
-          </div>
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+              width: '100%',
+              padding: '0.875rem 0',
+              background: 'transparent',
+              border: 'none',
+              textAlign: 'left',
+              cursor: 'pointer',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+              <Key size={18} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: '0.9375rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+                  Password
+                </span>
+                <span style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.125rem' }}>
+                  Change your account password
+                </span>
+              </span>
+            </span>
+            <ChevronRight size={18} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+          </button>
         </div>
 
-        {/* Data */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <Database className="text-blue-600" size={24} />
-            <h2 className="text-xl font-semibold text-gray-900">Data & Privacy</h2>
+        {/* 4. Data & Privacy */}
+        <div style={card()}>
+          <div style={cardHeader}>
+            <Database style={{ color: 'var(--primary)' }} size={24} />
+            <h2 style={cardTitle}>Data &amp; Privacy</h2>
           </div>
-          <p className="text-sm text-gray-600 mb-4">
-            To request a copy of your data or to delete your account, email us at the
-            address below. We process all requests within 30 days, as described in our{' '}
-            <a href="/#/legal" className="text-blue-600 hover:underline">privacy policy</a>.
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 1.25rem' }}>
+            To request a copy of your data or to delete your account, email us at the address below.
+            We process all requests within 30 days, as described in our{' '}
+            <a href="/#/legal" style={{ color: 'var(--primary)', textDecoration: 'none' }}>privacy policy</a>.
           </p>
-          <div className="space-y-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <a
               href="mailto:support@greet-me.com?subject=Data%20Export%20Request"
-              className="block text-blue-600 hover:text-blue-700 font-medium"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                padding: '0.875rem 1rem',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-lg)',
+                textDecoration: 'none',
+                color: 'var(--text-primary)',
+              }}
             >
-              Request a copy of my data — support@greet-me.com
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                <Download size={18} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                <span style={{ fontSize: '0.9375rem', fontWeight: 500 }}>Request a copy of my data</span>
+              </span>
+              <ChevronRight size={18} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
             </a>
             <a
               href="mailto:support@greet-me.com?subject=Account%20Deletion%20Request"
-              className="block text-red-600 hover:text-red-700 font-medium"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                padding: '0.875rem 1rem',
+                border: '1px solid #fecaca',
+                borderRadius: 'var(--radius-lg)',
+                textDecoration: 'none',
+                color: '#dc2626',
+                background: '#fef2f2',
+              }}
             >
-              Request account deletion — support@greet-me.com
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                <Trash2 size={18} style={{ color: '#dc2626', flexShrink: 0 }} />
+                <span style={{ fontSize: '0.9375rem', fontWeight: 500 }}>Request account deletion</span>
+              </span>
+              <ChevronRight size={18} style={{ color: '#dc2626', flexShrink: 0 }} />
             </a>
           </div>
         </div>
+
       </div>
     </div>
   );
