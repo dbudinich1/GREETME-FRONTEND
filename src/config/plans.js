@@ -5,7 +5,7 @@ export const personalPlans = {
   founders: [
     {
       id: 'founders-close-circle',
-      name: 'Close Circle',
+      name: 'Close Circle™',
       price: 9.99,
       period: 'year',
       priceId: 'price_1T4bbGCf7KAA6aLaeFPOGJYq',
@@ -22,7 +22,7 @@ export const personalPlans = {
     },
     {
       id: 'founders-social-butterfly',
-      name: 'Social Butterfly',
+      name: 'Social Butterfly™',
       price: 19.99,
       period: 'year',
       priceId: 'price_1T4cCOCf7KAA6aLa8Y8Gejj8',
@@ -32,7 +32,7 @@ export const personalPlans = {
       description: 'For people who celebrate everyone',
       footer: 'Perfect for birthdays, holidays, and milestones',
       featureGroups: [
-        { section: 'Core', features: ['Up to 25 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
+        { section: 'Core', features: ['Up to 15 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
         { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Premium templates'] },
         { section: 'Delivery', features: ['Priority email delivery'] }
       ]
@@ -59,7 +59,7 @@ export const personalPlans = {
   standard: [
     {
       id: 'standard-close-circle',
-      name: 'Close Circle',
+      name: 'Close Circle™',
       price: 19.99,
       period: 'year',
       priceId: 'price_1T4cCPCf7KAA6aLaONpc1Qk9',
@@ -76,7 +76,7 @@ export const personalPlans = {
     },
     {
       id: 'standard-social-butterfly',
-      name: 'Social Butterfly',
+      name: 'Social Butterfly™',
       price: 39.99,
       period: 'year',
       priceId: 'price_1T4cCQCf7KAA6aLaYApDAdSy',
@@ -86,7 +86,7 @@ export const personalPlans = {
       description: 'For people who celebrate everyone',
       footer: 'Perfect for birthdays, holidays, and milestones',
       featureGroups: [
-        { section: 'Core', features: ['Up to 25 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
+        { section: 'Core', features: ['Up to 15 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
         { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Premium templates'] },
         { section: 'Delivery', features: ['Priority email delivery'] }
       ]
