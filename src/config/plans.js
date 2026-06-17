@@ -4,17 +4,6 @@
 export const personalPlans = {
   founders: [
     {
-      id: 'guest',
-      isGuest: true,
-      name: 'Guest User',
-      price: 'Free',
-      period: '',
-      description: 'Explore Greet-Me',
-      featureGroups: [
-        { section: 'Included', features: ['Up to 3 recipients', 'Voice & photo Greet-Mes', 'AI-personalized messages', 'QR Cash™', 'Greet-Me Gifts™'] }
-      ]
-    },
-    {
       id: 'founders-close-circle',
       name: 'Close Circle',
       price: 9.99,
@@ -68,17 +57,6 @@ export const personalPlans = {
     }
   ],
   standard: [
-    {
-      id: 'guest',
-      isGuest: true,
-      name: 'Guest User',
-      price: 'Free',
-      period: '',
-      description: 'Explore Greet-Me',
-      featureGroups: [
-        { section: 'Included', features: ['Up to 3 recipients', 'Voice & photo Greet-Mes', 'AI-personalized messages', 'QR Cash™', 'Greet-Me Gifts™'] }
-      ]
-    },
     {
       id: 'standard-close-circle',
       name: 'Close Circle',

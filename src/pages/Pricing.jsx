@@ -14,6 +14,8 @@ export default function Pricing() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const planKey = user?.tier || user?.plan || 'free';
+  const isFreeGuestUser = !!user && (planKey === 'free' || planKey === 'guest');
   const [viewMode, setViewMode] = useState('personal'); // 'personal' or 'business'
   const [pricingMode, setPricingMode] = useState('founders'); // 'founders' or 'standard' (for personal)
 
@@ -49,10 +51,6 @@ export default function Pricing() {
   const [lastAddedPlan, setLastAddedPlan] = useState(null);
 
   const handlePlanSelect = (plan) => {
-    if (plan.isGuest) {
-      navigate('/register');
-      return;
-    }
     if (plan.id.includes('enterprise')) {
       setShowEnterpriseForm(true);
     } else {
@@ -168,6 +166,17 @@ export default function Pricing() {
         }}>
           Never forget the ones you love. Start with Founders Pricing or explore business options.
         </p>
+
+        {isFreeGuestUser && (
+          <p style={{
+            fontSize: 'clamp(0.75rem, 1.1vw, 0.875rem)',
+            color: 'rgba(255, 255, 255, 0.85)',
+            margin: '0 auto 0.5rem auto',
+            fontStyle: 'italic'
+          }}>
+            You're currently on the Guest plan &mdash; upgrade anytime.
+          </p>
+        )}
 
         {/* View Mode Toggle */}
         <div style={{
@@ -324,8 +333,8 @@ export default function Pricing() {
             alignItems: 'stretch'
           }}>
           {currentPlans.map((plan) => {
-            const isCreditIneligible = !plan.isGuest && referralCode && CREDIT_INELIGIBLE_TIERS.has(plan.planTier);
-            const isCreditEligible = !plan.isGuest && referralCode && !CREDIT_INELIGIBLE_TIERS.has(plan.planTier) && plan.price !== 'Contact Sales';
+            const isCreditIneligible = referralCode && CREDIT_INELIGIBLE_TIERS.has(plan.planTier);
+            const isCreditEligible = referralCode && !CREDIT_INELIGIBLE_TIERS.has(plan.planTier) && plan.price !== 'Contact Sales';
             return (
               <div
                 key={plan.id}
@@ -376,8 +385,8 @@ export default function Pricing() {
                   </div>
                 )}
 
-                {/* G1G1™ Gold Foil Seal - Top Right (Personal plans only; never on Guest) */}
-                {viewMode === 'personal' && !plan.isGuest && (
+                {/* G1G1™ Gold Foil Seal - Top Right (Personal plans only) */}
+                {viewMode === 'personal' && (
                   <div style={{
                     position: 'absolute',
                     top: plan.highlight ? '1.5rem' : '1rem',
@@ -524,14 +533,7 @@ export default function Pricing() {
                   color: 'var(--text-primary)',
                   textAlign: 'center'
                 }}>
-                  {plan.price === 'Free' ? (
-                    <div>
-                      <span style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>Free</span>
-                      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                        No card required
-                      </div>
-                    </div>
-                  ) : plan.price === 'Custom' ? (
+                  {plan.price === 'Custom' ? (
                     <div>
                       <span style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>Custom</span>
                       <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
@@ -613,7 +615,7 @@ export default function Pricing() {
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  {plan.isGuest ? 'Get Started Free' : plan.price === 'Contact Sales' ? 'Contact Sales' : isCreditIneligible ? 'Not Eligible' : 'Get Started'}
+                  {plan.price === 'Contact Sales' ? 'Contact Sales' : isCreditIneligible ? 'Not Eligible' : 'Get Started'}
                 </button>
 
                 {/* Features - Phase 8.3: Grouped into sections for scannability */}
