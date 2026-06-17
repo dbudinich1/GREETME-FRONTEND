@@ -11,7 +11,7 @@ const TIER_DISPLAY = {
   basic: 'Basic',
   close_circle: 'Close Circle',
   social_butterfly: 'Social Butterfly',
-  unforgettable: 'Unlimited Unforgettable', // real backend key — NOT unlimited_unforgettable
+  unforgettable: 'Legend™', // display name only — real backend key stays 'unforgettable'
   pro: 'Pro',
   premium: 'Premium',
   unlimited: 'Unlimited',

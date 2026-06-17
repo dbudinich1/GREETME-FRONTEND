@@ -4,6 +4,17 @@
 export const personalPlans = {
   founders: [
     {
+      id: 'guest',
+      isGuest: true,
+      name: 'Guest User',
+      price: 'Free',
+      period: '',
+      description: 'Explore Greet-Me',
+      featureGroups: [
+        { section: 'Included', features: ['Up to 3 recipients', 'Voice & photo Greet-Mes', 'AI-personalized messages', 'QR Cash™', 'Greet-Me Gifts™'] }
+      ]
+    },
+    {
       id: 'founders-close-circle',
       name: 'Close Circle',
       price: 9.99,
@@ -12,7 +23,8 @@ export const personalPlans = {
       purchaseType: 'subscription',
       planTier: 'close_circle',
       billingPeriod: 'yearly',
-      description: 'Perfect for immediate family',
+      description: 'For the people who matter most',
+      footer: 'Most popular for close friends and family',
       featureGroups: [
         { section: 'Core', features: ['Up to 5 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
         { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings'] },
@@ -28,7 +40,8 @@ export const personalPlans = {
       purchaseType: 'subscription',
       planTier: 'social_butterfly',
       billingPeriod: 'yearly',
-      description: 'For friends and extended family',
+      description: 'For people who celebrate everyone',
+      footer: 'Perfect for birthdays, holidays, and milestones',
       featureGroups: [
         { section: 'Core', features: ['Up to 25 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
         { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Premium templates'] },
@@ -37,14 +50,15 @@ export const personalPlans = {
     },
     {
       id: 'founders-unlimited',
-      name: 'Unlimited Unforgettable',
+      name: 'Legend™',
       price: 39.99,
       period: 'year',
       priceId: 'price_1T4cCPCf7KAA6aLaNQLBvfkM',
       purchaseType: 'subscription',
       planTier: 'unforgettable',
       billingPeriod: 'yearly',
-      description: 'For the ultimate connector',
+      description: 'Your complete relationship-building membership',
+      footer: 'Never miss an important moment',
       featureGroups: [
         { section: 'Core', features: ['Unlimited recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
         { section: 'Greetings', features: ['Voice + Photo greetings', 'Video greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Advanced AI personalization'] },
@@ -55,6 +69,17 @@ export const personalPlans = {
   ],
   standard: [
     {
+      id: 'guest',
+      isGuest: true,
+      name: 'Guest User',
+      price: 'Free',
+      period: '',
+      description: 'Explore Greet-Me',
+      featureGroups: [
+        { section: 'Included', features: ['Up to 3 recipients', 'Voice & photo Greet-Mes', 'AI-personalized messages', 'QR Cash™', 'Greet-Me Gifts™'] }
+      ]
+    },
+    {
       id: 'standard-close-circle',
       name: 'Close Circle',
       price: 19.99,
@@ -63,7 +88,8 @@ export const personalPlans = {
       purchaseType: 'subscription',
       planTier: 'close_circle',
       billingPeriod: 'yearly',
-      description: 'Perfect for immediate family',
+      description: 'For the people who matter most',
+      footer: 'Most popular for close friends and family',
       featureGroups: [
         { section: 'Core', features: ['Up to 5 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
         { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings'] },
@@ -79,7 +105,8 @@ export const personalPlans = {
       purchaseType: 'subscription',
       planTier: 'social_butterfly',
       billingPeriod: 'yearly',
-      description: 'For friends and extended family',
+      description: 'For people who celebrate everyone',
+      footer: 'Perfect for birthdays, holidays, and milestones',
       featureGroups: [
         { section: 'Core', features: ['Up to 25 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
         { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Premium templates'] },
@@ -88,14 +115,15 @@ export const personalPlans = {
     },
     {
       id: 'standard-unlimited',
-      name: 'Unlimited Unforgettable',
+      name: 'Legend™',
       price: 79.99,
       period: 'year',
       priceId: 'price_1T4cCRCf7KAA6aLaAuJoxNR0',
       purchaseType: 'subscription',
       planTier: 'unforgettable',
       billingPeriod: 'yearly',
-      description: 'For the ultimate connector',
+      description: 'Your complete relationship-building membership',
+      footer: 'Never miss an important moment',
       featureGroups: [
         { section: 'Core', features: ['Unlimited recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
         { section: 'Greetings', features: ['Voice + Photo greetings', 'Video greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Advanced AI personalization'] },

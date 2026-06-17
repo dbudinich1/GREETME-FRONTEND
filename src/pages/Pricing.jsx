@@ -49,6 +49,10 @@ export default function Pricing() {
   const [lastAddedPlan, setLastAddedPlan] = useState(null);
 
   const handlePlanSelect = (plan) => {
+    if (plan.isGuest) {
+      navigate('/register');
+      return;
+    }
     if (plan.id.includes('enterprise')) {
       setShowEnterpriseForm(true);
     } else {
@@ -315,13 +319,13 @@ export default function Pricing() {
           {/* Phase 8.3B: alignItems: 'stretch' for equal card heights */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: isNarrow ? '1fr' : 'repeat(3, 1fr)',
+            gridTemplateColumns: isNarrow ? '1fr' : `repeat(${currentPlans.length}, 1fr)`,
             gap: isNarrow ? '1.5rem' : '2rem',
             alignItems: 'stretch'
           }}>
           {currentPlans.map((plan) => {
-            const isCreditIneligible = referralCode && CREDIT_INELIGIBLE_TIERS.has(plan.planTier);
-            const isCreditEligible = referralCode && !CREDIT_INELIGIBLE_TIERS.has(plan.planTier) && plan.price !== 'Contact Sales';
+            const isCreditIneligible = !plan.isGuest && referralCode && CREDIT_INELIGIBLE_TIERS.has(plan.planTier);
+            const isCreditEligible = !plan.isGuest && referralCode && !CREDIT_INELIGIBLE_TIERS.has(plan.planTier) && plan.price !== 'Contact Sales';
             return (
               <div
                 key={plan.id}
@@ -372,8 +376,8 @@ export default function Pricing() {
                   </div>
                 )}
 
-                {/* G1G1™ Gold Foil Seal - Top Right (Personal plans only) */}
-                {viewMode === 'personal' && (
+                {/* G1G1™ Gold Foil Seal - Top Right (Personal plans only; never on Guest) */}
+                {viewMode === 'personal' && !plan.isGuest && (
                   <div style={{
                     position: 'absolute',
                     top: plan.highlight ? '1.5rem' : '1rem',
@@ -520,7 +524,14 @@ export default function Pricing() {
                   color: 'var(--text-primary)',
                   textAlign: 'center'
                 }}>
-                  {plan.price === 'Custom' ? (
+                  {plan.price === 'Free' ? (
+                    <div>
+                      <span style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>Free</span>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                        No card required
+                      </div>
+                    </div>
+                  ) : plan.price === 'Custom' ? (
                     <div>
                       <span style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>Custom</span>
                       <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
@@ -602,7 +613,7 @@ export default function Pricing() {
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  {plan.price === 'Contact Sales' ? 'Contact Sales' : isCreditIneligible ? 'Not Eligible' : 'Get Started'}
+                  {plan.isGuest ? 'Get Started Free' : plan.price === 'Contact Sales' ? 'Contact Sales' : isCreditIneligible ? 'Not Eligible' : 'Get Started'}
                 </button>
 
                 {/* Features - Phase 8.3: Grouped into sections for scannability */}
@@ -659,10 +670,57 @@ export default function Pricing() {
                     ))}
                   </div>
                 </div>
+                {plan.footer && (
+                  <p style={{
+                    marginTop: 'auto',
+                    paddingTop: '1rem',
+                    fontSize: '0.8125rem',
+                    fontStyle: 'italic',
+                    color: 'var(--text-secondary)',
+                    textAlign: 'center'
+                  }}>
+                    {plan.footer}
+                  </p>
+                )}
               </div>
             );
           })}
           </div>
+
+          {/* Universal Benefits — personal view only, below the grid */}
+          {viewMode === 'personal' && (
+            <div style={{
+              marginTop: isNarrow ? '1.5rem' : '2rem',
+              paddingTop: isNarrow ? '1.5rem' : '2rem',
+              borderTop: '1px solid var(--border)',
+              textAlign: 'center'
+            }}>
+              <p style={{
+                fontSize: isNarrow ? '1rem' : '1.125rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                marginBottom: '1rem'
+              }}>
+                Every Membership Includes
+              </p>
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                gap: isNarrow ? '0.75rem 1.25rem' : '1rem 2rem'
+              }}>
+                {['❤️ Rewards', '🥇 Greet-Me Hero™ Participation', '🎁 Access to Greet-Me Gifts™', '💸 QR Cash™'].map((benefit) => (
+                  <span key={benefit} style={{
+                    fontSize: isNarrow ? '0.875rem' : '0.9375rem',
+                    fontWeight: 500,
+                    color: 'var(--text-secondary)'
+                  }}>
+                    {benefit}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
         </div>
