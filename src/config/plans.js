@@ -15,9 +15,12 @@ export const personalPlans = {
       description: 'For the people who matter most',
       footer: 'Most popular for close friends and family',
       featureGroups: [
-        { section: 'Core', features: ['Up to 5 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
-        { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings'] },
-        { section: 'Delivery', features: ['Email delivery'] }
+        { section: 'Membership', features: [
+          'Up to 5 recipients',
+          '1 Greet-Me included each month',
+          '1 Anytime Greet-Me included',
+          'Greet One, Give One™ included'
+        ] }
       ]
     },
     {
@@ -32,9 +35,13 @@ export const personalPlans = {
       description: 'For people who celebrate everyone',
       footer: 'Perfect for birthdays, holidays, and milestones',
       featureGroups: [
-        { section: 'Core', features: ['Up to 15 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
-        { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Premium templates'] },
-        { section: 'Delivery', features: ['Priority email delivery'] }
+        { section: 'Membership', features: [
+          'Up to 15 recipients',
+          '3 Greet-Mes included each month',
+          '3 Anytime Greet-Mes included',
+          'Bank up to 5 unused Greet-Mes',
+          'Greet One, Give One™ included'
+        ] }
       ]
     },
     {
@@ -49,9 +56,13 @@ export const personalPlans = {
       description: 'Your complete relationship-building membership',
       footer: 'Never miss an important moment',
       featureGroups: [
-        { section: 'Core', features: ['Unlimited recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
-        { section: 'Greetings', features: ['Voice + Photo greetings', 'Video greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Advanced AI personalization'] },
-        { section: 'Delivery & Support', features: ['Priority support', 'Gift add-ons available'] }
+        { section: 'Membership', features: [
+          'Unlimited recipients',
+          '5 Greet-Mes included each month',
+          '5 Anytime Greet-Mes included',
+          'Bank up to 10 unused Greet-Mes',
+          'Greet One, Give One™ included'
+        ] }
       ],
       highlight: true
     }
@@ -69,9 +80,12 @@ export const personalPlans = {
       description: 'For the people who matter most',
       footer: 'Most popular for close friends and family',
       featureGroups: [
-        { section: 'Core', features: ['Up to 5 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
-        { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings'] },
-        { section: 'Delivery', features: ['Email delivery'] }
+        { section: 'Membership', features: [
+          'Up to 5 recipients',
+          '1 Greet-Me included each month',
+          '1 Anytime Greet-Me included',
+          'Greet One, Give One™ included'
+        ] }
       ]
     },
     {
@@ -86,9 +100,13 @@ export const personalPlans = {
       description: 'For people who celebrate everyone',
       footer: 'Perfect for birthdays, holidays, and milestones',
       featureGroups: [
-        { section: 'Core', features: ['Up to 15 recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
-        { section: 'Greetings', features: ['Voice + Photo greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Premium templates'] },
-        { section: 'Delivery', features: ['Priority email delivery'] }
+        { section: 'Membership', features: [
+          'Up to 15 recipients',
+          '3 Greet-Mes included each month',
+          '3 Anytime Greet-Mes included',
+          'Bank up to 5 unused Greet-Mes',
+          'Greet One, Give One™ included'
+        ] }
       ]
     },
     {
@@ -103,9 +121,13 @@ export const personalPlans = {
       description: 'Your complete relationship-building membership',
       footer: 'Never miss an important moment',
       featureGroups: [
-        { section: 'Core', features: ['Unlimited recipients', 'Greet One, Give One™ included', 'American Gift Place'] },
-        { section: 'Greetings', features: ['Voice + Photo greetings', 'Video greetings', 'Automated scheduled occasions', 'Just Because greetings', 'Advanced AI personalization'] },
-        { section: 'Delivery & Support', features: ['Priority support', 'Gift add-ons available'] }
+        { section: 'Membership', features: [
+          'Unlimited recipients',
+          '5 Greet-Mes included each month',
+          '5 Anytime Greet-Mes included',
+          'Bank up to 10 unused Greet-Mes',
+          'Greet One, Give One™ included'
+        ] }
       ],
       highlight: true
     }
