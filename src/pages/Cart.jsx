@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Trash2, ArrowLeft, CreditCard, ShoppingBag, Package, Gift, Mail, Check } from 'lucide-react';
 import cartService from '../services/cartService';
+import { personalPlans } from '../config/plans';
 
 // G1G1 ("Greet One, Give One") auto-minting at checkout is a PERSONAL-only benefit.
 // Business tiers earn annual G1G1 gift credits (spent from the dashboard), so they
@@ -15,6 +16,23 @@ const G1G1_PERSONAL_TIERS = new Set(['close_circle', 'social_butterfly', 'unforg
 // (PaymentSuccess → POST /api/gifts/g1g1/create) — never auto-minted at checkout,
 // never a Stripe line item, never via checkout metadata.
 const BUSINESS_GIFT_TIERS = new Set(['medium_business', 'business_scale']);
+
+// Informational G1G1 value row for business tiers. Returns { label, value } or null.
+// PRESENTATION ONLY: these rows net to $0 and never touch totals, Stripe payloads,
+// platform-fee math, or the credit-spend architecture. Growth gifts a Social Butterfly
+// membership (its price); Impact gifts an Impact / business_scale membership (its price).
+function businessG1g1GiftRow(item) {
+  if (!item) return null;
+  if (item.planTier === 'business_scale') {
+    return { label: 'G1G1 Impact Subscription', value: Number(item.price) || 0 };
+  }
+  if (item.planTier === 'medium_business') {
+    const mode = item.pricingMode === 'standard' ? 'standard' : 'founders';
+    const sb = (personalPlans[mode] || []).find((p) => p.planTier === 'social_butterfly');
+    return { label: 'G1G1 Social Butterfly Subscription', value: Number(sb?.price) || 19.99 };
+  }
+  return null;
+}
 
 // Platform fee mirrors the backend rule (BUSINESS_SUBSCRIPTION_PRICE_IDS in
 // routes/paymentRoutes.js): $19.99 for business subscription tiers, $4.99 otherwise.
@@ -802,6 +820,24 @@ export default function Cart() {
                         <span>&ndash;${planPrice.toFixed(2)}</span>
                       </div>
                     )}
+
+                    {/* G1G1 included-gift value rows (business tiers) — informational, net $0, never added to total */}
+                    {businessGiftEligible && (() => {
+                      const giftRow = businessG1g1GiftRow(subscriptionItem);
+                      if (!giftRow) return null;
+                      return (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                            <span>{giftRow.label}</span>
+                            <span>+${giftRow.value.toFixed(2)}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#22c55e', fontWeight: 600 }}>
+                            <span>G1G1 Discount</span>
+                            <span>&ndash;${giftRow.value.toFixed(2)}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
 
                     {/* Credit Applied (Stripe coupon — real deduction) */}
                     {rawCredit > 0 && (

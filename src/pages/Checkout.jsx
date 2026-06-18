@@ -7,7 +7,7 @@ import cartService from '../services/cartService';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
-import { getCurrentPriceMap } from '../config/plans';
+import { getCurrentPriceMap, personalPlans } from '../config/plans';
 
 // Platform fee mirrors the backend rule (BUSINESS_SUBSCRIPTION_PRICE_IDS in
 // routes/paymentRoutes.js): $19.99 for business subscription tiers, $4.99 otherwise.
@@ -19,6 +19,22 @@ const platformFeeFor = (item) =>
 
 // G1G1 auto-mint is PERSONAL-only; business tiers use the annual-credit model.
 const G1G1_PERSONAL_TIERS = new Set(['close_circle', 'social_butterfly', 'unforgettable']);
+
+// Informational G1G1 value row for business tiers. Returns { label, value } or null.
+// PRESENTATION ONLY: nets to $0; never touches totals, Stripe payloads, platform-fee
+// math, or the credit-spend architecture.
+function businessG1g1GiftRow(item) {
+  if (!item) return null;
+  if (item.planTier === 'business_scale') {
+    return { label: 'G1G1 Impact Subscription', value: Number(item.price) || 0 };
+  }
+  if (item.planTier === 'medium_business') {
+    const mode = item.pricingMode === 'standard' ? 'standard' : 'founders';
+    const sb = (personalPlans[mode] || []).find((p) => p.planTier === 'social_butterfly');
+    return { label: 'G1G1 Social Butterfly Subscription', value: Number(sb?.price) || 19.99 };
+  }
+  return null;
+}
 
 // US state list for the recipient shipping dropdown (Phase 3C Stage 3 founder refinement #6)
 const US_STATES = [
@@ -784,6 +800,24 @@ export default function Checkout() {
                           <span>&ndash;${planPrice.toFixed(2)}</span>
                         </div>
                       )}
+
+                      {/* G1G1 included-gift value rows (business tiers) — informational, net $0, never added to total */}
+                      {(() => {
+                        const giftRow = businessG1g1GiftRow(subscriptionItem);
+                        if (!giftRow) return null;
+                        return (
+                          <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.625rem', fontSize: '1rem', color: 'var(--text-secondary)' }}>
+                              <span>{giftRow.label}</span>
+                              <span>+${giftRow.value.toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.625rem', fontSize: '1rem', color: '#22c55e', fontWeight: 500 }}>
+                              <span>G1G1 Discount</span>
+                              <span>&ndash;${giftRow.value.toFixed(2)}</span>
+                            </div>
+                          </>
+                        );
+                      })()}
 
                       {/* Credit Applied */}
                       {creditAmount > 0 && (
