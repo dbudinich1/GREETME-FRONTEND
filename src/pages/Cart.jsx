@@ -9,6 +9,13 @@ import cartService from '../services/cartService';
 // must never enter the checkout auto-mint path. Mirrors the backend gate.
 const G1G1_PERSONAL_TIERS = new Set(['close_circle', 'social_butterfly', 'unforgettable']);
 
+// Business tiers that earn an annual G1G1 gift credit (medium_business=Growth,
+// business_scale=Impact). They collect the SAME Send Now / Send Later choice at
+// checkout, but the gift is created post-payment by spending the credit
+// (PaymentSuccess → POST /api/gifts/g1g1/create) — never auto-minted at checkout,
+// never a Stripe line item, never via checkout metadata.
+const BUSINESS_GIFT_TIERS = new Set(['medium_business', 'business_scale']);
+
 // Platform fee mirrors the backend rule (BUSINESS_SUBSCRIPTION_PRICE_IDS in
 // routes/paymentRoutes.js): $19.99 for business subscription tiers, $4.99 otherwise.
 // Prefer the cart item's platformFee if present, else fall back to the tier rule
@@ -35,6 +42,9 @@ export default function Cart() {
   // Referral credit disqualifies G1G1; business tiers are excluded (annual-credit model).
   const hasReferralCredit = !!(localStorage.getItem('greetme_referral_code'));
   const g1g1Eligible = hasSubscription && !hasReferralCredit && G1G1_PERSONAL_TIERS.has(subscriptionItem?.planTier);
+
+  // Business annual-credit gift: same checkout recipient UX, credit-funded post-payment.
+  const businessGiftEligible = hasSubscription && BUSINESS_GIFT_TIERS.has(subscriptionItem?.planTier);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -80,6 +90,25 @@ export default function Cart() {
       recipientEmail: g1g1RecipientEmail.trim() || '',
       sendLater: !!receiveGiftLinkViaEmail,
     }));
+
+    // Business annual-credit gift: stash a SEPARATE intent. The gift is created
+    // post-payment by spending the credit on the success page — NOT via checkout
+    // metadata and NOT as a Stripe line item. Optional: only stash an actionable
+    // intent when the buyer chose a delivery path; otherwise they send later from
+    // the dashboard. clientRequestId is generated once here and persisted so a
+    // success-page refresh dedupes to a single gift (no double spend).
+    if (businessGiftEligible && (receiveGiftLinkViaEmail || g1g1RecipientEmail.trim())) {
+      sessionStorage.setItem('greetme_business_g1g1_intent', JSON.stringify({
+        recipientName: g1g1RecipientName.trim() || '',
+        recipientEmail: g1g1RecipientEmail.trim() || '',
+        sendLater: !!receiveGiftLinkViaEmail,
+        clientRequestId: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+        planTier: subscriptionItem?.planTier || '',
+      }));
+    } else {
+      sessionStorage.removeItem('greetme_business_g1g1_intent');
+    }
+
     navigate('/dashboard/checkout');
   };
 
@@ -533,7 +562,7 @@ export default function Cart() {
               </p>
             </div>
           )}
-          {g1g1Eligible && (
+          {(g1g1Eligible || businessGiftEligible) && (
             <div style={{
               marginTop: '1rem',
               background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',

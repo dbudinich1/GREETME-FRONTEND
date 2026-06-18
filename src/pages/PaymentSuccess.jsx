@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
@@ -51,6 +51,10 @@ export default function PaymentSuccess() {
   const [g1g1State, setG1g1State] = useState(null);
   const [g1g1Loading, setG1g1Loading] = useState(true);
 
+  // Business annual-credit gift spend (Option A): { status, message, claimUrl }
+  const [businessGift, setBusinessGift] = useState(null);
+  const businessGiftRanRef = useRef(false);
+
   // Phase 3D Batch A — A2.4: send-flow resume routing state.
   // null         → standard payment-success path (existing four G1G1 states)
   // 'fast-resume'→ brief check visual + navigate to /dashboard/send
@@ -102,6 +106,62 @@ export default function PaymentSuccess() {
         }
       }
       setG1g1Loading(false);
+    })();
+  }, [user?.id]);
+
+  // Business G1G1 (annual credit) — Option A: after payment, spend the just-granted
+  // credit through the hardened endpoint. Webhook may lag the redirect, so poll for
+  // the grant first, then create. clientRequestId makes refreshes idempotent.
+  useEffect(() => {
+    if (!user?.id || businessGiftRanRef.current) return;
+    let intent;
+    try { intent = JSON.parse(sessionStorage.getItem('greetme_business_g1g1_intent') || 'null'); } catch { intent = null; }
+    if (!intent || !intent.clientRequestId) return;
+    businessGiftRanRef.current = true;
+
+    (async () => {
+      setBusinessGift({ status: 'sending' });
+      const MAX_TRIES = 6;
+      const DELAY_MS = 2500;
+      let credited = false;
+      for (let i = 0; i < MAX_TRIES; i++) {
+        try {
+          const c = await api.get('/api/gifts/g1g1/credits');
+          if (c?.ok && (Number(c.remainingG1G1Credits) || 0) > 0) { credited = true; break; }
+        } catch { /* transient — keep polling */ }
+        if (i < MAX_TRIES - 1) await new Promise((r) => setTimeout(r, DELAY_MS));
+      }
+
+      if (!credited) {
+        // Credit not yet granted in the window — never lose it; route to dashboard.
+        setBusinessGift({ status: 'fallback', message: 'Your G1G1 gift credit is ready. You can send it anytime from your dashboard.' });
+        sessionStorage.removeItem('greetme_business_g1g1_intent');
+        return;
+      }
+
+      try {
+        const d = await api.post('/api/gifts/g1g1/create', {
+          recipientName: intent.recipientName || '',
+          recipientEmail: intent.recipientEmail || '',
+          sendLater: !!intent.sendLater,
+          clientRequestId: intent.clientRequestId,
+        });
+        if (d?.ok) {
+          setBusinessGift({
+            status: intent.sendLater ? 'pending' : 'sent',
+            claimUrl: d.claimUrl || null,
+            message: intent.sendLater
+              ? 'Your gift membership is ready — we emailed you the claim link to share whenever you like.'
+              : `Your gift membership was sent${intent.recipientName ? ` to ${intent.recipientName}` : ''}.`,
+          });
+        } else {
+          setBusinessGift({ status: 'error', message: d?.error || 'We couldn’t send your gift just now — you can send it from your dashboard.' });
+        }
+      } catch (e) {
+        setBusinessGift({ status: 'error', message: 'We couldn’t send your gift just now — you can send it from your dashboard.' });
+      } finally {
+        sessionStorage.removeItem('greetme_business_g1g1_intent');
+      }
     })();
   }, [user?.id]);
 
@@ -249,6 +309,29 @@ export default function PaymentSuccess() {
         }}>
           ✓
         </div>
+
+        {/* Business annual-credit gift (Option A) status banner */}
+        {businessGift && (
+          <div style={{
+            background: businessGift.status === 'fallback' || businessGift.status === 'error' ? '#fff7ed' : '#ecfdf5',
+            border: `1px solid ${businessGift.status === 'fallback' || businessGift.status === 'error' ? '#fed7aa' : '#6ee7b7'}`,
+            color: businessGift.status === 'fallback' || businessGift.status === 'error' ? '#9a3412' : '#065f46',
+            borderRadius: '10px',
+            padding: '0.75rem 1rem',
+            margin: '0 0 1.25rem',
+            fontSize: '0.9375rem',
+            textAlign: 'left',
+          }}>
+            {businessGift.status === 'sending'
+              ? 'Preparing your gift membership…'
+              : businessGift.message}
+            {businessGift.claimUrl && (
+              <div style={{ marginTop: '0.375rem', fontSize: '0.8125rem', wordBreak: 'break-all' }}>
+                Claim link: <span style={{ fontWeight: 600 }}>{businessGift.claimUrl}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* State 1: Gift sent at checkout */}
         {giftSent && (
