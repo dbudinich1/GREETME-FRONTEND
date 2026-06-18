@@ -542,10 +542,7 @@ export default function Pricing() {
                     </div>
                   ) : plan.price === 'Contact Sales' ? (
                     <div>
-                      <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Contact Sales</span>
-                      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                        Custom enterprise pricing
-                      </div>
+                      <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Custom Pricing</span>
                     </div>
                   ) : (
                     <div>
@@ -554,6 +551,18 @@ export default function Pricing() {
                     </div>
                   )}
                 </div>
+
+                {/* Platform-fee pricing note (business cards only) */}
+                {plan.platformFee && (
+                  <div style={{
+                    fontSize: '0.8125rem',
+                    color: 'var(--text-secondary)',
+                    textAlign: 'center',
+                    marginBottom: '0.75rem'
+                  }}>
+                    + ${plan.platformFee} One-Time Platform Fee
+                  </div>
+                )}
 
                 {/* Credit eligibility badge */}
                 {isCreditEligible && (
@@ -615,7 +624,7 @@ export default function Pricing() {
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  {plan.price === 'Contact Sales' ? 'Contact Sales' : isCreditIneligible ? 'Not Eligible' : 'Get Started'}
+                  {plan.ctaText ? plan.ctaText : plan.price === 'Contact Sales' ? 'Contact Sales' : isCreditIneligible ? 'Not Eligible' : 'Get Started'}
                 </button>
 
                 {/* Features - Phase 8.3: Grouped into sections for scannability */}
@@ -1023,7 +1032,7 @@ export default function Pricing() {
                     color: 'var(--text-secondary)'
                   }}>
                     <span>One-Time Platform Fee</span>
-                    <span>$4.99</span>
+                    <span>${(selectedPlan.platformFee ?? 4.99).toFixed(2)}</span>
                   </div>
                   <div style={{
                     display: 'flex',
@@ -1034,7 +1043,7 @@ export default function Pricing() {
                     marginTop: '0.5rem'
                   }}>
                     <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Total</span>
-                    <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--primary)' }}>${(selectedPlan.price + 4.99).toFixed(2)}</span>
+                    <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--primary)' }}>${(selectedPlan.price + (selectedPlan.platformFee ?? 4.99)).toFixed(2)}</span>
                   </div>
                   {pricingMode === 'founders' && (
                     <div style={{
@@ -1191,7 +1200,7 @@ export default function Pricing() {
                     color: 'var(--text-secondary)'
                   }}>
                     <span>One-Time Platform Fee</span>
-                    <span>$4.99</span>
+                    <span>${(lastAddedPlan.platformFee ?? 4.99).toFixed(2)}</span>
                   </div>
                   {(() => {
                     const cc = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
@@ -1222,7 +1231,7 @@ export default function Pricing() {
                           fontSize: '1.0625rem',
                         }}>
                           <span>Total</span>
-                          <span style={{ color: 'var(--primary)' }}>${Math.max(0, lastAddedPlan.price + 4.99 - effectiveCredit).toFixed(2)}</span>
+                          <span style={{ color: 'var(--primary)' }}>${Math.max(0, lastAddedPlan.price + (lastAddedPlan.platformFee ?? 4.99) - effectiveCredit).toFixed(2)}</span>
                         </div>
                       </>
                     );

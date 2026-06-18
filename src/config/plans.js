@@ -138,94 +138,188 @@ export const businessPlans = {
   founders: [
     {
       id: 'business-small-founders',
-      name: 'Small Business',
+      name: 'Essentials',
       price: 99,
       period: 'year',
       priceId: 'price_1T4cCSCf7KAA6aLa5zZge8rk',
       purchaseType: 'subscription',
       planTier: 'small_business',
       billingPeriod: 'yearly',
-      description: 'Up to 25 Employees',
+      platformFee: 19.99,
+      description: 'For businesses getting started with employee & client appreciation.',
       featureGroups: [
-        { section: 'Core', features: ['Up to 25 employee recipients', 'American Gift Place', 'Team dashboard'] },
-        { section: 'Branding', features: ['Branding + templates', 'Bulk greeting sending'] },
-        { section: 'Support & Reporting', features: ['Email support', 'Hero impact reporting (coming soon)'] }
+        { section: 'Membership', features: [
+          'Up to 10 employee & client recipients',
+          '5 Greet-Mes included each month',
+          'Employee & Client Appreciation Management System',
+          'Additional Greet-Mes available on demand',
+          'Greet-Me Gifts™',
+          'QR Cash™',
+          'Greet-Me Hero™ Initiative Eligible'
+        ] }
       ]
     },
     {
       id: 'business-medium-founders',
-      name: 'Medium Business',
+      name: 'Growth',
       price: 149,
       period: 'year',
       priceId: 'price_1T4cCTCf7KAA6aLa1V9OaKaW',
       purchaseType: 'subscription',
       planTier: 'medium_business',
       billingPeriod: 'yearly',
-      description: 'Up to 50 Employees',
+      platformFee: 19.99,
+      description: 'For organizations building appreciation into their culture.',
       featureGroups: [
-        { section: 'Core', features: ['Up to 50 employee recipients', 'American Gift Place', 'Team collaboration tools'] },
-        { section: 'Branding', features: ['Advanced branding options', 'Analytics & reporting'] },
-        { section: 'Support & Reporting', features: ['Priority support', 'Hero impact reporting (coming soon)'] }
+        { section: 'Membership', features: [
+          'Up to 25 employee & client recipients',
+          '10 Greet-Mes included each month',
+          'Employee & Client Appreciation Management System',
+          'Greet-Me Customization™',
+          'Branded Gift Options',
+          'Additional Greet-Mes available on demand',
+          'Greet-Me Gifts™',
+          'QR Cash™',
+          'Greet-Me Hero™ Initiative Eligible'
+        ] }
       ],
       highlight: true
+    },
+    {
+      id: 'business-scale-founders',
+      name: 'Appreciation at Scale',
+      price: 500,
+      period: 'year',
+      priceId: 'price_1TjXS2Cf7KAA6aLakI9L3Vmn',
+      purchaseType: 'subscription',
+      planTier: 'business_scale',
+      billingPeriod: 'yearly',
+      platformFee: 19.99,
+      description: 'For organizations running appreciation programs at scale.',
+      featureGroups: [
+        { section: 'Membership', features: [
+          'Up to 100 employee & client recipients',
+          'Employee & Client Appreciation Management System',
+          'Greet-Me Customization™',
+          'Branded Gift Options',
+          'Flat-Fee Appreciation™ — $2.99 per Greet-Me sent',
+          'Greet-Me Gifts™',
+          'QR Cash™',
+          'Greet-Me Hero™ Initiative Eligible'
+        ] }
+      ]
     },
     {
       id: 'enterprise',
       name: 'Enterprise',
       price: 'Contact Sales',
       period: '',
-      description: 'Custom enterprise solution',
+      ctaText: "Let's Build Your Appreciation Program",
+      description: 'For organizations with 100+ employee & client recipients.',
       featureGroups: [
-        { section: 'Core', features: ['Unlimited employees', 'American Gift Place', 'API access'] },
-        { section: 'Customization', features: ['White-label platform option', 'Custom integrations', 'Custom SLA agreements'] },
-        { section: 'Support & Reporting', features: ['Dedicated account manager', 'Hero impact reporting (coming soon)'] }
+        { section: 'Membership', features: [
+          'Employee & Client Appreciation Management System',
+          'Greet-Me Customization™',
+          'Branded Gift Options',
+          'Greet-Me Gifts™',
+          'QR Cash™',
+          'Greet-Me Hero™ Initiative Eligible',
+          'Custom appreciation programs'
+        ] }
       ]
     }
   ],
   standard: [
     {
       id: 'business-small-standard',
-      name: 'Small Business',
+      name: 'Essentials',
       price: 149,
       period: 'year',
       priceId: 'price_1T4cCUCf7KAA6aLaIQPcsSnW',
       purchaseType: 'subscription',
       planTier: 'small_business',
       billingPeriod: 'yearly',
-      description: 'Up to 25 Employees',
+      platformFee: 19.99,
+      description: 'For businesses getting started with employee & client appreciation.',
       featureGroups: [
-        { section: 'Core', features: ['Up to 25 employee recipients', 'American Gift Place', 'Team dashboard'] },
-        { section: 'Branding', features: ['Branding + templates', 'Bulk greeting sending'] },
-        { section: 'Support & Reporting', features: ['Email support', 'Hero impact reporting (coming soon)'] }
+        { section: 'Membership', features: [
+          'Up to 10 employee & client recipients',
+          '5 Greet-Mes included each month',
+          'Employee & Client Appreciation Management System',
+          'Additional Greet-Mes available on demand',
+          'Greet-Me Gifts™',
+          'QR Cash™',
+          'Greet-Me Hero™ Initiative Eligible'
+        ] }
       ]
     },
     {
       id: 'business-medium-standard',
-      name: 'Medium Business',
+      name: 'Growth',
       price: 299,
       period: 'year',
       priceId: 'price_1T4cCVCf7KAA6aLakkWdH7ZW',
       purchaseType: 'subscription',
       planTier: 'medium_business',
       billingPeriod: 'yearly',
-      description: 'Up to 50 Employees',
+      platformFee: 19.99,
+      description: 'For organizations building appreciation into their culture.',
       featureGroups: [
-        { section: 'Core', features: ['Up to 50 employee recipients', 'American Gift Place', 'Team collaboration tools'] },
-        { section: 'Branding', features: ['Advanced branding options', 'Analytics & reporting'] },
-        { section: 'Support & Reporting', features: ['Priority support', 'Hero impact reporting (coming soon)'] }
+        { section: 'Membership', features: [
+          'Up to 25 employee & client recipients',
+          '10 Greet-Mes included each month',
+          'Employee & Client Appreciation Management System',
+          'Greet-Me Customization™',
+          'Branded Gift Options',
+          'Additional Greet-Mes available on demand',
+          'Greet-Me Gifts™',
+          'QR Cash™',
+          'Greet-Me Hero™ Initiative Eligible'
+        ] }
       ],
       highlight: true
+    },
+    {
+      id: 'business-scale-standard',
+      name: 'Appreciation at Scale',
+      price: 750,
+      period: 'year',
+      priceId: 'price_1TjXS2Cf7KAA6aLayHdvdfTj',
+      purchaseType: 'subscription',
+      planTier: 'business_scale',
+      billingPeriod: 'yearly',
+      platformFee: 19.99,
+      description: 'For organizations running appreciation programs at scale.',
+      featureGroups: [
+        { section: 'Membership', features: [
+          'Up to 100 employee & client recipients',
+          'Employee & Client Appreciation Management System',
+          'Greet-Me Customization™',
+          'Branded Gift Options',
+          'Flat-Fee Appreciation™ — $2.99 per Greet-Me sent',
+          'Greet-Me Gifts™',
+          'QR Cash™',
+          'Greet-Me Hero™ Initiative Eligible'
+        ] }
+      ]
     },
     {
       id: 'enterprise',
       name: 'Enterprise',
       price: 'Contact Sales',
       period: '',
-      description: 'Custom enterprise solution',
+      ctaText: "Let's Build Your Appreciation Program",
+      description: 'For organizations with 100+ employee & client recipients.',
       featureGroups: [
-        { section: 'Core', features: ['Unlimited employees', 'American Gift Place', 'API access'] },
-        { section: 'Customization', features: ['White-label platform option', 'Custom integrations', 'Custom SLA agreements'] },
-        { section: 'Support & Reporting', features: ['Dedicated account manager', 'Hero impact reporting (coming soon)'] }
+        { section: 'Membership', features: [
+          'Employee & Client Appreciation Management System',
+          'Greet-Me Customization™',
+          'Branded Gift Options',
+          'Greet-Me Gifts™',
+          'QR Cash™',
+          'Greet-Me Hero™ Initiative Eligible',
+          'Custom appreciation programs'
+        ] }
       ]
     }
   ]
