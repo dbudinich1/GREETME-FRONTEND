@@ -558,6 +558,83 @@ export default function Cart() {
                 </div>
               </div>
             )}
+            {/* Business G1G1 gift item (Your Items) — display only, FREE, nets to $0.
+                Mirrors the personal G1G1 item card; business gift-eligible tiers only. */}
+            {businessGiftEligible && (() => {
+              const giftRow = businessG1g1GiftRow(subscriptionItem);
+              if (!giftRow) return null;
+              return (
+                <div
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.04) 100%)'
+                  }}
+                >
+                  {/* Gift Icon */}
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1rem',
+                    flexShrink: 0
+                  }}>
+                    🎁
+                  </div>
+
+                  {/* Item Details */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h3 style={{
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      color: '#059669',
+                      marginBottom: '0',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>{giftRow.label}</h3>
+                    <span style={{
+                      fontSize: '0.5625rem',
+                      fontWeight: 500,
+                      color: '#10b981'
+                    }}>1-Year Gift for Someone Special</span>
+                  </div>
+
+                  {/* Price - FREE */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    flexShrink: 0
+                  }}>
+                    <span style={{
+                      fontSize: '0.6875rem',
+                      fontWeight: 500,
+                      color: 'var(--text-tertiary)',
+                      textDecoration: 'line-through'
+                    }}>
+                      ${giftRow.value.toFixed(2)}
+                    </span>
+                    <div style={{
+                      fontSize: '0.8125rem',
+                      fontWeight: 700,
+                      color: '#10b981',
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      padding: '0.125rem 0.375rem',
+                      borderRadius: 'var(--radius-sm)'
+                    }}>
+                      FREE
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* G1G1 Gift Subscription Section - Only show if cart has a subscription */}
