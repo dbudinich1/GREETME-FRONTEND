@@ -39,7 +39,7 @@ export const personalPlans = {
           'Up to 15 recipients',
           '3 Greet-Mes included each month',
           '3 Anytime Greet-Mes included',
-          'Bank up to 5 unused Greet-Mes',
+          'Bank up to 3 unused Greet-Mes',
           'Greet One, Give One™ included'
         ] }
       ]
@@ -60,7 +60,7 @@ export const personalPlans = {
           'Unlimited recipients',
           '5 Greet-Mes included each month',
           '5 Anytime Greet-Mes included',
-          'Bank up to 10 unused Greet-Mes',
+          'Bank up to 5 unused Greet-Mes',
           'Greet One, Give One™ included'
         ] }
       ],
@@ -104,7 +104,7 @@ export const personalPlans = {
           'Up to 15 recipients',
           '3 Greet-Mes included each month',
           '3 Anytime Greet-Mes included',
-          'Bank up to 5 unused Greet-Mes',
+          'Bank up to 3 unused Greet-Mes',
           'Greet One, Give One™ included'
         ] }
       ]
@@ -125,7 +125,7 @@ export const personalPlans = {
           'Unlimited recipients',
           '5 Greet-Mes included each month',
           '5 Anytime Greet-Mes included',
-          'Bank up to 10 unused Greet-Mes',
+          'Bank up to 5 unused Greet-Mes',
           'Greet One, Give One™ included'
         ] }
       ],
