@@ -513,8 +513,14 @@ export default function Pricing() {
                   </div>
                 )}
 
-                {/* Name + Description wrapper - minHeight ensures uniform price alignment */}
-                <div style={{ minHeight: isBiz ? '76px' : '95px', marginBottom: isBiz ? '0.75rem' : '1rem' }}>
+                {/* Name + Hero badge + Description wrapper.
+                    Business: TRUE fixed height (not min-height) so the price/fee/CTA/divider
+                    planes are pixel-aligned across all four cards and cannot drift.
+                    Personal: unchanged (minHeight 95px). */}
+                <div style={{
+                  ...(isBiz ? { height: '116px' } : { minHeight: '95px' }),
+                  marginBottom: isBiz ? '0.75rem' : '1rem'
+                }}>
                   {/* Plan Name */}
                   <h3 style={{
                     fontSize: '1.5rem',
@@ -525,10 +531,41 @@ export default function Pricing() {
                     {plan.name}
                   </h3>
 
+                  {/* Hero Eligible badge — business cards only, part of card identity (not a feature bullet).
+                      Identical content/position/spacing on all four business cards; lives inside the
+                      fixed-height header zone so it can never affect button or divider alignment. */}
+                  {isBiz && (
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      padding: '0.1875rem 0.5rem',
+                      marginBottom: '0.5rem',
+                      background: 'linear-gradient(135deg, #fdf6e3 0%, #f7ecc9 100%)',
+                      border: '1px solid #e3d091',
+                      borderRadius: '9999px',
+                      fontSize: '0.6875rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                      color: '#8a6d0b',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      <span aria-hidden="true">🏅</span>
+                      <span>Hero Eligible</span>
+                    </div>
+                  )}
+
                   <p style={{
                     fontSize: '0.875rem',
                     color: 'var(--text-secondary)',
-                    marginBottom: '0'
+                    marginBottom: '0',
+                    ...(isBiz && {
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden'
+                    })
                   }}>
                     {plan.description}
                   </p>

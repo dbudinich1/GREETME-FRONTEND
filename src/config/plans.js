@@ -159,7 +159,7 @@ export const businessPlans = {
     },
     {
       id: 'business-medium-founders',
-      name: 'Professional',
+      name: 'Growth',
       price: 199,
       period: 'year',
       priceId: 'price_1T4cCTCf7KAA6aLa1V9OaKaW',
@@ -167,7 +167,7 @@ export const businessPlans = {
       planTier: 'medium_business',
       billingPeriod: 'yearly',
       platformFee: 19.99,
-      description: 'For teams building a culture of appreciation.',
+      description: 'For organizations growing a culture of appreciation.',
       featureGroups: [
         { section: 'Membership', features: [
           '25 recipients / 10 monthly Greet-Mes',
@@ -183,7 +183,7 @@ export const businessPlans = {
     },
     {
       id: 'business-scale-founders',
-      name: 'Scale',
+      name: 'Impact',
       price: 499,
       period: 'year',
       priceId: 'price_1TjXS2Cf7KAA6aLakI9L3Vmn',
@@ -191,7 +191,7 @@ export const businessPlans = {
       planTier: 'business_scale',
       billingPeriod: 'yearly',
       platformFee: 19.99,
-      description: 'For appreciation programs at scale.',
+      description: 'For organizations creating appreciation-driven impact.',
       featureGroups: [
         { section: 'Membership', features: [
           '100 employee & client recipients',
@@ -247,7 +247,7 @@ export const businessPlans = {
     },
     {
       id: 'business-medium-standard',
-      name: 'Professional',
+      name: 'Growth',
       price: 299,
       period: 'year',
       priceId: 'price_1T4cCVCf7KAA6aLakkWdH7ZW',
@@ -255,7 +255,7 @@ export const businessPlans = {
       planTier: 'medium_business',
       billingPeriod: 'yearly',
       platformFee: 19.99,
-      description: 'For teams building a culture of appreciation.',
+      description: 'For organizations growing a culture of appreciation.',
       featureGroups: [
         { section: 'Membership', features: [
           '25 recipients / 10 monthly Greet-Mes',
@@ -271,7 +271,7 @@ export const businessPlans = {
     },
     {
       id: 'business-scale-standard',
-      name: 'Scale',
+      name: 'Impact',
       price: 699,
       period: 'year',
       priceId: 'price_1TjXS2Cf7KAA6aLayHdvdfTj',
@@ -279,7 +279,7 @@ export const businessPlans = {
       planTier: 'business_scale',
       billingPeriod: 'yearly',
       platformFee: 19.99,
-      description: 'For appreciation programs at scale.',
+      description: 'For organizations creating appreciation-driven impact.',
       featureGroups: [
         { section: 'Membership', features: [
           '100 employee & client recipients',
