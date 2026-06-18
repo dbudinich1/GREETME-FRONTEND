@@ -176,7 +176,9 @@ export const businessPlans = {
           'Branded Gift Options',
           'Additional Greet-Mes available',
           'Greet-Me Gifts™ & QR Cash™',
-          'Greet-Me Hero™ Initiative Eligible'
+          'Greet-Me Hero™ Initiative Eligible',
+          '🎁 G1G1 Eligible',
+          'Includes 1 complimentary Greet-Me subscription each year.'
         ] }
       ],
       highlight: true
@@ -200,7 +202,9 @@ export const businessPlans = {
           'Branded Gift Options',
           'Flat-Fee Appreciation™ — $2.99 per Greet-Me sent',
           'Greet-Me Gifts™ & QR Cash™',
-          'Greet-Me Hero™ Initiative Eligible'
+          'Greet-Me Hero™ Initiative Eligible',
+          '🎁 Premium G1G1 Eligible',
+          'Includes 1 giftable Impact subscription each year.'
         ] }
       ]
     },
@@ -264,7 +268,9 @@ export const businessPlans = {
           'Branded Gift Options',
           'Additional Greet-Mes available',
           'Greet-Me Gifts™ & QR Cash™',
-          'Greet-Me Hero™ Initiative Eligible'
+          'Greet-Me Hero™ Initiative Eligible',
+          '🎁 G1G1 Eligible',
+          'Includes 1 complimentary Greet-Me subscription each year.'
         ] }
       ],
       highlight: true
@@ -288,7 +294,9 @@ export const businessPlans = {
           'Branded Gift Options',
           'Flat-Fee Appreciation™ — $2.99 per Greet-Me sent',
           'Greet-Me Gifts™ & QR Cash™',
-          'Greet-Me Hero™ Initiative Eligible'
+          'Greet-Me Hero™ Initiative Eligible',
+          '🎁 Premium G1G1 Eligible',
+          'Includes 1 giftable Impact subscription each year.'
         ] }
       ]
     },
