@@ -338,8 +338,10 @@ export default function Pricing() {
             alignItems: 'stretch'
           }}>
           {currentPlans.map((plan) => {
-            const isCreditIneligible = referralCode && CREDIT_INELIGIBLE_TIERS.has(plan.planTier);
-            const isCreditEligible = referralCode && !CREDIT_INELIGIBLE_TIERS.has(plan.planTier) && plan.price !== 'Contact Sales';
+            const isBiz = viewMode === 'business';
+            // Suppress referral credit badges on business cards so they can never shift the aligned planes.
+            const isCreditIneligible = !isBiz && referralCode && CREDIT_INELIGIBLE_TIERS.has(plan.planTier);
+            const isCreditEligible = !isBiz && referralCode && !CREDIT_INELIGIBLE_TIERS.has(plan.planTier) && plan.price !== 'Contact Sales';
             return (
               <div
                 key={plan.id}
@@ -512,7 +514,7 @@ export default function Pricing() {
                 )}
 
                 {/* Name + Description wrapper - minHeight ensures uniform price alignment */}
-                <div style={{ minHeight: '95px', marginBottom: '1rem' }}>
+                <div style={{ minHeight: isBiz ? '76px' : '95px', marginBottom: isBiz ? '0.75rem' : '1rem' }}>
                   {/* Plan Name */}
                   <h3 style={{
                     fontSize: '1.5rem',
@@ -534,9 +536,10 @@ export default function Pricing() {
 
                 {/* Price */}
                 <div style={{
-                  marginBottom: '1rem',
+                  marginBottom: isBiz ? '0.5rem' : '1rem',
                   color: 'var(--text-primary)',
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  ...(isBiz && { minHeight: '56px', display: 'flex', flexDirection: 'column', justifyContent: 'center' })
                 }}>
                   {plan.price === 'Custom' ? (
                     <div>
@@ -557,17 +560,20 @@ export default function Pricing() {
                   )}
                 </div>
 
-                {/* Platform-fee pricing note (business cards only) — subtle support text */}
-                {plan.platformFee && (
+                {/* Platform-fee pricing note (business cards) — subtle support text.
+                    Always reserves the row on business so the CTA/divider planes align;
+                    Enterprise (no platformFee) renders an empty fixed-height spacer. */}
+                {isBiz && (
                   <div style={{
                     fontSize: '0.6875rem',
                     color: 'var(--text-tertiary)',
                     textAlign: 'center',
+                    minHeight: '14px',
                     marginTop: '-0.25rem',
                     marginBottom: '0.75rem',
                     whiteSpace: 'nowrap'
                   }}>
-                    + ${plan.platformFee} One-Time Platform Fee
+                    {plan.platformFee ? `+ $${plan.platformFee} Platform Fee` : ''}
                   </div>
                 )}
 
@@ -616,7 +622,7 @@ export default function Pricing() {
                     fontWeight: 600,
                     cursor: isCreditIneligible ? 'not-allowed' : 'pointer',
                     fontFamily: 'inherit',
-                    marginBottom: '2rem',
+                    marginBottom: isBiz ? '1.25rem' : '2rem',
                     transition: 'all 0.2s ease',
                     opacity: isCreditIneligible ? 0.6 : 1,
                   }}
@@ -637,7 +643,7 @@ export default function Pricing() {
                 {/* Features - Phase 8.3: Grouped into sections for scannability */}
                 <div style={{
                   borderTop: '1px solid var(--border)',
-                  paddingTop: '1.5rem'
+                  paddingTop: isBiz ? '1rem' : '1.5rem'
                 }}>
                   <p style={{
                     fontSize: '0.875rem',
@@ -650,17 +656,19 @@ export default function Pricing() {
                   <div>
                     {plan.featureGroups.map((group, groupIndex) => (
                       <div key={groupIndex} style={{ marginBottom: groupIndex < plan.featureGroups.length - 1 ? '1rem' : 0 }}>
-                        {/* Section header */}
-                        <p style={{
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          color: 'var(--text-tertiary)',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.025em',
-                          marginBottom: '0.5rem'
-                        }}>
-                          {group.section}
-                        </p>
+                        {/* Section header — suppressed on business (single MEMBERSHIP group is redundant) */}
+                        {!isBiz && (
+                          <p style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            color: 'var(--text-tertiary)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.025em',
+                            marginBottom: '0.5rem'
+                          }}>
+                            {group.section}
+                          </p>
+                        )}
                         {/* Features in this section */}
                         <ul style={{
                           listStyle: 'none',
@@ -674,8 +682,8 @@ export default function Pricing() {
                                 display: 'flex',
                                 alignItems: 'flex-start',
                                 gap: '0.75rem',
-                                marginBottom: '0.5rem',
-                                fontSize: '0.875rem',
+                                marginBottom: isBiz ? '0.375rem' : '0.5rem',
+                                fontSize: isBiz ? '0.8125rem' : '0.875rem',
                                 color: 'var(--text-secondary)'
                               }}
                             >

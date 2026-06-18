@@ -149,37 +149,33 @@ export const businessPlans = {
       description: 'For businesses getting started with appreciation.',
       featureGroups: [
         { section: 'Membership', features: [
-          'Up to 10 employee & client recipients',
-          '5 Greet-Mes included each month',
-          'Employee & Client Appreciation Management System',
-          'Additional Greet-Mes available on demand',
-          'Greet-Me Gifts™',
-          'QR Cash™',
+          '10 recipients / 5 monthly Greet-Mes',
+          'Appreciation Management System',
+          'Additional Greet-Mes available',
+          'Greet-Me Gifts™ & QR Cash™',
           'Greet-Me Hero™ Initiative Eligible'
         ] }
       ]
     },
     {
       id: 'business-medium-founders',
-      name: 'Growth',
-      price: 149,
+      name: 'Professional',
+      price: 199,
       period: 'year',
       priceId: 'price_1T4cCTCf7KAA6aLa1V9OaKaW',
       purchaseType: 'subscription',
       planTier: 'medium_business',
       billingPeriod: 'yearly',
       platformFee: 19.99,
-      description: 'For organizations building appreciation into their culture.',
+      description: 'For teams building a culture of appreciation.',
       featureGroups: [
         { section: 'Membership', features: [
-          'Up to 25 employee & client recipients',
-          '10 Greet-Mes included each month',
-          'Employee & Client Appreciation Management System',
+          '25 recipients / 10 monthly Greet-Mes',
+          'Appreciation Management System',
           'Greet-Me Customization™',
           'Branded Gift Options',
-          'Additional Greet-Mes available on demand',
-          'Greet-Me Gifts™',
-          'QR Cash™',
+          'Additional Greet-Mes available',
+          'Greet-Me Gifts™ & QR Cash™',
           'Greet-Me Hero™ Initiative Eligible'
         ] }
       ],
@@ -187,8 +183,8 @@ export const businessPlans = {
     },
     {
       id: 'business-scale-founders',
-      name: 'Appreciation at Scale',
-      price: 500,
+      name: 'Scale',
+      price: 499,
       period: 'year',
       priceId: 'price_1TjXS2Cf7KAA6aLakI9L3Vmn',
       purchaseType: 'subscription',
@@ -198,13 +194,12 @@ export const businessPlans = {
       description: 'For appreciation programs at scale.',
       featureGroups: [
         { section: 'Membership', features: [
-          'Up to 100 employee & client recipients',
-          'Employee & Client Appreciation Management System',
+          '100 employee & client recipients',
+          'Appreciation Management System',
           'Greet-Me Customization™',
           'Branded Gift Options',
           'Flat-Fee Appreciation™ — $2.99 per Greet-Me sent',
-          'Greet-Me Gifts™',
-          'QR Cash™',
+          'Greet-Me Gifts™ & QR Cash™',
           'Greet-Me Hero™ Initiative Eligible'
         ] }
       ]
@@ -218,13 +213,12 @@ export const businessPlans = {
       description: 'For organizations with 100+ recipients.',
       featureGroups: [
         { section: 'Membership', features: [
-          'Employee & Client Appreciation Management System',
+          'Custom appreciation programs',
+          'Appreciation Management System',
           'Greet-Me Customization™',
           'Branded Gift Options',
-          'Greet-Me Gifts™',
-          'QR Cash™',
-          'Greet-Me Hero™ Initiative Eligible',
-          'Custom appreciation programs'
+          'Greet-Me Gifts™ & QR Cash™',
+          'Greet-Me Hero™ Initiative Eligible'
         ] }
       ]
     }
@@ -233,7 +227,7 @@ export const businessPlans = {
     {
       id: 'business-small-standard',
       name: 'Essentials',
-      price: 149,
+      price: 199,
       period: 'year',
       priceId: 'price_1T4cCUCf7KAA6aLaIQPcsSnW',
       purchaseType: 'subscription',
@@ -243,19 +237,17 @@ export const businessPlans = {
       description: 'For businesses getting started with appreciation.',
       featureGroups: [
         { section: 'Membership', features: [
-          'Up to 10 employee & client recipients',
-          '5 Greet-Mes included each month',
-          'Employee & Client Appreciation Management System',
-          'Additional Greet-Mes available on demand',
-          'Greet-Me Gifts™',
-          'QR Cash™',
+          '10 recipients / 5 monthly Greet-Mes',
+          'Appreciation Management System',
+          'Additional Greet-Mes available',
+          'Greet-Me Gifts™ & QR Cash™',
           'Greet-Me Hero™ Initiative Eligible'
         ] }
       ]
     },
     {
       id: 'business-medium-standard',
-      name: 'Growth',
+      name: 'Professional',
       price: 299,
       period: 'year',
       priceId: 'price_1T4cCVCf7KAA6aLakkWdH7ZW',
@@ -263,17 +255,15 @@ export const businessPlans = {
       planTier: 'medium_business',
       billingPeriod: 'yearly',
       platformFee: 19.99,
-      description: 'For organizations building appreciation into their culture.',
+      description: 'For teams building a culture of appreciation.',
       featureGroups: [
         { section: 'Membership', features: [
-          'Up to 25 employee & client recipients',
-          '10 Greet-Mes included each month',
-          'Employee & Client Appreciation Management System',
+          '25 recipients / 10 monthly Greet-Mes',
+          'Appreciation Management System',
           'Greet-Me Customization™',
           'Branded Gift Options',
-          'Additional Greet-Mes available on demand',
-          'Greet-Me Gifts™',
-          'QR Cash™',
+          'Additional Greet-Mes available',
+          'Greet-Me Gifts™ & QR Cash™',
           'Greet-Me Hero™ Initiative Eligible'
         ] }
       ],
@@ -281,8 +271,8 @@ export const businessPlans = {
     },
     {
       id: 'business-scale-standard',
-      name: 'Appreciation at Scale',
-      price: 750,
+      name: 'Scale',
+      price: 699,
       period: 'year',
       priceId: 'price_1TjXS2Cf7KAA6aLayHdvdfTj',
       purchaseType: 'subscription',
@@ -292,13 +282,12 @@ export const businessPlans = {
       description: 'For appreciation programs at scale.',
       featureGroups: [
         { section: 'Membership', features: [
-          'Up to 100 employee & client recipients',
-          'Employee & Client Appreciation Management System',
+          '100 employee & client recipients',
+          'Appreciation Management System',
           'Greet-Me Customization™',
           'Branded Gift Options',
           'Flat-Fee Appreciation™ — $2.99 per Greet-Me sent',
-          'Greet-Me Gifts™',
-          'QR Cash™',
+          'Greet-Me Gifts™ & QR Cash™',
           'Greet-Me Hero™ Initiative Eligible'
         ] }
       ]
@@ -312,13 +301,12 @@ export const businessPlans = {
       description: 'For organizations with 100+ recipients.',
       featureGroups: [
         { section: 'Membership', features: [
-          'Employee & Client Appreciation Management System',
+          'Custom appreciation programs',
+          'Appreciation Management System',
           'Greet-Me Customization™',
           'Branded Gift Options',
-          'Greet-Me Gifts™',
-          'QR Cash™',
-          'Greet-Me Hero™ Initiative Eligible',
-          'Custom appreciation programs'
+          'Greet-Me Gifts™ & QR Cash™',
+          'Greet-Me Hero™ Initiative Eligible'
         ] }
       ]
     }
