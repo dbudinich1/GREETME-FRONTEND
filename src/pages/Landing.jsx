@@ -13,6 +13,10 @@ export default function Landing() {
   const navigate = useNavigate();
   const [demoMuted, setDemoMuted] = useState(true);
   const demoRef = useRef(null);
+  // Demo video load state: 'loading' until it can play, 'ready' once playing,
+  // 'failed' on load error. Drives a branded placeholder/fallback so the hero
+  // never renders as an empty charcoal box. (P0.3)
+  const [videoStatus, setVideoStatus] = useState('loading');
 
   // Delayed autoplay — let page paint first, then attempt video after 2s
   useEffect(() => {
@@ -92,6 +96,8 @@ export default function Landing() {
         background: '#000',
         marginBottom: '1.5rem',
         position: 'relative',
+        // Reserve a branded area while loading/failed; once ready the video drives height.
+        minHeight: videoStatus === 'ready' ? undefined : '320px',
         cursor: demoMuted ? 'pointer' : 'default',
       }}
         onClick={() => {
@@ -107,9 +113,56 @@ export default function Landing() {
           preload="none"
           muted
           playsInline
-          style={{ width: '100%', display: 'block', background: '#1f2937' }}
+          onLoadedData={() => setVideoStatus('ready')}
+          onCanPlay={() => setVideoStatus('ready')}
+          onPlaying={() => setVideoStatus('ready')}
+          onError={() => setVideoStatus('failed')}
+          style={{ width: '100%', display: videoStatus === 'failed' ? 'none' : 'block', background: '#1f2937' }}
         />
-        {demoMuted && (
+
+        {/* Loading placeholder — branded; prevents an empty charcoal box during load */}
+        {videoStatus === 'loading' && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            gap: '0.5rem', textAlign: 'center', padding: '1rem',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff',
+          }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '0.02em' }}>Greet&#8209;Me</div>
+            <div style={{ fontSize: '0.8125rem', opacity: 0.9 }}>Loading demo&hellip;</div>
+          </div>
+        )}
+
+        {/* Failure fallback — branded; safe link to the demo; never a black box */}
+        {videoStatus === 'failed' && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            gap: '0.5rem', textAlign: 'center', padding: '1.25rem',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff',
+          }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '0.02em' }}>Greet&#8209;Me</div>
+            <div style={{ fontSize: '0.875rem', opacity: 0.95, maxWidth: '22rem' }}>
+              See how a Greet-Me comes to life.
+            </div>
+            <a
+              href="https://greetmedanny.blob.core.windows.net/public/greetme-demo.mp4.mp4"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                marginTop: '0.25rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                background: '#fff', color: '#5b3fb8', textDecoration: 'none',
+                borderRadius: '2rem', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 700,
+              }}
+            >
+              ▶ Watch the demo
+            </a>
+          </div>
+        )}
+
+        {/* Tap-for-sound — only once the video is actually ready/playing */}
+        {videoStatus === 'ready' && demoMuted && (
           <div style={{
             position: 'absolute',
             bottom: '0.75rem',
