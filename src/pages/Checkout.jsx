@@ -17,6 +17,9 @@ const BUSINESS_PLAN_TIERS = new Set(['small_business', 'medium_business', 'busin
 const platformFeeFor = (item) =>
   item?.platformFee ?? (BUSINESS_PLAN_TIERS.has(item?.planTier) ? 19.99 : 4.99);
 
+// G1G1 auto-mint is PERSONAL-only; business tiers use the annual-credit model.
+const G1G1_PERSONAL_TIERS = new Set(['close_circle', 'social_butterfly', 'unforgettable']);
+
 // US state list for the recipient shipping dropdown (Phase 3C Stage 3 founder refinement #6)
 const US_STATES = [
   { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' },
@@ -266,8 +269,8 @@ export default function Checkout() {
         billingPeriod: item.billingPeriod || item.period,
         ...(referralCode && { referralCode }),
         ...(courtesyCreditCode && !referralCode && { courtesyCreditCode }),
-        // G1G1 recipient data for fulfillment
-        ...(g1g1Raw?.eligible && {
+        // G1G1 recipient data for fulfillment — PERSONAL tiers only (business uses annual credits)
+        ...(g1g1Raw?.eligible && G1G1_PERSONAL_TIERS.has(item.planTier) && {
           g1g1Eligible: true,
           g1g1RecipientName: g1g1Raw.recipientName || '',
           g1g1RecipientEmail: g1g1Raw.recipientEmail || '',
@@ -752,7 +755,7 @@ export default function Checkout() {
                   const subscriptionItem = cartItems.find(i => i.type === 'subscription');
                   const planPrice = subscriptionItem?.price || total;
                   const hasReferralCredit = !!referralCode;
-                  const g1g1Eligible = !!subscriptionItem && !hasReferralCredit;
+                  const g1g1Eligible = !!subscriptionItem && !hasReferralCredit && G1G1_PERSONAL_TIERS.has(subscriptionItem?.planTier);
                   const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                   const effectiveCredit = creditEligible ? creditAmount : 0;
                   const techFee = platformFeeFor(subscriptionItem);

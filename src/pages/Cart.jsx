@@ -4,6 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Trash2, ArrowLeft, CreditCard, ShoppingBag, Package, Gift, Mail, Check } from 'lucide-react';
 import cartService from '../services/cartService';
 
+// G1G1 ("Greet One, Give One") auto-minting at checkout is a PERSONAL-only benefit.
+// Business tiers earn annual G1G1 gift credits (spent from the dashboard), so they
+// must never enter the checkout auto-mint path. Mirrors the backend gate.
+const G1G1_PERSONAL_TIERS = new Set(['close_circle', 'social_butterfly', 'unforgettable']);
+
 // Platform fee mirrors the backend rule (BUSINESS_SUBSCRIPTION_PRICE_IDS in
 // routes/paymentRoutes.js): $19.99 for business subscription tiers, $4.99 otherwise.
 // Prefer the cart item's platformFee if present, else fall back to the tier rule
@@ -23,12 +28,13 @@ export default function Cart() {
   const [g1g1RecipientEmail, setG1G1RecipientEmail] = useState('');
   const [receiveGiftLinkViaEmail, setReceiveGiftLinkViaEmail] = useState(false);
 
-  // Check if cart has a subscription (eligible for G1G1)
-  const hasSubscription = cartItems.some(item => item.type === 'subscription');
+  // Check if cart has a subscription (eligible for G1G1) — PERSONAL tiers only.
+  const subscriptionItem = cartItems.find(item => item.type === 'subscription');
+  const hasSubscription = !!subscriptionItem;
 
-  // Referral credit disqualifies G1G1
+  // Referral credit disqualifies G1G1; business tiers are excluded (annual-credit model).
   const hasReferralCredit = !!(localStorage.getItem('greetme_referral_code'));
-  const g1g1Eligible = hasSubscription && !hasReferralCredit;
+  const g1g1Eligible = hasSubscription && !hasReferralCredit && G1G1_PERSONAL_TIERS.has(subscriptionItem?.planTier);
 
   useEffect(() => {
     window.scrollTo(0, 0);

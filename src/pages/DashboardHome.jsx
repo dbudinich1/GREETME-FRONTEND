@@ -8,6 +8,7 @@ import { getRewardsBalance, getRemainingDailyHearts } from '../utils/rewards';
 import { pushInApp } from '../utils/notify';
 import { COMMS_EVENTS } from '../utils/commsCatalog';
 import QRCashGiftModal from '../components/QRCashGiftModal';
+import BusinessGiftCreditsPanel from '../components/BusinessGiftCreditsPanel';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
 import { safeGet, safeSet, safeSessionGet, safeSessionSet } from '../utils/safeStorage';
@@ -655,6 +656,9 @@ export default function DashboardHome() {
       {shouldShowWarmReentry(accountState, contactsLoaded ? contacts.length : null) && (
         <WarmReentryWelcome isNarrow={isNarrow} />
       )}
+
+      {/* Business-only: annual G1G1 gift-credit panel (renders nothing for personal tiers) */}
+      <BusinessGiftCreditsPanel isNarrow={isNarrow} />
 
       {/* Dashboard Cards - All same height */}
       {/* Green G1G1 Card - Full Width */}
