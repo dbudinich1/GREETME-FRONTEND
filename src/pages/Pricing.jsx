@@ -27,10 +27,11 @@ export default function Pricing() {
     if (code) setReferralCode(code);
   }, [location.search]);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
+  const [isMedium, setIsMedium] = useState(window.innerWidth < 1100);
 
   // Handle resize for mobile detection
   useEffect(() => {
-    const handleResize = () => setIsNarrow(window.innerWidth < 768);
+    const handleResize = () => { setIsNarrow(window.innerWidth < 768); setIsMedium(window.innerWidth < 1100); };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -127,7 +128,7 @@ export default function Pricing() {
     <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)' }}>
       {/* Background Frame for Page Body */}
       <div style={{
-        maxWidth: '1280px',
+        maxWidth: viewMode === 'business' ? '1480px' : '1280px',
         margin: '0 auto',
         padding: isNarrow ? '0.5rem' : '0.5rem'
       }}>
@@ -328,8 +329,12 @@ export default function Pricing() {
           {/* Phase 8.3B: alignItems: 'stretch' for equal card heights */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: isNarrow ? '1fr' : `repeat(${currentPlans.length}, 1fr)`,
-            gap: isNarrow ? '1.5rem' : '2rem',
+            gridTemplateColumns: isNarrow
+              ? '1fr'
+              : viewMode === 'business'
+                ? (isMedium ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)')
+                : `repeat(${currentPlans.length}, 1fr)`,
+            gap: isNarrow ? '1.5rem' : (viewMode === 'business' && !isMedium ? '1.25rem' : '2rem'),
             alignItems: 'stretch'
           }}>
           {currentPlans.map((plan) => {
@@ -552,13 +557,15 @@ export default function Pricing() {
                   )}
                 </div>
 
-                {/* Platform-fee pricing note (business cards only) */}
+                {/* Platform-fee pricing note (business cards only) — subtle support text */}
                 {plan.platformFee && (
                   <div style={{
-                    fontSize: '0.8125rem',
-                    color: 'var(--text-secondary)',
+                    fontSize: '0.6875rem',
+                    color: 'var(--text-tertiary)',
                     textAlign: 'center',
-                    marginBottom: '0.75rem'
+                    marginTop: '-0.25rem',
+                    marginBottom: '0.75rem',
+                    whiteSpace: 'nowrap'
                   }}>
                     + ${plan.platformFee} One-Time Platform Fee
                   </div>
@@ -771,7 +778,7 @@ export default function Pricing() {
                 fontWeight: 700,
                 color: 'var(--text-primary)',
                 margin: 0
-              }}>Contact Sales</h2>
+              }}>Let&apos;s Build Your Appreciation Program</h2>
               <button
                 onClick={() => setShowEnterpriseForm(false)}
                 style={{

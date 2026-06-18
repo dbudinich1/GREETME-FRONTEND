@@ -146,7 +146,7 @@ export const businessPlans = {
       planTier: 'small_business',
       billingPeriod: 'yearly',
       platformFee: 19.99,
-      description: 'For businesses getting started with employee & client appreciation.',
+      description: 'For businesses getting started with appreciation.',
       featureGroups: [
         { section: 'Membership', features: [
           'Up to 10 employee & client recipients',
@@ -195,7 +195,7 @@ export const businessPlans = {
       planTier: 'business_scale',
       billingPeriod: 'yearly',
       platformFee: 19.99,
-      description: 'For organizations running appreciation programs at scale.',
+      description: 'For appreciation programs at scale.',
       featureGroups: [
         { section: 'Membership', features: [
           'Up to 100 employee & client recipients',
@@ -214,8 +214,8 @@ export const businessPlans = {
       name: 'Enterprise',
       price: 'Contact Sales',
       period: '',
-      ctaText: "Let's Build Your Appreciation Program",
-      description: 'For organizations with 100+ employee & client recipients.',
+      ctaText: 'Talk With Our Team',
+      description: 'For organizations with 100+ recipients.',
       featureGroups: [
         { section: 'Membership', features: [
           'Employee & Client Appreciation Management System',
@@ -240,7 +240,7 @@ export const businessPlans = {
       planTier: 'small_business',
       billingPeriod: 'yearly',
       platformFee: 19.99,
-      description: 'For businesses getting started with employee & client appreciation.',
+      description: 'For businesses getting started with appreciation.',
       featureGroups: [
         { section: 'Membership', features: [
           'Up to 10 employee & client recipients',
@@ -289,7 +289,7 @@ export const businessPlans = {
       planTier: 'business_scale',
       billingPeriod: 'yearly',
       platformFee: 19.99,
-      description: 'For organizations running appreciation programs at scale.',
+      description: 'For appreciation programs at scale.',
       featureGroups: [
         { section: 'Membership', features: [
           'Up to 100 employee & client recipients',
@@ -308,8 +308,8 @@ export const businessPlans = {
       name: 'Enterprise',
       price: 'Contact Sales',
       period: '',
-      ctaText: "Let's Build Your Appreciation Program",
-      description: 'For organizations with 100+ employee & client recipients.',
+      ctaText: 'Talk With Our Team',
+      description: 'For organizations with 100+ recipients.',
       featureGroups: [
         { section: 'Membership', features: [
           'Employee & Client Appreciation Management System',
