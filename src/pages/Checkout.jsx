@@ -9,6 +9,14 @@ import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
 import { getCurrentPriceMap } from '../config/plans';
 
+// Platform fee mirrors the backend rule (BUSINESS_SUBSCRIPTION_PRICE_IDS in
+// routes/paymentRoutes.js): $19.99 for business subscription tiers, $4.99 otherwise.
+// Prefer the cart item's platformFee if present, else fall back to the tier rule
+// (cart items currently omit platformFee).
+const BUSINESS_PLAN_TIERS = new Set(['small_business', 'medium_business', 'business_scale']);
+const platformFeeFor = (item) =>
+  item?.platformFee ?? (BUSINESS_PLAN_TIERS.has(item?.planTier) ? 19.99 : 4.99);
+
 // US state list for the recipient shipping dropdown (Phase 3C Stage 3 founder refinement #6)
 const US_STATES = [
   { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' },
@@ -747,7 +755,7 @@ export default function Checkout() {
                   const g1g1Eligible = !!subscriptionItem && !hasReferralCredit;
                   const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                   const effectiveCredit = creditEligible ? creditAmount : 0;
-                  const techFee = 4.99;
+                  const techFee = platformFeeFor(subscriptionItem);
                   const finalTotal = Math.max(0, planPrice + techFee - effectiveCredit);
 
                   return (

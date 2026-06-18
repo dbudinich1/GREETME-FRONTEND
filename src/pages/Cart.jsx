@@ -4,6 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Trash2, ArrowLeft, CreditCard, ShoppingBag, Package, Gift, Mail, Check } from 'lucide-react';
 import cartService from '../services/cartService';
 
+// Platform fee mirrors the backend rule (BUSINESS_SUBSCRIPTION_PRICE_IDS in
+// routes/paymentRoutes.js): $19.99 for business subscription tiers, $4.99 otherwise.
+// Prefer the cart item's platformFee if present, else fall back to the tier rule
+// (cart items currently omit platformFee).
+const BUSINESS_PLAN_TIERS = new Set(['small_business', 'medium_business', 'business_scale']);
+const platformFeeFor = (item) =>
+  item?.platformFee ?? (BUSINESS_PLAN_TIERS.has(item?.planTier) ? 19.99 : 4.99);
+
 export default function Cart() {
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState([]);
@@ -734,7 +742,7 @@ export default function Cart() {
                 const rawCredit = hasReferralCredit ? 10 : (courtesyCredit?.amount || 0);
                 const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                 const creditAmt = creditEligible ? rawCredit : 0;
-                const techFee = 4.99;
+                const techFee = platformFeeFor(subscriptionItem);
 
                 return (
                   <div style={{ marginBottom: '0.25rem' }}>
@@ -788,7 +796,8 @@ export default function Cart() {
                 const rawCredit = hasReferralCredit ? 10 : (courtesyCredit2?.amount || 0);
                 const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                 const creditAmt = creditEligible ? rawCredit : 0;
-                const finalTotal = Math.max(0, planPrice + 4.99 - creditAmt);
+                const techFee = platformFeeFor(subscriptionItem);
+                const finalTotal = Math.max(0, planPrice + techFee - creditAmt);
                 return (
                   <div style={{ borderTop: '2px solid var(--border)', paddingTop: '0.5rem', marginBottom: '0.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
