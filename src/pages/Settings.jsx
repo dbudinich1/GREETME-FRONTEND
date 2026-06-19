@@ -39,7 +39,7 @@ const PILL = {
 };
 
 function g1g1Label(g) {
-  if (!g) return 'Not Included';
+  if (!g) return 'No gift pending';
   if (g.status === 'paused') return 'Not Included';
   if (g.status === 'failed') return 'Ready to Gift';
   if (g.status === 'created') return g.giftSent ? 'Gift Shared' : 'Ready to Gift';
@@ -265,7 +265,7 @@ export default function Settings() {
             </button>
           ) : (
             <button
-              onClick={() => { window.location.href = '/pricing'; }}
+              onClick={() => { navigate('/pricing'); }}
               style={{
                 width: isNarrow ? '100%' : 'auto',
                 padding: '0.75rem 1.75rem',

@@ -15,7 +15,7 @@ const G1G1_STORAGE_KEY = 'greetme_g1g1_gift_code';
 export default function G1G1Claim() {
   const { giftCode } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, refreshProfile } = useAuth();
   // Phase 3D Batch D Slice 2 — account-state gate. Suppresses the
   // "Activate My Membership" CTA for already-subscribed users; they route
   // to the dashboard instead and the gift code remains stashed for
@@ -75,6 +75,9 @@ export default function G1G1Claim() {
       if (res?.ok) {
         setClaimed(true);
         try { sessionStorage.setItem('greetme_g1g1_claimed', '1'); } catch {}
+        // Re-hydrate AuthContext so plan/status reflect the just-claimed
+        // membership before any navigation (prevents stale "Free" display).
+        try { await refreshProfile(); } catch {}
       } else {
         setError(res?.error || 'Failed to claim gift');
       }

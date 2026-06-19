@@ -504,7 +504,7 @@ export default function DashboardLayout({ children }) {
                     </div>
                     {/* NAV-01 — account items moved from top nav into the user menu */}
                     <button
-                      onClick={() => { setUserMenuOpen(false); navigate('/dashboard/settings'); }}
+                      onClick={() => { setUserMenuOpen(false); navigate('/dashboard/profile'); }}
                       style={{ width: '100%', textAlign: 'left', padding: '0.625rem 0.75rem', fontSize: '0.875rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
                       onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
