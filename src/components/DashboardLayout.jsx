@@ -14,6 +14,11 @@ export default function DashboardLayout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  // Defensive display-name fallbacks: avatar/greeting must never collapse to
+  // a bare 'U' when `name` is briefly absent (e.g. login payload omits it).
+  const displayName = user?.name || user?.email || 'User';
+  const firstName = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'User';
+  const avatarInitial = (displayName.charAt(0) || 'U').toUpperCase();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
@@ -454,9 +459,9 @@ export default function DashboardLayout({ children }) {
                   e.currentTarget.style.opacity = '1';
                   e.currentTarget.style.transform = 'scale(1)';
                 }}
-                title={user?.name || 'User'}
+                title={displayName}
               >
-                {user?.name?.charAt(0).toUpperCase() || 'U'}
+                {avatarInitial}
               </button>
 
               {/* User Dropdown */}
@@ -492,7 +497,7 @@ export default function DashboardLayout({ children }) {
                         fontWeight: 600,
                         color: 'var(--text-primary)',
                         margin: 0
-                      }}>{user?.name || 'User'}</p>
+                      }}>{displayName}</p>
                       <p style={{
                         fontSize: '0.75rem',
                         color: 'var(--text-tertiary)',
@@ -633,7 +638,7 @@ export default function DashboardLayout({ children }) {
                 fontWeight: 600,
                 color: 'var(--text-primary)',
                 margin: 0
-              }}>Welcome, {user?.name?.split(' ')[0] || 'User'}!</p>
+              }}>Welcome, {firstName}!</p>
               <p style={{
                 fontSize: '0.75rem',
                 color: 'var(--text-tertiary)',
@@ -793,7 +798,7 @@ export default function DashboardLayout({ children }) {
               margin: '0 0 1.5rem 0',
               fontWeight: 500
             }}>
-              Welcome back, {user?.name?.split(' ')[0] || 'User'}!
+              Welcome back, {firstName}!
             </p>
           )}
           {children || <Outlet />}

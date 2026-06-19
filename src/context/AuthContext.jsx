@@ -39,7 +39,11 @@ export const AuthProvider = ({ children }) => {
       // Onboarding convergence: Cosmos-authoritative signal that voice +
       // photo are persisted. Derived server-side on every /api/profile fetch.
       const personalizationComplete = data.profile?.personalizationComplete === true;
-      const updatedUser = { ...currentUser, photoUrl, voiceId, voiceUrl, plan, tier, entitlements, subscriptionStatus, paymentLocked, emailVerified, voiceIdStaleAt, voiceIdStaleReason, personalizationComplete };
+      // Recover display name from the profile payload (always returned by
+      // /api/profile) so hydration/refresh never drops it. Falls back to the
+      // existing value to preserve any locally-known name.
+      const name = data.profile?.name || currentUser.name || null;
+      const updatedUser = { ...currentUser, name, photoUrl, voiceId, voiceUrl, plan, tier, entitlements, subscriptionStatus, paymentLocked, emailVerified, voiceIdStaleAt, voiceIdStaleReason, personalizationComplete };
       safeSet('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
     } catch (err) {
