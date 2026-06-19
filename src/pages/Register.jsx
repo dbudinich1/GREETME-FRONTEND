@@ -19,6 +19,10 @@ function isFastMode() {
 
 export default function Register() {
   const [fastMode] = useState(isFastMode);
+  // G1G1-CLAIM-NAME-CAPTURE: G1G1 claimers come through fast mode, but we still need
+  // their name (otherwise the dashboard greets them as "User"). Show the name fields
+  // for G1G1 claims while preserving fast mode for other viral flows (credit/referral).
+  const [isG1G1Claim] = useState(() => !!localStorage.getItem('greetme_g1g1_gift_code'));
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -146,7 +150,7 @@ export default function Register() {
 
         {/* Form */}
         <form onSubmit={handleSubmit}>
-          {!fastMode && (
+          {(!fastMode || isG1G1Claim) && (
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
               <div style={{ flex: 1 }}>
                 <label style={{
