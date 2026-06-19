@@ -92,6 +92,7 @@ class ErrorBoundary extends React.Component {
 import CourtesyCredit from "./pages/CourtesyCredit";
 import CreditClaim from "./pages/CreditClaim";
 import G1G1Claim from "./pages/G1G1Claim";
+import G1G1Send from "./pages/G1G1Send";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCanceled from "./pages/PaymentCanceled";
 // FounderDashboard + QAInspector are dev-only (route-gated below). The lazy
@@ -129,6 +130,7 @@ export default function App() {
           <Route path="/redeem/qr-cash/:id" element={<RedeemQRCash />} />
           <Route path="/greeting/:greetingId" element={<RecipientGreeting />} />
           <Route path="/g/:jobId" element={<PublicGreetingCard />} />
+          <Route path="/gift/g1g1/:giftCode/send" element={<G1G1Send />} />
           <Route path="/gift/g1g1/:giftCode" element={<G1G1Claim />} />
           <Route path="/gift/:claimToken" element={<GiftClaim />} />
           <Route path="/credit/:referralCode" element={<ReferralCredit />} />

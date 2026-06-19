@@ -660,6 +660,14 @@ class ApiService {
     });
   }
 
+  // Sender-only: email the branded gift to a recipient (recipient data is transient).
+  sendG1G1Gift(giftCode, body) {
+    return this.request(`/api/gifts/g1g1/${giftCode}/send`, {
+      method: "POST",
+      body: JSON.stringify(body || {}),
+    });
+  }
+
   // --------------------
   // Referral (viral loop)
   // --------------------
