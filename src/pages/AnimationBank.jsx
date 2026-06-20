@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { Film, Plus, Gift, Calendar, Star, Sparkles, ShoppingCart, Check, ArrowRight } from 'lucide-react';
 import animationBankService from '../services/animationBankService';
 import cartService from '../services/cartService';
+import api from '../api/api';
 
 export default function AnimationBank() {
   const navigate = useNavigate();
@@ -25,9 +26,28 @@ export default function AnimationBank() {
   const [packsModalStep, setPacksModalStep] = useState('selection'); // 'selection' | 'confirmation'
   const [selectedPack, setSelectedPack] = useState(null);
   const [lastAddedPack, setLastAddedPack] = useState(null);
+  // Level 2: live wallet balances from GET /api/wallet (authoritative send wallet).
+  const [wallet, setWallet] = useState(null);
+  const [walletLoading, setWalletLoading] = useState(true);
+  const [walletError, setWalletError] = useState(false);
 
   useEffect(() => {
     loadAnimationBank();
+  }, []);
+
+  // Mount-fetch the live wallet. Never fabricates: on failure we show a clearly
+  // labeled "Plan Includes" cap fallback (entitlement caps), not a balance.
+  useEffect(() => {
+    let alive = true;
+    api.get('/api/wallet')
+      .then((res) => {
+        if (!alive) return;
+        if (res?.ok && res.wallet) { setWallet(res.wallet); setWalletError(false); }
+        else { setWalletError(true); }
+      })
+      .catch(() => { if (alive) setWalletError(true); })
+      .finally(() => { if (alive) setWalletLoading(false); });
+    return () => { alive = false; };
   }, []);
 
   const loadAnimationBank = () => {
@@ -83,6 +103,71 @@ export default function AnimationBank() {
         </div>
       </div>
     );
+  }
+
+  // ---- Level 2 wallet display (live balances; labeled non-live fallback on error) ----
+  const w = wallet;
+  let heroLabel, heroValue, heroSubtitle;
+  if (w) {
+    heroLabel = 'Total Spendable Now';
+    heroValue = w.unmetered ? 'Unlimited' : w.totalSpendableNow;
+    heroSubtitle = w.unmetered ? 'Unmetered plan' : 'Greet-Mes currently available to send';
+  } else if (walletError) {
+    heroLabel = 'Plan Includes';
+    heroValue = showVal(monthlyIncluded);
+    heroSubtitle = 'Monthly Greet-Mes included with your plan · live balance unavailable';
+  } else {
+    heroLabel = 'Total Spendable Now';
+    heroValue = '—';
+    heroSubtitle = 'Loading your wallet…';
+  }
+
+  let walletCards;
+  if (w) {
+    walletCards = [
+      {
+        label: 'Monthly Greet-Mes', color: '#667eea', Icon: Calendar,
+        value: w.unmetered ? 'Unlimited' : `${w.monthly.remaining} of ${w.monthly.cap}`,
+        secondary: w.unmetered
+          ? 'Unmetered plan'
+          : `left this month${w.monthlyWindowStale ? ' · Current-month display' : ''}`,
+      },
+      {
+        label: 'Anytime Greet-Mes', color: '#764ba2', Icon: Sparkles,
+        value: `${w.anytime.available}`,
+        secondary: `available · ${w.anytime.includedCap} included with plan`,
+      },
+      {
+        label: 'Banked Greet-Mes', color: '#10b981', Icon: Gift,
+        value: `${w.banked.available}`,
+        secondary: w.banked.cap > 0 ? `banked · up to ${w.banked.cap}` : 'No banking on this plan',
+      },
+    ];
+    if (w.purchased?.animationCredits > 0) {
+      walletCards.push({
+        label: 'Purchased Credits', color: '#f59e0b', Icon: Star,
+        value: `${w.purchased.animationCredits}`, secondary: 'Recorded, not yet spendable',
+      });
+    }
+    if (w.bonus?.bonusGreetings > 0) {
+      walletCards.push({
+        label: 'Bonus Credits', color: '#ec4899', Icon: Star,
+        value: `${w.bonus.bonusGreetings}`, secondary: 'Not spendable in current wallet path',
+      });
+    }
+  } else if (walletError) {
+    // Clearly-labeled NON-LIVE plan-inclusion fallback (caps only; never "available").
+    walletCards = [
+      { label: 'Monthly · Plan Includes', color: '#667eea', Icon: Calendar, value: showVal(monthlyIncluded), secondary: 'included monthly · live balance unavailable' },
+      { label: 'Anytime · Plan Includes', color: '#764ba2', Icon: Sparkles, value: showVal(anytimeIncluded), secondary: 'included with plan' },
+      { label: 'Banking Limit', color: '#10b981', Icon: Gift, value: showVal(bankingLimit), secondary: bankingLimit > 0 ? `bank up to ${bankingLimit}` : 'No banking on this plan' },
+    ];
+  } else {
+    walletCards = [
+      { label: 'Monthly Greet-Mes', color: '#667eea', Icon: Calendar, value: '—', secondary: 'Loading your wallet…' },
+      { label: 'Anytime Greet-Mes', color: '#764ba2', Icon: Sparkles, value: '—', secondary: '' },
+      { label: 'Banked Greet-Mes', color: '#10b981', Icon: Gift, value: '—', secondary: '' },
+    ];
   }
 
   const packs = [
@@ -149,7 +234,7 @@ export default function AnimationBank() {
           letterSpacing: '0.05em',
           marginBottom: '0.5rem'
         }}>
-          Monthly Plan Includes
+          {heroLabel}
         </p>
         <div style={{
           fontSize: '5rem',
@@ -158,14 +243,14 @@ export default function AnimationBank() {
           lineHeight: 1,
           marginBottom: '0.5rem'
         }}>
-          {showVal(monthlyIncluded)}
+          {heroValue}
         </div>
         <p style={{
           fontSize: '1.25rem',
           color: 'var(--text-secondary)',
           fontWeight: 500
         }}>
-          Greet-Mes included with your plan each month
+          {heroSubtitle}
         </p>
         <button
           onClick={() => setShowPacksModal(true)}
@@ -206,73 +291,50 @@ export default function AnimationBank() {
         gap: '1rem',
         marginBottom: '2rem'
       }}>
-        {/* Plan inclusions — driven by live profile entitlements (Level 1 truth).
-            Replaces the former localStorage mock rows (Purchased/Holiday/Earned),
-            which asserted client-mutable values as real account balances. */}
-        <div style={{
-          background: 'white',
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-          border: '2px solid #764ba220'
-        }}>
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
-            <Sparkles size={32} style={{ color: '#764ba2' }} />
-          </div>
-          <p style={{
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            color: '#764ba2',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            marginBottom: '0.5rem'
-          }}>
-            Included Anytime Greet-Mes
-          </p>
-          <p style={{
-            fontSize: '2rem',
-            fontWeight: 700,
-            color: 'var(--text-primary)'
-          }}>
-            {showVal(anytimeIncluded)}
-          </p>
-        </div>
-
-        <div style={{
-          background: 'white',
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-          border: '2px solid #667eea20'
-        }}>
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
-            <Calendar size={32} style={{ color: '#667eea' }} />
-          </div>
-          <p style={{
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            color: '#667eea',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            marginBottom: '0.5rem'
-          }}>
-            Banking Limit
-          </p>
-          <p style={{
-            fontSize: '2rem',
-            fontWeight: 700,
-            color: 'var(--text-primary)'
-          }}>
-            {showVal(bankingLimit)}
-          </p>
-          <p style={{
-            fontSize: '0.75rem',
-            color: 'var(--text-secondary)',
-            marginTop: '0.25rem'
-          }}>
-            {bankingLimit === null ? '' : (bankingLimit > 0 ? `Bank up to ${bankingLimit} unused Greet-Mes` : 'No banking on this plan')}
-          </p>
-        </div>
+        {/* Live wallet balances (Level 2) — from GET /api/wallet. On failure,
+            renders a clearly-labeled NON-LIVE "Plan Includes" cap fallback. */}
+        {walletCards.map((card, index) => {
+          const Icon = card.Icon;
+          return (
+            <div key={index} style={{
+              background: 'white',
+              borderRadius: '0.75rem',
+              padding: '1.5rem',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+              border: `2px solid ${card.color}20`
+            }}>
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
+                <Icon size={32} style={{ color: card.color }} />
+              </div>
+              <p style={{
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: card.color,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginBottom: '0.5rem'
+              }}>
+                {card.label}
+              </p>
+              <p style={{
+                fontSize: '2rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)'
+              }}>
+                {card.value}
+              </p>
+              {card.secondary ? (
+                <p style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary)',
+                  marginTop: '0.25rem'
+                }}>
+                  {card.secondary}
+                </p>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
 
       {/* How It Works */}
