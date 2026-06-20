@@ -54,6 +54,11 @@ export default function Settings() {
   const [billingError, setBillingError] = useState(null);
   const [g1g1, setG1g1] = useState(undefined);
   const [isNarrow, setIsNarrow] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
+  // Live Greet-Me send wallet (read-only GET /api/wallet). Display only — never
+  // fabricates: shows "—"/loading until loaded, a muted line on error.
+  const [wallet, setWallet] = useState(null);
+  const [walletLoading, setWalletLoading] = useState(true);
+  const [walletError, setWalletError] = useState(false);
 
   useEffect(() => {
     const onResize = () => setIsNarrow(window.innerWidth <= 768);
@@ -81,6 +86,20 @@ export default function Settings() {
     api.get('/api/payments/g1g1-status')
       .then((res) => { if (alive) setG1g1(res?.g1g1 ?? null); })
       .catch(() => { if (alive) setG1g1(null); });
+    return () => { alive = false; };
+  }, []);
+
+  // Mount-fetch the live send wallet (separate from refreshProfile + g1g1-status).
+  useEffect(() => {
+    let alive = true;
+    api.get('/api/wallet')
+      .then((res) => {
+        if (!alive) return;
+        if (res?.ok && res.wallet) { setWallet(res.wallet); setWalletError(false); }
+        else { setWalletError(true); }
+      })
+      .catch(() => { if (alive) setWalletError(true); })
+      .finally(() => { if (alive) setWalletLoading(false); });
     return () => { alive = false; };
   }, []);
 
@@ -149,6 +168,29 @@ export default function Settings() {
   ];
   if (g1g1 !== undefined) {
     detailCols.push({ label: 'GREET ONE, GIVE ONE™', value: g1g1Label(g1g1), icon: Gift });
+  }
+
+  // SEND BALANCE cells — live /api/wallet values only (no caps fallback, no mock).
+  const w = wallet;
+  let sendCells = [
+    { label: 'TOTAL SPENDABLE NOW', value: '—' },
+    { label: 'MONTHLY', value: '—' },
+    { label: 'ANYTIME', value: '—' },
+    { label: 'BANKED', value: '—' },
+  ];
+  if (w) {
+    sendCells = [
+      { label: 'TOTAL SPENDABLE NOW', value: w.unmetered ? 'Unlimited' : w.totalSpendableNow },
+      { label: 'MONTHLY', value: w.unmetered ? 'Unlimited' : `${w.monthly.remaining} of ${w.monthly.cap}` },
+      { label: 'ANYTIME', value: `${w.anytime.available}`, sub: `${w.anytime.includedCap} included` },
+      { label: 'BANKED', value: w.banked.cap > 0 ? `${w.banked.available} of ${w.banked.cap}` : '0' },
+    ];
+    if (w.purchased?.animationCredits > 0) {
+      sendCells.push({ label: 'PURCHASED', value: `${w.purchased.animationCredits}`, sub: 'Recorded, not yet spendable.' });
+    }
+    if (w.bonus?.bonusGreetings > 0) {
+      sendCells.push({ label: 'BONUS', value: `${w.bonus.bonusGreetings}`, sub: 'Not spendable in current wallet path.' });
+    }
   }
 
   const StatusPill = ({ onBanner = false }) => (
@@ -241,6 +283,37 @@ export default function Settings() {
                 <div style={gridValue}>{col.value}</div>
               </div>
             ))}
+          </div>
+
+          {/* SEND BALANCE — live Greet-Me wallet balances (GET /api/wallet) */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ ...gridLabel, marginBottom: '0.75rem' }}>SEND BALANCE</div>
+            {walletError ? (
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Send balance temporarily unavailable.
+              </p>
+            ) : (
+              <>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: isNarrow ? 'repeat(2, 1fr)' : `repeat(${sendCells.length}, 1fr)`,
+                  gap: isNarrow ? '1rem' : '1.25rem',
+                }}>
+                  {sendCells.map((cell) => (
+                    <div key={cell.label}>
+                      <div style={gridLabel}>{cell.label}</div>
+                      <div style={gridValue}>{cell.value}</div>
+                      {cell.sub ? (
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', marginTop: '0.125rem' }}>{cell.sub}</div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+                {walletLoading && !wallet ? (
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.5rem 0 0' }}>Loading send balance…</p>
+                ) : null}
+              </>
+            )}
           </div>
 
           {billingError && (
