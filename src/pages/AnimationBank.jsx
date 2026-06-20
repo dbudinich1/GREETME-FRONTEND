@@ -2,20 +2,29 @@
 // Shows user's animation credits with positive, asset-focused language
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Film, Plus, Gift, Calendar, Star, Sparkles, Repeat, ShoppingCart, Check, ArrowRight } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { Film, Plus, Gift, Calendar, Star, Sparkles, ShoppingCart, Check, ArrowRight } from 'lucide-react';
 import animationBankService from '../services/animationBankService';
-import animationTemplateService from '../services/animationTemplateService';
 import cartService from '../services/cartService';
 
 export default function AnimationBank() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  // Level 1 truth: plan inclusions come from live profile entitlements
+  // (monthlyGreetMes / includedAnytime / rolloverCap), NOT the localStorage
+  // mock. Show a neutral "—" until entitlements hydrate; never fabricate a value.
+  const ent = user?.entitlements;
+  const entReady = !!ent && ent.monthlyGreetMes !== undefined;
+  const monthlyIncluded = entReady ? (ent.monthlyGreetMes ?? 0) : null;
+  const anytimeIncluded = entReady ? (ent.includedAnytime ?? 0) : null;
+  const bankingLimit = entReady ? (ent.rolloverCap ?? 0) : null;
+  const showVal = (v) => (v === null || v === undefined ? '—' : v);
   const [bank, setBank] = useState(null);
   const [breakdown, setBreakdown] = useState(null);
   const [showPacksModal, setShowPacksModal] = useState(false);
   const [packsModalStep, setPacksModalStep] = useState('selection'); // 'selection' | 'confirmation'
   const [selectedPack, setSelectedPack] = useState(null);
   const [lastAddedPack, setLastAddedPack] = useState(null);
-  const [creditsSaved, setCreditsSaved] = useState(0);
 
   useEffect(() => {
     loadAnimationBank();
@@ -30,12 +39,8 @@ export default function AnimationBank() {
     const bankData = animationBankService.getAnimationBank();
     const breakdownData = animationBankService.getBreakdown();
 
-    // Get credits saved through template reuse
-    const saved = animationTemplateService.getTotalCreditsSaved();
-
     setBank(bankData);
     setBreakdown(breakdownData);
-    setCreditsSaved(saved);
   };
 
   const handleAddToCart = (pack) => {
@@ -144,7 +149,7 @@ export default function AnimationBank() {
           letterSpacing: '0.05em',
           marginBottom: '0.5rem'
         }}>
-          Total Available
+          Monthly Plan Includes
         </p>
         <div style={{
           fontSize: '5rem',
@@ -153,14 +158,14 @@ export default function AnimationBank() {
           lineHeight: 1,
           marginBottom: '0.5rem'
         }}>
-          {breakdown.total}
+          {showVal(monthlyIncluded)}
         </div>
         <p style={{
           fontSize: '1.25rem',
           color: 'var(--text-secondary)',
           fontWeight: 500
         }}>
-          Animated Moments Ready to Send
+          Greet-Mes included with your plan each month
         </p>
         <button
           onClick={() => setShowPacksModal(true)}
@@ -201,82 +206,73 @@ export default function AnimationBank() {
         gap: '1rem',
         marginBottom: '2rem'
       }}>
-        {/* Credits Saved Card - Always show first */}
-        {creditsSaved > 0 && (
-          <div style={{
-            background: 'white',
-            borderRadius: '0.75rem',
-            padding: '1.5rem',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-            border: '2px solid #10b98120'
-          }}>
-            <div style={{
-              fontSize: '2rem',
-              marginBottom: '0.5rem'
-            }}>
-              <Repeat size={32} style={{ color: '#10b981' }} />
-            </div>
-            <p style={{
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: '#10b981',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              marginBottom: '0.5rem'
-            }}>
-              Credits Saved
-            </p>
-            <p style={{
-              fontSize: '2rem',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              marginBottom: '0.25rem'
-            }}>
-              {creditsSaved}
-            </p>
-            <p style={{
-              fontSize: '0.75rem',
-              color: 'var(--text-secondary)'
-            }}>
-              Through template reuse
-            </p>
+        {/* Plan inclusions — driven by live profile entitlements (Level 1 truth).
+            Replaces the former localStorage mock rows (Purchased/Holiday/Earned),
+            which asserted client-mutable values as real account balances. */}
+        <div style={{
+          background: 'white',
+          borderRadius: '0.75rem',
+          padding: '1.5rem',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+          border: '2px solid #764ba220'
+        }}>
+          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
+            <Sparkles size={32} style={{ color: '#764ba2' }} />
           </div>
-        )}
+          <p style={{
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            color: '#764ba2',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            marginBottom: '0.5rem'
+          }}>
+            Included Anytime Greet-Mes
+          </p>
+          <p style={{
+            fontSize: '2rem',
+            fontWeight: 700,
+            color: 'var(--text-primary)'
+          }}>
+            {showVal(anytimeIncluded)}
+          </p>
+        </div>
 
-        {/* Existing breakdown cards */}
-        {breakdown.breakdown.map((item, index) => (
-          <div key={index} style={{
-            background: 'white',
-            borderRadius: '0.75rem',
-            padding: '1.5rem',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-            border: `2px solid ${item.color}20`
-          }}>
-            <div style={{
-              fontSize: '2rem',
-              marginBottom: '0.5rem'
-            }}>
-              {item.icon}
-            </div>
-            <p style={{
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: item.color,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              marginBottom: '0.5rem'
-            }}>
-              {item.label}
-            </p>
-            <p style={{
-              fontSize: '2rem',
-              fontWeight: 700,
-              color: 'var(--text-primary)'
-            }}>
-              {item.amount}
-            </p>
+        <div style={{
+          background: 'white',
+          borderRadius: '0.75rem',
+          padding: '1.5rem',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+          border: '2px solid #667eea20'
+        }}>
+          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
+            <Calendar size={32} style={{ color: '#667eea' }} />
           </div>
-        ))}
+          <p style={{
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            color: '#667eea',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            marginBottom: '0.5rem'
+          }}>
+            Banking Limit
+          </p>
+          <p style={{
+            fontSize: '2rem',
+            fontWeight: 700,
+            color: 'var(--text-primary)'
+          }}>
+            {showVal(bankingLimit)}
+          </p>
+          <p style={{
+            fontSize: '0.75rem',
+            color: 'var(--text-secondary)',
+            marginTop: '0.25rem'
+          }}>
+            {bankingLimit === null ? '' : (bankingLimit > 0 ? `Bank up to ${bankingLimit} unused Greet-Mes` : 'No banking on this plan')}
+          </p>
+        </div>
       </div>
 
       {/* How It Works */}
@@ -326,7 +322,7 @@ export default function AnimationBank() {
               color: 'var(--text-secondary)',
               lineHeight: 1.5
             }}>
-              Your plan includes {bank.monthlyAllowance} animated greetings per month. They refresh automatically!
+              Your plan includes {showVal(monthlyIncluded)} monthly Greet-Me{monthlyIncluded === 1 ? '' : 's'}. They refresh automatically!
             </p>
           </div>
           <div>
