@@ -146,7 +146,8 @@ export default function AnimationBank() {
     if (w.purchased?.animationCredits > 0) {
       walletCards.push({
         label: 'Purchased Credits', color: '#f59e0b', Icon: Star,
-        value: `${w.purchased.animationCredits}`, secondary: 'Recorded, not yet spendable',
+        value: `${w.purchased.animationCredits}`,
+        secondary: w.purchased.spendable === true ? 'Available to send after plan credits.' : 'Recorded, not yet spendable.',
       });
     }
     if (w.bonus?.bonusGreetings > 0) {

@@ -186,7 +186,7 @@ export default function Settings() {
       { label: 'BANKED', value: w.banked.cap > 0 ? `${w.banked.available} of ${w.banked.cap}` : '0' },
     ];
     if (w.purchased?.animationCredits > 0) {
-      sendCells.push({ label: 'PURCHASED', value: `${w.purchased.animationCredits}`, sub: 'Recorded, not yet spendable.' });
+      sendCells.push({ label: 'PURCHASED', value: `${w.purchased.animationCredits}`, sub: w.purchased.spendable === true ? 'Available to send after plan credits.' : 'Recorded, not yet spendable.' });
     }
     if (w.bonus?.bonusGreetings > 0) {
       sendCells.push({ label: 'BONUS', value: `${w.bonus.bonusGreetings}`, sub: 'Not spendable in current wallet path.' });
