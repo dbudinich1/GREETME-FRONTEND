@@ -47,7 +47,7 @@ function g1g1Label(g) {
 }
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const firstName = user?.name?.split(' ')[0] || 'there';
   const [billingLoading, setBillingLoading] = useState(false);
@@ -59,6 +59,13 @@ export default function Settings() {
     const onResize = () => setIsNarrow(window.innerWidth <= 768);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Self-refresh entitlement state from /api/profile on mount so Settings never
+  // renders a stale in-memory plan/status (e.g. right after a G1G1 claim).
+  useEffect(() => {
+    refreshProfile?.().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const planKey = user?.tier || user?.plan || 'free';
