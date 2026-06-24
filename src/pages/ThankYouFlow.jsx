@@ -113,7 +113,7 @@ export default function ThankYouFlow() {
   const [uploadWarning, setUploadWarning] = useState(null);
   const [shared, setShared] = useState(false);
   const [rewardResult, setRewardResult] = useState(null);
-  const [heartsBurstKey, setHeartsBurstKey] = useState(0);
+  const [heartsBurstKey] = useState(0); // H5: cosmetic burst dormant (no client triggers); re-wire to server-confirmed at issuance enablement
 
   useEffect(() => {
     if (!jobId) {
@@ -161,7 +161,6 @@ export default function ThankYouFlow() {
       setSent(true);
       setSentAt(Date.now());
       setSentJobId(result?.jobId || null);
-      setTimeout(() => setHeartsBurstKey((k) => k + 1), 150);
     } catch (err) {
       setError(err?.message || 'Failed to send. Please try again.');
     } finally {
@@ -362,7 +361,6 @@ export default function ThankYouFlow() {
       if (result?.ok) {
         setShowShareModal(false);
         setShared(true);
-        setTimeout(() => setHeartsBurstKey((k) => k + 1), 150);
       } else {
         setShareError(result?.error || 'Could not send share email. Please try again.');
       }

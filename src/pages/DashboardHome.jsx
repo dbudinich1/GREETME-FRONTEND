@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { Mic, Camera, Users, Plus, Search, Upload, Settings, Play, Pause, Square, CheckCircle, Copy, Image as ImageIcon, Smartphone, QrCode, DollarSign, X, Send, Gift, CreditCard, Heart } from 'lucide-react';
 import api from "../api/api";
 import { getOccasionIcon } from '../utils/helpers';
-import { getRewardsBalance, getRemainingDailyHearts } from '../utils/rewards';
 import { pushInApp } from '../utils/notify';
 import { COMMS_EVENTS } from '../utils/commsCatalog';
 import QRCashGiftModal from '../components/QRCashGiftModal';
@@ -115,14 +114,16 @@ export default function DashboardHome() {
   useEffect(() => {
     fetchDashboardData();
     loadPersistedMedia();
-    // Load rewards balance
-    setRewardsBalance(getRewardsBalance());
+    // Load rewards balance (server-authoritative)
+    (async () => {
+      try { const r = await api.getHeartsBalance(); setRewardsBalance(r?.balance ?? 0); } catch { setRewardsBalance(0); }
+    })();
   }, []);
 
   // Refresh rewards balance when tab regains focus (e.g. after a send)
   useEffect(() => {
-    const handleFocus = () => {
-      setRewardsBalance(getRewardsBalance());
+    const handleFocus = async () => {
+      try { const r = await api.getHeartsBalance(); setRewardsBalance(r?.balance ?? 0); } catch { setRewardsBalance(0); }
     };
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);

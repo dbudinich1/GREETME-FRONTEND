@@ -32,7 +32,6 @@ import api from '../api/api';
 import draftService from '../services/draftService';
 import { pushInApp } from '../utils/notify';
 import { COMMS_EVENTS } from '../utils/commsCatalog';
-import { awardGreetingHearts } from '../utils/rewards';
 import { normalizeOccasionKey } from '../utils/normalizeOccasionKey';
 import { getErrorMessage } from '../utils/errorMessages';
 
@@ -101,6 +100,7 @@ export default function SendGreeting() {
   const [completedJobId, setCompletedJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
   const [heartsBurstKey, setHeartsBurstKey] = useState(0);
+  const heartsBalanceRef = useRef(0);
   const [waitMessage, setWaitMessage] = useState('Composing your message...');
   const [showReadyBeat, setShowReadyBeat] = useState(false);
   // Phase M.2: portrait-first responsive flag (covers iPad portrait via <=768)
@@ -111,6 +111,10 @@ export default function SendGreeting() {
     const onResize = () => setIsNarrow(window.innerWidth <= 768);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+  // Seed the server-confirmed Hearts baseline so the burst can re-gate on increase.
+  useEffect(() => {
+    (async () => { try { const r = await api.getHeartsBalance(); heartsBalanceRef.current = r?.balance ?? 0; } catch { /* non-fatal */ } })();
   }, []);
   const [formData, setFormData] = useState({
     contactId: '',
@@ -674,7 +678,15 @@ export default function SendGreeting() {
         setShowReadyBeat(true);
         // 800ms: a breath, not a flash (Stage B premium completion-state spec).
         setTimeout(() => setShowReadyBeat(false), 800);
-        setTimeout(() => setHeartsBurstKey((k) => k + 1), 150);
+        // HeartsBurst re-gate: fire ONLY on a server-confirmed balance increase.
+        try {
+          const r = await api.getHeartsBalance();
+          const bal = r?.balance ?? 0;
+          if (bal > heartsBalanceRef.current) {
+            setTimeout(() => setHeartsBurstKey((k) => k + 1), 150);
+          }
+          heartsBalanceRef.current = bal;
+        } catch { /* non-fatal */ }
         setJobId(null);
         // Mark draft as sent so it won't be restored
         if (formData.contactId && formData.occasionType) {
@@ -684,15 +696,6 @@ export default function SendGreeting() {
         const selectedContact = contacts.find(c => c._id === formData.contactId);
         const recipientName = selectedContact?.name || 'your recipient';
         pushInApp(COMMS_EVENTS.GREETING_SENT, { recipientName });
-        // Award hearts for sending greeting
-        const heartsEarned = awardGreetingHearts();
-        if (heartsEarned > 0) {
-          pushInApp(COMMS_EVENTS.REWARDS_EARNED, {
-            amount: heartsEarned,
-            reason: 'sending a greeting',
-            timestamp: Date.now()
-          });
-        }
       } else if (response.status === 'failed') {
         // Worker safety-net race window: TTS hit VOICE_CLONE_MISSING after the
         // API pre-flight had passed. Surface the warm recovery modal so the

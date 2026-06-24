@@ -753,6 +753,14 @@ class ApiService {
   getMerchOrders() {
     return this.request("/api/merch/orders");
   }
+
+  // --------------------
+  // Hearts 1A — read-only server balance (GET /api/hearts/balance).
+  // Consumers default to res?.balance ?? 0.
+  // --------------------
+  getHeartsBalance() {
+    return this.request("/api/hearts/balance");
+  }
 }
 
 const api = new ApiService();
