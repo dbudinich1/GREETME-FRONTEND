@@ -8,9 +8,10 @@
   },
   "scripts": {
     "dev": "vite",
-    "prebuild": "npm run validate:conformity && npm run verify:viral-loop-lock && npm run verify:onboarding-convergence-lock",
+    "prebuild": "npm run validate:conformity && npm run verify:viral-loop-lock && npm run verify:onboarding-convergence-lock && npm run verify:hearts-redemption-removed",
     "verify:viral-loop-lock": "node scripts/verify-creditclaim-viral-loop-lock.mjs",
     "verify:onboarding-convergence-lock": "node scripts/verify-onboarding-convergence-lock.mjs",
+    "verify:hearts-redemption-removed": "node scripts/verify-hearts-redemption-removed-lock.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",

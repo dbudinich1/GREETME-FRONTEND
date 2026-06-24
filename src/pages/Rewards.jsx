@@ -3,22 +3,15 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Gift, Heart, Clock, CheckCircle, Star, Trophy, Sparkles, Send, ExternalLink, ShoppingCart, X, Check, ArrowRight } from 'lucide-react';
+import { Gift, Heart, Clock, Star, Trophy, Sparkles, Send, ExternalLink, ShoppingCart, X, Check, ArrowRight } from 'lucide-react';
 import cartService from '../services/cartService';
 import api from '../api/api';
-import {
-  redeemRewards,
-  REDEMPTION_OPTIONS
-} from '../utils/rewards';
 import { pushInApp } from '../utils/notify';
 import { COMMS_EVENTS } from '../utils/commsCatalog';
 
 export default function Rewards() {
   const navigate = useNavigate();
   const [balance, setBalance] = useState(0);
-  const [showRedeemModal, setShowRedeemModal] = useState(false);
-  const [selectedRedemption, setSelectedRedemption] = useState(null);
-  const [redeemSuccess, setRedeemSuccess] = useState(false);
   const [showHeroHeartsModal, setShowHeroHeartsModal] = useState(false);
   const [selectedHeroBundle, setSelectedHeroBundle] = useState(null);
   const [heroHeartsStep, setHeroHeartsStep] = useState('selection'); // 'selection' | 'confirmation'
@@ -100,6 +93,18 @@ export default function Rewards() {
     setLastAddedHeroBundle(null);
   };
 
+  // H6a: one-time, idempotent, non-fatal cleanup of legacy Hearts localStorage keys
+  // (the localStorage Hearts economy was removed; the server is authoritative).
+  useEffect(() => {
+    try {
+      localStorage.removeItem('greetme_rewards_balance');
+      localStorage.removeItem('greetme_rewards_history');
+      localStorage.removeItem('greetme_daily_greeting_hearts');
+      localStorage.removeItem('greetme_dm_tag_claims');
+      localStorage.removeItem('greetme_hero_member');
+    } catch { /* non-fatal */ }
+  }, []);
+
   useEffect(() => {
     loadRewardsData();
   }, []);
@@ -110,28 +115,6 @@ export default function Rewards() {
       setBalance(res?.balance ?? 0);
     } catch {
       setBalance(0);
-    }
-  };
-
-  const handleRedeem = (option) => {
-    setSelectedRedemption(option);
-    setShowRedeemModal(true);
-  };
-
-  const confirmRedeem = () => {
-    if (selectedRedemption && redeemRewards(selectedRedemption.cost, selectedRedemption.label)) {
-      setRedeemSuccess(true);
-      pushInApp(COMMS_EVENTS.REWARDS_REDEEMED, {
-        cost: selectedRedemption.cost,
-        rewardName: selectedRedemption.label,
-        timestamp: Date.now()
-      });
-      setTimeout(() => {
-        setShowRedeemModal(false);
-        setRedeemSuccess(false);
-        setSelectedRedemption(null);
-        loadRewardsData();
-      }, 2000);
     }
   };
 
@@ -304,7 +287,7 @@ export default function Rewards() {
         </div>
       </div>
 
-      {/* Redemption Options */}
+      {/* Redemption — coming soon (H6a: legacy redemption removed) */}
       <div style={{
         background: 'var(--bg-primary)',
         borderRadius: 'var(--radius-xl)',
@@ -324,257 +307,15 @@ export default function Rewards() {
           <Gift size={20} style={{ color: '#ec4899' }} />
           Redeem Your Hearts
         </h2>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '1rem'
+        <p style={{
+          fontSize: '0.9375rem',
+          color: 'var(--text-secondary)',
+          lineHeight: 1.6,
+          margin: 0
         }}>
-          {REDEMPTION_OPTIONS.map((option) => {
-            const canAfford = balance >= option.cost;
-            return (
-              <div
-                key={option.id}
-                style={{
-                  padding: '1.25rem',
-                  background: canAfford
-                    ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.05) 0%, rgba(190, 24, 93, 0.02) 100%)'
-                    : 'var(--gray-50)',
-                  borderRadius: 'var(--radius-lg)',
-                  border: canAfford ? '2px solid #ec4899' : '1px solid var(--border)',
-                  transition: 'all 0.2s',
-                  opacity: canAfford ? 1 : 0.6
-                }}
-              >
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  justifyContent: 'space-between',
-                  marginBottom: '0.75rem'
-                }}>
-                  <h3 style={{
-                    fontSize: '1rem',
-                    fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    margin: 0
-                  }}>
-                    {option.label}
-                  </h3>
-                  <span style={{
-                    fontSize: '1rem',
-                    fontWeight: 700,
-                    color: '#ec4899',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {option.cost} ❤️
-                  </span>
-                </div>
-                <p style={{
-                  fontSize: '0.8125rem',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '1rem',
-                  lineHeight: 1.5
-                }}>
-                  {option.description}
-                </p>
-                <button
-                  onClick={() => handleRedeem(option)}
-                  disabled={!canAfford}
-                  style={{
-                    width: '100%',
-                    padding: '0.625rem',
-                    background: canAfford ? '#ec4899' : 'var(--gray-300)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: canAfford ? 'pointer' : 'not-allowed',
-                    transition: 'all 0.2s',
-                    fontFamily: 'inherit'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (canAfford) {
-                      e.currentTarget.style.background = '#db2777';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (canAfford) {
-                      e.currentTarget.style.background = '#ec4899';
-                    }
-                  }}
-                >
-                  {canAfford ? 'Redeem Now' : `Need ${option.cost - balance} more Hearts`}
-                </button>
-              </div>
-            );
-          })}
-        </div>
+          Redemption is coming soon — keep earning Hearts and you'll be able to redeem them shortly.
+        </p>
       </div>
-
-      {/* Redemption Confirmation Modal */}
-      {showRedeemModal && selectedRedemption && (
-        <>
-          <div
-            onClick={() => !redeemSuccess && setShowRedeemModal(false)}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0, 0, 0, 0.5)',
-              zIndex: 999,
-              backdropFilter: 'blur(4px)'
-            }}
-          />
-          <div style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            background: 'white',
-            borderRadius: 'var(--radius-xl)',
-            padding: '2rem',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-            zIndex: 1000,
-            width: '90%',
-            maxWidth: '400px',
-            textAlign: 'center'
-          }}>
-            {redeemSuccess ? (
-              <>
-                <div style={{
-                  width: '4rem',
-                  height: '4rem',
-                  borderRadius: '50%',
-                  background: '#dcfce7',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 1.5rem'
-                }}>
-                  <CheckCircle size={32} style={{ color: '#22c55e' }} />
-                </div>
-                <h3 style={{
-                  fontSize: '1.5rem',
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  marginBottom: '0.5rem'
-                }}>
-                  Success!
-                </h3>
-                <p style={{
-                  fontSize: '1rem',
-                  color: 'var(--text-secondary)'
-                }}>
-                  Your reward has been redeemed.
-                </p>
-              </>
-            ) : (
-              <>
-                <div style={{
-                  width: '4rem',
-                  height: '4rem',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 1.5rem'
-                }}>
-                  <Gift size={32} style={{ color: 'white' }} />
-                </div>
-                <h3 style={{
-                  fontSize: '1.25rem',
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  marginBottom: '0.5rem'
-                }}>
-                  Confirm Redemption
-                </h3>
-                <p style={{
-                  fontSize: '1rem',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '1.5rem'
-                }}>
-                  Redeem <strong>{selectedRedemption.cost} Hearts</strong> for:
-                </p>
-                <div style={{
-                  padding: '1rem',
-                  background: 'var(--gray-50)',
-                  borderRadius: 'var(--radius-lg)',
-                  marginBottom: '1.5rem'
-                }}>
-                  <div style={{
-                    fontSize: '1.125rem',
-                    fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    marginBottom: '0.25rem'
-                  }}>
-                    {selectedRedemption.label}
-                  </div>
-                  <div style={{
-                    fontSize: '0.875rem',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    {selectedRedemption.description}
-                  </div>
-                </div>
-                <div style={{
-                  display: 'flex',
-                  gap: '0.75rem'
-                }}>
-                  <button
-                    onClick={() => setShowRedeemModal(false)}
-                    style={{
-                      flex: 1,
-                      padding: '0.75rem',
-                      background: 'var(--gray-100)',
-                      color: 'var(--text-primary)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-lg)',
-                      fontSize: '0.9375rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      fontFamily: 'inherit'
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmRedeem}
-                    style={{
-                      flex: 1,
-                      padding: '0.75rem',
-                      background: '#ec4899',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 'var(--radius-lg)',
-                      fontSize: '0.9375rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      fontFamily: 'inherit'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#db2777';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#ec4899';
-                    }}
-                  >
-                    Confirm
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </>
-      )}
 
       {/* Hero Hearts Pricing Modal */}
       {showHeroHeartsModal && (
