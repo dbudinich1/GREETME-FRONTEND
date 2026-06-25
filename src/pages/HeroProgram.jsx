@@ -175,15 +175,15 @@ export default function HeroProgram() {
 
         {!loading && !error && (
           <>
+            <WaysToParticipateSection
+              navigate={navigate}
+              onOpenHeroHearts={() => setShowHeroHeartsModal(true)}
+            />
             <StatusSection status={data.status} />
             <ActivitySection items={data.recentActivity} />
             <HistorySection items={data.history} />
             <ImpactSection impact={data.impact} />
             <RecognitionSection recognition={data.recognition} />
-            <WaysToParticipateSection
-              navigate={navigate}
-              onOpenHeroHearts={() => setShowHeroHeartsModal(true)}
-            />
           </>
         )}
       </div>
