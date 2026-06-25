@@ -9,6 +9,21 @@ import api from '../api/api';
 import { pushInApp } from '../utils/notify';
 import { COMMS_EVENTS } from '../utils/commsCatalog';
 
+// H7: locked launch redemption — 40 Hearts → 1 Anytime Greet-Me (in-kind only).
+const REDEEM_COST = 40;
+
+// Correction #6 — one id per redemption *intent*, reused across retries (double-click,
+// confirm retry, transient network failure, same-dialog re-submit). Generated when the
+// intent opens; cleared when it completes or is cancelled.
+function makeRedemptionRequestId() {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch { /* fall through to non-crypto id */ }
+  return `rdm-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export default function Rewards() {
   const navigate = useNavigate();
   const [balance, setBalance] = useState(0);
@@ -16,6 +31,13 @@ export default function Rewards() {
   const [selectedHeroBundle, setSelectedHeroBundle] = useState(null);
   const [heroHeartsStep, setHeroHeartsStep] = useState('selection'); // 'selection' | 'confirmation'
   const [lastAddedHeroBundle, setLastAddedHeroBundle] = useState(null);
+
+  // H7 B5 — Free Greeting redemption UI state (server-authoritative; dormant until B7).
+  const [redeemOpen, setRedeemOpen] = useState(false);            // confirmation step shown
+  const [redeemRequestId, setRedeemRequestId] = useState(null);   // one per intent (Correction #6)
+  const [redeemSubmitting, setRedeemSubmitting] = useState(false);// request in flight
+  const [redeemOutcome, setRedeemOutcome] = useState(null);       // { type, message }
+  const [redemptionPaused, setRedemptionPaused] = useState(false);// learned-paused (503) → disable
 
   // Hero Hearts Bundles - price tiers with bonus hearts
   const HERO_HEARTS_BUNDLES = [
@@ -115,6 +137,75 @@ export default function Rewards() {
       setBalance(res?.balance ?? 0);
     } catch {
       setBalance(0);
+    }
+  };
+
+  // Correction #6 — refresh server balance when the window regains focus.
+  useEffect(() => {
+    const onFocus = () => { loadRewardsData(); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
+
+  // Open the redemption intent: generate ONE requestId, reused across retries within this
+  // intent. If an id already exists (re-open without cancel), keep it.
+  const openRedeemIntent = () => {
+    setRedeemOutcome(null);
+    setRedeemRequestId((prev) => prev || makeRedemptionRequestId());
+    setRedeemOpen(true);
+  };
+
+  // Cancel/close the intent → next intent gets a fresh id.
+  const cancelRedeemIntent = () => {
+    if (redeemSubmitting) return;
+    setRedeemOpen(false);
+    setRedeemRequestId(null);
+    setRedeemOutcome(null);
+  };
+
+  const confirmRedeemIntent = async () => {
+    if (redeemSubmitting) return;              // double-click / in-flight guard
+    const reqId = redeemRequestId;
+    if (!reqId) {                              // required request state missing
+      setRedeemOutcome({ type: 'error', message: 'Could not start redemption. Please try again.' });
+      return;
+    }
+    setRedeemSubmitting(true);
+    setRedeemOutcome(null);
+    try {
+      const res = await api.redeemHearts('free_greeting', reqId);
+      if (res && res.ok && (res.reason === 'applied' || res.reason === 'duplicate')) {
+        // success (duplicate is treated as success — idempotent re-submit of same intent)
+        setRedeemOutcome({ type: 'success', message: '🎉 Redeemed! 1 Anytime Greet-Me has been added to your account.' });
+        setRedeemOpen(false);
+        setRedeemRequestId(null);              // intent completed
+        try { pushInApp(COMMS_EVENTS?.REWARDS_REDEEMED, { cost: REDEEM_COST }); } catch { /* non-fatal */ }
+      } else if (res && res.ok === false && res.networkError) {
+        // keep the dialog + requestId so a retry reuses the same id
+        setRedeemOutcome({ type: 'error', message: 'Network error — please try again.' });
+      } else if (res && res.ok === false && res.status === 401) {
+        setRedeemOutcome({ type: 'error', message: 'Please sign in again to redeem.' });
+      } else {
+        setRedeemOutcome({ type: 'error', message: 'Could not complete redemption. Please try again.' });
+      }
+    } catch (err) {
+      const status = err?.status;
+      if (status === 503) {
+        // paused — honest: redemption is not available yet (backend pauseHeartsRedemption=true)
+        setRedemptionPaused(true);
+        setRedeemOpen(false);
+        setRedeemRequestId(null);
+        setRedeemOutcome({ type: 'paused', message: 'Redemption is coming soon — keep earning Hearts and you’ll be able to redeem them shortly.' });
+      } else if (status === 429) {
+        setRedeemOutcome({ type: 'velocity', message: 'You can redeem once per day. Please try again later.' });
+      } else if (status === 400) {
+        setRedeemOutcome({ type: 'insufficient', message: 'You don’t have enough Hearts to redeem yet.' });
+      } else {
+        setRedeemOutcome({ type: 'error', message: 'Could not complete redemption. Please try again.' });
+      }
+    } finally {
+      setRedeemSubmitting(false);
+      loadRewardsData();                       // refresh server balance after success AND failure
     }
   };
 
@@ -307,14 +398,130 @@ export default function Rewards() {
           <Gift size={20} style={{ color: '#ec4899' }} />
           Redeem Your Hearts
         </h2>
-        <p style={{
-          fontSize: '0.9375rem',
-          color: 'var(--text-secondary)',
-          lineHeight: 1.6,
-          margin: 0
-        }}>
-          Redemption is coming soon — keep earning Hearts and you'll be able to redeem them shortly.
-        </p>
+        {redemptionPaused ? (
+          <p style={{
+            fontSize: '0.9375rem',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.6,
+            margin: 0
+          }}>
+            Redemption is coming soon — keep earning Hearts and you'll be able to redeem them shortly.
+          </p>
+        ) : (
+          <>
+            {/* Single launch redemption option */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+              padding: '1rem',
+              background: 'var(--gray-50)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border)',
+              marginBottom: '1rem'
+            }}>
+              <div>
+                <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Free Greeting
+                </div>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.125rem' }}>
+                  Redeem {REDEEM_COST} Hearts for 1 Anytime Greet-Me
+                </div>
+              </div>
+              <span style={{ fontSize: '1rem', fontWeight: 700, color: '#ec4899', whiteSpace: 'nowrap' }}>
+                {REDEEM_COST} ❤️
+              </span>
+            </div>
+
+            {!redeemOpen ? (
+              <button
+                onClick={openRedeemIntent}
+                disabled={balance < REDEEM_COST || redeemSubmitting}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: balance < REDEEM_COST ? 'var(--gray-300)' : '#ec4899',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  cursor: balance < REDEEM_COST ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit'
+                }}
+              >
+                {balance < REDEEM_COST
+                  ? `Need ${REDEEM_COST - balance} more Hearts`
+                  : `Redeem ${REDEEM_COST} Hearts`}
+              </button>
+            ) : (
+              <div style={{
+                padding: '1rem',
+                background: 'var(--gray-50)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)'
+              }}>
+                <p style={{ fontSize: '0.9375rem', color: 'var(--text-primary)', margin: '0 0 0.875rem' }}>
+                  Spend <strong>{REDEEM_COST} Hearts</strong> for <strong>1 Anytime Greet-Me</strong>?
+                </p>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button
+                    onClick={cancelRedeemIntent}
+                    disabled={redeemSubmitting}
+                    style={{
+                      flex: 1,
+                      padding: '0.625rem',
+                      background: 'var(--gray-100)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      cursor: redeemSubmitting ? 'not-allowed' : 'pointer',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmRedeemIntent}
+                    disabled={redeemSubmitting || balance < REDEEM_COST}
+                    style={{
+                      flex: 1,
+                      padding: '0.625rem',
+                      background: (redeemSubmitting || balance < REDEEM_COST) ? 'var(--gray-300)' : '#ec4899',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      cursor: (redeemSubmitting || balance < REDEEM_COST) ? 'not-allowed' : 'pointer',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    {redeemSubmitting ? 'Redeeming…' : 'Confirm'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {redeemOutcome && (
+              <p style={{
+                marginTop: '0.75rem',
+                marginBottom: 0,
+                fontSize: '0.875rem',
+                lineHeight: 1.5,
+                fontWeight: 500,
+                color: redeemOutcome.type === 'success'
+                  ? '#16a34a'
+                  : (redeemOutcome.type === 'paused' ? 'var(--text-secondary)' : '#dc2626')
+              }}>
+                {redeemOutcome.message}
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       {/* Hero Hearts Pricing Modal */}

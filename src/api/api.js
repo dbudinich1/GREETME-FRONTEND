@@ -762,6 +762,16 @@ class ApiService {
     return this.request("/api/hearts/balance");
   }
 
+  // H7 B5 — spend Hearts for an in-kind reward. `redemptionRequestId` is generated once per
+  // redemption intent on the client and reused across retries (idempotency). Server is
+  // authoritative; no localStorage is used for balance/redemption/history.
+  redeemHearts(optionId, redemptionRequestId) {
+    return this.request("/api/hearts/redeem", {
+      method: "POST",
+      body: JSON.stringify({ optionId, redemptionRequestId }),
+    });
+  }
+
   // --------------------
   // HERO MVP — read-only Hero summary (GET /api/hero/me).
   // Returns { ok, hero: { status, impact, recentActivity, history, recognition } }.
