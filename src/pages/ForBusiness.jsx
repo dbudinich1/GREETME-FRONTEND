@@ -1,11 +1,14 @@
 // src/pages/ForBusiness.jsx
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { X, Building2, Users, Mail, Phone, MessageSquare, CreditCard, Check, Play } from 'lucide-react';
 
 export default function ForBusiness() {
   const navigate = useNavigate();
-  const [showContactForm, setShowContactForm] = useState(false);
+  const [searchParams] = useSearchParams();
+  // Deep-link: arriving with ?contact=sales (e.g. Hero "Learn More") opens the existing
+  // Contact Sales form directly on mount — no intervening modal.
+  const [showContactForm, setShowContactForm] = useState(searchParams.get('contact') === 'sales');
   const [contactFormData, setContactFormData] = useState({
     companyName: '',
     contactName: '',
