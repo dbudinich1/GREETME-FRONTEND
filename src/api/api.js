@@ -770,6 +770,15 @@ class ApiService {
   getHeroMe() {
     return this.request("/api/hero/me");
   }
+
+  // --------------------
+  // HERO MVP-B4 — read-only Community Hero Leaderboard (GET /api/hero/leaderboard).
+  // Returns { ok, leaderboard: { entries[], currentUser, totalParticipants, ... } }.
+  // Privacy-safe display names only; dormant-safe (honest empty board when no data).
+  // --------------------
+  getHeroLeaderboard() {
+    return this.request("/api/hero/leaderboard");
+  }
 }
 
 const api = new ApiService();

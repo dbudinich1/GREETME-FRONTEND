@@ -179,6 +179,7 @@ export default function HeroProgram() {
               navigate={navigate}
               onOpenHeroHearts={() => setShowHeroHeartsModal(true)}
             />
+            <LeaderboardSection />
             <StatusSection status={data.status} />
             <ActivitySection items={data.recentActivity} />
             <HistorySection items={data.history} />
@@ -402,6 +403,108 @@ function RecognitionSection({ recognition }) {
           </>
         )}
       </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// §2 — Community Hero Leaderboard (dynamic; NOT Hall of Honor / Hall of Heroes).
+// Self-contained read of GET /api/hero/leaderboard so the heavier cross-partition fetch
+// never blocks the personal page. Renders ONLY the privacy-safe fields the API returns
+// (rank · displayName · heroStatus · activityCount · isCurrentUser) — no emails, no
+// financials, no tiers. Honest empty state; no mock rows; no fabricated rankings.
+// ============================================================================
+const STATUS_LABEL_SHORT = { partner: 'Partner', active: 'Active', legacy: 'Legacy', none: 'Ready' };
+
+function LeaderboardRow({ entry, pinned }) {
+  const accent = STATUS_ACCENT[entry.heroStatus] || STATUS_ACCENT.none;
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '0.75rem 1rem',
+      background: entry.isCurrentUser ? 'rgba(102, 126, 234, 0.08)' : 'transparent',
+      borderTop: pinned ? '1px solid var(--border)' : 'none',
+    }}>
+      <div style={{
+        width: '2rem', height: '2rem', borderRadius: '50%', flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--gray-100)', color: 'var(--text-primary)', fontWeight: 700, fontSize: '0.8125rem',
+      }}>
+        {entry.rank}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {entry.displayName}
+          {entry.isCurrentUser && (
+            <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-md)', background: '#667eea', color: 'white' }}>
+              You
+            </span>
+          )}
+        </div>
+      </div>
+      <span style={{
+        fontSize: '0.6875rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-md)',
+        background: 'var(--gray-100)', color: accent, whiteSpace: 'nowrap',
+      }}>
+        {STATUS_LABEL_SHORT[entry.heroStatus] || ''}
+      </span>
+      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <div style={{ fontSize: '1rem', fontWeight: 700, color: '#667eea' }}>{entry.activityCount}</div>
+        <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>activities</div>
+      </div>
+    </div>
+  );
+}
+
+function LeaderboardSection() {
+  const [board, setBoard] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await api.getHeroLeaderboard();
+        if (active) setBoard(res?.leaderboard || null);
+      } catch {
+        if (active) setBoard(null); // honest empty on error — never mock rows
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  const data = board || { entries: [], currentUser: null, totalParticipants: 0 };
+  const entries = Array.isArray(data.entries) ? data.entries : [];
+  const showPinnedSelf = data.currentUser && data.currentUser.inTopN === false;
+  const total = Number(data.totalParticipants) || 0;
+
+  return (
+    <section style={{ marginBottom: '1.5rem' }}>
+      <h2 style={sectionTitle}>Community Hero Leaderboard</h2>
+      <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: '-0.5rem 0 1rem' }}>
+        A live view of how organizations across the Greet-Me Hero community are participating.
+      </p>
+
+      {loading ? (
+        <LoadingSpinner size="sm" text="Loading the community board…" />
+      ) : entries.length === 0 ? (
+        <EmptyNote text="The community board is just getting started — qualifying Hero activity will appear here." />
+      ) : (
+        <div style={{ ...card, overflow: 'hidden' }}>
+          {entries.map((e, i) => (
+            <div key={i} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
+              <LeaderboardRow entry={e} />
+            </div>
+          ))}
+          {showPinnedSelf && <LeaderboardRow entry={data.currentUser} pinned />}
+          {total > 0 && (
+            <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--border)', fontSize: '0.8125rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+              {total} {total === 1 ? 'organization' : 'organizations'} participating
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
