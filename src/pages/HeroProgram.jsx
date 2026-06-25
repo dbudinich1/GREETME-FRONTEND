@@ -91,6 +91,9 @@ export default function HeroProgram() {
   // ---- QR Cash modal (REUSES the existing dashboard QRCashGiftModal — no duplicate flow) ----
   const [showQRCashModal, setShowQRCashModal] = useState(false);
 
+  // ---- Corporate contact modal (opens the real support email — no fake form, no backend) ----
+  const [showContactModal, setShowContactModal] = useState(false);
+
   // ---- Hero Hearts purchase modal (retained; cart path unchanged) ----
   const [showHeroHeartsModal, setShowHeroHeartsModal] = useState(false);
   const [selectedHeroBundle, setSelectedHeroBundle] = useState(null);
@@ -183,6 +186,7 @@ export default function HeroProgram() {
               navigate={navigate}
               onOpenHeroHearts={() => setShowHeroHeartsModal(true)}
               onOpenQRCash={() => setShowQRCashModal(true)}
+              onOpenContact={() => setShowContactModal(true)}
             />
             <LeaderboardSection />
             <StatusSection status={data.status} />
@@ -209,6 +213,9 @@ export default function HeroProgram() {
 
       {/* ---- QR Cash modal — the SAME component the dashboard uses (no duplicate flow) ---- */}
       <QRCashGiftModal isOpen={showQRCashModal} onClose={() => setShowQRCashModal(false)} />
+
+      {/* ---- Corporate contact modal — opens the real support email ---- */}
+      {showContactModal && <CorporateContactModal onClose={() => setShowContactModal(false)} />}
     </div>
   );
 }
@@ -555,22 +562,22 @@ const PARTICIPATION_GROUPS = [
     cards: [
       { key: 'white_label', title: 'White Label Services', icon: Sparkles,
         desc: 'Fully branded, concierge-managed Greet-Me experiences.',
-        chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
+        chip: 'learn', cta: { kind: 'contact', label: 'Learn More' } },
       { key: 'corporate_appreciation', title: 'Corporate Appreciation Programs', icon: Award,
         desc: 'Recognize employees and clients at scale with a managed program.',
-        chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
+        chip: 'learn', cta: { kind: 'contact', label: 'Learn More' } },
       { key: 'managed_campaigns', title: 'Managed Gift Campaigns', icon: Megaphone,
         desc: 'Hands-on campaign setup and delivery, run with our team.',
-        chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
+        chip: 'learn', cta: { kind: 'contact', label: 'Learn More' } },
       { key: 'bulk_enterprise', title: 'Bulk / Enterprise Subscription Bundles', icon: Layers,
         desc: 'High-volume subscription bundles for large organizations.',
-        chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
+        chip: 'learn', cta: { kind: 'contact', label: 'Learn More' } },
       { key: 'marketplace_partners', title: 'Marketplace Partner Programs', icon: Briefcase,
         desc: 'Become a curated vendor partner in the Greet-Me marketplace.',
-        chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
+        chip: 'learn', cta: { kind: 'contact', label: 'Learn More' } },
       { key: 'custom_recognition', title: 'Custom Corporate Recognition Programs', icon: Users,
         desc: 'Tailored recognition programs designed around your brand.',
-        chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
+        chip: 'learn', cta: { kind: 'contact', label: 'Learn More' } },
     ],
   },
   {
@@ -590,11 +597,12 @@ const CHIP_STYLE = {
   soon: { background: 'rgba(245, 158, 11, 0.14)', color: '#b45309', label: 'Coming Soon' },
 };
 
-function WaysToParticipateSection({ navigate, onOpenHeroHearts, onOpenQRCash }) {
+function WaysToParticipateSection({ navigate, onOpenHeroHearts, onOpenQRCash, onOpenContact }) {
   const onCta = (cta) => {
     if (!cta) return;
     if (cta.kind === 'modal') return onOpenHeroHearts();
     if (cta.kind === 'qrcash') return onOpenQRCash();
+    if (cta.kind === 'contact') return onOpenContact();
     if (cta.kind === 'link' || cta.kind === 'learn') return navigate(cta.to);
   };
   return (
@@ -650,9 +658,9 @@ function ParticipationCard({ item, onCta }) {
           onClick={() => onCta(item.cta)}
           style={{
             marginTop: 'auto', alignSelf: 'flex-start', padding: '0.5rem 0.875rem',
-            background: item.cta.kind === 'learn' ? 'transparent' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: item.cta.kind === 'learn' ? '#667eea' : 'white',
-            border: item.cta.kind === 'learn' ? '1px solid #667eea' : 'none',
+            background: ['learn', 'contact'].includes(item.cta.kind) ? 'transparent' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: ['learn', 'contact'].includes(item.cta.kind) ? '#667eea' : 'white',
+            border: ['learn', 'contact'].includes(item.cta.kind) ? '1px solid #667eea' : 'none',
             borderRadius: 'var(--radius-lg)', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer',
             fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
           }}
@@ -661,6 +669,55 @@ function ParticipationCard({ item, onCta }) {
         </button>
       )}
     </div>
+  );
+}
+
+// Corporate contact modal — reuses the ONLY real contact path in the app (the support
+// email). Not a fake form: the action is a genuine mailto to support@greet-me.com,
+// prefilled so the team gets a corporate Hero inquiry. No backend, no submit-to-nowhere.
+const CORPORATE_CONTACT_MAILTO =
+  'mailto:support@greet-me.com' +
+  '?subject=' + encodeURIComponent('Corporate Hero Participation Inquiry') +
+  '&body=' + encodeURIComponent(
+    "I'm interested in corporate Greet-Me Hero participation.\n\n" +
+    "What I'd like to explore (e.g. White Label, Corporate Appreciation, Managed Gift " +
+    "Campaigns, Bulk/Enterprise Bundles, Marketplace Partner, Custom Recognition):\n\n" +
+    "Company:\nName:\n"
+  );
+
+function CorporateContactModal({ onClose }) {
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.5)', zIndex: 1000 }} />
+      <div style={{
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        background: 'white', borderRadius: '1rem', width: '90%', maxWidth: '480px', zIndex: 1001,
+        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', padding: '2rem', textAlign: 'center',
+      }}>
+        <div style={{
+          width: '3.5rem', height: '3.5rem', borderRadius: '50%', margin: '0 auto 1rem',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Briefcase size={26} color="#fff" />
+        </div>
+        <h2 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
+          Corporate Hero Participation
+        </h2>
+        <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', lineHeight: 1.55, margin: '0 0 1.5rem' }}>
+          Tell us what kind of corporate Hero participation you’re interested in, and our team will follow up.
+        </p>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+          <button onClick={onClose} style={{ ...btnSecondary, flex: 1 }}>Cancel</button>
+          <a
+            href={CORPORATE_CONTACT_MAILTO}
+            onClick={onClose}
+            style={{ ...btnPrimaryIndigo, flex: 1, textDecoration: 'none' }}
+          >
+            Email Our Team <ArrowRight size={18} />
+          </a>
+        </div>
+      </div>
+    </>
   );
 }
 
