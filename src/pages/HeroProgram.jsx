@@ -12,6 +12,7 @@ import { Heart, ShoppingCart, Check, ArrowRight, Award, Trophy, Clock, Star, Loc
 import cartService from '../services/cartService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import QRCashGiftModal from '../components/QRCashGiftModal';
+import ContactSalesModal from '../components/ContactSalesModal';
 import api from '../api/api';
 
 // Display labels for the impact bySource breakdown (the backend supplies labels for
@@ -90,6 +91,10 @@ export default function HeroProgram() {
 
   // ---- QR Cash modal (REUSES the existing dashboard QRCashGiftModal — no duplicate flow) ----
   const [showQRCashModal, setShowQRCashModal] = useState(false);
+
+  // ---- Corporate contact modal — shared ContactSalesModal, opened OVER the Hero page
+  // (no navigation; close/submit leaves the user on /dashboard/hero) ----
+  const [showContactModal, setShowContactModal] = useState(false);
 
   // ---- Hero Hearts purchase modal (retained; cart path unchanged) ----
   const [showHeroHeartsModal, setShowHeroHeartsModal] = useState(false);
@@ -183,6 +188,7 @@ export default function HeroProgram() {
               navigate={navigate}
               onOpenHeroHearts={() => setShowHeroHeartsModal(true)}
               onOpenQRCash={() => setShowQRCashModal(true)}
+              onOpenContact={() => setShowContactModal(true)}
             />
             <LeaderboardSection />
             <StatusSection status={data.status} />
@@ -209,6 +215,14 @@ export default function HeroProgram() {
 
       {/* ---- QR Cash modal — the SAME component the dashboard uses (no duplicate flow) ---- */}
       <QRCashGiftModal isOpen={showQRCashModal} onClose={() => setShowQRCashModal(false)} />
+
+      {/* ---- Corporate "Learn More" → Contact Sales, opened in place on the Hero page ---- */}
+      <ContactSalesModal
+        isOpen={showContactModal}
+        onClose={() => setShowContactModal(false)}
+        title="Contact Sales"
+        subtitle="Tell us about your corporate Greet-Me Hero participation"
+      />
     </div>
   );
 }
@@ -520,9 +534,9 @@ function LeaderboardSection() {
 // ============================================================================
 // Ways to Participate — every corporate Hero participation vector, honestly classified.
 // Live self-serve → real route / existing modal. Corporate/managed (not self-serve) →
-// "Learn More" to /business (the corporate offerings page; the safest real destination —
-// no dedicated sales route exists; /support is the general alternative). Coming-soon →
-// status chip only, NO CTA (never launches a paused/unbuilt flow). No fake data, no
+// "Learn More" opens the shared Contact Sales modal IN PLACE on the Hero page (no
+// navigation; close/submit leaves the user on /dashboard/hero). Coming-soon → status
+// chip only, NO CTA (never launches a paused/unbuilt flow). No fake data, no
 // alert(), no dead links.
 //
 // CHIPS: available (green) · learn (slate) · soon (amber).
@@ -555,22 +569,22 @@ const PARTICIPATION_GROUPS = [
     cards: [
       { key: 'white_label', title: 'White Label Services', icon: Sparkles,
         desc: 'Fully branded, concierge-managed Greet-Me experiences.',
-        chip: 'learn', cta: { kind: 'learn', to: '/business?contact=sales', label: 'Learn More' } },
+        chip: 'learn', cta: { kind: 'contact', label: 'Learn More' } },
       { key: 'corporate_appreciation', title: 'Corporate Appreciation Programs', icon: Award,
         desc: 'Recognize employees and clients at scale with a managed program.',
-        chip: 'learn', cta: { kind: 'learn', to: '/business?contact=sales', label: 'Learn More' } },
+        chip: 'learn', cta: { kind: 'contact', label: 'Learn More' } },
       { key: 'managed_campaigns', title: 'Managed Gift Campaigns', icon: Megaphone,
         desc: 'Hands-on campaign setup and delivery, run with our team.',
-        chip: 'learn', cta: { kind: 'learn', to: '/business?contact=sales', label: 'Learn More' } },
+        chip: 'learn', cta: { kind: 'contact', label: 'Learn More' } },
       { key: 'bulk_enterprise', title: 'Bulk / Enterprise Subscription Bundles', icon: Layers,
         desc: 'High-volume subscription bundles for large organizations.',
-        chip: 'learn', cta: { kind: 'learn', to: '/business?contact=sales', label: 'Learn More' } },
+        chip: 'learn', cta: { kind: 'contact', label: 'Learn More' } },
       { key: 'marketplace_partners', title: 'Marketplace Partner Programs', icon: Briefcase,
         desc: 'Become a curated vendor partner in the Greet-Me marketplace.',
-        chip: 'learn', cta: { kind: 'learn', to: '/business?contact=sales', label: 'Learn More' } },
+        chip: 'learn', cta: { kind: 'contact', label: 'Learn More' } },
       { key: 'custom_recognition', title: 'Custom Corporate Recognition Programs', icon: Users,
         desc: 'Tailored recognition programs designed around your brand.',
-        chip: 'learn', cta: { kind: 'learn', to: '/business?contact=sales', label: 'Learn More' } },
+        chip: 'learn', cta: { kind: 'contact', label: 'Learn More' } },
     ],
   },
   {
@@ -590,11 +604,12 @@ const CHIP_STYLE = {
   soon: { background: 'rgba(245, 158, 11, 0.14)', color: '#b45309', label: 'Coming Soon' },
 };
 
-function WaysToParticipateSection({ navigate, onOpenHeroHearts, onOpenQRCash }) {
+function WaysToParticipateSection({ navigate, onOpenHeroHearts, onOpenQRCash, onOpenContact }) {
   const onCta = (cta) => {
     if (!cta) return;
     if (cta.kind === 'modal') return onOpenHeroHearts();
     if (cta.kind === 'qrcash') return onOpenQRCash();
+    if (cta.kind === 'contact') return onOpenContact();
     if (cta.kind === 'link' || cta.kind === 'learn') return navigate(cta.to);
   };
   return (
@@ -650,9 +665,9 @@ function ParticipationCard({ item, onCta }) {
           onClick={() => onCta(item.cta)}
           style={{
             marginTop: 'auto', alignSelf: 'flex-start', padding: '0.5rem 0.875rem',
-            background: item.cta.kind === 'learn' ? 'transparent' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: item.cta.kind === 'learn' ? '#667eea' : 'white',
-            border: item.cta.kind === 'learn' ? '1px solid #667eea' : 'none',
+            background: ['learn', 'contact'].includes(item.cta.kind) ? 'transparent' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: ['learn', 'contact'].includes(item.cta.kind) ? '#667eea' : 'white',
+            border: ['learn', 'contact'].includes(item.cta.kind) ? '1px solid #667eea' : 'none',
             borderRadius: 'var(--radius-lg)', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer',
             fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
           }}
