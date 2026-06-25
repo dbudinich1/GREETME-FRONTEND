@@ -761,6 +761,15 @@ class ApiService {
   getHeartsBalance() {
     return this.request("/api/hearts/balance");
   }
+
+  // --------------------
+  // HERO MVP — read-only Hero summary (GET /api/hero/me).
+  // Returns { ok, hero: { status, impact, recentActivity, history, recognition } }.
+  // Dormant-safe: honest zeros/empty while heroEnabled is OFF. No writes, no money path.
+  // --------------------
+  getHeroMe() {
+    return this.request("/api/hero/me");
+  }
 }
 
 const api = new ApiService();
