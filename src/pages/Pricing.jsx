@@ -25,6 +25,10 @@ export default function Pricing() {
     const params = new URLSearchParams(location.search);
     const code = params.get('referral') || localStorage.getItem('greetme_referral_code');
     if (code) setReferralCode(code);
+    // Deep-link support: ?view=business|personal preselects the existing toggle view
+    // (used by the Hero "Business Subscriptions" CTA). No pricing/plan/style change.
+    const view = params.get('view');
+    if (view === 'business' || view === 'personal') setViewMode(view);
   }, [location.search]);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
   const [isMedium, setIsMedium] = useState(window.innerWidth < 1100);

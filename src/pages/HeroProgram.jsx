@@ -11,6 +11,7 @@ import { Heart, ShoppingCart, Check, ArrowRight, Award, Trophy, Clock, Star, Loc
   Building2, Gift, ShoppingBag, Sparkles, Megaphone, Layers, Briefcase, Users, DollarSign, Film } from 'lucide-react';
 import cartService from '../services/cartService';
 import LoadingSpinner from '../components/LoadingSpinner';
+import QRCashGiftModal from '../components/QRCashGiftModal';
 import api from '../api/api';
 
 // Display labels for the impact bySource breakdown (the backend supplies labels for
@@ -86,6 +87,9 @@ export default function HeroProgram() {
     })();
     return () => { active = false; };
   }, []);
+
+  // ---- QR Cash modal (REUSES the existing dashboard QRCashGiftModal — no duplicate flow) ----
+  const [showQRCashModal, setShowQRCashModal] = useState(false);
 
   // ---- Hero Hearts purchase modal (retained; cart path unchanged) ----
   const [showHeroHeartsModal, setShowHeroHeartsModal] = useState(false);
@@ -178,6 +182,7 @@ export default function HeroProgram() {
             <WaysToParticipateSection
               navigate={navigate}
               onOpenHeroHearts={() => setShowHeroHeartsModal(true)}
+              onOpenQRCash={() => setShowQRCashModal(true)}
             />
             <LeaderboardSection />
             <StatusSection status={data.status} />
@@ -201,6 +206,9 @@ export default function HeroProgram() {
           onCheckout={() => { resetHeroHeartsModal(); navigate('/dashboard/cart'); }}
         />
       )}
+
+      {/* ---- QR Cash modal — the SAME component the dashboard uses (no duplicate flow) ---- */}
+      <QRCashGiftModal isOpen={showQRCashModal} onClose={() => setShowQRCashModal(false)} />
     </div>
   );
 }
@@ -524,13 +532,19 @@ const PARTICIPATION_GROUPS = [
     cards: [
       { key: 'business_subscriptions', title: 'Business Subscriptions', icon: Building2,
         desc: 'Subscribe your business and recognize the people who matter most.',
-        chip: 'available', cta: { kind: 'link', to: '/pricing', label: 'View Plans' } },
-      { key: 'gifted_bundles', title: 'Gifted Subscription Bundles', icon: Gift,
-        desc: 'Gift Greet-Me memberships to your team, clients, or community.',
-        chip: 'available', cta: { kind: 'link', to: '/dashboard/gifts', label: 'Open Gifts' } },
+        chip: 'available', cta: { kind: 'link', to: '/pricing?view=business', label: 'View Plans' } },
       { key: 'hero_hearts', title: 'Hero Hearts', icon: Heart,
         desc: 'Contribute Hero Hearts to support the Hero mission.',
         chip: 'available', cta: { kind: 'modal', label: 'Contribute' } },
+      { key: 'qr_cash', title: 'QR Cash™', icon: DollarSign,
+        desc: 'Send, scan, spend, or gift money with optional personalized Greet-Me delivery.',
+        chip: 'available', cta: { kind: 'qrcash', label: 'Launch QR Cash' } },
+      { key: 'gifted_bundles', title: 'Gifted Subscription Bundles', icon: Gift,
+        desc: 'Gift Greet-Me memberships to your team, clients, or community.',
+        chip: 'available', cta: { kind: 'link', to: '/dashboard/gifts', label: 'Open Gifts' } },
+      { key: 'animation_packs', title: 'Anytime Animation Packs', icon: Film,
+        desc: 'Pre-purchase animation credits for birthdays, holidays, celebrations, appreciation, and everyday Greet-Me moments.',
+        chip: 'available', cta: { kind: 'link', to: '/dashboard/animations', label: 'Purchase Packs' } },
       { key: 'marketplace', title: 'Greet-Me Gifts & Marketplace', icon: ShoppingBag,
         desc: 'Send curated gifts and branded merch through Greet-Me.',
         chip: 'available', cta: { kind: 'link', to: '/dashboard/gifts', label: 'Browse' } },
@@ -557,16 +571,11 @@ const PARTICIPATION_GROUPS = [
       { key: 'custom_recognition', title: 'Custom Corporate Recognition Programs', icon: Users,
         desc: 'Tailored recognition programs designed around your brand.',
         chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
-      { key: 'animation_packs', title: 'Anytime Animation Packs', icon: Film,
-        desc: 'Pre-purchase animation capacity for corporate appreciation, client outreach, and employee recognition campaigns.',
-        chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
     ],
   },
   {
     heading: 'Coming soon',
     cards: [
-      { key: 'qr_cash', title: 'QR Cash', icon: DollarSign,
-        desc: 'Send cash gifts by QR — launching soon.', chip: 'soon', cta: { kind: 'none' } },
       { key: 'hall_of_honor', title: 'Hall of Honor', icon: Trophy,
         desc: 'A recognition leaderboard for top sponsors — coming soon.', chip: 'soon', cta: { kind: 'none' } },
       { key: 'hall_of_heroes', title: 'Hall of Heroes', icon: Star,
@@ -581,10 +590,11 @@ const CHIP_STYLE = {
   soon: { background: 'rgba(245, 158, 11, 0.14)', color: '#b45309', label: 'Coming Soon' },
 };
 
-function WaysToParticipateSection({ navigate, onOpenHeroHearts }) {
+function WaysToParticipateSection({ navigate, onOpenHeroHearts, onOpenQRCash }) {
   const onCta = (cta) => {
     if (!cta) return;
     if (cta.kind === 'modal') return onOpenHeroHearts();
+    if (cta.kind === 'qrcash') return onOpenQRCash();
     if (cta.kind === 'link' || cta.kind === 'learn') return navigate(cta.to);
   };
   return (
