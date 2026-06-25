@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, ShoppingCart, Check, ArrowRight, Award, Trophy, Clock, Star, Lock,
-  Building2, Gift, ShoppingBag, Sparkles, Megaphone, Layers, Briefcase, Users, DollarSign } from 'lucide-react';
+  Building2, Gift, ShoppingBag, Sparkles, Megaphone, Layers, Briefcase, Users, DollarSign, Film } from 'lucide-react';
 import cartService from '../services/cartService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../api/api';
@@ -556,6 +556,9 @@ const PARTICIPATION_GROUPS = [
         chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
       { key: 'custom_recognition', title: 'Custom Corporate Recognition Programs', icon: Users,
         desc: 'Tailored recognition programs designed around your brand.',
+        chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
+      { key: 'animation_packs', title: 'Anytime Animation Packs', icon: Film,
+        desc: 'Pre-purchase animation capacity for corporate appreciation, client outreach, and employee recognition campaigns.',
         chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
     ],
   },
