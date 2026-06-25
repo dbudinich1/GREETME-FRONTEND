@@ -717,6 +717,50 @@ export default function DashboardHome() {
         </div>
       </div>
 
+      {/* Greet-Me Hero invite card (MVP-B3) — visible on ALL screens (mobile + desktop).
+          Pure navigation to /dashboard/hero; no data, no stats, no enrollment. Works
+          identically whether heroEnabled is on or off. */}
+      <div
+        onClick={() => navigate('/dashboard/hero')}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/dashboard/hero'); }}
+        style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: 'var(--radius-xl)',
+          padding: isNarrow ? '1rem 1.125rem' : '1.25rem 1.5rem',
+          marginBottom: isNarrow ? '1rem' : '1.5rem',
+          color: 'white',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          boxShadow: '0 2px 10px rgba(102, 126, 234, 0.3)',
+        }}
+      >
+        <div style={{ fontSize: '1.75rem', lineHeight: 1, flexShrink: 0 }}>🥇</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: isNarrow ? '1rem' : '1.125rem', fontWeight: 700 }}>
+            Greet-Me™ Hero™
+          </div>
+          <div style={{ fontSize: '0.8125rem', fontWeight: 600, opacity: 0.95 }}>
+            Appreciation With a Purpose™
+          </div>
+          <div style={{ fontSize: '0.8125rem', opacity: 0.9, marginTop: '0.125rem' }}>
+            View your Hero status, activity, and impact.
+          </div>
+        </div>
+        <div style={{
+          flexShrink: 0,
+          fontSize: '0.875rem',
+          fontWeight: 600,
+          whiteSpace: 'nowrap',
+          display: isNarrow ? 'none' : 'block',
+        }}>
+          View Hero Program →
+        </div>
+      </div>
+
       {/* QR Cash + Rewards - Two Equal Cards */}
       <div style={{
         display: 'grid',

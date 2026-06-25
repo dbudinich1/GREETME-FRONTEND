@@ -7,7 +7,8 @@
 // its copy presents Hearts as the single Greet-Me Rewards currency (no "double"/bonus).
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, ShoppingCart, Check, ArrowRight, Award, Trophy, Clock, Star, Lock } from 'lucide-react';
+import { Heart, ShoppingCart, Check, ArrowRight, Award, Trophy, Clock, Star, Lock,
+  Building2, Gift, ShoppingBag, Sparkles, Megaphone, Layers, Briefcase, Users, DollarSign } from 'lucide-react';
 import cartService from '../services/cartService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../api/api';
@@ -179,6 +180,10 @@ export default function HeroProgram() {
             <HistorySection items={data.history} />
             <ImpactSection impact={data.impact} />
             <RecognitionSection recognition={data.recognition} />
+            <WaysToParticipateSection
+              navigate={navigate}
+              onOpenHeroHearts={() => setShowHeroHeartsModal(true)}
+            />
           </>
         )}
       </div>
@@ -398,6 +403,148 @@ function RecognitionSection({ recognition }) {
         )}
       </div>
     </section>
+  );
+}
+
+// ============================================================================
+// Ways to Participate — every corporate Hero participation vector, honestly classified.
+// Live self-serve → real route / existing modal. Corporate/managed (not self-serve) →
+// "Learn More" to /business (the corporate offerings page; the safest real destination —
+// no dedicated sales route exists; /support is the general alternative). Coming-soon →
+// status chip only, NO CTA (never launches a paused/unbuilt flow). No fake data, no
+// alert(), no dead links.
+//
+// CHIPS: available (green) · learn (slate) · soon (amber).
+const PARTICIPATION_GROUPS = [
+  {
+    heading: 'Self-serve',
+    cards: [
+      { key: 'business_subscriptions', title: 'Business Subscriptions', icon: Building2,
+        desc: 'Subscribe your business and recognize the people who matter most.',
+        chip: 'available', cta: { kind: 'link', to: '/pricing', label: 'View Plans' } },
+      { key: 'gifted_bundles', title: 'Gifted Subscription Bundles', icon: Gift,
+        desc: 'Gift Greet-Me memberships to your team, clients, or community.',
+        chip: 'available', cta: { kind: 'link', to: '/dashboard/gifts', label: 'Open Gifts' } },
+      { key: 'hero_hearts', title: 'Hero Hearts', icon: Heart,
+        desc: 'Contribute Hero Hearts to support the Hero mission.',
+        chip: 'available', cta: { kind: 'modal', label: 'Contribute' } },
+      { key: 'marketplace', title: 'Greet-Me Gifts & Marketplace', icon: ShoppingBag,
+        desc: 'Send curated gifts and branded merch through Greet-Me.',
+        chip: 'available', cta: { kind: 'link', to: '/dashboard/gifts', label: 'Browse' } },
+    ],
+  },
+  {
+    heading: 'Corporate & managed programs',
+    cards: [
+      { key: 'white_label', title: 'White Label Services', icon: Sparkles,
+        desc: 'Fully branded, concierge-managed Greet-Me experiences.',
+        chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
+      { key: 'corporate_appreciation', title: 'Corporate Appreciation Programs', icon: Award,
+        desc: 'Recognize employees and clients at scale with a managed program.',
+        chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
+      { key: 'managed_campaigns', title: 'Managed Gift Campaigns', icon: Megaphone,
+        desc: 'Hands-on campaign setup and delivery, run with our team.',
+        chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
+      { key: 'bulk_enterprise', title: 'Bulk / Enterprise Subscription Bundles', icon: Layers,
+        desc: 'High-volume subscription bundles for large organizations.',
+        chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
+      { key: 'marketplace_partners', title: 'Marketplace Partner Programs', icon: Briefcase,
+        desc: 'Become a curated vendor partner in the Greet-Me marketplace.',
+        chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
+      { key: 'custom_recognition', title: 'Custom Corporate Recognition Programs', icon: Users,
+        desc: 'Tailored recognition programs designed around your brand.',
+        chip: 'learn', cta: { kind: 'learn', to: '/business', label: 'Learn More' } },
+    ],
+  },
+  {
+    heading: 'Coming soon',
+    cards: [
+      { key: 'qr_cash', title: 'QR Cash', icon: DollarSign,
+        desc: 'Send cash gifts by QR — launching soon.', chip: 'soon', cta: { kind: 'none' } },
+      { key: 'hall_of_honor', title: 'Hall of Honor', icon: Trophy,
+        desc: 'A recognition leaderboard for top sponsors — coming soon.', chip: 'soon', cta: { kind: 'none' } },
+      { key: 'hall_of_heroes', title: 'Hall of Heroes', icon: Star,
+        desc: 'Permanent recognition for high-impact sponsors — coming soon.', chip: 'soon', cta: { kind: 'none' } },
+    ],
+  },
+];
+
+const CHIP_STYLE = {
+  available: { background: 'rgba(22, 163, 74, 0.12)', color: '#16a34a', label: 'Available' },
+  learn: { background: 'rgba(100, 116, 139, 0.14)', color: '#475569', label: 'Learn More' },
+  soon: { background: 'rgba(245, 158, 11, 0.14)', color: '#b45309', label: 'Coming Soon' },
+};
+
+function WaysToParticipateSection({ navigate, onOpenHeroHearts }) {
+  const onCta = (cta) => {
+    if (!cta) return;
+    if (cta.kind === 'modal') return onOpenHeroHearts();
+    if (cta.kind === 'link' || cta.kind === 'learn') return navigate(cta.to);
+  };
+  return (
+    <section style={{ marginTop: '0.5rem' }}>
+      <h2 style={sectionTitle}>Ways to Participate</h2>
+      {PARTICIPATION_GROUPS.map((group) => (
+        <div key={group.heading} style={{ marginBottom: '1.25rem' }}>
+          <div style={{
+            fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
+            color: 'var(--text-secondary)', marginBottom: '0.625rem',
+          }}>
+            {group.heading}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+            {group.cards.map((c) => <ParticipationCard key={c.key} item={c} onCta={onCta} />)}
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function ParticipationCard({ item, onCta }) {
+  const Icon = item.icon;
+  const chip = CHIP_STYLE[item.chip];
+  const hasCta = item.cta && item.cta.kind !== 'none';
+  return (
+    <div style={{ ...card, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+        <div style={{
+          width: '2.5rem', height: '2.5rem', borderRadius: '50%', flexShrink: 0,
+          background: 'rgba(102, 126, 234, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Icon size={20} color="#667eea" />
+        </div>
+        <span style={{
+          fontSize: '0.6875rem', fontWeight: 700, padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-md)',
+          background: chip.background, color: chip.color, whiteSpace: 'nowrap',
+        }}>
+          {chip.label}
+        </span>
+      </div>
+      <div>
+        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.25rem' }}>
+          {item.title}
+        </h3>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+          {item.desc}
+        </p>
+      </div>
+      {hasCta && (
+        <button
+          onClick={() => onCta(item.cta)}
+          style={{
+            marginTop: 'auto', alignSelf: 'flex-start', padding: '0.5rem 0.875rem',
+            background: item.cta.kind === 'learn' ? 'transparent' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: item.cta.kind === 'learn' ? '#667eea' : 'white',
+            border: item.cta.kind === 'learn' ? '1px solid #667eea' : 'none',
+            borderRadius: 'var(--radius-lg)', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer',
+            fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+          }}
+        >
+          {item.cta.label} <ArrowRight size={15} />
+        </button>
+      )}
+    </div>
   );
 }
 
