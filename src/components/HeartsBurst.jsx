@@ -1,12 +1,20 @@
 // src/components/HeartsBurst.jsx
-// Transient, visual-only success celebration: a subtle premium "bloom" of hearts
-// at the action point. No state persistence, no counters, no reward/balance logic.
-// Triggered by changing triggerKey to a new value. Ambient and non-blocking
-// (pointer-events: none, aria-hidden). Component name + API kept for compatibility.
+// Transient, visual-only success celebration: a premium "bloom" of hearts that
+// then flies to the persistent Hearts balance — the C3 "find their home" moment.
+// No state persistence, no counters, no reward/balance logic. Triggered by
+// changing triggerKey. Ambient and non-blocking (pointer-events: none, aria-hidden).
+//
+// C3 synchronized timing (shared with the chrome-balance count-up in
+// DashboardLayout): the bloom appears, travels TRAVEL_MS toward the balance, and
+// dissolves as it arrives; the balance count-up completes at TRAVEL_MS + ~100ms so
+// it never outruns the arriving Hearts. prefers-reduced-motion disables ALL motion
+// (no bloom, no fly). The destination is found at trigger time from the persistent
+// balance ([data-gm-hearts-balance]); with no target on screen it blooms in place.
 
 import { useEffect, useState } from 'react';
 
-const PULSE_DURATION_MS = 900;
+const TRAVEL_MS = 720;          // travel toward the balance — "inevitable, not fast"
+const PULSE_DURATION_MS = 900;  // mount lifetime (>= travel; the bloom has dissolved by TRAVEL_MS)
 
 // Organic, upward-biased spread for an elegant (not perfectly symmetric) bloom.
 const BLOOM_HEARTS = [
@@ -19,17 +27,31 @@ const BLOOM_HEARTS = [
 ];
 
 export default function HeartsBurst({ triggerKey }) {
-  const [activeKey, setActiveKey] = useState(null);
+  // active = { key, dx, dy } — dx/dy is the travel delta to the balance (0,0 = in place).
+  const [active, setActive] = useState(null);
 
   useEffect(() => {
     if (triggerKey === undefined || triggerKey === null) return;
-    if (triggerKey === activeKey) return;
-    setActiveKey(triggerKey);
-    const t = setTimeout(() => setActiveKey(null), PULSE_DURATION_MS);
+    if (active && active.key === triggerKey) return;
+    // Compute the destination delta: from the bloom origin (the fixed 40% / 50% of
+    // the viewport) to the persistent Hearts balance, if it is on screen. Falls back
+    // to an in-place bloom (0,0) when no target is found — never throws.
+    let dx = 0;
+    let dy = 0;
+    try {
+      const target = document.querySelector('[data-gm-hearts-balance]');
+      if (target) {
+        const r = target.getBoundingClientRect();
+        dx = (r.left + r.width / 2) - (window.innerWidth * 0.5);
+        dy = (r.top + r.height / 2) - (window.innerHeight * 0.4);
+      }
+    } catch { /* non-fatal — in-place bloom */ }
+    setActive({ key: triggerKey, dx, dy });
+    const t = setTimeout(() => setActive(null), PULSE_DURATION_MS);
     return () => clearTimeout(t);
   }, [triggerKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (activeKey === null) return null;
+  if (active === null) return null;
 
   return (
     <div
@@ -45,7 +67,22 @@ export default function HeartsBurst({ triggerKey }) {
         height: 0,
       }}
     >
-      <div key={activeKey} style={{ position: 'absolute', left: 0, top: 0, width: 0, height: 0 }}>
+      {/* The cluster: blooms at the origin, then glides to the balance and converges. */}
+      <div
+        key={active.key}
+        className="gm-bloom-fly"
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: 0,
+          height: 0,
+          ['--gm-fly-x']: `${active.dx}px`,
+          ['--gm-fly-y']: `${active.dy}px`,
+          willChange: 'transform, opacity',
+          animation: `gmFlyHome ${TRAVEL_MS}ms cubic-bezier(0.22, 1, 0.36, 1) forwards`,
+        }}
+      >
         {/* Soft premium halo — gentle warmth, far subtler than a full radial glow */}
         <div
           className="gm-bloom-item"
@@ -104,6 +141,11 @@ export default function HeartsBurst({ triggerKey }) {
         ))}
       </div>
       <style>{`
+        @keyframes gmFlyHome {
+          0%   { transform: translate(0px, 0px) scale(1); opacity: 1; }
+          16%  { transform: translate(0px, 0px) scale(1); opacity: 1; }
+          100% { transform: translate(var(--gm-fly-x), var(--gm-fly-y)) scale(0.28); opacity: 0; }
+        }
         @keyframes gmHeartBloom {
           0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(0deg); }
           18%  { opacity: 1; transform: translate(calc(-50% + (var(--tx) * 0.45)), calc(-50% + (var(--ty) * 0.45))) scale(1.05) rotate(var(--rot)); }
@@ -120,6 +162,7 @@ export default function HeartsBurst({ triggerKey }) {
           100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); }
         }
         @media (prefers-reduced-motion: reduce) {
+          .gm-bloom-fly { animation: none !important; opacity: 0 !important; }
           .gm-bloom-item { animation: none !important; opacity: 0 !important; }
         }
       `}</style>

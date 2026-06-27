@@ -683,7 +683,13 @@ export default function SendGreeting() {
           const r = await api.getHeartsBalance();
           const bal = r?.balance ?? 0;
           if (bal > heartsBalanceRef.current) {
-            setTimeout(() => setHeartsBurstKey((k) => k + 1), 150);
+            const earnedTo = bal; // server-confirmed new balance
+            setTimeout(() => {
+              setHeartsBurstKey((k) => k + 1);
+              // C3 — announce the server-confirmed earn so the persistent chrome
+              // balance counts up to land as the flying Hearts settle.
+              try { window.dispatchEvent(new CustomEvent('gm:hearts-earned', { detail: { to: earnedTo } })); } catch { /* non-fatal */ }
+            }, 150);
           }
           heartsBalanceRef.current = bal;
         } catch { /* non-fatal */ }

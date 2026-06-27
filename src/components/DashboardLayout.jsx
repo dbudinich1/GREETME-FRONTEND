@@ -1,5 +1,5 @@
 // src/components/DashboardLayout.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, Users, ShoppingCart, Film, X, Image as ImageIcon, QrCode } from 'lucide-react';
@@ -28,6 +28,12 @@ export default function DashboardLayout({ children }) {
   const [cartCount, setCartCount] = useState(0);
   // C2 — transient display-only copy of the server Hearts balance (see effect below).
   const [heartsBalance, setHeartsBalance] = useState(0);
+  // C3 — animated display value for the live count-up. `heartsBalance` holds the
+  // server-confirmed value (source of truth + aria); `displayBalance` is the number
+  // that counts up to it. The two are equal except during the count-up animation.
+  const [displayBalance, setDisplayBalance] = useState(0);
+  const displayBalanceRef = useRef(0);
+  const countRafRef = useRef(null);
   // Phase 3D Batch D D5-R1 — account-state-aware gate for GuidedSetupFlow.
   // Wires the existing shouldShowGuidedSetupForUser helper into the modal's
   // visibility gate so subscribed users no longer see the welcome modal after
@@ -87,14 +93,56 @@ export default function DashboardLayout({ children }) {
     const loadHeartsBalance = async () => {
       try {
         const r = await api.getHeartsBalance();
-        setHeartsBalance(r?.balance ?? 0);
+        const bal = r?.balance ?? 0;
+        setHeartsBalance(bal);
+        setDisplayBalance(bal);          // snap on fetch (no animation on focus refresh)
+        displayBalanceRef.current = bal;
       } catch {
         setHeartsBalance(0);
+        setDisplayBalance(0);
+        displayBalanceRef.current = 0;
       }
     };
     loadHeartsBalance();
     window.addEventListener('focus', loadHeartsBalance);
     return () => window.removeEventListener('focus', loadHeartsBalance);
+  }, []);
+
+  // C3 — live balance count-up. On a server-confirmed earn (gm:hearts-earned,
+  // dispatched by the send flow), animate the displayed balance up to the server
+  // value, completing as the flying Hearts settle (~720ms travel + ~100ms settle)
+  // so the count never outruns them. The end value is always the server-confirmed
+  // number — no fabrication. prefers-reduced-motion snaps with no animation.
+  useEffect(() => {
+    const COUNT_MS = 820; // travel (720) + settle (100): completes as the Hearts settle
+    const onEarned = (e) => {
+      const to = Number(e?.detail?.to);
+      if (!Number.isFinite(to)) return;
+      setHeartsBalance(to); // server-confirmed value — source of truth + aria
+      const reduce = typeof window.matchMedia === 'function'
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const from = displayBalanceRef.current;
+      if (countRafRef.current) cancelAnimationFrame(countRafRef.current);
+      if (reduce || to <= from) {
+        setDisplayBalance(to);
+        displayBalanceRef.current = to;
+        return;
+      }
+      const start = performance.now();
+      const tick = (now) => {
+        const p = Math.min(1, (now - start) / COUNT_MS); // linear — never outruns the Hearts
+        const v = p < 1 ? Math.round(from + (to - from) * p) : to;
+        setDisplayBalance(v);
+        displayBalanceRef.current = v;
+        if (p < 1) countRafRef.current = requestAnimationFrame(tick);
+      };
+      countRafRef.current = requestAnimationFrame(tick);
+    };
+    window.addEventListener('gm:hearts-earned', onEarned);
+    return () => {
+      window.removeEventListener('gm:hearts-earned', onEarned);
+      if (countRafRef.current) cancelAnimationFrame(countRafRef.current);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -333,9 +381,11 @@ export default function DashboardLayout({ children }) {
 
           {/* Right side - Image Bank, Cart, User icon (equal spacing) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: isNarrow ? '0.5rem' : '1rem', justifyContent: 'flex-end', flexShrink: 0, minWidth: isNarrow ? '6rem' : '120px' }}>
-            {/* Persistent Hearts balance (C2) — passive, server-driven display only.
-                No navigation, no animation; the server is the single source of truth. */}
+            {/* Persistent Hearts balance (C2 + C3) — the destination the celebration
+                flies to and counts up into. Value is server-driven (aria reflects the
+                server-confirmed `heartsBalance`); only the visible number animates. */}
             <div
+              data-gm-hearts-balance
               title="Your Hearts"
               aria-label={`${heartsBalance} Hearts`}
               style={{
@@ -352,7 +402,7 @@ export default function DashboardLayout({ children }) {
               }}
             >
               <span aria-hidden="true" style={{ fontSize: isNarrow ? '1rem' : '1.125rem' }}>❤️</span>
-              <span>{heartsBalance}</span>
+              <span>{displayBalance}</span>
             </div>
             {/* Image Bank - for tracking images */}
             <button
