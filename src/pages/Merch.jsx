@@ -11,12 +11,16 @@ import greetmeFlags from '../assets/greetme-flags.jpg';
 // AGP-01 — American Gift Place category layer. Only 'merch' is live/purchasable.
 const AGP_CATEGORIES = [
   { key: 'merch', label: 'Greet-Me Merch', live: true },
+  { key: 'maker_gifts', label: 'Maker Gifts', live: true }, // VENDOR-GIFTS-B1 (display-only)
   { key: 'americana', label: 'Americana', live: false },
   { key: 'gift_cards', label: 'Gift Cards', live: false },
   { key: 'gift_baskets', label: 'Gift Baskets', live: false },
   { key: 'flowers', label: 'Flowers', live: false },
   { key: 'faith', label: 'Faith & Inspiration', live: false },
 ];
+
+// VENDOR-GIFTS-B1 — show "Made by <vendor>" maker attribution on catalog cards (configurable).
+const SHOW_MAKER_ATTRIBUTION = true;
 
 export default function Merch() {
   const navigate = useNavigate();
@@ -30,6 +34,9 @@ export default function Merch() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // VENDOR-GIFTS-B1 — read-only Collective catalog (display-only). Empty while dormant.
+  const [catalogProducts, setCatalogProducts] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('merch'); // AGP-01: default live category
 
   // Session context: recipient gift flow vs SendGreeting Just-Because flow
@@ -51,6 +58,23 @@ export default function Merch() {
         if (!cancelled) setError(err);
       } finally {
         if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // VENDOR-GIFTS-B1 — fetch the read-only Collective catalog on mount (returns empty while
+  // the vendorGiftsEnabled flag is off). Display-only; no cart/checkout.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.getGiftCatalog();
+        if (!cancelled) setCatalogProducts(Array.isArray(res?.products) ? res.products : []);
+      } catch {
+        if (!cancelled) setCatalogProducts([]);
+      } finally {
+        if (!cancelled) setCatalogLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -374,7 +398,124 @@ export default function Merch() {
         ))}
       </div>
 
-      {selectedCategory !== 'merch' ? (
+      {selectedCategory === 'maker_gifts' ? (
+        /* VENDOR-GIFTS-B1 — Collective gifts: DISPLAY-ONLY (no cart/checkout/CTA), Greet-Me-native. */
+        catalogLoading ? (
+          <div style={{
+            padding: '4rem 2rem',
+            textAlign: 'center',
+            color: 'var(--text-secondary)',
+            fontSize: '0.9375rem',
+            fontStyle: 'italic'
+          }}>
+            Loading…
+          </div>
+        ) : catalogProducts.length === 0 ? (
+          <div style={{
+            padding: '4rem 2rem',
+            textAlign: 'center',
+            color: 'var(--text-secondary)',
+            border: '1px dashed var(--border)',
+            borderRadius: 'var(--radius-xl)'
+          }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>&#127873;</div>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
+              Maker Gifts &mdash; Coming Soon
+            </h3>
+            <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: 0 }}>
+              We&rsquo;re curating this collection. Check back soon.
+            </p>
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(auto-fill, minmax(300px, 1fr))',
+            gap: isNarrow ? '0.75rem' : '1.5rem',
+            maxWidth: '100%',
+            overflowX: 'hidden'
+          }}>
+            {catalogProducts.map((item) => {
+              const img = (Array.isArray(item.images) && item.images[0]?.url) ? item.images[0].url : null;
+              const dollars = item.priceCents != null
+                ? `$${(item.priceCents / 100).toFixed(item.priceCents % 100 === 0 ? 0 : 2)}`
+                : '';
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    background: 'var(--bg-primary)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-xl)',
+                    overflow: 'hidden',
+                    position: 'relative'
+                  }}
+                >
+                  {/* Product image — Greet-Me blob (re-hosted) URL with gradient fallback. No Shopify domain. */}
+                  <div style={{
+                    width: '100%',
+                    height: isNarrow ? '120px' : '200px',
+                    background: img ? `url(${img}) center/cover no-repeat` : 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: isNarrow ? '2.5rem' : '4rem'
+                  }}>
+                    {!img && '🎁'}
+                  </div>
+                  <div style={{ padding: isNarrow ? '0.75rem' : '1.5rem' }}>
+                    <h3 style={{
+                      fontSize: isNarrow ? '0.875rem' : '1.125rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.25rem'
+                    }}>
+                      {item.title}
+                    </h3>
+                    {SHOW_MAKER_ATTRIBUTION && item.vendor ? (
+                      <p style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-tertiary)',
+                        fontStyle: 'italic',
+                        marginBottom: '0.5rem'
+                      }}>
+                        Made by {item.vendor}
+                      </p>
+                    ) : null}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingTop: isNarrow ? '0.5rem' : '1rem',
+                      borderTop: isNarrow ? 'none' : '1px solid var(--border)',
+                      gap: '0.5rem'
+                    }}>
+                      <span style={{
+                        fontSize: isNarrow ? '1rem' : '1.5rem',
+                        fontWeight: 700,
+                        color: 'var(--primary)'
+                      }}>
+                        {dollars}
+                      </span>
+                      {/* DISPLAY-ONLY — no buy/checkout CTA (Batch 1). */}
+                      <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
+                        background: 'var(--gray-100)',
+                        padding: '0.25rem 0.625rem',
+                        borderRadius: 'var(--radius-md)',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        Available soon
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      ) : selectedCategory !== 'merch' ? (
         /* AGP-01 — Coming Soon: non-purchasable placeholder (no products, no add-to-cart) */
         <div style={{
           padding: '4rem 2rem',

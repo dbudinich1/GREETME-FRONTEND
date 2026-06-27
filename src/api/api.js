@@ -762,6 +762,11 @@ class ApiService {
     return this.request("/api/hearts/balance");
   }
 
+  // VENDOR-GIFTS-B1 — read-only Collective gift catalog (display data; empty while dormant).
+  getGiftCatalog() {
+    return this.request("/api/gifts/catalog");
+  }
+
   // H7 B5 — spend Hearts for an in-kind reward. `redemptionRequestId` is generated once per
   // redemption intent on the client and reused across retries (idempotency). Server is
   // authoritative; no localStorage is used for balance/redemption/history.
