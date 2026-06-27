@@ -869,7 +869,7 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        {/* Rewards Program Card - PHASE 8.1: Secondary visual weight */}
+        {/* Dashboard Hearts Gateway (H7) - PHASE 8.1: Secondary visual weight */}
         <div style={{
           background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
           borderRadius: 'var(--radius-lg)',
@@ -891,7 +891,7 @@ export default function DashboardHome() {
                   fontWeight: 600,
                   marginBottom: 0
                 }}>
-                  Rewards
+                  Hearts Hub
                 </h3>
               </div>
               <p style={{
@@ -899,7 +899,7 @@ export default function DashboardHome() {
                 opacity: 0.85,
                 marginTop: '0.125rem'
               }}>
-                Earn • Redeem • Enjoy
+                Everything Hearts, in one place.
               </p>
             </div>
             <p style={{
@@ -928,7 +928,7 @@ export default function DashboardHome() {
                 flexShrink: 0
               }}
             >
-              View
+              Open Hearts Hub
             </button>
             <button
               onClick={() => navigate('/dashboard/rewards')}
@@ -948,7 +948,7 @@ export default function DashboardHome() {
                 flexShrink: 0
               }}
             >
-              Redeem
+              Learn More
             </button>
           </div>
         </div>
