@@ -906,7 +906,7 @@ export default function DashboardHome() {
               fontSize: isNarrow ? '1.25rem' : '1.5rem',
               fontWeight: 700
             }}>
-              {rewardsBalance} pts
+              {rewardsBalance} ❤️
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
