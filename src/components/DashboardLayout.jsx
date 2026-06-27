@@ -7,6 +7,7 @@ import GreetMeLogo from './GreetMeLogo';
 import NotificationBell from './NotificationBell';
 import cartService from '../services/cartService';
 import imageCreditsService from '../services/imageCreditsService';
+import api from '../api/api';
 import GuidedSetupFlow, { shouldShowGuidedSetupForUser } from './GuidedSetupFlow';
 import { useAccountState } from '../hooks/useAccountState';
 
@@ -25,6 +26,8 @@ export default function DashboardLayout({ children }) {
 
   const [imageCredits, setImageCredits] = useState(0);
   const [cartCount, setCartCount] = useState(0);
+  // C2 — transient display-only copy of the server Hearts balance (see effect below).
+  const [heartsBalance, setHeartsBalance] = useState(0);
   // Phase 3D Batch D D5-R1 — account-state-aware gate for GuidedSetupFlow.
   // Wires the existing shouldShowGuidedSetupForUser helper into the modal's
   // visibility gate so subscribed users no longer see the welcome modal after
@@ -74,6 +77,24 @@ export default function DashboardLayout({ children }) {
       window.removeEventListener('cartUpdated', updateCartCount);
       window.removeEventListener('imageCreditsUpdated', updateImageCredits);
     };
+  }, []);
+
+  // C2 — Persistent Hearts balance in the chrome. Read-only display of the
+  // server-authoritative balance (GET /api/hearts/balance), refetched on mount
+  // and on window focus, mirroring the cart/imageCredits pattern above. The
+  // server stays the single source of truth — no caching, no persistence.
+  useEffect(() => {
+    const loadHeartsBalance = async () => {
+      try {
+        const r = await api.getHeartsBalance();
+        setHeartsBalance(r?.balance ?? 0);
+      } catch {
+        setHeartsBalance(0);
+      }
+    };
+    loadHeartsBalance();
+    window.addEventListener('focus', loadHeartsBalance);
+    return () => window.removeEventListener('focus', loadHeartsBalance);
   }, []);
 
   const handleLogout = () => {
@@ -312,6 +333,27 @@ export default function DashboardLayout({ children }) {
 
           {/* Right side - Image Bank, Cart, User icon (equal spacing) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: isNarrow ? '0.5rem' : '1rem', justifyContent: 'flex-end', flexShrink: 0, minWidth: isNarrow ? '6rem' : '120px' }}>
+            {/* Persistent Hearts balance (C2) — passive, server-driven display only.
+                No navigation, no animation; the server is the single source of truth. */}
+            <div
+              title="Your Hearts"
+              aria-label={`${heartsBalance} Hearts`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                height: '3.25rem',
+                padding: isNarrow ? '0 0.375rem' : '0 0.5rem',
+                fontSize: isNarrow ? '0.9375rem' : '1.0625rem',
+                fontWeight: 700,
+                color: 'var(--text-secondary)',
+                whiteSpace: 'nowrap',
+                userSelect: 'none',
+              }}
+            >
+              <span aria-hidden="true" style={{ fontSize: isNarrow ? '1rem' : '1.125rem' }}>❤️</span>
+              <span>{heartsBalance}</span>
+            </div>
             {/* Image Bank - for tracking images */}
             <button
               onClick={() => navigate('/dashboard/animations')}
