@@ -1097,7 +1097,7 @@ export default function Rewards() {
                 color: 'var(--text-secondary)',
                 lineHeight: 1.5
               }}>
-                Double your Rewards balance and support veterans & first responders
+                Add Hearts to your Rewards balance and support veterans & first responders
               </p>
               <div style={{
                 display: 'inline-block',
