@@ -777,6 +777,11 @@ class ApiService {
     return this.request("/api/gifts/catalog");
   }
 
+  // M0 — read-only Hearts Marketplace catalog (class/state facts; empty while dormant).
+  getMarketplaceCatalog() {
+    return this.request("/api/marketplace/catalog");
+  }
+
   // H7 B5 — spend Hearts for an in-kind reward. `redemptionRequestId` is generated once per
   // redemption intent on the client and reused across retries (idempotency). Server is
   // authoritative; no localStorage is used for balance/redemption/history.

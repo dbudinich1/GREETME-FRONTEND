@@ -52,6 +52,10 @@ export default function Rewards() {
   const [redeemOutcome, setRedeemOutcome] = useState(null);       // { type, message }
   const [redemptionPaused, setRedemptionPaused] = useState(false);// learned-paused (503) → disable
 
+  // M0 — read-only Hearts Marketplace catalog (class/state facts). Empty while dormant.
+  const [marketplaceItems, setMarketplaceItems] = useState([]);
+  const [marketplaceLoading, setMarketplaceLoading] = useState(true);
+
   // Hero Hearts Bundles - price tiers with bonus hearts
   const HERO_HEARTS_BUNDLES = [
     {
@@ -166,6 +170,23 @@ export default function Rewards() {
     const onFocus = () => { loadRewardsData(); };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
+  }, []);
+
+  // M0 — fetch the read-only Hearts Marketplace catalog on mount (empty while dormant).
+  // Standalone effect — separate from loadRewardsData / the J1 journey read. Display-only.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.getMarketplaceCatalog();
+        if (!cancelled) setMarketplaceItems(Array.isArray(res?.items) ? res.items : []);
+      } catch {
+        if (!cancelled) setMarketplaceItems([]);
+      } finally {
+        if (!cancelled) setMarketplaceLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // Open the redemption intent: generate ONE requestId, reused across retries within this
@@ -495,6 +516,87 @@ export default function Rewards() {
           );
         })()}
       </div>
+
+      {/* M0 — Hearts Marketplace (read-only, DISPLAY-ONLY). Renders ONLY when items exist;
+          dormant/empty while marketplaceReadEnabled is off → Hub stays unchanged. Reads
+          class/state facts (state drives an honest label; class consumed via data attr).
+          NO checkout/redeem CTA — Stage 1 is read-side only. */}
+      {marketplaceItems.length > 0 && (
+        <div style={{
+          background: 'var(--bg-primary)',
+          borderRadius: 'var(--radius-xl)',
+          padding: '1.5rem',
+          marginBottom: '2rem',
+          border: '1px solid var(--border)'
+        }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem' }}>
+            Hearts Marketplace
+          </h2>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+            gap: '1rem'
+          }}>
+            {marketplaceItems.map((item) => {
+              const img = (Array.isArray(item.images) && item.images[0]?.url) ? item.images[0].url : null;
+              return (
+                <div
+                  key={item.id}
+                  data-reward-class={item.class || 'uncategorized'}
+                  style={{
+                    background: 'var(--gray-50)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-lg)',
+                    overflow: 'hidden'
+                  }}
+                >
+                  <div style={{
+                    width: '100%',
+                    height: '140px',
+                    background: img ? `url(${img}) center/cover no-repeat` : 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '2.5rem'
+                  }}>
+                    {!img && '🎁'}
+                  </div>
+                  <div style={{ padding: '0.75rem' }}>
+                    <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {item.title}
+                    </div>
+                    {item.vendor ? (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontStyle: 'italic', marginTop: '0.125rem' }}>
+                        Made by {item.vendor}
+                      </div>
+                    ) : null}
+                    {/* Vendor FIAT display price only (parity w/ display-only catalog). NOT a Hearts cost. */}
+                    {item.priceCents != null ? (
+                      <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--primary)', marginTop: '0.25rem' }}>
+                        {(item.currency && item.currency !== 'USD') ? '' : '$'}
+                        {(item.priceCents / 100).toFixed(item.priceCents % 100 === 0 ? 0 : 2)}
+                        {(item.currency && item.currency !== 'USD') ? ` ${item.currency}` : ''}
+                      </div>
+                    ) : null}
+                    {item.state && item.state !== 'available' ? (
+                      <div style={{
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        marginTop: '0.375rem'
+                      }}>
+                        {item.state}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* How to Earn Section */}
       <div style={{
