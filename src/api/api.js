@@ -762,6 +762,16 @@ class ApiService {
     return this.request("/api/hearts/balance");
   }
 
+  // --------------------
+  // J0 — read-only Journey progress facts (GET /api/journey/progress).
+  // Returns { ok, progress: { hasCompletedOnboarding, hasSentFirstGreeting,
+  // hasEarnedFirstHeart, hasSentGiftGreeting } } — four objective server booleans.
+  // Consumers read res?.progress and never compute/persist Journey state.
+  // --------------------
+  getJourneyProgress() {
+    return this.request("/api/journey/progress");
+  }
+
   // VENDOR-GIFTS-B1 — read-only Collective gift catalog (display data; empty while dormant).
   getGiftCatalog() {
     return this.request("/api/gifts/catalog");

@@ -24,9 +24,22 @@ function makeRedemptionRequestId() {
   return `rdm-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+// J1 — frontend-owned Journey MEANING (labels + order only). TRUTH (the booleans)
+// comes solely from J0 (GET /api/journey/progress); the frontend never computes,
+// aggregates, or persists Journey state. Each step maps to exactly one J0 fact.
+const JOURNEY_STEPS = [
+  { key: 'hasCompletedOnboarding', label: 'Set up your voice & photo' },
+  { key: 'hasSentFirstGreeting', label: 'Send your first Greet-Me' },
+  { key: 'hasEarnedFirstHeart', label: 'Earn your first Heart' },
+  { key: 'hasSentGiftGreeting', label: 'Send a Greet-Me with a gift' },
+];
+
 export default function Rewards() {
   const navigate = useNavigate();
   const [balance, setBalance] = useState(0);
+  // J1 — holds the J0 progress facts verbatim (server truth). null until loaded /
+  // on failure → every step reads as not-yet-reached. No local Journey state.
+  const [journey, setJourney] = useState(null);
   const [showHeroHeartsModal, setShowHeroHeartsModal] = useState(false);
   const [selectedHeroBundle, setSelectedHeroBundle] = useState(null);
   const [heroHeartsStep, setHeroHeartsStep] = useState('selection'); // 'selection' | 'confirmation'
@@ -137,6 +150,14 @@ export default function Rewards() {
       setBalance(res?.balance ?? 0);
     } catch {
       setBalance(0);
+    }
+    // J1 — read-only Journey facts from J0. Held verbatim; on any failure we fall
+    // back to null → all steps render as not-yet-reached (honest, never fabricated).
+    try {
+      const jr = await api.getJourneyProgress();
+      setJourney(jr?.progress ?? null);
+    } catch {
+      setJourney(null);
     }
   };
 
@@ -315,6 +336,86 @@ export default function Rewards() {
               ❤️ Greet-Me™ Hero™ Hearts™
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Journey (J1) — first frontend consumer of the J0 truth layer
+          (GET /api/journey/progress). Sits directly beneath the Hearts Balance,
+          above Ways to Earn. Renders the four objective server facts with
+          Hearts-themed status treatments (filled vs awaiting heart) — NOT a
+          checkmark checklist; the treatment is intentionally elevatable later.
+          No frontend Journey state/calculation: each row reflects exactly one
+          server boolean. Read-only. */}
+      <div style={{
+        background: 'var(--bg-primary)',
+        borderRadius: 'var(--radius-xl)',
+        padding: '1.5rem',
+        marginBottom: '2rem',
+        border: '1px solid var(--border)'
+      }}>
+        <h2 style={{
+          fontSize: '1.25rem',
+          fontWeight: 700,
+          color: 'var(--text-primary)',
+          marginBottom: '0.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem'
+        }}>
+          <Heart size={20} style={{ color: '#ec4899' }} fill="#ec4899" />
+          Your Journey
+        </h2>
+        <p style={{
+          fontSize: '0.95rem',
+          color: 'var(--text-secondary)',
+          margin: '0 0 1.25rem',
+          lineHeight: 1.5
+        }}>
+          Welcome to your Greet-Me journey. Every heartfelt moment you create writes
+          another chapter — here&apos;s the story you&apos;re building, one Heart at a time.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {JOURNEY_STEPS.map((step) => {
+            const reached = Boolean(journey && journey[step.key]);
+            return (
+              <div key={step.key} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.875rem',
+                padding: '0.875rem 1rem',
+                borderRadius: 'var(--radius-lg)',
+                background: reached ? 'rgba(236, 72, 153, 0.08)' : 'var(--bg-secondary)',
+                border: reached ? '1px solid rgba(236, 72, 153, 0.25)' : '1px solid var(--border)'
+              }}>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '2rem',
+                  height: '2rem',
+                  borderRadius: '50%',
+                  flexShrink: 0,
+                  background: reached ? 'rgba(236, 72, 153, 0.15)' : 'transparent'
+                }}>
+                  <Heart
+                    size={18}
+                    style={{
+                      color: reached ? '#ec4899' : 'var(--text-secondary)',
+                      opacity: reached ? 1 : 0.4
+                    }}
+                    fill={reached ? '#ec4899' : 'none'}
+                  />
+                </span>
+                <span style={{
+                  fontSize: '0.95rem',
+                  fontWeight: reached ? 600 : 500,
+                  color: reached ? 'var(--text-primary)' : 'var(--text-secondary)'
+                }}>
+                  {step.label}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
