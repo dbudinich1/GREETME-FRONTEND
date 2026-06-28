@@ -34,6 +34,18 @@ const JOURNEY_STEPS = [
   { key: 'hasSentGiftGreeting', label: 'Send a Greet-Me with a gift' },
 ];
 
+// SC2 — Social Circuit (introduction / handoff only). Frontend kill-switch. The
+// Social Circuit is the THIRD Journey state: once Product Mastery is fully reached
+// (all four J0 facts true), the Journey card widens IN PLACE from the warm
+// acknowledgment into a gentle, outward invitation — "grow the Greet-Me community."
+// This is the canon "Social Circuit Handoff" (introduction) ONLY: no social/advocacy
+// server fact exists yet, so there is NO progress, NO milestone/completion, NO
+// economy value, and NO new API call. The single CTA routes to the EXISTING /send
+// flow (the live entry into sharing). Earning/attribution/completion (S2/S3/S5) are
+// deferred to separately-gated backend stages. Flip false to instantly hide.
+// Dormant-first deployment: ships OFF; flip true after founder review.
+const SOCIAL_CIRCUIT_ENABLED = false;
+
 export default function Rewards() {
   const navigate = useNavigate();
   const [balance, setBalance] = useState(0);
@@ -448,21 +460,86 @@ export default function Rewards() {
           const next = JOURNEY_STEPS.find((s) => !(journey && journey[s.key]));
           if (!next) {
             return (
-              <div style={{
-                marginTop: '1.25rem',
-                padding: '1rem 1.125rem',
-                borderRadius: 'var(--radius-lg)',
-                background: 'rgba(236, 72, 153, 0.08)',
-                border: '1px solid rgba(236, 72, 153, 0.25)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.625rem'
-              }}>
-                <Heart size={18} style={{ color: '#ec4899' }} fill="#ec4899" />
-                <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  You&apos;ve begun your story beautifully — every chapter so far is written in Hearts.
-                </span>
-              </div>
+              <>
+                {/* Graduation warmth — "look what you did" (unchanged from J2). */}
+                <div style={{
+                  marginTop: '1.25rem',
+                  padding: '1rem 1.125rem',
+                  borderRadius: 'var(--radius-lg)',
+                  background: 'rgba(236, 72, 153, 0.08)',
+                  border: '1px solid rgba(236, 72, 153, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.625rem'
+                }}>
+                  <Heart size={18} style={{ color: '#ec4899' }} fill="#ec4899" />
+                  <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    You&apos;ve begun your story beautifully — every chapter so far is written in Hearts.
+                  </span>
+                </div>
+
+                {/* SC2 — Social Circuit introduction (handoff). The tile does not end;
+                    it WIDENS into the outward chapter. Same surface, same guide. An
+                    invitation, never a task — no progress, no count, no milestone, no
+                    economy value. One CTA → the EXISTING /dashboard/send flow. */}
+                {SOCIAL_CIRCUIT_ENABLED && (
+                  <div style={{
+                    marginTop: '1.25rem',
+                    padding: '1.125rem 1.25rem',
+                    borderRadius: 'var(--radius-lg)',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border)'
+                  }}>
+                    <p style={{
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                      color: 'var(--text-secondary)',
+                      margin: '0 0 0.375rem'
+                    }}>
+                      Your next horizon
+                    </p>
+                    <p style={{
+                      fontSize: '1.05rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      margin: '0 0 0.5rem'
+                    }}>
+                      Bring someone into the Greet-Me circle
+                    </p>
+                    <p style={{
+                      fontSize: '0.95rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.5,
+                      margin: '0 0 0.875rem'
+                    }}>
+                      You&apos;ve mastered the moments that matter. Share Greet-Me with
+                      someone new and become part of something larger.
+                    </p>
+                    <button
+                      onClick={() => navigate('/dashboard/send')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        background: '#ec4899',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 'var(--radius-lg)',
+                        padding: '0.625rem 1.25rem',
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit'
+                      }}
+                    >
+                      <Heart size={16} fill="white" style={{ color: 'white' }} />
+                      Share Greet-Me
+                    </button>
+                  </div>
+                )}
+              </>
             );
           }
           const dest = next.key === 'hasCompletedOnboarding' ? '/dashboard/profile' : '/dashboard/send';
