@@ -782,6 +782,12 @@ class ApiService {
     return this.request("/api/marketplace/catalog");
   }
 
+  // Marketplace Stage 6 — redeem Hearts for a marketplace reward (server-authoritative;
+  // dormant behind marketplaceRedemptionEnabled). Client sends ONLY itemId + requestId.
+  redeemMarketplaceItem(itemId, redemptionRequestId) {
+    return this.post("/api/marketplace/redeem", { itemId, redemptionRequestId });
+  }
+
   // H7 B5 — spend Hearts for an in-kind reward. `redemptionRequestId` is generated once per
   // redemption intent on the client and reused across retries (idempotency). Server is
   // authoritative; no localStorage is used for balance/redemption/history.

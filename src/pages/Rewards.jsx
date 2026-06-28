@@ -68,6 +68,43 @@ export default function Rewards() {
   const [marketplaceItems, setMarketplaceItems] = useState([]);
   const [marketplaceLoading, setMarketplaceLoading] = useState(true);
 
+  // Marketplace Stage 6 — redeem flow (server-authoritative; only shows for items the server
+  // marks structurally `redeemable`, which is false while marketplaceRedemptionEnabled is off).
+  const [mktConfirmId, setMktConfirmId] = useState(null);   // item awaiting a confirm click
+  const [mktRedeemingId, setMktRedeemingId] = useState(null); // request in flight
+  const [mktOutcome, setMktOutcome] = useState({});         // { [itemId]: { type, message } }
+
+  const handleMarketplaceRedeem = async (item) => {
+    if (mktRedeemingId) return;
+    setMktConfirmId(null);
+    setMktRedeemingId(item.id);
+    setMktOutcome((o) => ({ ...o, [item.id]: null }));
+    try {
+      const requestId = makeRedemptionRequestId();
+      const res = await api.redeemMarketplaceItem(item.id, requestId);
+      if (res?.ok) {
+        setMktOutcome((o) => ({ ...o, [item.id]: { type: 'success', message: 'Redeemed — your discount applies to your next invoice.' } }));
+        loadRewardsData(); // refresh server Hearts balance
+      } else {
+        const messages = {
+          ineligible: 'Available to active subscribers only.',
+          insufficient: 'You don’t have enough Hearts yet.',
+          velocity: 'You can redeem again tomorrow.',
+          disabled: 'Redemption isn’t available right now.',
+          class_unavailable: 'This reward isn’t redeemable yet.',
+          no_cost: 'This reward isn’t redeemable yet.',
+          not_found: 'This reward is no longer available.',
+          grant_failed: 'Something went wrong — your Hearts were not charged.',
+        };
+        setMktOutcome((o) => ({ ...o, [item.id]: { type: 'error', message: messages[res?.reason] || 'Could not redeem right now.' } }));
+      }
+    } catch {
+      setMktOutcome((o) => ({ ...o, [item.id]: { type: 'error', message: 'Could not redeem right now.' } }));
+    } finally {
+      setMktRedeemingId(null);
+    }
+  };
+
   // Hero Hearts Bundles - price tiers with bonus hearts
   const HERO_HEARTS_BUNDLES = [
     {
@@ -665,6 +702,43 @@ export default function Rewards() {
                         marginTop: '0.375rem'
                       }}>
                         {item.state}
+                      </div>
+                    ) : null}
+                    {/* Marketplace Stage 6 — redeem CTA. Shows ONLY when the server marks the
+                        item structurally `redeemable` (false while marketplaceRedemptionEnabled
+                        is off). Two-step confirm; eligibility is enforced server-side. */}
+                    {item.redeemable ? (
+                      <div style={{ marginTop: '0.625rem' }}>
+                        {mktConfirmId === item.id ? (
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              onClick={() => handleMarketplaceRedeem(item)}
+                              disabled={mktRedeemingId === item.id}
+                              style={{ flex: 1, background: '#ec4899', color: 'white', border: 'none', borderRadius: 'var(--radius-lg)', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                            >
+                              {mktRedeemingId === item.id ? 'Redeeming…' : 'Confirm'}
+                            </button>
+                            <button
+                              onClick={() => setMktConfirmId(null)}
+                              disabled={mktRedeemingId === item.id}
+                              style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setMktConfirmId(item.id)}
+                            style={{ width: '100%', background: '#ec4899', color: 'white', border: 'none', borderRadius: 'var(--radius-lg)', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                          >
+                            Redeem with Hearts
+                          </button>
+                        )}
+                        {mktOutcome[item.id] ? (
+                          <div style={{ fontSize: '0.75rem', marginTop: '0.375rem', fontWeight: 600, color: mktOutcome[item.id].type === 'success' ? '#16a34a' : 'var(--text-secondary)' }}>
+                            {mktOutcome[item.id].message}
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>
