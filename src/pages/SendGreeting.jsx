@@ -100,7 +100,6 @@ export default function SendGreeting() {
   const [completedJobId, setCompletedJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
   const [heartsBurstKey, setHeartsBurstKey] = useState(0);
-  const heartsBalanceRef = useRef(0);
   const [waitMessage, setWaitMessage] = useState('Composing your message...');
   const [showReadyBeat, setShowReadyBeat] = useState(false);
   // Phase M.2: portrait-first responsive flag (covers iPad portrait via <=768)
@@ -112,9 +111,14 @@ export default function SendGreeting() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
-  // Seed the server-confirmed Hearts baseline so the burst can re-gate on increase.
+  // C4 — the bloom is authorized by the dashboard, the single owner of the
+  // displayed balance: it fires ONLY when a server-confirmed earn actually
+  // raised the balance (gm:hearts-celebrate), so the fly can never play without
+  // a matching count-up.
   useEffect(() => {
-    (async () => { try { const r = await api.getHeartsBalance(); heartsBalanceRef.current = r?.balance ?? 0; } catch { /* non-fatal */ } })();
+    const onCelebrate = () => setHeartsBurstKey((k) => k + 1);
+    window.addEventListener('gm:hearts-celebrate', onCelebrate);
+    return () => window.removeEventListener('gm:hearts-celebrate', onCelebrate);
   }, []);
   const [formData, setFormData] = useState({
     contactId: '',
@@ -678,20 +682,17 @@ export default function SendGreeting() {
         setShowReadyBeat(true);
         // 800ms: a breath, not a flash (Stage B premium completion-state spec).
         setTimeout(() => setShowReadyBeat(false), 800);
-        // HeartsBurst re-gate: fire ONLY on a server-confirmed balance increase.
+        // C4 — report the server-confirmed balance; the dashboard (single owner
+        // of the displayed balance) decides whether it actually rose and, only
+        // then, runs the count-up AND authorizes the bloom (gm:hearts-celebrate).
+        // Dispatched after the ~150ms settle beat so confirm → bloom/count stay
+        // choreographed.
         try {
           const r = await api.getHeartsBalance();
           const bal = r?.balance ?? 0;
-          if (bal > heartsBalanceRef.current) {
-            const earnedTo = bal; // server-confirmed new balance
-            setTimeout(() => {
-              setHeartsBurstKey((k) => k + 1);
-              // C3 — announce the server-confirmed earn so the persistent chrome
-              // balance counts up to land as the flying Hearts settle.
-              try { window.dispatchEvent(new CustomEvent('gm:hearts-earned', { detail: { to: earnedTo } })); } catch { /* non-fatal */ }
-            }, 150);
-          }
-          heartsBalanceRef.current = bal;
+          setTimeout(() => {
+            try { window.dispatchEvent(new CustomEvent('gm:hearts-earned', { detail: { to: bal } })); } catch { /* non-fatal */ }
+          }, 150);
         } catch { /* non-fatal */ }
         setJobId(null);
         // Mark draft as sent so it won't be restored

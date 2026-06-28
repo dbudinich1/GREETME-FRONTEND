@@ -128,6 +128,11 @@ export default function DashboardLayout({ children }) {
         displayBalanceRef.current = to;
         return;
       }
+      // C4 — real increment + motion allowed: authorize the bloom now so the fly
+      // and this count-up start together and stay inseparable. Below this line we
+      // are committed to animating from `from` up to the server value `to`, so the
+      // fly can never play without a matching count (and vice-versa).
+      try { window.dispatchEvent(new CustomEvent('gm:hearts-celebrate')); } catch { /* non-fatal */ }
       const start = performance.now();
       const tick = (now) => {
         const p = Math.min(1, (now - start) / COUNT_MS); // linear — never outruns the Hearts
