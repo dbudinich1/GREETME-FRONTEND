@@ -417,6 +417,83 @@ export default function Rewards() {
             );
           })}
         </div>
+
+        {/* J2 — "Your next chapter": a gentle guide derived (statelessly, at render)
+            from the FIRST not-yet-reached J0 fact in the existing Journey order.
+            Pure meaning over J0 truth — no progress count/percent/bar/phase, no
+            milestone, no stored Journey state, no new API call. When every fact is
+            reached, a warm acknowledgment replaces it (never a reward/unlock). */}
+        {(() => {
+          const next = JOURNEY_STEPS.find((s) => !(journey && journey[s.key]));
+          if (!next) {
+            return (
+              <div style={{
+                marginTop: '1.25rem',
+                padding: '1rem 1.125rem',
+                borderRadius: 'var(--radius-lg)',
+                background: 'rgba(236, 72, 153, 0.08)',
+                border: '1px solid rgba(236, 72, 153, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.625rem'
+              }}>
+                <Heart size={18} style={{ color: '#ec4899' }} fill="#ec4899" />
+                <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  You&apos;ve begun your story beautifully — every chapter so far is written in Hearts.
+                </span>
+              </div>
+            );
+          }
+          const dest = next.key === 'hasCompletedOnboarding' ? '/dashboard/profile' : '/dashboard/send';
+          return (
+            <div style={{
+              marginTop: '1.25rem',
+              padding: '1.125rem 1.25rem',
+              borderRadius: 'var(--radius-lg)',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border)'
+            }}>
+              <p style={{
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: 'var(--text-secondary)',
+                margin: '0 0 0.375rem'
+              }}>
+                Your next chapter
+              </p>
+              <p style={{
+                fontSize: '1.05rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                margin: '0 0 0.875rem'
+              }}>
+                {next.label}
+              </p>
+              <button
+                onClick={() => navigate(dest)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: '#ec4899',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '0.625rem 1.25rem',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit'
+                }}
+              >
+                <Heart size={16} fill="white" style={{ color: 'white' }} />
+                Continue your journey
+              </button>
+            </div>
+          );
+        })()}
       </div>
 
       {/* How to Earn Section */}
