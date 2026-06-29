@@ -72,3 +72,47 @@ export const HERO_HEARTS_BUNDLES = [
     purchaseType: 'hero_hearts',
   }
 ];
+
+// UX-HUB-3 Batch 3 — frontend "meaning" for the real-data cards. These maps translate
+// machine keys from the deployed read endpoints into human display copy. TRUTH (which
+// behaviors/facts/amounts exist) comes solely from the server; the frontend never invents
+// rows — it only labels the rows the server returns, and an unknown future key still renders
+// via humanize() with no redesign.
+
+// Behavior key (GET /api/hearts/amounts, GET /api/hearts/history) → founder-approved label.
+// The server already excludes retired (share_act) and internal (test_send); they are not
+// listed here. A behavior the server adds later renders via humanize() until a label is added.
+export const BEHAVIOR_LABELS = Object.freeze({
+  thank_you_sent: 'Send a Thank-You Greet-Me',
+  first_independent_send: 'Send your first independent Greet-Me',
+  share_converted: 'Earn when your shared friend joins',
+  scheduled_occasion: 'Schedule an occasion',
+  first_5_distinct: 'Reach 5 delivered recipients',
+  real_send_with_gift: 'Send a Greet-Me with a gift',
+  first_10_distinct: 'Reach 10 delivered recipients',
+  subscribe: 'Subscribe',
+  repeat_occasion: 'Celebrate a repeat occasion',
+  additional_gift: 'Add an additional gift',
+  upgrade: 'Upgrade your plan',
+});
+
+// Social Circuit fact key (GET /api/social/circuit) → human label. Boolean facts only —
+// no score, no count, no popularity. A future fact key renders via humanize() with no redesign.
+export const SOCIAL_FACT_LABELS = Object.freeze({
+  hasConfirmedReach: 'Your Greet-Me reached someone',
+  hasReciprocatedConnection: 'Someone opened your Greet-Me',
+});
+
+// Fallback label for an unknown machine key: strip a leading "has", split on _ / camelCase,
+// and Title-Case the words (e.g. "hasNewMilestone" → "New Milestone", "foo_bar" → "Foo Bar").
+export function humanize(key) {
+  if (!key || typeof key !== 'string') return '';
+  return key
+    .replace(/^has(?=[A-Z])/, '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}

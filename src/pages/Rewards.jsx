@@ -19,6 +19,10 @@ import HubWaysToEarn from '../components/hub/HubWaysToEarn';
 import HubWaysToSpend from '../components/hub/HubWaysToSpend';
 import HubHeroHearts from '../components/hub/HubHeroHearts';
 import HubHeroHeartsModal from '../components/hub/HubHeroHeartsModal';
+// UX-HUB-3 Batch 3 — new real-data cards (presentational; data owned by this page).
+import HubSocialCircuit from '../components/hub/HubSocialCircuit';
+import HubHistory from '../components/hub/HubHistory';
+import HubLifetime from '../components/hub/HubLifetime';
 
 // Correction #6 — one id per redemption *intent*, reused across retries (double-click,
 // confirm retry, transient network failure, same-dialog re-submit). Generated when the
@@ -38,6 +42,14 @@ export default function Rewards() {
   // J1 — holds the J0 progress facts verbatim (server truth). null until loaded /
   // on failure → every step reads as not-yet-reached. No local Journey state.
   const [journey, setJourney] = useState(null);
+
+  // UX-HUB-3 Batch 3 — real-data card state (server-owned; honest defaults until loaded /
+  // on failure). This page is the SINGLE data owner; the cards are presentational (props only).
+  const [amounts, setAmounts] = useState([]);          // GET /api/hearts/amounts → [{behavior,amount}]
+  const [socialCircuit, setSocialCircuit] = useState({}); // GET /api/social/circuit → { fact: bool, ... }
+  const [history, setHistory] = useState([]);          // GET /api/hearts/history → [{occurredAt,behavior,amount}]
+  const [lifetime, setLifetime] = useState(0);         // GET /api/hearts/lifetime → number
+
   const [showHeroHeartsModal, setShowHeroHeartsModal] = useState(false);
   const [selectedHeroBundle, setSelectedHeroBundle] = useState(null);
   const [heroHeartsStep, setHeroHeartsStep] = useState('selection'); // 'selection' | 'confirmation'
@@ -154,6 +166,23 @@ export default function Rewards() {
     } catch {
       setJourney(null);
     }
+    // UX-HUB-3 Batch 3 — real-data card reads. PARALLEL + ERROR-ISOLATED: each settles
+    // independently and falls to its honest default, so one failing endpoint never blanks
+    // the others or the rest of the Hub. Hearts are displayed as Hearts only (no $).
+    await Promise.allSettled([
+      api.getHeartsAmounts()
+        .then((r) => setAmounts(Array.isArray(r?.amounts) ? r.amounts : []))
+        .catch(() => setAmounts([])),
+      api.getSocialCircuit()
+        .then((r) => setSocialCircuit((r?.circuit && typeof r.circuit === 'object') ? r.circuit : {}))
+        .catch(() => setSocialCircuit({})),
+      api.getHeartsHistory()
+        .then((r) => setHistory(Array.isArray(r?.history) ? r.history : []))
+        .catch(() => setHistory([])),
+      api.getLifetimeEarned()
+        .then((r) => setLifetime(Number(r?.lifetimeEarned) || 0))
+        .catch(() => setLifetime(0)),
+    ]);
   };
 
   // Correction #6 — refresh server balance when the window regains focus.
@@ -270,7 +299,7 @@ export default function Rewards() {
           setMktConfirmId={setMktConfirmId}
         />
 
-        <HubWaysToEarn />
+        <HubWaysToEarn amounts={amounts} />
 
         <HubWaysToSpend
           balance={balance}
@@ -284,6 +313,14 @@ export default function Rewards() {
         />
 
         <HubHeroHearts setShowHeroHeartsModal={setShowHeroHeartsModal} />
+
+        {/* UX-HUB-3 Batch 3 — new real-data cards. Interim stacked placement after the
+            existing extracted sections; final premium grid positioning is Batch 4. */}
+        <HubSocialCircuit circuit={socialCircuit} />
+
+        <HubLifetime lifetimeEarned={lifetime} />
+
+        <HubHistory history={history} />
 
         <HubHeroHeartsModal
           open={showHeroHeartsModal}
