@@ -23,6 +23,8 @@ import HubHeroHeartsModal from '../components/hub/HubHeroHeartsModal';
 import HubSocialCircuit from '../components/hub/HubSocialCircuit';
 import HubHistory from '../components/hub/HubHistory';
 import HubLifetime from '../components/hub/HubLifetime';
+// UX-HUB-3 Batch 4 — premium layout grid + ring (presentation only; same data owner).
+import './../components/hub/hub.css';
 
 // Correction #6 — one id per redemption *intent*, reused across retries (double-click,
 // confirm retry, transient network failure, same-dialog re-submit). Generated when the
@@ -271,10 +273,18 @@ export default function Rewards() {
     }
   };
 
+  // UX-HUB-3 Batch 4 — "View Heart History" scrolls to the on-page History card (Row 6).
+  // No new route; smooth in-page scroll only.
+  const scrollToHistory = () => {
+    try {
+      document.getElementById('hub-history')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch { /* non-fatal */ }
+  };
+
   return (
     <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
       {/* Background Frame for Page Body */}
-      <div style={{
+      <div className="hearts-hub" style={{
         background: '#f8fafc',
         borderRadius: 'var(--radius-xl)',
         border: '1px solid #e2e8f0',
@@ -283,13 +293,36 @@ export default function Rewards() {
       }}>
         <HubBanner />
 
-        <HubBalanceCard
-          balance={balance}
-          setShowHeroHeartsModal={setShowHeroHeartsModal}
-        />
+        {/* UX-HUB-3 Batch 4 — locked six-row premium layout.
+            ROW 1: premium balance hero + standalone Hero Hearts card (companions). */}
+        <div className="hub-row-2col">
+          <HubBalanceCard
+            balance={balance}
+            setShowHeroHeartsModal={setShowHeroHeartsModal}
+            onViewHistory={scrollToHistory}
+          />
+          <HubHeroHearts setShowHeroHeartsModal={setShowHeroHeartsModal} />
+        </div>
 
+        {/* ROW 2: Your Hearts Journey (full-width focal card; ring is the centerpiece). */}
         <HubJourney journey={journey} navigate={navigate} />
 
+        {/* ROW 3: Ways to Earn + Ways to Spend (adjacent companions). */}
+        <div className="hub-row-2col">
+          <HubWaysToEarn amounts={amounts} />
+          <HubWaysToSpend
+            balance={balance}
+            redemptionPaused={redemptionPaused}
+            redeemOpen={redeemOpen}
+            redeemSubmitting={redeemSubmitting}
+            redeemOutcome={redeemOutcome}
+            openRedeemIntent={openRedeemIntent}
+            cancelRedeemIntent={cancelRedeemIntent}
+            confirmRedeemIntent={confirmRedeemIntent}
+          />
+        </div>
+
+        {/* ROW 4: Marketplace (always visible; honest empty when 0 items; no fiat). */}
         <HubMarketplace
           marketplaceItems={marketplaceItems}
           mktConfirmId={mktConfirmId}
@@ -299,28 +332,17 @@ export default function Rewards() {
           setMktConfirmId={setMktConfirmId}
         />
 
-        <HubWaysToEarn amounts={amounts} />
-
-        <HubWaysToSpend
-          balance={balance}
-          redemptionPaused={redemptionPaused}
-          redeemOpen={redeemOpen}
-          redeemSubmitting={redeemSubmitting}
-          redeemOutcome={redeemOutcome}
-          openRedeemIntent={openRedeemIntent}
-          cancelRedeemIntent={cancelRedeemIntent}
-          confirmRedeemIntent={confirmRedeemIntent}
-        />
-
-        <HubHeroHearts setShowHeroHeartsModal={setShowHeroHeartsModal} />
-
-        {/* UX-HUB-3 Batch 3 — new real-data cards. Interim stacked placement after the
-            existing extracted sections; final premium grid positioning is Batch 4. */}
+        {/* ROW 5: Social Circuit (always visible; dynamic facts). */}
         <HubSocialCircuit circuit={socialCircuit} />
 
-        <HubLifetime lifetimeEarned={lifetime} />
-
-        <HubHistory history={history} />
+        {/* ROW 6: Heart History + Lifetime Earned (companions). History is the
+            View-Heart-History scroll target (id="hub-history"). */}
+        <div className="hub-row-2col">
+          <div id="hub-history">
+            <HubHistory history={history} />
+          </div>
+          <HubLifetime lifetimeEarned={lifetime} />
+        </div>
 
         <HubHeroHeartsModal
           open={showHeroHeartsModal}

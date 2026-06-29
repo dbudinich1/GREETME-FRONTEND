@@ -12,7 +12,6 @@ export default function HubMarketplace({
   handleMarketplaceRedeem,
   setMktConfirmId,
 }) {
-  if (!(marketplaceItems.length > 0)) return null;
   return (
     <div style={{
       background: 'var(--bg-primary)',
@@ -24,6 +23,16 @@ export default function HubMarketplace({
       <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem' }}>
         Hearts Marketplace
       </h2>
+      {marketplaceItems.length === 0 ? (
+        <p style={{
+          fontSize: '0.875rem',
+          color: 'var(--text-secondary)',
+          lineHeight: 1.6,
+          margin: 0
+        }}>
+          Your rewards marketplace is growing. New ways to redeem Hearts will appear here.
+        </p>
+      ) : (
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
@@ -62,14 +71,9 @@ export default function HubMarketplace({
                     Made by {item.vendor}
                   </div>
                 ) : null}
-                {/* Vendor FIAT display price only (parity w/ display-only catalog). NOT a Hearts cost. */}
-                {item.priceCents != null ? (
-                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--primary)', marginTop: '0.25rem' }}>
-                    {(item.currency && item.currency !== 'USD') ? '' : '$'}
-                    {(item.priceCents / 100).toFixed(item.priceCents % 100 === 0 ? 0 : 2)}
-                    {(item.currency && item.currency !== 'USD') ? ` ${item.currency}` : ''}
-                  </div>
-                ) : null}
+                {/* UX-HUB-3 Batch 4 — fiat display REMOVED. Hearts never carry a dollar value;
+                    priceCents is intentionally not rendered. A Hearts cost (if present) may be
+                    shown in Hearts only. */}
                 {item.state && item.state !== 'available' ? (
                   <div style={{
                     fontSize: '0.6875rem',
@@ -124,6 +128,7 @@ export default function HubMarketplace({
           );
         })}
       </div>
+      )}
     </div>
   );
 }

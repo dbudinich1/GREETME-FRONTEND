@@ -112,7 +112,7 @@ export default function HubHeroHeartsModal({
             color: 'var(--text-secondary)',
             lineHeight: 1.5
           }}>
-            Add Hearts to your Rewards balance and support veterans & first responders
+            Add Hearts to your Rewards balance.
           </p>
           <div style={{
             display: 'inline-block',
@@ -124,7 +124,7 @@ export default function HubHeroHeartsModal({
             fontWeight: 600,
             marginTop: '0.75rem'
           }}>
-            🏅 10% of proceeds donated
+            🏅 25% of proceeds donated
           </div>
         </div>
 
@@ -372,7 +372,7 @@ export default function HubHeroHeartsModal({
               marginTop: '1rem',
               fontStyle: 'italic'
             }}>
-              Hearts are added to your Rewards balance immediately after purchase. 10% of all Hero Hearts purchases support veterans and first responders.
+              Hearts are added to your Rewards balance immediately after purchase. 25% of proceeds from Hero Hearts™ support U.S. Veterans and their families.
             </p>
           </>
         )}

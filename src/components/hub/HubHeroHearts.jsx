@@ -30,9 +30,17 @@ export default function HubHeroHearts({ setShowHeroHeartsModal }) {
         fontSize: '0.9375rem',
         color: 'var(--text-secondary)',
         lineHeight: 1.6,
-        margin: '0 0 1rem'
+        margin: '0 0 0.75rem'
       }}>
         Your home for Greet-Me™ Hero™ Hearts™.
+      </p>
+      <p style={{
+        fontSize: '0.875rem',
+        color: 'var(--text-secondary)',
+        lineHeight: 1.6,
+        margin: '0 0 1rem'
+      }}>
+        25% of proceeds from Hero Hearts™ support U.S. Veterans and their families.
       </p>
       <button
         onClick={() => setShowHeroHeartsModal(true)}

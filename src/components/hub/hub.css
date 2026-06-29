@@ -1,0 +1,66 @@
+/* src/components/hub/hub.css
+   UX-HUB-3 Batch 4 — Hearts Hub premium layout. ALL selectors are scoped under the
+   .hearts-hub root class (no global bleed). This file carries ONLY layout grid, the Journey
+   ring animation, and prefers-reduced-motion handling; the cards keep their inline styles and
+   existing design tokens (--border, --text-primary, etc.). */
+
+/* ---- Responsive companion rows (Earn|Spend, History|Lifetime, Hero|HeroHearts) ---- */
+.hearts-hub .hub-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 1.5rem;
+  align-items: start;
+}
+
+/* Mobile: companion cards stack to a single column (each card keeps its own bottom margin). */
+@media (max-width: 767px) {
+  .hearts-hub .hub-row-2col {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+  }
+}
+
+/* ---- Journey ring ---- */
+.hearts-hub .hub-ring {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hearts-hub .hub-ring__svg {
+  width: 180px;
+  height: 180px;
+}
+
+@media (max-width: 767px) {
+  .hearts-hub .hub-ring__svg {
+    width: 150px;
+    height: 150px;
+  }
+}
+
+.hearts-hub .hub-ring__label {
+  font-size: 2rem;
+  font-weight: 800;
+  fill: var(--text-primary);
+}
+
+/* The progress arc fills from empty (full circumference) to its real N/4 target on mount.
+   Both values are supplied inline as CSS custom properties by HubJourneyRing. */
+.hearts-hub .hub-ring__progress {
+  stroke-dashoffset: var(--hub-ring-offset);
+  animation: hub-ring-fill 0.9s ease forwards;
+}
+
+@keyframes hub-ring-fill {
+  from { stroke-dashoffset: var(--hub-ring-c); }
+  to   { stroke-dashoffset: var(--hub-ring-offset); }
+}
+
+/* Respect reduced-motion: no fill animation; the ring snaps to its real N/4 state. */
+@media (prefers-reduced-motion: reduce) {
+  .hearts-hub .hub-ring__progress {
+    animation: none;
+    stroke-dashoffset: var(--hub-ring-offset);
+  }
+}
