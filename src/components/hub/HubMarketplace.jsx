@@ -13,7 +13,7 @@ export default function HubMarketplace({
   setMktConfirmId,
 }) {
   return (
-    <div style={{
+    <div className="hub-card" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
       padding: '1.5rem',
@@ -24,14 +24,32 @@ export default function HubMarketplace({
         Hearts Marketplace
       </h2>
       {marketplaceItems.length === 0 ? (
-        <p style={{
-          fontSize: '0.875rem',
-          color: 'var(--text-secondary)',
-          lineHeight: 1.6,
-          margin: 0
+        // UX-HUB-3 Batch 5 — intentional (not collapsed) empty state: centered, min-height,
+        // soft icon + the approved copy. No fake items, no fiat.
+        <div style={{
+          minHeight: '160px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          gap: '0.625rem',
+          padding: '1.5rem',
+          background: 'var(--gray-50)',
+          border: '1px dashed var(--border)',
+          borderRadius: 'var(--radius-lg)'
         }}>
-          Your rewards marketplace is growing. New ways to redeem Hearts will appear here.
-        </p>
+          <span style={{ fontSize: '2rem', lineHeight: 1 }} aria-hidden="true">🎁</span>
+          <p style={{
+            fontSize: '0.875rem',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.6,
+            margin: 0,
+            maxWidth: '24rem'
+          }}>
+            Your rewards marketplace is growing. New ways to redeem Hearts will appear here.
+          </p>
+        </div>
       ) : (
       <div style={{
         display: 'grid',
@@ -94,6 +112,7 @@ export default function HubMarketplace({
                     {mktConfirmId === item.id ? (
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button
+                          className="hub-btn"
                           onClick={() => handleMarketplaceRedeem(item)}
                           disabled={mktRedeemingId === item.id}
                           style={{ flex: 1, background: '#ec4899', color: 'white', border: 'none', borderRadius: 'var(--radius-lg)', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
@@ -101,6 +120,7 @@ export default function HubMarketplace({
                           {mktRedeemingId === item.id ? 'Redeeming…' : 'Confirm'}
                         </button>
                         <button
+                          className="hub-btn"
                           onClick={() => setMktConfirmId(null)}
                           disabled={mktRedeemingId === item.id}
                           style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
@@ -110,6 +130,7 @@ export default function HubMarketplace({
                       </div>
                     ) : (
                       <button
+                        className="hub-btn"
                         onClick={() => setMktConfirmId(item.id)}
                         style={{ width: '100%', background: '#ec4899', color: 'white', border: 'none', borderRadius: 'var(--radius-lg)', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
                       >

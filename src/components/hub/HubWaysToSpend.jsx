@@ -18,7 +18,7 @@ export default function HubWaysToSpend({
   confirmRedeemIntent,
 }) {
   return (
-    <div style={{
+    <div className="hub-card" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
       padding: '1.5rem',
@@ -75,6 +75,7 @@ export default function HubWaysToSpend({
 
           {!redeemOpen ? (
             <button
+              className="hub-btn"
               onClick={openRedeemIntent}
               disabled={balance < REDEEM_COST || redeemSubmitting}
               style={{
@@ -106,6 +107,7 @@ export default function HubWaysToSpend({
               </p>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button
+                  className="hub-btn"
                   onClick={cancelRedeemIntent}
                   disabled={redeemSubmitting}
                   style={{
@@ -124,6 +126,7 @@ export default function HubWaysToSpend({
                   Cancel
                 </button>
                 <button
+                  className="hub-btn"
                   onClick={confirmRedeemIntent}
                   disabled={redeemSubmitting || balance < REDEEM_COST}
                   style={{

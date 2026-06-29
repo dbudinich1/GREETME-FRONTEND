@@ -7,10 +7,10 @@ import { Heart } from 'lucide-react';
 
 export default function HubHeroHearts({ setShowHeroHeartsModal }) {
   return (
-    <div style={{
+    <div className="hub-card" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
-      padding: '1.5rem',
+      padding: '1.75rem',
       marginBottom: '2rem',
       border: '1px solid var(--border)'
     }}>
@@ -43,10 +43,11 @@ export default function HubHeroHearts({ setShowHeroHeartsModal }) {
         25% of proceeds from Hero Hearts™ support U.S. Veterans and their families.
       </p>
       <button
+        className="hub-btn"
         onClick={() => setShowHeroHeartsModal(true)}
         style={{
           width: '100%',
-          padding: '0.75rem',
+          padding: '0.8125rem',
           background: '#ec4899',
           color: 'white',
           border: 'none',

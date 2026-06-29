@@ -12,7 +12,7 @@ import { SOCIAL_FACT_LABELS, humanize } from './hubConfig';
 export default function HubSocialCircuit({ circuit = {} }) {
   const facts = Object.entries(circuit || {});
   return (
-    <div style={{
+    <div className="hub-card" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
       padding: '1.5rem',

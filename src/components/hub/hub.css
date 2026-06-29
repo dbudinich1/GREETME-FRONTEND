@@ -1,23 +1,77 @@
 /* src/components/hub/hub.css
-   UX-HUB-3 Batch 4 — Hearts Hub premium layout. ALL selectors are scoped under the
-   .hearts-hub root class (no global bleed). This file carries ONLY layout grid, the Journey
-   ring animation, and prefers-reduced-motion handling; the cards keep their inline styles and
-   existing design tokens (--border, --text-primary, etc.). */
+   UX-HUB-3 Batch 5 — Hearts Hub premium visual polish + Journey roadmap.
+   ALL selectors are scoped under the .hearts-hub root class (no global bleed). This file
+   carries layout grid, shared card/button polish, the Journey ring + roadmap visuals, and
+   prefers-reduced-motion handling. Cards keep their inline styles + existing design tokens
+   (--bg-primary, --bg-secondary, --border, --text-primary, --text-secondary, --radius-*). */
 
-/* ---- Responsive companion rows (Earn|Spend, History|Lifetime, Hero|HeroHearts) ---- */
+/* ---- Page: premium breathing room (centered content cap on wide desktops) ---- */
+.hearts-hub {
+  max-width: 1180px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ---- Responsive companion rows (Hero|HeroHearts, Earn|Spend, History|Lifetime) ---- */
 .hearts-hub .hub-row-2col {
   display: grid;
   grid-template-columns: 1fr 1fr;
   column-gap: 1.5rem;
-  align-items: start;
+  align-items: stretch; /* equal-height companions */
 }
 
-/* Mobile: companion cards stack to a single column (each card keeps its own bottom margin). */
 @media (max-width: 767px) {
   .hearts-hub .hub-row-2col {
     grid-template-columns: 1fr;
     column-gap: 0;
   }
+}
+
+/* ---- Shared premium card: soft depth + hover lift + focus-within polish ---- */
+.hearts-hub .hub-card {
+  box-sizing: border-box;
+  height: 100%;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 6px 20px -10px rgba(16, 24, 40, 0.12);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hearts-hub .hub-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 6px rgba(16, 24, 40, 0.06), 0 14px 32px -12px rgba(16, 24, 40, 0.18);
+}
+
+.hearts-hub .hub-card:focus-within {
+  box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.30), 0 6px 20px -10px rgba(16, 24, 40, 0.12);
+}
+
+/* Hero card: richer, brand-tinted elevation (placed after .hub-card so it wins). */
+.hearts-hub .hub-hero {
+  box-shadow: 0 10px 30px -8px rgba(190, 24, 93, 0.45);
+}
+
+.hearts-hub .hub-hero:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px -10px rgba(190, 24, 93, 0.55);
+}
+
+/* ---- Shared button polish ---- */
+.hearts-hub .hub-btn {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.hearts-hub .hub-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.hearts-hub .hub-btn:active {
+  transform: translateY(0);
+  filter: brightness(0.98);
+}
+
+.hearts-hub .hub-btn:focus-visible {
+  outline: 2px solid rgba(236, 72, 153, 0.70);
+  outline-offset: 2px;
 }
 
 /* ---- Journey ring ---- */
@@ -28,8 +82,8 @@
 }
 
 .hearts-hub .hub-ring__svg {
-  width: 180px;
-  height: 180px;
+  width: 200px;
+  height: 200px;
 }
 
 @media (max-width: 767px) {
@@ -40,16 +94,17 @@
 }
 
 .hearts-hub .hub-ring__label {
-  font-size: 2rem;
+  font-size: 2.25rem;
   font-weight: 800;
   fill: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 /* The progress arc fills from empty (full circumference) to its real N/4 target on mount.
    Both values are supplied inline as CSS custom properties by HubJourneyRing. */
 .hearts-hub .hub-ring__progress {
   stroke-dashoffset: var(--hub-ring-offset);
-  animation: hub-ring-fill 0.9s ease forwards;
+  animation: hub-ring-fill 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes hub-ring-fill {
@@ -57,8 +112,116 @@
   to   { stroke-dashoffset: var(--hub-ring-offset); }
 }
 
-/* Respect reduced-motion: no fill animation; the ring snaps to its real N/4 state. */
+/* ---- Journey roadmap (horizontal milestone tracker; the 4 REAL Journey steps) ---- */
+.hearts-hub .hub-roadmap {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.hearts-hub .hub-roadmap__step {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* Connector segment leading INTO a step; coloured "done" when the previous step is complete. */
+.hearts-hub .hub-roadmap__step:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 1.0625rem;
+  left: -50%;
+  right: 50%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+
+.hearts-hub .hub-roadmap__step.line-done::before {
+  background: linear-gradient(90deg, #ec4899 0%, #be185d 100%);
+}
+
+.hearts-hub .hub-roadmap__node {
+  position: relative;
+  z-index: 1;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 2px solid var(--border);
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hearts-hub .hub-roadmap__node.is-done {
+  background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.35);
+}
+
+.hearts-hub .hub-roadmap__label {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--text-secondary);
+}
+
+.hearts-hub .hub-roadmap__label.is-done {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Roadmap on mobile → vertical timeline (no horizontal overflow). */
+@media (max-width: 767px) {
+  .hearts-hub .hub-roadmap {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hearts-hub .hub-roadmap__step {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: left;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+  .hearts-hub .hub-roadmap__step:not(:first-child)::before {
+    top: -0.75rem;
+    left: 1.0625rem;
+    right: auto;
+    width: 3px;
+    height: 0.75rem;
+  }
+  .hearts-hub .hub-roadmap__label {
+    margin-top: 0;
+  }
+}
+
+/* ---- Respect reduced-motion: no transitions/animations; ring snaps to real N/4 ---- */
 @media (prefers-reduced-motion: reduce) {
+  .hearts-hub .hub-card,
+  .hearts-hub .hub-card:hover,
+  .hearts-hub .hub-hero,
+  .hearts-hub .hub-hero:hover,
+  .hearts-hub .hub-btn,
+  .hearts-hub .hub-btn:hover,
+  .hearts-hub .hub-btn:active,
+  .hearts-hub .hub-roadmap__node {
+    transition: none;
+    transform: none;
+  }
   .hearts-hub .hub-ring__progress {
     animation: none;
     stroke-dashoffset: var(--hub-ring-offset);

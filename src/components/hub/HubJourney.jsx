@@ -9,15 +9,16 @@
 import { Heart } from 'lucide-react';
 import { JOURNEY_STEPS, SOCIAL_CIRCUIT_ENABLED } from './hubConfig';
 import HubJourneyRing from './HubJourneyRing';
+import HubJourneyRoadmap from './HubJourneyRoadmap';
 
 export default function HubJourney({ journey, navigate }) {
   // UX-HUB-3 Batch 4 — ring progress is the count of true J0 facts (0–4), real facts ONLY.
   const reachedCount = JOURNEY_STEPS.reduce((n, s) => n + (journey && journey[s.key] ? 1 : 0), 0);
   return (
-    <div style={{
+    <div className="hub-card" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
-      padding: '1.5rem',
+      padding: '1.75rem',
       marginBottom: '2rem',
       border: '1px solid var(--border)'
     }}>
@@ -42,9 +43,13 @@ export default function HubJourney({ journey, navigate }) {
         Welcome to your Greet-Me journey. Every heartfelt moment you create writes
         another chapter — here&apos;s the story you&apos;re building, one Heart at a time.
       </p>
-      {/* UX-HUB-4 — premium ring centerpiece, driven only by the four real Journey facts. */}
-      <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0 1.75rem' }}>
+      {/* UX-HUB-3 Batch 5 — ring centerpiece ("how far am I?") + the linear roadmap directly
+          beneath ("where am I going next?"). Both render from the same real Journey facts. */}
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0 1.25rem' }}>
         <HubJourneyRing reachedCount={reachedCount} total={4} />
+      </div>
+      <div style={{ margin: '0 0 1.5rem' }}>
+        <HubJourneyRoadmap journey={journey} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {JOURNEY_STEPS.map((step) => {
@@ -157,6 +162,7 @@ export default function HubJourney({ journey, navigate }) {
                     someone new and become part of something larger.
                   </p>
                   <button
+                    className="hub-btn"
                     onClick={() => navigate('/dashboard/send')}
                     style={{
                       display: 'inline-flex',
@@ -209,6 +215,7 @@ export default function HubJourney({ journey, navigate }) {
               {next.label}
             </p>
             <button
+              className="hub-btn"
               onClick={() => navigate(dest)}
               style={{
                 display: 'inline-flex',

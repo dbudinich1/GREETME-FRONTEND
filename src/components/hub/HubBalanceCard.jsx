@@ -7,13 +7,12 @@
 
 export default function HubBalanceCard({ balance, setShowHeroHeartsModal, onViewHistory }) {
   return (
-    <div style={{
-      background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
-      borderRadius: 'var(--radius-lg)',
-      padding: '2rem 1.5rem',
+    <div className="hub-card hub-hero" style={{
+      background: 'radial-gradient(120% 120% at 0% 0%, #f472b6 0%, #ec4899 45%, #be185d 100%)',
+      borderRadius: 'var(--radius-xl)',
+      padding: '2rem',
       marginBottom: '2rem',
       color: 'white',
-      boxShadow: '0 4px 12px rgba(236, 72, 153, 0.3)',
       display: 'flex',
       flexDirection: 'column',
       gap: '1.5rem'
@@ -22,15 +21,18 @@ export default function HubBalanceCard({ balance, setShowHeroHeartsModal, onView
         <p style={{
           fontSize: '0.875rem',
           opacity: 0.9,
-          marginBottom: '0.5rem'
+          marginBottom: '0.5rem',
+          letterSpacing: '0.02em'
         }}>Your Hearts Balance</p>
         <div style={{
-          fontSize: '3.5rem',
+          fontSize: '3.75rem',
           fontWeight: 800,
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem',
-          lineHeight: 1
+          lineHeight: 1,
+          letterSpacing: '-0.02em',
+          fontVariantNumeric: 'tabular-nums'
         }}>
           {balance} <span style={{ fontSize: '2.5rem' }}>❤️</span>
         </div>
@@ -38,6 +40,7 @@ export default function HubBalanceCard({ balance, setShowHeroHeartsModal, onView
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
         <button
+          className="hub-btn"
           onClick={() => setShowHeroHeartsModal(true)}
           style={{
             flex: '1 1 auto',
@@ -45,8 +48,8 @@ export default function HubBalanceCard({ balance, setShowHeroHeartsModal, onView
             color: '#be185d',
             border: 'none',
             borderRadius: 'var(--radius-lg)',
-            padding: '0.75rem 1.25rem',
-            fontSize: '0.875rem',
+            padding: '0.8125rem 1.25rem',
+            fontSize: '0.9375rem',
             fontWeight: 700,
             cursor: 'pointer',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
@@ -56,6 +59,7 @@ export default function HubBalanceCard({ balance, setShowHeroHeartsModal, onView
           ❤️ Buy Hero Hearts
         </button>
         <button
+          className="hub-btn"
           onClick={onViewHistory}
           style={{
             flex: '1 1 auto',
@@ -63,8 +67,8 @@ export default function HubBalanceCard({ balance, setShowHeroHeartsModal, onView
             color: 'white',
             border: '1px solid rgba(255, 255, 255, 0.6)',
             borderRadius: 'var(--radius-lg)',
-            padding: '0.75rem 1.25rem',
-            fontSize: '0.875rem',
+            padding: '0.8125rem 1.25rem',
+            fontSize: '0.9375rem',
             fontWeight: 700,
             cursor: 'pointer',
             fontFamily: 'inherit'
@@ -78,7 +82,9 @@ export default function HubBalanceCard({ balance, setShowHeroHeartsModal, onView
         fontSize: '0.8125rem',
         lineHeight: 1.5,
         opacity: 0.95,
-        margin: 0
+        margin: 0,
+        paddingTop: '1rem',
+        borderTop: '1px solid rgba(255, 255, 255, 0.25)'
       }}>
         25% of proceeds from Hero Hearts™ support U.S. Veterans and their families.
       </p>

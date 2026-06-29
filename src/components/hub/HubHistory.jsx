@@ -18,7 +18,7 @@ function formatDate(iso) {
 
 export default function HubHistory({ history = [] }) {
   return (
-    <div style={{
+    <div className="hub-card" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
       padding: '1.5rem',
