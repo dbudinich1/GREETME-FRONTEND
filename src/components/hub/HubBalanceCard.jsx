@@ -10,31 +10,58 @@ export default function HubBalanceCard({ balance, setShowHeroHeartsModal, onView
     <div className="hub-card hub-hero" style={{
       background: 'radial-gradient(120% 120% at 0% 0%, #f472b6 0%, #ec4899 45%, #be185d 100%)',
       borderRadius: 'var(--radius-xl)',
-      padding: '2rem',
+      padding: '2.25rem',
       marginBottom: '2rem',
       color: 'white',
       display: 'flex',
       flexDirection: 'column',
-      gap: '1.5rem'
+      gap: '1.75rem'
     }}>
-      <div>
-        <p style={{
-          fontSize: '0.875rem',
-          opacity: 0.9,
-          marginBottom: '0.5rem',
-          letterSpacing: '0.02em'
-        }}>Your Hearts Balance</p>
+      {/* Batch 6 — wider hero uses the horizontal space: balance lockup (left) + impact
+          lockup (right). Stacks on narrow widths via flex-wrap. Hearts only, no dollar. */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: '1.5rem'
+      }}>
+        <div style={{ minWidth: 0 }}>
+          <p style={{
+            fontSize: '0.875rem',
+            opacity: 0.9,
+            marginBottom: '0.5rem',
+            letterSpacing: '0.02em'
+          }}>Your Hearts Balance</p>
+          <div style={{
+            fontSize: '4rem',
+            fontWeight: 800,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            lineHeight: 1,
+            letterSpacing: '-0.02em',
+            fontVariantNumeric: 'tabular-nums'
+          }}>
+            {balance} <span style={{ fontSize: '2.5rem' }}>❤️</span>
+          </div>
+        </div>
+
         <div style={{
-          fontSize: '3.75rem',
-          fontWeight: 800,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          lineHeight: 1,
-          letterSpacing: '-0.02em',
-          fontVariantNumeric: 'tabular-nums'
+          maxWidth: '20rem',
+          background: 'rgba(255, 255, 255, 0.12)',
+          border: '1px solid rgba(255, 255, 255, 0.25)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '0.875rem 1rem'
         }}>
-          {balance} <span style={{ fontSize: '2.5rem' }}>❤️</span>
+          <p style={{
+            fontSize: '0.8125rem',
+            lineHeight: 1.5,
+            opacity: 0.95,
+            margin: 0
+          }}>
+            25% of proceeds from Hero Hearts™ support U.S. Veterans and their families.
+          </p>
         </div>
       </div>
 
@@ -77,17 +104,6 @@ export default function HubBalanceCard({ balance, setShowHeroHeartsModal, onView
           View Heart History
         </button>
       </div>
-
-      <p style={{
-        fontSize: '0.8125rem',
-        lineHeight: 1.5,
-        opacity: 0.95,
-        margin: 0,
-        paddingTop: '1rem',
-        borderTop: '1px solid rgba(255, 255, 255, 0.25)'
-      }}>
-        25% of proceeds from Hero Hearts™ support U.S. Veterans and their families.
-      </p>
     </div>
   );
 }

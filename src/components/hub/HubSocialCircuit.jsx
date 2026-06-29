@@ -6,7 +6,7 @@
 // Boolean facts only: no social score, no connection count, no popularity metric. Empty
 // response → honest empty state.
 
-import { Heart } from 'lucide-react';
+import { Heart, Check, User } from 'lucide-react';
 import { SOCIAL_FACT_LABELS, humanize } from './hubConfig';
 
 export default function HubSocialCircuit({ circuit = {} }) {
@@ -48,46 +48,66 @@ export default function HubSocialCircuit({ circuit = {} }) {
               <div key={key} style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.875rem',
-                padding: '0.875rem 1rem',
+                gap: '1rem',
+                padding: '1rem',
                 borderRadius: 'var(--radius-lg)',
                 background: reached ? 'rgba(236, 72, 153, 0.08)' : 'var(--bg-secondary)',
                 border: reached ? '1px solid rgba(236, 72, 153, 0.25)' : '1px solid var(--border)'
               }}>
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '2rem',
-                  height: '2rem',
-                  borderRadius: '50%',
-                  flexShrink: 0,
-                  background: reached ? 'rgba(236, 72, 153, 0.15)' : 'transparent'
-                }}>
-                  <Heart
-                    size={18}
-                    style={{
-                      color: reached ? '#ec4899' : 'var(--text-secondary)',
-                      opacity: reached ? 1 : 0.4
-                    }}
-                    fill={reached ? '#ec4899' : 'none'}
-                  />
-                </span>
-                <span style={{
-                  fontSize: '0.95rem',
-                  fontWeight: reached ? 600 : 500,
-                  color: reached ? 'var(--text-primary)' : 'var(--text-secondary)'
-                }}>
-                  {SOCIAL_FACT_LABELS[key] || humanize(key)}
-                </span>
-                <span style={{
-                  marginLeft: 'auto',
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  color: reached ? '#ec4899' : 'var(--text-secondary)'
-                }}>
-                  {reached ? 'Reached' : 'Not yet'}
-                </span>
+                {/* Batch 6 — relationship connection motif: you ── them, the link filling in when
+                    the real fact is reached. Booleans only; no score, no count. */}
+                <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }} aria-hidden="true">
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '2.25rem',
+                    height: '2.25rem',
+                    borderRadius: '50%',
+                    background: 'rgba(236, 72, 153, 0.15)'
+                  }}>
+                    <Heart size={18} style={{ color: '#ec4899' }} fill="#ec4899" />
+                  </span>
+                  <span style={{
+                    width: '1.75rem',
+                    height: '3px',
+                    borderRadius: '2px',
+                    background: reached
+                      ? 'linear-gradient(90deg, #ec4899 0%, #be185d 100%)'
+                      : 'var(--border)'
+                  }} />
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '2.25rem',
+                    height: '2.25rem',
+                    borderRadius: '50%',
+                    background: reached ? 'rgba(236, 72, 153, 0.15)' : 'transparent',
+                    border: reached ? 'none' : '2px dashed var(--border)'
+                  }}>
+                    {reached
+                      ? <Check size={18} style={{ color: '#ec4899' }} />
+                      : <User size={16} style={{ color: 'var(--text-secondary)', opacity: 0.5 }} />}
+                  </span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: '0.95rem',
+                    fontWeight: reached ? 600 : 500,
+                    color: reached ? 'var(--text-primary)' : 'var(--text-secondary)'
+                  }}>
+                    {SOCIAL_FACT_LABELS[key] || humanize(key)}
+                  </div>
+                  <div style={{
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    marginTop: '0.125rem',
+                    color: reached ? '#ec4899' : 'var(--text-secondary)'
+                  }}>
+                    {reached ? 'Connected' : 'Not yet'}
+                  </div>
+                </div>
               </div>
             );
           })}

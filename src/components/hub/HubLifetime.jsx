@@ -28,13 +28,34 @@ export default function HubLifetime({ lifetimeEarned = 0 }) {
         <Trophy size={20} style={{ color: '#ec4899' }} />
         Lifetime Earned
       </h2>
-      {/* UX-HUB-3 Batch 5 — center the number vertically so the (often short) Lifetime card
-          stays balanced against its taller History companion at equal heights. */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      {/* UX-HUB-3 Batch 6 — narrow achievement-style card: a centered trophy badge + the real
+          lifetime number, vertically centered so it balances the wider History feed. No
+          milestone, no "on fire," no dollar value. */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        gap: '0.875rem',
+        padding: '0.5rem 0'
+      }}>
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '4rem',
+          height: '4rem',
+          borderRadius: '50%',
+          background: 'rgba(236, 72, 153, 0.12)'
+        }}>
+          <Trophy size={30} style={{ color: '#ec4899' }} />
+        </span>
         <div
           aria-label={`Lifetime Hearts earned: ${lifetimeEarned}`}
           style={{
-            fontSize: '2.5rem',
+            fontSize: '3rem',
             fontWeight: 800,
             color: 'var(--text-primary)',
             display: 'flex',
@@ -44,12 +65,12 @@ export default function HubLifetime({ lifetimeEarned = 0 }) {
             fontVariantNumeric: 'tabular-nums'
           }}
         >
-          {lifetimeEarned} <span style={{ fontSize: '2rem' }}>❤️</span>
+          {lifetimeEarned} <span style={{ fontSize: '2.25rem' }}>❤️</span>
         </div>
         <p style={{
           fontSize: '0.8125rem',
           color: 'var(--text-secondary)',
-          margin: '0.5rem 0 0'
+          margin: 0
         }}>
           Total Hearts earned over time
         </p>

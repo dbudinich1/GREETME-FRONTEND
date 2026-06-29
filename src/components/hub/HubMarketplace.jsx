@@ -27,19 +27,19 @@ export default function HubMarketplace({
         // UX-HUB-3 Batch 5 — intentional (not collapsed) empty state: centered, min-height,
         // soft icon + the approved copy. No fake items, no fiat.
         <div style={{
-          minHeight: '160px',
+          minHeight: '240px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           textAlign: 'center',
-          gap: '0.625rem',
-          padding: '1.5rem',
+          gap: '0.875rem',
+          padding: '2.5rem 1.5rem',
           background: 'var(--gray-50)',
           border: '1px dashed var(--border)',
           borderRadius: 'var(--radius-lg)'
         }}>
-          <span style={{ fontSize: '2rem', lineHeight: 1 }} aria-hidden="true">🎁</span>
+          <span style={{ fontSize: '2.75rem', lineHeight: 1 }} aria-hidden="true">🎁</span>
           <p style={{
             fontSize: '0.875rem',
             color: 'var(--text-secondary)',

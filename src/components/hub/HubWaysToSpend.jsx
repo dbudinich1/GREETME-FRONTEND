@@ -48,27 +48,48 @@ export default function HubWaysToSpend({
         </p>
       ) : (
         <>
-          {/* Single launch redemption option */}
+          {/* Batch 6 — the single real H7 redemption, composed as a richer premium card
+              (icon · title · description · Hearts cost badge). Real option only, no fake tiles. */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
             gap: '1rem',
-            padding: '1rem',
+            padding: '1.25rem',
             background: 'var(--gray-50)',
             borderRadius: 'var(--radius-lg)',
             border: '1px solid var(--border)',
             marginBottom: '1rem'
           }}>
-            <div>
-              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '3rem',
+              height: '3rem',
+              borderRadius: '50%',
+              flexShrink: 0,
+              background: 'rgba(236, 72, 153, 0.12)'
+            }}>
+              <Gift size={24} style={{ color: '#ec4899' }} />
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '1.0625rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Free Greeting
               </div>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.125rem' }}>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.1875rem', lineHeight: 1.5 }}>
                 Redeem {REDEEM_COST} Hearts for 1 Anytime Greet-Me
               </div>
             </div>
-            <span style={{ fontSize: '1rem', fontWeight: 700, color: '#ec4899', whiteSpace: 'nowrap' }}>
+            <span style={{
+              fontSize: '0.9375rem',
+              fontWeight: 700,
+              color: '#ec4899',
+              whiteSpace: 'nowrap',
+              background: 'rgba(236, 72, 153, 0.10)',
+              border: '1px solid rgba(236, 72, 153, 0.25)',
+              borderRadius: '999px',
+              padding: '0.375rem 0.75rem'
+            }}>
               {REDEEM_COST} ❤️
             </span>
           </div>

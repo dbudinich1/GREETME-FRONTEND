@@ -50,25 +50,33 @@ export default function HubWaysToEarn({ amounts = [] }) {
               style={{
                 padding: '1rem',
                 background: 'var(--gray-50)',
+                border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-lg)',
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: 'column',
                 justifyContent: 'space-between',
-                gap: '0.75rem'
+                gap: '0.75rem',
+                minHeight: '5.5rem'
               }}
             >
               <span style={{
                 fontSize: '0.875rem',
                 color: 'var(--text-primary)',
-                fontWeight: 500
+                fontWeight: 600,
+                lineHeight: 1.35
               }}>
                 {BEHAVIOR_LABELS[behavior] || humanize(behavior)}
               </span>
               <span style={{
+                alignSelf: 'flex-start',
                 fontSize: '0.875rem',
                 fontWeight: 700,
                 color: '#ec4899',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
+                background: 'rgba(236, 72, 153, 0.10)',
+                border: '1px solid rgba(236, 72, 153, 0.25)',
+                borderRadius: '999px',
+                padding: '0.25rem 0.625rem'
               }}>
                 {amount} ❤️
               </span>

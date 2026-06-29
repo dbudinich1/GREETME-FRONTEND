@@ -43,12 +43,14 @@ export default function HubJourney({ journey, navigate }) {
         Welcome to your Greet-Me journey. Every heartfelt moment you create writes
         another chapter — here&apos;s the story you&apos;re building, one Heart at a time.
       </p>
-      {/* UX-HUB-3 Batch 5 — ring centerpiece ("how far am I?") + the linear roadmap directly
-          beneath ("where am I going next?"). Both render from the same real Journey facts. */}
-      <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0 1.25rem' }}>
+      {/* UX-HUB-3 Batch 5/6 — connected Journey system: ring centerpiece ("how far am I?")
+          sits directly above the substantial linear roadmap ("where am I going next?"), which
+          sits above the checklist / next-chapter ("what do I do next?"). Ring and roadmap are
+          tightened into one group; the checklist gets clear separation below. Same real facts. */}
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0 1rem' }}>
         <HubJourneyRing reachedCount={reachedCount} total={4} />
       </div>
-      <div style={{ margin: '0 0 1.5rem' }}>
+      <div style={{ margin: '0 0 1.75rem' }}>
         <HubJourneyRoadmap journey={journey} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>

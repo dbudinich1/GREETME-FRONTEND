@@ -294,8 +294,8 @@ export default function Rewards() {
         <HubBanner />
 
         {/* UX-HUB-3 Batch 4 — locked six-row premium layout.
-            ROW 1: premium balance hero + standalone Hero Hearts card (companions). */}
-        <div className="hub-row-2col">
+            ROW 1 (Batch 6: ~65/35): dominant premium balance hero + standalone Hero Hearts. */}
+        <div className="hub-row-2col hub-row-2col--hero">
           <HubBalanceCard
             balance={balance}
             setShowHeroHeartsModal={setShowHeroHeartsModal}
@@ -335,9 +335,9 @@ export default function Rewards() {
         {/* ROW 5: Social Circuit (always visible; dynamic facts). */}
         <HubSocialCircuit circuit={socialCircuit} />
 
-        {/* ROW 6: Heart History + Lifetime Earned (companions). History is the
-            View-Heart-History scroll target (id="hub-history"). */}
-        <div className="hub-row-2col">
+        {/* ROW 6 (Batch 6: ~65/35): wide Heart History feed + narrower Lifetime achievement.
+            History is the View-Heart-History scroll target (id="hub-history"). */}
+        <div className="hub-row-2col hub-row-2col--ledger">
           <div id="hub-history">
             <HubHistory history={history} />
           </div>
