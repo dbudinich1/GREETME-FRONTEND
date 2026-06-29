@@ -763,6 +763,32 @@ class ApiService {
   }
 
   // --------------------
+  // UX-HUB-3 — read-only Hearts history (GET /api/hearts/history).
+  // Returns { ok, history: [{ occurredAt, behavior, amount }] }.
+  // Consumers read res?.history ?? [] (honest empty; no localStorage).
+  // --------------------
+  getHeartsHistory() {
+    return this.request("/api/hearts/history");
+  }
+
+  // --------------------
+  // UX-HUB-3 — read-only lifetime Hearts earned (GET /api/hearts/lifetime).
+  // Returns { ok, lifetimeEarned: number }. Consumers default res?.lifetimeEarned ?? 0.
+  // --------------------
+  getLifetimeEarned() {
+    return this.request("/api/hearts/lifetime");
+  }
+
+  // --------------------
+  // UX-HUB-3 — read-only Hearts earn amounts (GET /api/hearts/amounts).
+  // Returns { ok, amounts: [{ behavior, amount }] } (server-derived from locked weights).
+  // Consumers read res?.amounts ?? []. Display in Hearts only — never a dollar value.
+  // --------------------
+  getHeartsAmounts() {
+    return this.request("/api/hearts/amounts");
+  }
+
+  // --------------------
   // J0 — read-only Journey progress facts (GET /api/journey/progress).
   // Returns { ok, progress: { hasCompletedOnboarding, hasSentFirstGreeting,
   // hasEarnedFirstHeart, hasSentGiftGreeting } } — four objective server booleans.
@@ -770,6 +796,16 @@ class ApiService {
   // --------------------
   getJourneyProgress() {
     return this.request("/api/journey/progress");
+  }
+
+  // --------------------
+  // UX-HUB-3 — read-only Social Circuit facts (GET /api/social/circuit).
+  // Returns { ok, circuit: { hasConfirmedReach, hasReciprocatedConnection, ...future } }.
+  // Consumers read res?.circuit ?? {} and render one row per fact key (never a hardcoded
+  // count, never a social score). Booleans only.
+  // --------------------
+  getSocialCircuit() {
+    return this.request("/api/social/circuit");
   }
 
   // VENDOR-GIFTS-B1 — read-only Collective gift catalog (display data; empty while dormant).
