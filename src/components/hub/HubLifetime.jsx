@@ -10,14 +10,14 @@ export default function HubLifetime({ lifetimeEarned = 0 }) {
     <div className="hub-card" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
-      padding: '1.5rem',
+      padding: '1.75rem',
       marginBottom: '2rem',
       border: '1px solid var(--border)',
       display: 'flex',
       flexDirection: 'column'
     }}>
       <h2 style={{
-        fontSize: '1.25rem',
+        fontSize: '1.375rem',
         fontWeight: 700,
         color: 'var(--text-primary)',
         marginBottom: '1rem',
@@ -25,7 +25,7 @@ export default function HubLifetime({ lifetimeEarned = 0 }) {
         alignItems: 'center',
         gap: '0.5rem'
       }}>
-        <Trophy size={20} style={{ color: '#ec4899' }} />
+        <Trophy size={22} style={{ color: '#ec4899' }} />
         Lifetime Earned
       </h2>
       {/* UX-HUB-3 Batch 6 — narrow achievement-style card: a centered trophy badge + the real
@@ -45,17 +45,17 @@ export default function HubLifetime({ lifetimeEarned = 0 }) {
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: '4rem',
-          height: '4rem',
+          width: '5rem',
+          height: '5rem',
           borderRadius: '50%',
           background: 'rgba(236, 72, 153, 0.12)'
         }}>
-          <Trophy size={30} style={{ color: '#ec4899' }} />
+          <Trophy size={40} style={{ color: '#ec4899' }} />
         </span>
         <div
           aria-label={`Lifetime Hearts earned: ${lifetimeEarned}`}
           style={{
-            fontSize: '3rem',
+            fontSize: '3.5rem',
             fontWeight: 800,
             color: 'var(--text-primary)',
             display: 'flex',

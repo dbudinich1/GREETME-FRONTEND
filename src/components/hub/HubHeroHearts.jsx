@@ -10,14 +10,14 @@ export default function HubHeroHearts({ setShowHeroHeartsModal }) {
     <div className="hub-card" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
-      padding: '1.5rem',
+      padding: '1.75rem',
       marginBottom: '2rem',
       border: '1px solid var(--border)',
       display: 'flex',
       flexDirection: 'column'
     }}>
       <h2 style={{
-        fontSize: '1.25rem',
+        fontSize: '1.375rem',
         fontWeight: 700,
         color: 'var(--text-primary)',
         marginBottom: '1.25rem',
@@ -25,7 +25,7 @@ export default function HubHeroHearts({ setShowHeroHeartsModal }) {
         alignItems: 'center',
         gap: '0.5rem'
       }}>
-        <Heart size={20} style={{ color: '#ec4899' }} />
+        <Heart size={22} style={{ color: '#ec4899' }} />
         Greet-Me™ Hero™ Hearts™
       </h2>
       {/* Brand identity mark (visual only) */}

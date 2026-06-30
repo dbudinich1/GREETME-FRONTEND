@@ -16,11 +16,11 @@ export default function HubMarketplace({
     <div className="hub-card" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
-      padding: '1.5rem',
+      padding: '1.75rem',
       marginBottom: '2rem',
       border: '1px solid var(--border)'
     }}>
-      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem' }}>
+      <h2 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem' }}>
         Hearts Marketplace
       </h2>
       {marketplaceItems.length === 0 ? (

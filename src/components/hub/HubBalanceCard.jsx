@@ -15,7 +15,7 @@ export default function HubBalanceCard({ balance, setShowHeroHeartsModal, onView
         'radial-gradient(45% 60% at 10% 8%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 55%), ' +
         'linear-gradient(135deg, #2b0a22 0%, #6d1038 50%, #ab1a52 100%)',
       borderRadius: 'var(--radius-xl)',
-      padding: '2.5rem',
+      padding: '3rem',
       marginBottom: '2rem',
       color: 'white'
     }}>
@@ -39,7 +39,7 @@ export default function HubBalanceCard({ balance, setShowHeroHeartsModal, onView
           marginBottom: '1.75rem'
         }}>
           <span className="hub-hero__balance" style={{
-            fontSize: 'clamp(3.5rem, 6vw, 4.75rem)',
+            fontSize: 'clamp(4rem, 7vw, 5.5rem)',
             fontWeight: 800,
             letterSpacing: '-0.03em',
             fontVariantNumeric: 'tabular-nums'
@@ -97,7 +97,7 @@ export default function HubBalanceCard({ balance, setShowHeroHeartsModal, onView
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        <span className="hub-hero__heart" style={{ fontSize: '6rem', lineHeight: 1 }}>❤️</span>
+        <span className="hub-hero__heart" style={{ fontSize: '7.5rem', lineHeight: 1 }}>❤️</span>
       </div>
 
       {/* RIGHT — gold 25% impact, glass chip (locked copy) */}
@@ -126,10 +126,10 @@ export default function HubBalanceCard({ balance, setShowHeroHeartsModal, onView
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '3.75rem',
-            height: '3.75rem',
+            width: '4.5rem',
+            height: '4.5rem',
             borderRadius: '50%',
-            fontSize: '1.0625rem',
+            fontSize: '1.25rem',
             fontWeight: 800
           }}>
             25%

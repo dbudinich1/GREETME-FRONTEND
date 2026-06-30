@@ -21,12 +21,12 @@ export default function HubQuickActions({ navigate, setShowHeroHeartsModal }) {
     <div className="hub-card" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
-      padding: '1.5rem',
+      padding: '1.75rem',
       marginBottom: '2rem',
       border: '1px solid var(--border)'
     }}>
       <h2 style={{
-        fontSize: '1.25rem',
+        fontSize: '1.375rem',
         fontWeight: 700,
         color: 'var(--text-primary)',
         marginBottom: '1rem',
@@ -34,7 +34,7 @@ export default function HubQuickActions({ navigate, setShowHeroHeartsModal }) {
         alignItems: 'center',
         gap: '0.5rem'
       }}>
-        <Send size={20} style={{ color: '#ec4899' }} />
+        <Send size={22} style={{ color: '#ec4899' }} />
         Quick Actions
       </h2>
       <div style={{
@@ -72,7 +72,7 @@ export default function HubQuickActions({ navigate, setShowHeroHeartsModal }) {
               borderRadius: '50%',
               background: 'rgba(236, 72, 153, 0.12)'
             }}>
-              <Icon size={20} style={{ color: '#ec4899' }} />
+              <Icon size={22} style={{ color: '#ec4899' }} />
             </span>
             <span style={{ fontSize: '0.8125rem', fontWeight: 600, lineHeight: 1.35 }}>
               {label}

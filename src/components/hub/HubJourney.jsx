@@ -35,12 +35,12 @@ export default function HubJourney({ journey, navigate }) {
     <div className="hub-card hub-journey" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
-      padding: '2.25rem',
+      padding: '2.5rem',
       marginBottom: '2rem',
       border: '1px solid var(--border)'
     }}>
       <h2 style={{
-        fontSize: '1.25rem',
+        fontSize: '1.375rem',
         fontWeight: 700,
         color: 'var(--text-primary)',
         marginBottom: '0.5rem',
@@ -48,7 +48,7 @@ export default function HubJourney({ journey, navigate }) {
         alignItems: 'center',
         gap: '0.5rem'
       }}>
-        <Heart size={20} style={{ color: '#ec4899' }} fill="#ec4899" />
+        <Heart size={22} style={{ color: '#ec4899' }} fill="#ec4899" />
         Your Hearts Journey
       </h2>
       <p style={{
@@ -127,7 +127,7 @@ export default function HubJourney({ journey, navigate }) {
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             width: '2.5rem', height: '2.5rem', borderRadius: '50%', background: 'rgba(236, 72, 153, 0.15)'
           }}>
-            <Sparkles size={20} style={{ color: '#ec4899' }} />
+            <Sparkles size={22} style={{ color: '#ec4899' }} />
           </span>
           <p style={ZONE_LABEL}>Keep Going</p>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>

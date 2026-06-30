@@ -13,12 +13,12 @@ export default function HubWaysToEarn({ amounts = [] }) {
     <div className="hub-card" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
-      padding: '1.5rem',
+      padding: '1.75rem',
       marginBottom: '2rem',
       border: '1px solid var(--border)'
     }}>
       <h2 style={{
-        fontSize: '1.25rem',
+        fontSize: '1.375rem',
         fontWeight: 700,
         color: 'var(--text-primary)',
         marginBottom: '1rem',
@@ -26,7 +26,7 @@ export default function HubWaysToEarn({ amounts = [] }) {
         alignItems: 'center',
         gap: '0.5rem'
       }}>
-        <Sparkles size={20} style={{ color: '#ec4899' }} />
+        <Sparkles size={22} style={{ color: '#ec4899' }} />
         Ways to Earn Hearts
       </h2>
       {amounts.length === 0 ? (
@@ -41,14 +41,14 @@ export default function HubWaysToEarn({ amounts = [] }) {
       ) : (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
           gap: '1rem'
         }}>
           {amounts.map(({ behavior, amount }) => (
             <div
               key={behavior}
               style={{
-                padding: '1rem',
+                padding: '1.25rem',
                 background: 'var(--gray-50)',
                 border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-lg)',
@@ -56,19 +56,19 @@ export default function HubWaysToEarn({ amounts = [] }) {
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 gap: '0.75rem',
-                minHeight: '6.5rem'
+                minHeight: '7.75rem'
               }}
             >
               <span style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '2.25rem',
-                height: '2.25rem',
+                width: '2.75rem',
+                height: '2.75rem',
                 borderRadius: '50%',
                 background: 'rgba(236, 72, 153, 0.12)'
               }}>
-                <Sparkles size={16} style={{ color: '#ec4899' }} />
+                <Sparkles size={22} style={{ color: '#ec4899' }} />
               </span>
               <span style={{
                 fontSize: '0.875rem',

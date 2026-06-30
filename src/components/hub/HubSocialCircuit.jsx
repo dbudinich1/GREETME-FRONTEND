@@ -15,12 +15,12 @@ export default function HubSocialCircuit({ circuit = {} }) {
     <div className="hub-card" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
-      padding: '1.5rem',
+      padding: '1.75rem',
       marginBottom: '2rem',
       border: '1px solid var(--border)'
     }}>
       <h2 style={{
-        fontSize: '1.25rem',
+        fontSize: '1.375rem',
         fontWeight: 700,
         color: 'var(--text-primary)',
         marginBottom: '1rem',
@@ -28,7 +28,7 @@ export default function HubSocialCircuit({ circuit = {} }) {
         alignItems: 'center',
         gap: '0.5rem'
       }}>
-        <Heart size={20} style={{ color: '#ec4899' }} />
+        <Heart size={22} style={{ color: '#ec4899' }} />
         Social Circuit
       </h2>
       {facts.length === 0 ? (
@@ -61,15 +61,15 @@ export default function HubSocialCircuit({ circuit = {} }) {
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: '2.25rem',
-                    height: '2.25rem',
+                    width: '2.5rem',
+                    height: '2.5rem',
                     borderRadius: '50%',
                     background: 'rgba(236, 72, 153, 0.15)'
                   }}>
-                    <Heart size={18} style={{ color: '#ec4899' }} fill="#ec4899" />
+                    <Heart size={20} style={{ color: '#ec4899' }} fill="#ec4899" />
                   </span>
                   <span style={{
-                    width: '1.75rem',
+                    width: '2.25rem',
                     height: '3px',
                     borderRadius: '2px',
                     background: reached
@@ -80,14 +80,14 @@ export default function HubSocialCircuit({ circuit = {} }) {
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: '2.25rem',
-                    height: '2.25rem',
+                    width: '2.5rem',
+                    height: '2.5rem',
                     borderRadius: '50%',
                     background: reached ? 'rgba(236, 72, 153, 0.15)' : 'transparent',
                     border: reached ? 'none' : '2px dashed var(--border)'
                   }}>
                     {reached
-                      ? <Check size={18} style={{ color: '#ec4899' }} />
+                      ? <Check size={20} style={{ color: '#ec4899' }} />
                       : <User size={16} style={{ color: 'var(--text-secondary)', opacity: 0.5 }} />}
                   </span>
                 </div>

@@ -21,12 +21,12 @@ export default function HubWaysToSpend({
     <div className="hub-card" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
-      padding: '1.5rem',
+      padding: '1.75rem',
       marginBottom: '2rem',
       border: '1px solid var(--border)'
     }}>
       <h2 style={{
-        fontSize: '1.25rem',
+        fontSize: '1.375rem',
         fontWeight: 700,
         color: 'var(--text-primary)',
         marginBottom: '1rem',
@@ -34,7 +34,7 @@ export default function HubWaysToSpend({
         alignItems: 'center',
         gap: '0.5rem'
       }}>
-        <Gift size={20} style={{ color: '#ec4899' }} />
+        <Gift size={22} style={{ color: '#ec4899' }} />
         Spend Your Hearts
       </h2>
       {redemptionPaused ? (
@@ -64,13 +64,13 @@ export default function HubWaysToSpend({
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '3rem',
-              height: '3rem',
+              width: '3.5rem',
+              height: '3.5rem',
               borderRadius: '50%',
               flexShrink: 0,
               background: 'rgba(236, 72, 153, 0.12)'
             }}>
-              <Gift size={24} style={{ color: '#ec4899' }} />
+              <Gift size={28} style={{ color: '#ec4899' }} />
             </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: '1.0625rem', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -101,13 +101,14 @@ export default function HubWaysToSpend({
               disabled={balance < REDEEM_COST || redeemSubmitting}
               style={{
                 width: '100%',
-                padding: '0.75rem',
-                background: balance < REDEEM_COST ? 'var(--gray-300)' : '#ec4899',
+                padding: '1rem',
+                background: balance < REDEEM_COST ? 'var(--gray-300)' : 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
                 color: 'white',
                 border: 'none',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.9375rem',
-                fontWeight: 600,
+                borderRadius: 'var(--radius-lg)',
+                fontSize: '1rem',
+                fontWeight: 700,
+                boxShadow: balance < REDEEM_COST ? 'none' : '0 8px 20px -6px rgba(236, 72, 153, 0.5)',
                 cursor: balance < REDEEM_COST ? 'not-allowed' : 'pointer',
                 fontFamily: 'inherit'
               }}
