@@ -2,18 +2,18 @@
 // UX-HUB-3 Batch 7 — Quick Actions card (engagement band, center column). Presentational only:
 // receives `navigate` + the Hero Hearts modal opener; owns no state, makes no API calls.
 // REAL DESTINATIONS ONLY — every action routes to an existing route or opens the existing modal.
-// Excluded by founder lock: "Schedule an Occasion" (no route) and "Earn when friends join"
-// (a behavior, not a destination). No fake routes, no fake actions.
+// UX-HUB-4E truth alignment: exactly FOUR actions, each a UNIQUE production destination (no
+// duplicate routes). Removed the redundant "Share a Greet-Me" (same /dashboard/send as Send)
+// and "Subscribe" (same /pricing as Upgrade); "Send a Thank-You" → "Send a Greet-Me" (the real
+// destination is the generic Send Greeting flow). No new routes/handlers/capabilities.
 
-import { Send, UserPlus, Share2, TrendingUp, Star, Heart } from 'lucide-react';
+import { Send, UserPlus, TrendingUp, Heart } from 'lucide-react';
 
 export default function HubQuickActions({ navigate, setShowHeroHeartsModal }) {
   const actions = [
-    { key: 'send', label: 'Send a Thank-You', Icon: Send, onClick: () => navigate('/dashboard/send') },
+    { key: 'send', label: 'Send a Greet-Me', Icon: Send, onClick: () => navigate('/dashboard/send') },
     { key: 'add', label: 'Add a Recipient', Icon: UserPlus, onClick: () => navigate('/dashboard/contacts') },
-    { key: 'share', label: 'Share a Greet-Me', Icon: Share2, onClick: () => navigate('/dashboard/send') },
     { key: 'upgrade', label: 'Upgrade Your Plan', Icon: TrendingUp, onClick: () => navigate('/pricing') },
-    { key: 'subscribe', label: 'Subscribe', Icon: Star, onClick: () => navigate('/pricing') },
     { key: 'buy', label: 'Buy Hero Hearts', Icon: Heart, onClick: () => setShowHeroHeartsModal(true) },
   ];
 
@@ -39,7 +39,7 @@ export default function HubQuickActions({ navigate, setShowHeroHeartsModal }) {
       </h2>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+        gridTemplateColumns: 'repeat(2, 1fr)',
         gap: '0.875rem'
       }}>
         {actions.map(({ key, label, Icon, onClick }) => (
