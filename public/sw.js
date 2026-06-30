@@ -1,7 +1,11 @@
 // Service Worker — PWA installability only.
 // No fetch interception. No caching. All requests go to network.
+// Bumping CACHE_NAME forces the browser to treat this as a NEW service worker:
+// it re-installs, purges ALL caches (incl. any from a prior caching SW), and
+// skipWaiting()+clients.claim() activate it immediately so the page can reload to
+// the freshly-deployed bundle (see the controllerchange handler in index.html).
 
-const CACHE_NAME = 'greetme-v3';
+const CACHE_NAME = 'greetme-v4';
 
 self.addEventListener('install', (event) => {
   // Clear any previously cached assets

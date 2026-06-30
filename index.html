@@ -39,6 +39,19 @@
     <script type="module" src="/src/main.jsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
+        // Stale-bundle fix: if this page is already controlled by a (possibly older,
+        // previously-caching) service worker, reload ONCE when a freshly-deployed SW
+        // takes control — so the page runs the current bundle instead of a cached one.
+        // Guarded by `refreshing` and only attached when already controlled, so first
+        // installs and repeat activations never cause a reload loop.
+        if (navigator.serviceWorker.controller) {
+          var __swRefreshing = false;
+          navigator.serviceWorker.addEventListener('controllerchange', function () {
+            if (__swRefreshing) return;
+            __swRefreshing = true;
+            window.location.reload();
+          });
+        }
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').catch(() => {});
         });
