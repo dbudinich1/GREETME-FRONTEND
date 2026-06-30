@@ -39,8 +39,8 @@ export default function HubQuickActions({ navigate, setShowHeroHeartsModal }) {
       </h2>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-        gap: '0.75rem'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+        gap: '0.875rem'
       }}>
         {actions.map(({ key, label, Icon, onClick }) => (
           <button
@@ -51,10 +51,10 @@ export default function HubQuickActions({ navigate, setShowHeroHeartsModal }) {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
+              justifyContent: 'flex-start',
               textAlign: 'center',
-              gap: '0.5rem',
-              padding: '1rem 0.75rem',
+              gap: '0.625rem',
+              padding: '1.25rem 0.875rem',
               background: 'var(--gray-50)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-lg)',
@@ -67,14 +67,14 @@ export default function HubQuickActions({ navigate, setShowHeroHeartsModal }) {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '2.25rem',
-              height: '2.25rem',
+              width: '2.75rem',
+              height: '2.75rem',
               borderRadius: '50%',
               background: 'rgba(236, 72, 153, 0.12)'
             }}>
-              <Icon size={18} style={{ color: '#ec4899' }} />
+              <Icon size={20} style={{ color: '#ec4899' }} />
             </span>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, lineHeight: 1.3 }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, lineHeight: 1.35 }}>
               {label}
             </span>
           </button>

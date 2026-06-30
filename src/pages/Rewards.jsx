@@ -11,7 +11,6 @@ import { COMMS_EVENTS } from '../utils/commsCatalog';
 // Rewards.jsx remains the single owner of all state, effects, handlers, API calls, and
 // navigation; these children render the same markup from props.
 import { REDEEM_COST } from '../components/hub/hubConfig';
-import HubBanner from '../components/hub/HubBanner';
 import HubBalanceCard from '../components/hub/HubBalanceCard';
 import HubJourney from '../components/hub/HubJourney';
 import HubMarketplace from '../components/hub/HubMarketplace';
@@ -293,8 +292,8 @@ export default function Rewards() {
         padding: '2rem',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
       }}>
-        <HubBanner />
-
+        {/* UX-HUB-4C — top "Hearts Hub" banner removed; the Premium Hero is now the first
+            section directly beneath the dashboard navigation. */}
         {/* UX-HUB-3 Batch 7 — concept-faithful row order.
             ROW 1: full-width Premium Hearts Hero (balance only; Hero Hearts moved to Row 4). */}
         <HubBalanceCard

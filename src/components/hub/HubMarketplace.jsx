@@ -33,15 +33,26 @@ export default function HubMarketplace({
           alignItems: 'center',
           justifyContent: 'center',
           textAlign: 'center',
-          gap: '0.875rem',
+          gap: '1.125rem',
           padding: '2.5rem 1.5rem',
           background: 'var(--gray-50)',
           border: '1px dashed var(--border)',
           borderRadius: 'var(--radius-lg)'
         }}>
-          <span style={{ fontSize: '2.75rem', lineHeight: 1 }} aria-hidden="true">🎁</span>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '4.5rem',
+            height: '4.5rem',
+            borderRadius: '50%',
+            background: 'rgba(236, 72, 153, 0.10)',
+            border: '1px solid rgba(236, 72, 153, 0.18)'
+          }} aria-hidden="true">
+            <span style={{ fontSize: '2.25rem', lineHeight: 1 }}>🎁</span>
+          </span>
           <p style={{
-            fontSize: '0.875rem',
+            fontSize: '0.9375rem',
             color: 'var(--text-secondary)',
             lineHeight: 1.6,
             margin: 0,

@@ -435,3 +435,15 @@
     animation: none;
   }
 }
+
+/* ============================================================================
+   UX-HUB-4C — Engagement Band breathing room + card consistency (visual only;
+   scoped under .hearts-hub). The three band cards (Hero Hearts | Quick Actions |
+   Marketplace) already share .hub-card (depth, equal-height stretch, radius);
+   this adds more whitespace and a wider gutter so they read as one cohesive
+   section that breathes. No data/behavior/copy change.
+   ============================================================================ */
+.hearts-hub .hub-row-3col {
+  gap: 1.75rem;
+  margin: 0.75rem 0 1rem;
+}
