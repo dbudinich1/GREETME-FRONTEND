@@ -10,7 +10,7 @@
 // NO fabricated progress; roadmap + checklist use ONLY the real JOURNEY_STEPS (no 5th step).
 // Roadmap and checklist are COMPLEMENTARY and both remain.
 
-import { Heart, ArrowRight, Sparkles } from 'lucide-react';
+import { Heart, ArrowRight, Sparkles, Target, CheckCircle2, Circle } from 'lucide-react';
 import { JOURNEY_STEPS, SOCIAL_CIRCUIT_ENABLED } from './hubConfig';
 import HubJourneyRing from './HubJourneyRing';
 import HubJourneyRoadmap from './HubJourneyRoadmap';
@@ -32,10 +32,10 @@ export default function HubJourney({ journey, navigate }) {
   const dest = next ? (next.key === 'hasCompletedOnboarding' ? '/dashboard/profile' : '/dashboard/send') : null;
 
   return (
-    <div className="hub-card" style={{
+    <div className="hub-card hub-journey" style={{
       background: 'var(--bg-primary)',
       borderRadius: 'var(--radius-xl)',
-      padding: '1.75rem',
+      padding: '2.25rem',
       marginBottom: '2rem',
       border: '1px solid var(--border)'
     }}>
@@ -71,30 +71,42 @@ export default function HubJourney({ journey, navigate }) {
           </span>
         </div>
 
-        {/* Current Chapter (center) — real next step, no count/reward */}
-        <div style={{
-          padding: '1.125rem 1.25rem',
+        {/* Current Chapter (center) — premium feature card; real next step, no count/reward */}
+        <div className="hub-journey-current" style={{
+          padding: '1.375rem 1.5rem',
           borderRadius: 'var(--radius-lg)',
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border)'
+          background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.10) 0%, rgba(190, 24, 93, 0.04) 100%)',
+          border: '1px solid rgba(236, 72, 153, 0.25)',
+          borderLeft: '4px solid #ec4899'
         }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', margin: '0 0 0.625rem' }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: '2.25rem', height: '2.25rem', borderRadius: '50%',
+              background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
+              boxShadow: '0 4px 12px rgba(236, 72, 153, 0.35)', flexShrink: 0
+            }}>
+              <Target size={18} style={{ color: 'white' }} />
+            </span>
+            <p style={{ ...ZONE_LABEL, color: '#be185d', margin: 0 }}>
+              {next ? 'Current Chapter' : 'Your Story So Far'}
+            </p>
+          </div>
           {next ? (
             <>
-              <p style={ZONE_LABEL}>Current Chapter</p>
-              <p style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
+              <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem', lineHeight: 1.3 }}>
                 {next.label}
               </p>
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>
                 Your next step in the story — complete it to write another chapter in Hearts.
               </p>
             </>
           ) : (
             <>
-              <p style={ZONE_LABEL}>Your Story So Far</p>
-              <p style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
+              <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem', lineHeight: 1.3 }}>
                 Every chapter reached
               </p>
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>
                 You&apos;ve begun your story beautifully — every chapter so far is written in Hearts.
               </p>
             </>
@@ -132,7 +144,7 @@ export default function HubJourney({ journey, navigate }) {
       </div>
 
       {/* 3) CHECKLIST — "what do I do next?" (same 4 real steps; KEPT, never removed) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
         {JOURNEY_STEPS.map((step) => {
           const reached = Boolean(journey && journey[step.key]);
           return (
@@ -140,29 +152,18 @@ export default function HubJourney({ journey, navigate }) {
               display: 'flex',
               alignItems: 'center',
               gap: '0.875rem',
-              padding: '0.875rem 1rem',
+              padding: '0.9375rem 1.125rem',
               borderRadius: 'var(--radius-lg)',
               background: reached ? 'rgba(236, 72, 153, 0.08)' : 'var(--bg-secondary)',
-              border: reached ? '1px solid rgba(236, 72, 153, 0.25)' : '1px solid var(--border)'
+              border: reached ? '1px solid rgba(236, 72, 153, 0.25)' : '1px solid var(--border)',
+              transition: 'background 0.2s ease'
             }}>
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '2rem',
-                height: '2rem',
-                borderRadius: '50%',
-                flexShrink: 0,
-                background: reached ? 'rgba(236, 72, 153, 0.15)' : 'transparent'
-              }}>
-                <Heart
-                  size={18}
-                  style={{
-                    color: reached ? '#ec4899' : 'var(--text-secondary)',
-                    opacity: reached ? 1 : 0.4
-                  }}
-                  fill={reached ? '#ec4899' : 'none'}
-                />
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {reached ? (
+                  <CheckCircle2 size={22} style={{ color: '#ec4899' }} fill="rgba(236, 72, 153, 0.15)" />
+                ) : (
+                  <Circle size={22} style={{ color: 'var(--text-secondary)', opacity: 0.4 }} />
+                )}
               </span>
               <span style={{
                 fontSize: '0.95rem',
@@ -182,20 +183,22 @@ export default function HubJourney({ journey, navigate }) {
           className="hub-btn"
           onClick={() => navigate(dest)}
           style={{
-            marginTop: '1.5rem',
+            marginTop: '1.75rem',
             width: '100%',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '0.5rem',
-            background: '#ec4899',
+            background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
             color: 'white',
             border: 'none',
             borderRadius: 'var(--radius-lg)',
-            padding: '0.875rem 1.25rem',
-            fontSize: '0.9375rem',
+            padding: '1rem 1.25rem',
+            fontSize: '1rem',
             fontWeight: 700,
+            letterSpacing: '0.01em',
             cursor: 'pointer',
+            boxShadow: '0 8px 22px -6px rgba(236, 72, 153, 0.5)',
             fontFamily: 'inherit'
           }}
         >

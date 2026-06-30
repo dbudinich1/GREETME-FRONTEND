@@ -11,10 +11,13 @@ import { Check } from 'lucide-react';
 import { JOURNEY_STEPS } from './hubConfig';
 
 export default function HubJourneyRoadmap({ journey }) {
+  // The active (current) chapter = the first real step not yet complete (visual emphasis only).
+  const activeIndex = JOURNEY_STEPS.findIndex((s) => !(journey && journey[s.key]));
   return (
     <div className="hub-roadmap" role="list" aria-label="Your Journey roadmap">
       {JOURNEY_STEPS.map((step, i) => {
         const done = Boolean(journey && journey[step.key]);
+        const active = i === activeIndex;
         const prevDone = i > 0 && Boolean(journey && journey[JOURNEY_STEPS[i - 1].key]);
         return (
           <div
@@ -23,10 +26,13 @@ export default function HubJourneyRoadmap({ journey }) {
             aria-label={`Step ${i + 1}: ${step.label} — ${done ? 'completed' : 'not yet'}`}
             className={`hub-roadmap__step${prevDone ? ' line-done' : ''}`}
           >
-            <span className={`hub-roadmap__node${done ? ' is-done' : ''}`} aria-hidden="true">
+            <span
+              className={`hub-roadmap__node${done ? ' is-done' : ''}${active ? ' is-active' : ''}`}
+              aria-hidden="true"
+            >
               {done ? <Check size={18} /> : i + 1}
             </span>
-            <span className={`hub-roadmap__label${done ? ' is-done' : ''}`}>
+            <span className={`hub-roadmap__label${done ? ' is-done' : ''}${active ? ' is-active' : ''}`}>
               {step.label}
             </span>
           </div>

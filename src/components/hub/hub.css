@@ -371,3 +371,67 @@
     transform: none;
   }
 }
+
+/* ============================================================================
+   UX-HUB-4B — Journey premium (visual only; scoped under .hearts-hub). Journey
+   container, ring glow, roadmap active/completed states. No data/behavior/copy change.
+   ============================================================================ */
+
+/* Journey container — premium depth so it reads as one experience and draws the eye. */
+.hearts-hub .hub-journey {
+  box-shadow:
+    0 14px 44px -18px rgba(120, 12, 60, 0.22),
+    0 2px 10px rgba(16, 24, 40, 0.05);
+}
+.hearts-hub .hub-journey:hover {
+  box-shadow:
+    0 20px 56px -20px rgba(120, 12, 60, 0.28),
+    0 3px 12px rgba(16, 24, 40, 0.06);
+}
+
+/* Ring — soft glow on the progress arc (static; the fill animation remains the motion). */
+.hearts-hub .hub-ring__progress {
+  filter: drop-shadow(0 0 7px rgba(236, 72, 153, 0.55));
+}
+
+/* Roadmap — larger premium nodes (overrides Batch-6 base), richer glow on completed. */
+.hearts-hub .hub-roadmap__node {
+  width: 3rem;
+  height: 3rem;
+  font-size: 1.0625rem;
+}
+.hearts-hub .hub-roadmap__node.is-done {
+  box-shadow: 0 6px 18px rgba(236, 72, 153, 0.40);
+}
+/* Active (current) chapter emphasis — pink ring + gentle pulse. */
+.hearts-hub .hub-roadmap__node.is-active {
+  border-color: #ec4899;
+  color: #ec4899;
+  box-shadow: 0 0 0 5px rgba(236, 72, 153, 0.14);
+  animation: hub-node-pulse 2.4s ease-in-out infinite;
+}
+.hearts-hub .hub-roadmap__label.is-active {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+@keyframes hub-node-pulse {
+  0%, 100% { box-shadow: 0 0 0 5px rgba(236, 72, 153, 0.14); }
+  50%      { box-shadow: 0 0 0 9px rgba(236, 72, 153, 0.05); }
+}
+
+/* The larger nodes shift the connector centre (3rem / 2 = 1.5rem, minus half the 4px line). */
+.hearts-hub .hub-roadmap__step:not(:first-child)::before {
+  top: 1.375rem;
+}
+@media (max-width: 767px) {
+  .hearts-hub .hub-roadmap__step:not(:first-child)::before {
+    top: -0.75rem;
+    left: 1.375rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hearts-hub .hub-roadmap__node.is-active {
+    animation: none;
+  }
+}

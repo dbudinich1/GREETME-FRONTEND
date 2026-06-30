@@ -28,7 +28,8 @@ export default function HubJourneyRing({ reachedCount = 0, total = 4, size = 200
       <svg className="hub-ring__svg" viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         <defs>
           <linearGradient id="hub-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ec4899" />
+            <stop offset="0%" stopColor="#f472b6" />
+            <stop offset="55%" stopColor="#ec4899" />
             <stop offset="100%" stopColor="#be185d" />
           </linearGradient>
         </defs>
