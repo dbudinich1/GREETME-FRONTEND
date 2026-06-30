@@ -23,6 +23,8 @@ import HubHeroHeartsModal from '../components/hub/HubHeroHeartsModal';
 import HubSocialCircuit from '../components/hub/HubSocialCircuit';
 import HubHistory from '../components/hub/HubHistory';
 import HubLifetime from '../components/hub/HubLifetime';
+// UX-HUB-3 Batch 7 — Quick Actions (engagement band; real routes only).
+import HubQuickActions from '../components/hub/HubQuickActions';
 // UX-HUB-3 Batch 4 — premium layout grid + ring (presentation only; same data owner).
 import './../components/hub/hub.css';
 
@@ -293,18 +295,15 @@ export default function Rewards() {
       }}>
         <HubBanner />
 
-        {/* UX-HUB-3 Batch 4 — locked six-row premium layout.
-            ROW 1 (Batch 6: ~65/35): dominant premium balance hero + standalone Hero Hearts. */}
-        <div className="hub-row-2col hub-row-2col--hero">
-          <HubBalanceCard
-            balance={balance}
-            setShowHeroHeartsModal={setShowHeroHeartsModal}
-            onViewHistory={scrollToHistory}
-          />
-          <HubHeroHearts setShowHeroHeartsModal={setShowHeroHeartsModal} />
-        </div>
+        {/* UX-HUB-3 Batch 7 — concept-faithful row order.
+            ROW 1: full-width Premium Hearts Hero (balance only; Hero Hearts moved to Row 4). */}
+        <HubBalanceCard
+          balance={balance}
+          setShowHeroHeartsModal={setShowHeroHeartsModal}
+          onViewHistory={scrollToHistory}
+        />
 
-        {/* ROW 2: Your Hearts Journey (full-width focal card; ring is the centerpiece). */}
+        {/* ROW 2: Your Hearts Journey (3-zone band → roadmap → checklist → Continue CTA). */}
         <HubJourney journey={journey} navigate={navigate} />
 
         {/* ROW 3: Ways to Earn + Ways to Spend (adjacent companions). */}
@@ -322,15 +321,19 @@ export default function Rewards() {
           />
         </div>
 
-        {/* ROW 4: Marketplace (always visible; honest empty when 0 items; no fiat). */}
-        <HubMarketplace
-          marketplaceItems={marketplaceItems}
-          mktConfirmId={mktConfirmId}
-          mktRedeemingId={mktRedeemingId}
-          mktOutcome={mktOutcome}
-          handleMarketplaceRedeem={handleMarketplaceRedeem}
-          setMktConfirmId={setMktConfirmId}
-        />
+        {/* ROW 4: Engagement band — Hero Hearts | Quick Actions | Marketplace (3 columns). */}
+        <div className="hub-row-3col">
+          <HubHeroHearts setShowHeroHeartsModal={setShowHeroHeartsModal} />
+          <HubQuickActions navigate={navigate} setShowHeroHeartsModal={setShowHeroHeartsModal} />
+          <HubMarketplace
+            marketplaceItems={marketplaceItems}
+            mktConfirmId={mktConfirmId}
+            mktRedeemingId={mktRedeemingId}
+            mktOutcome={mktOutcome}
+            handleMarketplaceRedeem={handleMarketplaceRedeem}
+            setMktConfirmId={setMktConfirmId}
+          />
+        </div>
 
         {/* ROW 5: Social Circuit (always visible; dynamic facts). */}
         <HubSocialCircuit circuit={socialCircuit} />

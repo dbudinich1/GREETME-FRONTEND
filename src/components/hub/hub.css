@@ -31,11 +31,57 @@
    Premium Hearts Hero and the Heart History feed dominate their companions; Earn|Spend stays
    50/50 (base). Desktop/tablet only — on mobile the base rule above stacks them to one column. */
 @media (min-width: 768px) {
-  .hearts-hub .hub-row-2col--hero {
-    grid-template-columns: 65fr 35fr;
-  }
   .hearts-hub .hub-row-2col--ledger {
     grid-template-columns: 65fr 35fr;
+  }
+}
+
+/* Batch 7 — engagement band (Hero Hearts | Quick Actions | Marketplace): 3 columns on
+   desktop, stacks to one column on tablet/mobile. */
+.hearts-hub .hub-row-3col {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: stretch;
+}
+@media (min-width: 1024px) {
+  .hearts-hub .hub-row-3col {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+/* Batch 7 — full-width hero internal 3-zone composition (balance+CTAs | art | impact).
+   Stacks on mobile; the center art zone is hidden on the narrowest widths. */
+.hearts-hub .hub-hero-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: center;
+}
+@media (min-width: 768px) {
+  .hearts-hub .hub-hero-row {
+    grid-template-columns: 1.2fr 0.8fr 1.1fr;
+  }
+}
+@media (max-width: 767px) {
+  .hearts-hub .hub-hero-art {
+    display: none;
+  }
+}
+
+/* Batch 7 — Journey 3-zone band (Ring | Current Chapter | Keep Going). Ring column sizes to
+   the ring; the two zone cards share the remaining width. Stacks on mobile. */
+.hearts-hub .hub-journey-band {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: stretch;
+  margin: 0.5rem 0 1.5rem;
+}
+@media (min-width: 768px) {
+  .hearts-hub .hub-journey-band {
+    grid-template-columns: auto 1fr 1fr;
+    align-items: center;
   }
 }
 

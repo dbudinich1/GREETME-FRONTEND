@@ -56,9 +56,20 @@ export default function HubWaysToEarn({ amounts = [] }) {
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 gap: '0.75rem',
-                minHeight: '5.5rem'
+                minHeight: '6.5rem'
               }}
             >
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '2.25rem',
+                height: '2.25rem',
+                borderRadius: '50%',
+                background: 'rgba(236, 72, 153, 0.12)'
+              }}>
+                <Sparkles size={16} style={{ color: '#ec4899' }} />
+              </span>
               <span style={{
                 fontSize: '0.875rem',
                 color: 'var(--text-primary)',

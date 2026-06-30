@@ -1,19 +1,36 @@
 // src/components/hub/HubJourney.jsx
-// UX-HUB-3 Batch 2 — "Your Journey" section (J1 + J2 next-chapter + SC2 introduction).
-// Behavior-preserving extraction from Rewards.jsx. Presentational only: receives the J0
-// progress facts verbatim (`journey`) and `navigate`; owns no state and makes no API calls.
-// The next-chapter / graduation / Social Circuit branches are derived statelessly at render
-// from the `journey` prop only — identical to before. JOURNEY_STEPS + SOCIAL_CIRCUIT_ENABLED
-// come from hubConfig.
+// UX-HUB-3 Batch 7 — concept-faithful Journey. Presentational + stateless: derived entirely
+// from the real J0 `journey` facts. Composition (top → bottom):
+//   1) Title + intro
+//   2) 3-ZONE BAND: Ring (N/4) | Current Chapter (real next step) | Keep Going (honest)
+//   3) ROADMAP (the 4 real JOURNEY_STEPS) — "where am I?"
+//   4) CHECKLIST (the same 4 real steps) — "what do I do next?"  [KEPT — never removed]
+//   5) CONTINUE CTA (the real next-chapter action)
+// TRUTH RULES: ring is N/4 only (no %, no "Mission X of 5"); NO reward amount, NO milestone,
+// NO fabricated progress; roadmap + checklist use ONLY the real JOURNEY_STEPS (no 5th step).
+// Roadmap and checklist are COMPLEMENTARY and both remain.
 
-import { Heart } from 'lucide-react';
+import { Heart, ArrowRight, Sparkles } from 'lucide-react';
 import { JOURNEY_STEPS, SOCIAL_CIRCUIT_ENABLED } from './hubConfig';
 import HubJourneyRing from './HubJourneyRing';
 import HubJourneyRoadmap from './HubJourneyRoadmap';
 
+const ZONE_LABEL = {
+  fontSize: '0.75rem',
+  fontWeight: 700,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  color: 'var(--text-secondary)',
+  margin: '0 0 0.375rem',
+};
+
 export default function HubJourney({ journey, navigate }) {
-  // UX-HUB-3 Batch 4 — ring progress is the count of true J0 facts (0–4), real facts ONLY.
+  // Real progress: count of true J0 facts (0–4). Real facts ONLY.
   const reachedCount = JOURNEY_STEPS.reduce((n, s) => n + (journey && journey[s.key] ? 1 : 0), 0);
+  // The first not-yet-reached real step (null when all four are complete).
+  const next = JOURNEY_STEPS.find((s) => !(journey && journey[s.key]));
+  const dest = next ? (next.key === 'hasCompletedOnboarding' ? '/dashboard/profile' : '/dashboard/send') : null;
+
   return (
     <div className="hub-card" style={{
       background: 'var(--bg-primary)',
@@ -32,7 +49,7 @@ export default function HubJourney({ journey, navigate }) {
         gap: '0.5rem'
       }}>
         <Heart size={20} style={{ color: '#ec4899' }} fill="#ec4899" />
-        Your Journey
+        Your Hearts Journey
       </h2>
       <p style={{
         fontSize: '0.95rem',
@@ -40,19 +57,81 @@ export default function HubJourney({ journey, navigate }) {
         margin: '0 0 1.25rem',
         lineHeight: 1.5
       }}>
-        Welcome to your Greet-Me journey. Every heartfelt moment you create writes
-        another chapter — here&apos;s the story you&apos;re building, one Heart at a time.
+        Every Heart you earn brings you closer to making an impact — here&apos;s the story
+        you&apos;re building, one Heart at a time.
       </p>
-      {/* UX-HUB-3 Batch 5/6 — connected Journey system: ring centerpiece ("how far am I?")
-          sits directly above the substantial linear roadmap ("where am I going next?"), which
-          sits above the checklist / next-chapter ("what do I do next?"). Ring and roadmap are
-          tightened into one group; the checklist gets clear separation below. Same real facts. */}
-      <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0 1rem' }}>
-        <HubJourneyRing reachedCount={reachedCount} total={4} />
+
+      {/* 1) 3-ZONE BAND: Ring | Current Chapter | Keep Going */}
+      <div className="hub-journey-band">
+        {/* Ring (left) */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+          <HubJourneyRing reachedCount={reachedCount} total={4} />
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            {reachedCount} of 4 chapters
+          </span>
+        </div>
+
+        {/* Current Chapter (center) — real next step, no count/reward */}
+        <div style={{
+          padding: '1.125rem 1.25rem',
+          borderRadius: 'var(--radius-lg)',
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border)'
+        }}>
+          {next ? (
+            <>
+              <p style={ZONE_LABEL}>Current Chapter</p>
+              <p style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
+                {next.label}
+              </p>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                Your next step in the story — complete it to write another chapter in Hearts.
+              </p>
+            </>
+          ) : (
+            <>
+              <p style={ZONE_LABEL}>Your Story So Far</p>
+              <p style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
+                Every chapter reached
+              </p>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                You&apos;ve begun your story beautifully — every chapter so far is written in Hearts.
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Keep Going (right) — honest encouragement, NO reward number */}
+        <div style={{
+          padding: '1.125rem 1.25rem',
+          borderRadius: 'var(--radius-lg)',
+          background: 'rgba(236, 72, 153, 0.06)',
+          border: '1px solid rgba(236, 72, 153, 0.20)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.5rem'
+        }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: '2.5rem', height: '2.5rem', borderRadius: '50%', background: 'rgba(236, 72, 153, 0.15)'
+          }}>
+            <Sparkles size={20} style={{ color: '#ec4899' }} />
+          </span>
+          <p style={ZONE_LABEL}>Keep Going</p>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+            {next
+              ? 'You’re building something meaningful — one heartfelt moment at a time.'
+              : 'You’ve reached every chapter so far. Beautifully done.'}
+          </p>
+        </div>
       </div>
+
+      {/* 2) ROADMAP — "where am I?" (4 real steps) */}
       <div style={{ margin: '0 0 1.75rem' }}>
         <HubJourneyRoadmap journey={journey} />
       </div>
+
+      {/* 3) CHECKLIST — "what do I do next?" (same 4 real steps; KEPT, never removed) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {JOURNEY_STEPS.map((step) => {
           const reached = Boolean(journey && journey[step.key]);
@@ -97,149 +176,75 @@ export default function HubJourney({ journey, navigate }) {
         })}
       </div>
 
-      {/* J2 — "Your next chapter": a gentle guide derived (statelessly, at render)
-          from the FIRST not-yet-reached J0 fact in the existing Journey order.
-          Pure meaning over J0 truth — no progress count/percent/bar/phase, no
-          milestone, no stored Journey state, no new API call. When every fact is
-          reached, a warm acknowledgment replaces it (never a reward/unlock). */}
-      {(() => {
-        const next = JOURNEY_STEPS.find((s) => !(journey && journey[s.key]));
-        if (!next) {
-          return (
-            <>
-              {/* Graduation warmth — "look what you did" (unchanged from J2). */}
-              <div style={{
-                marginTop: '1.25rem',
-                padding: '1rem 1.125rem',
-                borderRadius: 'var(--radius-lg)',
-                background: 'rgba(236, 72, 153, 0.08)',
-                border: '1px solid rgba(236, 72, 153, 0.25)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.625rem'
-              }}>
-                <Heart size={18} style={{ color: '#ec4899' }} fill="#ec4899" />
-                <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  You&apos;ve begun your story beautifully — every chapter so far is written in Hearts.
-                </span>
-              </div>
-
-              {/* SC2 — Social Circuit introduction (handoff). The tile does not end;
-                  it WIDENS into the outward chapter. Same surface, same guide. An
-                  invitation, never a task — no progress, no count, no milestone, no
-                  economy value. One CTA → the EXISTING /dashboard/send flow. */}
-              {SOCIAL_CIRCUIT_ENABLED && (
-                <div style={{
-                  marginTop: '1.25rem',
-                  padding: '1.125rem 1.25rem',
-                  borderRadius: 'var(--radius-lg)',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border)'
-                }}>
-                  <p style={{
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-secondary)',
-                    margin: '0 0 0.375rem'
-                  }}>
-                    Your next horizon
-                  </p>
-                  <p style={{
-                    fontSize: '1.05rem',
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    margin: '0 0 0.5rem'
-                  }}>
-                    Bring someone into the Greet-Me circle
-                  </p>
-                  <p style={{
-                    fontSize: '0.95rem',
-                    color: 'var(--text-secondary)',
-                    lineHeight: 1.5,
-                    margin: '0 0 0.875rem'
-                  }}>
-                    You&apos;ve mastered the moments that matter. Share Greet-Me with
-                    someone new and become part of something larger.
-                  </p>
-                  <button
-                    className="hub-btn"
-                    onClick={() => navigate('/dashboard/send')}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      background: '#ec4899',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 'var(--radius-lg)',
-                      padding: '0.625rem 1.25rem',
-                      fontSize: '0.9rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      fontFamily: 'inherit'
-                    }}
-                  >
-                    <Heart size={16} fill="white" style={{ color: 'white' }} />
-                    Share Greet-Me
-                  </button>
-                </div>
-              )}
-            </>
-          );
-        }
-        const dest = next.key === 'hasCompletedOnboarding' ? '/dashboard/profile' : '/dashboard/send';
-        return (
-          <div style={{
-            marginTop: '1.25rem',
-            padding: '1.125rem 1.25rem',
+      {/* 4) CONTINUE CTA — the real next-chapter action (only when a real next step exists). */}
+      {next && (
+        <button
+          className="hub-btn"
+          onClick={() => navigate(dest)}
+          style={{
+            marginTop: '1.5rem',
+            width: '100%',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            background: '#ec4899',
+            color: 'white',
+            border: 'none',
             borderRadius: 'var(--radius-lg)',
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border)'
-          }}>
-            <p style={{
-              fontSize: '0.8rem',
+            padding: '0.875rem 1.25rem',
+            fontSize: '0.9375rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            fontFamily: 'inherit'
+          }}
+        >
+          Continue your journey
+          <ArrowRight size={18} />
+        </button>
+      )}
+
+      {/* When every real chapter is reached: the dormant Social Circuit handoff (flag-gated;
+          unchanged — invitation only, no progress/count/milestone/economy). */}
+      {!next && SOCIAL_CIRCUIT_ENABLED && (
+        <div style={{
+          marginTop: '1.5rem',
+          padding: '1.125rem 1.25rem',
+          borderRadius: 'var(--radius-lg)',
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border)'
+        }}>
+          <p style={ZONE_LABEL}>Your next horizon</p>
+          <p style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
+            Bring someone into the Greet-Me circle
+          </p>
+          <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 0.875rem' }}>
+            You&apos;ve mastered the moments that matter. Share Greet-Me with someone new and
+            become part of something larger.
+          </p>
+          <button
+            className="hub-btn"
+            onClick={() => navigate('/dashboard/send')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              background: '#ec4899',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              padding: '0.625rem 1.25rem',
+              fontSize: '0.9rem',
               fontWeight: 700,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              color: 'var(--text-secondary)',
-              margin: '0 0 0.375rem'
-            }}>
-              Your next chapter
-            </p>
-            <p style={{
-              fontSize: '1.05rem',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              margin: '0 0 0.875rem'
-            }}>
-              {next.label}
-            </p>
-            <button
-              className="hub-btn"
-              onClick={() => navigate(dest)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                background: '#ec4899',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-lg)',
-                padding: '0.625rem 1.25rem',
-                fontSize: '0.9rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                fontFamily: 'inherit'
-              }}
-            >
-              <Heart size={16} fill="white" style={{ color: 'white' }} />
-              Continue your journey
-            </button>
-          </div>
-        );
-      })()}
+              cursor: 'pointer',
+              fontFamily: 'inherit'
+            }}
+          >
+            <Heart size={16} fill="white" style={{ color: 'white' }} />
+            Share Greet-Me
+          </button>
+        </div>
+      )}
     </div>
   );
 }
