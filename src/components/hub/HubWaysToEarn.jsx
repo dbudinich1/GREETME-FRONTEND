@@ -39,48 +39,54 @@ export default function HubWaysToEarn({ amounts = [] }) {
           Ways to earn will appear here.
         </p>
       ) : (
+        // UX-HUB-5 — compact premium presentation: every real earn behavior is a slim
+        // single-row item (icon · label · Hearts chip) in a multi-column grid. Dramatically
+        // less vertical sprawl than the tall tiles; all behaviors stay visible, none hidden,
+        // no expander. Real amounts only.
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-          gap: '1rem'
+          gridTemplateColumns: 'repeat(auto-fit, minmax(248px, 1fr))',
+          columnGap: '0.75rem',
+          rowGap: '0.625rem'
         }}>
           {amounts.map(({ behavior, amount }) => (
             <div
               key={behavior}
               style={{
-                padding: '1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.6875rem 0.875rem',
                 background: 'var(--gray-50)',
                 border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-lg)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: '0.75rem',
-                minHeight: '7.75rem'
+                borderRadius: 'var(--radius-lg)'
               }}
             >
               <span style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '2.75rem',
-                height: '2.75rem',
+                width: '2rem',
+                height: '2rem',
                 borderRadius: '50%',
+                flexShrink: 0,
                 background: 'rgba(236, 72, 153, 0.12)'
               }}>
-                <Sparkles size={22} style={{ color: '#ec4899' }} />
+                <Sparkles size={16} style={{ color: '#ec4899' }} />
               </span>
               <span style={{
+                flex: 1,
+                minWidth: 0,
                 fontSize: '0.875rem',
                 color: 'var(--text-primary)',
                 fontWeight: 600,
-                lineHeight: 1.35
+                lineHeight: 1.3
               }}>
                 {BEHAVIOR_LABELS[behavior] || humanize(behavior)}
               </span>
               <span style={{
-                alignSelf: 'flex-start',
-                fontSize: '0.875rem',
+                flexShrink: 0,
+                fontSize: '0.8125rem',
                 fontWeight: 700,
                 color: '#ec4899',
                 whiteSpace: 'nowrap',

@@ -10,7 +10,7 @@
 // NO fabricated progress; roadmap + checklist use ONLY the real JOURNEY_STEPS (no 5th step).
 // Roadmap and checklist are COMPLEMENTARY and both remain.
 
-import { Heart, ArrowRight, Sparkles, Target, CheckCircle2, Circle } from 'lucide-react';
+import { Heart, ArrowRight, Sparkles, Target } from 'lucide-react';
 import { JOURNEY_STEPS, SOCIAL_CIRCUIT_ENABLED } from './hubConfig';
 import HubJourneyRing from './HubJourneyRing';
 import HubJourneyRoadmap from './HubJourneyRoadmap';
@@ -49,7 +49,7 @@ export default function HubJourney({ journey, navigate }) {
         gap: '0.5rem'
       }}>
         <Heart size={22} style={{ color: '#ec4899' }} fill="#ec4899" />
-        Your Hearts Journey
+        Getting Started
       </h2>
       <p style={{
         fontSize: '0.95rem',
@@ -57,8 +57,7 @@ export default function HubJourney({ journey, navigate }) {
         margin: '0 0 1.25rem',
         lineHeight: 1.5
       }}>
-        Every Heart you earn brings you closer to making an impact — here&apos;s the story
-        you&apos;re building, one Heart at a time.
+        This is the beginning of your Hearts journey — complete these first steps to get started.
       </p>
 
       {/* 1) 3-ZONE BAND: Ring | Current Chapter | Keep Going */}
@@ -139,45 +138,14 @@ export default function HubJourney({ journey, navigate }) {
       </div>
 
       {/* 2) ROADMAP — "where am I?" (4 real steps) */}
-      <div style={{ margin: '0 0 1.75rem' }}>
+      {/* UX-HUB-5 — the roadmap is the single step display ("where am I?"). The redundant
+          vertical checklist (same 4 facts) was removed; the roadmap retains all four real
+          steps + completion, and the Current Chapter zone highlights the next one. */}
+      <div style={{ margin: '0' }}>
         <HubJourneyRoadmap journey={journey} />
       </div>
 
-      {/* 3) CHECKLIST — "what do I do next?" (same 4 real steps; KEPT, never removed) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-        {JOURNEY_STEPS.map((step) => {
-          const reached = Boolean(journey && journey[step.key]);
-          return (
-            <div key={step.key} style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.875rem',
-              padding: '0.9375rem 1.125rem',
-              borderRadius: 'var(--radius-lg)',
-              background: reached ? 'rgba(236, 72, 153, 0.08)' : 'var(--bg-secondary)',
-              border: reached ? '1px solid rgba(236, 72, 153, 0.25)' : '1px solid var(--border)',
-              transition: 'background 0.2s ease'
-            }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {reached ? (
-                  <CheckCircle2 size={22} style={{ color: '#ec4899' }} fill="rgba(236, 72, 153, 0.15)" />
-                ) : (
-                  <Circle size={22} style={{ color: 'var(--text-secondary)', opacity: 0.4 }} />
-                )}
-              </span>
-              <span style={{
-                fontSize: '0.95rem',
-                fontWeight: reached ? 600 : 500,
-                color: reached ? 'var(--text-primary)' : 'var(--text-secondary)'
-              }}>
-                {step.label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* 4) CONTINUE CTA — the real next-chapter action (only when a real next step exists). */}
+      {/* CONTINUE CTA — the real next-chapter action (only when a real next step exists). */}
       {next && (
         <button
           className="hub-btn"

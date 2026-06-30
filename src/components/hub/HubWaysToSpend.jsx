@@ -35,7 +35,7 @@ export default function HubWaysToSpend({
         gap: '0.5rem'
       }}>
         <Gift size={22} style={{ color: '#ec4899' }} />
-        Spend Your Hearts
+        Redeem Hearts
       </h2>
       {redemptionPaused ? (
         <p style={{

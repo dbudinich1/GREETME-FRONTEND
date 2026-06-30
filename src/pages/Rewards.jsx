@@ -19,7 +19,6 @@ import HubWaysToSpend from '../components/hub/HubWaysToSpend';
 import HubHeroHearts from '../components/hub/HubHeroHearts';
 import HubHeroHeartsModal from '../components/hub/HubHeroHeartsModal';
 // UX-HUB-3 Batch 3 — new real-data cards (presentational; data owned by this page).
-import HubSocialCircuit from '../components/hub/HubSocialCircuit';
 import HubHistory from '../components/hub/HubHistory';
 import HubLifetime from '../components/hub/HubLifetime';
 // UX-HUB-3 Batch 7 — Quick Actions (engagement band; real routes only).
@@ -49,7 +48,6 @@ export default function Rewards() {
   // UX-HUB-3 Batch 3 — real-data card state (server-owned; honest defaults until loaded /
   // on failure). This page is the SINGLE data owner; the cards are presentational (props only).
   const [amounts, setAmounts] = useState([]);          // GET /api/hearts/amounts → [{behavior,amount}]
-  const [socialCircuit, setSocialCircuit] = useState({}); // GET /api/social/circuit → { fact: bool, ... }
   const [history, setHistory] = useState([]);          // GET /api/hearts/history → [{occurredAt,behavior,amount}]
   const [lifetime, setLifetime] = useState(0);         // GET /api/hearts/lifetime → number
 
@@ -176,9 +174,6 @@ export default function Rewards() {
       api.getHeartsAmounts()
         .then((r) => setAmounts(Array.isArray(r?.amounts) ? r.amounts : []))
         .catch(() => setAmounts([])),
-      api.getSocialCircuit()
-        .then((r) => setSocialCircuit((r?.circuit && typeof r.circuit === 'object') ? r.circuit : {}))
-        .catch(() => setSocialCircuit({})),
       api.getHeartsHistory()
         .then((r) => setHistory(Array.isArray(r?.history) ? r.history : []))
         .catch(() => setHistory([])),
@@ -334,10 +329,11 @@ export default function Rewards() {
           />
         </div>
 
-        {/* ROW 5: Social Circuit (always visible; dynamic facts). */}
-        <HubSocialCircuit circuit={socialCircuit} />
+        {/* UX-HUB-5 — Social Circuit deferred: the standalone status card is no longer rendered.
+            It is a relationship-status display, not a Hearts earning vector; it returns when
+            genuine social-earning mechanics exist. The component file is retained. */}
 
-        {/* ROW 6 (Batch 6: ~65/35): wide Heart History feed + narrower Lifetime achievement.
+        {/* FINAL ROW (~65/35): wide Heart History feed + narrower Lifetime achievement.
             History is the View-Heart-History scroll target (id="hub-history"). */}
         <div className="hub-row-2col hub-row-2col--ledger">
           <div id="hub-history">
