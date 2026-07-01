@@ -44,6 +44,9 @@ export default function Rewards() {
   // J1 — holds the J0 progress facts verbatim (server truth). null until loaded /
   // on failure → every step reads as not-yet-reached. No local Journey state.
   const [journey, setJourney] = useState(null);
+  // WS-5 (T5.2) — the backend 4-chapter/state model (server truth). null until loaded /
+  // on failure → HubJourney falls back to a single Getting Started chapter from the facts.
+  const [chapters, setChapters] = useState(null);
 
   // UX-HUB-3 Batch 3 — real-data card state (server-owned; honest defaults until loaded /
   // on failure). This page is the SINGLE data owner; the cards are presentational (props only).
@@ -164,8 +167,10 @@ export default function Rewards() {
     try {
       const jr = await api.getJourneyProgress();
       setJourney(jr?.progress ?? null);
+      setChapters(Array.isArray(jr?.chapters) ? jr.chapters : null);
     } catch {
       setJourney(null);
+      setChapters(null);
     }
     // UX-HUB-3 Batch 3 — real-data card reads. PARALLEL + ERROR-ISOLATED: each settles
     // independently and falls to its honest default, so one failing endpoint never blanks
@@ -298,7 +303,7 @@ export default function Rewards() {
         />
 
         {/* ROW 2: Your Hearts Journey (3-zone band → roadmap → checklist → Continue CTA). */}
-        <HubJourney journey={journey} navigate={navigate} />
+        <HubJourney journey={journey} chapters={chapters} navigate={navigate} />
 
         {/* ROW 3: Ways to Earn + Ways to Spend (adjacent companions). */}
         <div className="hub-row-2col">

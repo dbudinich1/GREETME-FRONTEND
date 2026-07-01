@@ -17,6 +17,34 @@ export const JOURNEY_STEPS = [
   { key: 'hasSentGiftGreeting', label: 'Send a Greet-Me with a gift' },
 ];
 
+// WS-5 (T5.2) — Journey chapter MEANING (labels + copy only). TRUTH (unlocked/complete
+// per chapter) comes solely from the backend chapter/state model (GET /api/journey/progress
+// → `chapters`); the frontend never computes chapter state — it only labels the keys the
+// server returns. Keys mirror services/journeyService.js JOURNEY_CHAPTER_KEYS. An unknown
+// future key still renders via humanize() with no redesign.
+export const JOURNEY_CHAPTERS = Object.freeze({
+  getting_started: {
+    label: 'Getting Started',
+    blurb: 'Master Greet-Me — send, schedule, gift, and reach your first people.',
+    lockedBlurb: '',
+  },
+  social_circuit: {
+    label: 'Social Circuit',
+    blurb: 'Grow the Greet-Me community and bring others into the circle.',
+    lockedBlurb: 'Opens once the Social Circuit is live.',
+  },
+  rewards_marketplace: {
+    label: 'Rewards Marketplace',
+    blurb: 'Put your Hearts to work on meaningful, Greet-Me-native rewards.',
+    lockedBlurb: 'Opens when the Rewards Marketplace goes live.',
+  },
+  giving_back: {
+    label: 'Giving Back',
+    blurb: 'Lift others up — the most meaningful chapter of the journey.',
+    lockedBlurb: 'Opens with Giving Back.',
+  },
+});
+
 // SC2 — Social Circuit (introduction / handoff only). Frontend kill-switch. The
 // Social Circuit is the THIRD Journey state: once Product Mastery is fully reached
 // (all four J0 facts true), the Journey card widens IN PLACE from the warm
