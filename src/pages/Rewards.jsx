@@ -13,9 +13,8 @@ import { COMMS_EVENTS } from '../utils/commsCatalog';
 import { REDEEM_COST } from '../components/hub/hubConfig';
 import HubBalanceCard from '../components/hub/HubBalanceCard';
 import HubJourney from '../components/hub/HubJourney';
-import HubMarketplace from '../components/hub/HubMarketplace';
 import HubWaysToEarn from '../components/hub/HubWaysToEarn';
-import HubWaysToSpend from '../components/hub/HubWaysToSpend';
+import HubRedeemMarketplace from '../components/hub/HubRedeemMarketplace';
 import HubHeroHearts from '../components/hub/HubHeroHearts';
 import HubHeroHeartsModal from '../components/hub/HubHeroHeartsModal';
 // UX-HUB-3 Batch 3 — new real-data cards (presentational; data owned by this page).
@@ -260,7 +259,7 @@ export default function Rewards() {
         setRedemptionPaused(true);
         setRedeemOpen(false);
         setRedeemRequestId(null);
-        setRedeemOutcome({ type: 'paused', message: 'Redemption is coming soon — keep earning Hearts and you’ll be able to redeem them shortly.' });
+        setRedeemOutcome({ type: 'paused', message: 'Redemption is temporarily unavailable — please try again shortly.' });
       } else if (status === 429) {
         setRedeemOutcome({ type: 'velocity', message: 'You can redeem once per day. Please try again later.' });
       } else if (status === 400) {
@@ -305,34 +304,32 @@ export default function Rewards() {
         {/* ROW 2: Your Hearts Journey (3-zone band → roadmap → checklist → Continue CTA). */}
         <HubJourney journey={journey} chapters={chapters} navigate={navigate} />
 
-        {/* ROW 3: Ways to Earn + Ways to Spend (adjacent companions). */}
-        <div className="hub-row-2col">
-          <HubWaysToEarn amounts={amounts} />
-          <HubWaysToSpend
-            balance={balance}
-            redemptionPaused={redemptionPaused}
-            redeemOpen={redeemOpen}
-            redeemSubmitting={redeemSubmitting}
-            redeemOutcome={redeemOutcome}
-            openRedeemIntent={openRedeemIntent}
-            cancelRedeemIntent={cancelRedeemIntent}
-            confirmRedeemIntent={confirmRedeemIntent}
-          />
-        </div>
-
-        {/* ROW 4: Engagement band — Hero Hearts | Quick Actions | Marketplace (3 columns). */}
+        {/* ROW 3: companions — Ways to Earn (collapsed, curated) · Hero Hearts · Quick Actions. */}
         <div className="hub-row-3col">
+          <HubWaysToEarn amounts={amounts} />
           <HubHeroHearts setShowHeroHeartsModal={setShowHeroHeartsModal} />
           <HubQuickActions navigate={navigate} setShowHeroHeartsModal={setShowHeroHeartsModal} />
-          <HubMarketplace
-            marketplaceItems={marketplaceItems}
-            mktConfirmId={mktConfirmId}
-            mktRedeemingId={mktRedeemingId}
-            mktOutcome={mktOutcome}
-            handleMarketplaceRedeem={handleMarketplaceRedeem}
-            setMktConfirmId={setMktConfirmId}
-          />
         </div>
+
+        {/* ROW 4: Unified Redemption / Marketplace — ONE full-width browsing surface merging the
+            former separate "Redeem Hearts" (Free Greeting) and "Hearts Marketplace" cards.
+            Truthful states only: AVAILABLE or LOCKED. No fake inventory; no "Coming Soon". */}
+        <HubRedeemMarketplace
+          balance={balance}
+          redemptionPaused={redemptionPaused}
+          redeemOpen={redeemOpen}
+          redeemSubmitting={redeemSubmitting}
+          redeemOutcome={redeemOutcome}
+          openRedeemIntent={openRedeemIntent}
+          cancelRedeemIntent={cancelRedeemIntent}
+          confirmRedeemIntent={confirmRedeemIntent}
+          marketplaceItems={marketplaceItems}
+          mktConfirmId={mktConfirmId}
+          mktRedeemingId={mktRedeemingId}
+          mktOutcome={mktOutcome}
+          handleMarketplaceRedeem={handleMarketplaceRedeem}
+          setMktConfirmId={setMktConfirmId}
+        />
 
         {/* UX-HUB-5 — Social Circuit deferred: the standalone status card is no longer rendered.
             It is a relationship-status display, not a Hearts earning vector; it returns when
