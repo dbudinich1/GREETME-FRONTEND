@@ -41,6 +41,14 @@ export default function HubJourney({ journey, chapters, navigate }) {
 
   const total = model.length;
   const completeCount = model.filter((c) => c.complete).length;
+  // G-Journey closure — lifetime progression ring: qualifying facts reached across chapters
+  // / defined facts (locked chapters carry none → they never inflate the ring). This updates
+  // on EVERY qualifying event and is derived from persisted server truth (persists on reload).
+  // Falls back to chapter-completion if a legacy payload carries no per-chapter facts.
+  const reachedFacts = model.reduce((n, c) => n + Object.values(c.facts || {}).filter(Boolean).length, 0);
+  const totalFacts = model.reduce((n, c) => n + Object.keys(c.facts || {}).length, 0);
+  const ringReached = totalFacts > 0 ? reachedFacts : completeCount;
+  const ringTotal = totalFacts > 0 ? totalFacts : total;
   // Current chapter = first unlocked-but-incomplete chapter (visual emphasis).
   const active = model.find((c) => c.unlocked && !c.complete) || null;
   const gettingStarted = model.find((c) => c.key === 'getting_started');
@@ -76,9 +84,9 @@ export default function HubJourney({ journey, chapters, navigate }) {
       {/* 1) BAND: lifetime Ring | Current Chapter | Keep Going */}
       <div className="hub-journey-band">
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-          <HubJourneyRing reachedCount={completeCount} total={total} />
+          <HubJourneyRing reachedCount={ringReached} total={ringTotal} />
           <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-            {completeCount} of {total} chapters
+            {completeCount} of {total} chapters · {ringReached}/{ringTotal} steps
           </span>
         </div>
 

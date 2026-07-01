@@ -23,7 +23,7 @@ export default function HubJourneyRing({ reachedCount = 0, total = 4, size = 200
       aria-valuenow={n}
       aria-valuemin={0}
       aria-valuemax={max}
-      aria-label={`${n} of ${max} chapters complete`}
+      aria-label={`${n} of ${max} journey steps reached`}
     >
       <svg className="hub-ring__svg" viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         <defs>
