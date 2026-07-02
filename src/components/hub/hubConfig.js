@@ -110,6 +110,12 @@ export const JOURNEY_CHAPTERS = Object.freeze({
 // Dormant-first deployment: ships OFF; flip true after founder review.
 export const SOCIAL_CIRCUIT_ENABLED = false;
 
+// SOCIAL-C — Post URL Verification Lite frontend kill-switch. DORMANT (default OFF): the
+// "Paste your post link" intake renders NOTHING while false, matching the backend flag
+// (LAUNCH_CONTROL.postVerificationEnabled). Manual human review only — no auto-verify.
+// Flip true only after founder review AND the backend flag is on. Founder-controlled.
+export const POST_VERIFICATION_ENABLED = false;
+
 // Hero Hearts Bundles - price tiers with bonus hearts
 export const HERO_HEARTS_BUNDLES = [
   {

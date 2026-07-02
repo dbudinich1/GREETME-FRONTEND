@@ -15,6 +15,7 @@ import HubBalanceCard from '../components/hub/HubBalanceCard';
 import HubJourney from '../components/hub/HubJourney';
 import HubWaysToEarn from '../components/hub/HubWaysToEarn';
 import HubRedeemMarketplace from '../components/hub/HubRedeemMarketplace';
+import HubPostVerification from '../components/hub/HubPostVerification';
 import HubHeroHearts from '../components/hub/HubHeroHearts';
 import HubHeroHeartsModal from '../components/hub/HubHeroHeartsModal';
 // UX-HUB-3 Batch 3 — new real-data cards (presentational; data owned by this page).
@@ -368,6 +369,8 @@ export default function Rewards() {
             handleMarketplaceRedeem={handleMarketplaceRedeem}
             setMktConfirmId={setMktConfirmId}
           />
+          {/* SOCIAL-C — Post URL Verification Lite (renders nothing while dormant). */}
+          <HubPostVerification />
         </div>
 
         {/* Row 2: Greet-Me Hero Hearts | Quick Actions | Lifetime Earned (3 columns). */}

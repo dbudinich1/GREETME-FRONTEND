@@ -845,6 +845,12 @@ class ApiService {
     return this.request("/api/hearts/catalog");
   }
 
+  // SOCIAL-C — Post URL Verification Lite. Submit a pasted post link for MANUAL review
+  // (stored pending_review; never auto-verified). Dormant behind the server flag.
+  submitPostVerification(url) {
+    return this.post("/api/social/post-verification", { url });
+  }
+
   // Marketplace Stage 6 — redeem Hearts for a marketplace reward (server-authoritative;
   // dormant behind marketplaceRedemptionEnabled). Client sends ONLY itemId + requestId.
   redeemMarketplaceItem(itemId, redemptionRequestId) {
