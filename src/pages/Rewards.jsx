@@ -304,44 +304,39 @@ export default function Rewards() {
         {/* ROW 2: Your Hearts Journey (3-zone band → roadmap → checklist → Continue CTA). */}
         <HubJourney journey={journey} chapters={chapters} navigate={navigate} />
 
-        {/* ROW 3: companions — Ways to Earn (collapsed, curated) · Hero Hearts · Quick Actions. */}
-        <div className="hub-row-3col">
+        {/* Layout Refinement — Row 1: Ways to Earn (narrow) | Hearts Marketplace unified catalog
+            (wide). The marketplace merges Redeem + Marketplace and carries the "All Rewards"
+            full-catalog affordance. AVAILABLE/LOCKED only; real items only; no "Coming Soon". */}
+        <div className="hub-row-earn-market">
           <HubWaysToEarn amounts={amounts} />
-          <HubHeroHearts setShowHeroHeartsModal={setShowHeroHeartsModal} />
-          <HubQuickActions navigate={navigate} setShowHeroHeartsModal={setShowHeroHeartsModal} />
+          <HubRedeemMarketplace
+            balance={balance}
+            redemptionPaused={redemptionPaused}
+            redeemOpen={redeemOpen}
+            redeemSubmitting={redeemSubmitting}
+            redeemOutcome={redeemOutcome}
+            openRedeemIntent={openRedeemIntent}
+            cancelRedeemIntent={cancelRedeemIntent}
+            confirmRedeemIntent={confirmRedeemIntent}
+            marketplaceItems={marketplaceItems}
+            mktConfirmId={mktConfirmId}
+            mktRedeemingId={mktRedeemingId}
+            mktOutcome={mktOutcome}
+            handleMarketplaceRedeem={handleMarketplaceRedeem}
+            setMktConfirmId={setMktConfirmId}
+          />
         </div>
 
-        {/* ROW 4: Unified Redemption / Marketplace — ONE full-width browsing surface merging the
-            former separate "Redeem Hearts" (Free Greeting) and "Hearts Marketplace" cards.
-            Truthful states only: AVAILABLE or LOCKED. No fake inventory; no "Coming Soon". */}
-        <HubRedeemMarketplace
-          balance={balance}
-          redemptionPaused={redemptionPaused}
-          redeemOpen={redeemOpen}
-          redeemSubmitting={redeemSubmitting}
-          redeemOutcome={redeemOutcome}
-          openRedeemIntent={openRedeemIntent}
-          cancelRedeemIntent={cancelRedeemIntent}
-          confirmRedeemIntent={confirmRedeemIntent}
-          marketplaceItems={marketplaceItems}
-          mktConfirmId={mktConfirmId}
-          mktRedeemingId={mktRedeemingId}
-          mktOutcome={mktOutcome}
-          handleMarketplaceRedeem={handleMarketplaceRedeem}
-          setMktConfirmId={setMktConfirmId}
-        />
-
-        {/* UX-HUB-5 — Social Circuit deferred: the standalone status card is no longer rendered.
-            It is a relationship-status display, not a Hearts earning vector; it returns when
-            genuine social-earning mechanics exist. The component file is retained. */}
-
-        {/* FINAL ROW (~65/35): wide Heart History feed + narrower Lifetime achievement.
-            History is the View-Heart-History scroll target (id="hub-history"). */}
-        <div className="hub-row-2col hub-row-2col--ledger">
-          <div id="hub-history">
-            <HubHistory history={history} />
-          </div>
+        {/* Row 2: Greet-Me Hero Hearts | Quick Actions | Lifetime Earned (3 columns). */}
+        <div className="hub-row-3col">
+          <HubHeroHearts setShowHeroHeartsModal={setShowHeroHeartsModal} />
+          <HubQuickActions navigate={navigate} setShowHeroHeartsModal={setShowHeroHeartsModal} />
           <HubLifetime lifetimeEarned={lifetime} />
+        </div>
+
+        {/* Row 3: full-width Heart History (5 visible, scrollable panel, "View all history"). */}
+        <div id="hub-history">
+          <HubHistory history={history} />
         </div>
 
         <HubHeroHeartsModal

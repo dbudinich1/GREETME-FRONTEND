@@ -7,7 +7,8 @@
 // The Free Greeting is the always-present, live AVAILABLE reward; server marketplace items (empty
 // while the catalog is dormant) render alongside it with their real server state.
 
-import { Gift } from 'lucide-react';
+import { useState } from 'react';
+import { Gift, ChevronDown, X } from 'lucide-react';
 import { REDEEM_COST } from './hubConfig';
 
 // Truthful state → AVAILABLE | LOCKED badge (the only two canonical states).
@@ -48,8 +49,23 @@ export default function HubRedeemMarketplace({
   handleMarketplaceRedeem,
   setMktConfirmId,
 }) {
+  const [allOpen, setAllOpen] = useState(false);
   const insufficient = balance < REDEEM_COST;
   const freeGreetingDisabled = redemptionPaused || insufficient || redeemSubmitting;
+
+  // The FULL real catalog for the "All Rewards" modal = the always-present live Free Greeting
+  // reward + whatever real items the server returns (empty while the catalog is dormant). No
+  // fabricated/placeholder items are ever added.
+  const fullCatalog = [
+    { key: 'free-greeting', title: 'Free Greeting', subtitle: `Redeem ${REDEEM_COST} Hearts for 1 Anytime Greet-Me`, cost: REDEEM_COST, available: true },
+    ...marketplaceItems.map((it) => ({
+      key: it.id,
+      title: it.title,
+      subtitle: it.vendor ? `Made by ${it.vendor}` : '',
+      cost: null,
+      available: it.state ? it.state === 'available' : true,
+    })),
+  ];
 
   return (
     <div className="hub-card" style={{
@@ -59,21 +75,48 @@ export default function HubRedeemMarketplace({
       marginBottom: '2rem',
       border: '1px solid var(--border)'
     }}>
-      <h2 style={{
-        fontSize: '1.375rem',
-        fontWeight: 700,
-        color: 'var(--text-primary)',
-        marginBottom: '0.375rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem'
-      }}>
-        <Gift size={22} style={{ color: '#ec4899' }} />
-        Hearts Marketplace
-      </h2>
-      <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '0 0 1.25rem', lineHeight: 1.5 }}>
-        Redeem your Hearts for rewards.
-      </p>
+      {/* Header: title/subtitle (left) + "All Rewards" catalog affordance (top-right). */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.25rem' }}>
+        <div>
+          <h2 style={{
+            fontSize: '1.375rem',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            margin: '0 0 0.375rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            <Gift size={22} style={{ color: '#ec4899' }} />
+            Hearts Marketplace
+          </h2>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+            Redeem your Hearts for rewards.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setAllOpen(true)}
+          aria-haspopup="dialog"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            flexShrink: 0,
+            padding: '0.5rem 0.875rem',
+            background: 'var(--bg-primary)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-lg)',
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit'
+          }}
+        >
+          All Rewards <ChevronDown size={15} />
+        </button>
+      </div>
 
       <div style={{
         display: 'grid',
@@ -297,6 +340,86 @@ export default function HubRedeemMarketplace({
           );
         })}
       </div>
+
+      {/* "All Rewards" modal — the FULL real catalog in a focused view. Real items only:
+          the live Free Greeting + any server catalog items. No fabricated/placeholder rewards. */}
+      {allOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="All Rewards"
+          onClick={() => setAllOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(15, 23, 42, 0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.25rem'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '560px',
+              maxHeight: '82vh',
+              overflowY: 'auto',
+              background: 'var(--bg-primary)',
+              borderRadius: 'var(--radius-xl)',
+              border: '1px solid var(--border)',
+              padding: '1.5rem'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>All Rewards</h3>
+              <button
+                type="button"
+                onClick={() => setAllOpen(false)}
+                aria-label="Close"
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '0.25rem', display: 'inline-flex' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+              {fullCatalog.map((r) => (
+                <li key={r.key} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.875rem 1rem',
+                  background: 'var(--gray-50)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-lg)'
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{r.title}</div>
+                    {r.subtitle ? (
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.125rem', lineHeight: 1.4 }}>{r.subtitle}</div>
+                    ) : null}
+                  </div>
+                  {r.cost != null ? (
+                    <span style={{
+                      fontSize: '0.8125rem',
+                      fontWeight: 700,
+                      color: '#ec4899',
+                      whiteSpace: 'nowrap',
+                      background: 'rgba(236, 72, 153, 0.10)',
+                      border: '1px solid rgba(236, 72, 153, 0.25)',
+                      borderRadius: '999px',
+                      padding: '0.25rem 0.625rem'
+                    }}>{r.cost} ❤️</span>
+                  ) : null}
+                  <StateBadge available={r.available} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

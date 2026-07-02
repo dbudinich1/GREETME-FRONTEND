@@ -36,6 +36,20 @@
   }
 }
 
+/* Layout Refinement — Row 1: Ways to Earn (narrow) | Hearts Marketplace (wide, dominant).
+   Stacks to one column on mobile; ~1/3 · 2/3 on tablet/desktop. */
+.hearts-hub .hub-row-earn-market {
+  display: grid;
+  grid-template-columns: 1fr;
+  column-gap: 1.75rem;
+  align-items: stretch;
+}
+@media (min-width: 768px) {
+  .hearts-hub .hub-row-earn-market {
+    grid-template-columns: 1fr 2fr;
+  }
+}
+
 /* Batch 7 — engagement band (Hero Hearts | Quick Actions | Marketplace): 3 columns on
    desktop, stacks to one column on tablet/mobile. */
 .hearts-hub .hub-row-3col {
