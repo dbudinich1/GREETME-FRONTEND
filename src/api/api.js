@@ -696,6 +696,16 @@ class ApiService {
     });
   }
 
+  // Request a tracked share link for a platform. Backend returns { ok, url, trackingId }.
+  // If the endpoint is absent (404) or errors, callers MUST fall back to the raw url and
+  // make NO tracking/verification claim (honest degradation).
+  createShareLink({ platform, url, sourceJobId } = {}) {
+    return this.request("/api/events/share-link", {
+      method: "POST",
+      body: JSON.stringify({ platform, url, sourceJobId }),
+    });
+  }
+
   getSentGreetings() {
     return this.request("/api/greetings/sent");
   }

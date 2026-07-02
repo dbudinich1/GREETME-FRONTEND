@@ -1,0 +1,114 @@
+/* src/components/SocialShareTile.css — scoped to .gm-sst */
+
+.gm-sst {
+  background: #fffdf8;
+  border: 1px solid #ece7dd;
+  border-radius: 14px;
+  padding: 20px;
+  max-width: 460px;
+}
+
+.gm-sst-head { margin-bottom: 14px; }
+
+.gm-sst-title {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #2a2622;
+}
+
+.gm-sst-sub {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #8a7f70;
+}
+
+.gm-sst-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 380px) {
+  .gm-sst-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.gm-sst-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 6px;
+  border: 1px solid #e6e0d6;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #4a443c;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.08s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gm-sst-btn:hover:not(:disabled) {
+  border-color: var(--gm-sst-brand, #8B5CF6);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.gm-sst-btn:active:not(:disabled) { transform: scale(0.96); }
+
+.gm-sst-btn:focus-visible {
+  outline: 2px solid var(--gm-sst-brand, #8B5CF6);
+  outline-offset: 2px;
+}
+
+.gm-sst-btn:disabled { opacity: 0.5; cursor: default; }
+
+.gm-sst-glyph {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gm-sst-brand, #8B5CF6);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.gm-sst-label { white-space: nowrap; }
+
+.gm-sst-status {
+  margin: 14px 0 0;
+  min-height: 1.1em;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #6b5f4f;
+  text-align: center;
+}
+
+.gm-sst-proven {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.gm-sst-badge {
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+.gm-sst-badge--viewed { background: #eef2ff; color: #3730a3; }
+.gm-sst-badge--referral { background: #ecfdf3; color: #027a48; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gm-sst-btn { transition: none; }
+  .gm-sst-btn:active:not(:disabled) { transform: none; }
+}
