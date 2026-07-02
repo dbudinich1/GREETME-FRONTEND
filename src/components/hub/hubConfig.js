@@ -4,8 +4,61 @@
 // this file only relocates them so the extracted Hub components can import their meaning
 // from one place instead of receiving large constants as props. No logic, no state.
 
-// H7: locked launch redemption — 40 Hearts → 1 Anytime Greet-Me (in-kind only).
-export const REDEEM_COST = 40;
+// H7: locked launch redemption — 500 Hearts → 1 Anytime Greet-Me (in-kind only).
+// Canonical cost per Unified Hearts Alive Work Plan §2.3 (WS-3 reprice; backend
+// FREE_GREETING_COST=500). This is display truth only — the server is authoritative on the
+// charged amount; the redemption flow is unchanged.
+export const REDEEM_COST = 500;
+
+// ── Founder Canonical Catalog (Unified Hearts Alive Work Plan §2.3) ──────────────────────
+// The complete, ordered Hearts reward catalog grouped by the canonical categories. This is
+// the single frontend source for POPULATING the Hearts Marketplace: every canonical reward is
+// displayed, in its canonical category, with a truthful AVAILABLE | LOCKED state — never
+// "Coming Soon", never fabricated inventory, never hidden.
+//
+// `available`  = redeemable TODAY. Truth: only the Anytime Greet-Me (the live H7 Free
+//                Greeting) is available now. As each reward's capability lands, flip its flag
+//                here (and wire its redemption in a separately-authorized step) — future
+//                expansion is a data edit, no redesign.
+// `hearts`     = canonical Hearts cost (frozen §2.3). Anytime mirrors REDEEM_COST (single source).
+// `unlock`     = the REAL, canon-defined requirement a LOCKED reward is gated behind, shown
+//                truthfully. Only set where the canon defines the gate: subscriber-gated
+//                (Subscription / Upgrade discounts) and Champion-gated (Champion tier + the
+//                Champion-gated gift credits, §2.3). `null` = no canonical unlock rule is
+//                defined yet — NOT invented here; it renders as a plain LOCKED badge and is
+//                flagged for founder ratification (§8.3). No numeric thresholds are invented.
+export const CANONICAL_CATALOG = Object.freeze([
+  { category: 'Greet-Me', rewards: [
+    { id: 'anytime_greetme', title: 'Anytime Greet-Me',            hearts: REDEEM_COST, available: true,  unlock: null },
+    { id: 'anytime_3',       title: '3 Anytime Credits',           hearts: 1200,        available: false, unlock: null },
+    { id: 'anytime_5',       title: '5 Anytime Credits',           hearts: 2000,        available: false, unlock: null },
+    { id: 'holiday_bonus',   title: 'Holiday Bonus Send',          hearts: 750,         available: false, unlock: null },
+  ] },
+  { category: 'Subscription', rewards: [
+    { id: 'renewal_10',      title: '10% Renewal Discount',        hearts: 750,         available: false, unlock: 'Active subscription' },
+    { id: 'renewal_15',      title: '15% Renewal Discount',        hearts: 1200,        available: false, unlock: 'Active subscription' },
+    { id: 'renewal_20',      title: '20% Renewal Discount',        hearts: 2000,        available: false, unlock: 'Active subscription' },
+  ] },
+  { category: 'Personalization', rewards: [
+    { id: 'upgrade_discount', title: 'Upgrade Discount',           hearts: 1000,        available: false, unlock: 'Active subscription' },
+  ] },
+  { category: 'Champion', rewards: [
+    { id: 'upgrade_credit',  title: 'Upgrade Credit',              hearts: 1500,        available: false, unlock: 'Heart Champion' },
+  ] },
+  { category: 'Convenience', rewards: [
+    { id: 'premium_30',        title: '30-Day Premium Access',      hearts: 2500,        available: false, unlock: null },
+    { id: 'hero_theme',        title: 'Hero Theme Collection',      hearts: 800,         available: false, unlock: null },
+    { id: 'signature_effects', title: 'Signature Effects',          hearts: 900,         available: false, unlock: null },
+    { id: 'celebration_effects', title: 'Celebration Effects',      hearts: 900,         available: false, unlock: null },
+    { id: 'gift_5',            title: '$5 Greet-Me Gift Credit',    hearts: 2500,        available: false, unlock: 'Heart Champion' },
+    { id: 'gift_10',           title: '$10 Greet-Me Gift Credit',   hearts: 5000,        available: false, unlock: 'Heart Champion' },
+    { id: 'gift_25',           title: '$25 Greet-Me Gift Credit',   hearts: 10000,       available: false, unlock: 'Heart Champion' },
+    { id: 'qr_fee_waiver',     title: 'QR Cash Fee Waiver',         hearts: 500,         available: false, unlock: null },
+    { id: 'premium_theme',     title: 'Premium Theme Unlock',       hearts: 750,         available: false, unlock: null },
+    { id: 'bonus_storage',     title: 'Bonus Media Storage',        hearts: 1500,        available: false, unlock: null },
+    { id: 'album_capacity',    title: 'Extra Memory Album Capacity', hearts: 2000,       available: false, unlock: null },
+  ] },
+]);
 
 // J1 — frontend-owned Journey MEANING (labels + order only). TRUTH (the booleans)
 // comes solely from J0 (GET /api/journey/progress); the frontend never computes,
