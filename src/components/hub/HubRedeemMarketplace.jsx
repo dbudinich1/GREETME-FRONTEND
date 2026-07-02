@@ -108,6 +108,9 @@ function RewardTile({ title, hearts, available, unlock }) {
 }
 
 export default function HubRedeemMarketplace({
+  // Canonical catalog — server source of truth (grouped by category); falls back to the
+  // built-in CANONICAL_CATALOG while the /api/hearts/catalog endpoint is rolling out.
+  catalog,
   // Free Greeting (H7) redemption
   balance,
   redemptionPaused,
@@ -126,19 +129,24 @@ export default function HubRedeemMarketplace({
   setMktConfirmId,
 }) {
   const [allOpen, setAllOpen] = useState(false);
-  const insufficient = balance < REDEEM_COST;
+  // Server catalog is authoritative; fall back to the built-in canonical catalog while the
+  // endpoint rolls out. The Anytime cost shown here comes from the catalog and equals the
+  // amount the server charges (displayed cost == charged cost).
+  const activeCatalog = Array.isArray(catalog) && catalog.length ? catalog : CANONICAL_CATALOG;
+  const anytimeCost = activeCatalog.flatMap((c) => c.rewards).find((r) => r.id === 'anytime_greetme')?.hearts ?? REDEEM_COST;
+  const insufficient = balance < anytimeCost;
   const freeGreetingDisabled = redemptionPaused || insufficient || redeemSubmitting;
 
   // The "All Rewards" modal shows the FULL canonical catalog (grouped by category) plus any real
   // server maker-gift items. No fabricated/placeholder rewards are ever added.
   const modalGroups = [
-    ...CANONICAL_CATALOG.map((cat) => ({
+    ...activeCatalog.map((cat) => ({
       category: cat.category,
       items: cat.rewards.map((r) => ({
         key: r.id,
         title: r.title,
         subtitle: r.id === 'anytime_greetme'
-          ? `Redeem ${REDEEM_COST.toLocaleString()} Hearts for 1 Anytime Greet-Me`
+          ? `Redeem ${anytimeCost.toLocaleString()} Hearts for 1 Anytime Greet-Me`
           : (r.unlock ? `Unlocks with ${r.unlock}` : ''),
         cost: r.hearts,
         available: r.available,
@@ -183,10 +191,10 @@ export default function HubRedeemMarketplace({
       </div>
       <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Anytime Greet-Me</div>
       <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.25rem', lineHeight: 1.5, flex: 1 }}>
-        Redeem {REDEEM_COST.toLocaleString()} Hearts for 1 Anytime Greet-Me
+        Redeem {anytimeCost.toLocaleString()} Hearts for 1 Anytime Greet-Me
       </div>
       <div style={{ marginTop: '0.625rem' }}>
-        <CostPill hearts={REDEEM_COST} />
+        <CostPill hearts={anytimeCost} />
       </div>
 
       {!redeemOpen ? (
@@ -212,13 +220,13 @@ export default function HubRedeemMarketplace({
           {redemptionPaused
             ? 'Temporarily unavailable'
             : insufficient
-              ? `Need ${(REDEEM_COST - balance).toLocaleString()} more Hearts`
-              : `Redeem ${REDEEM_COST.toLocaleString()} Hearts`}
+              ? `Need ${(anytimeCost - balance).toLocaleString()} more Hearts`
+              : `Redeem ${anytimeCost.toLocaleString()} Hearts`}
         </button>
       ) : (
         <div style={{ marginTop: '0.875rem' }}>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', margin: '0 0 0.75rem' }}>
-            Spend <strong>{REDEEM_COST.toLocaleString()} Hearts</strong> for <strong>1 Anytime Greet-Me</strong>?
+            Spend <strong>{anytimeCost.toLocaleString()} Hearts</strong> for <strong>1 Anytime Greet-Me</strong>?
           </p>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
@@ -418,7 +426,7 @@ export default function HubRedeemMarketplace({
       </div>
 
       {/* ---- Canonical catalog: every reward, grouped by canonical category, AVAILABLE|LOCKED ---- */}
-      {CANONICAL_CATALOG.map((cat) => (
+      {activeCatalog.map((cat) => (
         <section key={cat.category} style={{ marginBottom: '1.5rem' }}>
           <h3 style={sectionHeaderStyle}>{cat.category}</h3>
           <div style={gridStyle}>

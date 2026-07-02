@@ -69,6 +69,10 @@ export default function Rewards() {
   const [marketplaceItems, setMarketplaceItems] = useState([]);
   const [marketplaceLoading, setMarketplaceLoading] = useState(true);
 
+  // Canonical Catalog — server source of truth (GET /api/hearts/catalog), grouped by category.
+  // null → HubRedeemMarketplace falls back to its built-in canonical catalog (safe during rollout).
+  const [canonicalCatalog, setCanonicalCatalog] = useState(null);
+
   // Marketplace Stage 6 — redeem flow (server-authoritative; only shows for items the server
   // marks structurally `redeemable`, which is false while marketplaceRedemptionEnabled is off).
   const [mktConfirmId, setMktConfirmId] = useState(null);   // item awaiting a confirm click
@@ -211,6 +215,42 @@ export default function Rewards() {
     return () => { cancelled = true; };
   }, []);
 
+  // Canonical Catalog — fetch the server source of truth and group by category for the hub.
+  // Costs/state/prerequisite are server-authoritative (displayed cost == charged cost). On any
+  // failure or empty response, leave null so the component uses its built-in canonical fallback.
+  useEffect(() => {
+    let cancelled = false;
+    const CAT_ORDER = ['Greet-Me', 'Subscription', 'Personalization', 'Champion', 'Convenience'];
+    const prereqLabel = (p) => {
+      if (!p) return null;
+      if (p.kind === 'active_subscription') return 'Active subscription';
+      if (p.kind === 'prestige_tier') return p.tier === 'heart_champion' ? 'Heart Champion' : null;
+      return null;
+    };
+    (async () => {
+      try {
+        const res = await api.getHeartsCatalog();
+        const items = Array.isArray(res?.items) ? res.items : [];
+        if (!items.length) { if (!cancelled) setCanonicalCatalog(null); return; }
+        const byCat = {};
+        for (const it of items) {
+          (byCat[it.category] ||= []).push({
+            id: it.id,
+            title: it.title,
+            hearts: it.hearts,
+            available: it.state === 'AVAILABLE',
+            unlock: prereqLabel(it.prerequisite),
+          });
+        }
+        const cats = [...CAT_ORDER.filter((c) => byCat[c]), ...Object.keys(byCat).filter((c) => !CAT_ORDER.includes(c))];
+        if (!cancelled) setCanonicalCatalog(cats.map((c) => ({ category: c, rewards: byCat[c] })));
+      } catch {
+        if (!cancelled) setCanonicalCatalog(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // Open the redemption intent: generate ONE requestId, reused across retries within this
   // intent. If an id already exists (re-open without cancel), keep it.
   const openRedeemIntent = () => {
@@ -310,6 +350,7 @@ export default function Rewards() {
         <div className="hub-row-earn-market">
           <HubWaysToEarn amounts={amounts} />
           <HubRedeemMarketplace
+            catalog={canonicalCatalog}
             balance={balance}
             redemptionPaused={redemptionPaused}
             redeemOpen={redeemOpen}

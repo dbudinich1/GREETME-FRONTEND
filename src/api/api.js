@@ -818,6 +818,13 @@ class ApiService {
     return this.request("/api/marketplace/catalog");
   }
 
+  // Canonical Catalog — server-authoritative §2.3 reward catalog (id, category, canonical
+  // Hearts cost, AVAILABLE/LOCKED state, prerequisite, fulfillment class). Display truth;
+  // the `hearts` value is the same cost the server charges (displayed cost == charged cost).
+  getHeartsCatalog() {
+    return this.request("/api/hearts/catalog");
+  }
+
   // Marketplace Stage 6 — redeem Hearts for a marketplace reward (server-authoritative;
   // dormant behind marketplaceRedemptionEnabled). Client sends ONLY itemId + requestId.
   redeemMarketplaceItem(itemId, redemptionRequestId) {
