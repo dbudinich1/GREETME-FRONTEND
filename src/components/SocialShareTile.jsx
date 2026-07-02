@@ -42,19 +42,19 @@ const PLATFORMS = [
 
 /**
  * @param {object}  props
- * @param {string}  props.shareUrl        canonical link to share (required)
+ * @param {string}  props.shareUrl        raw canonical link — the honest fallback if no tracked link (required)
+ * @param {string} [props.jobId]          Greet-Me id used to mint the tracked share link (SOCIAL-A)
  * @param {string} [props.shareText]      message text accompanying the link
  * @param {string} [props.shareSubject]   email subject
- * @param {string} [props.sourceJobId]    attribution id for the tracked link
  * @param {{viewed?:boolean, referralEarned?:boolean}} [props.verifiedStatus]
  *        BACKEND-PROVEN states only. Absent/false ⇒ not shown.
  * @param {(info:{platform:string, trackedUrl:string, tracked:boolean, action:string})=>void} [props.onShare]
  */
 export default function SocialShareTile({
   shareUrl,
+  jobId,
   shareText = "",
   shareSubject = "A little something from Greet-Me",
-  sourceJobId,
   verifiedStatus = {},
   onShare,
 }) {
@@ -62,21 +62,23 @@ export default function SocialShareTile({
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(null); // platform key currently resolving
 
-  // Ask the backend for a tracked link; degrade honestly to the raw url with NO tracking claim.
+  // Mint a tracked share link (SOCIAL-A). Degrade honestly to the raw shareUrl with NO tracking
+  // claim when the subsystem is dormant ({disabled}) / absent (404) / errored.
   const getTrackedUrl = useCallback(
     async (platform) => {
-      if (!shareUrl) return { url: "", tracked: false };
+      const raw = { url: shareUrl, tracked: false, shareId: null };
+      if (!jobId) return raw;
       try {
-        const res = await api.createShareLink({ platform, url: shareUrl, sourceJobId });
-        if (res && res.ok && typeof res.url === "string" && res.url) {
-          return { url: res.url, tracked: true };
+        const res = await api.createShareLink({ jobId, platform });
+        if (res && res.ok && !res.disabled && typeof res.shareUrl === "string" && res.shareUrl) {
+          return { url: res.shareUrl, tracked: true, shareId: res.shareId || null };
         }
       } catch {
-        /* fall through to untracked */
+        return raw; // network/4xx/5xx → untracked fallback (statement keeps catch non-empty)
       }
-      return { url: shareUrl, tracked: false };
+      return raw; // dormant {disabled} or unexpected shape → untracked fallback
     },
-    [shareUrl, sourceJobId]
+    [shareUrl, jobId]
   );
 
   const handle = useCallback(
@@ -84,17 +86,20 @@ export default function SocialShareTile({
       if (!shareUrl || busy) return;
       setBusy(p.key);
       setStatus(null);
-      const { url, tracked } = await getTrackedUrl(p.key);
+      const { url, tracked, shareId } = await getTrackedUrl(p.key);
+      let acted = false; // a real (non-aborted) share action occurred
 
       try {
         if (p.mode === "native") {
           if (navigator.share) {
             await navigator.share({ title: shareSubject, text: shareText, url });
             setStatus({ kind: "started", label: "Share started" });
+            acted = true;
             onShare?.({ platform: p.key, trackedUrl: url, tracked, action: "started" });
           } else {
             await navigator.clipboard?.writeText(`${shareText} ${url}`.trim());
             setStatus({ kind: "copied", label: "Link copied" });
+            acted = true;
             onShare?.({ platform: p.key, trackedUrl: url, tracked, action: "copied" });
           }
         } else if (p.mode === "copy") {
@@ -102,12 +107,14 @@ export default function SocialShareTile({
           await navigator.clipboard?.writeText(url);
           if (p.open) window.open(p.open, "_blank", "noopener,noreferrer");
           setStatus({ kind: "copied", label: `Link copied — paste into ${p.label}` });
+          acted = true;
           onShare?.({ platform: p.key, trackedUrl: url, tracked, action: "copied" });
         } else {
           // intent — open the platform/deep-link share URL.
           const target = p.intent(url, shareText, shareSubject);
           window.open(target, "_blank", "noopener,noreferrer");
           setStatus({ kind: "started", label: `Share started — ${p.label}` });
+          acted = true;
           onShare?.({ platform: p.key, trackedUrl: url, tracked, action: "started" });
         }
       } catch (err) {
@@ -119,6 +126,11 @@ export default function SocialShareTile({
         }
       } finally {
         setBusy(null);
+      }
+
+      // Record the share attempt ONLY after a real tracked share start (analytics; best-effort).
+      if (acted && tracked && shareId) {
+        api.recordShareAttempt({ shareId, platform: p.key }).catch(() => {});
       }
     },
     [shareUrl, shareText, shareSubject, busy, getTrackedUrl, onShare]

@@ -696,13 +696,23 @@ class ApiService {
     });
   }
 
-  // Request a tracked share link for a platform. Backend returns { ok, url, trackingId }.
-  // If the endpoint is absent (404) or errors, callers MUST fall back to the raw url and
-  // make NO tracking/verification claim (honest degradation).
-  createShareLink({ platform, url, sourceJobId } = {}) {
-    return this.request("/api/events/share-link", {
+  // SOCIAL-A tracked share-link. POST /api/social/share/link { jobId, platform } →
+  // { ok, shareId, shareUrl, platform }. While the subsystem is dormant the backend returns
+  // { ok:true, disabled:true } (a benign no-op). If disabled / 404 / errored, callers MUST fall
+  // back to the raw link and make NO tracking/verification claim (honest degradation).
+  createShareLink({ jobId, platform } = {}) {
+    return this.request("/api/social/share/link", {
       method: "POST",
-      body: JSON.stringify({ platform, url, sourceJobId }),
+      body: JSON.stringify({ jobId, platform }),
+    });
+  }
+
+  // SOCIAL-A share-attempt (analytics only). POST /api/social/share/attempt { shareId, platform }.
+  // Best-effort — callers should not block the share on it.
+  recordShareAttempt({ shareId, platform } = {}) {
+    return this.request("/api/social/share/attempt", {
+      method: "POST",
+      body: JSON.stringify({ shareId, platform }),
     });
   }
 
