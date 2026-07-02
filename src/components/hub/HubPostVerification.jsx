@@ -30,17 +30,23 @@ export default function HubPostVerification() {
     setResult(null);
     try {
       const res = await api.submitPostVerification(url.trim());
+      // Canonical /api/social/* client contract (api.request): returns the response body on
+      // 2xx and on soft failures (networkError / 401 / 404); THROWS on 400 / 403 / 429 / 5xx.
       if (res?.ok) {
         setResult({ type: 'success', message: 'Thanks! Your post is pending review — we’ll take it from here.' });
         setUrl('');
+      } else if (res?.networkError) {
+        setResult({ type: 'error', message: 'You appear to be offline. Please try again.' });
       } else {
-        const msg = res?.reason === 'invalid_url' ? 'That doesn’t look like a valid post link.'
-          : res?.reason === 'disabled' ? 'Post verification isn’t available right now.'
-          : 'Could not submit right now. Please try again.';
-        setResult({ type: 'error', message: msg });
+        setResult({ type: 'error', message: 'Could not submit right now. Please try again.' });
       }
-    } catch {
-      setResult({ type: 'error', message: 'Could not submit right now. Please try again.' });
+    } catch (err) {
+      const s = err?.status;
+      const message = s === 400 ? 'That doesn’t look like a valid post link.'
+        : s === 503 ? 'Post verification isn’t available right now.'
+        : s === 429 ? 'Please wait a moment and try again.'
+        : 'Could not submit right now. Please try again.';
+      setResult({ type: 'error', message });
     } finally {
       setSubmitting(false);
     }
