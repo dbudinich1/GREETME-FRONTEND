@@ -50,6 +50,28 @@
   }
 }
 
+/* Hearts Marketplace Layout Refinement (UX only) — compact overview grid. Desktop shows the
+   founder-approved 4 columns × 2 rows (8 cards); tablet/mobile continue the existing responsive
+   behavior with the SAME cards (2 columns), stacking further on the narrowest phones. Layout
+   only — reward cards, pricing, states, and CTAs are unchanged. 1024px matches the hub's
+   established desktop breakpoint (see .hub-row-3col) so the 4-up grid engages only once the
+   marketplace column (2fr of the earn/market row) is wide enough to hold four cards comfortably. */
+.hearts-hub .hub-mkt-compact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+@media (min-width: 1024px) {
+  .hearts-hub .hub-mkt-compact-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 400px) {
+  .hearts-hub .hub-mkt-compact-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Batch 7 — engagement band (Hero Hearts | Quick Actions | Marketplace): 3 columns on
    desktop, stacks to one column on tablet/mobile. */
 .hearts-hub .hub-row-3col {

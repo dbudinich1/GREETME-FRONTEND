@@ -15,6 +15,28 @@ import { useState } from 'react';
 import { Gift, ChevronDown, X } from 'lucide-react';
 import { REDEEM_COST, CANONICAL_CATALOG } from './hubConfig';
 
+// Layout Refinement (UX only) — compact overview shows this many reward cards (4 cols × 2 rows).
+// The remainder stays reachable via the unchanged "View All Rewards" expansion.
+const COMPACT_COUNT = 8;
+
+// Marketplace Category filter (DISPLAY ONLY). Each option is a pure presentational predicate over
+// the EXISTING catalog fields (category / title / available) — it changes only which cards render.
+// It mutates NO catalog data, pricing, availability, lock state, or redemption logic. A filter that
+// currently matches no canonical reward (e.g. Donations) renders an honest empty state — never
+// fabricated inventory. Predicates are independent views, so a reward may match more than one
+// (a renewal discount is both a Subscription and a Discount). Order is the founder-approved order.
+const CATEGORY_FILTERS = [
+  { key: 'all',          label: 'All Categories',    test: () => true },
+  { key: 'greetme',      label: 'Greet-Me',          test: (r) => r.category === 'Greet-Me' },
+  { key: 'subscription', label: 'Subscription',      test: (r) => r.category === 'Subscription' },
+  { key: 'premium',      label: 'Premium',           test: (r) => /premium|theme|effects?|storage|capacity|access/i.test(r.title) },
+  { key: 'hero_hearts',  label: 'Hero Hearts',       test: (r) => /hero heart/i.test(r.title) },
+  { key: 'gift_cards',   label: 'Gift Cards',        test: (r) => /gift (card|credit)/i.test(r.title) },
+  { key: 'qr_cash',      label: 'QR Cash',           test: (r) => /qr cash/i.test(r.title) },
+  { key: 'locked',       label: 'Locked Rewards',    test: (r) => !r.available },
+  { key: 'available',    label: 'Available Rewards', test: (r) => r.available },
+];
+
 // Truthful state → AVAILABLE | LOCKED badge (the only two canonical states).
 function StateBadge({ available }) {
   return (
@@ -129,10 +151,19 @@ export default function HubRedeemMarketplace({
   setMktConfirmId,
 }) {
   const [allOpen, setAllOpen] = useState(false);
+  const [categoryKey, setCategoryKey] = useState('all');
   // Server catalog is authoritative; fall back to the built-in canonical catalog while the
   // endpoint rolls out. The Anytime cost shown here comes from the catalog and equals the
   // amount the server charges (displayed cost == charged cost).
   const activeCatalog = Array.isArray(catalog) && catalog.length ? catalog : CANONICAL_CATALOG;
+
+  // Compact overview source: the canonical catalog flattened into its canonical order, each reward
+  // carrying its category (needed by the DISPLAY-ONLY category filter). No data is altered.
+  const flatRewards = activeCatalog.flatMap((cat) => cat.rewards.map((r) => ({ ...r, category: cat.category })));
+  const activeFilter = CATEGORY_FILTERS.find((f) => f.key === categoryKey) || CATEGORY_FILTERS[0];
+  // Filter (display only) → take the first COMPACT_COUNT for the 4×2 overview. Everything else stays
+  // one tap away in the unchanged "View All Rewards" expansion (which always shows the FULL catalog).
+  const compactRewards = flatRewards.filter(activeFilter.test).slice(0, COMPACT_COUNT);
   const anytimeCost = activeCatalog.flatMap((c) => c.rewards).find((r) => r.id === 'anytime_greetme')?.hearts ?? REDEEM_COST;
   const insufficient = balance < anytimeCost;
   const freeGreetingDisabled = redemptionPaused || insufficient || redeemSubmitting;
@@ -401,14 +432,13 @@ export default function HubRedeemMarketplace({
             Redeem your Hearts for rewards.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setAllOpen(true)}
-          aria-haspopup="dialog"
+        {/* Marketplace Category filter (DISPLAY ONLY) — changes which reward cards show in the
+            compact overview. No backend, no reward logic. Native select for robust accessibility. */}
+        <select
+          aria-label="Filter marketplace by category"
+          value={categoryKey}
+          onChange={(e) => setCategoryKey(e.target.value)}
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.375rem',
             flexShrink: 0,
             padding: '0.5rem 0.875rem',
             background: 'var(--bg-primary)',
@@ -421,33 +451,74 @@ export default function HubRedeemMarketplace({
             fontFamily: 'inherit'
           }}
         >
-          All Rewards <ChevronDown size={15} />
-        </button>
+          {CATEGORY_FILTERS.map((f) => (
+            <option key={f.key} value={f.key}>{f.label}</option>
+          ))}
+        </select>
       </div>
 
-      {/* ---- Canonical catalog: every reward, grouped by canonical category, AVAILABLE|LOCKED ---- */}
-      {activeCatalog.map((cat) => (
-        <section key={cat.category} style={{ marginBottom: '1.5rem' }}>
-          <h3 style={sectionHeaderStyle}>{cat.category}</h3>
-          <div style={gridStyle}>
-            {cat.rewards.map((r) => (
-              r.id === 'anytime_greetme'
-                ? renderAnytimeTile()
-                : <RewardTile key={r.id} title={r.title} hearts={r.hearts} available={r.available} unlock={r.unlock} />
-            ))}
-          </div>
-        </section>
-      ))}
+      {/* ---- Compact overview: 4 cols × 2 rows (8 cards), flat (no per-category sprawl). Cards are
+              UNCHANGED (same AVAILABLE|LOCKED tiles + live Anytime redeem). The category filter and
+              the "View All Rewards" expansion below reach everything beyond these 8. ---- */}
+      {compactRewards.length > 0 ? (
+        <div className="hub-mkt-compact-grid">
+          {compactRewards.map((r) => (
+            r.id === 'anytime_greetme'
+              ? renderAnytimeTile()
+              : <RewardTile key={r.id} title={r.title} hearts={r.hearts} available={r.available} unlock={r.unlock} />
+          ))}
+        </div>
+      ) : (
+        // Honest empty state — a filter with no matching canonical reward yet (e.g. Donations).
+        // No fabricated inventory; the full catalog is still one tap away via View All Rewards.
+        <div style={{
+          padding: '2rem 1.25rem',
+          textAlign: 'center',
+          background: 'var(--gray-50)',
+          border: '1px dashed var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          fontSize: '0.875rem',
+          color: 'var(--text-secondary)'
+        }}>
+          No rewards in this category yet.
+        </div>
+      )}
 
-      {/* ---- Server maker-gift items (real vendor items only; hidden while the catalog is dormant) ---- */}
+      {/* ---- Server maker-gift items (real vendor items only; hidden while the catalog is dormant).
+              Preserved verbatim — renders only when real items exist, so it adds no sprawl today. ---- */}
       {marketplaceItems.length > 0 ? (
-        <section style={{ marginBottom: '0.25rem' }}>
+        <section style={{ marginTop: '1.5rem', marginBottom: '0.25rem' }}>
           <h3 style={sectionHeaderStyle}>Maker Gifts</h3>
           <div style={gridStyle}>
             {marketplaceItems.map((item) => renderServerItem(item))}
           </div>
         </section>
       ) : null}
+
+      {/* ---- "View All Rewards" expansion trigger (centered, bottom). Opens the UNCHANGED full-catalog
+              modal below — the complete marketplace exactly as before. ---- */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem' }}>
+        <button
+          type="button"
+          onClick={() => setAllOpen(true)}
+          aria-haspopup="dialog"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            padding: '0.5rem 1rem',
+            background: 'transparent',
+            color: '#be185d',
+            border: 'none',
+            fontSize: '0.875rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            fontFamily: 'inherit'
+          }}
+        >
+          View All Rewards <ChevronDown size={16} />
+        </button>
+      </div>
 
       {/* "All Rewards" modal — the FULL canonical catalog (grouped) + any real server items. */}
       {allOpen ? (

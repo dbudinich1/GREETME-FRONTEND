@@ -161,20 +161,27 @@ export const HERO_HEARTS_BUNDLES = [
 // via humanize() with no redesign.
 
 // Behavior key (GET /api/hearts/amounts, GET /api/hearts/history) → founder-approved label.
-// The server already excludes retired (share_act) and internal (test_send); they are not
-// listed here. A behavior the server adds later renders via humanize() until a label is added.
+// DISPLAY COPY ONLY — these are presentation labels; the server behavior/key names are unchanged.
+// The server currently excludes internal (test_send) from the earn list; share_act carries its
+// founder-approved label here so it renders correctly if/when surfaced (no behavior change). A
+// behavior the server adds later renders via humanize() until a label is added.
 export const BEHAVIOR_LABELS = Object.freeze({
-  thank_you_sent: 'Send a Thank-You Greet-Me',
-  first_independent_send: 'Send your first independent Greet-Me',
-  share_converted: 'Earn when your shared friend joins',
+  registration_complete: 'Complete Registration',
+  onboarding_complete: 'Complete Onboarding',
+  chapter_1_complete: 'Chapter Completion',
+  thank_you_sent: 'Send a Thank-You',
+  first_independent_send: 'First Greet-Me',
+  share_converted: 'Friend Joins Through Your Share',
   scheduled_occasion: 'Schedule an occasion',
   first_5_distinct: 'Reach 5 delivered recipients',
-  real_send_with_gift: 'Send a Greet-Me with a gift',
+  real_send_with_gift: 'Send a Gift Greet-Me',
   first_10_distinct: 'Reach 10 delivered recipients',
   subscribe: 'Subscribe',
   repeat_occasion: 'Celebrate a repeat occasion',
   additional_gift: 'Add an additional gift',
-  upgrade: 'Upgrade your plan',
+  upgrade: 'Upgrade Your Plan',
+  share_act: 'Share the Love',
+  social_handle_connect: 'Social Media Connection',
 });
 
 // Social Circuit fact key (GET /api/social/circuit) → human label. Boolean facts only —
