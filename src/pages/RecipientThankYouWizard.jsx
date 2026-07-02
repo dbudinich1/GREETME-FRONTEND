@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import VoiceRecorder from '../components/VoiceRecorder';
 import PhotoUpload from '../components/PhotoUpload';
+import ShareTheLovePanel from '../components/ShareTheLovePanel';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -166,19 +167,6 @@ export default function RecipientThankYouWizard() {
     }
   };
 
-  const handleShare = async () => {
-    const shareUrl = sentJobId ? `${window.location.origin}/#/g/${sentJobId}` : window.location.origin;
-    const shareText = 'I just sent a Greet-Me \u2014 come see what I mean.';
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'Greet-Me', text: shareText, url: shareUrl });
-      } catch { /* user cancelled */ }
-    } else {
-      try {
-        await navigator.clipboard?.writeText(`${shareText} ${shareUrl}`);
-      } catch {}
-    }
-  };
 
   // ── Loading / Error ──
 
@@ -411,9 +399,14 @@ export default function RecipientThankYouWizard() {
                 View Greet-Me
               </button>
             )}
-            <button onClick={handleShare} style={styles.cta}>
-              Share
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.25rem' }}>
+              <ShareTheLovePanel
+                jobId={sentJobId}
+                shareUrl={sentJobId ? `${window.location.origin}/#/g/${sentJobId}` : window.location.origin}
+                shareText="I just sent a Greet-Me — come see what I mean."
+                defaultMode="broadcast"
+              />
+            </div>
             <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
               Go to Dashboard
             </button>

@@ -19,6 +19,7 @@ import { useRef } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import GiftSelectorModal from '../components/GiftSelectorModal';
+import ShareTheLovePanel from '../components/ShareTheLovePanel';
 import GiftConfirmationModal from '../components/GiftConfirmationModal';
 import PreSendReviewModal from '../components/PreSendReviewModal';
 import EmailVerificationModal from '../components/EmailVerificationModal';
@@ -1332,6 +1333,16 @@ if (typeof window !== "undefined") {
             >
               Go to Dashboard
             </button>
+            {completedJobId && (
+              <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'center' }}>
+                <ShareTheLovePanel
+                  jobId={completedJobId}
+                  shareUrl={`${window.location.origin}/#/g/${completedJobId}`}
+                  shareText="I just sent a Greet-Me — come see what I mean."
+                  defaultMode="broadcast"
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

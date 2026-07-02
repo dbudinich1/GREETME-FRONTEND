@@ -7,14 +7,16 @@
 // and "Subscribe" (same /pricing as Upgrade); "Send a Thank-You" → "Send a Greet-Me" (the real
 // destination is the generic Send Greeting flow). No new routes/handlers/capabilities.
 
-import { Send, UserPlus, TrendingUp, Heart } from 'lucide-react';
+import { Send, UserPlus, TrendingUp, Heart, Share2 } from 'lucide-react';
 
-export default function HubQuickActions({ navigate, setShowHeroHeartsModal }) {
+export default function HubQuickActions({ navigate, setShowHeroHeartsModal, onShareTheLove }) {
   const actions = [
     { key: 'send', label: 'Send a Greet-Me', Icon: Send, onClick: () => navigate('/dashboard/send') },
     { key: 'add', label: 'Add a Recipient', Icon: UserPlus, onClick: () => navigate('/dashboard/contacts') },
     { key: 'upgrade', label: 'Upgrade Your Plan', Icon: TrendingUp, onClick: () => navigate('/pricing') },
     { key: 'buy', label: 'Buy Hero Hearts', Icon: Heart, onClick: () => setShowHeroHeartsModal(true) },
+    // Quick Action (a fifth entry, not the centerpiece): opens the canonical Share the Love panel.
+    ...(onShareTheLove ? [{ key: 'share', label: 'Share the Love', Icon: Share2, onClick: () => onShareTheLove() }] : []),
   ];
 
   return (

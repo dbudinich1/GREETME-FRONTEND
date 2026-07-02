@@ -22,6 +22,7 @@ import HubHistory from '../components/hub/HubHistory';
 import HubLifetime from '../components/hub/HubLifetime';
 // UX-HUB-3 Batch 7 — Quick Actions (engagement band; real routes only).
 import HubQuickActions from '../components/hub/HubQuickActions';
+import ShareTheLovePanel from '../components/ShareTheLovePanel';
 // UX-HUB-3 Batch 4 — premium layout grid + ring (presentation only; same data owner).
 import './../components/hub/hub.css';
 
@@ -54,6 +55,7 @@ export default function Rewards() {
   const [lifetime, setLifetime] = useState(0);         // GET /api/hearts/lifetime → number
 
   const [showHeroHeartsModal, setShowHeroHeartsModal] = useState(false);
+  const [showShareLove, setShowShareLove] = useState(false);
   const [selectedHeroBundle, setSelectedHeroBundle] = useState(null);
   const [heroHeartsStep, setHeroHeartsStep] = useState('selection'); // 'selection' | 'confirmation'
   const [lastAddedHeroBundle, setLastAddedHeroBundle] = useState(null);
@@ -371,7 +373,7 @@ export default function Rewards() {
         {/* Row 2: Greet-Me Hero Hearts | Quick Actions | Lifetime Earned (3 columns). */}
         <div className="hub-row-3col">
           <HubHeroHearts setShowHeroHeartsModal={setShowHeroHeartsModal} />
-          <HubQuickActions navigate={navigate} setShowHeroHeartsModal={setShowHeroHeartsModal} />
+          <HubQuickActions navigate={navigate} setShowHeroHeartsModal={setShowHeroHeartsModal} onShareTheLove={() => setShowShareLove(true)} />
           <HubLifetime lifetimeEarned={lifetime} />
         </div>
 
@@ -390,6 +392,27 @@ export default function Rewards() {
           resetHeroHeartsModal={resetHeroHeartsModal}
           navigate={navigate}
         />
+
+        {showShareLove && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Share the Love"
+            onClick={() => setShowShareLove(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', zIndex: 1000 }}
+          >
+            <div onClick={(e) => e.stopPropagation()} style={{ background: '#fffdf8', borderRadius: '16px', padding: '1.5rem', maxWidth: '520px', width: '100%' }}>
+              <ShareTheLovePanel
+                shareUrl={window.location.origin}
+                shareText="Come make someone's day with Greet-Me."
+                defaultMode="broadcast"
+              />
+              <button type="button" onClick={() => setShowShareLove(false)} style={{ marginTop: '1rem', width: '100%', padding: '10px', border: '1px solid #e6e0d6', borderRadius: '10px', background: 'transparent', fontWeight: 600, cursor: 'pointer' }}>
+                Close
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,0 +1,104 @@
+/* src/components/ShareTheLovePanel.css — scoped to .gm-stl */
+
+.gm-stl {
+  max-width: 480px;
+}
+
+.gm-stl-head { margin-bottom: 12px; }
+
+.gm-stl-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2a2622;
+}
+
+.gm-stl-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: #f3efe7;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+
+.gm-stl-tab {
+  border: none;
+  background: transparent;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #7b6f5e;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.gm-stl-tab.is-active {
+  background: #fffdf8;
+  color: #2a2622;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.gm-stl-tab:focus-visible { outline: 2px solid #8B5CF6; outline-offset: 2px; }
+
+.gm-stl-invite {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 460px;
+}
+
+.gm-stl-field { display: block; text-align: left; }
+
+.gm-stl-field > span {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4a443c;
+  margin-bottom: 4px;
+}
+
+.gm-stl-field > input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #e6e0d6;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  background: #fffdf8;
+}
+
+.gm-stl-field > input:focus-visible { outline: 2px solid #8B5CF6; outline-offset: 1px; }
+
+.gm-stl-send {
+  padding: 11px 16px;
+  border: none;
+  border-radius: 10px;
+  background: #6b3a2a;
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gm-stl-send:disabled { opacity: 0.5; cursor: default; }
+
+.gm-stl-sent {
+  margin: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: #ecfdf3;
+  color: #027a48;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.gm-stl-err {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #b42318;
+  text-align: center;
+}
