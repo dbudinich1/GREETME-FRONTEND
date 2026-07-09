@@ -352,19 +352,13 @@ export default function Recipients() {
         </div>
 
         {/* Subtitle - Centered on desktop, justified on mobile */}
-        <div style={{ textAlign: isMobile ? 'justify' : 'center' }}>
+        <div style={{ textAlign: 'center' }}>
           <p style={{
             color: 'rgba(255, 255, 255, 0.9)',
             fontSize: isMobile ? '0.8125rem' : '0.9375rem',
             lineHeight: 1.5,
-            marginBottom: '12px'
-          }}>Personalize how you greet each recipient — birthdays, holidays, or "just because".</p>
-          <p style={{
-            color: 'rgba(255, 255, 255, 0.7)',
-            fontSize: isMobile ? '0.6875rem' : '0.75rem',
-            lineHeight: 1.4,
             marginBottom: '0'
-          }}>Gifts are optional and never auto-sent unless you enable Auto-Gift for a specific occasion.</p>
+          }}>Personalize your Greet-Me for every recipient.</p>
         </div>
 
         {/* Centered Action Buttons */}
@@ -442,38 +436,96 @@ export default function Recipients() {
         </div>
       </div>
 
-      {/* Gift Reminder Banner - Phase 8.2: Centered text with symmetric icons */}
+      {/* Gift Presentation Panel — premium cream/gold "Complete the Moment".
+          Pure CSS + inline SVG (no assets). Decorative only: no CTA, no click. */}
       <div style={{
-        marginTop: '1.5rem',
-        marginBottom: '1.5rem',
-        padding: '0.875rem 1rem',
-        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-        borderRadius: 'var(--radius-lg)',
-        border: '1px solid #fbbf24',
+        position: 'relative',
+        overflow: 'hidden',
+        marginTop: isMobile ? '2rem' : '2.5rem',
+        marginBottom: isMobile ? '2rem' : '2.5rem',
+        padding: isMobile ? '1.75rem 1.5rem' : '2.5rem 3rem',
+        background: 'linear-gradient(135deg, #fffdf8 0%, #fdf6e6 48%, #f6ecd2 100%)',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid rgba(199, 161, 74, 0.35)',
+        boxShadow: '0 10px 30px rgba(184, 146, 54, 0.14)',
         display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '0.75rem'
+        textAlign: isMobile ? 'center' : 'left',
+        gap: isMobile ? '1rem' : '2rem'
       }}>
-        <Gift size={20} style={{ color: '#d97706', flexShrink: 0 }} />
-        <div style={{ textAlign: 'center' }}>
+        {/* Subtle gold ribbon flourish — decorative, non-interactive */}
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 400 120"
+          preserveAspectRatio="none"
+          style={{
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            width: isMobile ? '60%' : '42%',
+            height: '100%',
+            opacity: 0.5,
+            pointerEvents: 'none'
+          }}
+        >
+          <path d="M0,86 C90,52 150,104 220,70 C290,36 340,84 400,54"
+            fill="none" stroke="rgba(203, 164, 74, 0.5)" strokeWidth="6" strokeLinecap="round" />
+          <path d="M0,100 C90,70 150,120 220,88 C290,56 340,102 400,74"
+            fill="none" stroke="rgba(226, 194, 120, 0.45)" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+
+        {/* Wrapped-gift illustration — inline SVG, gold on cream */}
+        <svg
+          aria-hidden="true"
+          width={isMobile ? '72' : '96'}
+          height={isMobile ? '72' : '96'}
+          viewBox="0 0 96 96"
+          style={{ flexShrink: 0, position: 'relative', zIndex: 1, filter: 'drop-shadow(0 4px 8px rgba(184, 146, 54, 0.22))' }}
+        >
+          <defs>
+            <linearGradient id="giftBox" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#fbf3dd" />
+              <stop offset="1" stopColor="#efe0bb" />
+            </linearGradient>
+            <linearGradient id="giftRibbon" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#d9b45a" />
+              <stop offset="1" stopColor="#b8862f" />
+            </linearGradient>
+          </defs>
+          {/* box body */}
+          <rect x="18" y="40" width="60" height="42" rx="5" fill="url(#giftBox)" stroke="rgba(184, 146, 54, 0.5)" strokeWidth="1.5" />
+          {/* lid */}
+          <rect x="12" y="30" width="72" height="16" rx="5" fill="url(#giftBox)" stroke="rgba(184, 146, 54, 0.5)" strokeWidth="1.5" />
+          {/* vertical ribbon */}
+          <rect x="42" y="30" width="12" height="52" fill="url(#giftRibbon)" />
+          {/* bow loops */}
+          <path d="M48 30 C40 14, 20 16, 26 28 C30 34, 42 32, 48 30 Z" fill="url(#giftRibbon)" />
+          <path d="M48 30 C56 14, 76 16, 70 28 C66 34, 54 32, 48 30 Z" fill="url(#giftRibbon)" />
+          <circle cx="48" cy="30" r="5" fill="#c79a3a" />
+        </svg>
+
+        {/* Copy */}
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: '30rem' }}>
           <p style={{
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            color: '#78350f',
+            fontSize: isMobile ? '1.125rem' : '1.375rem',
+            fontWeight: 700,
+            color: '#7a5c14',
+            letterSpacing: '0.01em',
             margin: 0
           }}>
-            Don't forget to add a gift
+            Complete the Moment
           </p>
           <p style={{
-            fontSize: '0.75rem',
-            color: '#92400e',
-            margin: '0.125rem 0 0 0'
+            fontSize: isMobile ? '0.875rem' : '0.9375rem',
+            lineHeight: 1.6,
+            color: '#8a6d2f',
+            margin: '0.5rem 0 0 0'
           }}>
-            Make the moment complete.
+            Add a thoughtful gift, QR Cash™, flowers, or other surprises to make every Greet-Me unforgettable.
           </p>
         </div>
-        <Gift size={20} style={{ color: '#d97706', flexShrink: 0 }} />
       </div>
 
       {/* Alert */}
@@ -485,6 +537,16 @@ export default function Recipients() {
         />
       )}
 
+      {/* Premium workspace container — unifies tabs, search, filters, recipient
+          list, and upcoming occasions in one surface. Layout/functionality within
+          is unchanged. */}
+      <div style={{
+        background: 'var(--bg-primary, #ffffff)',
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid var(--border, rgba(15, 23, 42, 0.08))',
+        boxShadow: '0 6px 24px rgba(15, 23, 42, 0.06)',
+        padding: isMobile ? '1.25rem' : '2rem'
+      }}>
       {/* View Toggle and Search - only when recipients exist */}
       {recipients.length > 0 && (
         <div style={{ marginBottom: '24px' }}>
@@ -1028,6 +1090,8 @@ export default function Recipients() {
           )}
         </div>
       )}
+      </div>
+      {/* End premium workspace container */}
 
       {/* Add Recipient Modal */}
       <Modal
