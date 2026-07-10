@@ -734,7 +734,7 @@ export default function Recipients() {
             />
             <input
               type="text"
-              placeholder={viewMode === 'recipients' ? "Search recipients..." : "Search occasions..."}
+              placeholder={viewMode === 'recipients' ? "Find someone…" : "Find an occasion…"}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               autoComplete="off"
@@ -1065,13 +1065,18 @@ export default function Recipients() {
               }}>Upcoming Occasions</h3>
             </div>
 
-            {allOccasions.filter(occ => occ.date).slice(0, 5).length === 0 ? (
+            {allOccasions.filter(occ => occ.date).length === 0 ? (
               <div style={{
+                height: 'min(480px, 50dvh)',
+                overflowY: 'hidden',
+                overflowX: 'hidden',
+                borderRadius: 'var(--radius-lg)',
+                padding: '2px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '14px',
-                padding: '32px 16px'
+                justifyContent: 'center',
+                gap: '14px'
               }}>
                 <div style={{
                   width: '52px',
@@ -1088,8 +1093,18 @@ export default function Recipients() {
                 <p style={{ margin: 0, color: 'var(--text-tertiary)', fontSize: '0.8125rem' }}>Dates you add to your people will appear here.</p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {allOccasions.filter(occ => occ.date).slice(0, 5).map((occ, idx) => (
+              <div style={{
+                height: 'min(480px, 50dvh)',
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                WebkitOverflowScrolling: 'touch',
+                borderRadius: 'var(--radius-lg)',
+                padding: '2px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                {allOccasions.filter(occ => occ.date).map((occ, idx) => (
                   <div
                     key={`upcoming-${occ.contactId}-${occ.type}-${idx}`}
                     style={{
