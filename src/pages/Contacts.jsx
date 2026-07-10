@@ -594,9 +594,9 @@ export default function Recipients() {
           }}>
             <div style={{
               display: 'inline-flex',
-              background: 'var(--gray-100)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '4px'
+              background: 'rgba(15, 23, 42, 0.04)',
+              borderRadius: '9999px',
+              padding: '5px'
             }}>
               <button
                 onClick={() => setViewMode('recipients')}
@@ -604,17 +604,18 @@ export default function Recipients() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  padding: '10px 16px',
-                  background: viewMode === 'recipients' ? 'white' : 'transparent',
-                  color: viewMode === 'recipients' ? '#667eea' : 'var(--text-secondary)',
+                  padding: '10px 20px',
+                  background: viewMode === 'recipients' ? '#ffffff' : 'transparent',
+                  color: viewMode === 'recipients' ? '#5a4fcf' : 'var(--text-secondary)',
                   border: 'none',
-                  borderRadius: 'var(--radius-md)',
+                  borderRadius: '9999px',
                   fontSize: '0.875rem',
                   fontWeight: 600,
+                  letterSpacing: '0.01em',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
                   fontFamily: 'inherit',
-                  boxShadow: viewMode === 'recipients' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                  boxShadow: viewMode === 'recipients' ? '0 1px 3px rgba(15, 23, 42, 0.10)' : 'none'
                 }}
               >
                 <Users size={16} />
@@ -626,17 +627,18 @@ export default function Recipients() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  padding: '10px 16px',
-                  background: viewMode === 'occasions' ? 'white' : 'transparent',
-                  color: viewMode === 'occasions' ? '#667eea' : 'var(--text-secondary)',
+                  padding: '10px 20px',
+                  background: viewMode === 'occasions' ? '#ffffff' : 'transparent',
+                  color: viewMode === 'occasions' ? '#5a4fcf' : 'var(--text-secondary)',
                   border: 'none',
-                  borderRadius: 'var(--radius-md)',
+                  borderRadius: '9999px',
                   fontSize: '0.875rem',
                   fontWeight: 600,
+                  letterSpacing: '0.01em',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
                   fontFamily: 'inherit',
-                  boxShadow: viewMode === 'occasions' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                  boxShadow: viewMode === 'occasions' ? '0 1px 3px rgba(15, 23, 42, 0.10)' : 'none'
                 }}
               >
                 <Calendar size={16} />
@@ -645,16 +647,17 @@ export default function Recipients() {
             </div>
           </div>
 
-          {/* Search */}
+          {/* Search — Spotlight-style inset surface */}
           <div style={{ position: 'relative' }}>
             <Search
               size={18}
               style={{
                 position: 'absolute',
-                left: '16px',
+                left: '18px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                color: 'var(--text-tertiary)'
+                color: 'var(--text-tertiary)',
+                pointerEvents: 'none'
               }}
             />
             <input
@@ -665,18 +668,26 @@ export default function Recipients() {
               autoComplete="off"
               style={{
                 width: '100%',
-                padding: '12px 16px 12px 44px',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-lg)',
+                padding: '14px 18px 14px 48px',
+                border: '1px solid transparent',
+                borderRadius: 'var(--radius-xl)',
                 fontSize: '1rem',
                 fontFamily: 'inherit',
-                background: 'var(--bg-primary)',
+                background: 'rgba(15, 23, 42, 0.035)',
                 color: 'var(--text-primary)',
                 outline: 'none',
-                transition: 'border-color 0.2s'
+                transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s'
               }}
-              onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
-              onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+              onFocus={(e) => {
+                e.currentTarget.style.background = '#ffffff';
+                e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.35)';
+                e.currentTarget.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.12)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.background = 'rgba(15, 23, 42, 0.035)';
+                e.currentTarget.style.borderColor = 'transparent';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
           </div>
         </div>
@@ -715,33 +726,33 @@ export default function Recipients() {
                   flexDirection: isMobile ? 'column' : 'row',
                   alignItems: isMobile ? 'stretch' : 'center',
                   justifyContent: 'space-between',
-                  padding: isMobile ? '16px 18px' : '18px 22px',
-                  marginBottom: '12px',
-                  border: '1px solid rgba(15, 23, 42, 0.07)',
-                  borderRadius: 'var(--radius-lg)',
-                  background: 'linear-gradient(180deg, #ffffff 0%, #fcfbff 100%)',
-                  boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+                  padding: isMobile ? '18px' : '22px 24px',
+                  marginBottom: '14px',
+                  border: '1px solid rgba(15, 23, 42, 0.05)',
+                  borderRadius: '20px',
+                  background: '#ffffff',
+                  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)',
                   transition: 'all 0.2s',
-                  gap: isMobile ? '12px' : '16px'
+                  gap: isMobile ? '16px' : '18px'
                 }}
                 {...getHoverHandlers({
                   onEnter: (e) => {
-                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(76, 61, 143, 0.12)';
-                    e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.55)';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 12px 28px rgba(76, 61, 143, 0.14)';
+                    e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.35)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
                   },
                   onLeave: (e) => {
-                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(15, 23, 42, 0.04)';
-                    e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.07)';
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.05)';
+                    e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.05)';
                     e.currentTarget.style.transform = 'translateY(0)';
                   },
                 })}
               >
                 {/* Left: Avatar + Name + Relationship */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: isMobile ? 'none' : '0 0 200px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: isMobile ? 'none' : '0 0 260px', minWidth: 0 }}>
                   <div style={{
-                    width: '44px',
-                    height: '44px',
+                    width: '58px',
+                    height: '58px',
                     borderRadius: '50%',
                     background: contact.avatar ? `url(${contact.avatar}) center/cover` : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     display: 'flex',
@@ -749,66 +760,57 @@ export default function Recipients() {
                     justifyContent: 'center',
                     color: 'white',
                     fontWeight: 700,
-                    fontSize: '1.125rem',
-                    flexShrink: 0
+                    fontSize: '1.375rem',
+                    flexShrink: 0,
+                    boxShadow: '0 0 0 3px #ffffff, 0 3px 10px rgba(102, 126, 234, 0.28)'
                   }}>
                     {!contact.avatar && contact.name?.charAt(0)?.toUpperCase()}
                   </div>
-                  <div>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9375rem', marginBottom: '2px' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '1.0625rem', letterSpacing: '-0.01em', marginBottom: '5px', lineHeight: 1.25 }}>
                       {contact.name}
                     </div>
-                    <span style={{
-                      background: 'linear-gradient(135deg, #ddd6fe 0%, #c7d2fe 100%)',
-                      color: '#5b21b6',
-                      padding: '2px 10px',
-                      borderRadius: '9999px',
-                      fontSize: '0.6875rem',
-                      fontWeight: 600,
-                      textTransform: 'capitalize'
-                    }}>
-                      {contact.relationship || 'Not set'}
-                    </span>
+                    {contact.relationship && (
+                      <span style={{
+                        background: 'rgba(102, 126, 234, 0.10)',
+                        color: '#5a4fcf',
+                        padding: '3px 11px',
+                        borderRadius: '9999px',
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        textTransform: 'capitalize'
+                      }}>
+                        {contact.relationship}
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 {/* Middle: Occasions + Gift */}
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
-                  {contact.occasions?.length > 0 ? (
-                    contact.occasions.slice(0, 4).map((occasion, idx) => (
-                      <span
-                        key={idx}
-                        title={getOccasionLabel(occasion.type)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '4px 10px',
-                          background: 'var(--gray-100)',
-                          borderRadius: '9999px',
-                          fontSize: '0.75rem',
-                          color: 'var(--text-secondary)'
-                        }}
-                      >
-                        <span style={{ fontSize: '0.875rem' }}>{getOccasionIcon(occasion.type)}</span>
-                        {!isMobile && <span>{getOccasionLabel(occasion.type)}</span>}
-                        {occasion.autoSend && <span title="Auto-send enabled" style={{ fontSize: '0.6875rem', color: '#27AE60' }}>⚡</span>}
-                      </span>
-                    ))
-                  ) : (
-                    <span style={{
-                      padding: '4px 10px',
-                      background: 'var(--gray-50)',
-                      borderRadius: '9999px',
-                      fontSize: '0.75rem',
-                      color: 'var(--text-tertiary)'
-                    }}>
-                      No occasions
+                  {contact.occasions?.length > 0 && contact.occasions.slice(0, 4).map((occasion, idx) => (
+                    <span
+                      key={idx}
+                      title={getOccasionLabel(occasion.type)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '5px 12px',
+                        background: 'rgba(15, 23, 42, 0.04)',
+                        borderRadius: '9999px',
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.875rem' }}>{getOccasionIcon(occasion.type)}</span>
+                      {!isMobile && <span>{getOccasionLabel(occasion.type)}</span>}
+                      {occasion.autoSend && <span title="Auto-send enabled" style={{ fontSize: '0.6875rem', color: '#27AE60' }}>⚡</span>}
                     </span>
-                  )}
+                  ))}
                   {contact.occasions?.length > 4 && (
                     <span style={{
-                      padding: '4px 10px',
+                      padding: '5px 12px',
                       fontSize: '0.75rem',
                       color: 'var(--text-tertiary)'
                     }}>
@@ -816,13 +818,13 @@ export default function Recipients() {
                     </span>
                   )}
 
-                  {/* Gift status */}
-                  {contact.giftSelected ? (
+                  {/* Positive gift indicator only — no "No gift" negative chip */}
+                  {contact.giftSelected && (
                     <span style={{
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '4px',
-                      padding: '4px 10px',
+                      padding: '5px 12px',
                       background: 'linear-gradient(135deg, #fef08a 0%, #fde047 100%)',
                       borderRadius: '9999px',
                       fontSize: '0.75rem',
@@ -831,75 +833,66 @@ export default function Recipients() {
                     }}>
                       🎁 Gift
                     </span>
-                  ) : (
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '4px 10px',
-                      background: 'var(--gray-50)',
-                      borderRadius: '9999px',
-                      fontSize: '0.75rem',
-                      color: 'var(--text-tertiary)',
-                      border: '1px dashed var(--gray-300)'
-                    }}>
-                      <Gift size={12} />
-                      No gift
-                    </span>
                   )}
                 </div>
 
                 {/* Right: Actions */}
                 <div style={{
                   display: 'flex',
-                  gap: '8px',
+                  gap: '10px',
+                  alignItems: 'center',
                   justifyContent: isMobile ? 'flex-end' : 'flex-start',
                   flexShrink: 0
                 }}>
+                  {/* Primary — Send */}
                   <button
                     onClick={() => navigate(`/dashboard/send?contactId=${contact._id || contact.id}`)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
-                      padding: '8px 14px',
+                      padding: '10px 18px',
                       minHeight: '44px',
                       background: '#22c55e',
                       color: 'white',
                       border: 'none',
-                      borderRadius: 'var(--radius-md)',
+                      borderRadius: 'var(--radius-lg)',
                       fontSize: '0.8125rem',
                       fontWeight: 600,
                       cursor: 'pointer',
                       transition: 'all 0.2s',
-                      fontFamily: 'inherit'
+                      fontFamily: 'inherit',
+                      boxShadow: '0 2px 6px rgba(34, 197, 94, 0.28)'
                     }}
                     {...getHoverHandlers({
                       onEnter: (e) => {
                         e.currentTarget.style.background = '#16a34a';
                         e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(34, 197, 94, 0.36)';
                       },
                       onLeave: (e) => {
                         e.currentTarget.style.background = '#22c55e';
                         e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 6px rgba(34, 197, 94, 0.28)';
                       },
                     })}
                   >
                     <Send size={14} />
                     Send
                   </button>
+                  {/* Quiet secondary — Edit */}
                   <button
                     onClick={() => openEditModal(contact)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
-                      padding: '8px 14px',
+                      padding: '10px 16px',
                       minHeight: '44px',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 'var(--radius-md)',
+                      background: 'transparent',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid rgba(15, 23, 42, 0.12)',
+                      borderRadius: 'var(--radius-lg)',
                       fontSize: '0.8125rem',
                       fontWeight: 600,
                       cursor: 'pointer',
@@ -908,18 +901,21 @@ export default function Recipients() {
                     }}
                     {...getHoverHandlers({
                       onEnter: (e) => {
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.4)';
+                        e.currentTarget.style.background = 'rgba(102, 126, 234, 0.08)';
+                        e.currentTarget.style.color = '#5a4fcf';
+                        e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.40)';
                       },
                       onLeave: (e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = 'none';
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-secondary)';
+                        e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.12)';
                       },
                     })}
                   >
                     <Edit size={14} />
                     Edit
                   </button>
+                  {/* Muted danger — Delete (danger surfaces on hover/focus) */}
                   <button
                     onClick={() => setDeleteConfirm(contact)}
                     style={{
@@ -929,10 +925,10 @@ export default function Recipients() {
                       width: '44px',
                       height: '44px',
                       padding: 0,
-                      background: '#ffffff',
-                      color: '#dc2626',
-                      border: '2px solid #dc2626',
-                      borderRadius: 'var(--radius-md)',
+                      background: 'transparent',
+                      color: 'var(--text-tertiary)',
+                      border: '1px solid rgba(15, 23, 42, 0.10)',
+                      borderRadius: 'var(--radius-lg)',
                       cursor: 'pointer',
                       transition: 'all 0.2s'
                     }}
@@ -940,15 +936,28 @@ export default function Recipients() {
                       onEnter: (e) => {
                         e.currentTarget.style.background = '#fee2e2';
                         e.currentTarget.style.color = '#dc2626';
+                        e.currentTarget.style.borderColor = '#dc2626';
                       },
                       onLeave: (e) => {
-                        e.currentTarget.style.background = '#ffffff';
-                        e.currentTarget.style.color = '#dc2626';
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-tertiary)';
+                        e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.10)';
                       },
                     })}
+                    onFocus={(e) => {
+                      e.currentTarget.style.background = '#fee2e2';
+                      e.currentTarget.style.color = '#dc2626';
+                      e.currentTarget.style.borderColor = '#dc2626';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = 'var(--text-tertiary)';
+                      e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.10)';
+                    }}
                     title="Delete"
+                    aria-label="Delete recipient"
                   >
-                    <Trash2 size={20} />
+                    <Trash2 size={18} />
                   </button>
                 </div>
               </div>
@@ -958,35 +967,55 @@ export default function Recipients() {
 
           {/* Upcoming Occasions Section */}
           <div style={{
-            marginTop: '24px',
-            padding: '20px',
+            marginTop: '28px',
+            padding: '28px',
             background: 'var(--bg-primary)',
             borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border)'
+            border: '1px solid rgba(15, 23, 42, 0.05)',
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)'
           }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              marginBottom: '16px'
+              gap: '10px',
+              marginBottom: '20px'
             }}>
               <Clock size={18} style={{ color: '#667eea', flexShrink: 0 }} />
               <h3 style={{
-                fontSize: '1rem',
-                fontWeight: 600,
+                fontSize: '1.0625rem',
+                fontWeight: 700,
+                letterSpacing: '-0.01em',
                 color: 'var(--text-primary)',
                 margin: 0
               }}>Upcoming Occasions</h3>
             </div>
 
             {allOccasions.filter(occ => occ.date).slice(0, 5).length === 0 ? (
-              <p style={{
-                color: 'var(--text-secondary)',
-                fontSize: '0.875rem',
-                margin: 0,
-                textAlign: 'center',
-                padding: '12px 0'
-              }}>No upcoming occasions yet.</p>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '14px',
+                padding: '32px 16px'
+              }}>
+                <div style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '50%',
+                  background: 'rgba(102, 126, 234, 0.08)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Clock size={24} style={{ color: '#8b93d6' }} />
+                </div>
+                <p style={{
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.9375rem',
+                  fontWeight: 500,
+                  margin: 0
+                }}>No upcoming occasions yet</p>
+              </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {allOccasions.filter(occ => occ.date).slice(0, 5).map((occ, idx) => (
@@ -996,25 +1025,30 @@ export default function Recipients() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '10px 12px',
-                      background: 'white',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--gray-200)'
+                      gap: '12px',
+                      padding: '14px 16px',
+                      background: 'rgba(15, 23, 42, 0.02)',
+                      borderRadius: '14px'
                     }}
                   >
                     <span style={{
-                      fontWeight: 500,
+                      fontWeight: 600,
                       color: 'var(--text-primary)',
-                      fontSize: '0.875rem'
+                      fontSize: '0.9375rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
                     }}>{occ.recipientName}</span>
                     <span style={{
                       color: 'var(--text-secondary)',
-                      fontSize: '0.8125rem'
+                      fontSize: '0.8125rem',
+                      flexShrink: 0
                     }}>{getOccasionLabel(occ.type)}</span>
                     <span style={{
                       color: 'var(--text-tertiary)',
                       fontSize: '0.75rem',
-                      fontWeight: 500
+                      fontWeight: 600,
+                      flexShrink: 0
                     }}>{new Date(occ.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                   </div>
                 ))}
@@ -1055,24 +1089,24 @@ export default function Recipients() {
                   flexDirection: isMobile ? 'column' : 'row',
                   alignItems: isMobile ? 'stretch' : 'center',
                   justifyContent: 'space-between',
-                  padding: isMobile ? '16px 18px' : '18px 22px',
-                  marginBottom: '12px',
-                  border: '1px solid rgba(15, 23, 42, 0.07)',
-                  borderRadius: 'var(--radius-lg)',
-                  background: 'linear-gradient(180deg, #ffffff 0%, #fcfbff 100%)',
-                  boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+                  padding: isMobile ? '18px' : '22px 24px',
+                  marginBottom: '14px',
+                  border: '1px solid rgba(15, 23, 42, 0.05)',
+                  borderRadius: '20px',
+                  background: '#ffffff',
+                  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)',
                   transition: 'all 0.2s',
-                  gap: isMobile ? '12px' : '16px'
+                  gap: isMobile ? '16px' : '18px'
                 }}
                 {...getHoverHandlers({
                   onEnter: (e) => {
-                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(76, 61, 143, 0.12)';
-                    e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.55)';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 12px 28px rgba(76, 61, 143, 0.14)';
+                    e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.35)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
                   },
                   onLeave: (e) => {
-                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(15, 23, 42, 0.04)';
-                    e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.07)';
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.05)';
+                    e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.05)';
                     e.currentTarget.style.transform = 'translateY(0)';
                   },
                 })}
