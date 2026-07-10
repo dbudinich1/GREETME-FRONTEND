@@ -292,10 +292,10 @@ export default function Recipients() {
         position: 'relative',
         background: 'radial-gradient(120% 140% at 15% 0%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 45%), linear-gradient(135deg, #6d74ee 0%, #764ba2 55%, #6a3f96 100%)',
         borderRadius: 'var(--radius-xl)',
-        padding: isMobile ? '24px 20px' : '36px',
-        marginBottom: isMobile ? '20px' : '28px',
+        padding: isMobile ? '26px 20px' : '40px',
+        marginBottom: isMobile ? '24px' : '32px',
         border: '1px solid rgba(255, 255, 255, 0.14)',
-        boxShadow: '0 12px 30px rgba(102, 126, 234, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.22)'
+        boxShadow: '0 16px 38px rgba(76, 61, 143, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.24)'
       }}>
         {/* Title Row with Back Arrow on Left, Recipients Centered */}
         <div style={{
@@ -323,45 +323,10 @@ export default function Recipients() {
           >
             <ArrowLeft size={20} />
           </button>
-          {/* Just Because button - top right */}
-          <button
-            onClick={() => navigate('/dashboard/send')}
-            style={{
-              position: 'absolute',
-              right: 0,
-              padding: isMobile ? '0.5rem 0.75rem' : '0.625rem 1rem',
-              background: '#22c55e',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: isMobile ? '0.75rem' : '0.8125rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.2s',
-              boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)',
-              fontFamily: 'inherit'
-            }}
-            {...getHoverHandlers({
-              onEnter: (e) => {
-                e.currentTarget.style.background = '#16a34a';
-                e.currentTarget.style.boxShadow = '0 4px 8px rgba(34, 197, 94, 0.3)';
-              },
-              onLeave: (e) => {
-                e.currentTarget.style.background = '#22c55e';
-                e.currentTarget.style.boxShadow = '0 2px 4px rgba(34, 197, 94, 0.2)';
-              },
-            })}
-          >
-            <Send size={isMobile ? 12 : 14} style={{ flexShrink: 0 }} />
-            Send Greet-Me
-          </button>
           <h1 style={{
-            fontSize: isMobile ? '1.5rem' : '1.75rem',
+            fontSize: isMobile ? '1.625rem' : '1.875rem',
             fontWeight: 700,
+            letterSpacing: '-0.01em',
             color: 'white',
             margin: 0,
             lineHeight: 1.2,
@@ -370,29 +335,68 @@ export default function Recipients() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '8px'
+            gap: '10px'
           }}>
             My People
-            <span style={{
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              background: 'rgba(255, 255, 255, 0.25)',
-              padding: '2px 10px',
-              borderRadius: '9999px',
-              minWidth: '24px',
-              textAlign: 'center'
-            }}>{recipients.length}</span>
+            {recipients.length > 0 && (
+              <span style={{
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: 'rgba(255, 255, 255, 0.85)',
+                background: 'rgba(255, 255, 255, 0.14)',
+                padding: '2px 9px',
+                borderRadius: '9999px',
+                textAlign: 'center',
+                alignSelf: 'center'
+              }}>{recipients.length}</span>
+            )}
           </h1>
         </div>
 
-        {/* Centered Action Buttons */}
+        {/* Header actions — one balanced row: Send (primary) · Add (secondary) · Import (tertiary) */}
         <div style={{
           display: 'flex',
           flexDirection: 'row',
-          gap: '8px',
+          flexWrap: 'wrap',
+          gap: '10px',
           justifyContent: 'center',
-          marginTop: '16px'
+          marginTop: '22px'
         }}>
+          <button
+            onClick={() => navigate('/dashboard/send')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '7px',
+              padding: '11px 20px',
+              background: '#ffffff',
+              color: '#5a4fcf',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '0.8125rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 4px 14px rgba(20, 12, 60, 0.20)',
+              fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+            {...getHoverHandlers({
+              onEnter: (e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 18px rgba(20, 12, 60, 0.28)';
+              },
+              onLeave: (e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 14px rgba(20, 12, 60, 0.20)';
+              },
+            })}
+          >
+            <Send size={14} />
+            Send Greet-Me
+          </button>
           <button
             onClick={() => {
               try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch (e) {}
@@ -403,29 +407,22 @@ export default function Recipients() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '6px',
-              padding: '10px 16px',
-              background: 'white',
-              color: '#667eea',
-              border: 'none',
+              padding: '11px 18px',
+              background: 'rgba(255, 255, 255, 0.16)',
+              color: 'white',
+              border: '1px solid rgba(255, 255, 255, 0.28)',
               borderRadius: 'var(--radius-lg)',
-              fontSize: '0.8rem',
+              fontSize: '0.8125rem',
               fontWeight: 600,
               cursor: 'pointer',
               transition: 'all 0.2s',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
               fontFamily: 'inherit',
               whiteSpace: 'nowrap',
               flexShrink: 0
             }}
             {...getHoverHandlers({
-              onEnter: (e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
-              },
-              onLeave: (e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-              },
+              onEnter: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.26)'; },
+              onLeave: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.16)'; },
             })}
           >
             Add Recipient
@@ -437,12 +434,12 @@ export default function Recipients() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '6px',
-              padding: '10px 16px',
-              background: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
+              padding: '11px 18px',
+              background: 'transparent',
+              color: 'rgba(255, 255, 255, 0.92)',
+              border: '1px solid rgba(255, 255, 255, 0.22)',
               borderRadius: 'var(--radius-lg)',
-              fontSize: '0.8rem',
+              fontSize: '0.8125rem',
               fontWeight: 600,
               cursor: 'pointer',
               transition: 'all 0.2s',
@@ -451,8 +448,8 @@ export default function Recipients() {
               flexShrink: 0
             }}
             {...getHoverHandlers({
-              onEnter: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'; },
-              onLeave: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'; },
+              onEnter: (e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'; },
+              onLeave: (e) => { e.currentTarget.style.background = 'transparent'; },
             })}
           >
             Import Contacts
@@ -465,50 +462,33 @@ export default function Recipients() {
       <div style={{
         position: 'relative',
         overflow: 'hidden',
-        marginTop: isMobile ? '1.75rem' : '2.25rem',
-        marginBottom: isMobile ? '1.75rem' : '2.25rem',
-        padding: isMobile ? '1.75rem 1.5rem' : '2.75rem 3rem',
-        background: 'radial-gradient(130% 120% at 12% 0%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 42%), linear-gradient(135deg, #fffefa 0%, #fdf4e1 46%, #f4e6c6 100%)',
+        marginTop: isMobile ? '2rem' : '2.5rem',
+        marginBottom: isMobile ? '2rem' : '2.5rem',
+        padding: isMobile ? '2.5rem 1.75rem' : '3.25rem 3rem',
+        background: 'radial-gradient(90% 130% at 50% -15%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 46%), radial-gradient(120% 100% at 100% 115%, rgba(214, 178, 96, 0.16) 0%, rgba(214, 178, 96, 0) 52%), radial-gradient(120% 100% at 0% 115%, rgba(214, 178, 96, 0.12) 0%, rgba(214, 178, 96, 0) 52%), linear-gradient(165deg, #fffdf7 0%, #fbf1da 52%, #f2e3bf 100%)',
         borderRadius: 'var(--radius-xl)',
-        border: '1px solid rgba(199, 161, 74, 0.45)',
-        boxShadow: '0 16px 40px rgba(184, 146, 54, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7)',
+        border: '1px solid rgba(199, 161, 74, 0.38)',
+        boxShadow: '0 20px 46px rgba(184, 146, 54, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.35)',
         display: 'flex',
-        flexDirection: isMobile ? 'column' : 'row',
+        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        textAlign: isMobile ? 'center' : 'left',
-        gap: isMobile ? '1.25rem' : '2.25rem'
+        textAlign: 'center'
       }}>
-        {/* Soft gold ribbon flourishes — decorative, non-interactive */}
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 400 120"
-          preserveAspectRatio="none"
-          style={{
-            position: 'absolute',
-            right: 0,
-            bottom: 0,
-            width: isMobile ? '70%' : '46%',
-            height: '100%',
-            opacity: 0.55,
-            pointerEvents: 'none'
-          }}
-        >
-          <path d="M0,84 C90,50 150,102 220,68 C290,34 340,82 400,52"
-            fill="none" stroke="rgba(203, 164, 74, 0.55)" strokeWidth="7" strokeLinecap="round" />
-          <path d="M0,98 C90,68 150,118 220,86 C290,54 340,100 400,72"
-            fill="none" stroke="rgba(226, 194, 120, 0.5)" strokeWidth="3.5" strokeLinecap="round" />
-          <path d="M0,66 C80,40 150,80 230,52 C300,28 350,60 400,40"
-            fill="none" stroke="rgba(214, 178, 96, 0.28)" strokeWidth="2" strokeLinecap="round" />
+        {/* Corner foil sparkles — decorative, non-interactive */}
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style={{ position: 'absolute', top: isMobile ? '20px' : '30px', left: isMobile ? '22px' : '36px', opacity: 0.7, pointerEvents: 'none' }}>
+          <path d="M8 0 l1.7 6.3 6.3 1.7 -6.3 1.7 -1.7 6.3 -1.7 -6.3 -6.3 -1.7 6.3 -1.7 Z" fill="#dcb458" />
+        </svg>
+        <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" style={{ position: 'absolute', top: isMobile ? '40px' : '58px', right: isMobile ? '30px' : '50px', opacity: 0.6, pointerEvents: 'none' }}>
+          <path d="M5 0 l1 3.9 3.9 1 -3.9 1 -1 3.9 -1 -3.9 -3.9 -1 3.9 -1 Z" fill="#e2c46a" />
         </svg>
 
-        {/* Wrapped-gift illustration — inline SVG, gold on cream */}
+        {/* Wrapped-gift hero illustration — inline SVG, foil-and-cream */}
         <svg
           aria-hidden="true"
-          width={isMobile ? '84' : '108'}
-          height={isMobile ? '84' : '108'}
-          viewBox="0 0 108 108"
-          style={{ flexShrink: 0, position: 'relative', zIndex: 1 }}
+          width={isMobile ? '104' : '128'}
+          height={isMobile ? '104' : '128'}
+          viewBox="0 0 128 128"
+          style={{ position: 'relative', zIndex: 1 }}
         >
           <defs>
             <linearGradient id="giftBox" x1="0" y1="0" x2="1" y2="1">
@@ -520,51 +500,66 @@ export default function Recipients() {
               <stop offset="1" stopColor="#efe0bb" />
             </linearGradient>
             <linearGradient id="giftRibbon" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#e6c46a" />
+              <stop offset="0" stopColor="#e9c86e" />
               <stop offset="0.5" stopColor="#cfa23f" />
-              <stop offset="1" stopColor="#b8862f" />
+              <stop offset="1" stopColor="#b0801f" />
             </linearGradient>
           </defs>
           {/* cast shadow */}
-          <ellipse cx="54" cy="94" rx="34" ry="5" fill="rgba(184, 146, 54, 0.22)" />
+          <ellipse cx="64" cy="116" rx="40" ry="6" fill="rgba(184, 146, 54, 0.20)" />
           {/* box body */}
-          <rect x="22" y="46" width="64" height="44" rx="6" fill="url(#giftBox)" stroke="rgba(184, 146, 54, 0.5)" strokeWidth="1.5" />
-          {/* lid */}
-          <rect x="15" y="35" width="78" height="17" rx="6" fill="url(#giftLid)" stroke="rgba(184, 146, 54, 0.5)" strokeWidth="1.5" />
-          {/* vertical ribbon + highlight */}
-          <rect x="47" y="35" width="14" height="55" fill="url(#giftRibbon)" />
-          <rect x="47" y="35" width="5" height="55" fill="rgba(255, 255, 255, 0.25)" />
-          {/* bow loops + knot */}
-          <path d="M54 35 C45 17, 22 19, 29 32 C33 39, 47 37, 54 35 Z" fill="url(#giftRibbon)" stroke="rgba(184, 146, 54, 0.4)" strokeWidth="1" />
-          <path d="M54 35 C63 17, 86 19, 79 32 C75 39, 61 37, 54 35 Z" fill="url(#giftRibbon)" stroke="rgba(184, 146, 54, 0.4)" strokeWidth="1" />
-          <circle cx="54" cy="35" r="6" fill="#cfa23f" stroke="rgba(184, 146, 54, 0.5)" strokeWidth="1" />
-          {/* sparkles */}
-          <g fill="#e8c874">
-            <path d="M92 22 l1.6 4.2 4.2 1.6 -4.2 1.6 -1.6 4.2 -1.6 -4.2 -4.2 -1.6 4.2 -1.6 Z" />
-            <path d="M20 26 l1.1 2.9 2.9 1.1 -2.9 1.1 -1.1 2.9 -1.1 -2.9 -2.9 -1.1 2.9 -1.1 Z" opacity="0.8" />
-          </g>
+          <rect x="28" y="58" width="72" height="52" rx="8" fill="url(#giftBox)" stroke="rgba(184, 146, 54, 0.42)" strokeWidth="1.5" />
+          {/* horizontal ribbon band + highlight */}
+          <rect x="28" y="76" width="72" height="15" fill="url(#giftRibbon)" />
+          <rect x="28" y="76" width="72" height="4" fill="rgba(255, 255, 255, 0.22)" />
+          {/* vertical ribbon on body + highlight */}
+          <rect x="56" y="58" width="16" height="52" fill="url(#giftRibbon)" />
+          <rect x="56" y="58" width="5" height="52" fill="rgba(255, 255, 255, 0.22)" />
+          {/* lid (lifted) */}
+          <rect x="20" y="44" width="88" height="18" rx="7" fill="url(#giftLid)" stroke="rgba(184, 146, 54, 0.42)" strokeWidth="1.5" />
+          <rect x="56" y="44" width="16" height="18" fill="url(#giftRibbon)" />
+          {/* bow + knot */}
+          <path d="M64 44 C53 22, 26 24, 34 41 C39 50, 55 46, 64 44 Z" fill="url(#giftRibbon)" stroke="rgba(184, 146, 54, 0.35)" strokeWidth="1" />
+          <path d="M64 44 C75 22, 102 24, 94 41 C89 50, 73 46, 64 44 Z" fill="url(#giftRibbon)" stroke="rgba(184, 146, 54, 0.35)" strokeWidth="1" />
+          <circle cx="64" cy="44" r="7" fill="#cfa23f" stroke="rgba(184, 146, 54, 0.45)" strokeWidth="1" />
+          {/* foil sheen */}
+          <path d="M34 58 L50 58 L38 110 L30 110 Z" fill="rgba(255, 255, 255, 0.18)" />
         </svg>
 
-        {/* Copy */}
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: '30rem' }}>
-          <p style={{
-            fontSize: isMobile ? '1.25rem' : '1.5rem',
-            fontWeight: 700,
-            color: '#785713',
-            letterSpacing: '0.01em',
-            margin: 0
-          }}>
-            Complete the Moment
-          </p>
-          <p style={{
-            fontSize: isMobile ? '0.875rem' : '0.9375rem',
-            lineHeight: 1.65,
-            color: '#8a6d2f',
-            margin: '0.6rem 0 0 0'
-          }}>
-            Add a thoughtful gift, QR Cash™, flowers, or other surprises to make every Greet-Me unforgettable.
-          </p>
-        </div>
+        {/* Title */}
+        <p style={{
+          position: 'relative',
+          zIndex: 1,
+          fontSize: isMobile ? '1.375rem' : '1.75rem',
+          fontWeight: 700,
+          letterSpacing: '-0.01em',
+          color: '#6f5210',
+          margin: isMobile ? '1.25rem 0 0 0' : '1.5rem 0 0 0'
+        }}>
+          Complete the Moment
+        </p>
+
+        {/* Gold hairline detailing — replaces the ribbon swoosh */}
+        <div style={{
+          width: '52px',
+          height: '2px',
+          margin: '14px 0',
+          borderRadius: '2px',
+          background: 'linear-gradient(90deg, rgba(207, 162, 63, 0) 0%, rgba(207, 162, 63, 0.9) 50%, rgba(207, 162, 63, 0) 100%)'
+        }} />
+
+        {/* Body */}
+        <p style={{
+          position: 'relative',
+          zIndex: 1,
+          fontSize: isMobile ? '0.9375rem' : '1rem',
+          lineHeight: 1.65,
+          color: '#8a6d2f',
+          maxWidth: '32rem',
+          margin: 0
+        }}>
+          Add a thoughtful gift, QR Cash™, flowers, or other surprises to make every Greet-Me unforgettable.
+        </p>
       </div>
 
       {/* Alert */}
