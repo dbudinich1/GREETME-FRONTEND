@@ -255,13 +255,24 @@ export default function Recipients() {
 
   return (
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+      {/* Premium page shell — unifies header, gift presentation, and workspace
+          into one elevated luxury surface. Visual only; no structural change. */}
+      <div style={{
+        background: 'linear-gradient(180deg, #ffffff 0%, #f7f5fc 100%)',
+        borderRadius: isMobile ? 'var(--radius-xl)' : '28px',
+        border: '1px solid rgba(102, 126, 234, 0.10)',
+        boxShadow: '0 24px 60px rgba(76, 61, 143, 0.10), 0 2px 6px rgba(15, 23, 42, 0.04)',
+        padding: isMobile ? '1.25rem' : '2.5rem'
+      }}>
       {/* Header Banner */}
       <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        position: 'relative',
+        background: 'radial-gradient(120% 140% at 15% 0%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 45%), linear-gradient(135deg, #6d74ee 0%, #764ba2 55%, #6a3f96 100%)',
         borderRadius: 'var(--radius-xl)',
-        padding: isMobile ? '24px 20px' : '32px',
-        marginBottom: '24px',
-        boxShadow: '0 8px 24px rgba(102, 126, 234, 0.25)'
+        padding: isMobile ? '24px 20px' : '36px',
+        marginBottom: isMobile ? '20px' : '28px',
+        border: '1px solid rgba(255, 255, 255, 0.14)',
+        boxShadow: '0 12px 30px rgba(102, 126, 234, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.22)'
       }}>
         {/* Title Row with Back Arrow on Left, Recipients Centered */}
         <div style={{
@@ -441,21 +452,21 @@ export default function Recipients() {
       <div style={{
         position: 'relative',
         overflow: 'hidden',
-        marginTop: isMobile ? '2rem' : '2.5rem',
-        marginBottom: isMobile ? '2rem' : '2.5rem',
-        padding: isMobile ? '1.75rem 1.5rem' : '2.5rem 3rem',
-        background: 'linear-gradient(135deg, #fffdf8 0%, #fdf6e6 48%, #f6ecd2 100%)',
+        marginTop: isMobile ? '1.75rem' : '2.25rem',
+        marginBottom: isMobile ? '1.75rem' : '2.25rem',
+        padding: isMobile ? '1.75rem 1.5rem' : '2.75rem 3rem',
+        background: 'radial-gradient(130% 120% at 12% 0%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 42%), linear-gradient(135deg, #fffefa 0%, #fdf4e1 46%, #f4e6c6 100%)',
         borderRadius: 'var(--radius-xl)',
-        border: '1px solid rgba(199, 161, 74, 0.35)',
-        boxShadow: '0 10px 30px rgba(184, 146, 54, 0.14)',
+        border: '1px solid rgba(199, 161, 74, 0.45)',
+        boxShadow: '0 16px 40px rgba(184, 146, 54, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7)',
         display: 'flex',
         flexDirection: isMobile ? 'column' : 'row',
         alignItems: 'center',
         justifyContent: 'center',
         textAlign: isMobile ? 'center' : 'left',
-        gap: isMobile ? '1rem' : '2rem'
+        gap: isMobile ? '1.25rem' : '2.25rem'
       }}>
-        {/* Subtle gold ribbon flourish — decorative, non-interactive */}
+        {/* Soft gold ribbon flourishes — decorative, non-interactive */}
         <svg
           aria-hidden="true"
           viewBox="0 0 400 120"
@@ -464,54 +475,69 @@ export default function Recipients() {
             position: 'absolute',
             right: 0,
             bottom: 0,
-            width: isMobile ? '60%' : '42%',
+            width: isMobile ? '70%' : '46%',
             height: '100%',
-            opacity: 0.5,
+            opacity: 0.55,
             pointerEvents: 'none'
           }}
         >
-          <path d="M0,86 C90,52 150,104 220,70 C290,36 340,84 400,54"
-            fill="none" stroke="rgba(203, 164, 74, 0.5)" strokeWidth="6" strokeLinecap="round" />
-          <path d="M0,100 C90,70 150,120 220,88 C290,56 340,102 400,74"
-            fill="none" stroke="rgba(226, 194, 120, 0.45)" strokeWidth="3" strokeLinecap="round" />
+          <path d="M0,84 C90,50 150,102 220,68 C290,34 340,82 400,52"
+            fill="none" stroke="rgba(203, 164, 74, 0.55)" strokeWidth="7" strokeLinecap="round" />
+          <path d="M0,98 C90,68 150,118 220,86 C290,54 340,100 400,72"
+            fill="none" stroke="rgba(226, 194, 120, 0.5)" strokeWidth="3.5" strokeLinecap="round" />
+          <path d="M0,66 C80,40 150,80 230,52 C300,28 350,60 400,40"
+            fill="none" stroke="rgba(214, 178, 96, 0.28)" strokeWidth="2" strokeLinecap="round" />
         </svg>
 
         {/* Wrapped-gift illustration — inline SVG, gold on cream */}
         <svg
           aria-hidden="true"
-          width={isMobile ? '72' : '96'}
-          height={isMobile ? '72' : '96'}
-          viewBox="0 0 96 96"
-          style={{ flexShrink: 0, position: 'relative', zIndex: 1, filter: 'drop-shadow(0 4px 8px rgba(184, 146, 54, 0.22))' }}
+          width={isMobile ? '84' : '108'}
+          height={isMobile ? '84' : '108'}
+          viewBox="0 0 108 108"
+          style={{ flexShrink: 0, position: 'relative', zIndex: 1 }}
         >
           <defs>
             <linearGradient id="giftBox" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#fbf3dd" />
+              <stop offset="0" stopColor="#fdf6e3" />
+              <stop offset="1" stopColor="#ecdcb2" />
+            </linearGradient>
+            <linearGradient id="giftLid" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#fefaf0" />
               <stop offset="1" stopColor="#efe0bb" />
             </linearGradient>
             <linearGradient id="giftRibbon" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#d9b45a" />
+              <stop offset="0" stopColor="#e6c46a" />
+              <stop offset="0.5" stopColor="#cfa23f" />
               <stop offset="1" stopColor="#b8862f" />
             </linearGradient>
           </defs>
+          {/* cast shadow */}
+          <ellipse cx="54" cy="94" rx="34" ry="5" fill="rgba(184, 146, 54, 0.22)" />
           {/* box body */}
-          <rect x="18" y="40" width="60" height="42" rx="5" fill="url(#giftBox)" stroke="rgba(184, 146, 54, 0.5)" strokeWidth="1.5" />
+          <rect x="22" y="46" width="64" height="44" rx="6" fill="url(#giftBox)" stroke="rgba(184, 146, 54, 0.5)" strokeWidth="1.5" />
           {/* lid */}
-          <rect x="12" y="30" width="72" height="16" rx="5" fill="url(#giftBox)" stroke="rgba(184, 146, 54, 0.5)" strokeWidth="1.5" />
-          {/* vertical ribbon */}
-          <rect x="42" y="30" width="12" height="52" fill="url(#giftRibbon)" />
-          {/* bow loops */}
-          <path d="M48 30 C40 14, 20 16, 26 28 C30 34, 42 32, 48 30 Z" fill="url(#giftRibbon)" />
-          <path d="M48 30 C56 14, 76 16, 70 28 C66 34, 54 32, 48 30 Z" fill="url(#giftRibbon)" />
-          <circle cx="48" cy="30" r="5" fill="#c79a3a" />
+          <rect x="15" y="35" width="78" height="17" rx="6" fill="url(#giftLid)" stroke="rgba(184, 146, 54, 0.5)" strokeWidth="1.5" />
+          {/* vertical ribbon + highlight */}
+          <rect x="47" y="35" width="14" height="55" fill="url(#giftRibbon)" />
+          <rect x="47" y="35" width="5" height="55" fill="rgba(255, 255, 255, 0.25)" />
+          {/* bow loops + knot */}
+          <path d="M54 35 C45 17, 22 19, 29 32 C33 39, 47 37, 54 35 Z" fill="url(#giftRibbon)" stroke="rgba(184, 146, 54, 0.4)" strokeWidth="1" />
+          <path d="M54 35 C63 17, 86 19, 79 32 C75 39, 61 37, 54 35 Z" fill="url(#giftRibbon)" stroke="rgba(184, 146, 54, 0.4)" strokeWidth="1" />
+          <circle cx="54" cy="35" r="6" fill="#cfa23f" stroke="rgba(184, 146, 54, 0.5)" strokeWidth="1" />
+          {/* sparkles */}
+          <g fill="#e8c874">
+            <path d="M92 22 l1.6 4.2 4.2 1.6 -4.2 1.6 -1.6 4.2 -1.6 -4.2 -4.2 -1.6 4.2 -1.6 Z" />
+            <path d="M20 26 l1.1 2.9 2.9 1.1 -2.9 1.1 -1.1 2.9 -1.1 -2.9 -2.9 -1.1 2.9 -1.1 Z" opacity="0.8" />
+          </g>
         </svg>
 
         {/* Copy */}
         <div style={{ position: 'relative', zIndex: 1, maxWidth: '30rem' }}>
           <p style={{
-            fontSize: isMobile ? '1.125rem' : '1.375rem',
+            fontSize: isMobile ? '1.25rem' : '1.5rem',
             fontWeight: 700,
-            color: '#7a5c14',
+            color: '#785713',
             letterSpacing: '0.01em',
             margin: 0
           }}>
@@ -519,9 +545,9 @@ export default function Recipients() {
           </p>
           <p style={{
             fontSize: isMobile ? '0.875rem' : '0.9375rem',
-            lineHeight: 1.6,
+            lineHeight: 1.65,
             color: '#8a6d2f',
-            margin: '0.5rem 0 0 0'
+            margin: '0.6rem 0 0 0'
           }}>
             Add a thoughtful gift, QR Cash™, flowers, or other surprises to make every Greet-Me unforgettable.
           </p>
@@ -541,11 +567,7 @@ export default function Recipients() {
           list, and upcoming occasions in one surface. Layout/functionality within
           is unchanged. */}
       <div style={{
-        background: 'var(--bg-primary, #ffffff)',
-        borderRadius: 'var(--radius-xl)',
-        border: '1px solid var(--border, rgba(15, 23, 42, 0.08))',
-        boxShadow: '0 6px 24px rgba(15, 23, 42, 0.06)',
-        padding: isMobile ? '1.25rem' : '2rem'
+        padding: 0
       }}>
       {/* View Toggle and Search - only when recipients exist */}
       {recipients.length > 0 && (
@@ -668,10 +690,9 @@ export default function Recipients() {
               overflowY: 'auto',
               overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch',
-              background: 'var(--gray-100)',
-              border: '1px solid var(--border)',
+              background: 'transparent',
               borderRadius: 'var(--radius-lg)',
-              padding: '12px'
+              padding: '2px'
             }}>
               {filteredRecipients.map((contact) => (
               <div
@@ -681,22 +702,25 @@ export default function Recipients() {
                   flexDirection: isMobile ? 'column' : 'row',
                   alignItems: isMobile ? 'stretch' : 'center',
                   justifyContent: 'space-between',
-                  padding: '16px 20px',
+                  padding: isMobile ? '16px 18px' : '18px 22px',
                   marginBottom: '12px',
-                  border: '1px solid var(--border)',
+                  border: '1px solid rgba(15, 23, 42, 0.07)',
                   borderRadius: 'var(--radius-lg)',
-                  background: '#fff',
+                  background: 'linear-gradient(180deg, #ffffff 0%, #fcfbff 100%)',
+                  boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
                   transition: 'all 0.2s',
                   gap: isMobile ? '12px' : '16px'
                 }}
                 {...getHoverHandlers({
                   onEnter: (e) => {
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
-                    e.currentTarget.style.borderColor = '#667eea';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(76, 61, 143, 0.12)';
+                    e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.55)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
                   },
                   onLeave: (e) => {
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.borderColor = 'var(--border)';
+                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(15, 23, 42, 0.04)';
+                    e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.07)';
+                    e.currentTarget.style.transform = 'translateY(0)';
                   },
                 })}
               >
@@ -1006,10 +1030,9 @@ export default function Recipients() {
               overflowY: 'auto',
               overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch',
-              background: 'var(--gray-100)',
-              border: '1px solid var(--border)',
+              background: 'transparent',
               borderRadius: 'var(--radius-lg)',
-              padding: '12px'
+              padding: '2px'
             }}>
               {allOccasions.map((occasion, index) => (
               <div
@@ -1019,22 +1042,25 @@ export default function Recipients() {
                   flexDirection: isMobile ? 'column' : 'row',
                   alignItems: isMobile ? 'stretch' : 'center',
                   justifyContent: 'space-between',
-                  padding: '16px 20px',
+                  padding: isMobile ? '16px 18px' : '18px 22px',
                   marginBottom: '12px',
-                  border: '1px solid var(--border)',
+                  border: '1px solid rgba(15, 23, 42, 0.07)',
                   borderRadius: 'var(--radius-lg)',
-                  background: '#fff',
+                  background: 'linear-gradient(180deg, #ffffff 0%, #fcfbff 100%)',
+                  boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
                   transition: 'all 0.2s',
                   gap: isMobile ? '12px' : '16px'
                 }}
                 {...getHoverHandlers({
                   onEnter: (e) => {
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
-                    e.currentTarget.style.borderColor = '#667eea';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(76, 61, 143, 0.12)';
+                    e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.55)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
                   },
                   onLeave: (e) => {
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.borderColor = 'var(--border)';
+                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(15, 23, 42, 0.04)';
+                    e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.07)';
+                    e.currentTarget.style.transform = 'translateY(0)';
                   },
                 })}
               >
@@ -1092,6 +1118,8 @@ export default function Recipients() {
       )}
       </div>
       {/* End premium workspace container */}
+      </div>
+      {/* End premium page shell */}
 
       {/* Add Recipient Modal */}
       <Modal
