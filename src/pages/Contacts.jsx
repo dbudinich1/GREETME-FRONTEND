@@ -372,7 +372,7 @@ export default function Recipients() {
             justifyContent: 'center',
             gap: '8px'
           }}>
-            Recipients
+            My People
             <span style={{
               fontSize: '0.875rem',
               fontWeight: 600,
@@ -383,16 +383,6 @@ export default function Recipients() {
               textAlign: 'center'
             }}>{recipients.length}</span>
           </h1>
-        </div>
-
-        {/* Subtitle - Centered on desktop, justified on mobile */}
-        <div style={{ textAlign: 'center' }}>
-          <p style={{
-            color: 'rgba(255, 255, 255, 0.9)',
-            fontSize: isMobile ? '0.8125rem' : '0.9375rem',
-            lineHeight: 1.5,
-            marginBottom: '0'
-          }}>Personalize your Greet-Me for every recipient.</p>
         </div>
 
         {/* Centered Action Buttons */}
