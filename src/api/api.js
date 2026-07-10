@@ -291,6 +291,16 @@ class ApiService {
     });
   }
 
+  // Bulk CSV import — atomic-intent endpoint. Whole-batch reject on plan limit;
+  // per-row validation + duplicate-email dedup. Resolves to { ok, data: { imported,
+  // failed, errors[] } } on 2xx; throws on 403 (RECIPIENT_LIMIT_REACHED) / 400 / 5xx.
+  importContacts(contacts) {
+    return this.request("/api/contacts/import", {
+      method: "POST",
+      body: JSON.stringify({ contacts }),
+    });
+  }
+
   updateContact(contactId, contactData) {
     // === DIAGNOSTIC: Original payload size analysis (Phase 1A) ===
     const originalPayload = JSON.stringify(contactData);

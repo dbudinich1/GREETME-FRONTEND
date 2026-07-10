@@ -86,9 +86,9 @@ export default function Recipients() {
     }
   }, [location.state, navigate, location.pathname]);
 
-  const fetchRecipients = async () => {
+  const fetchRecipients = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await api.getContacts();
 
       if (response && response.ok === false && response.status === 401) {
@@ -103,7 +103,7 @@ export default function Recipients() {
       const stored = localStorage.getItem('greetme_recipients');
       setRecipients(stored ? JSON.parse(stored) : []);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -194,21 +194,44 @@ export default function Recipients() {
   };
 
   const handleImportRecipients = async (contactsToImport) => {
+    let outcome;
     try {
-      const BATCH_SIZE = 5;
-      for (let i = 0; i < contactsToImport.length; i += BATCH_SIZE) {
-        const batch = contactsToImport.slice(i, i + BATCH_SIZE);
-        await Promise.all(batch.map(c => api.createContact(c)));
-        if (i + BATCH_SIZE < contactsToImport.length) {
-          await new Promise(r => setTimeout(r, 500));
-        }
+      // One atomic-intent bulk call — whole-batch limit reject + dedup + per-row results.
+      const res = await api.importContacts(contactsToImport);
+      const { imported = 0, failed = 0, errors = [] } = (res && res.data) || {};
+      const rows = (errors || []).map((e) => ({
+        name: e?.contact?.name || '',
+        email: e?.contact?.email || '',
+        reason:
+          e?.error === 'Email already exists' ? 'Duplicate — already in your recipients'
+          : e?.error === 'Missing name or email' ? 'Missing name or email'
+          : 'Could not be added',
+      }));
+      if (failed === 0) {
+        outcome = { kind: 'full', imported, failed, rows: [], message: `${imported} recipient${imported === 1 ? '' : 's'} imported successfully.` };
+      } else {
+        outcome = { kind: 'partial', imported, failed, rows, message: `${imported} recipient${imported === 1 ? '' : 's'} imported. ${failed} could not be added.` };
       }
-      showAlertMessage('success', `${contactsToImport.length} recipients imported successfully`);
-      setShowImportModal(false);
-      fetchRecipients();
     } catch (error) {
-      throw new Error(getErrorMessage(error));
+      if (error && (error.code === 'RECIPIENT_LIMIT_REACHED' || error.status === 403)) {
+        const m = /\((\d+)\)/.exec(error.message || '');
+        const limit = m ? m[1] : '3';
+        outcome = { kind: 'limit', imported: 0, failed: contactsToImport.length, rows: [], message: `You've reached your plan's recipient limit of ${limit}. Upgrade your plan to add more recipients.` };
+      } else {
+        outcome = { kind: 'error', imported: 0, failed: contactsToImport.length, rows: [], message: getErrorMessage(error) };
+      }
     }
+    // Always refresh so any imported rows appear without a manual reload.
+    // Silent: never toggle page-level loading, or the modal subtree would unmount
+    // and lose the per-row result panel before the user can read it.
+    await fetchRecipients({ silent: true });
+    showAlertMessage(
+      outcome.kind === 'full' ? 'success' : outcome.kind === 'partial' ? 'warning' : 'error',
+      outcome.message,
+    );
+    // Close only on full success; otherwise keep the modal open for the user.
+    if (outcome.kind === 'full') setShowImportModal(false);
+    return outcome;
   };
 
   const openEditModal = (contact) => {

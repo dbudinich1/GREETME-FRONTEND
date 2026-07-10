@@ -16,6 +16,7 @@ export default function CSVImport({ onImport, onCancel }) {
   });
   const [errors, setErrors] = useState([]);
   const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   // Responsive layout (matches the app's single-breakpoint convention)
@@ -79,19 +80,35 @@ export default function CSVImport({ onImport, onCancel }) {
     if (!validateImport()) return;
 
     setImporting(true);
+    setImportResult(null);
     try {
+      // Send ALL mapped rows to the bulk endpoint so the backend reports accurate
+      // per-row results (missing fields / duplicates) instead of dropping rows silently.
       const contacts = parsedData.data.map(row => ({
         name: row[fieldMapping.name] || '',
         email: row[fieldMapping.email] || '',
         relationship: row[fieldMapping.relationship] || '',
-      })).filter(contact => contact.name && contact.email);
+      }));
 
-      await onImport(contacts);
+      const outcome = await onImport(contacts);
+      // Parent closes the modal on full success. For any other outcome, keep the
+      // modal open and show the structured result so the user can act on it.
+      if (outcome && outcome.kind && outcome.kind !== 'full') {
+        setImportResult(outcome);
+      }
     } catch (error) {
       setErrors([getErrorMessage(error)]);
     } finally {
       setImporting(false);
     }
+  };
+
+  const startOver = () => {
+    setImportResult(null);
+    setParsedData(null);
+    setFile(null);
+    setErrors([]);
+    setFieldMapping({ name: '', email: '', relationship: '' });
   };
 
   const downloadTemplate = () => {
@@ -145,6 +162,54 @@ export default function CSVImport({ onImport, onCancel }) {
         />
       )}
 
+      {importResult ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* Result banner — kind-tinted, message from backend-confirmed counts */}
+          <div style={{
+            padding: '1rem 1.25rem',
+            borderRadius: '14px',
+            border: '1px solid ' + (importResult.kind === 'partial' ? 'rgba(217, 119, 6, 0.35)' : importResult.kind === 'limit' ? 'rgba(102, 126, 234, 0.35)' : 'rgba(239, 68, 68, 0.30)'),
+            background: importResult.kind === 'partial' ? 'linear-gradient(180deg, #fffdf6 0%, #fdf6e6 100%)' : importResult.kind === 'limit' ? 'linear-gradient(180deg, #f7f6ff 0%, #eef0fb 100%)' : 'linear-gradient(180deg, #fff7f7 0%, #fdeeee 100%)',
+          }}>
+            <p style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 600, color: '#111827', lineHeight: 1.5 }}>
+              {importResult.message}
+            </p>
+          </div>
+
+          {/* Per-row failures (concise; no internal data) */}
+          {importResult.rows && importResult.rows.length > 0 && (
+            <div style={{ border: '1px solid rgba(15, 23, 42, 0.08)', borderRadius: '12px', overflow: 'hidden', maxHeight: '14rem', overflowY: 'auto' }}>
+              {importResult.rows.map((r, i) => (
+                <div key={i} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  padding: '10px 14px', borderTop: i === 0 ? 'none' : '1px solid #f1f2f6', fontSize: '0.8125rem',
+                }}>
+                  <span style={{ color: '#111827', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {r.name || r.email || ('Row ' + (i + 1))}
+                  </span>
+                  <span style={{ color: '#9a3412', flexShrink: 0 }}>{r.reason}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '0.75rem', borderTop: '1px solid #eceef3' }}>
+            <button
+              onClick={startOver}
+              style={{ padding: '11px 20px', color: '#374151', background: '#f3f4f6', border: 'none', borderRadius: '12px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              Import another file
+            </button>
+            <button
+              onClick={onCancel}
+              style={{ padding: '11px 24px', color: '#ffffff', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none', borderRadius: '12px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(102, 126, 234, 0.28)' }}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      ) : (
+      <>
       {/* File Upload */}
       {!parsedData && (
         <div>
@@ -408,6 +473,8 @@ export default function CSVImport({ onImport, onCancel }) {
           </button>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }
