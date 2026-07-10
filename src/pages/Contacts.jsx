@@ -1076,21 +1076,10 @@ export default function Recipients() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '14px'
+                gap: '6px'
               }}>
-                <div style={{
-                  width: '52px',
-                  height: '52px',
-                  borderRadius: '50%',
-                  background: 'rgba(102, 126, 234, 0.08)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Clock size={24} style={{ color: '#8b93d6' }} />
-                </div>
-                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9375rem', fontWeight: 600, letterSpacing: '-0.005em' }}>No upcoming occasions yet</p>
-                <p style={{ margin: 0, color: 'var(--text-tertiary)', fontSize: '0.8125rem' }}>Dates you add to your people will appear here.</p>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '1.0625rem', fontWeight: 600, letterSpacing: '-0.01em' }}>Ready to automate</p>
+                <p style={{ margin: 0, color: 'var(--text-tertiary)', fontSize: '0.875rem', letterSpacing: '0.01em' }}>Schedule the love.</p>
               </div>
             ) : (
               <div style={{
@@ -1100,9 +1089,10 @@ export default function Recipients() {
                 WebkitOverflowScrolling: 'touch',
                 borderRadius: 'var(--radius-lg)',
                 padding: '2px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px'
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+                alignContent: 'start',
+                gap: '10px'
               }}>
                 {allOccasions.filter(occ => occ.date).map((occ, idx) => (
                   <div
@@ -1112,13 +1102,21 @@ export default function Recipients() {
                       alignItems: 'center',
                       gap: '14px',
                       padding: '14px 16px',
-                      background: 'rgba(15, 23, 42, 0.02)',
+                      background: '#ffffff',
+                      border: '1px solid rgba(15, 23, 42, 0.05)',
                       borderRadius: '16px',
-                      transition: `background 0.2s ${EASE}`
+                      boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)',
+                      transition: `box-shadow 0.2s ${EASE}, transform 0.2s ${EASE}`
                     }}
                     {...getHoverHandlers({
-                      onEnter: (e) => { e.currentTarget.style.background = 'rgba(102, 126, 234, 0.06)'; },
-                      onLeave: (e) => { e.currentTarget.style.background = 'rgba(15, 23, 42, 0.02)'; },
+                      onEnter: (e) => {
+                        e.currentTarget.style.boxShadow = '0 12px 28px rgba(76, 61, 143, 0.14)';
+                        e.currentTarget.style.transform = reduceMotion ? 'none' : 'translateY(-2px)';
+                      },
+                      onLeave: (e) => {
+                        e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.05)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      },
                     })}
                   >
                     <span aria-hidden="true" style={{
