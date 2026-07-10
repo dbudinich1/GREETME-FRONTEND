@@ -459,71 +459,119 @@ export default function Recipients() {
 
       {/* Gift Presentation Panel — premium cream/gold "Complete the Moment".
           Pure CSS + inline SVG (no assets). Decorative only: no CTA, no click. */}
+      {/* Cinematic gift moment — premium product-photograph treatment.
+          Ivory box · crimson satin bow · gold foil · lifted lid · paper texture ·
+          soft vignette. Inline SVG only; decorative, no CTA, no interaction. */}
       <div style={{
         position: 'relative',
         overflow: 'hidden',
         marginTop: isMobile ? '2rem' : '2.5rem',
         marginBottom: isMobile ? '2rem' : '2.5rem',
-        padding: isMobile ? '2.5rem 1.75rem' : '3.25rem 3rem',
-        background: 'radial-gradient(90% 130% at 50% -15%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 46%), radial-gradient(120% 100% at 100% 115%, rgba(214, 178, 96, 0.16) 0%, rgba(214, 178, 96, 0) 52%), radial-gradient(120% 100% at 0% 115%, rgba(214, 178, 96, 0.12) 0%, rgba(214, 178, 96, 0) 52%), linear-gradient(165deg, #fffdf7 0%, #fbf1da 52%, #f2e3bf 100%)',
+        padding: isMobile ? '3rem 1.75rem' : '4rem 3rem',
+        background: 'radial-gradient(75% 55% at 32% 18%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0) 55%), linear-gradient(165deg, #fdfbf5 0%, #f7f1e6 55%, #efe7d6 100%)',
         borderRadius: 'var(--radius-xl)',
-        border: '1px solid rgba(199, 161, 74, 0.38)',
-        boxShadow: '0 20px 46px rgba(184, 146, 54, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.35)',
+        border: '1px solid rgba(150, 120, 70, 0.22)',
+        boxShadow: '0 22px 50px rgba(74, 51, 20, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 0 90px rgba(74, 51, 20, 0.12)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         textAlign: 'center'
       }}>
-        {/* Corner foil sparkles — decorative, non-interactive */}
-        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style={{ position: 'absolute', top: isMobile ? '20px' : '30px', left: isMobile ? '22px' : '36px', opacity: 0.7, pointerEvents: 'none' }}>
-          <path d="M8 0 l1.7 6.3 6.3 1.7 -6.3 1.7 -1.7 6.3 -1.7 -6.3 -6.3 -1.7 6.3 -1.7 Z" fill="#dcb458" />
-        </svg>
-        <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" style={{ position: 'absolute', top: isMobile ? '40px' : '58px', right: isMobile ? '30px' : '50px', opacity: 0.6, pointerEvents: 'none' }}>
-          <path d="M5 0 l1 3.9 3.9 1 -3.9 1 -1 3.9 -1 -3.9 -3.9 -1 3.9 -1 Z" fill="#e2c46a" />
+        {/* Luxurious paper grain — inline SVG turbulence, desaturated, very restrained */}
+        <svg aria-hidden="true" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.06, mixBlendMode: 'multiply', pointerEvents: 'none', zIndex: 0 }}>
+          <filter id="paperGrain">
+            <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" result="n" />
+            <feColorMatrix in="n" type="saturate" values="0" />
+          </filter>
+          <rect width="100%" height="100%" filter="url(#paperGrain)" />
         </svg>
 
-        {/* Wrapped-gift hero illustration — inline SVG, foil-and-cream */}
+        {/* Cinematic gift — ivory box, crimson satin ribbon, gold foil, lifted lid */}
         <svg
           aria-hidden="true"
-          width={isMobile ? '104' : '128'}
-          height={isMobile ? '104' : '128'}
-          viewBox="0 0 128 128"
-          style={{ position: 'relative', zIndex: 1 }}
+          width={isMobile ? '124' : '152'}
+          height={isMobile ? '124' : '152'}
+          viewBox="0 0 140 140"
+          style={{ position: 'relative', zIndex: 1, display: 'block' }}
         >
           <defs>
-            <linearGradient id="giftBox" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#fdf6e3" />
-              <stop offset="1" stopColor="#ecdcb2" />
+            <linearGradient id="ivoryLid" x1="0" y1="0" x2="0.85" y2="1">
+              <stop offset="0" stopColor="#fefcf6" />
+              <stop offset="1" stopColor="#e8dec8" />
             </linearGradient>
-            <linearGradient id="giftLid" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#fefaf0" />
-              <stop offset="1" stopColor="#efe0bb" />
+            <linearGradient id="ivoryBox" x1="0" y1="0" x2="0.9" y2="1">
+              <stop offset="0" stopColor="#f8f2e5" />
+              <stop offset="1" stopColor="#e2d7bf" />
             </linearGradient>
-            <linearGradient id="giftRibbon" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#e9c86e" />
-              <stop offset="0.5" stopColor="#cfa23f" />
-              <stop offset="1" stopColor="#b0801f" />
+            <linearGradient id="crimsonV" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stopColor="#8f1d2e" />
+              <stop offset="0.38" stopColor="#b12a40" />
+              <stop offset="0.62" stopColor="#7c1727" />
+              <stop offset="1" stopColor="#63111e" />
             </linearGradient>
+            <linearGradient id="crimsonBow" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#b52c42" />
+              <stop offset="1" stopColor="#741423" />
+            </linearGradient>
+            <radialGradient id="giftShadow" cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0" stopColor="rgba(60, 30, 20, 0.30)" />
+              <stop offset="1" stopColor="rgba(60, 30, 20, 0)" />
+            </radialGradient>
+            <filter id="giftBlur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.6" /></filter>
           </defs>
-          {/* cast shadow */}
-          <ellipse cx="64" cy="116" rx="40" ry="6" fill="rgba(184, 146, 54, 0.20)" />
-          {/* box body */}
-          <rect x="28" y="58" width="72" height="52" rx="8" fill="url(#giftBox)" stroke="rgba(184, 146, 54, 0.42)" strokeWidth="1.5" />
-          {/* horizontal ribbon band + highlight */}
-          <rect x="28" y="76" width="72" height="15" fill="url(#giftRibbon)" />
-          <rect x="28" y="76" width="72" height="4" fill="rgba(255, 255, 255, 0.22)" />
-          {/* vertical ribbon on body + highlight */}
-          <rect x="56" y="58" width="16" height="52" fill="url(#giftRibbon)" />
-          <rect x="56" y="58" width="5" height="52" fill="rgba(255, 255, 255, 0.22)" />
-          {/* lid (lifted) */}
-          <rect x="20" y="44" width="88" height="18" rx="7" fill="url(#giftLid)" stroke="rgba(184, 146, 54, 0.42)" strokeWidth="1.5" />
-          <rect x="56" y="44" width="16" height="18" fill="url(#giftRibbon)" />
-          {/* bow + knot */}
-          <path d="M64 44 C53 22, 26 24, 34 41 C39 50, 55 46, 64 44 Z" fill="url(#giftRibbon)" stroke="rgba(184, 146, 54, 0.35)" strokeWidth="1" />
-          <path d="M64 44 C75 22, 102 24, 94 41 C89 50, 73 46, 64 44 Z" fill="url(#giftRibbon)" stroke="rgba(184, 146, 54, 0.35)" strokeWidth="1" />
-          <circle cx="64" cy="44" r="7" fill="#cfa23f" stroke="rgba(184, 146, 54, 0.45)" strokeWidth="1" />
-          {/* foil sheen */}
-          <path d="M34 58 L50 58 L38 110 L30 110 Z" fill="rgba(255, 255, 255, 0.18)" />
+
+          {/* soft cast shadow beneath the box */}
+          <ellipse cx="70" cy="127" rx="50" ry="10" fill="url(#giftShadow)" filter="url(#giftBlur)" />
+
+          {/* floating gold dust — very restrained */}
+          <g fill="#e6c46a">
+            <circle cx="34" cy="30" r="1.3" opacity="0.7" />
+            <circle cx="110" cy="26" r="1.1" opacity="0.6" />
+            <circle cx="92" cy="14" r="1.5" opacity="0.75" />
+            <circle cx="46" cy="12" r="0.9" opacity="0.5" />
+            <circle cx="120" cy="46" r="1" opacity="0.55" />
+            <circle cx="22" cy="52" r="1.2" opacity="0.6" />
+          </g>
+
+          {/* box body (lit upper-left) */}
+          <rect x="33" y="74" width="74" height="46" rx="6" fill="url(#ivoryBox)" />
+          <rect x="33" y="74" width="11" height="46" rx="6" fill="rgba(255, 255, 255, 0.30)" />
+          <rect x="96" y="74" width="11" height="46" fill="rgba(90, 60, 25, 0.07)" />
+
+          {/* crimson vertical ribbon on body + satin sheen + gold foil edges */}
+          <rect x="61" y="74" width="18" height="46" fill="url(#crimsonV)" />
+          <rect x="63.5" y="74" width="4" height="46" fill="rgba(233, 150, 165, 0.5)" />
+          <rect x="60" y="74" width="1.4" height="46" fill="rgba(240, 215, 130, 0.55)" />
+          <rect x="78.6" y="74" width="1.4" height="46" fill="rgba(200, 160, 70, 0.42)" />
+
+          {/* dark sliver — lifted-lid interior shadow (anticipation) */}
+          <rect x="35" y="69" width="70" height="6" rx="2" fill="#3a2016" opacity="0.5" />
+
+          {/* lid — lifted + slight tilt */}
+          <g transform="rotate(-2 70 60)">
+            <rect x="27" y="52" width="86" height="18" rx="5" fill="url(#ivoryLid)" />
+            <rect x="27" y="52" width="86" height="5" rx="5" fill="rgba(255, 255, 255, 0.45)" />
+            <rect x="61" y="52" width="18" height="18" fill="url(#crimsonV)" />
+            <rect x="63.5" y="52" width="4" height="18" fill="rgba(233, 150, 165, 0.5)" />
+          </g>
+
+          {/* ribbon tails draping over the lid */}
+          <path d="M66 56 L60 86 L66 81 L70 57 Z" fill="url(#crimsonBow)" />
+          <path d="M74 56 L80 86 L74 81 L70 57 Z" fill="url(#crimsonBow)" />
+
+          {/* bow loops with realistic folds */}
+          <path d="M70 54 C55 33 27 35 33 51 C37 61 58 57 70 54 Z" fill="url(#crimsonBow)" />
+          <path d="M70 54 C59 46 43 45 42 52 C45 57 60 57 70 54 Z" fill="#5e1420" opacity="0.55" />
+          <path d="M70 54 C85 33 113 35 107 51 C103 61 82 57 70 54 Z" fill="url(#crimsonBow)" />
+          <path d="M70 54 C81 46 97 45 98 52 C95 57 80 57 70 54 Z" fill="#5e1420" opacity="0.55" />
+          {/* satin highlights on loops */}
+          <path d="M68 53 C57 38 37 39 35 49" fill="none" stroke="rgba(233, 150, 165, 0.5)" strokeWidth="2" strokeLinecap="round" />
+          <path d="M72 53 C83 38 103 39 105 49" fill="none" stroke="rgba(233, 150, 165, 0.5)" strokeWidth="2" strokeLinecap="round" />
+
+          {/* knot + gold glint */}
+          <rect x="62" y="47" width="16" height="14" rx="4" fill="url(#crimsonBow)" />
+          <rect x="62" y="47" width="16" height="4" rx="4" fill="rgba(233, 150, 165, 0.45)" />
+          <circle cx="70" cy="54" r="1.8" fill="rgba(240, 215, 130, 0.6)" />
         </svg>
 
         {/* Title */}
@@ -533,30 +581,21 @@ export default function Recipients() {
           fontSize: isMobile ? '1.375rem' : '1.75rem',
           fontWeight: 700,
           letterSpacing: '-0.01em',
-          color: '#6f5210',
-          margin: isMobile ? '1.25rem 0 0 0' : '1.5rem 0 0 0'
+          color: '#4e3b28',
+          margin: isMobile ? '1.75rem 0 0 0' : '2rem 0 0 0'
         }}>
           Complete the Moment
         </p>
-
-        {/* Gold hairline detailing — replaces the ribbon swoosh */}
-        <div style={{
-          width: '52px',
-          height: '2px',
-          margin: '14px 0',
-          borderRadius: '2px',
-          background: 'linear-gradient(90deg, rgba(207, 162, 63, 0) 0%, rgba(207, 162, 63, 0.9) 50%, rgba(207, 162, 63, 0) 100%)'
-        }} />
 
         {/* Body */}
         <p style={{
           position: 'relative',
           zIndex: 1,
           fontSize: isMobile ? '0.9375rem' : '1rem',
-          lineHeight: 1.65,
-          color: '#8a6d2f',
-          maxWidth: '32rem',
-          margin: 0
+          lineHeight: 1.7,
+          color: '#8a7a63',
+          maxWidth: '30rem',
+          margin: isMobile ? '0.75rem 0 0 0' : '1rem 0 0 0'
         }}>
           Add a thoughtful gift, QR Cash™, flowers, or other surprises to make every Greet-Me unforgettable.
         </p>
