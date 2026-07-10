@@ -956,7 +956,7 @@ export default function DashboardHome() {
                 fontWeight: 700,
                 color: 'var(--text-primary)',
                 margin: 0
-              }}>Personalization</h2>
+              }}>Personalize</h2>
               {!isPortrait && (
                 <button
                   onClick={() => navigate('/dashboard/media')}
@@ -992,11 +992,6 @@ export default function DashboardHome() {
                 </button>
               )}
             </div>
-            <p style={{
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)',
-              marginBottom: '1.5rem'
-            }}>Record your voice & set your photo</p>
 
             {/* Voice Section */}
             <div style={{ marginBottom: '2rem' }}>
@@ -1375,7 +1370,7 @@ export default function DashboardHome() {
                 fontWeight: 700,
                 color: 'var(--text-primary)',
                 margin: 0
-              }}>Recipient & Occasion Automation</h2>
+              }}>Automate</h2>
               {!isPortrait && (
                 <button
                   onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
