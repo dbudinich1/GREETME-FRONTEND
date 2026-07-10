@@ -12,9 +12,21 @@ import { getOccasionIcon, getOccasionLabel } from '../utils/helpers';
 import { autoAddRecipientPhotosToLibrary } from '../utils/mediaLibrary';
 import { getErrorMessage } from '../utils/errorMessages';
 import { getHoverHandlers } from '../utils/hoverable';
+import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
+import giftBouquet from '../assets/gifts/gift-bouquet.png';
+import giftCard from '../assets/gifts/gift-card.png';
+import giftBoxStack from '../assets/gifts/gift-box-stack.png';
 
 // Session storage key (must match ContactForm.jsx)
 const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
+
+// Hero gift carousel — founder-approved imagery, fixed rotation order.
+const GIFT_IMAGES = [
+  { src: giftLuxuryBox, alt: 'Luxury gift box' },
+  { src: giftBouquet, alt: 'Flower bouquet' },
+  { src: giftCard, alt: 'Greet-Me gift card' },
+  { src: giftBoxStack, alt: 'Stack of wrapped gifts' },
+];
 
 export default function Recipients() {
   const navigate = useNavigate();
@@ -30,8 +42,18 @@ export default function Recipients() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [viewMode, setViewMode] = useState('recipients');
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [giftIndex, setGiftIndex] = useState(0);
+  const giftPausedRef = useRef(false);
   const hasAutoOpenedRef = useRef(false);
   const hasAutoOpenedAddRef = useRef(false);
+
+  // Hero gift carousel — cross-fade auto-rotation; pauses while hovered.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!giftPausedRef.current) setGiftIndex((i) => (i + 1) % GIFT_IMAGES.length);
+    }, 4500);
+    return () => clearInterval(id);
+  }, []);
 
   // Handle resize for responsive layout
   useEffect(() => {
@@ -486,93 +508,41 @@ export default function Recipients() {
           <rect width="100%" height="100%" filter="url(#paperGrain)" />
         </svg>
 
-        {/* Cinematic gift — ivory box, crimson satin ribbon, gold foil, lifted lid */}
-        <svg
-          aria-hidden="true"
-          width={isMobile ? '124' : '152'}
-          height={isMobile ? '124' : '152'}
-          viewBox="0 0 140 140"
-          style={{ position: 'relative', zIndex: 1, display: 'block' }}
+        {/* Hero gift carousel — founder-approved imagery, cross-fade only,
+            auto-rotate (4.5s), pause on hover. No arrows/dots/controls. */}
+        <div
+          onMouseEnter={() => { giftPausedRef.current = true; }}
+          onMouseLeave={() => { giftPausedRef.current = false; }}
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            width: '100%',
+            maxWidth: isMobile ? '260px' : '360px',
+            height: isMobile ? '180px' : '240px',
+          }}
         >
-          <defs>
-            <linearGradient id="ivoryLid" x1="0" y1="0" x2="0.85" y2="1">
-              <stop offset="0" stopColor="#fefcf6" />
-              <stop offset="1" stopColor="#e8dec8" />
-            </linearGradient>
-            <linearGradient id="ivoryBox" x1="0" y1="0" x2="0.9" y2="1">
-              <stop offset="0" stopColor="#f8f2e5" />
-              <stop offset="1" stopColor="#e2d7bf" />
-            </linearGradient>
-            <linearGradient id="crimsonV" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stopColor="#8f1d2e" />
-              <stop offset="0.38" stopColor="#b12a40" />
-              <stop offset="0.62" stopColor="#7c1727" />
-              <stop offset="1" stopColor="#63111e" />
-            </linearGradient>
-            <linearGradient id="crimsonBow" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#b52c42" />
-              <stop offset="1" stopColor="#741423" />
-            </linearGradient>
-            <radialGradient id="giftShadow" cx="0.5" cy="0.5" r="0.5">
-              <stop offset="0" stopColor="rgba(60, 30, 20, 0.30)" />
-              <stop offset="1" stopColor="rgba(60, 30, 20, 0)" />
-            </radialGradient>
-            <filter id="giftBlur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.6" /></filter>
-          </defs>
-
-          {/* soft cast shadow beneath the box */}
-          <ellipse cx="70" cy="127" rx="50" ry="10" fill="url(#giftShadow)" filter="url(#giftBlur)" />
-
-          {/* floating gold dust — very restrained */}
-          <g fill="#e6c46a">
-            <circle cx="34" cy="30" r="1.3" opacity="0.7" />
-            <circle cx="110" cy="26" r="1.1" opacity="0.6" />
-            <circle cx="92" cy="14" r="1.5" opacity="0.75" />
-            <circle cx="46" cy="12" r="0.9" opacity="0.5" />
-            <circle cx="120" cy="46" r="1" opacity="0.55" />
-            <circle cx="22" cy="52" r="1.2" opacity="0.6" />
-          </g>
-
-          {/* box body (lit upper-left) */}
-          <rect x="33" y="74" width="74" height="46" rx="6" fill="url(#ivoryBox)" />
-          <rect x="33" y="74" width="11" height="46" rx="6" fill="rgba(255, 255, 255, 0.30)" />
-          <rect x="96" y="74" width="11" height="46" fill="rgba(90, 60, 25, 0.07)" />
-
-          {/* crimson vertical ribbon on body + satin sheen + gold foil edges */}
-          <rect x="61" y="74" width="18" height="46" fill="url(#crimsonV)" />
-          <rect x="63.5" y="74" width="4" height="46" fill="rgba(233, 150, 165, 0.5)" />
-          <rect x="60" y="74" width="1.4" height="46" fill="rgba(240, 215, 130, 0.55)" />
-          <rect x="78.6" y="74" width="1.4" height="46" fill="rgba(200, 160, 70, 0.42)" />
-
-          {/* dark sliver — lifted-lid interior shadow (anticipation) */}
-          <rect x="35" y="69" width="70" height="6" rx="2" fill="#3a2016" opacity="0.5" />
-
-          {/* lid — lifted + slight tilt */}
-          <g transform="rotate(-2 70 60)">
-            <rect x="27" y="52" width="86" height="18" rx="5" fill="url(#ivoryLid)" />
-            <rect x="27" y="52" width="86" height="5" rx="5" fill="rgba(255, 255, 255, 0.45)" />
-            <rect x="61" y="52" width="18" height="18" fill="url(#crimsonV)" />
-            <rect x="63.5" y="52" width="4" height="18" fill="rgba(233, 150, 165, 0.5)" />
-          </g>
-
-          {/* ribbon tails draping over the lid */}
-          <path d="M66 56 L60 86 L66 81 L70 57 Z" fill="url(#crimsonBow)" />
-          <path d="M74 56 L80 86 L74 81 L70 57 Z" fill="url(#crimsonBow)" />
-
-          {/* bow loops with realistic folds */}
-          <path d="M70 54 C55 33 27 35 33 51 C37 61 58 57 70 54 Z" fill="url(#crimsonBow)" />
-          <path d="M70 54 C59 46 43 45 42 52 C45 57 60 57 70 54 Z" fill="#5e1420" opacity="0.55" />
-          <path d="M70 54 C85 33 113 35 107 51 C103 61 82 57 70 54 Z" fill="url(#crimsonBow)" />
-          <path d="M70 54 C81 46 97 45 98 52 C95 57 80 57 70 54 Z" fill="#5e1420" opacity="0.55" />
-          {/* satin highlights on loops */}
-          <path d="M68 53 C57 38 37 39 35 49" fill="none" stroke="rgba(233, 150, 165, 0.5)" strokeWidth="2" strokeLinecap="round" />
-          <path d="M72 53 C83 38 103 39 105 49" fill="none" stroke="rgba(233, 150, 165, 0.5)" strokeWidth="2" strokeLinecap="round" />
-
-          {/* knot + gold glint */}
-          <rect x="62" y="47" width="16" height="14" rx="4" fill="url(#crimsonBow)" />
-          <rect x="62" y="47" width="16" height="4" rx="4" fill="rgba(233, 150, 165, 0.45)" />
-          <circle cx="70" cy="54" r="1.8" fill="rgba(240, 215, 130, 0.6)" />
-        </svg>
+          {GIFT_IMAGES.map((img, i) => (
+            <img
+              key={i}
+              src={img.src}
+              alt={i === giftIndex ? img.alt : ''}
+              aria-hidden={i === giftIndex ? undefined : 'true'}
+              loading="lazy"
+              decoding="async"
+              draggable="false"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                opacity: i === giftIndex ? 1 : 0,
+                transition: 'opacity 600ms ease-in-out',
+                pointerEvents: 'none'
+              }}
+            />
+          ))}
+        </div>
 
         {/* Title */}
         <p style={{
