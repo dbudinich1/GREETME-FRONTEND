@@ -488,12 +488,12 @@ export default function Recipients() {
         {/* Subtitle — sentence-case value proposition; wraps naturally, centered */}
         <p style={{
           margin: '0 auto',
-          maxWidth: '34rem',
+          maxWidth: '44rem',
           textAlign: 'center',
           color: 'rgba(255, 255, 255, 0.90)',
-          fontSize: isMobile ? '0.9375rem' : '1.0625rem',
+          fontSize: isMobile ? '1.09375rem' : '1.25rem',
           fontWeight: 500,
-          lineHeight: 1.6,
+          lineHeight: 1.7,
           letterSpacing: '-0.005em'
         }}>
           Automate personalized Greet-Me greetings, gifts, and unforgettable moments for the people who matter most. Forget them NOT!
@@ -691,7 +691,7 @@ export default function Recipients() {
           maxWidth: '30rem',
           margin: isMobile ? '0.75rem 0 0 0' : '1rem 0 0 0'
         }}>
-          Remember to add a thoughtful gift from the Greet-Me Gift Place.
+          Remember to add a thoughtful Greet-Me gift.
         </p>
         <p style={{
           position: 'relative',
@@ -702,7 +702,7 @@ export default function Recipients() {
           maxWidth: '30rem',
           margin: isMobile ? '0.5rem 0 0 0' : '0.6rem 0 0 0'
         }}>
-          Choose from QR Cash, gift cards, flowers, gift boxes, Americana, or branded corporate gifts to make every Greet-Me truly unforgettable.
+          Choose from QR Cash, Greet-Me Gift Cards, flowers, gift boxes, Americana, or branded corporate gifts to make every Greet-Me truly unforgettable.
         </p>
       </div>
 
@@ -745,7 +745,7 @@ export default function Recipients() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '6px',
-                padding: '9px 16px',
+                padding: '9px 22px',
                 background: 'linear-gradient(135deg, #6d74ee 0%, #764ba2 100%)',
                 color: 'white',
                 border: 'none',
