@@ -424,7 +424,7 @@ export default function Recipients() {
         position: 'relative',
         background: 'radial-gradient(120% 140% at 15% 0%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 45%), linear-gradient(135deg, #6d74ee 0%, #764ba2 55%, #6a3f96 100%)',
         borderRadius: 'var(--radius-xl)',
-        padding: isMobile ? '26px 20px' : '40px',
+        padding: isMobile ? '30px 20px' : '46px 40px',
         marginBottom: isMobile ? '24px' : '32px',
         border: '1px solid rgba(255, 255, 255, 0.14)',
         boxShadow: '0 16px 38px rgba(76, 61, 143, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.24)'
@@ -484,6 +484,20 @@ export default function Recipients() {
             )}
           </h1>
         </div>
+
+        {/* Subtitle — sentence-case value proposition; wraps naturally, centered */}
+        <p style={{
+          margin: '0 auto',
+          maxWidth: '34rem',
+          textAlign: 'center',
+          color: 'rgba(255, 255, 255, 0.90)',
+          fontSize: isMobile ? '0.9375rem' : '1.0625rem',
+          fontWeight: 500,
+          lineHeight: 1.6,
+          letterSpacing: '-0.005em'
+        }}>
+          Automate personalized Greet-Me greetings, gifts, and unforgettable moments for the people who matter most. Forget them NOT!
+        </p>
 
         {/* Header actions — one balanced row: Send (primary) · Add (secondary) · Import (tertiary) */}
         <div style={{
@@ -599,7 +613,7 @@ export default function Recipients() {
         overflow: 'hidden',
         marginTop: isMobile ? '2rem' : '2.5rem',
         marginBottom: isMobile ? '2rem' : '2.5rem',
-        padding: isMobile ? '3rem 1.75rem' : '4rem 3rem',
+        padding: isMobile ? '2.5rem 1.75rem' : '3.25rem 3rem',
         background: 'radial-gradient(75% 55% at 32% 18%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0) 55%), linear-gradient(165deg, #fdfbf5 0%, #f7f1e6 55%, #efe7d6 100%)',
         borderRadius: 'var(--radius-xl)',
         border: '1px solid rgba(150, 120, 70, 0.22)',
@@ -667,7 +681,7 @@ export default function Recipients() {
           Complete the Moment
         </p>
 
-        {/* Body */}
+        {/* Body — two sentences; line break between them aids readability */}
         <p style={{
           position: 'relative',
           zIndex: 1,
@@ -677,7 +691,18 @@ export default function Recipients() {
           maxWidth: '30rem',
           margin: isMobile ? '0.75rem 0 0 0' : '1rem 0 0 0'
         }}>
-          Add a thoughtful gift, QR Cash™, flowers, or other surprises to make every Greet-Me unforgettable.
+          Remember to add a thoughtful gift from the Greet-Me Gift Place.
+        </p>
+        <p style={{
+          position: 'relative',
+          zIndex: 1,
+          fontSize: isMobile ? '0.9375rem' : '1rem',
+          lineHeight: 1.7,
+          color: '#8a7a63',
+          maxWidth: '30rem',
+          margin: isMobile ? '0.5rem 0 0 0' : '0.6rem 0 0 0'
+        }}>
+          Choose from QR Cash, gift cards, flowers, gift boxes, Americana, or branded corporate gifts to make every Greet-Me truly unforgettable.
         </p>
       </div>
 
@@ -708,6 +733,39 @@ export default function Recipients() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
             <Users size={18} style={{ color: '#667eea', flexShrink: 0 }} />
             <h3 style={PANEL_TITLE}>Recipients</h3>
+            {/* Premium CTA — reuses the existing Add Recipient handler; no new behavior */}
+            <button
+              onClick={() => {
+                try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch (e) {}
+                setShowAddModal(true);
+              }}
+              style={{
+                marginLeft: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '9px 16px',
+                background: 'linear-gradient(135deg, #6d74ee 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-lg)',
+                fontSize: '0.8125rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 14px rgba(76, 61, 143, 0.28)',
+                fontFamily: 'inherit',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
+              {...getHoverHandlers({
+                onEnter: (e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(76, 61, 143, 0.36)'; },
+                onLeave: (e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(76, 61, 143, 0.28)'; },
+              })}
+            >
+              + Add Recipient
+            </button>
           </div>
 
           {/* Search — Spotlight-style inset surface */}
