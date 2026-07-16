@@ -15,7 +15,8 @@
  * - Reduced motion: quick fade fallback (150ms)
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { resolveScreenOrder } from './resolveScreenOrder';
 import Envelope from './Envelope';
 import Cover from './Cover';
 import InteriorSpread from './InteriorSpread';
@@ -35,13 +36,6 @@ const SCREENS = {
   FINALE: 'finale'
 };
 
-const SCREEN_ORDER = [
-  SCREENS.ENVELOPE,
-  SCREENS.COVER,
-  SCREENS.INTERIOR,
-  SCREENS.FEATURED,
-  SCREENS.FINALE
-];
 
 // Motion timing (locked spec: 350–450ms acceptable range)
 const TRANSITION_MS = 420;
@@ -49,6 +43,10 @@ const ENVELOPE_EXIT_MS = 280;
 const REDUCED_MOTION_MS = 150;
 
 export default function GreetingCard({ greeting, isOwner }) {
+  // Content-derived screen order. Personal greetings return the exact PERSONAL_SCREEN_ORDER
+  // (unchanged behavior); a corporate greeting with no Featured Spread omits the FEATURED
+  // screen so navigation, dots, swipe and keyboard recalculate automatically.
+  const screenOrder = useMemo(() => resolveScreenOrder(greeting), [greeting]);
   const [currentScreen, setCurrentScreen] = useState(SCREENS.ENVELOPE);
   const [transitionState, setTransitionState] = useState(null); // { from, to, direction }
   const [envelopeExiting, setEnvelopeExiting] = useState(false);
@@ -204,12 +202,12 @@ export default function GreetingCard({ greeting, isOwner }) {
   // Advance to next screen (called by child onClick / seal click)
   const advanceScreen = useCallback(() => {
     if (isTransitioningRef.current) return;
-    const idx = SCREEN_ORDER.indexOf(currentScreen);
-    if (idx >= SCREEN_ORDER.length - 1) {
+    const idx = screenOrder.indexOf(currentScreen);
+    if (idx >= screenOrder.length - 1) {
       setHasCompletedFirstPass(true);
       return;
     }
-    const next = SCREEN_ORDER[idx + 1];
+    const next = screenOrder[idx + 1];
 
     // Envelope → Cover: special exit (seal pop + lift, no page turn)
     if (currentScreen === SCREENS.ENVELOPE) {
@@ -222,34 +220,34 @@ export default function GreetingCard({ greeting, isOwner }) {
     }
 
     navigateTo(next, 'forward');
-  }, [currentScreen, navigateTo, dur]);
+  }, [currentScreen, navigateTo, dur, screenOrder]);
 
   // Go to previous screen (arrow / swipe)
   const goBack = useCallback(() => {
     if (isTransitioningRef.current) return;
-    const idx = SCREEN_ORDER.indexOf(currentScreen);
+    const idx = screenOrder.indexOf(currentScreen);
     if (idx <= 1) return; // Don't go back to envelope
-    navigateTo(SCREEN_ORDER[idx - 1], 'back');
-  }, [currentScreen, navigateTo]);
+    navigateTo(screenOrder[idx - 1], 'back');
+  }, [currentScreen, navigateTo, screenOrder]);
 
   // Go to next screen (arrow / swipe)
   const goForward = useCallback(() => {
     if (isTransitioningRef.current) return;
-    const idx = SCREEN_ORDER.indexOf(currentScreen);
-    if (idx >= SCREEN_ORDER.length - 1) return;
+    const idx = screenOrder.indexOf(currentScreen);
+    if (idx >= screenOrder.length - 1) return;
 
     // Envelope → use exit animation (not page turn)
     if (currentScreen === SCREENS.ENVELOPE) {
       setEnvelopeExiting(true);
       transitionTimer.current = setTimeout(() => {
         setEnvelopeExiting(false);
-        setCurrentScreen(SCREEN_ORDER[idx + 1]);
+        setCurrentScreen(screenOrder[idx + 1]);
       }, dur(ENVELOPE_EXIT_MS));
       return;
     }
 
-    navigateTo(SCREEN_ORDER[idx + 1], 'forward');
-  }, [currentScreen, navigateTo, dur]);
+    navigateTo(screenOrder[idx + 1], 'forward');
+  }, [currentScreen, navigateTo, dur, screenOrder]);
 
   // Keyboard navigation (arrow keys)
   useEffect(() => {
@@ -448,7 +446,7 @@ export default function GreetingCard({ greeting, isOwner }) {
       {/* E3: Page position dots — hidden on envelope and during transitions */}
       {currentScreen !== SCREENS.ENVELOPE && !transitionState && !envelopeExiting && (
         <div className="gc-page-dots">
-          {SCREEN_ORDER.slice(1).map((screen) => (
+          {screenOrder.slice(1).map((screen) => (
             <div
               key={screen}
               className={`gc-page-dot ${currentScreen === screen ? 'gc-page-dot-active' : ''}`}
