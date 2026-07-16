@@ -7,6 +7,9 @@ import { useParams } from 'react-router-dom';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
 import { GreetingCard as GreetingCardProto } from '../components/GreetingCardProto';
+// TEAM C — Phase A5: map the sanitized corporate projection into viewer facts (DORMANT;
+// null for personal greetings, so the personal path is unchanged).
+import { buildCorporateViewerFacts } from '../components/GreetingCardProto/corporateDelivery';
 import { useAccountState } from '../hooks/useAccountState';
 import { shouldShowFirstTimeCTA, isSenderViewingOwnGreeting } from '../utils/accountState';
 
@@ -69,6 +72,12 @@ export default function PublicGreetingCard() {
 
       if (response?.ok && response?.greeting) {
         const g = response.greeting;
+        // TEAM C — Phase A5: corporate viewer facts (null for personal → no new fields added
+        // to the personal greeting object, so personal rendering stays byte-compatible).
+        const corporateFacts = buildCorporateViewerFacts(g.corporatePresentation, {
+          jobId: g.jobId || jobId,
+          apiBase: import.meta.env.VITE_API_BASE || '',
+        });
         setGreeting({
           jobId: g.jobId || jobId,
           recipientName: g.recipientName || 'Friend',
@@ -90,6 +99,12 @@ export default function PublicGreetingCard() {
           // Phase 3D Batch D D6 — opaque sender id (added in backend 5634cd4)
           // for client-side owner-self-encounter detection only. Null if missing.
           senderUserId: g.senderUserId || null,
+          // TEAM C — Phase A5: only present for corporate greetings. `corporate` +
+          // `featuredSpreadPresent` drive resolveScreenOrder; `corporateFacts` drives the
+          // Featured Spread rendering. Absent entirely for personal greetings.
+          ...(corporateFacts
+            ? { corporate: true, featuredSpreadPresent: corporateFacts.featuredSpreadPresent, corporateFacts }
+            : {}),
         });
       } else {
         setError('not_found');

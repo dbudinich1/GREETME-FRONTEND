@@ -1,0 +1,36 @@
+/* corporateFeaturedSpread.css
+ * TEAM C — Phase A5. Scoped styles for the corporate Campaign Featured Spread ONLY.
+ * Kept out of the locked greetingCard.css so the personal card styling is untouched. */
+
+.gc-corp-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.gc-corp-image {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 6px;
+  display: block;
+}
+
+.gc-corp-image-unavailable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.06);
+  border: 1px dashed rgba(0, 0, 0, 0.25);
+  color: #7b6a59;
+  font-size: 12px;
+  text-align: center;
+  padding: 8px;
+}
+
+.gc-corp-images-full {
+  width: 100%;
+}

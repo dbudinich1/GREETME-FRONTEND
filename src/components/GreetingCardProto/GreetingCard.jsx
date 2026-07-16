@@ -21,6 +21,8 @@ import Envelope from './Envelope';
 import Cover from './Cover';
 import InteriorSpread from './InteriorSpread';
 import FeaturedSpread from './FeaturedSpread';
+// TEAM C — Phase A5: corporate Featured Spread renderer, selected only for corporate greetings.
+import CorporateFeaturedSpread from './CorporateFeaturedSpread';
 import FinaleSpread from './FinaleSpread';
 import './greetingCard.css';
 
@@ -161,7 +163,13 @@ export default function GreetingCard({ greeting, isOwner }) {
           />
         );
       case SCREENS.FEATURED:
-        return (
+        return greeting.corporate && greeting.corporateFacts ? (
+          <CorporateFeaturedSpread
+            facts={greeting.corporateFacts}
+            videoHasEnded={videoHasEnded}
+            onVideoEnd={() => setVideoHasEnded(true)}
+          />
+        ) : (
           <FeaturedSpread
             videoUrl={greeting.videoUrl}
             photos={greeting.photos}
@@ -397,14 +405,23 @@ export default function GreetingCard({ greeting, isOwner }) {
           )}
 
           {currentScreen === SCREENS.FEATURED && (
-            <FeaturedSpread
-              videoUrl={greeting.videoUrl}
-              photos={greeting.photos}
-              onClick={advanceScreen}
-              videoHasEnded={videoHasEnded}
-              onVideoEnd={() => setVideoHasEnded(true)}
-              posterUrl={greeting.photoUrl || null}
-            />
+            greeting.corporate && greeting.corporateFacts ? (
+              <CorporateFeaturedSpread
+                facts={greeting.corporateFacts}
+                onClick={advanceScreen}
+                videoHasEnded={videoHasEnded}
+                onVideoEnd={() => setVideoHasEnded(true)}
+              />
+            ) : (
+              <FeaturedSpread
+                videoUrl={greeting.videoUrl}
+                photos={greeting.photos}
+                onClick={advanceScreen}
+                videoHasEnded={videoHasEnded}
+                onVideoEnd={() => setVideoHasEnded(true)}
+                posterUrl={greeting.photoUrl || null}
+              />
+            )
           )}
 
           {currentScreen === SCREENS.FINALE && (
