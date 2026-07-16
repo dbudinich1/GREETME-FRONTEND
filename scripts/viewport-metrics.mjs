@@ -5,6 +5,7 @@
  */
 import { chromium } from '@playwright/test';
 import fs from 'node:fs';
+import { requireReadOnlyTarget } from '../safety/apiTarget.mjs';
 
 const VIEWPORTS = [
   { name: '390x844 portrait', w: 390, h: 844 },
@@ -22,7 +23,12 @@ const JOBS = [
 ];
 
 const BASE_URL = 'http://localhost:5174';
-const API_BASE = 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
+// READ-ONLY diagnostic — fail-closed (Team F). Explicit API_BASE required; a
+// production target additionally requires READ_ONLY_PRODUCTION_AUDIT=true and is
+// GET/HEAD only. Resolves at module top-level so any rejection throws before I/O.
+//   READ_ONLY_PRODUCTION_AUDIT=true API_BASE=https://<prod-host> node scripts/viewport-metrics.mjs
+const READONLY = requireReadOnlyTarget({ target: process.env.API_BASE, context: 'viewport-metrics.mjs' });
+const API_BASE = READONLY.apiBase;
 const SCREENSHOT_DIR = 'viewport-report-screenshots';
 
 async function captureMetrics(page) {
@@ -143,6 +149,7 @@ async function main() {
 
       // Intercept API call to override status from "failed" to "done"
       await page.route(`${API_BASE}/api/public/greetings/${job.id}`, async (route) => {
+        READONLY.assertMethod(route.request().method()); // GET/HEAD only — fail-closed
         const response = await route.fetch();
         const json = await response.json();
         if (json?.greeting) {

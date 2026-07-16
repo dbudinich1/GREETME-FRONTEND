@@ -5,6 +5,7 @@
  * Plus: poem visual line wrapping count
  */
 import { chromium } from '@playwright/test';
+import { requireReadOnlyTarget } from '../safety/apiTarget.mjs';
 
 const VIEWPORTS = [
   { name: '390x844 portrait', w: 390, h: 844 },
@@ -45,7 +46,12 @@ const ALL_ROUNDS = [
 ];
 
 const BASE_URL = 'http://localhost:5174';
-const API_BASE = 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
+// READ-ONLY diagnostic — fail-closed (Team F). Explicit API_BASE required; a
+// production target additionally requires READ_ONLY_PRODUCTION_AUDIT=true and is
+// GET/HEAD only. Resolves at module top-level so any rejection throws before I/O.
+//   READ_ONLY_PRODUCTION_AUDIT=true API_BASE=https://<prod-host> node scripts/detailed-report.mjs
+const READONLY = requireReadOnlyTarget({ target: process.env.API_BASE, context: 'detailed-report.mjs' });
+const API_BASE = READONLY.apiBase;
 
 async function captureDetailed(page) {
   return page.evaluate(() => {
@@ -158,6 +164,7 @@ async function main() {
         const page = await context.newPage();
 
         await page.route(`${API_BASE}/api/public/greetings/${job.id}`, async (route) => {
+          READONLY.assertMethod(route.request().method()); // GET/HEAD only — fail-closed
           const response = await route.fetch();
           const json = await response.json();
           if (json?.greeting) json.greeting.status = 'done';

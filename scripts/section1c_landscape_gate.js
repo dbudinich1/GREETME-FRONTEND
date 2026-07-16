@@ -12,19 +12,24 @@
  *   5. Collecting console errors
  *
  * Usage:
- *   JOB_ID=<jobId> node scripts/section1c_landscape_gate.js
- *   BASE_URL=https://greet-me.com JOB_ID=abc123 node scripts/section1c_landscape_gate.js
+ *   PUBLIC_PRODUCTION_GATE=true BASE_URL=https://<web-host> JOB_ID=<jobId> node scripts/section1c_landscape_gate.js
  */
 
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 import path from 'path';
+import { requirePublicGateTarget } from '../safety/apiTarget.mjs';
 
-const BASE_URL = process.env.BASE_URL || 'https://greet-me.com';
+// PUBLIC PRODUCTION GATE — fail-closed (Team F). No embedded host. BASE_URL must
+// be provided explicitly, PUBLIC_PRODUCTION_GATE=true must be set, and the gate
+// is GET/HEAD only (page navigations only). It uses NO credentials. Resolves at
+// module top-level so any rejection throws before browser launch / network I/O.
+const WEB_GATE = requirePublicGateTarget({ target: process.env.BASE_URL, context: 'section1c public web' });
+const BASE_URL = WEB_GATE.target.replace(/\/$/, '');
 const JOB_ID = process.env.JOB_ID;
 
 if (!JOB_ID) {
-  console.error('ERROR: JOB_ID env var is required.\nUsage: JOB_ID=<id> node scripts/section1c_landscape_gate.js');
+  console.error('ERROR: JOB_ID env var is required.\nUsage: PUBLIC_PRODUCTION_GATE=true BASE_URL=<web> JOB_ID=<id> node scripts/section1c_landscape_gate.js');
   process.exit(1);
 }
 
@@ -243,6 +248,7 @@ async function main() {
 
     // Navigate and wait for greeting to load (not "being prepared")
     console.log(`  Loading greeting...`);
+    WEB_GATE.assertMethod('GET'); // GET/HEAD only — fail-closed; no credentials attached
     await page.goto(URL, { waitUntil: 'networkidle', timeout: 30000 });
 
     // Wait for either the envelope (loaded) or error state

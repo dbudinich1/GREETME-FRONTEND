@@ -10,8 +10,17 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { requireSafeApiBase } from '../safety/apiTarget.mjs';
 
-const API_BASE = process.env.API_BASE || 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
+// Team F fail-closed guard. Runs at module evaluation (before any beforeAll), so
+// a rejection throws BEFORE any registration/send-greeting network call. This
+// spec registers users and sends greetings, so it requires the explicit
+// ALLOW_ISOLATED_TEST=1 opt-in AND a local/allow-listed API_BASE. It can never
+// default to — or be coerced into contacting — production.
+const API_BASE = requireSafeApiBase({
+  requireIsolatedOptIn: true,
+  context: 'onboarding-flow.spec.js',
+});
 const APP_BASE = process.env.BASE_URL || 'http://localhost:5173';
 
 // Helper: register a fresh user via API

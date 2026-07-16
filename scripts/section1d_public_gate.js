@@ -22,14 +22,22 @@
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 import path from 'path';
+import { requirePublicGateTarget } from '../safety/apiTarget.mjs';
 
-const BASE_URL = process.env.BASE_URL || 'https://greet-me.com';
-const API_BASE = process.env.API_BASE || 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
+// PUBLIC PRODUCTION GATE — fail-closed (Team F). No embedded host. BASE_URL and
+// API_BASE must be provided explicitly, PUBLIC_PRODUCTION_GATE=true must be set,
+// and the gate is GET/HEAD only. It uses NO credentials. Resolves at module
+// top-level so any rejection throws before a single network request is made.
+//   PUBLIC_PRODUCTION_GATE=true BASE_URL=https://<web-host> API_BASE=https://<api-host> JOB_ID=<id> node scripts/section1d_public_gate.js
+const WEB_GATE = requirePublicGateTarget({ target: process.env.BASE_URL, context: 'section1d public web' });
+const API_GATE = requirePublicGateTarget({ target: process.env.API_BASE, context: 'section1d status API' });
+const BASE_URL = WEB_GATE.target.replace(/\/$/, '');
+const API_BASE = API_GATE.target.replace(/\/$/, '');
 const JOB_ID = process.env.JOB_ID;
 const EXPECT_GIFT = process.env.EXPECT_GIFT; // "true" | "false" | undefined
 
 if (!JOB_ID) {
-  console.error('ERROR: JOB_ID env var is required.\nUsage: JOB_ID=<id> node scripts/section1d_public_gate.js');
+  console.error('ERROR: JOB_ID env var is required.\nUsage: PUBLIC_PRODUCTION_GATE=true BASE_URL=<web> API_BASE=<api> JOB_ID=<id> node scripts/section1d_public_gate.js');
   process.exit(1);
 }
 
@@ -71,6 +79,7 @@ async function main() {
   // ── Step C: Pre-flight — fetch backend job status ──
   let backendStatus = null;
   try {
+    API_GATE.assertMethod('GET'); // GET/HEAD only — fail-closed; no credentials attached
     const resp = await fetch(STATUS_URL);
     if (resp.ok) {
       const data = await resp.json();

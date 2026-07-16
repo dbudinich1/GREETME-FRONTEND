@@ -1,9 +1,17 @@
 /**
  * Create 5 test jobs for viewport metrics testing (fit-safe round)
+ *
+ * MUTATING seed script — fail-closed (Team F). Production is ALWAYS rejected.
+ * Requires ALLOW_ISOLATED_TEST=1 and API_BASE pointed at localhost / an exact
+ * allow-listed non-production host. The guard runs at module top-level so any
+ * rejection throws BEFORE a single network request is made.
+ *   ALLOW_ISOLATED_TEST=1 API_BASE=http://127.0.0.1:8099 node scripts/create-test-jobs.mjs <token>
  */
-const API = 'https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net';
+import { requireSafeApiBase } from '../safety/apiTarget.mjs';
+
+const API = requireSafeApiBase({ requireIsolatedOptIn: true, context: 'create-test-jobs.mjs' });
 const TOKEN = process.argv[2];
-if (!TOKEN) { console.error('Usage: node create-test-jobs.mjs <token>'); process.exit(1); }
+if (!TOKEN) { console.error('Usage: ALLOW_ISOLATED_TEST=1 API_BASE=http://127.0.0.1:PORT node create-test-jobs.mjs <token>'); process.exit(1); }
 
 const PHOTO = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400';
 
