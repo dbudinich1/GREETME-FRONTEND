@@ -31,7 +31,7 @@ function businessG1g1GiftRow(item) {
   if (item.planTier === 'medium_business') {
     const mode = item.pricingMode === 'standard' ? 'standard' : 'founders';
     const sb = (personalPlans[mode] || []).find((p) => p.planTier === 'social_butterfly');
-    return { label: 'G1G1 Social Butterfly Subscription', value: Number(sb?.price) || 19.99 };
+    return { label: 'G1G1 Social Butterfly Subscription', value: Number(sb?.price) || 24.99 };
   }
   return null;
 }
