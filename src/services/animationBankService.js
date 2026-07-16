@@ -19,7 +19,7 @@ class AnimationBankService {
 
     // Default state for new users
     return {
-      monthlyAllowance: 2, // From $19.99/year plan
+      monthlyAllowance: 2, // From $24.99/year plan
       monthlyUsed: 0,
       monthlyRemaining: 2,
       purchasedPacks: 0, // Credits from purchased packs (never expire)
@@ -66,7 +66,7 @@ class AnimationBankService {
       return { success: false, message: 'No Animated Moments available' };
     }
 
-    // Deduct in priority order: monthly → holiday → earned → purchased
+    // Deduct in priority order: monthly â†’ holiday â†’ earned â†’ purchased
     if (bank.monthlyRemaining > 0) {
       bank.monthlyUsed++;
       bank.monthlyRemaining--;
@@ -223,7 +223,7 @@ class AnimationBankService {
       breakdown.push({
         label: 'Monthly Plan',
         amount: bank.monthlyRemaining,
-        icon: '📅',
+        icon: 'ðŸ“…',
         color: '#667eea'
       });
     }
@@ -232,7 +232,7 @@ class AnimationBankService {
       breakdown.push({
         label: 'Purchased Packs',
         amount: bank.purchasedPacks,
-        icon: '🎁',
+        icon: 'ðŸŽ',
         color: '#10b981'
       });
     }
@@ -241,7 +241,7 @@ class AnimationBankService {
       breakdown.push({
         label: 'Holiday Bonus',
         amount: bank.holidayBonus,
-        icon: '🎄',
+        icon: 'ðŸŽ„',
         color: '#f59e0b'
       });
     }
@@ -250,7 +250,7 @@ class AnimationBankService {
       breakdown.push({
         label: 'Earned Bonuses',
         amount: bank.earnedBonus,
-        icon: '⭐',
+        icon: 'â­',
         color: '#ec4899'
       });
     }

@@ -29,7 +29,7 @@ function businessG1g1GiftRow(item) {
   if (item.planTier === 'medium_business') {
     const mode = item.pricingMode === 'standard' ? 'standard' : 'founders';
     const sb = (personalPlans[mode] || []).find((p) => p.planTier === 'social_butterfly');
-    return { label: 'G1G1 Social Butterfly Subscription', value: Number(sb?.price) || 19.99 };
+    return { label: 'G1G1 Social Butterfly Subscription', value: Number(sb?.price) || 24.99 };
   }
   return null;
 }
@@ -543,7 +543,7 @@ export default function Cart() {
                     color: 'var(--text-tertiary)',
                     textDecoration: 'line-through'
                   }}>
-                    ${cartItems.find(item => item.type === 'subscription')?.price?.toFixed(2) || '19.99'}
+                    ${cartItems.find(item => item.type === 'subscription')?.price?.toFixed(2) || '24.99'}
                   </span>
                   <div style={{
                     fontSize: '0.8125rem',
