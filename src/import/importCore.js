@@ -105,6 +105,7 @@ export function autoMapHeaders(headers = []) {
 // ----- Row processing (map → sanitize → normalize → validate) -----
 // minorPolicy: 'block' (default) rejects rows with a birthday under `minAgeYears`; 'flag' warns.
 export function processRow(rawRow = {}, mapping = {}, opts = {}) {
+  rawRow = rawRow || {}; // tolerate a null/malformed row (never throw)
   const { minorPolicy = "block", minAgeYears = 13, todayIso, requireConsent = false } = opts;
   const get = (field) => {
     const col = mapping[field];
