@@ -574,7 +574,13 @@ export default function Recipients() {
             Add Recipient
           </button>
           <button
-            onClick={() => setShowImportModal(true)}
+            onClick={() => {
+              // Rollback-controlled migration: VITE_IMPORT_WIZARD_ENTRY==="true" routes to the new
+              // Import Wizard; unset/false keeps the legacy CSVImport modal. Manual Add Recipient
+              // and the CSVImport component both remain fully available regardless of the flag.
+              if (import.meta.env.VITE_IMPORT_WIZARD_ENTRY === 'true') navigate('/dashboard/import-wizard');
+              else setShowImportModal(true);
+            }}
             style={{
               display: 'flex',
               alignItems: 'center',

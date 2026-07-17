@@ -18,7 +18,7 @@ import {
   buildPlan, summarizeImport, looksLikeZip,
 } from "../../import/importCore.js";
 import { demoDataset, resetDemoData, assertNoRealMix } from "../../import/demoData.js";
-import { MODES, corporateContext, commitDecision } from "./wizardModel.js";
+import { MODES, corporateContext, commitDecision, buildPersonalImportContacts } from "./wizardModel.js";
 
 const PURPLE = "linear-gradient(135deg,#6d74ee,#764ba2)";
 const card = { background: "#fff", border: "1px solid rgba(27,24,48,.1)", borderRadius: 14, padding: 18 };
@@ -52,7 +52,9 @@ export default function ContactImportWizard() {
   function ingest(records, existingEmails = []) {
     const capped = checkRowCount(records.length);
     if (!capped.ok) { setError(`Too many rows (max ${capped.max}).`); return; }
-    const processed = records.map((r, i) => ({ ...processRow(r.__raw || r, r.__map || IDENTITY_MAP(records), { todayIso: undefined }), index: i }));
+    // Retain the raw row + mapping so the commit can transmit the birthday column (the processed
+    // contact omits birthday — it's used only for the minor check inside the import core).
+    const processed = records.map((r, i) => ({ ...processRow(r.__raw || r, r.__map || IDENTITY_MAP(records), { todayIso: undefined }), index: i, __raw: r.__raw || r, __map: r.__map || {} }));
     const deduped = detectDuplicates(processed, existingEmails);
     setRows(deduped);
     setPlan(buildPlan(deduped, { duplicateStrategy: "skip" }));
@@ -94,10 +96,10 @@ export default function ContactImportWizard() {
   const commitPersonal = useCallback(async () => {
     if (mode !== MODES.PERSONAL) return;
     setBusy(true); setError(null);
-    // Personal ownership: import into the authenticated user's own collection. Only the
-    // fields the existing personal endpoint persists are sent; the rest are prepared and
-    // surfaced in preview (backend enrichment is a documented gap).
-    const contacts = plan.toCreate.map((r) => ({ name: r.contact.fullName, email: r.contact.email, relationship: r.contact.relationship || "" }));
+    // Personal ownership: import into the authenticated user's own collection. Transmit every
+    // recognized mapped field (incl. birthday) so the existing importer derives the manual-shape
+    // occasion and it flows into contacts.occasions[] → scheduler like a manually-added recipient.
+    const contacts = buildPersonalImportContacts(plan.toCreate);
     let res;
     try { res = await api.importContacts(contacts); } catch (e) { res = { ok: false, error: String(e && e.message) }; }
     setBusy(false);

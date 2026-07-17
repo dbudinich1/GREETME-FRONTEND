@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { MODES, corporateContext, commitTarget, canSelectFile, commitDecision, STEPS } from "./wizardModel.js";
+import { MODES, corporateContext, commitTarget, canSelectFile, commitDecision, STEPS, buildPersonalImportContacts } from "./wizardModel.js";
 
 const WIZ = readFileSync(new URL("./ContactImportWizard.jsx", import.meta.url), "utf8");
 const memb = (arr) => ({ ok: true, data: { memberships: arr } });
@@ -44,6 +44,37 @@ test("commit decisions: demo blocked, corporate gated, personal allowed", () => 
 
 test("wizard has the ordered steps", () => {
   assert.deepEqual(STEPS, ["mode", "context", "upload", "map", "preview", "commit", "summary"]);
+});
+
+test("buildPersonalImportContacts transmits every recognized field INCLUDING birthday", () => {
+  const rows = [{
+    contact: { fullName: "Ada Lovelace", email: "ada@x.co", phone: "+15551112222", relationship: "Friend", company: "Acme", department: "Eng", recipientType: "employee", consent: "yes", source: "csv", notes: "vip" },
+    __raw: { Name: "Ada Lovelace", Email: "ada@x.co", DOB: "1990-05-14" },
+    __map: { fullName: "Name", email: "Email", birthday: "DOB" },
+  }];
+  const [c] = buildPersonalImportContacts(rows);
+  assert.equal(c.name, "Ada Lovelace");       // name comes from processed fullName
+  assert.equal(c.email, "ada@x.co");
+  assert.equal(c.phone, "+15551112222");
+  assert.equal(c.company, "Acme");
+  assert.equal(c.department, "Eng");
+  assert.equal(c.recipientType, "employee");
+  assert.equal(c.consent, "yes");
+  assert.equal(c.source, "csv");
+  assert.equal(c.notes, "vip");
+  assert.equal(c.birthday, "1990-05-14");      // birthday reaches the payload (raw mapped column)
+});
+
+test("buildPersonalImportContacts omits birthday when no birthday column is mapped", () => {
+  const rows = [{ contact: { fullName: "Bob", email: "bob@x.co" }, __raw: { Name: "Bob", Email: "bob@x.co" }, __map: { fullName: "Name", email: "Email" } }];
+  const [c] = buildPersonalImportContacts(rows);
+  assert.equal("birthday" in c, false);        // never fabricates a birthday
+  assert.equal(c.name, "Bob");
+});
+
+test("wizard commit uses the shared builder (no ad-hoc field allow-list)", () => {
+  assert.match(WIZ, /buildPersonalImportContacts\(plan\.toCreate\)/); // birthday-carrying commit path
+  assert.ok(!/name: r\.contact\.fullName, email: r\.contact\.email, relationship/.test(WIZ), "old 3-field mapping removed");
 });
 
 // ---- source-scan invariants ----
