@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   SAMPLE_DATASET, sampleColumnsFor, sampleCsvFor, sampleContactsFor,
-  reconcileSampleRaw, serializeSample,
+  reconcileSampleRaw, serializeSample, sessionDiscriminator,
 } from "./sampleWorkspace.js";
 
 test("sample templates are appropriate to the selected path", () => {
@@ -22,14 +22,17 @@ test("sample templates are appropriate to the selected path", () => {
   assert.deepEqual(Object.keys(SAMPLE_DATASET).sort(), ["client", "employee", "individual", "mixed", "vendor"]);
 });
 
-test("session isolation: same token restores; different/new token never restores (cleared)", () => {
-  const raw = serializeSample([{ email: "a@example.com" }], "TOKEN_A");
-  // same session token → restored
-  assert.deepEqual(reconcileSampleRaw(raw, "TOKEN_A"), { contacts: [{ email: "a@example.com" }], cleared: false });
-  // new authenticated session (different token) → NOT restored, cleared
-  assert.deepEqual(reconcileSampleRaw(raw, "TOKEN_B"), { contacts: [], cleared: true });
-  // logged out (anon) → not restored
-  assert.deepEqual(reconcileSampleRaw(raw, "anon"), { contacts: [], cleared: true });
+test("session isolation: same discriminator restores; different user / new login / anon never restores", () => {
+  const sidA = "u:USER_A:1000";                                   // non-secret: user id + issued-at
+  const raw = serializeSample([{ email: "a@example.com" }], sidA);
+  assert.deepEqual(reconcileSampleRaw(raw, sidA), { contacts: [{ email: "a@example.com" }], cleared: false }); // same session
+  assert.deepEqual(reconcileSampleRaw(raw, "u:USER_B:1000"), { contacts: [], cleared: true });  // different user
+  assert.deepEqual(reconcileSampleRaw(raw, "u:USER_A:2000"), { contacts: [], cleared: true });  // new login (new iat)
+  assert.deepEqual(reconcileSampleRaw(raw, "anon"), { contacts: [], cleared: true });           // logged-out state
+});
+
+test("sessionDiscriminator returns 'anon' with no JWT (Node has no localStorage)", () => {
+  assert.equal(sessionDiscriminator(), "anon");
 });
 
 test("corrupt / missing / malformed storage never leaks a sample", () => {
@@ -40,9 +43,11 @@ test("corrupt / missing / malformed storage never leaks a sample", () => {
   assert.equal(reconcileSampleRaw(JSON.stringify({ token: "T", contacts: "x" }), "T").cleared, true);
 });
 
-test("serializeSample round-trips with the token tag", () => {
-  const s = serializeSample([{ email: "b@example.org" }], "TK");
+test("serialized workspace stores the non-secret discriminator ONLY — never a token", () => {
+  const s = serializeSample([{ email: "b@example.org" }], "u:USER_A:1000");
   const p = JSON.parse(s);
-  assert.equal(p.token, "TK");
+  assert.equal(p.sid, "u:USER_A:1000");
+  assert.equal("token" in p, false);                            // no token field
+  assert.ok(!/token/i.test(s), "no 'token' substring anywhere in the serialized payload");
   assert.deepEqual(p.contacts, [{ email: "b@example.org" }]);
 });

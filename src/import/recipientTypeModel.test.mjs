@@ -53,18 +53,25 @@ test("single-type kinds never surface a type-mapping choice", () => {
   assert.equal(buildRecipientTypeSummary(rows, { kind: "client" }).uniqueUnknownTypes.length, 0);
 });
 
-test("applyRecipientTypes stamps the payload (single auto-apply; personal keeps CSV; mixed resolves)", () => {
+test("applyRecipientTypes: single auto-apply; Individual STRIPS business type; Universal resolves", () => {
   const rows = [row(0, "supplier"), row(1, "")];
   const base = rows.map((r) => ({ name: r.contact.fullName, recipientType: r.contact.recipientType }));
-  // single-type Employees → both employee
   assert.deepEqual(applyRecipientTypes(base, rows, { kind: "employee" }).map((c) => c.recipientType), ["employee", "employee"]);
-  // Clients / Vendors
   assert.deepEqual(applyRecipientTypes(base, rows, { kind: "vendor" }).map((c) => c.recipientType), ["vendor", "vendor"]);
-  // personal ownership → keep whatever the CSV had
-  assert.deepEqual(applyRecipientTypes(base, rows, { kind: "personal" }).map((c) => c.recipientType), ["supplier", ""]);
-  assert.deepEqual(applyRecipientTypes(base, rows, {}).map((c) => c.recipientType), ["supplier", ""]);
-  // mixed → normalized synonym + blank stays ""
+  // Individual (no kind / personal / individual) → business classification STRIPPED
+  assert.deepEqual(applyRecipientTypes(base, rows, { kind: "personal" }).map((c) => c.recipientType), ["", ""]);
+  assert.deepEqual(applyRecipientTypes(base, rows, { kind: "individual" }).map((c) => c.recipientType), ["", ""]);
+  assert.deepEqual(applyRecipientTypes(base, rows, {}).map((c) => c.recipientType), ["", ""]);
+  // Universal ("mixed") → normalized synonym + blank stays ""
   assert.deepEqual(applyRecipientTypes(base, rows, { kind: "mixed" }).map((c) => c.recipientType), ["vendor", ""]);
+});
+
+test("REGRESSION: a CSV recipientType=vendor imported via Individual is NOT carried", () => {
+  const rows = [row(0, "vendor")];
+  const base = rows.map(() => ({ name: "N", recipientType: "vendor" }));
+  assert.equal(applyRecipientTypes(base, rows, { kind: null })[0].recipientType, "");         // Individual → stripped
+  assert.equal(applyRecipientTypes(base, rows, { kind: "individual" })[0].recipientType, "");
+  assert.equal(applyRecipientTypes(base, rows, { kind: "vendor" })[0].recipientType, "vendor"); // Business Vendors keeps it
 });
 
 test("kinds + canonical set integrity", () => {

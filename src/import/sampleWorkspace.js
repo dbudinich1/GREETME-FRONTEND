@@ -37,32 +37,55 @@ export function sampleContactsFor(kind) {
 }
 
 // ---- Session isolation (pure core) ----
-// Parse stored JSON; return contacts only when the stored token matches the CURRENT session token.
-// A mismatch, corruption, or a missing token → cleared (never restore another session's sample).
-export function reconcileSampleRaw(rawJson, currentToken) {
+// The workspace is tagged with a NON-SECRET session discriminator derived from the JWT's public
+// claims (sub = user id, iat = issued-at) — NEVER the raw bearer token, no token substring, hash,
+// or reversible derivative. A different user (sub) or a new login (iat) → different discriminator;
+// logged-out → "anon".
+function _decodeJwtClaims() {
+  try {
+    const t = globalThis.localStorage && localStorage.getItem("token");
+    if (!t || typeof t !== "string") return null;
+    const parts = t.split(".");
+    if (parts.length !== 3) return null;                       // opaque token → cannot derive → anon
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = (typeof atob === "function") ? atob(b64) : Buffer.from(b64, "base64").toString("binary");
+    const payload = JSON.parse(decodeURIComponent(escape(json)));
+    return (payload && typeof payload === "object") ? payload : null;
+  } catch { return null; }
+}
+export function sessionDiscriminator() {
+  const p = _decodeJwtClaims();
+  const uid = p && (p.sub || p.userId || p.id);
+  if (uid != null && p.iat != null) return `u:${uid}:${p.iat}`;   // non-secret: user id + issued-at only
+  return "anon";
+}
+
+// Parse stored JSON; return contacts only when the stored NON-SECRET discriminator matches the
+// current one. Mismatch, corruption, missing discriminator, or anonymous → cleared (never restore
+// another user's / another login's / an authenticated sample under anon).
+export function reconcileSampleRaw(rawJson, currentSid) {
   if (!rawJson) return { contacts: [], cleared: false };
   let parsed;
   try { parsed = JSON.parse(rawJson); } catch { return { contacts: [], cleared: true }; }
   if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.contacts)) return { contacts: [], cleared: true };
-  if (parsed.token !== currentToken) return { contacts: [], cleared: true };
+  if (currentSid === "anon" || parsed.sid !== currentSid) return { contacts: [], cleared: true };
   return { contacts: parsed.contacts, cleared: false };
 }
-export function serializeSample(contacts, currentToken) {
-  return JSON.stringify({ token: currentToken, v: 1, contacts: Array.isArray(contacts) ? contacts : [] });
+export function serializeSample(contacts, currentSid) {
+  return JSON.stringify({ sid: currentSid, v: 1, contacts: Array.isArray(contacts) ? contacts : [] });
 }
 
 // ---- sessionStorage wrappers (no-op when storage is unavailable, e.g. Node tests) ----
-function _token() { try { return (globalThis.localStorage && localStorage.getItem("token")) || "anon"; } catch { return "anon"; } }
 function _ss() { try { return globalThis.sessionStorage || null; } catch { return null; } }
 export function loadSampleWorkspace() {
   const ss = _ss(); if (!ss) return [];
-  const { contacts, cleared } = reconcileSampleRaw(ss.getItem(SAMPLE_STORAGE_KEY), _token());
+  const { contacts, cleared } = reconcileSampleRaw(ss.getItem(SAMPLE_STORAGE_KEY), sessionDiscriminator());
   if (cleared) { try { ss.removeItem(SAMPLE_STORAGE_KEY); } catch { /* ignore */ } }
   return contacts;
 }
 export function saveSampleWorkspace(contacts) {
   const ss = _ss(); if (!ss) return;
-  try { ss.setItem(SAMPLE_STORAGE_KEY, serializeSample(contacts, _token())); } catch { /* ignore */ }
+  try { ss.setItem(SAMPLE_STORAGE_KEY, serializeSample(contacts, sessionDiscriminator())); } catch { /* ignore */ }
 }
 export function clearSampleWorkspace() {
   const ss = _ss(); if (!ss) return;

@@ -164,6 +164,9 @@ export const AuthProvider = ({ children }) => {
     safeRemove('greetme_recipients');
     safeRemove('greetme_cart');
     safeRemove('greetme_drafts');
+    // Import Wizard sample workspace is session-scoped — clear it on logout so it can never bleed
+    // into the next login (the wizard also fails closed on session/user change). Additive only.
+    try { sessionStorage.removeItem('greetme_sample_workspace'); } catch { /* ignore */ }
     setUser(null);
   };
 

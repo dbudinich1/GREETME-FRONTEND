@@ -61,10 +61,16 @@ export function resolveRecipientTypeForRow(row, state = {}) {
   return isCanonicalType(mapped) ? mapped : "";
 }
 
-// Stamp recipientType onto an already-built payload (same order as rows). Personal ownership
-// (no kind / "personal") keeps whatever the CSV carried; corporate kinds resolve per row.
+// Stamp recipientType onto an already-built payload (same order as rows).
+//   Individual (no kind / "personal" / "individual") → NO business audience classification: any
+//     recipientType a CSV carries (employee/client/vendor/customer/personnel/contractor/…) is
+//     stripped, so a personal record never inherits a business type merely from a CSV column.
+//   Business kinds → resolve per row (single-type auto-apply; Universal normalizes/maps).
 export function applyRecipientTypes(payload = [], rows = [], typeState = {}) {
-  if (!typeState.kind || typeState.kind === "personal") return payload;
+  const kind = typeState && typeState.kind;
+  if (!kind || kind === "personal" || kind === "individual") {
+    return payload.map((c) => ({ ...c, recipientType: "" }));
+  }
   return payload.map((c, i) => ({ ...c, recipientType: resolveRecipientTypeForRow(rows[i], typeState) }));
 }
 
