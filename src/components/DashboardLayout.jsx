@@ -1,6 +1,7 @@
 // src/components/DashboardLayout.jsx
 import { useState, useEffect, useRef } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { isFundraiserUiEnabled } from '../config/fundraiserGate.js'; // TEAM B — dark fundraising nav gate
 import { useAuth } from '../context/AuthContext';
 import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, Users, ShoppingCart, Film, X, Image as ImageIcon, QrCode } from 'lucide-react';
 import GreetMeLogo from './GreetMeLogo';
@@ -164,6 +165,8 @@ export default function DashboardLayout({ children }) {
     { name: '🥇 Greet-Me™ Hero™', path: '/dashboard/hero', icon: null },
     { name: 'For Business', path: '/business', icon: null },
     { name: 'Media Library', path: '/dashboard/media', icon: ImageIcon },
+    // TEAM B — fundraising nav is hidden while the dark gate is false; backend still authorizes.
+    ...(isFundraiserUiEnabled() ? [{ name: 'Fundraising', path: '/dashboard/fundraiser/admin', icon: null }] : []),
   ];
 
   return (

@@ -107,6 +107,11 @@ const FounderDashboard = import.meta.env.DEV
 const QAInspector = import.meta.env.DEV
   ? lazy(() => import("./pages/QAInspector"))
   : null;
+// TEAM B — fundraising dashboards. Routes are registered but DARK: each page self-gates on
+// VITE_FUNDRAISER_ENABLED (default false ⇒ truthful "not available"), and all data comes from the
+// backend, which enforces auth + role server-side. Navigation is hidden while the gate is false.
+const FounderFundraisingDashboard = lazy(() => import("./pages/fundraiser/FounderFundraisingDashboard"));
+const PartnerFundraisingDashboard = lazy(() => import("./pages/fundraiser/PartnerFundraisingDashboard"));
 import Support from "./pages/Support";
 import Legal from "./Legal";
 import VerifyEmail from "./pages/VerifyEmail";
@@ -169,6 +174,9 @@ export default function App() {
             <Route path="invitations" element={<Invitations />} />
             <Route path="rewards" element={<Rewards />} />
             <Route path="notifications" element={<Notifications />} />
+            {/* TEAM B — dark fundraising dashboards (self-gated; backend-authorized) */}
+            <Route path="fundraiser/admin" element={<Suspense fallback={null}><FounderFundraisingDashboard /></Suspense>} />
+            <Route path="fundraiser/partner/:organizationId" element={<Suspense fallback={null}><PartnerFundraisingDashboard /></Suspense>} />
           </Route>
 
           {/* Public Landing and Pricing */}
