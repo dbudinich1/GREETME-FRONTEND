@@ -5,7 +5,7 @@
 // backend derives authority server-side. Returns { ok, status, data } so the UI can render
 // truthful states for 401 (sign in), 403 (no access), 503 (dormant), and empty data.
 
-const API_BASE = import.meta.env.VITE_API_BASE || "";
+const API_BASE = (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) || "";
 
 function authHeaders(extra = {}) {
   let token = null;

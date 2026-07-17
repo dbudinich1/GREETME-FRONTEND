@@ -20,12 +20,14 @@ export default function PartnerFundraisingDashboard() {
   const [newP, setNewP] = useState({ campaignId: "", displayName: "" });
 
   const load = useCallback(async () => {
+    if (!isFundraiserUiEnabled()) { setState("dormant"); return; } // gate OFF ⇒ no API request
     if (!organizationId) { setState("forbidden"); return; }
     setState("loading");
     const o = await fundraiserApi.partner.overview(organizationId);
     const s = stateFor(o);
-    setState(s);
-    if (s !== "ok") return;
+    if (s !== "ok") { setState(s); return; }
+    if (!o.data || !o.data.dashboard) { setState("error"); return; } // fail closed on malformed
+    setState("ok");
     setOv(o.data);
     const [c, e, p] = await Promise.all([
       fundraiserApi.partner.campaigns(organizationId),

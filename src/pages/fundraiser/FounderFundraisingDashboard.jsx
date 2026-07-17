@@ -18,11 +18,14 @@ export default function FounderFundraisingDashboard() {
   const [form, setForm] = useState({ legalName: "", orgType: "school" });
 
   const load = useCallback(async () => {
+    // Gate OFF ⇒ do not issue any fundraiser API request; render the truthful dormant state.
+    if (!isFundraiserUiEnabled()) { setState("dormant"); return; }
     setState("loading");
     const ov = await fundraiserApi.founder.overview();
     const s = stateFor(ov);
-    setState(s);
-    if (s !== "ok") return;
+    if (s !== "ok") { setState(s); return; }
+    if (!ov.data || !ov.data.organizations) { setState("error"); return; } // fail closed on malformed
+    setState("ok");
     setOverview(ov.data);
     const list = await fundraiserApi.founder.organizations();
     setOrgs(stateFor(list) === "ok" ? list.data : []);
