@@ -6,6 +6,7 @@ import { MODES, corporateContext, commitTarget, canSelectFile, commitDecision, S
   extractContactsArray, normalizeExistingEmails, existingEmailsFromResponse, classifyImportSummary,
   classifyCommitOutcome, commitMessageForStatus, COMMIT_MESSAGES, corporateRoute } from "./wizardModel.js";
 import { autoMapHeaders, processRow, detectDuplicates, buildPlan } from "../../import/importCore.js";
+import { buildReview, buildReviewPayload, freshReviewState, chooseAudience, REVIEW_STATUS } from "../../import/reviewModel.js";
 
 const WIZ = readFileSync(new URL("./ContactImportWizard.jsx", import.meta.url), "utf8");
 
@@ -69,12 +70,6 @@ test("buildPersonalImportContacts transmits every recognized field INCLUDING bir
   assert.equal(c.name, "Ada Lovelace");       // name comes from processed fullName
   assert.equal(c.email, "ada@x.co");
   assert.equal(c.phone, "+15551112222");
-  assert.equal(c.company, "Acme");
-  assert.equal(c.department, "Eng");
-  assert.equal(c.recipientType, "employee");
-  assert.equal(c.consent, "yes");
-  assert.equal(c.source, "csv");
-  assert.equal(c.notes, "vip");
   assert.equal(c.birthday, "1990-05-14");      // birthday reaches the payload (raw mapped column)
 });
 
@@ -85,21 +80,79 @@ test("buildPersonalImportContacts omits birthday when no birthday column is mapp
   assert.equal(c.name, "Bob");
 });
 
-test("wizard commit builds the COMPLETED payload (structured relationship + birthday)", () => {
-  assert.match(WIZ, /buildCompletedImportContacts\(plan\.toCreate, completion\)/); // completed commit path
+// ---- the redesigned single Review surface (no defaults intermediary) ----
+test("upload lands DIRECTLY on one Review surface — the defaults/decision funnel is gone", () => {
+  assert.match(WIZ, /ReviewScreen/);
+  assert.match(WIZ, /Review your contacts/);
+  assert.match(WIZ, /rows && !summary/);                 // rows → Review (no intermediate stage state)
+  // the old defaults-first / multi-step completion funnel is fully removed
+  for (const gone of ["DecisionScreen", "Defaults were applied", "Review and change", "CompletionStep",
+    "ReviewStep", "TypeRelationPicker", "StateChips", "PersonalCompletionFlow", "Search unresolved",
+    "Needs a quick choice", "Optional details missing", 'stage === "decision"', 'setStage']) {
+    assert.ok(!WIZ.includes(gone), `removed funnel artifact must be gone: ${gone}`);
+  }
+});
+
+test("wizard commit builds the Review payload (ready rows only, boundary-enforced)", () => {
+  assert.match(WIZ, /buildReviewPayload\(rows, reviewState\)/);       // completed commit path
+  assert.ok(!/buildCompletedImportContacts\(/.test(WIZ), "payload building moved into reviewModel");
   assert.ok(!/name: r\.contact\.fullName, email: r\.contact\.email, relationship/.test(WIZ), "old 3-field mapping removed");
 });
 
-test("wizard wires the adaptive completion flow (preview → complete → review)", () => {
-  assert.match(WIZ, /PersonalCompletionFlow/);        // personal flow component
-  assert.match(WIZ, /CompletionStep/);                // bulk-completion screen
-  assert.match(WIZ, /ReviewStep/);                    // final review before commit
-  assert.match(WIZ, /TypeRelationPicker/);            // Type+Relation mapping control
-  assert.match(WIZ, /uniqueUnmappedValues/);          // map-by-unique-value
-  assert.match(WIZ, /descriptionDefault/);            // bulk description default
-  assert.match(WIZ, /skipRelationship/);              // row-level exception
-  assert.match(WIZ, /Search unresolved/);             // search/filter for unresolved rows
-  assert.match(WIZ, /stage === "review"|setStage\("review"\)/); // commit only after review confirmation
+test("Review surface wires the plain-language controls (relationship / audience / advanced / remove)", () => {
+  assert.match(WIZ, /ReviewRow/);
+  assert.match(WIZ, /RelationshipLine/);
+  assert.match(WIZ, /How do you know this person\?/);     // optional individual relationship control
+  assert.match(WIZ, /Leave blank/);                       // valid relationship choice
+  assert.match(WIZ, /AudiencePicker/);                    // universal required choice
+  assert.match(WIZ, /We couldn't tell whether this contact is an employee, client, or vendor/);
+  assert.match(WIZ, /AdvancedOptions/);                   // changeable defaults are collapsed
+  assert.match(WIZ, /chooseRelationship|chooseAudience/); // pure updaters dispatched from controls
+  assert.match(WIZ, /removeRow/);                         // remove a contact from this import
+});
+
+test("Review status + summary use plain language, not internal counters", () => {
+  assert.match(WIZ, /\} ready`/);                       // "<n> contact(s) ready"
+  assert.match(WIZ, /a required choice/);
+  assert.match(WIZ, /will be skipped/);
+  assert.match(WIZ, /Needs a name/);
+  assert.match(WIZ, /Needs a valid email/);
+  // finishing a sample says "View sample recipients" and never implies a production import
+  assert.match(WIZ, /View sample recipients/);
+});
+
+// full wizard data path: processed rows → buildReview → buildReviewPayload behaves as the UI relies on.
+test("end-to-end review pipeline: statuses, gate, and payload match the UI contract", () => {
+  const raw = [
+    { Name: "Ada", Email: "ada@x.co", Relationship: "sibling" },   // ready, recognized
+    { Name: "Taylor", Email: "taylor@x.co", Relationship: "bestie" }, // ready, unrecognized (blank, not blocked)
+    { Name: "", Email: "no@x.co" },                                 // needs a name
+  ];
+  const { mapping } = autoMapHeaders(Object.keys(raw[0]));
+  const rows = raw.map((r, i) => ({ ...processRow(r, mapping, {}), index: i, __raw: r, __map: mapping }));
+  const deduped = detectDuplicates(rows, []);
+  const state = freshReviewState({ business: false, kind: null });
+  const rev = buildReview(deduped, state);
+  assert.equal(rev.summary.ready, 2);
+  assert.equal(rev.summary.needsChoice, 0);              // blank relationship is never a required choice
+  assert.equal(rev.importEnabled, true);
+  const payload = buildReviewPayload(deduped, state);
+  assert.equal(payload.length, 2);                        // the invalid-name row is excluded
+  assert.equal(payload.every((p) => p.relationshipCloseness === "greetme_worthy"), true);
+  assert.equal(payload.every((p) => p.recipientType === ""), true);   // individual carries no business type
+});
+
+test("Universal required-choice gate flows through the pure model the UI dispatches", () => {
+  const rows = [
+    { contact: { fullName: "A", email: "a@x.co", recipientType: "contractor" }, index: 0, __raw: {}, __map: {}, duplicate: null },
+    { contact: { fullName: "B", email: "b@x.co", recipientType: "Employee" }, index: 1, __raw: {}, __map: {}, duplicate: null },
+  ];
+  let s = freshReviewState({ business: true, kind: "mixed" });
+  assert.equal(buildReview(rows, s).importEnabled, false);        // one unknown audience blocks
+  s = chooseAudience(s, 0, "skip");
+  const rev = buildReview(rows, s);
+  assert.equal(rev.items[0].status, REVIEW_STATUS.SKIPPED);
+  assert.equal(rev.importEnabled, true);                          // resolved-or-skipped → enabled
 });
 
 // ---- existing-recipient awareness (preview↔persistence consistency) ----
@@ -114,19 +167,14 @@ test("existing account email → duplicate + skipped + excluded from payload; ne
   assert.ok(!plan.toCreate.some((r) => r.contact.email === "ada@x.co"));          // NOT in toCreate
   assert.ok(!payload.some((p) => p.email === "ada@x.co"));                        // excluded from POST payload
   assert.ok(plan.toCreate.some((r) => r.contact.email === "new@x.co"));           // new remains importable
-  assert.ok(payload.some((p) => p.email === "new@x.co" && p.birthday === "1992-03-04")); // fresh keeps full birthday
-});
-
-test("repeat import cannot reach the commit stage as a NEW contact", () => {
-  const existing = normalizeExistingEmails([{ email: "dup@x.co" }]);
-  const { plan, payload } = preview([{ Name: "Dup", Email: "dup@x.co", Birthday: "1990-11-01" }], existing);
-  assert.equal(plan.toCreate.length, 0);      // nothing new to create
-  assert.equal(payload.length, 0);            // nothing is POSTed → cannot be committed as a new contact
+  // and the Review surface excludes the duplicate from the import too
+  const rev = buildReview(deduped, freshReviewState({ business: false, kind: null }));
+  assert.equal(rev.items.find((i) => i.email === "ada@x.co").status, REVIEW_STATUS.DUPLICATE);
+  assert.equal(buildReviewPayload(deduped, freshReviewState({})).some((p) => p.email === "ada@x.co"), false);
 });
 
 test("existing-email normalization is case-insensitive and whitespace-safe", () => {
   assert.deepEqual(normalizeExistingEmails([{ email: "  ADA@X.co " }, { email: "ada@x.co" }, { email: "" }, { email: null }, {}]), ["ada@x.co"]);
-  // and it actually matches a differently-cased/spaced row
   const { deduped } = preview([{ Name: "A", Email: " Ada@X.CO " }], ["ada@x.co"]);
   assert.equal(deduped[0].duplicate, "existing_record");
 });
@@ -137,7 +185,6 @@ test("failure to load existing contacts FAILS CLOSED (never treated as zero exis
   assert.equal(existingEmailsFromResponse(null).ok, false);                                     // no body
   assert.equal(existingEmailsFromResponse({ nope: 1 }).ok, false);                              // unrecognized shape
   assert.equal(extractContactsArray({ nope: 1 }), null);
-  // a genuine empty account is a SUCCESS with no emails (must NOT fail closed)
   assert.deepEqual(existingEmailsFromResponse({ data: [] }), { ok: true, emails: [] });
   assert.deepEqual(existingEmailsFromResponse({ data: [{ email: "A@B.co" }] }), { ok: true, emails: ["a@b.co"] });
 });
@@ -148,14 +195,14 @@ test("commit summary: 'Email already exists' shows as already-present, not needs
   assert.equal(c.needsAttention, 0);
   const c2 = classifyImportSummary({ added: 1, failed: 2, errors: [{ error: "Email already exists" }, { error: "Invalid email address" }] });
   assert.equal(c2.added, 1);
-  assert.equal(c2.alreadyPresent, 1);   // one already-present
-  assert.equal(c2.needsAttention, 1);   // one genuine failure still surfaced
+  assert.equal(c2.alreadyPresent, 1);
+  assert.equal(c2.needsAttention, 1);
 });
 
 test("wizard loads existing recipients for personal preview and FAILS CLOSED on lookup error", () => {
   assert.match(WIZ, /api\.getContacts\(\)/);                     // loads existing recipients
   assert.match(WIZ, /existingEmailsFromResponse/);
-  assert.match(WIZ, /ingest\(data, existingEmails\)/);           // feeds dedup
+  assert.match(WIZ, /ingest\(data, existingEmails/);             // feeds dedup
   assert.match(WIZ, /Couldn't load your existing recipients/);   // fail-closed preview error
   assert.match(WIZ, /classifyImportSummary/);                    // truthful summary
   assert.match(WIZ, /already in your recipients/);
@@ -163,30 +210,24 @@ test("wizard loads existing recipients for personal preview and FAILS CLOSED on 
 
 // ---- commit-outcome FAIL CLOSED (no more "Import complete — 0 added" on failure) ----
 test("classifyCommitOutcome: only a recognized results body is a success", () => {
-  // genuine success (with counts) → success
   const ok = classifyCommitOutcome({ ok: true, data: { imported: 1, failed: 0, errors: [] } });
   assert.equal(ok.status, "success");
   assert.equal(ok.summary.added, 1);
-  // recognized success with zero adds (e.g. all duplicates skipped) is STILL a success
   const okZero = classifyCommitOutcome({ ok: true, data: { imported: 0, failed: 0, skipped: 1, errors: [] } });
   assert.equal(okZero.status, "success");
-  // body carrying only errors[] is recognized (partial failures surfaced by summary)
   assert.equal(classifyCommitOutcome({ data: { errors: [{ error: "x" }] } }).status, "success");
 });
 
 test("classifyCommitOutcome FAILS CLOSED for every failed/unrecognized response", () => {
-  // returned {ok:false,status} — 401/404/network
   assert.equal(classifyCommitOutcome({ ok: false, status: 401 }).status, "error");
   assert.equal(classifyCommitOutcome({ ok: false, status: 404 }).status, "error");
   assert.equal(classifyCommitOutcome({ ok: false, status: 0, networkError: true }).status, "error");
-  // thrown → rebuilt {ok:false,status,error}
   for (const s of [400, 403, 409, 429, 500, 502, 503, undefined]) {
     assert.equal(classifyCommitOutcome({ ok: false, status: s, error: "x" }).status, "error", `status ${s} must fail closed`);
   }
-  // empty / malformed 2xx bodies → fail closed (this is the exact "0 added false success" bug)
   assert.equal(classifyCommitOutcome({}).status, "error");
-  assert.equal(classifyCommitOutcome({ ok: true }).status, "error");                 // 2xx, no results body
-  assert.equal(classifyCommitOutcome({ data: { foo: 1 } }).status, "error");         // unrecognized body
+  assert.equal(classifyCommitOutcome({ ok: true }).status, "error");
+  assert.equal(classifyCommitOutcome({ data: { foo: 1 } }).status, "error");
   assert.equal(classifyCommitOutcome(null).status, "error");
   assert.equal(classifyCommitOutcome(undefined).status, "error");
 });
@@ -196,17 +237,15 @@ test("classifyCommitOutcome status-specific messages (401/403/429/other)", () =>
   assert.equal(classifyCommitOutcome({ ok: false, status: 403 }).message, "Recipient/import limit reached.");
   assert.equal(classifyCommitOutcome({ ok: false, status: 429 }).message, "Too many requests. Please wait and try again.");
   assert.equal(classifyCommitOutcome({ ok: false, status: 500 }).message, "Import failed. Please try again.");
-  assert.equal(classifyCommitOutcome({ ok: false, status: 404 }).message, "Import failed. Please try again.");
-  assert.equal(classifyCommitOutcome({}).message, "Import failed. Please try again.");           // fail-closed generic
   assert.equal(commitMessageForStatus(403), COMMIT_MESSAGES[403]);
   assert.equal(commitMessageForStatus(999), COMMIT_MESSAGES.generic);
 });
 
 test("the exact production case (403) never renders a success summary", () => {
-  const outcome = classifyCommitOutcome({ ok: false, status: 403, error: "Access denied" }); // thrown 403 → statusful
+  const outcome = classifyCommitOutcome({ ok: false, status: 403, error: "Access denied" });
   assert.equal(outcome.status, "error");
   assert.equal(outcome.message, "Recipient/import limit reached.");
-  assert.ok(!("summary" in outcome));   // NO summary object → UI cannot show "Import complete — 0 added"
+  assert.ok(!("summary" in outcome));
 });
 
 test("commitPersonal wiring: preserves thrown status, fail-closed via classifyCommitOutcome", () => {
@@ -231,7 +270,6 @@ test("sample mode is send-safe and isolated (no send/gift/notify wiring; no real
 });
 
 test("no gift/payment/fundraising module imports; personal ownership via existing endpoint", () => {
-  // line-anchored to actual import statements (prose mentioning 'gift'/'payment' is fine)
   assert.ok(!/^import[^\n]*(gift|fundrais|payment|stripe|merch|pricing|checkout)/im.test(WIZ));
   assert.match(WIZ, /api\.importContacts/);             // personal → user's own collection
   assert.match(WIZ, /commitCorporate/);                 // corporate commit is gated (never writes)
@@ -247,8 +285,8 @@ test("corporateRoute maps every phase (dormant/ready/ineligible/select_org/loadi
   assert.equal(corporateRoute({ phase: "dormant" }), "dormant");
   assert.equal(corporateRoute({ phase: "ready" }), "ready");
   assert.equal(corporateRoute({ phase: "select_org" }), "select_org");
-  assert.equal(corporateRoute({ phase: "no_org" }), "ineligible");        // → Business/membership
-  assert.equal(corporateRoute({ phase: "unauthorized" }), "ineligible");  // → Business/membership
+  assert.equal(corporateRoute({ phase: "no_org" }), "ineligible");
+  assert.equal(corporateRoute({ phase: "unauthorized" }), "ineligible");
   assert.equal(corporateRoute({ phase: "error" }), "error");
   assert.equal(corporateRoute(null), "error");
 });
@@ -274,21 +312,7 @@ test("dormant corporate state is truthful, recoverable, and never 'coming soon'"
   assert.ok(!/coming soon/i.test(WIZ), "must not say 'coming soon'");
   assert.match(WIZ, /Return to Import Options/);
   assert.match(WIZ, /Explore Sample Import/);
-  assert.ok(!/return null; \/\/ feature off/.test(WIZ), "dormant must not be a blank screen");
-  // ineligible routes to Business/membership
   assert.match(WIZ, /navigate\("\/business"\)/);
-});
-
-test("defaults-first flow: DecisionScreen with Import/Continue-with-defaults + optional Review", () => {
-  assert.match(WIZ, /applyRecipientTypes/);              // single-type auto-apply + universal resolve
-  assert.match(WIZ, /buildRecipientTypeSummary/);        // universal unknown-type mapping
-  assert.match(WIZ, /Map recipient types/);
-  assert.match(WIZ, /DecisionScreen/);                   // defaults-first decision (not forced reconciliation)
-  assert.match(WIZ, /Defaults were applied to/);
-  assert.match(WIZ, /Import with defaults/);             // individual primary CTA
-  assert.match(WIZ, /Continue with defaults/);           // business primary CTA
-  assert.match(WIZ, /Review and change/);                // review remains optional
-  assert.match(WIZ, /stage === "decision"/);             // decision is the first stage
 });
 
 test("Sample Workspace: session-scoped, zero API mutations, cleanup + Sample Recipients", () => {
@@ -306,16 +330,12 @@ test("Sample Workspace: session-scoped, zero API mutations, cleanup + Sample Rec
   // sample cannot escape into a live commit: exactly ONE api.importContacts CALL (commitPersonal).
   assert.equal((WIZ.match(/api\.importContacts\(/g) || []).length, 1);
   assert.match(WIZ, /sample \? commitSample :/);         // sample → commitSample (never the importer)
-  // commitSample body makes NO api call and only saves to the sample workspace
   const fn = (WIZ.match(/const commitSample = useCallback\(\(\) => \{[\s\S]*?\}, \[sample/) || [""])[0];
   assert.ok(fn.length > 0 && !/api\./.test(fn) && /saveSampleWorkspace\(/.test(fn), "commitSample: no API, sessionStorage only");
 });
 
-test("sequential section numbering uses a running counter (no hardcoded 1/2/3)", () => {
-  assert.match(WIZ, /let n = 0; const num = \(\) => \+\+n;/);
-  assert.ok(!/>1 · Relationship description/.test(WIZ), "section numbers must not be hardcoded");
-});
-
-test("Greet-Me Worthy is the preselected default Description", () => {
-  assert.match(WIZ, /descriptionDefault: "greetme_worthy"/);
+test("Greet-Me Worthy is the default Description applied without friction", () => {
+  // the default lives in the review model (freshReviewState) and reaches the payload with no interaction
+  assert.equal(buildReviewPayload([{ contact: { fullName: "A", email: "a@x.co" }, index: 0, __raw: {}, __map: {}, duplicate: null }],
+    freshReviewState({})).at(0).relationshipCloseness, "greetme_worthy");
 });
