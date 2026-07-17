@@ -18,7 +18,7 @@ import {
   buildPlan, summarizeImport, looksLikeZip,
 } from "../../import/importCore.js";
 import { demoDataset, resetDemoData, assertNoRealMix } from "../../import/demoData.js";
-import { MODES, corporateContext, commitDecision, buildPersonalImportContacts } from "./wizardModel.js";
+import { MODES, corporateContext, commitDecision, buildPersonalImportContacts, existingEmailsFromResponse, classifyImportSummary } from "./wizardModel.js";
 
 const PURPLE = "linear-gradient(135deg,#6d74ee,#764ba2)";
 const card = { background: "#fff", border: "1px solid rgba(27,24,48,.1)", borderRadius: 14, padding: 18 };
@@ -71,17 +71,31 @@ export default function ContactImportWizard() {
       const head = new Uint8Array(await file.slice(0, 8).arrayBuffer());
       if (looksLikeZip(head)) { setError("This file looks like an XLSX/ZIP, not a CSV. Only genuine CSV is supported."); return; }
     } catch { setError("Could not read the file."); return; }
+    // Personal import: load the user's EXISTING recipients so an already-present email previews as
+    // a duplicate (skipped) rather than entering toCreate and failing at commit. FAIL CLOSED — if
+    // the lookup fails we do NOT proceed with an empty existing-email list (that would re-open the
+    // preview↔commit mismatch). Corporate/demo do not dedup against the personal collection.
+    let existingEmails = [];
+    if (mode === MODES.PERSONAL) {
+      setBusy(true);
+      let resp;
+      try { resp = await api.getContacts(); } catch { resp = { ok: false }; }
+      setBusy(false);
+      const ex = existingEmailsFromResponse(resp);
+      if (!ex.ok) { setError("Couldn't load your existing recipients, so duplicates can't be checked. Please try again."); return; }
+      existingEmails = ex.emails;
+    }
     Papa.parse(file, {
       header: true, skipEmptyLines: true,
       complete: (out) => {
         const headers = (out.meta && out.meta.fields) || [];
         const { mapping } = autoMapHeaders(headers);
         const data = (out.data || []).map((raw) => ({ __raw: raw, __map: mapping }));
-        ingest(data);
+        ingest(data, existingEmails);
       },
       error: () => setError("Could not parse the file."),
     });
-  }, []);
+  }, [mode]);
 
   const loadDemo = useCallback((kind) => {
     const ds = demoDataset(kind);          // tagged demo:true, reserved domains
@@ -234,11 +248,18 @@ function Preview({ rows, plan, demo }) {
   );
 }
 function ImportSummary({ summary }) {
+  // "Email already exists" is not a failure to act on — surface it truthfully as already-present.
+  const c = classifyImportSummary(summary);
+  const parts = [`${c.added} added`];
+  if (c.updated) parts.push(`${c.updated} updated`);
+  if (c.skipped) parts.push(`${c.skipped} skipped`);
+  if (c.alreadyPresent) parts.push(`${c.alreadyPresent} already in your recipients`);
+  if (c.needsAttention) parts.push(`${c.needsAttention} needs attention`);
   return (
     <div style={{ ...card, textAlign: "center" }}>
       <div style={{ fontSize: "1.6rem" }}>✅</div>
       <h3 style={{ fontFamily: "Georgia,serif", margin: "6px 0" }}>Import complete</h3>
-      <p style={muted}>{summary.added} added · {summary.updated} updated · {summary.skipped} skipped · {summary.failed} need attention</p>
+      <p style={muted}>{parts.join(" · ")}</p>
     </div>
   );
 }

@@ -6,6 +6,7 @@
 // multi-org selection gating, and commit eligibility (incl. the current backend gaps).
 
 import { resolveOrganizationContext } from "../corporateCampaign/campaignSurfaceModel.js";
+import { normalizeEmail } from "../../import/importCore.js";
 
 export const MODES = Object.freeze({ PERSONAL: "personal", CORPORATE: "corporate", DEMO: "demo" });
 
@@ -66,6 +67,61 @@ export function buildPersonalImportContacts(rows = []) {
     if (birthday != null && String(birthday).trim() !== "") out.birthday = birthday;
     return out;
   });
+}
+
+// ---- Existing-recipient awareness (preview↔persistence consistency) ----
+// The wizard preview must reflect recipients the user ALREADY has, so an already-present email
+// previews as a duplicate (skipped) instead of silently entering toCreate and failing at commit
+// with the backend's "Email already exists". These helpers are pure + Node-testable; the network
+// call itself stays in the component.
+
+// Pull the contacts array out of an api.getContacts() response. Returns null for an unrecognized
+// shape so the caller can FAIL CLOSED (never treat "couldn't read" as "no existing contacts").
+export function extractContactsArray(response) {
+  if (Array.isArray(response)) return response;
+  if (response && Array.isArray(response.data)) return response.data;              // { data: [...] } (getContacts shape)
+  if (response && Array.isArray(response.contacts)) return response.contacts;
+  if (response && response.data && Array.isArray(response.data.contacts)) return response.data.contacts;
+  return null;
+}
+
+// Normalize + de-duplicate existing recipient emails (case-insensitive, whitespace-safe via
+// importCore.normalizeEmail). Empties are dropped.
+export function normalizeExistingEmails(contacts = []) {
+  const seen = new Set();
+  const out = [];
+  for (const c of contacts || []) {
+    const e = normalizeEmail(c && c.email);
+    if (e && !seen.has(e)) { seen.add(e); out.push(e); }
+  }
+  return out;
+}
+
+// Resolve existing emails from a raw api.getContacts() response with FAIL-CLOSED semantics:
+//   { ok:true,  emails:[...] } on a recognized success (an empty account legitimately → [])
+//   { ok:false, emails:[]    } on network/401/404 ({ ok:false }) or an unrecognized shape.
+// A throw (403/429/5xx) is handled by the caller's try/catch → also fail closed.
+export function existingEmailsFromResponse(response) {
+  if (response && response.ok === false) return { ok: false, emails: [] };
+  const list = extractContactsArray(response);
+  if (list == null) return { ok: false, emails: [] };
+  return { ok: true, emails: normalizeExistingEmails(list) };
+}
+
+// Truthful commit-summary classification: backend "Email already exists" outcomes are NOT
+// failures the user must act on — they are recipients already present. Split them out of the
+// ambiguous "needs attention" bucket.
+export function classifyImportSummary(summary = {}) {
+  const errors = Array.isArray(summary.errors) ? summary.errors : [];
+  const alreadyPresent = errors.filter((e) => /already exists/i.test((e && e.error) || "")).length;
+  const failed = Number(summary.failed || 0);
+  return {
+    added: Number(summary.added || 0),
+    updated: Number(summary.updated || 0),
+    skipped: Number(summary.skipped || 0),
+    alreadyPresent,
+    needsAttention: Math.max(0, failed - alreadyPresent),
+  };
 }
 
 // The wizard's ordered steps.
