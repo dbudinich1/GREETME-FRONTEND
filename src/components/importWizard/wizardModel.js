@@ -40,5 +40,33 @@ export function commitDecision(mode, plan, { orgId } = {}) {
   return { allowed: true, reason: "ok" };
 }
 
+// Build the personal-import payload from preview rows. Transmits EVERY field the existing
+// personal importer recognizes so the backend can derive the birthday occasion + persist
+// enrichment — nothing is silently dropped. Birthday is read from the raw mapped column (not the
+// processed contact, which omits it) so the FULL date reaches the server; the backend derives the
+// manual-shape occasion and, for personal scope, sets autoSend:true. Pure + Node-testable.
+export function buildPersonalImportContacts(rows = []) {
+  return (rows || []).map((r) => {
+    const c = (r && r.contact) || {};
+    const raw = (r && r.__raw) || {};
+    const map = (r && r.__map) || {};
+    const birthday = map.birthday != null ? raw[map.birthday] : undefined;
+    const out = {
+      name: c.fullName || "",
+      email: c.email || "",
+      phone: c.phone || "",
+      relationship: c.relationship || "",
+      company: c.company || "",
+      department: c.department || "",
+      recipientType: c.recipientType || "",
+      consent: c.consent || "",
+      source: c.source || "",
+      notes: c.notes || "",
+    };
+    if (birthday != null && String(birthday).trim() !== "") out.birthday = birthday;
+    return out;
+  });
+}
+
 // The wizard's ordered steps.
 export const STEPS = Object.freeze(["mode", "context", "upload", "map", "preview", "commit", "summary"]);
