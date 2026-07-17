@@ -13,7 +13,7 @@ export const RECIPIENT_KINDS = Object.freeze([
   { value: "employee", label: "Employees", blurb: "Import employees with birthdays, hire dates, departments, titles, and workplace details." },
   { value: "client", label: "Clients", blurb: "Import client contacts, companies, relationship details, and important dates." },
   { value: "vendor", label: "Vendors", blurb: "Import vendors, service partners, companies, and relationship details." },
-  { value: "mixed", label: "Mixed List", blurb: "Import a combined file and map or assign each recipient type during review." },
+  { value: "mixed", label: "Universal List", blurb: "Import a combined file — recognized types are normalized; unknown types are mapped once during review." },
 ]);
 
 // Options used when the user maps an unknown type or overrides a row (single canonical types only).

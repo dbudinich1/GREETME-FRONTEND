@@ -253,15 +253,20 @@ test("corporateRoute maps every phase (dormant/ready/ineligible/select_org/loadi
   assert.equal(corporateRoute(null), "error");
 });
 
-test("canonical entry CTAs are keyboard/pointer <button>s with the exact copy", () => {
-  // three entry CTAs are native <button> (keyboard + pointer accessible) driven by pickMode
-  assert.ok((WIZ.match(/onClick=\{\(\) => pickMode\(MODES\.(PERSONAL|CORPORATE|DEMO)\)\}/g) || []).length >= 3);
-  assert.match(WIZ, /My Recipient List/);
-  assert.match(WIZ, /Import friends, family, colleagues, clients/);       // personal blurb
-  assert.match(WIZ, /Organization Contacts/);
-  assert.match(WIZ, /Import employees, clients, vendors, departments/);   // corporate blurb
-  assert.match(WIZ, /Try a Sample Import/);
-  assert.match(WIZ, /Explore the wizard using fictional contacts/);       // sample blurb
+test("entry contains EXACTLY two primary paths: Individual and Business (keyboard/pointer buttons)", () => {
+  assert.match(WIZ, /pickMode\(MODES\.PERSONAL\)\}><b>Individual<\/b>/);
+  assert.match(WIZ, /Import family, friends, and other people you personally want to remember/);
+  assert.match(WIZ, /pickMode\(MODES\.CORPORATE\)\}><b>Business<\/b>/);
+  assert.match(WIZ, /Import employees, clients, vendors, or a mixed organization list/);
+  assert.equal((WIZ.match(/onClick=\{\(\) => pickMode\(MODES\.(PERSONAL|CORPORATE)\)\}/g) || []).length, 2);
+  assert.ok(!/Try a Sample Import/.test(WIZ), "Sample must not be a third entry user-type");
+});
+
+test("Individual entry has no business-only language; Business has the four recipient types", () => {
+  assert.ok(!/<b>Individual<\/b><div style=\{sub\}>[^<]*(employee|vendor|campaign)/i.test(WIZ));
+  assert.match(WIZ, /Employees \/ Personnel/);
+  assert.match(WIZ, /Universal List/);
+  assert.match(WIZ, /RECIPIENT_KINDS\.map/);
 });
 
 test("dormant corporate state is truthful, recoverable, and never 'coming soon'", () => {
@@ -274,21 +279,36 @@ test("dormant corporate state is truthful, recoverable, and never 'coming soon'"
   assert.match(WIZ, /navigate\("\/business"\)/);
 });
 
-test("recipient-type selector + type behavior + sample buttons are wired", () => {
-  assert.match(WIZ, /RECIPIENT_KINDS/);                        // Employees/Clients/Vendors/Mixed selector
-  assert.match(WIZ, /pickRecipientKind/);
-  assert.match(WIZ, /applyRecipientTypes/);                    // recipientType stamped on payload
-  assert.match(WIZ, /buildRecipientTypeSummary/);              // mixed unknown-type mapping
+test("defaults-first flow: DecisionScreen with Import/Continue-with-defaults + optional Review", () => {
+  assert.match(WIZ, /applyRecipientTypes/);              // single-type auto-apply + universal resolve
+  assert.match(WIZ, /buildRecipientTypeSummary/);        // universal unknown-type mapping
   assert.match(WIZ, /Map recipient types/);
-  assert.match(WIZ, /Sample complete/);                        // ends "Sample complete" not "Import complete"
-  assert.match(WIZ, /Try Another List Type/);
-  assert.match(WIZ, /Return to Import Options/);
-  assert.match(WIZ, /Import Another Employee List/);           // sequential list actions
-  // sample cannot escape into a live commit: exactly ONE api.importContacts (personal), and the
-  // demo path routes to commitDemo which only sets a demo summary (no API call).
-  assert.equal((WIZ.match(/api\.importContacts\(/g) || []).length, 1);   // one actual CALL (in commitPersonal)
-  assert.match(WIZ, /isDemo \? commitDemo :/);                 // demo → commitDemo (never the importer)
-  assert.match(WIZ, /const commitDemo = useCallback\(\(\) => \{[\s\S]*?setSummary\(\{ demo: true/);
+  assert.match(WIZ, /DecisionScreen/);                   // defaults-first decision (not forced reconciliation)
+  assert.match(WIZ, /Defaults were applied to/);
+  assert.match(WIZ, /Import with defaults/);             // individual primary CTA
+  assert.match(WIZ, /Continue with defaults/);           // business primary CTA
+  assert.match(WIZ, /Review and change/);                // review remains optional
+  assert.match(WIZ, /stage === "decision"/);             // decision is the first stage
+});
+
+test("Sample Workspace: session-scoped, zero API mutations, cleanup + Sample Recipients", () => {
+  assert.match(WIZ, /trySample/);
+  assert.match(WIZ, /downloadSampleCsv/);
+  assert.match(WIZ, /Download Greet-Me sample CSV/);
+  assert.match(WIZ, /Try the sample/);
+  assert.match(WIZ, /saveSampleWorkspace/);              // sessionStorage only
+  assert.match(WIZ, /clearSampleWorkspace/);             // cleanup
+  assert.match(WIZ, /SampleRecipientsView/);             // routes to Sample Recipients
+  assert.match(WIZ, /Sample Mode — nothing has been saved or sent/);   // persistent banner
+  assert.match(WIZ, /Delete all sample contacts/);
+  assert.match(WIZ, /Exit Sample Mode/);
+  assert.match(WIZ, /auth:session-expired/);             // clears sample on session expiry
+  // sample cannot escape into a live commit: exactly ONE api.importContacts CALL (commitPersonal).
+  assert.equal((WIZ.match(/api\.importContacts\(/g) || []).length, 1);
+  assert.match(WIZ, /sample \? commitSample :/);         // sample → commitSample (never the importer)
+  // commitSample body makes NO api call and only saves to the sample workspace
+  const fn = (WIZ.match(/const commitSample = useCallback\(\(\) => \{[\s\S]*?\}, \[sample/) || [""])[0];
+  assert.ok(fn.length > 0 && !/api\./.test(fn) && /saveSampleWorkspace\(/.test(fn), "commitSample: no API, sessionStorage only");
 });
 
 test("sequential section numbering uses a running counter (no hardcoded 1/2/3)", () => {

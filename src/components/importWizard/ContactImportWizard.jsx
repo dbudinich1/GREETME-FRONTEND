@@ -9,7 +9,7 @@
 // Heavy logic lives in the tested import core; this component orchestrates. It does NOT modify
 // the locked Recipients page and adds no backend routes.
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Papa from "papaparse";
 import api from "../../api/api";
@@ -18,10 +18,11 @@ import {
   checkFileLimits, checkRowCount, autoMapHeaders, processRow, detectDuplicates,
   buildPlan, looksLikeZip,
 } from "../../import/importCore.js";
-import { demoDataset, assertNoRealMix } from "../../import/demoData.js";
+import { assertNoRealMix } from "../../import/demoData.js";
 import { MODES, corporateContext, corporateRoute, existingEmailsFromResponse, classifyImportSummary, classifyCommitOutcome } from "./wizardModel.js";
 import { RELATIONSHIP_CATEGORIES, RELATIONS_BY_CATEGORY, CLOSENESS_OPTIONS, ROW_STATE, buildCompletionSummary, buildCompletedImportContacts } from "../../import/completionModel.js";
 import { RECIPIENT_KINDS, RECIPIENT_TYPE_OPTIONS, resolveRecipientTypeForRow, buildRecipientTypeSummary, applyRecipientTypes } from "../../import/recipientTypeModel.js";
+import { sampleContactsFor, sampleCsvFor, loadSampleWorkspace, saveSampleWorkspace, clearSampleWorkspace } from "../../import/sampleWorkspace.js";
 
 const PURPLE = "linear-gradient(135deg,#6d74ee,#764ba2)";
 const card = { background: "#fff", border: "1px solid rgba(27,24,48,.1)", borderRadius: 14, padding: 18 };
@@ -39,22 +40,35 @@ export default function ContactImportWizard() {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
-  // Adaptive-completion flow: preview → complete (fill missing) → review → commit.
-  const [stage, setStage] = useState("preview");
-  // Corporate/sample recipient TYPE selection (null = personal ownership, no type gate).
+  // Low-friction flow: parse → DECISION (defaults) → [optional Review] → confirm.
+  const [stage, setStage] = useState("decision");
+  // Business recipient TYPE selection (null = individual ownership, no type gate).
   const [recipientKind, setRecipientKind] = useState(null);
+  // Session-scoped Sample Workspace (never persisted to backend).
+  const [sample, setSample] = useState(false);
+  const [sampleContacts, setSampleContacts] = useState([]);
   // Greet-Me Worthy is the canonical default Description (import never carries a closeness column,
   // so it is always preselected; the user may change it). typeMappings/rowTypeOverrides drive the
-  // Mixed-List recipient-type completion.
+  // Universal-List recipient-type completion.
   const FRESH_COMPLETION = { descriptionDefault: "greetme_worthy", relationshipMappings: {}, rowOverrides: {}, typeMappings: {}, rowTypeOverrides: {} };
   const [completion, setCompletion] = useState(FRESH_COMPLETION);
-  const resetCompletion = () => { setStage("preview"); setCompletion(FRESH_COMPLETION); };
+  const resetCompletion = () => { setStage("decision"); setCompletion(FRESH_COMPLETION); };
+
+  // Restore a same-session sample on mount (token-tagged; a NEW authenticated session never restores
+  // an old sample). Clear the sample on session expiry — do not rely on logout alone.
+  useEffect(() => {
+    const existing = loadSampleWorkspace();
+    if (existing.length) { setSample(true); setSampleContacts(existing); }
+    const onExpire = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); };
+    if (typeof window !== "undefined") window.addEventListener("auth:session-expired", onExpire);
+    return () => { if (typeof window !== "undefined") window.removeEventListener("auth:session-expired", onExpire); };
+  }, []);
 
   const ctx = useMemo(() => (mode === MODES.CORPORATE ? corporateContext(membershipResult, selectedOrgId) : null), [mode, membershipResult, selectedOrgId]);
   const orgId = ctx && ctx.selectedOrgId;
 
   const pickMode = useCallback(async (m) => {
-    setMode(m); setRows(null); setPlan(null); setSummary(null); setError(null); setSelectedOrgId(null); setRecipientKind(null); resetCompletion();
+    setMode(m); setRows(null); setPlan(null); setSummary(null); setError(null); setSelectedOrgId(null); setRecipientKind(null); setSample(false); resetCompletion();
     if (m === MODES.CORPORATE) {
       setBusy(true);
       const res = await client.listMemberships();
@@ -112,14 +126,6 @@ export default function ContactImportWizard() {
     });
   }, [mode]);
 
-  const loadDemo = useCallback((kind) => {
-    const ds = demoDataset(kind);          // tagged demo:true, reserved domains
-    assertNoRealMix(ds);                    // never mixed with real records
-    const processed = ds.map((c, i) => ({ contact: c, errors: [], warnings: [], valid: true, duplicate: null, index: i, demo: true }));
-    setRows(processed);
-    setPlan(buildPlan(processed, { duplicateStrategy: "skip" }));
-  }, []);
-
   const commitPersonal = useCallback(async () => {
     if (mode !== MODES.PERSONAL) return;
     setBusy(true); setError(null);
@@ -146,48 +152,80 @@ export default function ContactImportWizard() {
     setSummary(outcome.summary);
   }, [mode, plan, completion, recipientKind]);
 
-  // recipientKind → sample dataset key.
-  const DATASET_FOR_KIND = { personal: "personal", employee: "employees", client: "clients", vendor: "vendors", mixed: "mixed" };
   const pickRecipientKind = useCallback((kind) => {
     setRecipientKind(kind); setRows(null); setPlan(null); setSummary(null); setError(null); resetCompletion();
-    if (mode === MODES.DEMO) loadDemo(DATASET_FOR_KIND[kind] || "employees");
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, loadDemo]);
+  }, []);
 
-  const commitDemo = useCallback(() => {
-    if (mode !== MODES.DEMO) return;
-    // SAMPLE / DEMO NEVER writes: no api.importContacts, no corporate endpoint, no persistence,
-    // no schedules / queues / greetings / gifts / deliveries. Re-assert isolation, then finish
-    // with a "Sample complete" summary computed purely from local state.
+  // "Try the sample" — load fictional data for a kind into a SESSION-SCOPED Sample Workspace and run
+  // the exact same wizard flow. NEVER touches a backend endpoint. kind ∈ individual/employee/client/
+  // vendor/mixed (mixed = Universal List).
+  const trySample = useCallback((kind) => {
+    setSample(true); setError(null); setSummary(null); setSampleContacts([]);
+    setRecipientKind(kind === "individual" ? null : kind);
+    setStage("decision"); setCompletion(FRESH_COMPLETION);
+    const ds = sampleContactsFor(kind);
+    assertNoRealMix(ds);
+    const processed = ds.map((c, i) => ({ contact: c, errors: [], warnings: [], valid: true, duplicate: null, index: i, demo: true, __raw: {}, __map: {} }));
+    setRows(processed); setPlan(buildPlan(processed, { duplicateStrategy: "skip" }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const downloadSampleCsv = useCallback((kind) => {
+    try {
+      const blob = new Blob([sampleCsvFor(kind)], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `greetme-sample-${kind}.csv`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch { setError("Could not generate the sample file."); }
+  }, []);
+
+  // Finish a sample: build the completed recipients and persist ONLY to the session-scoped Sample
+  // Workspace (sessionStorage) — never POST to contacts/import or any backend mutation endpoint.
+  const commitSample = useCallback(() => {
+    if (!sample) return;
     try { assertNoRealMix((rows || []).map((r) => r.contact)); } catch (e) { setError(String(e && e.message)); return; }
-    setSummary({ demo: true, count: plan.toCreate.length });
-  }, [mode, rows, plan]);
+    const built = applyRecipientTypes(
+      buildCompletedImportContacts(plan.toCreate, completion),
+      plan.toCreate,
+      { kind: recipientKind, typeMappings: completion.typeMappings, rowTypeOverrides: completion.rowTypeOverrides },
+    );
+    saveSampleWorkspace(built);
+    setSampleContacts(built); setRows(null); setPlan(null);
+    setSummary({ sampleWorkspace: true, count: built.length });
+  }, [sample, rows, plan, completion, recipientKind]);
 
   const commitCorporate = useCallback(() => {
     if (mode !== MODES.CORPORATE) return;
     // Corporate import backend is dormant/fail-closed — NEVER writes, never enables a campaign,
-    // occasion, schedule, queue, worker, gift, or send. Truthful gated state (no vague promises,
-    // never implies data was saved).
+    // occasion, schedule, queue, worker, gift, or send. Truthful gated state.
     setError("Organization import isn't available yet. Your selections are complete and will import once organization import is turned on.");
   }, [mode]);
 
   const backToTypeSelector = () => { setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setError(null); resetCompletion(); };
+  const exitSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setError(null); };
+  const deleteAllSample = exitSample;   // both clear the session-scoped sample data
 
   // ---------- render ----------
-  if (!mode) {
+  // Session-scoped Sample Recipients (completed or resumed) — read-only presentation.
+  if (sample && sampleContacts.length > 0 && !rows) {
+    return <SampleRecipientsView contacts={sampleContacts} onDeleteAll={deleteAllSample} onExit={exitSample} onReturn={returnToRecipients} />;
+  }
+  // Canonical entry — EXACTLY two primary paths. Sample/template actions live inside each path.
+  if (!mode && !sample) {
     return (
       <Shell>
         <h2 style={{ fontFamily: "Georgia,serif", fontSize: "1.1rem", margin: "0 0 12px" }}>How would you like to import?</h2>
         <div style={{ display: "grid", gap: 12 }}>
-          <button style={{ ...card, textAlign: "left", cursor: "pointer" }} onClick={() => pickMode(MODES.PERSONAL)}><b>My Recipient List</b><div style={sub}>Import friends, family, colleagues, clients, and other people you personally want to remember.</div></button>
-          <button style={{ ...card, textAlign: "left", cursor: "pointer" }} onClick={() => pickMode(MODES.CORPORATE)}><b>Organization Contacts</b><div style={sub}>Import employees, clients, vendors, departments, important dates, and other organization-managed recipient data.</div></button>
-          <button style={{ ...card, textAlign: "left", cursor: "pointer" }} onClick={() => pickMode(MODES.DEMO)}><b>Try a Sample Import</b><div style={sub}>Explore the wizard using fictional contacts. Nothing is saved or sent.</div></button>
+          <button style={{ ...card, textAlign: "left", cursor: "pointer" }} onClick={() => pickMode(MODES.PERSONAL)}><b>Individual</b><div style={sub}>Import family, friends, and other people you personally want to remember.</div></button>
+          <button style={{ ...card, textAlign: "left", cursor: "pointer" }} onClick={() => pickMode(MODES.CORPORATE)}><b>Business</b><div style={sub}>Import employees, clients, vendors, or a mixed organization list.</div></button>
         </div>
       </Shell>
     );
   }
 
-  if (mode === MODES.CORPORATE) {
+  if (mode === MODES.CORPORATE && !sample) {
     const route = corporateRoute(ctx);
     if ((busy && !membershipResult) || route === "loading") return <Shell back={() => setMode(null)}><p style={muted}>Checking your organization eligibility…</p></Shell>;
     if (route === "dormant") {
@@ -198,7 +236,7 @@ export default function ContactImportWizard() {
           <Empty title="Organization import is currently turned off" body="This feature isn't accepting imports right now, and nothing has been saved. Your personal recipient list is ready to use." />
           <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
             <button style={btn(PURPLE)} onClick={() => setMode(null)}>Return to Import Options</button>
-            <button style={btn("transparent", "#1b1830")} onClick={() => pickMode(MODES.DEMO)}>Explore Sample Import</button>
+            <button style={btn("transparent", "#1b1830")} onClick={() => trySample("mixed")}>Explore Sample Import</button>
             <button style={btn("transparent", "#1b1830")} onClick={returnToRecipients}>Return to Recipients</button>
           </div>
         </Shell>
@@ -241,21 +279,16 @@ export default function ContactImportWizard() {
     // route === "ready" → fall through to the recipient-type selector
   }
 
-  // Recipient-type selector — authorized Organization Contacts, and Sample mode (which also lets
-  // you sample the personal flow). Personal mode skips this (recipientKind stays null).
-  if ((mode === MODES.CORPORATE || mode === MODES.DEMO) && !recipientKind) {
-    const kinds = mode === MODES.DEMO
-      ? [{ value: "personal", label: "My Recipient List", blurb: "Sample importing people into a personal recipient list." }, ...RECIPIENT_KINDS]
-      : RECIPIENT_KINDS;
+  // Business recipient-type selector (Employees / Clients / Vendors / Universal List).
+  if (mode === MODES.CORPORATE && !sample && !recipientKind) {
     return (
       <Shell back={() => setMode(null)}>
-        {mode === MODES.DEMO && <SampleBanner />}
         <h3 style={{ margin: "0 0 4px", fontFamily: "Georgia,serif" }}>Who are you importing?</h3>
-        <p style={{ ...sub, marginTop: 0 }}>{mode === MODES.DEMO ? "Pick a sample list to explore — nothing is ever saved or sent." : "Choose a recipient type. A single type is applied automatically — no type column required."}</p>
+        <p style={{ ...sub, marginTop: 0 }}>A single type is applied automatically — no type column required. Universal List maps a mixed file.</p>
         <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
-          {kinds.map((k) => (
+          {RECIPIENT_KINDS.map((k) => (
             <button key={k.value} style={{ ...card, textAlign: "left", cursor: "pointer" }} onClick={() => pickRecipientKind(k.value)}>
-              <b>{k.label}</b><div style={sub}>{k.blurb}</div>
+              <b>{k.value === "employee" ? "Employees / Personnel" : k.label}</b><div style={sub}>{k.blurb}</div>
             </button>
           ))}
         </div>
@@ -264,41 +297,41 @@ export default function ContactImportWizard() {
     );
   }
 
-  // Import UI (My Recipient List, Organization Contacts [type chosen], or Try a Sample Import)
-  const isDemo = mode === MODES.DEMO;
+  // Import UI — Individual, Business (type chosen), or an active Sample.
+  const business = mode === MODES.CORPORATE;
   const kindLabel = (RECIPIENT_KINDS.find((k) => k.value === recipientKind) || {}).label;
-  const onCommit = isDemo ? commitDemo : (mode === MODES.CORPORATE ? commitCorporate : commitPersonal);
+  const templateKind = business ? (recipientKind || "employee") : "individual";
+  const onCommit = sample ? commitSample : (business ? commitCorporate : commitPersonal);
   return (
     <Shell back={() => setMode(null)}>
-      {mode === MODES.CORPORATE && <div style={{ ...card, marginBottom: 12, fontSize: ".82rem" }}>Organization <b style={{ fontFamily: "monospace" }}>{orgId}</b>{kindLabel ? <> · <b>{kindLabel}</b></> : null}</div>}
-      {isDemo && <SampleBanner />}
+      {business && !sample && <div style={{ ...card, marginBottom: 12, fontSize: ".82rem" }}>Organization <b style={{ fontFamily: "monospace" }}>{orgId}</b>{kindLabel ? <> · <b>{kindLabel}</b></> : null}</div>}
+      {sample && <SampleBanner />}
       {error && <div role="alert" style={{ ...card, borderColor: "rgba(214,69,69,.4)", background: "rgba(214,69,69,.08)", color: "#8a1f1f", marginBottom: 12 }}>{error}</div>}
 
-      {/* Entry — CSV upload (demo loads its sample dataset when a type is picked) */}
+      {/* Entry — CSV upload + downloadable sample CSV + "Try the sample" (inside every path). */}
       {!rows && !summary && (
-        <label style={{ ...card, display: "block", textAlign: "center", cursor: "pointer", borderStyle: "dashed" }}>
-          <b>Choose a .csv file{kindLabel ? ` · ${kindLabel}` : ""}</b><div style={sub}>Up to 5 MB / 5,000 rows. Only Name + a valid email are required. Columns are auto-mapped; you'll complete details before anything imports.</div>
-          <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onFile(e.target.files[0])} />
-        </label>
+        <div style={{ display: "grid", gap: 12 }}>
+          <label style={{ ...card, display: "block", textAlign: "center", cursor: "pointer", borderStyle: "dashed" }}>
+            <b>Choose a .csv file{kindLabel ? ` · ${kindLabel}` : ""}</b><div style={sub}>Only Name + a valid email are required. Safe defaults are applied automatically — you can review before importing.</div>
+            <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onFile(e.target.files[0])} />
+          </label>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+            <button style={btn("transparent", "#1b1830")} onClick={() => downloadSampleCsv(templateKind)}>Download Greet-Me sample CSV</button>
+            <button style={btn(PURPLE)} onClick={() => trySample(templateKind)}>Try the sample</button>
+          </div>
+        </div>
       )}
 
-      {/* Adaptive completion flow — shared by personal, organization, and sample. */}
+      {/* Defaults-first flow: decision → optional review → confirm. */}
       {rows && !summary && (
         <PersonalCompletionFlow
           toCreate={plan.toCreate} skipped={plan.toSkip.length} invalid={plan.invalid.length}
           stage={stage} setStage={setStage} completion={completion} setCompletion={setCompletion}
-          busy={busy} demo={isDemo} recipientKind={recipientKind} onCommit={onCommit}
+          busy={busy} demo={sample} business={business} recipientKind={recipientKind} onCommit={onCommit}
         />
       )}
 
-      {summary && summary.demo && (
-        <DemoSummary count={summary.count}
-          onStartOver={() => pickRecipientKind(recipientKind)}
-          onTryAnother={backToTypeSelector}
-          onReturnOptions={() => setMode(null)}
-          onReturn={returnToRecipients} />
-      )}
-      {summary && !summary.demo && (
+      {summary && !summary.sampleWorkspace && (
         <>
           <ImportSummary summary={summary} />
           {recipientKind
@@ -357,24 +390,27 @@ function ImportSummary({ summary }) {
 // ============================================================================
 const selStyle = { padding: "7px 10px", borderRadius: 9, border: "1px solid rgba(27,24,48,.18)", fontSize: ".82rem", background: "#fff" };
 
-function PersonalCompletionFlow({ toCreate, skipped, invalid, stage, setStage, completion, setCompletion, busy, onCommit, demo = false, recipientKind = null }) {
+function PersonalCompletionFlow({ toCreate, skipped, invalid, stage, setStage, completion, setCompletion, busy, onCommit, demo = false, business = false, recipientKind = null }) {
   const cs = buildCompletionSummary(toCreate, completion);
+  const tsum = buildRecipientTypeSummary(toCreate, { kind: recipientKind, typeMappings: completion.typeMappings, rowTypeOverrides: completion.rowTypeOverrides });
   const n = toCreate.length;
-  if (stage === "preview") {
-    return (<>
-      <PreviewLite toCreate={toCreate} skipped={skipped} invalid={invalid} cs={cs} />
-      <FlowButtons right={<button style={btn(PURPLE)} disabled={n === 0} onClick={() => setStage("complete")}>Continue to details →</button>} />
-    </>);
+  // Defaults-first: the normal path is decision → confirm. Reconciliation is opt-in via "Review".
+  if (stage === "decision") {
+    return (
+      <DecisionScreen toCreate={toCreate} skipped={skipped} invalid={invalid} cs={cs} tsum={tsum}
+        demo={demo} business={business} recipientKind={recipientKind} busy={busy}
+        onImport={onCommit} onReview={() => setStage("complete")} />
+    );
   }
   if (stage === "complete") {
     return (<>
       <CompletionStep cs={cs} completion={completion} setCompletion={setCompletion} toCreate={toCreate} recipientKind={recipientKind} />
       <FlowButtons
-        left={<button style={btn("transparent", "#1b1830")} onClick={() => setStage("preview")}>← Back</button>}
-        right={<button style={btn(PURPLE)} onClick={() => setStage("review")}>Review &amp; {demo ? "finish" : "import"} →</button>} />
+        left={<button style={btn("transparent", "#1b1830")} onClick={() => setStage("decision")}>← Back</button>}
+        right={<button style={btn(PURPLE)} onClick={() => setStage("review")}>Review &amp; {demo ? "finish" : (business ? "continue" : "import")} →</button>} />
     </>);
   }
-  const finishLabel = demo ? `Finish sample (${n})` : (busy ? "Importing…" : `Import ${n} contact(s)`);
+  const finishLabel = demo ? `Finish sample (${n})` : (busy ? "Importing…" : (business ? `Continue (${n})` : `Import ${n} contact(s)`));
   return (<>
     <ReviewStep cs={cs} demo={demo} toCreate={toCreate} completion={completion} recipientKind={recipientKind} />
     <FlowButtons
@@ -401,18 +437,54 @@ function SampleBanner() {
   );
 }
 
-function DemoSummary({ count, onStartOver, onTryAnother, onReturnOptions, onReturn }) {
+// Defaults-first decision screen — the normal path. Reconciliation is opt-in via "Review and change".
+function DecisionScreen({ toCreate, skipped, invalid, cs, tsum, demo, business, recipientKind, busy, onImport, onReview }) {
+  const n = toCreate.length;
+  const primary = demo ? `Finish sample (${n})` : (busy ? "Working…" : (business ? `Continue with defaults (${n})` : `Import with defaults (${n})`));
+  const optional = cs.unresolvedCount + (tsum && tsum.unresolvedCount ? tsum.unresolvedCount : 0);
   return (
-    <div style={{ ...card, textAlign: "center" }}>
-      <div style={{ display: "inline-block", fontFamily: "monospace", fontSize: ".62rem", color: "#bd7a10", background: "rgba(214,145,16,.15)", border: "1px solid rgba(214,145,16,.4)", borderRadius: 6, padding: "2px 8px", marginBottom: 8 }}>SAMPLE — NOTHING WAS SAVED</div>
-      <div style={{ fontSize: "1.6rem" }}>🧪</div>
-      <h3 style={{ fontFamily: "Georgia,serif", margin: "6px 0" }}>Sample complete</h3>
-      <p style={muted}>{count} sample recipient(s) were completed. Nothing was saved, sent, scheduled, or delivered.</p>
-      <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10, flexWrap: "wrap" }}>
-        <button style={btn(PURPLE)} onClick={onStartOver}>Start Over</button>
-        <button style={btn("transparent", "#1b1830")} onClick={onTryAnother}>Try Another List Type</button>
-        <button style={btn("transparent", "#1b1830")} onClick={onReturnOptions}>Return to Import Options</button>
-        <button style={btn("transparent", "#1b1830")} onClick={onReturn}>Return to Recipients</button>
+    <div style={{ ...card, display: "grid", gap: 12 }}>
+      <div style={{ fontSize: "1.05rem", fontFamily: "Georgia,serif" }}>Defaults were applied to {n} contact{n === 1 ? "" : "s"}.</div>
+      <div style={{ fontSize: ".84rem", color: "#605c78" }}>{skipped} already in your recipients (skipped) · {invalid} invalid (skipped)</div>
+      <ul style={{ margin: 0, paddingLeft: 18, fontSize: ".84rem", color: "#4a4663", display: "grid", gap: 3 }}>
+        <li>Relationship description: <b>Greet-Me Worthy</b> (you can change it).</li>
+        {business && <li>Recipient type applied automatically{recipientKind === "mixed" ? " where recognized" : ""}.</li>}
+        <li>Recognized relationships mapped automatically; anything unrecognized is left blank — never guessed.</li>
+      </ul>
+      {optional > 0 && <div style={{ fontSize: ".82rem", color: "#bd7a10" }}>{optional} contact(s) have optional details you can set in Review — otherwise they import without them (nothing is guessed).</div>}
+      <div style={{ fontSize: ".8rem", color: "#605c78" }}>Every imported recipient can be edited afterward.</div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button style={btn(PURPLE)} disabled={busy || n === 0} onClick={onImport}>{primary}</button>
+        <button style={btn("transparent", "#1b1830")} onClick={onReview}>Review and change</button>
+      </div>
+    </div>
+  );
+}
+
+// Read-only Sample Recipients presentation — session-scoped data only; edits/deletes never touch prod.
+function SampleRecipientsView({ contacts, onDeleteAll, onExit, onReturn }) {
+  const typeLabel = (v) => (RECIPIENT_TYPE_OPTIONS.find((o) => o.value === v) || {}).label || "";
+  return (
+    <div style={{ maxWidth: 820, margin: "0 auto" }}>
+      <div style={{ ...card, marginBottom: 12, borderColor: "rgba(214,145,16,.4)", background: "rgba(214,145,16,.08)" }}>
+        <b>Sample Mode — nothing has been saved or sent</b>
+        <div style={{ fontSize: ".82rem", color: "#7a5410", marginTop: 2 }}>These sample recipients live only in this browser session — never saved to your account, never sent anything.</div>
+      </div>
+      <div style={card}>
+        <b style={{ fontSize: ".95rem", fontFamily: "Georgia,serif" }}>Sample Recipients · {contacts.length}</b>
+        <div style={{ maxHeight: 340, overflow: "auto", border: "1px solid #eee", borderRadius: 10, marginTop: 8 }}>
+          {contacts.map((c, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "8px 12px", borderTop: i ? "1px solid #f4f4f7" : "none", fontSize: ".82rem" }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name || "—"} · <span style={{ color: "#605c78" }}>{c.email || "—"}</span></span>
+              <span style={{ color: "#605c78", flexShrink: 0 }}>{c.recipientType ? typeLabel(c.recipientType) : (c.relationship || "—")}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+          <button style={btn("transparent", "#8a1f1f")} onClick={onDeleteAll}>Delete all sample contacts</button>
+          <button style={btn("transparent", "#1b1830")} onClick={onExit}>Exit Sample Mode</button>
+          <button style={btn(PURPLE)} onClick={onReturn}>Return to Recipients</button>
+        </div>
       </div>
     </div>
   );
@@ -450,16 +522,6 @@ function StateChips({ cs }) {
       {chip("Ready", cs.counts.ready, { b: "rgba(31,157,107,.35)", bg: "rgba(31,157,107,.08)", fg: "#1f9d6b" })}
       {chip("Needs a quick choice", cs.counts.needs_choice, { b: "rgba(214,145,16,.4)", bg: "rgba(214,145,16,.1)", fg: "#bd7a10" })}
       {chip("Optional details missing", cs.counts.optional_missing, { b: "rgba(27,24,48,.14)", bg: "rgba(27,24,48,.03)", fg: "#605c78" })}
-    </div>
-  );
-}
-
-function PreviewLite({ toCreate, skipped, invalid, cs }) {
-  return (
-    <div style={{ ...card, display: "grid", gap: 12 }}>
-      <div style={{ fontSize: ".85rem" }}><b>{toCreate.length}</b> to import · <b>{skipped}</b> already in your recipients (skipped) · <b>{invalid}</b> invalid</div>
-      <StateChips cs={cs} />
-      <p style={sub}>Only a Name and a valid email are required. Next you'll fill any missing relationship details in bulk — you won't be asked the same question twice, and nothing is guessed.</p>
     </div>
   );
 }
