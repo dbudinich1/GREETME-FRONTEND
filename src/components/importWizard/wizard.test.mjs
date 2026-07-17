@@ -83,7 +83,7 @@ test("buildPersonalImportContacts omits birthday when no birthday column is mapp
 // ---- the redesigned single Review surface (no defaults intermediary) ----
 test("upload lands DIRECTLY on one Review surface — the defaults/decision funnel is gone", () => {
   assert.match(WIZ, /ReviewScreen/);
-  assert.match(WIZ, /Review your contacts/);
+  assert.match(WIZ, /need your attention/);              // linear reconciliation top summary
   assert.match(WIZ, /rows && !summary/);                 // rows → Review (no intermediate stage state)
   // the old defaults-first / multi-step completion funnel is fully removed
   for (const gone of ["DecisionScreen", "Defaults were applied", "Review and change", "CompletionStep",
@@ -99,26 +99,37 @@ test("wizard commit builds the Review payload (ready rows only, boundary-enforce
   assert.ok(!/name: r\.contact\.fullName, email: r\.contact\.email, relationship/.test(WIZ), "old 3-field mapping removed");
 });
 
-test("Review surface wires the plain-language controls (relationship / audience / advanced / remove)", () => {
-  assert.match(WIZ, /ReviewRow/);
-  assert.match(WIZ, /RelationshipLine/);
-  assert.match(WIZ, /How do you know this person\?/);     // optional individual relationship control
-  assert.match(WIZ, /Leave blank/);                       // valid relationship choice
-  assert.match(WIZ, /AudiencePicker/);                    // universal required choice
-  assert.match(WIZ, /We couldn't tell whether this contact is an employee, client, or vendor/);
-  assert.match(WIZ, /AdvancedOptions/);                   // changeable defaults are collapsed
-  assert.match(WIZ, /chooseRelationship|chooseAudience/); // pure updaters dispatched from controls
-  assert.match(WIZ, /removeRow/);                         // remove a contact from this import
+test("Review surface wires the linear card + three canonical relationship controls", () => {
+  assert.match(WIZ, /AttentionCard/);                     // one card at a time
+  assert.match(WIZ, /Contact \{progress\.n\} of \{progress\.total\} needing review/); // progress
+  assert.match(WIZ, /RelationshipControls/);             // the 3-control cluster
+  assert.match(WIZ, /Relationship group/);               // exact label 1
+  assert.match(WIZ, />Relationship</);                    // exact label 2
+  assert.match(WIZ, /How close are you\?/);              // exact label 3
+  assert.match(WIZ, /AudienceControl/);                  // universal required choice
+  assert.match(WIZ, /Which group does this contact belong to\?/);
+  assert.match(WIZ, /Save &amp; next/);                  // linear advance
+  assert.match(WIZ, /Leave relationship blank/);         // valid Individual choice
+  assert.match(WIZ, /Skip this contact/);
+  assert.match(WIZ, /ReadySection/);                     // collapsed ready contacts
+  assert.match(WIZ, /Apply these selections to all/);    // opt-in apply-to-all
+  // the three pure per-control updaters are dispatched from the card
+  for (const fn of ["setGroup", "setRelation", "setCloseness", "setName", "setEmail", "leaveRelationshipBlank", "chooseAudience", "skipContact", "applyToAllMatching"]) {
+    assert.ok(WIZ.includes(fn), `dispatches ${fn}`);
+  }
 });
 
 test("Review status + summary use plain language, not internal counters", () => {
-  assert.match(WIZ, /\} ready`/);                       // "<n> contact(s) ready"
-  assert.match(WIZ, /a required choice/);
+  assert.match(WIZ, /need your attention/);
+  assert.match(WIZ, /ready to import/);
+  assert.match(WIZ, /still need a required choice/);
   assert.match(WIZ, /will be skipped/);
-  assert.match(WIZ, /Needs a name/);
-  assert.match(WIZ, /Needs a valid email/);
-  // finishing a sample says "View sample recipients" and never implies a production import
-  assert.match(WIZ, /View sample recipients/);
+  assert.match(WIZ, /Enter a name\./);
+  assert.match(WIZ, /Enter a valid email address\./);
+  // finishing a sample says "View … sample recipients" and never implies a production import
+  assert.match(WIZ, /View \$\{importCount\} sample recipient/);
+  // no internal relationship jargon surfaces in the component (payload field names live in reviewModel)
+  assert.ok(!/relationshipCloseness|relationshipCategory|relationshipProfile/.test(WIZ), "no internal relationship jargon in the wizard UI");
 });
 
 // full wizard data path: processed rows → buildReview → buildReviewPayload behaves as the UI relies on.

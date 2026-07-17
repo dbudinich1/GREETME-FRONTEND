@@ -18,11 +18,13 @@ import {
 } from "../../import/importCore.js";
 import { assertNoRealMix } from "../../import/demoData.js";
 import { MODES, corporateContext, corporateRoute, existingEmailsFromResponse, classifyImportSummary, classifyCommitOutcome } from "./wizardModel.js";
-import { RELATIONSHIP_CATEGORIES, RELATIONS_BY_CATEGORY, CLOSENESS_OPTIONS } from "../../import/completionModel.js";
+import { RELATIONSHIP_CATEGORIES, CLOSENESS_OPTIONS } from "../../import/completionModel.js";
 import { RECIPIENT_KINDS, RECIPIENT_TYPE_OPTIONS } from "../../import/recipientTypeModel.js";
 import {
-  buildReview, buildReviewPayload, freshReviewState, chooseRelationship, chooseAudience,
-  removeRow, setDescriptionDefault, AUDIENCE_CHOICES, REVIEW_STATUS, relationLabelFor,
+  buildReview, buildReviewPayload, freshReviewState,
+  setGroup, setRelation, setCloseness, setName, setEmail, leaveRelationshipBlank,
+  chooseAudience, skipContact, applyToAllMatching, bulkRelationshipGroups,
+  nextCard, prevCard, relationsForGroup, AUDIENCE_CHOICES, REVIEW_STATUS, relationLabelFor,
 } from "../../import/reviewModel.js";
 import { sampleContactsFor, sampleCsvFor, loadSampleWorkspace, saveSampleWorkspace, clearSampleWorkspace } from "../../import/sampleWorkspace.js";
 
@@ -374,45 +376,63 @@ function ImportSummary({ summary }) {
 }
 
 // ============================================================================
-// ReviewScreen — the SINGLE plain-language review surface. Built for a first-time user: name, email,
-// birthday, relationship, and one plain status per contact. No recipientType / relationshipCategory
-// / closeness / mapping jargon in the primary UI. Every control reads its value straight from the
-// review state and only flips one row's status + the counts — a resolved row never disappears.
+// ReviewScreen — plain-language LINEAR reconciliation. Attention contacts are walked one card at a
+// time (Back / Save & next / Skip / Leave blank), each card carrying the three canonical relationship
+// controls. Ready contacts live in a collapsed section below. A resolved card is NEVER unmounted just
+// because its status flipped — the attention order is frozen and control values read from state.
 // ============================================================================
-function ReviewScreen({ rows, state, setState, business, kindLabel, demo, busy, skipped = 0, onCommit, onStartOver }) {
+export function ReviewScreen({ rows, state, setState, business, kindLabel, demo, busy, skipped = 0, onCommit, onStartOver }) {
   const review = buildReview(rows, state);
-  const { items, summary, importCount, importEnabled } = review;
-  const [openRel, setOpenRel] = useState(() => new Set());   // rows whose relationship editor is open
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const toggleRel = (i) => setOpenRel((s) => { const n = new Set(s); n.has(i) ? n.delete(i) : n.add(i); return n; });
+  const { attention, readySection, summary, importCount, importEnabled } = review;
+  const [nav, setNav] = useState(0);
+  const [showReady, setShowReady] = useState(false);
+  const bulkGroups = bulkRelationshipGroups(rows, state);
 
+  const total = attention.length;
+  const active = nav < total ? attention[nav] : null;
   const primary = demo
-    ? "View sample recipients"
+    ? `View ${importCount} sample recipient${importCount === 1 ? "" : "s"}`
     : (busy ? "Importing…" : (business ? `Continue with ${importCount} contact${importCount === 1 ? "" : "s"}` : `Import ${importCount} contact${importCount === 1 ? "" : "s"}`));
+
+  // per-card dispatchers (bound to the active card's original index)
+  const disp = active && {
+    name: (v) => setState((s) => setName(s, active.index, v)),
+    email: (v) => setState((s) => setEmail(s, active.index, v)),
+    group: (v) => setState((s) => setGroup(s, active.index, v)),
+    relation: (v) => setState((s) => setRelation(s, active.index, v)),
+    closeness: (v) => setState((s) => setCloseness(s, active.index, v)),
+    audience: (v) => setState((s) => chooseAudience(s, active.index, v)),
+    leaveBlank: () => setState((s) => leaveRelationshipBlank(s, active.index)),
+    skip: () => { setState((s) => skipContact(s, active.index)); setNav((n) => nextCard(n, total)); },
+    applyAll: (raw, sel) => setState((s) => applyToAllMatching(s, rows, raw, sel)),
+  };
+  const activeBulk = active ? bulkGroups.find((g) => g.indices.includes(active.index)) : null;
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      <div style={card}>
-        <h2 style={{ margin: "0 0 4px", fontFamily: "Georgia,serif", fontSize: "1.15rem" }}>Review your contacts</h2>
-        <p style={{ ...sub, marginTop: 0 }}>We applied safe defaults where possible. You can import now or make changes first. Every contact can be edited later.</p>
-      </div>
+      <TopSummary summary={summary} skipped={skipped} />
 
-      <ReviewSummary summary={summary} skipped={skipped} />
+      {active ? (
+        <AttentionCard
+          key={active.index} it={active} business={business}
+          progress={{ n: nav + 1, total }} bulk={activeBulk} disp={disp}
+          canBack={nav > 0} onBack={() => setNav(prevCard)} onSaveNext={() => setNav((n) => nextCard(n, total))}
+        />
+      ) : total > 0 ? (
+        <div style={{ ...card, textAlign: "center" }}>
+          <b style={{ fontFamily: "Georgia,serif" }}>You've reviewed every highlighted contact.</b>
+          <div style={sub}>Import below, or reopen a contact from the ready list to make changes.</div>
+        </div>
+      ) : (
+        <div style={{ ...card, textAlign: "center" }}>
+          <b style={{ fontFamily: "Georgia,serif" }}>Nothing needs your attention.</b>
+          <div style={sub}>Safe defaults were applied. Import below, or review the ready contacts first.</div>
+        </div>
+      )}
 
-      <div style={{ display: "grid", gap: 10 }}>
-        {items.map((it) => (
-          <ReviewRow
-            key={it.index} it={it} business={business}
-            relOpen={openRel.has(it.index)} onToggleRel={() => toggleRel(it.index)}
-            onRelationship={(v) => setState((s) => chooseRelationship(s, it.index, v))}
-            onAudience={(v) => setState((s) => chooseAudience(s, it.index, v))}
-            onRemove={() => setState((s) => removeRow(s, it.index))}
-          />
-        ))}
-      </div>
+      <ReadySection items={readySection} open={showReady} onToggle={() => setShowReady((v) => !v)} business={business} setState={setState} />
 
-      <AdvancedOptions open={showAdvanced} onToggle={() => setShowAdvanced((v) => !v)}
-        value={state.descriptionDefault} onChange={(v) => setState((s) => setDescriptionDefault(s, v))} />
+      <FinalSummary summary={summary} skipped={skipped} importCount={importCount} />
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
         <button style={btn("transparent", "#1b1830")} onClick={onStartOver}>Start over</button>
@@ -422,121 +442,167 @@ function ReviewScreen({ rows, state, setState, business, kindLabel, demo, busy, 
   );
 }
 
-// Plain summary — ready / required-choice / will-skip, plus quiet lines for already-present and
-// fix-needed. Blank relationships are NEVER counted here.
-function ReviewSummary({ summary, skipped = 0 }) {
-  const line = (text, color) => <div style={{ fontSize: ".9rem", color }}>{text}</div>;
+// Top: "X contacts need your attention" + supporting copy + the plain breakdown.
+function TopSummary({ summary, skipped = 0 }) {
   const alreadyPresent = summary.duplicate + skipped;
+  const line = (text, color) => <div style={{ fontSize: ".85rem", color }}>{text}</div>;
   return (
-    <div style={{ ...card, display: "grid", gap: 4 }}>
-      {line(`${summary.ready} contact${summary.ready === 1 ? "" : "s"} ready`, "#1f9d6b")}
-      {summary.needsChoice > 0 && line(`${summary.needsChoice} contact${summary.needsChoice === 1 ? "" : "s"} need${summary.needsChoice === 1 ? "s" : ""} a required choice`, "#bd7a10")}
-      {summary.willSkip > 0 && line(`${summary.willSkip} contact${summary.willSkip === 1 ? "" : "s"} will be skipped`, "#605c78")}
-      {alreadyPresent > 0 && line(`${alreadyPresent} already in your recipients`, "#605c78")}
-      {summary.needsFix > 0 && line(`${summary.needsFix} need a name or a valid email`, "#605c78")}
+    <div style={{ ...card, display: "grid", gap: 6 }}>
+      <h2 style={{ margin: 0, fontFamily: "Georgia,serif", fontSize: "1.15rem" }}>{summary.needAttention} contact{summary.needAttention === 1 ? "" : "s"} need your attention</h2>
+      <p style={{ ...sub, marginTop: 0 }}>Review the highlighted contacts below. We filled in safe defaults where possible, and you can change them.</p>
+      <div style={{ display: "grid", gap: 3, marginTop: 2 }}>
+        {line(`${summary.ready} ready to import`, "#1f9d6b")}
+        {summary.willSkip > 0 && line(`${summary.willSkip} will be skipped`, "#605c78")}
+        {alreadyPresent > 0 && line(`${alreadyPresent} already in your recipients`, "#605c78")}
+      </div>
     </div>
   );
 }
 
-const STATUS_META = {
-  [REVIEW_STATUS.READY]: { t: "Ready", c: "#1f9d6b" },
-  [REVIEW_STATUS.NEEDS_NAME]: { t: "Needs a name", c: "#c0392b" },
-  [REVIEW_STATUS.NEEDS_EMAIL]: { t: "Needs a valid email", c: "#c0392b" },
-  [REVIEW_STATUS.NEEDS_AUDIENCE]: { t: "Needs your choice", c: "#bd7a10" },
-  [REVIEW_STATUS.SKIPPED]: { t: "Will be skipped", c: "#605c78" },
-  [REVIEW_STATUS.DUPLICATE]: { t: "Already in your recipients", c: "#605c78" },
-};
-
-function StatusPill({ status }) {
-  const m = STATUS_META[status] || { t: status, c: "#605c78" };
-  return <span style={{ fontSize: ".72rem", fontWeight: 800, color: m.c, whiteSpace: "nowrap" }}>{m.t}</span>;
+// Final state — reflects the actual import outcome.
+function FinalSummary({ summary, skipped = 0, importCount }) {
+  const alreadyPresent = summary.duplicate + skipped;
+  const line = (text, color) => <div style={{ fontSize: ".85rem", color }}>{text}</div>;
+  return (
+    <div style={{ ...card, display: "grid", gap: 3 }}>
+      {line(`${importCount} ready to import`, "#1f9d6b")}
+      {summary.willSkip > 0 && line(`${summary.willSkip} skipped`, "#605c78")}
+      {alreadyPresent > 0 && line(`${alreadyPresent} already present`, "#605c78")}
+      {summary.needsChoice > 0 && line(`${summary.needsChoice} still need a required choice`, "#bd7a10")}
+      {summary.needsFix > 0 && line(`${summary.needsFix} still need a name or a valid email`, "#605c78")}
+    </div>
+  );
 }
 
-// One contact row/card — Name, Email, Birthday, Relationship, plain status. Individual rows expose an
-// optional "How do you know this person?" relationship control (incl. "Leave blank"); Business
-// Universal rows with an unknown audience expose the required Employee/Client/Vendor/Skip choice.
-function ReviewRow({ it, business, relOpen, onToggleRel, onRelationship, onAudience, onRemove }) {
-  const needsAudience = it.status === REVIEW_STATUS.NEEDS_AUDIENCE;
+// The active attention card. All three relationship controls are ALWAYS visible; name/email become
+// editable fields when they need fixing; a Universal unknown audience adds one required control above.
+function AttentionCard({ it, business, progress, bulk, disp, canBack, onBack, onSaveNext }) {
+  const needsName = it.status === REVIEW_STATUS.NEEDS_NAME;
+  const needsEmail = it.status === REVIEW_STATUS.NEEDS_EMAIL;
+  const universalUnknown = business && it.audienceState === "needs_audience";
   return (
-    <div style={{ ...card, padding: 14, display: "grid", gap: 8 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", flexWrap: "wrap" }}>
-        <div style={{ minWidth: 0 }}>
-          <b style={{ fontSize: ".95rem" }}>{it.name || "—"}</b>
-          <div style={{ ...sub, marginTop: 2 }}>{it.email || "—"}</div>
-          {it.birthday && <div style={sub}>Birthday: {it.birthday}</div>}
-          {!business && <RelationshipLine it={it} open={relOpen} onToggle={onToggleRel} onChange={onRelationship} />}
-          {business && !needsAudience && it.audience && <div style={sub}>{(RECIPIENT_TYPE_OPTIONS.find((o) => o.value === it.audience) || {}).label || it.audience}</div>}
+    <div data-testid="attention-card" style={{ ...card, display: "grid", gap: 12, borderColor: "rgba(214,145,16,.45)" }}>
+      <div style={{ fontSize: ".74rem", color: "#605c78", fontWeight: 700 }}>Contact {progress.n} of {progress.total} needing review</div>
+
+      {/* Identity — editable when it needs fixing */}
+      <div style={{ display: "grid", gap: 6 }}>
+        {needsName || it.name === "" ? (
+          <label style={{ display: "grid", gap: 3 }}>
+            <span style={{ fontSize: ".76rem", color: "#4a4663" }}>Name</span>
+            <input data-testid="name-input" value={it.name} onChange={(e) => disp.name(e.target.value)} style={{ ...selStyle, width: "100%" }} placeholder="Full name" />
+            {needsName && <span style={{ fontSize: ".74rem", color: "#c0392b" }}>Enter a name.</span>}
+          </label>
+        ) : <b style={{ fontSize: "1rem" }}>{it.name}</b>}
+        {needsEmail ? (
+          <label style={{ display: "grid", gap: 3 }}>
+            <span style={{ fontSize: ".76rem", color: "#4a4663" }}>Email</span>
+            <input data-testid="email-input" value={it.email} onChange={(e) => disp.email(e.target.value)} style={{ ...selStyle, width: "100%" }} placeholder="name@example.com" />
+            <span style={{ fontSize: ".74rem", color: "#c0392b" }}>Enter a valid email address.</span>
+          </label>
+        ) : <div style={sub}>{it.email || "—"}</div>}
+        {it.birthday && <div style={sub}>Birthday: {it.birthday}</div>}
+      </div>
+
+      {/* Original raw relationship note (unrecognized) */}
+      {it.relationUnrecognizedRaw && (
+        <div style={{ fontSize: ".8rem", color: "#7a5410" }}>
+          Original relationship: “{it.rawRel}”. We didn't recognize this relationship. Review the selections below or leave it blank.
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-          <StatusPill status={it.status} />
-          <button style={{ ...btn("transparent", "#8a1f1f"), padding: "4px 10px", fontSize: ".72rem" }} onClick={onRemove}>Remove</button>
+      )}
+
+      {/* Universal-List required audience — ABOVE the relationship controls */}
+      {business && (it.audienceState === "needs_audience" || it.audienceState === "chosen") && (
+        <AudienceControl it={it} onChange={disp.audience} />
+      )}
+
+      {/* The three canonical relationship controls — ALWAYS visible */}
+      <RelationshipControls it={it} disp={disp} />
+
+      {/* Apply-to-all convenience for a shared unknown raw value (opt-in) */}
+      {bulk && bulk.count > 1 && (it.group || it.relation) && (
+        <button data-testid="apply-all" style={{ ...btn("transparent", "#4a3fb0"), fontSize: ".78rem" }}
+          onClick={() => disp.applyAll(bulk.raw, { group: it.group, relation: it.relation, closeness: it.closeness })}>
+          Apply these selections to all {bulk.count} contacts labeled “{bulk.raw}”
+        </button>
+      )}
+
+      {/* Card actions */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
+        <button style={btn("transparent", "#1b1830")} disabled={!canBack} onClick={onBack}>← Back</button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {!business && <button style={btn("transparent", "#1b1830")} onClick={disp.leaveBlank}>Leave relationship blank</button>}
+          <button style={btn("transparent", "#8a1f1f")} onClick={disp.skip}>Skip this contact</button>
+          <button data-testid="save-next" style={btn(PURPLE)} disabled={universalUnknown} onClick={onSaveNext}>Save &amp; next →</button>
         </div>
       </div>
-      {business && needsAudience && <AudiencePicker it={it} onChange={onAudience} />}
     </div>
   );
 }
 
-// Individual relationship: recognized → shown as plain text with a "Change" toggle; unrecognized →
-// the plain-language "we didn't recognize X" note + the control (open); blank → "add" affordance.
-function RelationshipLine({ it, open, onToggle, onChange }) {
-  const showEditor = open || it.unrecognizedRelationship;
+// The three plain-language relationship controls (exact labels), always rendered together.
+function RelationshipControls({ it, disp }) {
   return (
-    <div style={{ marginTop: 4 }}>
-      {it.unrecognizedRelationship && !open && (
-        <div style={{ fontSize: ".78rem", color: "#7a5410" }}>
-          We didn't recognize “{it.rawRel},” so we left the relationship blank. You can choose one now or edit it later.
-        </div>
-      )}
-      {!it.unrecognizedRelationship && (
-        <div style={sub}>
-          {it.relation ? `Relationship: ${it.relationLabel}` : "Relationship — optional"}{" "}
-          <button style={{ ...btn("transparent", "#4a3fb0"), padding: "2px 8px", fontSize: ".72rem" }} onClick={onToggle}>{it.relation ? "Change" : "Add"}</button>
-        </div>
-      )}
-      {showEditor && (
-        <div style={{ marginTop: 6 }}>
-          <label style={{ fontSize: ".76rem", color: "#4a4663", display: "block", marginBottom: 3 }}>How do you know this person?</label>
-          <select value={it.relation || ""} onChange={(e) => onChange(e.target.value)} style={{ ...selStyle, minWidth: 200 }}>
-            <option value="">Leave blank</option>
-            {RELATIONSHIP_CATEGORIES.map((cat) => (
-              <optgroup key={cat.value} label={cat.label}>
-                {(RELATIONS_BY_CATEGORY[cat.value] || []).map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-              </optgroup>
-            ))}
-          </select>
-        </div>
-      )}
+    <div style={{ display: "grid", gap: 8 }}>
+      <label style={{ display: "grid", gap: 3 }}>
+        <span style={{ fontSize: ".76rem", color: "#4a4663" }}>Relationship group</span>
+        <select data-testid="group-select" value={it.group} onChange={(e) => disp.group(e.target.value)} style={{ ...selStyle, minWidth: 220 }}>
+          <option value="">Select a group</option>
+          {RELATIONSHIP_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+        </select>
+      </label>
+      <label style={{ display: "grid", gap: 3 }}>
+        <span style={{ fontSize: ".76rem", color: "#4a4663" }}>Relationship</span>
+        <select data-testid="relation-select" value={it.relation} disabled={!it.group} onChange={(e) => disp.relation(e.target.value)} style={{ ...selStyle, minWidth: 220 }}>
+          <option value="">Select relationship</option>
+          {relationsForGroup(it.group).map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+        </select>
+      </label>
+      <label style={{ display: "grid", gap: 3 }}>
+        <span style={{ fontSize: ".76rem", color: "#4a4663" }}>How close are you?</span>
+        <select data-testid="closeness-select" value={it.closeness} onChange={(e) => disp.closeness(e.target.value)} style={{ ...selStyle, minWidth: 220 }}>
+          {CLOSENESS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </label>
     </div>
   );
 }
 
-// Business Universal required choice — plain language, no recipientType terminology.
-function AudiencePicker({ it, onChange }) {
+// Universal-List audience — plain language, no recipientType terminology.
+function AudienceControl({ it, onChange }) {
   return (
-    <div style={{ borderTop: "1px solid #f0f0f4", paddingTop: 8 }}>
-      <div style={{ fontSize: ".78rem", color: "#7a5410", marginBottom: 4 }}>We couldn't tell whether this contact is an employee, client, or vendor.</div>
-      <select value={(it.audienceState === "chosen" && it.audience) || ""} onChange={(e) => onChange(e.target.value)} style={{ ...selStyle, minWidth: 200 }}>
+    <label style={{ display: "grid", gap: 3 }}>
+      <span style={{ fontSize: ".76rem", color: "#7a5410" }}>Which group does this contact belong to? We couldn't tell whether this contact is an employee, client, or vendor.</span>
+      <select data-testid="audience-select" value={(it.audienceState === "chosen" && it.audience) || ""} onChange={(e) => onChange(e.target.value)} style={{ ...selStyle, minWidth: 220 }}>
         <option value="">Choose…</option>
         {AUDIENCE_CHOICES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
       </select>
-    </div>
+    </label>
   );
 }
 
-// Changeable defaults live here, collapsed, so the normal path stays frictionless.
-function AdvancedOptions({ open, onToggle, value, onChange }) {
+// Collapsed "X contacts are ready" — expand to see & edit the same three values. Never forced.
+function ReadySection({ items, open, onToggle, business, setState }) {
+  if (!items.length) return null;
   return (
-    <div style={{ ...card, padding: 12 }}>
-      <button style={{ ...btn("transparent", "#4a3fb0"), padding: "4px 10px", fontSize: ".78rem" }} onClick={onToggle}>
-        {open ? "▾ Advanced options" : "▸ Advanced options"}
+    <div style={{ ...card, padding: 14 }}>
+      <button style={{ ...btn("transparent", "#1f7a57"), fontSize: ".82rem" }} onClick={onToggle}>
+        {open ? "▾" : "▸"} {items.length} contact{items.length === 1 ? "" : "s"} {items.length === 1 ? "is" : "are"} ready
       </button>
       {open && (
-        <div style={{ marginTop: 10 }}>
-          <label style={{ fontSize: ".78rem", color: "#4a4663", display: "block", marginBottom: 4 }}>Relationship description applied to everyone (you can change it):</label>
-          <select value={value || "greetme_worthy"} onChange={(e) => onChange(e.target.value)} style={selStyle}>
-            {CLOSENESS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+        <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+          {items.map((it) => (
+            <div key={it.index} style={{ border: "1px solid #eee", borderRadius: 10, padding: 10, display: "grid", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                <b style={{ fontSize: ".9rem" }}>{it.name}</b>
+                <span style={sub}>{it.email}{business && it.audience ? ` · ${(RECIPIENT_TYPE_OPTIONS.find((o) => o.value === it.audience) || {}).label || it.audience}` : ""}</span>
+              </div>
+              <RelationshipControls it={it} disp={{
+                group: (v) => setState((s) => setGroup(s, it.index, v)),
+                relation: (v) => setState((s) => setRelation(s, it.index, v)),
+                closeness: (v) => setState((s) => setCloseness(s, it.index, v)),
+              }} />
+            </div>
+          ))}
         </div>
       )}
     </div>
