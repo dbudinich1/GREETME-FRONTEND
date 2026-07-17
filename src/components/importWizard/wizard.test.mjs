@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { MODES, corporateContext, commitTarget, canSelectFile, commitDecision, STEPS, buildPersonalImportContacts,
   extractContactsArray, normalizeExistingEmails, existingEmailsFromResponse, classifyImportSummary,
-  classifyCommitOutcome, commitMessageForStatus, COMMIT_MESSAGES } from "./wizardModel.js";
+  classifyCommitOutcome, commitMessageForStatus, COMMIT_MESSAGES, corporateRoute } from "./wizardModel.js";
 import { autoMapHeaders, processRow, detectDuplicates, buildPlan } from "../../import/importCore.js";
 
 const WIZ = readFileSync(new URL("./ContactImportWizard.jsx", import.meta.url), "utf8");
@@ -224,18 +224,78 @@ test("org context never comes from user.id / useAuth", () => {
   assert.ok(!/useAuth/.test(WIZ), "must not derive org from useAuth");
 });
 
-test("demo mode is send-safe and isolated (no send/gift/notify wiring; no real mix)", () => {
+test("sample mode is send-safe and isolated (no send/gift/notify wiring; no real mix)", () => {
   assert.match(WIZ, /assertNoRealMix/);                 // never mixes demo + real
   assert.ok(!/\.send\(|sendGreeting|sendGift|notify\(|\/api\/[^"']*send/.test(WIZ), "no send/gift/notify calls");
-  assert.match(WIZ, /DEMO DATA — NOT SENT/);            // clear labeling
+  assert.match(WIZ, /Sample Mode — Nothing will be saved or sent/); // persistent sample indicator
 });
 
-test("no gift/payment/fundraising imports; personal ownership via existing endpoint", () => {
-  assert.ok(!/\b(import|from)\b[^\n]*(gift|fundrais|payment|stripe|merch|pricing|checkout)/i.test(WIZ));
+test("no gift/payment/fundraising module imports; personal ownership via existing endpoint", () => {
+  // line-anchored to actual import statements (prose mentioning 'gift'/'payment' is fine)
+  assert.ok(!/^import[^\n]*(gift|fundrais|payment|stripe|merch|pricing|checkout)/im.test(WIZ));
   assert.match(WIZ, /api\.importContacts/);             // personal → user's own collection
-  assert.match(WIZ, /corporate_endpoint_pending/);      // corporate write gated (backend gap)
+  assert.match(WIZ, /commitCorporate/);                 // corporate commit is gated (never writes)
 });
 
 test("does not import or modify the locked Recipients page (Contacts.jsx)", () => {
   assert.ok(!/pages\/Contacts|CSVImport/.test(WIZ), "must not touch the locked Recipients import path");
+});
+
+// ---- canonical entry CTAs + corporate routing + sample mode ----
+test("corporateRoute maps every phase (dormant/ready/ineligible/select_org/loading/error)", () => {
+  assert.equal(corporateRoute({ phase: "loading" }), "loading");
+  assert.equal(corporateRoute({ phase: "dormant" }), "dormant");
+  assert.equal(corporateRoute({ phase: "ready" }), "ready");
+  assert.equal(corporateRoute({ phase: "select_org" }), "select_org");
+  assert.equal(corporateRoute({ phase: "no_org" }), "ineligible");        // → Business/membership
+  assert.equal(corporateRoute({ phase: "unauthorized" }), "ineligible");  // → Business/membership
+  assert.equal(corporateRoute({ phase: "error" }), "error");
+  assert.equal(corporateRoute(null), "error");
+});
+
+test("canonical entry CTAs are keyboard/pointer <button>s with the exact copy", () => {
+  // three entry CTAs are native <button> (keyboard + pointer accessible) driven by pickMode
+  assert.ok((WIZ.match(/onClick=\{\(\) => pickMode\(MODES\.(PERSONAL|CORPORATE|DEMO)\)\}/g) || []).length >= 3);
+  assert.match(WIZ, /My Recipient List/);
+  assert.match(WIZ, /Import friends, family, colleagues, clients/);       // personal blurb
+  assert.match(WIZ, /Organization Contacts/);
+  assert.match(WIZ, /Import employees, clients, vendors, departments/);   // corporate blurb
+  assert.match(WIZ, /Try a Sample Import/);
+  assert.match(WIZ, /Explore the wizard using fictional contacts/);       // sample blurb
+});
+
+test("dormant corporate state is truthful, recoverable, and never 'coming soon'", () => {
+  assert.match(WIZ, /Organization import is currently turned off/);
+  assert.ok(!/coming soon/i.test(WIZ), "must not say 'coming soon'");
+  assert.match(WIZ, /Return to Import Options/);
+  assert.match(WIZ, /Explore Sample Import/);
+  assert.ok(!/return null; \/\/ feature off/.test(WIZ), "dormant must not be a blank screen");
+  // ineligible routes to Business/membership
+  assert.match(WIZ, /navigate\("\/business"\)/);
+});
+
+test("recipient-type selector + type behavior + sample buttons are wired", () => {
+  assert.match(WIZ, /RECIPIENT_KINDS/);                        // Employees/Clients/Vendors/Mixed selector
+  assert.match(WIZ, /pickRecipientKind/);
+  assert.match(WIZ, /applyRecipientTypes/);                    // recipientType stamped on payload
+  assert.match(WIZ, /buildRecipientTypeSummary/);              // mixed unknown-type mapping
+  assert.match(WIZ, /Map recipient types/);
+  assert.match(WIZ, /Sample complete/);                        // ends "Sample complete" not "Import complete"
+  assert.match(WIZ, /Try Another List Type/);
+  assert.match(WIZ, /Return to Import Options/);
+  assert.match(WIZ, /Import Another Employee List/);           // sequential list actions
+  // sample cannot escape into a live commit: exactly ONE api.importContacts (personal), and the
+  // demo path routes to commitDemo which only sets a demo summary (no API call).
+  assert.equal((WIZ.match(/api\.importContacts\(/g) || []).length, 1);   // one actual CALL (in commitPersonal)
+  assert.match(WIZ, /isDemo \? commitDemo :/);                 // demo → commitDemo (never the importer)
+  assert.match(WIZ, /const commitDemo = useCallback\(\(\) => \{[\s\S]*?setSummary\(\{ demo: true/);
+});
+
+test("sequential section numbering uses a running counter (no hardcoded 1/2/3)", () => {
+  assert.match(WIZ, /let n = 0; const num = \(\) => \+\+n;/);
+  assert.ok(!/>1 · Relationship description/.test(WIZ), "section numbers must not be hardcoded");
+});
+
+test("Greet-Me Worthy is the preselected default Description", () => {
+  assert.match(WIZ, /descriptionDefault: "greetme_worthy"/);
 });

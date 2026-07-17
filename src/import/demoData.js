@@ -17,27 +17,55 @@ export const isReservedDemoEmail = (email) => DEMO_DOMAIN_RE.test(String(email |
 export const DEMO_SENDS_ALLOWED = false;
 
 // Fictional employees (reserved domain, no real people).
+// `relationship` values are intentionally mixed so the sample exercises the completion flow:
+// deterministic ("colleague"/"co-worker"→Professional·Colleague), an unknown value that needs one
+// bulk mapping ("work bud"), and blanks that stay "optional details missing".
 export const DEMO_EMPLOYEES = Object.freeze([
-  { fullName: "Ada Lovelace", email: "ada@example.com", recipientType: "employee", department: "Engineering", company: "Demo Corp" },
-  { fullName: "Alan Turing", email: "alan@example.com", recipientType: "employee", department: "Research", company: "Demo Corp" },
-  { fullName: "Grace Hopper", email: "grace@example.com", recipientType: "employee", department: "Engineering", company: "Demo Corp" },
-  { fullName: "Katherine Johnson", email: "katherine@example.com", recipientType: "employee", department: "Analytics", company: "Demo Corp" },
-  { fullName: "Mae Jemison", email: "mae@example.com", recipientType: "employee", department: "Operations", company: "Demo Corp" },
-  { fullName: "Hedy Lamarr", email: "hedy@example.com", recipientType: "employee", department: "Product", company: "Demo Corp" },
+  { fullName: "Ada Lovelace", email: "ada@example.com", relationship: "colleague", recipientType: "employee", department: "Engineering", company: "Demo Corp" },
+  { fullName: "Alan Turing", email: "alan@example.com", relationship: "co-worker", recipientType: "employee", department: "Research", company: "Demo Corp" },
+  { fullName: "Grace Hopper", email: "grace@example.com", relationship: "work bud", recipientType: "employee", department: "Engineering", company: "Demo Corp" },
+  { fullName: "Katherine Johnson", email: "katherine@example.com", relationship: "work bud", recipientType: "employee", department: "Analytics", company: "Demo Corp" },
+  { fullName: "Mae Jemison", email: "mae@example.com", relationship: "", recipientType: "employee", department: "Operations", company: "Demo Corp" },
+  { fullName: "Hedy Lamarr", email: "hedy@example.com", relationship: "mentor", recipientType: "employee", department: "Product", company: "Demo Corp" },
 ].map(Object.freeze));
 
 // Fictional clients (reserved domain).
 export const DEMO_CLIENTS = Object.freeze([
-  { fullName: "Riverstone Bakery", email: "hello@example.org", recipientType: "client", company: "Riverstone Bakery" },
-  { fullName: "Northwind Traders", email: "accounts@example.org", recipientType: "client", company: "Northwind Traders" },
-  { fullName: "Blue Yonder Airlines", email: "care@example.net", recipientType: "client", company: "Blue Yonder Airlines" },
-  { fullName: "Contoso Ltd", email: "team@example.com", recipientType: "client", company: "Contoso Ltd" },
-  { fullName: "Fabrikam Inc", email: "partners@example.org", recipientType: "client", company: "Fabrikam Inc" },
-  { fullName: "Tailspin Toys", email: "orders@example.net", recipientType: "client", company: "Tailspin Toys" },
+  { fullName: "Riverstone Bakery", email: "hello@example.org", relationship: "client", recipientType: "client", company: "Riverstone Bakery" },
+  { fullName: "Northwind Traders", email: "accounts@example.org", relationship: "client", recipientType: "client", company: "Northwind Traders" },
+  { fullName: "Blue Yonder Airlines", email: "care@example.net", relationship: "vendor", recipientType: "client", company: "Blue Yonder Airlines" },
+  { fullName: "Contoso Ltd", email: "team@example.com", relationship: "key account", recipientType: "client", company: "Contoso Ltd" },
+  { fullName: "Fabrikam Inc", email: "partners@example.org", relationship: "", recipientType: "client", company: "Fabrikam Inc" },
+  { fullName: "Tailspin Toys", email: "orders@example.net", relationship: "client", recipientType: "client", company: "Tailspin Toys" },
+].map(Object.freeze));
+
+// Fictional vendors (reserved domains); includes a "supplier" synonym + a blank type.
+export const DEMO_VENDORS = Object.freeze([
+  { fullName: "Acme Print Co", email: "print@example.com", relationship: "vendor", recipientType: "vendor", company: "Acme Print Co" },
+  { fullName: "Skyline Catering", email: "events@example.org", relationship: "vendor", recipientType: "vendor", company: "Skyline Catering" },
+  { fullName: "Beacon IT Services", email: "support@example.net", relationship: "supplier", recipientType: "supplier", company: "Beacon IT Services" },
+  { fullName: "Harbor Logistics", email: "ops@example.com", relationship: "", recipientType: "vendor", company: "Harbor Logistics" },
+].map(Object.freeze));
+
+// Fictional PERSONAL recipients (for the personal sample) — deterministic + unknown relationships.
+export const DEMO_PERSONAL = Object.freeze([
+  { fullName: "Sam Rivera", email: "sam@example.com", relationship: "best friend", recipientType: "" },
+  { fullName: "Jordan Lee", email: "jordan@example.org", relationship: "sibling", recipientType: "" },
+  { fullName: "Taylor Kim", email: "taylor@example.net", relationship: "bestie", recipientType: "" },
+  { fullName: "Morgan Doe", email: "morgan@example.com", relationship: "", recipientType: "" },
+].map(Object.freeze));
+
+// Fictional MIXED list — a recipientType column with recognized synonyms + one unknown ("contractor").
+export const DEMO_MIXED = Object.freeze([
+  { fullName: "Ada Lovelace", email: "ada2@example.com", relationship: "colleague", recipientType: "Employee", company: "Demo Corp" },
+  { fullName: "Riverstone Bakery", email: "hello2@example.org", relationship: "client", recipientType: "customer", company: "Riverstone Bakery" },
+  { fullName: "Acme Print Co", email: "print2@example.com", relationship: "vendor", recipientType: "supplier", company: "Acme Print Co" },
+  { fullName: "Pat Contractor", email: "pat@example.net", relationship: "", recipientType: "contractor", company: "Freelance" },
 ].map(Object.freeze));
 
 export function demoDataset(kind) {
-  const base = kind === "clients" ? DEMO_CLIENTS : DEMO_EMPLOYEES;
+  const map = { employees: DEMO_EMPLOYEES, clients: DEMO_CLIENTS, vendors: DEMO_VENDORS, personal: DEMO_PERSONAL, mixed: DEMO_MIXED };
+  const base = map[kind] || DEMO_EMPLOYEES;
   return base.map((c) => ({ ...c, demo: true, source: "demo" }));
 }
 

@@ -15,6 +15,23 @@ export function corporateContext(membershipResult, selectedOrgId = null) {
   return resolveOrganizationContext(membershipResult, selectedOrgId);
 }
 
+// Map an org context to a routing decision for the "Organization Contacts" CTA:
+//   loading    — memberships still resolving
+//   dormant    — corporate feature is off → a usable, truthful fail-closed state (recoverable)
+//   ineligible — authenticated but not an active org member → the Business/membership entry
+//   select_org — active member of multiple orgs → choose one
+//   ready      — an active org is resolved → the existing corporate import flow
+//   error      — unexpected/unauthorized → a recoverable error state
+export function corporateRoute(ctx) {
+  const phase = ctx && ctx.phase;
+  if (phase === "loading") return "loading";
+  if (phase === "dormant") return "dormant";
+  if (phase === "ready") return "ready";
+  if (phase === "select_org") return "select_org";
+  if (phase === "no_org" || phase === "unauthorized") return "ineligible";
+  return "error";
+}
+
 // What a commit targets. NEVER returns a user id as a corporate org id; demo never writes.
 export function commitTarget(mode, { orgId } = {}) {
   if (mode === MODES.PERSONAL) return { kind: "personal", write: true };
