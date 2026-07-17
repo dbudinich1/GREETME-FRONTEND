@@ -3,7 +3,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { MODES, corporateContext, commitTarget, canSelectFile, commitDecision, STEPS, buildPersonalImportContacts,
-  extractContactsArray, normalizeExistingEmails, existingEmailsFromResponse, classifyImportSummary } from "./wizardModel.js";
+  extractContactsArray, normalizeExistingEmails, existingEmailsFromResponse, classifyImportSummary,
+  classifyCommitOutcome, commitMessageForStatus, COMMIT_MESSAGES } from "./wizardModel.js";
 import { autoMapHeaders, processRow, detectDuplicates, buildPlan } from "../../import/importCore.js";
 
 const WIZ = readFileSync(new URL("./ContactImportWizard.jsx", import.meta.url), "utf8");
@@ -146,6 +147,63 @@ test("wizard loads existing recipients for personal preview and FAILS CLOSED on 
   assert.match(WIZ, /Couldn't load your existing recipients/);   // fail-closed preview error
   assert.match(WIZ, /classifyImportSummary/);                    // truthful summary
   assert.match(WIZ, /already in your recipients/);
+});
+
+// ---- commit-outcome FAIL CLOSED (no more "Import complete — 0 added" on failure) ----
+test("classifyCommitOutcome: only a recognized results body is a success", () => {
+  // genuine success (with counts) → success
+  const ok = classifyCommitOutcome({ ok: true, data: { imported: 1, failed: 0, errors: [] } });
+  assert.equal(ok.status, "success");
+  assert.equal(ok.summary.added, 1);
+  // recognized success with zero adds (e.g. all duplicates skipped) is STILL a success
+  const okZero = classifyCommitOutcome({ ok: true, data: { imported: 0, failed: 0, skipped: 1, errors: [] } });
+  assert.equal(okZero.status, "success");
+  // body carrying only errors[] is recognized (partial failures surfaced by summary)
+  assert.equal(classifyCommitOutcome({ data: { errors: [{ error: "x" }] } }).status, "success");
+});
+
+test("classifyCommitOutcome FAILS CLOSED for every failed/unrecognized response", () => {
+  // returned {ok:false,status} — 401/404/network
+  assert.equal(classifyCommitOutcome({ ok: false, status: 401 }).status, "error");
+  assert.equal(classifyCommitOutcome({ ok: false, status: 404 }).status, "error");
+  assert.equal(classifyCommitOutcome({ ok: false, status: 0, networkError: true }).status, "error");
+  // thrown → rebuilt {ok:false,status,error}
+  for (const s of [400, 403, 409, 429, 500, 502, 503, undefined]) {
+    assert.equal(classifyCommitOutcome({ ok: false, status: s, error: "x" }).status, "error", `status ${s} must fail closed`);
+  }
+  // empty / malformed 2xx bodies → fail closed (this is the exact "0 added false success" bug)
+  assert.equal(classifyCommitOutcome({}).status, "error");
+  assert.equal(classifyCommitOutcome({ ok: true }).status, "error");                 // 2xx, no results body
+  assert.equal(classifyCommitOutcome({ data: { foo: 1 } }).status, "error");         // unrecognized body
+  assert.equal(classifyCommitOutcome(null).status, "error");
+  assert.equal(classifyCommitOutcome(undefined).status, "error");
+});
+
+test("classifyCommitOutcome status-specific messages (401/403/429/other)", () => {
+  assert.equal(classifyCommitOutcome({ ok: false, status: 401 }).message, "Your session expired. Please sign in again.");
+  assert.equal(classifyCommitOutcome({ ok: false, status: 403 }).message, "Recipient/import limit reached.");
+  assert.equal(classifyCommitOutcome({ ok: false, status: 429 }).message, "Too many requests. Please wait and try again.");
+  assert.equal(classifyCommitOutcome({ ok: false, status: 500 }).message, "Import failed. Please try again.");
+  assert.equal(classifyCommitOutcome({ ok: false, status: 404 }).message, "Import failed. Please try again.");
+  assert.equal(classifyCommitOutcome({}).message, "Import failed. Please try again.");           // fail-closed generic
+  assert.equal(commitMessageForStatus(403), COMMIT_MESSAGES[403]);
+  assert.equal(commitMessageForStatus(999), COMMIT_MESSAGES.generic);
+});
+
+test("the exact production case (403) never renders a success summary", () => {
+  const outcome = classifyCommitOutcome({ ok: false, status: 403, error: "Access denied" }); // thrown 403 → statusful
+  assert.equal(outcome.status, "error");
+  assert.equal(outcome.message, "Recipient/import limit reached.");
+  assert.ok(!("summary" in outcome));   // NO summary object → UI cannot show "Import complete — 0 added"
+});
+
+test("commitPersonal wiring: preserves thrown status, fail-closed via classifyCommitOutcome", () => {
+  assert.match(WIZ, /catch \(e\) \{ res = \{ ok: false, status: e && e\.status/);   // status preserved
+  assert.match(WIZ, /classifyCommitOutcome\(res\)/);                                 // decision layer used
+  assert.match(WIZ, /if \(outcome\.status !== "success"\) \{ setError\(outcome\.message\); return; \}/); // fail closed
+  assert.match(WIZ, /setSummary\(outcome\.summary\)/);                               // summary only on success
+  assert.ok(!/setSummary\(summarizeImport\(res/.test(WIZ), "old unconditional summarize removed");
+  assert.ok(!/res\.status === 403/.test(WIZ), "dead 403 guard removed");
 });
 
 // ---- source-scan invariants ----

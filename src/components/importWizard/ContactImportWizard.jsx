@@ -15,10 +15,10 @@ import api from "../../api/api";
 import { createCorporateCampaignsClient } from "../../api/corporateCampaigns.js";
 import {
   checkFileLimits, checkRowCount, autoMapHeaders, processRow, detectDuplicates,
-  buildPlan, summarizeImport, looksLikeZip,
+  buildPlan, looksLikeZip,
 } from "../../import/importCore.js";
 import { demoDataset, resetDemoData, assertNoRealMix } from "../../import/demoData.js";
-import { MODES, corporateContext, commitDecision, buildPersonalImportContacts, existingEmailsFromResponse, classifyImportSummary } from "./wizardModel.js";
+import { MODES, corporateContext, commitDecision, buildPersonalImportContacts, existingEmailsFromResponse, classifyImportSummary, classifyCommitOutcome } from "./wizardModel.js";
 
 const PURPLE = "linear-gradient(135deg,#6d74ee,#764ba2)";
 const card = { background: "#fff", border: "1px solid rgba(27,24,48,.1)", borderRadius: 14, padding: 18 };
@@ -115,10 +115,16 @@ export default function ContactImportWizard() {
     // occasion and it flows into contacts.occasions[] → scheduler like a manually-added recipient.
     const contacts = buildPersonalImportContacts(plan.toCreate);
     let res;
-    try { res = await api.importContacts(contacts); } catch (e) { res = { ok: false, error: String(e && e.message) }; }
+    // Preserve the thrown status (api.request throws Error{status} on 403/429/5xx) so the outcome
+    // classifier can distinguish failures and message them correctly.
+    try { res = await api.importContacts(contacts); } catch (e) { res = { ok: false, status: e && e.status, error: String(e && e.message) }; }
     setBusy(false);
-    if (res && res.ok === false && res.status === 403) { setError("Import limit reached for your plan."); return; }
-    setSummary(summarizeImport(res || {}));
+    // FAIL CLOSED: only render a success summary for a recognized successful results body. Any
+    // non-2xx / {ok:false} / network / thrown / empty-or-malformed 2xx becomes a clear error and
+    // NEVER "Import complete — 0 added".
+    const outcome = classifyCommitOutcome(res);
+    if (outcome.status !== "success") { setError(outcome.message); return; }
+    setSummary(outcome.summary);
   }, [mode, plan]);
 
   // ---------- render ----------

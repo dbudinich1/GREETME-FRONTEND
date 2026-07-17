@@ -6,7 +6,7 @@
 // multi-org selection gating, and commit eligibility (incl. the current backend gaps).
 
 import { resolveOrganizationContext } from "../corporateCampaign/campaignSurfaceModel.js";
-import { normalizeEmail } from "../../import/importCore.js";
+import { normalizeEmail, summarizeImport } from "../../import/importCore.js";
 
 export const MODES = Object.freeze({ PERSONAL: "personal", CORPORATE: "corporate", DEMO: "demo" });
 
@@ -122,6 +122,44 @@ export function classifyImportSummary(summary = {}) {
     alreadyPresent,
     needsAttention: Math.max(0, failed - alreadyPresent),
   };
+}
+
+// ---- Commit-outcome classification (FAIL CLOSED) ----
+// The import commit must NEVER render "Import complete" for a failed/unrecognized response. A
+// success summary is shown ONLY when the response carries a recognized results body
+// ({imported|added|errors}). Everything else — non-2xx, {ok:false}, thrown error (surfaced as
+// {ok:false,status}), network failure, and empty/malformed 2xx bodies — is a hard failure with a
+// clear, status-specific message. Pure + Node-testable.
+export const COMMIT_MESSAGES = Object.freeze({
+  401: "Your session expired. Please sign in again.",
+  403: "Recipient/import limit reached.",
+  429: "Too many requests. Please wait and try again.",
+  generic: "Import failed. Please try again.",
+});
+export function commitMessageForStatus(status) {
+  return COMMIT_MESSAGES[status] || COMMIT_MESSAGES.generic;
+}
+
+// A response body is a recognized SUCCESSFUL import result only if it carries at least one of the
+// count/error fields the backend returns ({ imported | added | errors }). This rejects error
+// envelopes ({ok:false,...}) and empty/partial 2xx bodies ({}, {ok:true} with no data).
+function isRecognizedResultsBody(body) {
+  return !!body && (typeof body.imported === "number" || typeof body.added === "number" || Array.isArray(body.errors));
+}
+
+// `res` is whatever commitPersonal holds after its try/catch: a 2xx body, a returned {ok:false,status}
+// (401/404/network), or a thrown error rebuilt as {ok:false,status,error}. Returns:
+//   { status: "success", summary }   — recognized results body (any counts, incl. all-skipped)
+//   { status: "error",   message }   — fail closed for everything else
+export function classifyCommitOutcome(res) {
+  if (!res || res.ok === false) {
+    return { status: "error", message: commitMessageForStatus(res && res.status) };
+  }
+  const body = (res && res.data != null) ? res.data : res;
+  if (!isRecognizedResultsBody(body)) {
+    return { status: "error", message: COMMIT_MESSAGES.generic }; // empty/malformed 2xx → fail closed
+  }
+  return { status: "success", summary: summarizeImport(res) };
 }
 
 // The wizard's ordered steps.
