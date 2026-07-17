@@ -85,9 +85,21 @@ test("buildPersonalImportContacts omits birthday when no birthday column is mapp
   assert.equal(c.name, "Bob");
 });
 
-test("wizard commit uses the shared builder (no ad-hoc field allow-list)", () => {
-  assert.match(WIZ, /buildPersonalImportContacts\(plan\.toCreate\)/); // birthday-carrying commit path
+test("wizard commit builds the COMPLETED payload (structured relationship + birthday)", () => {
+  assert.match(WIZ, /buildCompletedImportContacts\(plan\.toCreate, completion\)/); // completed commit path
   assert.ok(!/name: r\.contact\.fullName, email: r\.contact\.email, relationship/.test(WIZ), "old 3-field mapping removed");
+});
+
+test("wizard wires the adaptive completion flow (preview → complete → review)", () => {
+  assert.match(WIZ, /PersonalCompletionFlow/);        // personal flow component
+  assert.match(WIZ, /CompletionStep/);                // bulk-completion screen
+  assert.match(WIZ, /ReviewStep/);                    // final review before commit
+  assert.match(WIZ, /TypeRelationPicker/);            // Type+Relation mapping control
+  assert.match(WIZ, /uniqueUnmappedValues/);          // map-by-unique-value
+  assert.match(WIZ, /descriptionDefault/);            // bulk description default
+  assert.match(WIZ, /skipRelationship/);              // row-level exception
+  assert.match(WIZ, /Search unresolved/);             // search/filter for unresolved rows
+  assert.match(WIZ, /stage === "review"|setStage\("review"\)/); // commit only after review confirmation
 });
 
 // ---- existing-recipient awareness (preview↔persistence consistency) ----

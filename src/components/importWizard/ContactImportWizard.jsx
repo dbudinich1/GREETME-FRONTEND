@@ -18,7 +18,8 @@ import {
   buildPlan, looksLikeZip,
 } from "../../import/importCore.js";
 import { demoDataset, resetDemoData, assertNoRealMix } from "../../import/demoData.js";
-import { MODES, corporateContext, commitDecision, buildPersonalImportContacts, existingEmailsFromResponse, classifyImportSummary, classifyCommitOutcome } from "./wizardModel.js";
+import { MODES, corporateContext, commitDecision, existingEmailsFromResponse, classifyImportSummary, classifyCommitOutcome } from "./wizardModel.js";
+import { RELATIONSHIP_CATEGORIES, RELATIONS_BY_CATEGORY, CLOSENESS_OPTIONS, ROW_STATE, buildCompletionSummary, buildCompletedImportContacts } from "../../import/completionModel.js";
 
 const PURPLE = "linear-gradient(135deg,#6d74ee,#764ba2)";
 const card = { background: "#fff", border: "1px solid rgba(27,24,48,.1)", borderRadius: 14, padding: 18 };
@@ -35,12 +36,16 @@ export default function ContactImportWizard() {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  // Personal adaptive-completion flow: preview → complete (fill missing) → review → commit.
+  const [stage, setStage] = useState("preview");
+  const [completion, setCompletion] = useState({ descriptionDefault: null, relationshipMappings: {}, rowOverrides: {} });
+  const resetCompletion = () => { setStage("preview"); setCompletion({ descriptionDefault: null, relationshipMappings: {}, rowOverrides: {} }); };
 
   const ctx = useMemo(() => (mode === MODES.CORPORATE ? corporateContext(membershipResult, selectedOrgId) : null), [mode, membershipResult, selectedOrgId]);
   const orgId = ctx && ctx.selectedOrgId;
 
   const pickMode = useCallback(async (m) => {
-    setMode(m); setRows(null); setPlan(null); setSummary(null); setError(null); setSelectedOrgId(null); setDemoConfirmedReal(false);
+    setMode(m); setRows(null); setPlan(null); setSummary(null); setError(null); setSelectedOrgId(null); setDemoConfirmedReal(false); resetCompletion();
     if (m === MODES.CORPORATE) {
       setBusy(true);
       const res = await client.listMemberships();
@@ -58,6 +63,7 @@ export default function ContactImportWizard() {
     const deduped = detectDuplicates(processed, existingEmails);
     setRows(deduped);
     setPlan(buildPlan(deduped, { duplicateStrategy: "skip" }));
+    resetCompletion();   // a fresh file starts the completion flow over
   }
 
   const onFile = useCallback(async (file) => {
@@ -113,7 +119,7 @@ export default function ContactImportWizard() {
     // Personal ownership: import into the authenticated user's own collection. Transmit every
     // recognized mapped field (incl. birthday) so the existing importer derives the manual-shape
     // occasion and it flows into contacts.occasions[] → scheduler like a manually-added recipient.
-    const contacts = buildPersonalImportContacts(plan.toCreate);
+    const contacts = buildCompletedImportContacts(plan.toCreate, completion);
     let res;
     // Preserve the thrown status (api.request throws Error{status} on 403/429/5xx) so the outcome
     // classifier can distinguish failures and message them correctly.
@@ -125,7 +131,7 @@ export default function ContactImportWizard() {
     const outcome = classifyCommitOutcome(res);
     if (outcome.status !== "success") { setError(outcome.message); return; }
     setSummary(outcome.summary);
-  }, [mode, plan]);
+  }, [mode, plan, completion]);
 
   // ---------- render ----------
   if (!mode) {
@@ -194,7 +200,14 @@ export default function ContactImportWizard() {
           <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onFile(e.target.files[0])} />
         </label>
       )}
-      {rows && !summary && (
+      {rows && !summary && mode === MODES.PERSONAL && (
+        <PersonalCompletionFlow
+          toCreate={plan.toCreate} skipped={plan.toSkip.length} invalid={plan.invalid.length}
+          stage={stage} setStage={setStage} completion={completion} setCompletion={setCompletion}
+          busy={busy} onCommit={commitPersonal}
+        />
+      )}
+      {rows && !summary && mode !== MODES.PERSONAL && (
         <>
           <Preview rows={rows} plan={plan} demo={mode === MODES.DEMO} />
           <div style={{ display: "flex", gap: 10, marginTop: 14, alignItems: "center", flexWrap: "wrap" }}>
@@ -277,4 +290,184 @@ function commitReasonText(reason) {
     corporate_endpoint_pending: "Corporate contact import endpoint is not yet available (backend pending).",
     no_plan: "",
   })[reason] || "";
+}
+
+// ============================================================================
+// Personal adaptive-completion flow: preview → complete missing info → review → commit.
+// Minimum CSV requirement is Name + valid email; everything else is completed here in bulk,
+// never asking the same mapping question twice, and never guessing a description/closeness.
+// ============================================================================
+const selStyle = { padding: "7px 10px", borderRadius: 9, border: "1px solid rgba(27,24,48,.18)", fontSize: ".82rem", background: "#fff" };
+
+function PersonalCompletionFlow({ toCreate, skipped, invalid, stage, setStage, completion, setCompletion, busy, onCommit }) {
+  const cs = buildCompletionSummary(toCreate, completion);
+  const n = toCreate.length;
+  if (stage === "preview") {
+    return (<>
+      <PreviewLite toCreate={toCreate} skipped={skipped} invalid={invalid} cs={cs} />
+      <FlowButtons right={<button style={btn(PURPLE)} disabled={n === 0} onClick={() => setStage("complete")}>Continue to details →</button>} />
+    </>);
+  }
+  if (stage === "complete") {
+    return (<>
+      <CompletionStep cs={cs} completion={completion} setCompletion={setCompletion} />
+      <FlowButtons
+        left={<button style={btn("transparent", "#1b1830")} onClick={() => setStage("preview")}>← Back</button>}
+        right={<button style={btn(PURPLE)} onClick={() => setStage("review")}>Review &amp; import →</button>} />
+    </>);
+  }
+  return (<>
+    <ReviewStep cs={cs} />
+    <FlowButtons
+      left={<button style={btn("transparent", "#1b1830")} disabled={busy} onClick={() => setStage("complete")}>← Back to details</button>}
+      right={<button style={btn(PURPLE)} disabled={busy || n === 0} onClick={onCommit}>{busy ? "Importing…" : `Import ${n} contact(s)`}</button>} />
+  </>);
+}
+
+function FlowButtons({ left, right }) {
+  return <div style={{ display: "flex", gap: 10, marginTop: 14, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>{left || <span />}{right}</div>;
+}
+
+function StateChips({ cs }) {
+  const chip = (label, count, c) => (
+    <div style={{ ...card, padding: "10px 14px", flex: "1 1 150px", borderColor: c.b, background: c.bg }}>
+      <div style={{ fontSize: "1.4rem", fontWeight: 800, color: c.fg }}>{count}</div>
+      <div style={{ fontSize: ".76rem", color: "#4a4663" }}>{label}</div>
+    </div>
+  );
+  return (
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      {chip("Ready", cs.counts.ready, { b: "rgba(31,157,107,.35)", bg: "rgba(31,157,107,.08)", fg: "#1f9d6b" })}
+      {chip("Needs a quick choice", cs.counts.needs_choice, { b: "rgba(214,145,16,.4)", bg: "rgba(214,145,16,.1)", fg: "#bd7a10" })}
+      {chip("Optional details missing", cs.counts.optional_missing, { b: "rgba(27,24,48,.14)", bg: "rgba(27,24,48,.03)", fg: "#605c78" })}
+    </div>
+  );
+}
+
+function PreviewLite({ toCreate, skipped, invalid, cs }) {
+  return (
+    <div style={{ ...card, display: "grid", gap: 12 }}>
+      <div style={{ fontSize: ".85rem" }}><b>{toCreate.length}</b> to import · <b>{skipped}</b> already in your recipients (skipped) · <b>{invalid}</b> invalid</div>
+      <StateChips cs={cs} />
+      <p style={sub}>Only a Name and a valid email are required. Next you'll fill any missing relationship details in bulk — you won't be asked the same question twice, and nothing is guessed.</p>
+    </div>
+  );
+}
+
+function TypeRelationPicker({ value = {}, onChange }) {
+  const category = value.category || "", relation = value.relation || "";
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      <select value={category} onChange={(e) => onChange(e.target.value, "")} style={selStyle}>
+        <option value="">Type…</option>
+        {RELATIONSHIP_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+      </select>
+      <select value={relation} onChange={(e) => onChange(category, e.target.value)} disabled={!category} style={selStyle}>
+        <option value="">Relation…</option>
+        {(RELATIONS_BY_CATEGORY[category] || []).map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function CompletionStep({ cs, completion, setCompletion }) {
+  const [q, setQ] = useState("");
+  const setDefault = (v) => setCompletion((c) => ({ ...c, descriptionDefault: v || null }));
+  const setMapping = (key, category, relation) => setCompletion((c) => ({ ...c, relationshipMappings: { ...c.relationshipMappings, [key]: { category, relation } } }));
+  const setOverride = (index, patch) => setCompletion((c) => ({ ...c, rowOverrides: { ...c.rowOverrides, [index]: { ...(c.rowOverrides[index] || {}), ...patch } } }));
+
+  const unresolved = cs.rows.filter((r) => r.state === ROW_STATE.NEEDS_CHOICE);
+  const t = q.trim().toLowerCase();
+  const filtered = t ? unresolved.filter((r) => (r.raw || "").toLowerCase().includes(t) || String(r.index + 1).includes(t)) : unresolved;
+
+  return (
+    <div style={{ display: "grid", gap: 14 }}>
+      <StateChips cs={cs} />
+
+      <div style={card}>
+        <b style={{ fontSize: ".9rem" }}>1 · Relationship description (applies to everyone)</b>
+        <p style={sub}>Pick one default description for all imported recipients — override individuals below. This is never guessed.</p>
+        <select value={completion.descriptionDefault || ""} onChange={(e) => setDefault(e.target.value)} style={selStyle}>
+          <option value="">Select a default…</option>
+          {CLOSENESS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+
+      {cs.uniqueUnmappedValues.length > 0 && (
+        <div style={card}>
+          <b style={{ fontSize: ".9rem" }}>2 · Map unrecognized relationships ({cs.uniqueUnmappedValues.length})</b>
+          <p style={sub}>Set each unique value once — it applies to every matching contact.</p>
+          <div style={{ display: "grid", gap: 8 }}>
+            {cs.uniqueUnmappedValues.map((u) => (
+              <div key={u.key} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontFamily: "monospace", fontSize: ".8rem", minWidth: 130 }}>“{u.raw}” <span style={{ color: "#605c78" }}>×{u.count}</span></span>
+                <TypeRelationPicker value={completion.relationshipMappings[u.key]} onChange={(cat, rel) => setMapping(u.key, cat, rel)} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={card}>
+        <b style={{ fontSize: ".9rem" }}>3 · Individual exceptions {cs.unresolvedCount > 0 ? `— ${cs.unresolvedCount} unresolved` : "— all resolved"}</b>
+        <input placeholder="Search unresolved by value or row #…" value={q} onChange={(e) => setQ(e.target.value)} style={{ ...selStyle, marginTop: 6, width: "100%" }} />
+        <div style={{ maxHeight: 240, overflow: "auto", marginTop: 8, display: "grid", gap: 8 }}>
+          {filtered.length === 0 && <p style={sub}>{cs.unresolvedCount === 0 ? "Everything is resolved — ready to review." : "No unresolved rows match your search."}</p>}
+          {filtered.map((r) => {
+            const ov = completion.rowOverrides[r.index] || {};
+            return (
+              <div key={r.index} style={{ border: "1px solid #eee", borderRadius: 10, padding: 8, display: "grid", gap: 6 }}>
+                <div style={{ fontSize: ".8rem" }}>Row {r.index + 1} · raw “{r.raw || "—"}”</div>
+                <TypeRelationPicker value={{ category: r.category, relation: r.relation }} onChange={(cat, rel) => setOverride(r.index, { category: cat, relation: rel })} />
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <select value={ov.closeness || ""} onChange={(e) => setOverride(r.index, { closeness: e.target.value })} style={selStyle}>
+                    <option value="">Description (use default)…</option>
+                    {CLOSENESS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                  <label style={{ fontSize: ".76rem", display: "flex", gap: 4, alignItems: "center" }}>
+                    <input type="checkbox" checked={!!ov.skipRelationship} onChange={(e) => setOverride(r.index, { skipRelationship: e.target.checked })} /> Import without a relationship
+                  </label>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function relLabel(category, relation) {
+  return ((RELATIONS_BY_CATEGORY[category] || []).find((r) => r.value === relation) || {}).label || "—";
+}
+function StateBadge({ state }) {
+  const m = {
+    [ROW_STATE.READY]: { t: "Ready", c: "#1f9d6b" },
+    [ROW_STATE.NEEDS_CHOICE]: { t: "Needs choice", c: "#bd7a10" },
+    [ROW_STATE.OPTIONAL_MISSING]: { t: "Optional", c: "#605c78" },
+  }[state] || { t: state, c: "#605c78" };
+  return <span style={{ fontSize: ".7rem", color: m.c, fontWeight: 700, flexShrink: 0 }}>{m.t}</span>;
+}
+function ReviewStep({ cs }) {
+  const catLabel = (v) => (RELATIONSHIP_CATEGORIES.find((c) => c.value === v) || {}).label || "";
+  const closeLabel = (v) => (CLOSENESS_OPTIONS.find((c) => c.value === v) || {}).label || "";
+  return (
+    <div style={{ ...card, display: "grid", gap: 12 }}>
+      <b style={{ fontSize: ".9rem" }}>Final review · {cs.total} recipient(s)</b>
+      <StateChips cs={cs} />
+      {cs.unresolvedCount > 0 && <p style={{ ...sub, color: "#bd7a10" }}>{cs.unresolvedCount} recipient(s) will import without a complete relationship — finish them anytime in Edit Recipient. Nothing is guessed.</p>}
+      <div style={{ maxHeight: 300, overflow: "auto", border: "1px solid #eee", borderRadius: 10 }}>
+        {cs.rows.map((r, i) => (
+          <div key={r.index} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "7px 12px", borderTop: i ? "1px solid #f4f4f7" : "none", fontSize: ".8rem" }}>
+            <span style={{ flexShrink: 0 }}>Row {r.index + 1}</span>
+            <span style={{ color: "#605c78", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {r.category ? `${catLabel(r.category)} · ${relLabel(r.category, r.relation)}` : "No relationship"}
+              {r.closeness ? ` · ${closeLabel(r.closeness)}` : ""}
+            </span>
+            <StateBadge state={r.state} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

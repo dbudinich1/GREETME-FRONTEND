@@ -13,6 +13,7 @@ import { COMMS_CATEGORIES } from '../utils/commsCatalog';
 import { getErrorMessage } from '../utils/errorMessages';
 import { formatPersonName } from '../utils/formatPersonName';
 import api from '../api/api';
+import { deterministicStructuredForContact } from '../import/completionModel.js';
 
 // Session storage key for preserving form data during gift selection navigation
 const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
@@ -212,12 +213,18 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
 
   useEffect(() => {
     if (contact) {
+      // Compatibility for legacy imported contacts that have a raw `relationship` but no structured
+      // fields: show the DETERMINISTIC Type/Relation only (e.g. "colleague" → Professional/Colleague).
+      // Display-only — never auto-saves or rewrites; returns null when a category already exists
+      // (manual + already-completed contacts hydrate byte-identically). Non-deterministic values and
+      // the Description/closeness stay user-confirmed.
+      const _det = deterministicStructuredForContact(contact);
       setFormData({
         name: contact.name || '',
         email: contact.email || '',
         gender: contact.gender || '',
-        relationshipCategory: contact.relationshipCategory || '',
-        relationship: contact.relationship || '',
+        relationshipCategory: contact.relationshipCategory || (_det ? _det.relationshipCategory : ''),
+        relationship: _det ? _det.relationship : (contact.relationship || ''),
         relationshipCloseness: contact.relationshipCloseness || '',
         relationshipContext: contact.relationshipContext || '',
         relationshipProfile: contact.relationshipProfile || null,
