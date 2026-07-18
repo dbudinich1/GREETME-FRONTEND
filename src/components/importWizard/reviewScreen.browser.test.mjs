@@ -8,37 +8,25 @@
 // mounted. jsdom has no CSS layout/paint, so visual layout is out of scope (that's the reviewer's
 // live pass); DOM structure, control wiring, value persistence, and mount lifetime ARE covered here.
 //
-// Requires jsdom from an ISOLATED prefix (never added to the shared canonical node_modules).
+// ENFORCEABLE: jsdom + esbuild are declared devDependencies (package.json + package-lock.json), so
+// `npm ci` installs them deterministically. These imports are UNCONDITIONAL and TOP-LEVEL — if the
+// deps are missing the module fails to load (ERR_MODULE_NOT_FOUND) and the whole run fails. There is
+// NO skip path: this test cannot silently pass when its dependencies are absent.
 // Run: node --test src/components/importWizard/reviewScreen.browser.test.mjs
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { writeFileSync, rmSync } from "node:fs";
-import { createRequire } from "node:module";
+import { JSDOM } from "jsdom";
+import esbuild from "esbuild";
 import { freshReviewState } from "../../import/reviewModel.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// jsdom lives in an ISOLATED prefix (never added to the shared canonical node_modules). Resolve it
-// from there, else fall back to a normal resolve; if neither is available (e.g. portable CI), SKIP
-// the whole file instead of failing — the deterministic model tests still cover the behavior.
-const ISO = process.env.GREETME_JSDOM_PREFIX || "C:/Users/dbudi/AppData/Local/Temp/claude/c--1-GREET-ME/30dec4b4-ecf7-42b9-b9bd-6fb5d2f7fd74/scratchpad/jsdom-iso";
-let JSDOM, esbuild, SKIP = false;
-try {
-  const req = createRequire(join(ISO, "noop.js"));
-  JSDOM = req("jsdom").JSDOM;
-  esbuild = (await import("esbuild")).default;
-} catch {
-  try { JSDOM = createRequire(import.meta.url)("jsdom").JSDOM; esbuild = (await import("esbuild")).default; }
-  catch { SKIP = "jsdom/esbuild not available (isolated browser-test deps not installed)"; }
-}
-
 const BUNDLE = join(__dirname, ".__reviewscreen.bundle.mjs");
 let React, createRoot, ReviewScreen, act;
 
 before(async () => {
-  if (SKIP) return;
   // 1) Transform the real ReviewScreen (JSX) → ESM, stubbing side-effectful imports.
   const stub = {
     name: "stub",
@@ -69,7 +57,7 @@ before(async () => {
   globalThis.Event = window.Event; globalThis.getComputedStyle = window.getComputedStyle;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-  // 3) Real React 19 + react-dom/client (resolved from the worktree junction) + the transformed screen.
+  // 3) Real React 19 + react-dom/client (resolved from installed node_modules) + the transformed screen.
   React = (await import("react")).default;
   act = React.act;
   ({ createRoot } = await import("react-dom/client"));
@@ -104,7 +92,7 @@ function mount(rows, opts = {}) {
 }
 const row = (i, o = {}) => ({ contact: { fullName: o.name ?? "Person " + i, email: o.email ?? `p${i}@x.co`, relationship: o.relationship ?? "", recipientType: o.recipientType ?? "" }, index: i, __raw: {}, __map: {}, duplicate: o.dup ?? null });
 
-test("pointer: group→relation dependency, all three values persist, card stays mounted, Save&next + Back", { skip: SKIP }, async () => {
+test("pointer: group→relation dependency, all three values persist, card stays mounted, Save&next + Back", async () => {
   const rows = [row(0, { relationship: "bestie" }), row(1, { relationship: "amigo" })]; // two attention cards
   const h = mount(rows, {});
   await h.render();
@@ -148,7 +136,7 @@ test("pointer: group→relation dependency, all three values persist, card stays
   assert.equal(tid("closeness-select").value, "inner_circle");
 });
 
-test("mobile width: the three controls still render (no width-based unmount)", { skip: SKIP }, async () => {
+test("mobile width: the three controls still render (no width-based unmount)", async () => {
   Object.defineProperty(window, "innerWidth", { value: 375, configurable: true });
   window.dispatchEvent(new window.Event("resize"));
   const h = mount([row(0, { relationship: "bestie" })], {});
@@ -157,7 +145,7 @@ test("mobile width: the three controls still render (no width-based unmount)", {
   assert.ok(tid("attention-card"));
 });
 
-test("Universal: audience control appears above the relationship controls and gates Save&next", { skip: SKIP }, async () => {
+test("Universal: audience control appears above the relationship controls and gates Save&next", async () => {
   const rows = [row(0, { recipientType: "contractor" })];
   const h = mount(rows, { business: true, kind: "mixed" });
   await h.render();
