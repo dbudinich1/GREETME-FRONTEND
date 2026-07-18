@@ -21,16 +21,17 @@ import { MODES, corporateContext, corporateRoute, existingEmailsFromResponse, cl
 import { RELATIONSHIP_CATEGORIES, CLOSENESS_OPTIONS } from "../../import/completionModel.js";
 import { RECIPIENT_KINDS, RECIPIENT_TYPE_OPTIONS } from "../../import/recipientTypeModel.js";
 import {
-  buildReview, buildReviewPayload, freshReviewState,
-  setGroup, setRelation, setCloseness, setName, setEmail, leaveRelationshipBlank,
-  chooseAudience, skipContact, applyToAllMatching, bulkRelationshipGroups,
-  nextCard, prevCard, relationsForGroup, AUDIENCE_CHOICES, REVIEW_STATUS, relationLabelFor,
+  buildReview, buildReviewPayload, freshReviewState, paginate,
+  setGroup, setRelation, setCloseness, setName, setEmail, setBirthday, leaveRelationshipBlank,
+  chooseAudience, skipContact, relationsForGroup, AUDIENCE_CHOICES, REVIEW_BUCKET, relationLabelFor,
 } from "../../import/reviewModel.js";
 import { sampleContactsFor, sampleCsvFor, loadSampleWorkspace, saveSampleWorkspace, clearSampleWorkspace } from "../../import/sampleWorkspace.js";
 
 const PURPLE = "linear-gradient(135deg,#6d74ee,#764ba2)";
 const card = { background: "#fff", border: "1px solid rgba(27,24,48,.1)", borderRadius: 14, padding: 18 };
 const btn = (bg, fg = "#fff") => ({ background: bg, color: fg, border: bg === "transparent" ? "1px solid rgba(27,24,48,.15)" : "none", borderRadius: 11, padding: "10px 16px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer" });
+// Real calendar date for the age gate (never guessed). computeContactErrors needs it (audit F1).
+const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export default function ContactImportWizard() {
   const client = useMemo(() => createCorporateCampaignsClient(), []);
@@ -52,7 +53,7 @@ export default function ContactImportWizard() {
   // The single Review state (relationship/audience choices, removals, description default). It is
   // reset — never carried — whenever a new file/kind/path is chosen.
   const [reviewState, setReviewState] = useState(() => freshReviewState({ business: false, kind: null }));
-  const resetReview = (business, kind) => setReviewState(freshReviewState({ business, kind }));
+  const resetReview = (business, kind, existingEmails = []) => setReviewState(freshReviewState({ business, kind, existingEmails, todayIso: todayIso() }));
 
   // Restore a same-session sample on mount (non-secret session-scoped; a NEW login never restores an
   // old sample). Clear the sample on session expiry — do not rely on logout alone.
@@ -81,13 +82,16 @@ export default function ContactImportWizard() {
   function ingest(records, existingEmails = [], business = false, kind = null) {
     const capped = checkRowCount(records.length);
     if (!capped.ok) { setError(`Too many rows (max ${capped.max}).`); return; }
-    // Retain the raw row + mapping so the commit can transmit the birthday column (the processed
-    // contact omits birthday — it's used only for the minor check inside the import core).
-    const processed = records.map((r, i) => ({ ...processRow(r.__raw || r, r.__map || {}, { todayIso: undefined }), index: i, __raw: r.__raw || r, __map: r.__map || {} }));
+    // Retain the raw row + mapping so the commit can transmit the birthday column. Pass a REAL
+    // calendar date so importCore's age gate is active (audit F1 — a blank date is never used). The
+    // review re-runs the same validator, so both layers agree.
+    const today = todayIso();
+    const processed = records.map((r, i) => ({ ...processRow(r.__raw || r, r.__map || {}, { todayIso: today }), index: i, __raw: r.__raw || r, __map: r.__map || {} }));
     const deduped = detectDuplicates(processed, existingEmails);
-    setRows(deduped);                                   // Review shows EVERY row (ready/duplicate/invalid)
+    setRows(deduped);                                   // Review shows EVERY row; buckets are exclusive
     setPlan(buildPlan(deduped, { duplicateStrategy: "skip" }));
-    resetReview(business, kind);                        // a fresh file starts Review clean
+    // The review owns validation + dedup: it needs the existing recipients + today's date in context.
+    setReviewState(freshReviewState({ business, kind, existingEmails, todayIso: today }));
   }
 
   const onFile = useCallback(async (file) => {
@@ -160,7 +164,7 @@ export default function ContactImportWizard() {
     const business = kind !== "individual";
     const rk = business ? kind : null;
     setRecipientKind(rk);
-    resetReview(business, rk);
+    setReviewState(freshReviewState({ business, kind: rk, existingEmails: [], todayIso: todayIso() }));
     const ds = sampleContactsFor(kind);
     assertNoRealMix(ds);
     const processed = ds.map((c, i) => ({ contact: c, errors: [], warnings: [], valid: true, duplicate: null, index: i, demo: true, __raw: {}, __map: {} }));
@@ -196,7 +200,17 @@ export default function ContactImportWizard() {
   }, [mode]);
 
   const backToTypeSelector = () => { setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setError(null); resetReview(true, null); };
-  const startOver = () => { setRows(null); setPlan(null); setSummary(null); setError(null); resetReview(mode === MODES.CORPORATE, recipientKind); };
+  // START OVER (root-cause fix): the old handler reset rows/reviewState but never cleared `mode`,
+  // `recipientKind`, or `sample`. The entry screen is gated on `!mode && !sample`, so Start Over could
+  // never reach the Individual/Business selection — it fell through to the same mode's Upload screen
+  // (and from a sample, a stuck mode-less-but-sample state). This clears ALL selection/parse/edit/
+  // result state and returns to the selection screen. It does NOT delete a saved Sample Workspace —
+  // that stays reachable and is only removed by the explicit "Delete all sample contacts".
+  const startOver = () => {
+    setMode(null); setRecipientKind(null); setMembershipResult(null); setSelectedOrgId(null);
+    setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setSummary(null);
+    setError(null); setBusy(false); setReviewState(freshReviewState({ business: false, kind: null }));
+  };
   const exitSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setError(null); };
   const deleteAllSample = exitSample;   // both clear the session-scoped sample data
 
@@ -220,12 +234,12 @@ export default function ContactImportWizard() {
 
   if (mode === MODES.CORPORATE && !sample) {
     const route = corporateRoute(ctx);
-    if ((busy && !membershipResult) || route === "loading") return <Shell back={() => setMode(null)}><p style={muted}>Checking your organization eligibility…</p></Shell>;
+    if ((busy && !membershipResult) || route === "loading") return <Shell back={startOver}><p style={muted}>Checking your organization eligibility…</p></Shell>;
     if (route === "dormant") {
       // Authorized-but-dormant corporate backend — a TRUTHFUL, usable gated state (never a blank
       // screen, no vague future promise, never implies data was saved).
       return (
-        <Shell back={() => setMode(null)}>
+        <Shell back={startOver}>
           <Empty title="Organization import is currently turned off" body="This feature isn't accepting imports right now, and nothing has been saved. Your personal recipient list is ready to use." />
           <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
             <button style={btn(PURPLE)} onClick={() => setMode(null)}>Return to Import Options</button>
@@ -237,7 +251,7 @@ export default function ContactImportWizard() {
     }
     if (route === "ineligible") {
       return (
-        <Shell back={() => setMode(null)}>
+        <Shell back={startOver}>
           <Empty title="You're not part of an organization yet" body="Organization Contacts import is for members of a Greet-Me for Business organization. Explore Business to get set up." />
           <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
             <button style={btn(PURPLE)} onClick={() => navigate("/business")}>Explore Greet-Me for Business</button>
@@ -248,15 +262,15 @@ export default function ContactImportWizard() {
     }
     if (route === "error") {
       return (
-        <Shell back={() => setMode(null)}>
+        <Shell back={startOver}>
           <Empty title="We couldn't check your organization" body="Something went wrong resolving your organization. Please try again." />
-          <RecoveryActions onStartOver={() => setMode(null)} onReturn={returnToRecipients} />
+          <RecoveryActions onStartOver={startOver} onReturn={returnToRecipients} />
         </Shell>
       );
     }
     if (route === "select_org") {
       return (
-        <Shell back={() => setMode(null)}>
+        <Shell back={startOver}>
           <h3 style={{ margin: "0 0 8px" }}>Choose an organization</h3>
           <div style={{ display: "grid", gap: 10 }}>
             {ctx.memberships.map((m) => (
@@ -274,7 +288,7 @@ export default function ContactImportWizard() {
   // Business recipient-type selector (Employees / Clients / Vendors / Universal List).
   if (mode === MODES.CORPORATE && !sample && !recipientKind) {
     return (
-      <Shell back={() => setMode(null)}>
+      <Shell back={startOver}>
         <h3 style={{ margin: "0 0 4px", fontFamily: "Georgia,serif" }}>Who are you importing?</h3>
         <p style={{ ...sub, marginTop: 0 }}>A single type is applied automatically — no type column required. Universal List maps a mixed file.</p>
         <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
@@ -284,7 +298,7 @@ export default function ContactImportWizard() {
             </button>
           ))}
         </div>
-        <RecoveryActions onStartOver={() => setMode(null)} onReturn={returnToRecipients} />
+        <RecoveryActions onStartOver={startOver} onReturn={returnToRecipients} />
       </Shell>
     );
   }
@@ -295,7 +309,7 @@ export default function ContactImportWizard() {
   const templateKind = business ? (recipientKind || "employee") : "individual";
   const onCommit = sample ? commitSample : (business ? commitCorporate : commitPersonal);
   return (
-    <Shell back={() => setMode(null)}>
+    <Shell back={startOver}>
       {business && !sample && <div style={{ ...card, marginBottom: 12, fontSize: ".82rem" }}>Organization <b style={{ fontFamily: "monospace" }}>{orgId}</b>{kindLabel ? <> · <b>{kindLabel}</b></> : null}</div>}
       {sample && <SampleBanner />}
       {error && <div role="alert" style={{ ...card, borderColor: "rgba(214,69,69,.4)", background: "rgba(214,69,69,.08)", color: "#8a1f1f", marginBottom: 12 }}>{error}</div>}
@@ -319,7 +333,7 @@ export default function ContactImportWizard() {
         <ReviewScreen
           rows={rows} state={reviewState} setState={setReviewState}
           business={business} kindLabel={kindLabel} demo={sample} busy={busy}
-          skipped={plan ? plan.toSkip.length : 0} onCommit={onCommit} onStartOver={startOver}
+          onCommit={onCommit} onStartOver={startOver}
         />
       )}
 
@@ -329,7 +343,7 @@ export default function ContactImportWizard() {
           {recipientKind
             ? <ListActions onPick={pickRecipientKind} onReturn={backToTypeSelector} onReturnRecipients={returnToRecipients} />
             : <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
-                <button style={btn("transparent", "#1b1830")} onClick={() => setMode(null)}>Start over</button>
+                <button style={btn("transparent", "#1b1830")} onClick={startOver}>Start over</button>
                 <button style={btn(PURPLE)} onClick={returnToRecipients}>Return to Recipients</button>
               </div>}
         </>
@@ -376,239 +390,221 @@ function ImportSummary({ summary }) {
 }
 
 // ============================================================================
-// ReviewScreen — plain-language LINEAR reconciliation. Attention contacts are walked one card at a
-// time (Back / Save & next / Skip / Leave blank), each card carrying the three canonical relationship
-// controls. Ready contacts live in a collapsed section below. A resolved card is NEVER unmounted just
-// because its status flipped — the attention order is frozen and control values read from state.
+// ReviewScreen — CONFIRMATION-FIRST. A clean file shows "Your contacts are ready" + one primary
+// "Add X contacts". Genuine blockers (missing name/email, under-13, unknown Universal audience) get a
+// plain-language "quick fix" list; a blocked row never stops the valid ones. Relationship details are
+// OPTIONAL and opened only on request. No mandatory walkthrough, no overlapping queues, no taxonomy in
+// the normal path. Ready previews are bounded/paginated (audit F5).
 // ============================================================================
-export function ReviewScreen({ rows, state, setState, business, kindLabel, demo, busy, skipped = 0, onCommit, onStartOver }) {
+const rowStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" };
+const inp = { ...selStyle, width: "100%" };
+const linkBtn = { ...btn("transparent", "#4a3fb0"), padding: "4px 10px", fontSize: ".76rem" };
+const PREVIEW_N = 6;          // small confirmation preview
+const DETAILS_BATCH = 25;     // optional-relationship editor page size
+
+export function ReviewScreen({ rows, state, setState, business, kindLabel, demo, busy, onCommit, onStartOver }) {
   const review = buildReview(rows, state);
-  const { attention, readySection, summary, importCount, importEnabled } = review;
-  const [nav, setNav] = useState(0);
-  const [showReady, setShowReady] = useState(false);
-  const bulkGroups = bulkRelationshipGroups(rows, state);
+  const { buckets, counts, importCount, importEnabled } = review;
+  const [view, setView] = useState("confirm");   // "confirm" | "details"
+  const [seeAll, setSeeAll] = useState(false);
+  const [confPage, setConfPage] = useState(0);
+  const [detPage, setDetPage] = useState(0);
 
-  const total = attention.length;
-  const active = nav < total ? attention[nav] : null;
-  const primary = demo
-    ? `View ${importCount} sample recipient${importCount === 1 ? "" : "s"}`
-    : (busy ? "Importing…" : (business ? `Continue with ${importCount} contact${importCount === 1 ? "" : "s"}` : `Import ${importCount} contact${importCount === 1 ? "" : "s"}`));
-
-  // per-card dispatchers (bound to the active card's original index)
-  const disp = active && {
-    name: (v) => setState((s) => setName(s, active.index, v)),
-    email: (v) => setState((s) => setEmail(s, active.index, v)),
-    group: (v) => setState((s) => setGroup(s, active.index, v)),
-    relation: (v) => setState((s) => setRelation(s, active.index, v)),
-    closeness: (v) => setState((s) => setCloseness(s, active.index, v)),
-    audience: (v) => setState((s) => chooseAudience(s, active.index, v)),
-    leaveBlank: () => setState((s) => leaveRelationshipBlank(s, active.index)),
-    skip: () => { setState((s) => skipContact(s, active.index)); setNav((n) => nextCard(n, total)); },
-    applyAll: (raw, sel) => setState((s) => applyToAllMatching(s, rows, raw, sel)),
+  const bind = (fn) => (i, v) => setState((s) => fn(s, i, v));
+  const on = {
+    name: bind(setName), email: bind(setEmail), birthday: bind(setBirthday),
+    group: bind(setGroup), relation: bind(setRelation), closeness: bind(setCloseness),
+    audience: bind(chooseAudience), skip: (i) => setState((s) => skipContact(s, i)),
+    leaveBlank: (i) => setState((s) => leaveRelationshipBlank(s, i)),
   };
-  const activeBulk = active ? bulkGroups.find((g) => g.indices.includes(active.index)) : null;
+  const openDetails = () => setView("details");
+
+  if (view === "details") {
+    return <DetailsView editable={buckets.ready} page={detPage} setPage={setDetPage} on={on}
+      onDone={() => { setView("confirm"); setDetPage(0); }} onStartOver={onStartOver} />;
+  }
+
+  const blockers = [...buckets.needsFix, ...buckets.invalidExcluded];
+  const primaryLabel = demo
+    ? `View ${importCount} sample recipient${importCount === 1 ? "" : "s"}`
+    : busy ? "Adding…" : business
+      ? `Continue with ${importCount} contact${importCount === 1 ? "" : "s"}`
+      : `Add ${importCount} contact${importCount === 1 ? "" : "s"}`;
+
+  const preview = seeAll
+    ? paginate(buckets.ready, confPage, DETAILS_BATCH)
+    : { slice: buckets.ready.slice(0, PREVIEW_N), pages: 1, page: 0, total: buckets.ready.length };
 
   return (
-    <div style={{ display: "grid", gap: 14 }}>
-      <TopSummary summary={summary} skipped={skipped} />
-
-      {active ? (
-        <AttentionCard
-          key={active.index} it={active} business={business}
-          progress={{ n: nav + 1, total }} bulk={activeBulk} disp={disp}
-          canBack={nav > 0} onBack={() => setNav(prevCard)} onSaveNext={() => setNav((n) => nextCard(n, total))}
-        />
-      ) : total > 0 ? (
-        <div style={{ ...card, textAlign: "center" }}>
-          <b style={{ fontFamily: "Georgia,serif" }}>You've reviewed every highlighted contact.</b>
-          <div style={sub}>Import below, or reopen a contact from the ready list to make changes.</div>
+    <div data-testid="confirm-screen" style={{ display: "grid", gap: 14 }}>
+      <div style={card}>
+        <h2 style={{ margin: 0, fontFamily: "Georgia,serif", fontSize: "1.3rem" }}>{importCount > 0 ? "Your contacts are ready" : "Let's fix a couple of things"}</h2>
+        {importCount > 0 && <div style={{ fontSize: "1.05rem", color: "#1f9d6b", fontWeight: 700, marginTop: 4 }}>{importCount} contact{importCount === 1 ? "" : "s"} ready to add</div>}
+        <p style={{ ...sub, marginTop: 4 }}>Everything can be edited later.</p>
+        <div style={{ display: "grid", gap: 2, marginTop: 2 }}>
+          {counts.alreadyInList > 0 && <div style={sub}>{counts.alreadyInList} already in your list—we'll skip {counts.alreadyInList === 1 ? "it" : "them"}.</div>}
+          {counts.willSkip > 0 && <div style={sub}>{counts.willSkip} won't be added.</div>}
         </div>
-      ) : (
-        <div style={{ ...card, textAlign: "center" }}>
-          <b style={{ fontFamily: "Georgia,serif" }}>Nothing needs your attention.</b>
-          <div style={sub}>Safe defaults were applied. Import below, or review the ready contacts first.</div>
+      </div>
+
+      {/* Quick fix — genuine blockers only */}
+      {blockers.length > 0 && (
+        <div data-testid="quickfix" style={{ ...card, borderColor: "rgba(214,145,16,.45)" }}>
+          <b style={{ fontSize: ".95rem" }}>{blockers.length} contact{blockers.length === 1 ? "" : "s"} need a quick fix before they can be added.</b>
+          <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
+            {blockers.map((it) => <QuickFixRow key={it.index} it={it} on={on} />)}
+          </div>
         </div>
       )}
 
-      <ReadySection items={readySection} open={showReady} onToggle={() => setShowReady((v) => !v)} business={business} setState={setState} />
+      {/* Bounded preview of ready contacts */}
+      {buckets.ready.length > 0 && (
+        <div style={card}>
+          <div style={{ ...rowStyle, marginBottom: 6 }}>
+            <b style={{ fontSize: ".9rem" }}>{seeAll ? "All ready contacts" : "A quick look"}</b>
+            {buckets.ready.length > PREVIEW_N && <button style={linkBtn} onClick={() => { setSeeAll((v) => !v); setConfPage(0); }}>{seeAll ? "Show less" : `See all ${buckets.ready.length}`}</button>}
+          </div>
+          <div style={{ border: "1px solid #eee", borderRadius: 10, overflow: "hidden" }}>
+            {preview.slice.map((it, i) => <ReadyPreviewRow key={it.index} it={it} business={business} first={i === 0} onAddRelationship={openDetails} />)}
+          </div>
+          {seeAll && preview.pages > 1 && <Pager page={preview.page} pages={preview.pages} onPage={setConfPage} />}
+        </div>
+      )}
 
-      <FinalSummary summary={summary} skipped={skipped} importCount={importCount} />
+      {/* Actions — one clear primary */}
+      <div style={{ ...rowStyle }}>
+        <button data-testid="startover" style={btn("transparent", "#1b1830")} onClick={onStartOver}>Start over</button>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          {counts.ready > 0 && <button data-testid="details-cta" style={btn("transparent", "#4a3fb0")} onClick={openDetails}>Add relationship details first</button>}
+          <button data-testid="add-cta" style={btn(PURPLE)} disabled={busy || !importEnabled} onClick={onCommit}>{primaryLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-      <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+// A single blocked contact with a plain-language reason and the one control that unblocks it. The
+// component switches on `fixField` (a field name), never on an internal validation code.
+function QuickFixRow({ it, on }) {
+  return (
+    <div style={{ border: "1px solid #f0e6cf", borderRadius: 10, padding: 10, display: "grid", gap: 6 }}>
+      <div style={{ ...rowStyle }}>
+        <b style={{ fontSize: ".88rem" }}>{it.name || "This contact"}</b>
+        <button data-testid="dont-add" style={{ ...linkBtn, color: "#8a1f1f" }} onClick={() => on.skip(it.index)}>Don't add this contact</button>
+      </div>
+      <div style={{ fontSize: ".78rem", color: "#b8791b" }}>{it.blockerMessage}</div>
+      {it.fixField === "name" && <input data-testid="fix-name-input" value={it.name} placeholder="Full name" onChange={(e) => on.name(it.index, e.target.value)} style={inp} />}
+      {it.fixField === "email" && <input data-testid="fix-email-input" value={it.email} placeholder="name@example.com" onChange={(e) => on.email(it.index, e.target.value)} style={inp} />}
+      {it.fixField === "birthday" && (
+        <label style={{ display: "grid", gap: 3 }}>
+          <span style={{ fontSize: ".72rem", color: "#4a4663" }}>Correct the birthday if it was a typo</span>
+          <input data-testid="fix-birthday-input" value={it.birthday} placeholder="YYYY-MM-DD" onChange={(e) => on.birthday(it.index, e.target.value)} style={inp} />
+        </label>
+      )}
+      {it.fixField === "audience" && (
+        <select data-testid="fix-audience-select" value="" onChange={(e) => on.audience(it.index, e.target.value)} style={inp}>
+          <option value="">Choose…</option>
+          {AUDIENCE_CHOICES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+        </select>
+      )}
+    </div>
+  );
+}
+
+// One row of the ready preview. Truthful about a missing relationship (Morgan Doe rule).
+function ReadyPreviewRow({ it, business, first, onAddRelationship }) {
+  const rel = business
+    ? (it.audience ? (RECIPIENT_TYPE_OPTIONS.find((o) => o.value === it.audience) || {}).label || "" : "")
+    : (it.relationProvided ? it.relationLabel : "Relationship not provided (optional)");
+  return (
+    <div style={{ ...rowStyle, padding: "8px 12px", borderTop: first ? "none" : "1px solid #f4f4f7", fontSize: ".82rem" }}>
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}><b>{it.name}</b> <span style={{ color: "#605c78" }}>· {it.email}</span></span>
+      <span style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+        <span style={{ color: (business || it.relationProvided) ? "#605c78" : "#a08a5a" }}>{it.birthday ? it.birthday + " · " : ""}{rel}</span>
+        {!business && !it.relationProvided && <button style={linkBtn} onClick={onAddRelationship}>Add relationship</button>}
+      </span>
+    </div>
+  );
+}
+
+// Optional relationship editor — opened only from "Add relationship details first". Paginated (F5),
+// edits preserved across pages (they live in review state, not this view).
+function DetailsView({ editable, page, setPage, on, onDone, onStartOver }) {
+  const pg = paginate(editable, page, DETAILS_BATCH);
+  return (
+    <div data-testid="details-screen" style={{ display: "grid", gap: 14 }}>
+      <div style={card}>
+        <h2 style={{ margin: 0, fontFamily: "Georgia,serif", fontSize: "1.2rem" }}>Add relationship details</h2>
+        <p style={{ ...sub, marginTop: 4 }}>Optional — this helps Greet-Me personalize each greeting. You can leave any of them blank.</p>
+      </div>
+      <div style={{ display: "grid", gap: 10 }}>
+        {pg.slice.map((it) => <DetailRow key={it.index} it={it} on={on} />)}
+      </div>
+      {pg.pages > 1 && <Pager page={pg.page} pages={pg.pages} onPage={setPage} />}
+      <div style={{ ...rowStyle }}>
         <button style={btn("transparent", "#1b1830")} onClick={onStartOver}>Start over</button>
-        <button style={btn(PURPLE)} disabled={busy || !importEnabled} onClick={onCommit}>{primary}</button>
+        <button data-testid="details-done" style={btn(PURPLE)} onClick={onDone}>Done</button>
       </div>
     </div>
   );
 }
 
-// Top: "X contacts need your attention" + supporting copy + the plain breakdown.
-function TopSummary({ summary, skipped = 0 }) {
-  const alreadyPresent = summary.duplicate + skipped;
-  const line = (text, color) => <div style={{ fontSize: ".85rem", color }}>{text}</div>;
+function DetailRow({ it, on }) {
   return (
-    <div style={{ ...card, display: "grid", gap: 6 }}>
-      <h2 style={{ margin: 0, fontFamily: "Georgia,serif", fontSize: "1.15rem" }}>{summary.needAttention} contact{summary.needAttention === 1 ? "" : "s"} need your attention</h2>
-      <p style={{ ...sub, marginTop: 0 }}>Review the highlighted contacts below. We filled in safe defaults where possible, and you can change them.</p>
-      <div style={{ display: "grid", gap: 3, marginTop: 2 }}>
-        {line(`${summary.ready} ready to import`, "#1f9d6b")}
-        {summary.willSkip > 0 && line(`${summary.willSkip} will be skipped`, "#605c78")}
-        {alreadyPresent > 0 && line(`${alreadyPresent} already in your recipients`, "#605c78")}
-      </div>
+    <div style={{ ...card, padding: 14, display: "grid", gap: 8 }}>
+      <div><b style={{ fontSize: ".9rem" }}>{it.name}</b> <span style={sub}>· {it.email}</span></div>
+      {!it.relationProvided && !it.relationUnrecognizedRaw && <div style={{ fontSize: ".78rem", color: "#a08a5a" }}>Relationship not provided (optional).</div>}
+      {it.relationUnrecognizedRaw && <div style={{ fontSize: ".78rem", color: "#7a5410" }}>We didn't recognize “{it.rawRel}.” You can add the relationship now or leave it blank.</div>}
+      <RelationshipControls it={it} on={on} />
     </div>
   );
 }
 
-// Final state — reflects the actual import outcome.
-function FinalSummary({ summary, skipped = 0, importCount }) {
-  const alreadyPresent = summary.duplicate + skipped;
-  const line = (text, color) => <div style={{ fontSize: ".85rem", color }}>{text}</div>;
-  return (
-    <div style={{ ...card, display: "grid", gap: 3 }}>
-      {line(`${importCount} ready to import`, "#1f9d6b")}
-      {summary.willSkip > 0 && line(`${summary.willSkip} skipped`, "#605c78")}
-      {alreadyPresent > 0 && line(`${alreadyPresent} already present`, "#605c78")}
-      {summary.needsChoice > 0 && line(`${summary.needsChoice} still need a required choice`, "#bd7a10")}
-      {summary.needsFix > 0 && line(`${summary.needsFix} still need a name or a valid email`, "#605c78")}
-    </div>
-  );
-}
-
-// The active attention card. All three relationship controls are ALWAYS visible; name/email become
-// editable fields when they need fixing; a Universal unknown audience adds one required control above.
-function AttentionCard({ it, business, progress, bulk, disp, canBack, onBack, onSaveNext }) {
-  const needsName = it.status === REVIEW_STATUS.NEEDS_NAME;
-  const needsEmail = it.status === REVIEW_STATUS.NEEDS_EMAIL;
-  const universalUnknown = business && it.audienceState === "needs_audience";
-  return (
-    <div data-testid="attention-card" style={{ ...card, display: "grid", gap: 12, borderColor: "rgba(214,145,16,.45)" }}>
-      <div style={{ fontSize: ".74rem", color: "#605c78", fontWeight: 700 }}>Contact {progress.n} of {progress.total} needing review</div>
-
-      {/* Identity — editable when it needs fixing */}
-      <div style={{ display: "grid", gap: 6 }}>
-        {needsName || it.name === "" ? (
-          <label style={{ display: "grid", gap: 3 }}>
-            <span style={{ fontSize: ".76rem", color: "#4a4663" }}>Name</span>
-            <input data-testid="name-input" value={it.name} onChange={(e) => disp.name(e.target.value)} style={{ ...selStyle, width: "100%" }} placeholder="Full name" />
-            {needsName && <span style={{ fontSize: ".74rem", color: "#c0392b" }}>Enter a name.</span>}
-          </label>
-        ) : <b style={{ fontSize: "1rem" }}>{it.name}</b>}
-        {needsEmail ? (
-          <label style={{ display: "grid", gap: 3 }}>
-            <span style={{ fontSize: ".76rem", color: "#4a4663" }}>Email</span>
-            <input data-testid="email-input" value={it.email} onChange={(e) => disp.email(e.target.value)} style={{ ...selStyle, width: "100%" }} placeholder="name@example.com" />
-            <span style={{ fontSize: ".74rem", color: "#c0392b" }}>Enter a valid email address.</span>
-          </label>
-        ) : <div style={sub}>{it.email || "—"}</div>}
-        {it.birthday && <div style={sub}>Birthday: {it.birthday}</div>}
-      </div>
-
-      {/* Original raw relationship note (unrecognized) */}
-      {it.relationUnrecognizedRaw && (
-        <div style={{ fontSize: ".8rem", color: "#7a5410" }}>
-          Original relationship: “{it.rawRel}”. We didn't recognize this relationship. Review the selections below or leave it blank.
-        </div>
-      )}
-
-      {/* Universal-List required audience — ABOVE the relationship controls */}
-      {business && (it.audienceState === "needs_audience" || it.audienceState === "chosen") && (
-        <AudienceControl it={it} onChange={disp.audience} />
-      )}
-
-      {/* The three canonical relationship controls — ALWAYS visible */}
-      <RelationshipControls it={it} disp={disp} />
-
-      {/* Apply-to-all convenience for a shared unknown raw value (opt-in) */}
-      {bulk && bulk.count > 1 && (it.group || it.relation) && (
-        <button data-testid="apply-all" style={{ ...btn("transparent", "#4a3fb0"), fontSize: ".78rem" }}
-          onClick={() => disp.applyAll(bulk.raw, { group: it.group, relation: it.relation, closeness: it.closeness })}>
-          Apply these selections to all {bulk.count} contacts labeled “{bulk.raw}”
-        </button>
-      )}
-
-      {/* Card actions */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
-        <button style={btn("transparent", "#1b1830")} disabled={!canBack} onClick={onBack}>← Back</button>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {!business && <button style={btn("transparent", "#1b1830")} onClick={disp.leaveBlank}>Leave relationship blank</button>}
-          <button style={btn("transparent", "#8a1f1f")} onClick={disp.skip}>Skip this contact</button>
-          <button data-testid="save-next" style={btn(PURPLE)} disabled={universalUnknown} onClick={onSaveNext}>Save &amp; next →</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// The three plain-language relationship controls (exact labels), always rendered together.
-function RelationshipControls({ it, disp }) {
+// The three canonical ContactForm controls with first-time-user helper text (exact labels).
+function RelationshipControls({ it, on }) {
   return (
     <div style={{ display: "grid", gap: 8 }}>
-      <label style={{ display: "grid", gap: 3 }}>
-        <span style={{ fontSize: ".76rem", color: "#4a4663" }}>Relationship group</span>
-        <select data-testid="group-select" value={it.group} onChange={(e) => disp.group(e.target.value)} style={{ ...selStyle, minWidth: 220 }}>
+      <Field label="Relationship group" help="Is this person family, a friend, or a professional contact?">
+        <select data-testid="group-select" value={it.group} onChange={(e) => on.group(it.index, e.target.value)} style={inp}>
           <option value="">Select a group</option>
           {RELATIONSHIP_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
-      </label>
-      <label style={{ display: "grid", gap: 3 }}>
-        <span style={{ fontSize: ".76rem", color: "#4a4663" }}>Relationship</span>
-        <select data-testid="relation-select" value={it.relation} disabled={!it.group} onChange={(e) => disp.relation(e.target.value)} style={{ ...selStyle, minWidth: 220 }}>
+      </Field>
+      <Field label="Relationship" help="Choose the specific relationship.">
+        <select data-testid="relation-select" value={it.relation} disabled={!it.group} onChange={(e) => on.relation(it.index, e.target.value)} style={inp}>
           <option value="">Select relationship</option>
           {relationsForGroup(it.group).map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
         </select>
-      </label>
-      <label style={{ display: "grid", gap: 3 }}>
-        <span style={{ fontSize: ".76rem", color: "#4a4663" }}>How close are you?</span>
-        <select data-testid="closeness-select" value={it.closeness} onChange={(e) => disp.closeness(e.target.value)} style={{ ...selStyle, minWidth: 220 }}>
+      </Field>
+      <Field label="How close are you?" help="This helps Greet-Me personalize the greeting.">
+        <select data-testid="closeness-select" value={it.closeness} onChange={(e) => on.closeness(it.index, e.target.value)} style={inp}>
           {CLOSENESS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-      </label>
+      </Field>
+      <div style={{ fontSize: ".72rem", color: "#8a8698" }}>Greet-Me Worthy — A thoughtful standard greeting suitable for most relationships.</div>
     </div>
   );
 }
 
-// Universal-List audience — plain language, no recipientType terminology.
-function AudienceControl({ it, onChange }) {
+function Field({ label, help, children }) {
   return (
     <label style={{ display: "grid", gap: 3 }}>
-      <span style={{ fontSize: ".76rem", color: "#7a5410" }}>Which group does this contact belong to? We couldn't tell whether this contact is an employee, client, or vendor.</span>
-      <select data-testid="audience-select" value={(it.audienceState === "chosen" && it.audience) || ""} onChange={(e) => onChange(e.target.value)} style={{ ...selStyle, minWidth: 220 }}>
-        <option value="">Choose…</option>
-        {AUDIENCE_CHOICES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-      </select>
+      <span style={{ fontSize: ".76rem", color: "#4a4663", fontWeight: 600 }}>{label}</span>
+      {children}
+      {help && <span style={{ fontSize: ".72rem", color: "#8a8698" }}>{help}</span>}
     </label>
   );
 }
 
-// Collapsed "X contacts are ready" — expand to see & edit the same three values. Never forced.
-function ReadySection({ items, open, onToggle, business, setState }) {
-  if (!items.length) return null;
+function Pager({ page, pages, onPage }) {
   return (
-    <div style={{ ...card, padding: 14 }}>
-      <button style={{ ...btn("transparent", "#1f7a57"), fontSize: ".82rem" }} onClick={onToggle}>
-        {open ? "▾" : "▸"} {items.length} contact{items.length === 1 ? "" : "s"} {items.length === 1 ? "is" : "are"} ready
-      </button>
-      {open && (
-        <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-          {items.map((it) => (
-            <div key={it.index} style={{ border: "1px solid #eee", borderRadius: 10, padding: 10, display: "grid", gap: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                <b style={{ fontSize: ".9rem" }}>{it.name}</b>
-                <span style={sub}>{it.email}{business && it.audience ? ` · ${(RECIPIENT_TYPE_OPTIONS.find((o) => o.value === it.audience) || {}).label || it.audience}` : ""}</span>
-              </div>
-              <RelationshipControls it={it} disp={{
-                group: (v) => setState((s) => setGroup(s, it.index, v)),
-                relation: (v) => setState((s) => setRelation(s, it.index, v)),
-                closeness: (v) => setState((s) => setCloseness(s, it.index, v)),
-              }} />
-            </div>
-          ))}
-        </div>
-      )}
+    <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "center" }}>
+      <button style={btn("transparent", "#1b1830")} disabled={page <= 0} onClick={() => onPage(page - 1)}>← Prev</button>
+      <span style={sub}>Page {page + 1} of {pages}</span>
+      <button style={btn("transparent", "#1b1830")} disabled={page >= pages - 1} onClick={() => onPage(page + 1)}>Next →</button>
     </div>
   );
 }
-
 function RecoveryActions({ onStartOver, onReturn }) {
   return (
     <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>

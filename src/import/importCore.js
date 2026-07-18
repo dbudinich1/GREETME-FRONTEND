@@ -135,27 +135,40 @@ export function processRow(rawRow = {}, mapping = {}, opts = {}) {
     notes: trim(get("notes")) || "",
   };
 
+  const { errors, warnings } = computeContactErrors(
+    { name: fullName, email, birthday, consent: contact.consent },
+    { minorPolicy, minAgeYears, todayIso, requireConsent },
+  );
+  return { contact, errors, warnings, valid: errors.length === 0 };
+}
+
+// SINGLE authoritative validation verdict for a contact's identity + privacy fields. processRow uses
+// it, and the Import Wizard's review model re-runs it after every inline edit so both layers can
+// never disagree (audit F1). `email` should already be normalized; `birthday` is a raw date string;
+// `todayIso` MUST be supplied for the age gate (never guessed). Returns { errors, warnings }.
+export function computeContactErrors(fields = {}, opts = {}) {
+  const { name = "", email = "", birthday = "", consent = "" } = fields;
+  const { minorPolicy = "block", minAgeYears = 13, todayIso, requireConsent = false } = opts;
   const errors = [];
   const warnings = [];
-  if (!fullName) errors.push("missing_name");
+  if (!String(name).trim()) errors.push("missing_name");
   if (!email) errors.push("missing_email");
   else if (!isValidEmail(email)) errors.push("invalid_email");
 
-  // Minor / privacy boundary
-  const age = _ageFrom(birthday, todayIso);
+  const age = ageFromBirthday(birthday, todayIso);
   if (age != null && age < minAgeYears) {
     if (minorPolicy === "block") errors.push("minor_blocked");
     else warnings.push("minor_flagged");
   }
-  // Consent / source attribution
-  if (requireConsent && !/^(y|yes|true|1|opt.?in|consented)$/i.test(contact.consent)) {
+  if (requireConsent && !/^(y|yes|true|1|opt.?in|consented)$/i.test(consent)) {
     errors.push("consent_required");
   }
-
-  return { contact, errors, warnings, valid: errors.length === 0 };
+  return { errors, warnings };
 }
 
-function _ageFrom(birthday, todayIso) {
+// Whole years between `birthday` and `todayIso`. Returns null when the birthday is missing/unparseable
+// or when no reference date is supplied (the age gate is never applied on a guessed "now").
+export function ageFromBirthday(birthday, todayIso) {
   if (!birthday) return null;
   const d = new Date(birthday);
   if (isNaN(d.getTime())) return null;

@@ -1,17 +1,14 @@
 // src/components/importWizard/reviewScreen.browser.test.mjs
 //
-// BROWSER-LEVEL interaction test for the original live control defect. The .jsx ReviewScreen is
-// transformed with esbuild (JSX + import.meta.env neutralized; api/router/papaparse stubbed) and
-// mounted with the REAL react-dom/client into a jsdom document. We then drive the controls the way a
-// user does — set a <select> value + dispatch a native change event (pointer), focus for keyboard
-// reachability, resize to a mobile width — and assert the three values persist and the card stays
-// mounted. jsdom has no CSS layout/paint, so visual layout is out of scope (that's the reviewer's
-// live pass); DOM structure, control wiring, value persistence, and mount lifetime ARE covered here.
+// BROWSER-LEVEL interaction tests. The real .jsx is esbuild-transformed (JSX + import.meta.env
+// neutralized; api/router/papaparse stubbed) and mounted with the REAL react-dom/client into jsdom.
+// We drive controls the way a user does (native change/click events, focus) and assert the
+// confirmation-first flow, inline revalidation, the optional relationship editor, and — via the FULL
+// wizard — that Start Over returns to the Individual/Business selection. jsdom has no CSS layout, so
+// visual layout is out of scope; DOM structure, wiring, value persistence, and navigation ARE covered.
 //
 // ENFORCEABLE: jsdom + esbuild are declared devDependencies (package.json + package-lock.json), so
-// `npm ci` installs them deterministically. These imports are UNCONDITIONAL and TOP-LEVEL — if the
-// deps are missing the module fails to load (ERR_MODULE_NOT_FOUND) and the whole run fails. There is
-// NO skip path: this test cannot silently pass when its dependencies are absent.
+// `npm ci` installs them. These imports are UNCONDITIONAL — a missing dep fails the run (no skip).
 // Run: node --test src/components/importWizard/reviewScreen.browser.test.mjs
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -24,21 +21,22 @@ import { freshReviewState } from "../../import/reviewModel.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUNDLE = join(__dirname, ".__reviewscreen.bundle.mjs");
-let React, createRoot, ReviewScreen, act;
+const TODAY = "2026-07-18";
+let React, createRoot, ReviewScreen, Wizard, act;
 
 before(async () => {
-  // 1) Transform the real ReviewScreen (JSX) → ESM, stubbing side-effectful imports.
   const stub = {
     name: "stub",
     setup(b) {
       b.onResolve({ filter: /(^react-router-dom$|^papaparse$|\/api\/api$|corporateCampaigns\.js$)/ }, (a) => ({ path: a.path, namespace: "stub" }));
       b.onLoad({ filter: /.*/, namespace: "stub" }, () => ({
-        contents: "export default {}; export const useNavigate=()=>()=>{}; export const createCorporateCampaignsClient=()=>({listMemberships:async()=>({ok:false})});",
+        contents: "export default { async getContacts(){return {data:[]};}, async importContacts(){return {data:{imported:0,errors:[]}};} };" +
+          " export const useNavigate=()=>()=>{}; export const createCorporateCampaignsClient=()=>({listMemberships:async()=>({ok:false})}); export function parse(){}",
         loader: "js",
       }));
     },
   };
-  writeFileSync(join(__dirname, ".__entry.jsx"), `export { ReviewScreen } from "./ContactImportWizard.jsx";\n`);
+  writeFileSync(join(__dirname, ".__entry.jsx"), `export { ReviewScreen, default as Wizard } from "./ContactImportWizard.jsx";\n`);
   await esbuild.build({
     entryPoints: [join(__dirname, ".__entry.jsx")],
     outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
@@ -49,108 +47,148 @@ before(async () => {
   });
   rmSync(join(__dirname, ".__entry.jsx"), { force: true });
 
-  // 2) Real DOM via jsdom, wired as globals BEFORE react-dom loads.
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "http://localhost/" });
+  const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   const { window } = dom;
   globalThis.window = window; globalThis.document = window.document;
   globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.getComputedStyle = window.getComputedStyle;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-  // 3) Real React 19 + react-dom/client (resolved from installed node_modules) + the transformed screen.
   React = (await import("react")).default;
   act = React.act;
   ({ createRoot } = await import("react-dom/client"));
-  ({ ReviewScreen } = await import(pathToFileURL(BUNDLE).href));
+  ({ ReviewScreen, Wizard } = await import(pathToFileURL(BUNDLE).href));
 });
 after(() => { try { rmSync(BUNDLE, { force: true }); rmSync(join(__dirname, ".__entry.jsx"), { force: true }); } catch { /* ignore */ } });
 
-// Set a <select>/<input> value the way the browser does, then fire the native change event React listens for.
 function fireChange(el, value) {
   const proto = el.tagName === "SELECT" ? window.HTMLSelectElement.prototype : window.HTMLInputElement.prototype;
   Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value);
   el.dispatchEvent(new window.Event("change", { bubbles: true }));
 }
-const q = (sel) => document.querySelector(sel);
+const fireClick = (el) => el.dispatchEvent(new window.Event("click", { bubbles: true }));
 const tid = (t) => document.querySelector(`[data-testid="${t}"]`);
 const optionValues = (sel) => [...sel.options].map((o) => o.value);
+const btnByText = (re) => [...document.querySelectorAll("button")].find((b) => re.test(b.textContent));
 
-// A stateful harness that owns reviewState exactly like the wizard does.
+function row(i, o = {}) {
+  const __raw = o.bday != null ? { B: o.bday } : {};
+  const __map = o.bday != null ? { birthday: "B" } : {};
+  return { contact: { fullName: o.name ?? "Person " + i, email: o.email ?? `p${i}@x.co`, relationship: o.relationship ?? "", recipientType: o.recipientType ?? "" }, index: i, __raw, __map };
+}
+// Mount ReviewScreen with a real, wizard-shaped stateful harness.
 function mount(rows, opts = {}) {
-  document.body.innerHTML = "";                          // isolate: no stale tree for querySelector
-  const container = document.createElement("div");      // fresh root each mount
+  document.body.innerHTML = "";
+  const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
   function Harness() {
-    const [st, setSt] = React.useState(() => freshReviewState({ business: !!opts.business, kind: opts.kind || null }));
+    const [st, setSt] = React.useState(() => freshReviewState({ business: !!opts.business, kind: opts.kind || null, existingEmails: opts.existingEmails || [], todayIso: TODAY }));
     return React.createElement(ReviewScreen, {
       rows, state: st, setState: setSt, business: !!opts.business, demo: !!opts.demo, busy: false,
-      skipped: 0, onCommit() {}, onStartOver() {},
+      onCommit: opts.onCommit || (() => {}), onStartOver: opts.onStartOver || (() => {}),
     });
   }
-  return { root, render: async () => { await act(async () => { root.render(React.createElement(Harness)); }); } };
+  return { render: async () => { await act(async () => { root.render(React.createElement(Harness)); }); } };
 }
-const row = (i, o = {}) => ({ contact: { fullName: o.name ?? "Person " + i, email: o.email ?? `p${i}@x.co`, relationship: o.relationship ?? "", recipientType: o.recipientType ?? "" }, index: i, __raw: {}, __map: {}, duplicate: o.dup ?? null });
+async function mountWizard() {
+  document.body.innerHTML = "";
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  await act(async () => { root.render(React.createElement(Wizard)); });
+}
 
-test("pointer: group→relation dependency, all three values persist, card stays mounted, Save&next + Back", async () => {
-  const rows = [row(0, { relationship: "bestie" }), row(1, { relationship: "amigo" })]; // two attention cards
-  const h = mount(rows, {});
-  await h.render();
-
-  // the active card shows the three controls
-  assert.ok(tid("attention-card"), "attention card mounted");
-  assert.ok(tid("group-select") && tid("relation-select") && tid("closeness-select"), "all three controls present");
-  assert.equal(tid("closeness-select").value, "greetme_worthy", "Greet-Me Worthy preselected");
-
-  // 1) open the group dropdown and select "friend" by pointer → relation options must update
-  await act(async () => fireChange(tid("group-select"), "friend"));
-  const relOpts = optionValues(tid("relation-select"));
-  assert.ok(relOpts.includes("close_friend") && relOpts.includes("neighbor"), "relation options followed the group");
-  assert.ok(!relOpts.includes("sibling"), "family relations are not offered under friend");
-
-  // 2) select a relation, 3) change closeness
-  await act(async () => fireChange(tid("relation-select"), "close_friend"));
-  await act(async () => fireChange(tid("closeness-select"), "inner_circle"));
-
-  // all three values remain displayed AND the row is still mounted (the original defect)
-  assert.equal(tid("group-select").value, "friend");
-  assert.equal(tid("relation-select").value, "close_friend");
-  assert.equal(tid("closeness-select").value, "inner_circle");
-  assert.ok(tid("attention-card"), "card did NOT unmount after resolving");
-
-  // keyboard reachability — the control is focusable and not disabled
-  tid("group-select").focus();
-  assert.equal(document.activeElement, tid("group-select"), "group select is keyboard-focusable");
-  assert.equal(tid("relation-select").disabled, false);
-
-  // 4) Save & next advances to the second card
-  await act(async () => tid("save-next").dispatchEvent(new window.Event("click", { bubbles: true })));
-  assert.match(q('[data-testid="attention-card"]').textContent, /Contact 2 of 2/, "advanced one card");
-
-  // 5) Back restores the first card AND its saved selections
-  const backBtn = [...document.querySelectorAll("button")].find((b) => /Back/.test(b.textContent));
-  await act(async () => backBtn.dispatchEvent(new window.Event("click", { bubbles: true })));
-  assert.match(tid("attention-card").textContent, /Contact 1 of 2/, "returned to the first card");
-  assert.equal(tid("group-select").value, "friend", "selection preserved after Back");
-  assert.equal(tid("relation-select").value, "close_friend");
-  assert.equal(tid("closeness-select").value, "inner_circle");
+test("clean file → confirmation screen with one primary 'Add X contacts'; no quick-fix, no walkthrough", async () => {
+  await mount([row(0), row(1, { relationship: "sibling" })], {}).render();
+  assert.ok(tid("confirm-screen"), "confirmation screen shown");
+  assert.equal(tid("quickfix"), null, "no quick-fix for a clean file");
+  assert.equal(tid("details-screen"), null, "no mandatory relationship editor");
+  assert.match(tid("add-cta").textContent, /Add 2 contacts/);
 });
 
-test("mobile width: the three controls still render (no width-based unmount)", async () => {
+test("inline email fix revalidates immediately (quick-fix → ready)", async () => {
+  await mount([row(0), row(1, { email: "broken@" })], {}).render();
+  assert.ok(tid("quickfix"), "the broken-email row is a quick fix");
+  assert.match(tid("add-cta").textContent, /Add 1 contact/);
+  await act(async () => fireChange(tid("fix-email-input"), "fixed@x.co"));
+  assert.equal(tid("quickfix"), null, "row cleared the quick-fix after a valid email");
+  assert.match(tid("add-cta").textContent, /Add 2 contacts/);
+});
+
+test("under-13 birthday is blocked; correcting the date re-runs validation", async () => {
+  await mount([row(0, { email: "kid@x.co", bday: "2018-01-01" })], {}).render();
+  assert.ok(tid("fix-birthday-input"), "minor row offers a birthday fix");
+  assert.match(tid("add-cta").textContent, /Add 0 contacts/);
+  await act(async () => fireChange(tid("fix-birthday-input"), "1990-01-01"));
+  assert.equal(tid("quickfix"), null);
+  assert.match(tid("add-cta").textContent, /Add 1 contact/);
+});
+
+test("fixing a bad email to an EXISTING recipient revalidates AND re-dedups (stays out of the import)", async () => {
+  // row 0 valid; row 1 has a broken email and the user 'fixes' it to an address already in their list.
+  await mount([row(0), row(1, { email: "broken@" })], { existingEmails: ["taken@x.co"] }).render();
+  assert.match(tid("add-cta").textContent, /Add 1 contact/);        // only row 0 so far
+  await act(async () => fireChange(tid("fix-email-input"), "taken@x.co"));
+  assert.equal(tid("quickfix"), null, "the email is now valid → leaves the quick-fix");
+  assert.match(tid("add-cta").textContent, /Add 1 contact/, "but it's already in the list → NOT added");
+  assert.match(document.body.textContent, /already in your list/);
+});
+
+test("optional relationship editor: opens on request, group→relation dependency, returns to confirm", async () => {
+  await mount([row(0, { name: "Morgan", relationship: "" })], {}).render();
+  assert.ok(tid("details-cta"), "quiet optional CTA present");
+  await act(async () => fireClick(tid("details-cta")));
+  assert.ok(tid("details-screen"), "relationship editor opened only on request");
+  assert.ok(tid("group-select") && tid("relation-select") && tid("closeness-select"));
+  assert.equal(tid("closeness-select").value, "greetme_worthy");   // Greet-Me Worthy preselected
+  await act(async () => fireChange(tid("group-select"), "friend"));
+  const rel = optionValues(tid("relation-select"));
+  assert.ok(rel.includes("close_friend") && !rel.includes("sibling"), "relation options follow the group");
+  await act(async () => fireChange(tid("relation-select"), "close_friend"));
+  assert.equal(tid("relation-select").value, "close_friend");
+  await act(async () => fireClick(tid("details-done")));
+  assert.ok(tid("confirm-screen"), "returned to confirmation");
+});
+
+test("Universal unknown audience is a required quick fix; choosing resolves it", async () => {
+  await mount([row(0, { recipientType: "contractor" })], { business: true, kind: "mixed" }).render();
+  assert.ok(tid("fix-audience-select"), "required audience choice present");
+  assert.match(tid("add-cta").textContent, /Continue with 0 contacts/);
+  await act(async () => fireChange(tid("fix-audience-select"), "client"));
+  assert.equal(tid("quickfix"), null);
+  assert.match(tid("add-cta").textContent, /Continue with 1 contact/);
+});
+
+test("Start Over on the confirmation screen is a keyboard-operable button that fires the handler", async () => {
+  let fired = 0;
+  await mount([row(0)], { onStartOver: () => { fired += 1; } }).render();
+  const so = tid("startover");
+  assert.equal(so.tagName, "BUTTON", "native button → keyboard operable");
+  so.focus();
+  assert.equal(document.activeElement, so, "focusable");
+  await act(async () => fireClick(so));
+  assert.equal(fired, 1);
+});
+
+test("FULL wizard: Start Over from the Upload screen returns to Individual/Business selection", async () => {
+  await mountWizard();
+  assert.match(document.body.textContent, /How would you like to import\?/);
+  const individual = btnByText(/^Individual/);
+  await act(async () => fireClick(individual));
+  assert.match(document.body.textContent, /Choose a \.csv file/, "reached the Upload screen");
+  const startOver = btnByText(/Start over/);
+  assert.equal(startOver.tagName, "BUTTON");
+  startOver.focus();
+  assert.equal(document.activeElement, startOver, "Start Over is keyboard-focusable");
+  await act(async () => fireClick(startOver));
+  assert.match(document.body.textContent, /How would you like to import\?/, "Start Over returned to the selection screen");
+  assert.equal(document.body.textContent.includes("Choose a .csv file"), false);
+});
+
+test("mobile width: the confirmation screen still renders", async () => {
   Object.defineProperty(window, "innerWidth", { value: 375, configurable: true });
   window.dispatchEvent(new window.Event("resize"));
-  const h = mount([row(0, { relationship: "bestie" })], {});
-  await h.render();
-  assert.ok(tid("group-select") && tid("relation-select") && tid("closeness-select"), "all three controls render at 375px");
-  assert.ok(tid("attention-card"));
-});
-
-test("Universal: audience control appears above the relationship controls and gates Save&next", async () => {
-  const rows = [row(0, { recipientType: "contractor" })];
-  const h = mount(rows, { business: true, kind: "mixed" });
-  await h.render();
-  assert.ok(tid("audience-select"), "required audience control present");
-  assert.equal(tid("save-next").disabled, true, "Save & next blocked until the audience is chosen");
-  await act(async () => fireChange(tid("audience-select"), "client"));
-  assert.equal(tid("save-next").disabled, false, "resolving the audience unblocks Save & next");
+  await mount([row(0), row(1, { email: "bad@" })], {}).render();
+  assert.ok(tid("confirm-screen") && tid("add-cta") && tid("quickfix"));
 });
