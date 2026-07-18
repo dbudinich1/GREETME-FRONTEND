@@ -10,6 +10,7 @@ import { Heart, User, Mail, Info, Plus, Camera, X, Gift, ChevronDown, ChevronUp,
 import { useAuth } from '../context/AuthContext';
 import { showManualToast } from '../utils/notify';
 import { COMMS_CATEGORIES } from '../utils/commsCatalog';
+import { relationshipErrors, sanitizeRelationshipForSave } from './contactFormValidation.js';
 import { getErrorMessage } from '../utils/errorMessages';
 import { formatPersonName } from '../utils/formatPersonName';
 import api from '../api/api';
@@ -395,16 +396,10 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
       newErrors.email = 'Invalid email format';
     }
 
-    // Check for relationship category, role, and closeness
-    if (!formData.relationshipCategory) {
-      newErrors.relationship = 'Please select a relationship category';
-    } else if (!formData.relationship) {
-      newErrors.relationship = 'Please select a specific relationship';
-    }
-
-    if (!formData.relationshipCloseness) {
-      newErrors.relationshipCloseness = 'Please select relationship closeness';
-    }
+    // Relationship is OPTIONAL (guarded): a fully blank relationship is valid so an imported
+    // blank-relationship contact can save unrelated edits. Once a group or specific relationship is
+    // started, the pair + closeness become required. Closeness-alone is stripped on save (never persisted).
+    Object.assign(newErrors, relationshipErrors(formData));
 
     // Validate that all selected occasions have dates
     if (formData.occasions && formData.occasions.length > 0) {
@@ -425,7 +420,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
 
     setSubmitting(true);
     try {
-      await onSubmit(formData);
+      await onSubmit(sanitizeRelationshipForSave(formData));
       // Clear draft on successful submission
       clearFormDraft();
       // Show saved toast
@@ -628,8 +623,9 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               color: 'var(--text-secondary)',
               marginBottom: '0.375rem'
             }}>
-              Type <span style={{ color: '#ef4444' }}>*</span>
+              Type <span style={{ fontWeight: 400, color: 'var(--text-tertiary)' }}>(optional)</span>
             </label>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '-0.125rem 0 0.5rem' }}>Optional — add this to help Greet-Me personalize greetings.</p>
             <select
               name="relationshipCategory"
               value={formData.relationshipCategory || ''}
@@ -761,7 +757,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               color: 'var(--text-secondary)',
               marginBottom: '0.375rem'
             }}>
-              Description <span style={{ color: '#ef4444' }}>*</span>
+              Description <span style={{ fontWeight: 400, color: 'var(--text-tertiary)' }}>(optional)</span>
             </label>
             <select
               name="relationshipCloseness"
