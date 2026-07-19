@@ -226,14 +226,12 @@ test("org context never comes from user.id / useAuth", () => {
   assert.ok(!/user\??\.id/.test(WIZ));
   assert.ok(!/useAuth/.test(WIZ));
 });
-test("entry has EXACTLY two premium path panels wired to the unchanged routes", () => {
-  // whole-panel buttons still call pickMode() — routing/mechanics unchanged
-  assert.match(WIZ, /panel-personal[\s\S]*?onClick=\{\(\) => pickMode\(MODES\.PERSONAL\)\}/);
-  assert.match(WIZ, /panel-business[\s\S]*?onClick=\{\(\) => pickMode\(MODES\.CORPORATE\)\}/);
-  assert.equal((WIZ.match(/onClick=\{\(\) => pickMode\(MODES\.(PERSONAL|CORPORATE)\)\}/g) || []).length, 2);
-  // exactly two panels, each a semantic button
+test("Screen 1: two premium path panels; Personal opens Screen 2, Business keeps the existing route", () => {
+  assert.match(WIZ, /panel-personal[\s\S]*?onClick=\{\(\) => setEntryView\("group"\)\}/);       // Personal → Screen 2
+  assert.match(WIZ, /panel-business[\s\S]*?onClick=\{\(\) => pickMode\(MODES\.CORPORATE\)\}/);   // Business → existing flow
   assert.equal((WIZ.match(/data-testid="panel-(personal|business)"/g) || []).length, 2);
-  assert.equal((WIZ.match(/className="gmiw-panel"/g) || []).length, 2);
+  // entering the Individual flow still goes through the unchanged pickMode(PERSONAL) — only via Screen 2
+  assert.match(WIZ, /choosePersonalGroup = \(group\) => \{[\s\S]*?pickMode\(MODES\.PERSONAL\)/);
 });
 test("Business has the four recipient types; dormant corporate is truthful", () => {
   assert.match(WIZ, /Employees \/ Personnel/);
@@ -319,4 +317,48 @@ test("no wizard mechanics changed by the visual screen (still one importer, dedu
   assert.match(WIZ, /classifyCommitOutcome\(res\)/);
   assert.match(WIZ, /existingEmailsFromResponse/);
   assert.match(WIZ, /buildReviewPayload\(rows, reviewState\)/);
+});
+
+// ---- Screen 2 — Personal relationship group (Family / Friends / Professional) ----
+test("Screen 2 banner + heading exact copy", () => {
+  assert.match(WIZ, /eyebrow="PERSONAL RELATIONSHIPS"/);
+  assert.match(WIZ, /Who Are You Importing\?/);
+  // reuses the same premium banner/underlay language (Greet-Me title + tagline live in Shell)
+  assert.match(WIZ, /entryView === "group"/);
+});
+test("Screen 2 has EXACTLY Family, Friends, Professional with exact copy + CTAs", () => {
+  assert.match(WIZ, /value: "family", title: "Family", copy: "Parents, children, siblings, partners, and extended family\.", cta: "CHOOSE FAMILY →"/);
+  assert.match(WIZ, /value: "friend", title: "Friends", copy: "Best friends, neighbors, teammates, and classmates\.", cta: "CHOOSE FRIENDS →"/);
+  assert.match(WIZ, /value: "professional", title: "Professional", copy: "Colleagues, mentors, and work connections important to you\.", cta: "CHOOSE PROFESSIONAL →"/);
+  assert.equal((WIZ.match(/value: "(family|friend|professional)",/g) || []).length, 3);
+  assert.match(WIZ, /gmiw-panels--three/);                       // three side-by-side on desktop
+  assert.match(WIZ, /Icon: HomeIcon/); assert.match(WIZ, /Icon: HeartIcon/); assert.match(WIZ, /Icon: BriefcaseIcon/);
+});
+test("Screen 2 selection stores context only (no invented data) and enters the unchanged Individual flow", () => {
+  // choosePersonalGroup sets context + pickMode(PERSONAL); it does NOT set a relationship or recipientType
+  assert.match(WIZ, /choosePersonalGroup = \(group\) => \{ setPersonalGroup\(group\); setEntryView\("path"\); pickMode\(MODES\.PERSONAL\); \}/);
+  assert.ok(!/setPersonalGroup[\s\S]{0,80}relationshipCategory/.test(WIZ), "group never becomes a relationship category");
+  // personalGroup is not threaded into the payload/model (context only)
+  assert.ok(!/freshReviewState\([^)]*personalGroup/.test(WIZ));
+  assert.ok(!/buildReviewPayload\([^)]*personalGroup/.test(WIZ));
+});
+test("Screen 2 Back + upload Change + Start-Over clear/route correctly", () => {
+  assert.match(WIZ, /← Back to Personal or Business/);
+  assert.match(WIZ, /backToPath = \(\) => \{ setEntryView\("path"\); setPersonalGroup\(null\); \}/);
+  assert.match(WIZ, /change-group/);
+  assert.match(WIZ, /changePersonalGroup = \(\) => \{[\s\S]*?setEntryView\("group"\)/);
+  assert.match(WIZ, /setEntryView\("path"\); setPersonalGroup\(null\);\s*\/\/ back to Screen 1/);   // startOver clears context
+});
+test("upload screen reflects the chosen Personal group + Change link (no upload/review redesign)", () => {
+  assert.match(WIZ, /upload-context/);
+  assert.match(WIZ, /Import Family Contacts/);
+  assert.match(WIZ, /Import Friends/);
+  assert.match(WIZ, /Import Professional Relationships/);
+  assert.match(WIZ, /personalGroupMeta && \(/);
+});
+test("Personal Professional stays Individual (recipientType blank) — never the Business Wizard", () => {
+  // Professional group → pickMode(PERSONAL) (individual), so applyRecipientTypes/boundary keeps recipientType ""
+  const payload = buildReviewPayload([{ contact: { fullName: "P", email: "p@x.co", recipientType: "vendor" }, index: 0, __raw: {}, __map: {} }],
+    freshReviewState({ business: false, kind: null, todayIso: TODAY }));
+  assert.equal(payload[0].recipientType, "");
 });

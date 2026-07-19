@@ -108,7 +108,11 @@ async function mountWizard() {
   const container = document.createElement("div"); document.body.appendChild(container);
   await act(async () => { createRoot(container).render(React.createElement(Wizard)); });
 }
-const goIndividual = async () => { await act(async () => fireClick(tid("panel-personal"))); };
+// Personal path is now two entry screens: Screen 1 (Personal) → Screen 2 (choose a group) → upload.
+const goIndividual = async (group = "family") => {
+  await act(async () => fireClick(tid("panel-personal")));   // Screen 1 → Screen 2
+  await act(async () => fireClick(tid(`panel-${group}`)));    // Screen 2 → Individual upload (group context)
+};
 const CSV2 = "Name,Email\nAda,ada@x.co\nBo,bo@x.co";
 
 // ---------- SAMPLE (individual) ----------
@@ -267,22 +271,74 @@ test("entry: exactly two semantic path-panel buttons with full accessible names"
   assert.match(p.getAttribute("aria-label"), /Personal Relationships — Family, friends/);
   assert.match(b.getAttribute("aria-label"), /Business Relationships — Employees, clients/);
 });
-test("the WHOLE Personal panel is focusable and activates the Personal flow (pointer)", async () => {
+test("the WHOLE Personal panel is focusable and opens Screen 2 (pointer)", async () => {
   await mountWizard();
   const p = tid("panel-personal");
   p.focus(); assert.equal(document.activeElement, p, "panel is keyboard-focusable");
-  // click on a child (the medallion) — the whole panel activates (event bubbles to the button)
-  const medallion = p.querySelector(".gmiw-medallion") || p;
+  const medallion = p.querySelector(".gmiw-medallion") || p;    // click a child → whole panel activates
   await act(async () => fireClick(medallion));
   await flush();
-  assert.match(txt(), /Choose a \.csv file/, "Personal panel routed to the Individual upload flow");
-  assert.equal(tid("panel-personal"), null, "left the selection screen");
+  assert.ok(tid("group-panels"), "Personal opened Screen 2 (relationship group)");
+  assert.match(txt(), /Who Are You Importing\?/);
+  assert.match(txt(), /PERSONAL RELATIONSHIPS/);
 });
-test("the WHOLE Business panel activates the Business flow", async () => {
+test("the WHOLE Business panel activates the Business flow (skips Screen 2)", async () => {
   await mountWizard();
   const b = tid("panel-business");
   await act(async () => fireClick(b.querySelector(".gmiw-panel-title") || b));
   await flush();
   assert.equal(tid("panel-personal"), null, "left the selection screen");
+  assert.equal(tid("group-panels"), null, "Business does NOT open the Personal group screen");
   assert.equal(tid("sample-upload-own"), null, "Business did not open the Individual sample bar");
+});
+
+// ---------- Screen 2 — Personal relationship group ----------
+test("Screen 2 has exactly Family/Friends/Professional; each routes to the upload with its context", async () => {
+  const cases = [["family", "Import Family Contacts"], ["friend", "Import Friends"], ["professional", "Import Professional Relationships"]];
+  await mountWizard(); await act(async () => fireClick(tid("panel-personal")));
+  assert.equal(document.querySelectorAll('[data-testid="group-panels"] [data-testid^="panel-"]').length, 3);
+  for (const [g, heading] of cases) {
+    await mountWizard();
+    await act(async () => fireClick(tid("panel-personal")));
+    const gp = tid(`panel-${g}`);
+    assert.equal(gp.tagName, "BUTTON");
+    gp.focus(); assert.equal(document.activeElement, gp, `${g} panel focusable`);
+    await act(async () => fireClick(gp.querySelector(".gmiw-panel-title") || gp));   // whole panel
+    await flush();
+    assert.match(txt(), /Choose a \.csv file/, `${g} → Individual upload`);
+    assert.ok(tid("upload-context"), `${g} shows the group context`);
+    assert.match(txt(), new RegExp(heading), `${g} heading`);
+    assert.ok(tid("change-group"), "Change link present");
+  }
+});
+test("Screen 2 Back returns to Screen 1; upload Change returns to Screen 2; Start Over clears context", async () => {
+  await mountWizard(); await act(async () => fireClick(tid("panel-personal")));
+  await act(async () => fireClick(tid("back-to-path")));
+  assert.match(txt(), /Import Those Important to You/);
+  assert.ok(tid("panel-personal") && tid("panel-business"), "back to Screen 1");
+  // Change from upload → Screen 2
+  await mountWizard(); await goIndividual("friend");
+  await act(async () => fireClick(tid("change-group")));
+  assert.ok(tid("group-panels"), "Change returned to Screen 2");
+  // Start Over from upload clears the Personal context → Screen 1 (no upload-context on re-entry)
+  await mountWizard(); await goIndividual("family");
+  await act(async () => fireClick(btnByText(/Start over/)));    // Shell "← Start over" on the upload screen
+  assert.match(txt(), /Import Those Important to You/);
+  await act(async () => fireClick(tid("panel-personal")));
+  await act(async () => fireClick(tid("panel-professional")));
+  await flush();
+  assert.match(txt(), /Import Professional Relationships/, "fresh context after Start Over (no stale Family)");
+});
+test("real import through a Personal group still navigates to Recipients (mechanics intact)", async () => {
+  await mountWizard();
+  globalThis.__getContacts = () => ({ data: [] });
+  globalThis.__importContacts = (c) => ({ data: { imported: c.length, failed: 0, errors: [] } });
+  await goIndividual("professional");
+  await uploadCsv(CSV2);
+  assert.match(tid("add-cta").textContent, /Add 2 contacts/);
+  await act(async () => fireClick(tid("add-cta")));
+  await flush();
+  assert.equal(globalThis.__nav, "/dashboard/contacts");
+  // Personal Professional stays individual — payload carried no business recipientType
+  assert.ok((globalThis.__lastImport || []).every((c) => c.recipientType === ""));
 });

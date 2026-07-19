@@ -72,6 +72,11 @@ export default function ContactImportWizard() {
   // Partial real-import outcome ({added, failed}) — keeps the user on the combined screen (never a
   // false "complete success"). null = no partial result to show.
   const [partial, setPartial] = useState(null);
+  // Entry navigation: "path" = Screen 1 (Personal/Business), "group" = Screen 2 (Personal group).
+  // personalGroup is UI CONTEXT ONLY — it NEVER becomes relationship data, a structured category,
+  // or a business type; it only tailors the upload heading (and, later, sample/editor scoping).
+  const [entryView, setEntryView] = useState("path");
+  const [personalGroup, setPersonalGroup] = useState(null);
   // The single Review state (relationship/audience choices, removals, description default). It is
   // reset — never carried — whenever a new file/kind/path is chosen.
   const [reviewState, setReviewState] = useState(() => freshReviewState({ business: false, kind: null }));
@@ -269,11 +274,17 @@ export default function ContactImportWizard() {
     setMode(null); setRecipientKind(null); setMembershipResult(null); setSelectedOrgId(null);
     setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setSummary(null); setPartial(null);
     setError(null); setBusy(false); setReviewState(freshReviewState({ business: false, kind: null }));
+    setEntryView("path"); setPersonalGroup(null);        // back to Screen 1, no stale Personal context
   };
   const exitSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); };
   const deleteAllSample = exitSample;   // both clear the session-scoped sample data
   // From an INDIVIDUAL sample, swap to a real Individual upload (clears the sample, keeps the path).
   const uploadOwnFromSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setError(null); setPartial(null); setMode(MODES.PERSONAL); resetReview(false, null); };
+  // Screen 2: choose a Personal relationship GROUP → store context only, then continue to the existing
+  // Individual upload/sample screen (mode = personal). Never persists a relationship or a business type.
+  const choosePersonalGroup = (group) => { setPersonalGroup(group); setEntryView("path"); pickMode(MODES.PERSONAL); };
+  const backToPath = () => { setEntryView("path"); setPersonalGroup(null); };   // Screen 2 → Screen 1
+  const changePersonalGroup = () => { setMode(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setEntryView("group"); };   // upload → Screen 2
 
   // ---------- render ----------
   // Session-scoped Sample Recipients (completed or resumed) — read-only presentation.
@@ -283,6 +294,34 @@ export default function ContactImportWizard() {
   // Canonical entry — EXACTLY two primary paths (premium path-selection screen). Routing is unchanged:
   // each whole panel calls pickMode() exactly as the old CTAs did.
   if (!mode && !sample) {
+    // SCREEN 2 — Personal relationship group (Family / Friends / Professional).
+    if (entryView === "group") {
+      return (
+        <Shell eyebrow="PERSONAL RELATIONSHIPS">
+          <h2 className="gmiw-heading">Who Are You Importing?</h2>
+          <div className="gmiw-panels gmiw-panels--three" data-testid="group-panels">
+            {PERSONAL_GROUPS.map((g) => {
+              const Icon = g.Icon;
+              return (
+                <button
+                  type="button" className="gmiw-panel" data-testid={`panel-${g.value}`} key={g.value}
+                  aria-label={`${g.title} — ${g.copy}`} onClick={() => choosePersonalGroup(g.value)}
+                >
+                  <span className={`gmiw-medallion ${g.medallion}`} aria-hidden="true"><Icon /></span>
+                  <span className="gmiw-panel-title">{g.title}</span>
+                  <span className="gmiw-panel-copy">{g.copy}</span>
+                  <span className="gmiw-cta">{g.cta}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ textAlign: "center", marginTop: 18 }}>
+            <button type="button" data-testid="back-to-path" style={{ ...btn("transparent", "#5a3fb0"), background: "rgba(255,255,255,.7)" }} onClick={backToPath}>← Back to Personal or Business</button>
+          </div>
+        </Shell>
+      );
+    }
+    // SCREEN 1 — Import path (Personal / Business).
     return (
       <Shell>
         <h2 className="gmiw-heading">Import Those Important to You</h2>
@@ -290,7 +329,7 @@ export default function ContactImportWizard() {
           <button
             type="button" className="gmiw-panel" data-testid="panel-personal"
             aria-label="Personal Relationships — Family, friends, and whoever is important to you"
-            onClick={() => pickMode(MODES.PERSONAL)}
+            onClick={() => setEntryView("group")}
           >
             <span className="gmiw-medallion" aria-hidden="true"><HeartIcon /></span>
             <span className="gmiw-panel-title">Personal Relationships</span>
@@ -388,6 +427,8 @@ export default function ContactImportWizard() {
   const business = mode === MODES.CORPORATE;
   const kindLabel = (RECIPIENT_KINDS.find((k) => k.value === recipientKind) || {}).label;
   const templateKind = business ? (recipientKind || "employee") : "individual";
+  // Personal-group upload context (label only — no data implication).
+  const personalGroupMeta = PERSONAL_GROUPS.find((g) => g.value === personalGroup) || null;
   const onCommit = sample ? commitSample : (business ? commitCorporate : commitPersonal);
   // Individual sample is terminal on the combined screen — it carries its own action bar (no commit CTA,
   // no separate "View sample recipients" screen). Business sample keeps its existing commit path.
@@ -406,6 +447,12 @@ export default function ContactImportWizard() {
       {/* Entry — CSV upload + downloadable sample CSV + "Try the sample" (inside every path). */}
       {!rows && !summary && (
         <div style={{ display: "grid", gap: 12 }}>
+          {!business && personalGroupMeta && (
+            <div data-testid="upload-context" style={{ ...card, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "12px 16px" }}>
+              <b style={{ fontFamily: "Georgia,serif", fontSize: "1.05rem" }}>{personalGroupMeta.uploadHeading}</b>
+              <button data-testid="change-group" style={{ ...btn("transparent", "#4a3fb0"), padding: "4px 10px", fontSize: ".78rem" }} onClick={changePersonalGroup}>Change</button>
+            </div>
+          )}
           <label style={{ ...card, display: "block", textAlign: "center", cursor: "pointer", borderStyle: "dashed" }}>
             <b>Choose a .csv file{kindLabel ? ` · ${kindLabel}` : ""}</b><div style={sub}>Only a name and a valid email are required. Everything else is optional — you can review before importing.</div>
             <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onFile(e.target.files[0])} />
@@ -436,7 +483,7 @@ const sub = { fontSize: ".8rem", color: "#605c78", marginTop: 4 };
 const muted = { color: "#605c78" };
 const selStyle = { padding: "7px 10px", borderRadius: 9, border: "1px solid rgba(27,24,48,.18)", fontSize: ".82rem", background: "#fff" };
 
-function Shell({ children, back }) {
+function Shell({ children, back, eyebrow = "A PREMIUM GREET-ME EXPERIENCE" }) {
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: 12 }}>
       <PremiumStyles />
@@ -444,7 +491,7 @@ function Shell({ children, back }) {
         <div className="gmiw-surface">
           <header className="gmiw-banner">
             <span className="gmiw-wand" data-testid="wand-icon" aria-hidden="true"><WandSparkles /></span>
-            <div className="gmiw-eyebrow">A PREMIUM GREET-ME EXPERIENCE</div>
+            <div className="gmiw-eyebrow">{eyebrow}</div>
             <h1 className="gmiw-title">Greet-Me™ Import Wizard</h1>
             <div className="gmiw-tagline">Forget Them Not!</div>
           </header>
@@ -477,6 +524,7 @@ function PremiumStyles() {
       .gmiw-heading{ text-align:center; font-family:Georgia,'Times New Roman',serif; font-weight:600; color:#382a52;
         font-size:1.95rem; margin:28px 0 22px; text-wrap:balance; }
       .gmiw-panels{ display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:stretch; }
+      .gmiw-panels--three{ grid-template-columns:1fr 1fr 1fr; }
       .gmiw-panel{ display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px;
         min-height:230px; padding:32px 24px; cursor:pointer; color:#2c2140; font-family:inherit; border-radius:24px;
         border:2px solid #b98fd6; background:linear-gradient(160deg,#f7f0ff 0%,#fdeef7 100%);
@@ -487,6 +535,7 @@ function PremiumStyles() {
       .gmiw-medallion{ width:78px; height:78px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff;
         background:radial-gradient(circle at 32% 30%,#8a5fd0,#5b3a9e); box-shadow:0 10px 20px -8px rgba(70,30,120,.7); }
       .gmiw-medallion--plum{ background:radial-gradient(circle at 32% 30%,#a552a3,#6d2d6d); }
+      .gmiw-medallion--rose{ background:radial-gradient(circle at 32% 30%,#cf6aa2,#8e2f66); }
       .gmiw-panel-title{ font-size:1.28rem; font-weight:800; letter-spacing:-.01em; }
       .gmiw-panel-copy{ color:#5a5170; font-size:.95rem; max-width:28ch; line-height:1.5; }
       .gmiw-cta{ margin-top:4px; font-weight:800; letter-spacing:.09em; font-size:.82rem; color:#6b3fa0; }
@@ -495,7 +544,7 @@ function PremiumStyles() {
         .gmiw-underlay{ padding:14px; border-radius:22px; } .gmiw-surface{ padding:16px; }
         .gmiw-banner{ padding:22px 20px; } .gmiw-wand{ display:none; }
         .gmiw-title{ font-size:1.5rem; } .gmiw-heading{ font-size:1.5rem; margin:22px 0 18px; }
-        .gmiw-panels{ grid-template-columns:1fr; } .gmiw-panel{ min-height:0; padding:26px 20px; }
+        .gmiw-panels, .gmiw-panels--three{ grid-template-columns:1fr; } .gmiw-panel{ min-height:0; padding:26px 20px; }
       }
     `}</style>
   );
@@ -527,6 +576,20 @@ function BriefcaseIcon() {
     </svg>
   );
 }
+function HomeIcon() {
+  return (
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" role="img" aria-hidden="true">
+      <path d="M3 11l9-7 9 7" /><path d="M5 10v9h14v-9" /><path d="M10 19v-5h4v5" />
+    </svg>
+  );
+}
+// Screen 2 — Personal relationship GROUPS. `value` is UI context only (never a persisted relationship
+// or a recipientType). `uploadHeading` tailors the existing upload screen; nothing here invents data.
+const PERSONAL_GROUPS = [
+  { value: "family", title: "Family", copy: "Parents, children, siblings, partners, and extended family.", cta: "CHOOSE FAMILY →", medallion: "", Icon: HomeIcon, uploadHeading: "Import Family Contacts" },
+  { value: "friend", title: "Friends", copy: "Best friends, neighbors, teammates, and classmates.", cta: "CHOOSE FRIENDS →", medallion: "gmiw-medallion--rose", Icon: HeartIcon, uploadHeading: "Import Friends" },
+  { value: "professional", title: "Professional", copy: "Colleagues, mentors, and work connections important to you.", cta: "CHOOSE PROFESSIONAL →", medallion: "gmiw-medallion--plum", Icon: BriefcaseIcon, uploadHeading: "Import Professional Relationships" },
+];
 function Empty({ title, body }) {
   return <div style={{ ...card, textAlign: "center" }}><h3 style={{ margin: "0 0 6px", fontFamily: "Georgia,serif" }}>{title}</h3><p style={muted}>{body}</p></div>;
 }
