@@ -1,6 +1,6 @@
 // src/components/importWizard/ContactImportWizard.jsx
 //
-// TEAM A — Contact Import Wizard. Two first-level paths (Individual / Business), then the canonical
+// TEAM A — Greet-Me Import Wizard. Two first-level paths (Individual / Business), then the canonical
 // low-friction flow: Choose/upload CSV → Review contacts → Import. There is NO separate "defaults
 // were applied" decision screen — uploading lands directly on one plain-language Review surface
 // (ReviewScreen) built for a first-time, nontechnical user. Heavy logic lives in tested pure models
@@ -280,15 +280,35 @@ export default function ContactImportWizard() {
   if (sample && sampleContacts.length > 0 && !rows) {
     return <SampleRecipientsView contacts={sampleContacts} onDeleteAll={deleteAllSample} onExit={exitSample} onReturn={returnToRecipients} />;
   }
-  // Canonical entry — EXACTLY two primary paths. Sample/template actions live inside each path.
+  // Canonical entry — EXACTLY two primary paths (premium path-selection screen). Routing is unchanged:
+  // each whole panel calls pickMode() exactly as the old CTAs did.
   if (!mode && !sample) {
     return (
       <Shell>
-        <h2 style={{ fontFamily: "Georgia,serif", fontSize: "1.1rem", margin: "0 0 12px" }}>How would you like to import?</h2>
-        <div style={{ display: "grid", gap: 12 }}>
-          <button style={{ ...card, textAlign: "left", cursor: "pointer" }} onClick={() => pickMode(MODES.PERSONAL)}><b>Individual</b><div style={sub}>Import family, friends, and other people you personally want to remember.</div></button>
-          <button style={{ ...card, textAlign: "left", cursor: "pointer" }} onClick={() => pickMode(MODES.CORPORATE)}><b>Business</b><div style={sub}>Import employees, clients, vendors, or a mixed organization list.</div></button>
+        <h2 className="gmiw-heading">Import Those Important to You</h2>
+        <div className="gmiw-panels" data-testid="path-panels">
+          <button
+            type="button" className="gmiw-panel" data-testid="panel-personal"
+            aria-label="Personal Relationships — Family, friends, and whoever is important to you"
+            onClick={() => pickMode(MODES.PERSONAL)}
+          >
+            <span className="gmiw-medallion" aria-hidden="true"><HeartIcon /></span>
+            <span className="gmiw-panel-title">Personal Relationships</span>
+            <span className="gmiw-panel-copy">Family, friends, and whoever is important to you.</span>
+            <span className="gmiw-cta">CHOOSE PERSONAL →</span>
+          </button>
+          <button
+            type="button" className="gmiw-panel" data-testid="panel-business"
+            aria-label="Business Relationships — Employees, clients, vendors, and professional contacts"
+            onClick={() => pickMode(MODES.CORPORATE)}
+          >
+            <span className="gmiw-medallion gmiw-medallion--plum" aria-hidden="true"><BriefcaseIcon /></span>
+            <span className="gmiw-panel-title">Business Relationships</span>
+            <span className="gmiw-panel-copy">Employees, clients, vendors, and professional contacts.</span>
+            <span className="gmiw-cta">CHOOSE BUSINESS →</span>
+          </button>
         </div>
+        <p className="gmiw-footer">You can return and choose a different path at any time.</p>
       </Shell>
     );
   }
@@ -418,14 +438,93 @@ const selStyle = { padding: "7px 10px", borderRadius: 9, border: "1px solid rgba
 
 function Shell({ children, back }) {
   return (
-    <div style={{ maxWidth: 820, margin: "0 auto" }}>
-      <header style={{ background: PURPLE, color: "#fff", borderRadius: 18, padding: "22px 24px", marginBottom: 18 }}>
-        <div style={{ fontFamily: "monospace", fontSize: ".7rem", letterSpacing: ".14em", opacity: .85, textTransform: "uppercase" }}>Import</div>
-        <h1 style={{ margin: "6px 0 0", fontSize: "1.5rem" }}>Contact Import Wizard</h1>
-      </header>
-      {back && <button style={{ ...btn("transparent", "#4a3fb0"), marginBottom: 12 }} onClick={back}>← Start over</button>}
-      {children}
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: 12 }}>
+      <PremiumStyles />
+      <div className="gmiw-underlay">
+        <div className="gmiw-surface">
+          <header className="gmiw-banner">
+            <span className="gmiw-wand" data-testid="wand-icon" aria-hidden="true"><WandSparkles /></span>
+            <div className="gmiw-eyebrow">A PREMIUM GREET-ME EXPERIENCE</div>
+            <h1 className="gmiw-title">Greet-Me™ Import Wizard</h1>
+            <div className="gmiw-tagline">Forget Them Not!</div>
+          </header>
+          {back && <button style={{ ...btn("transparent", "#5a3fb0"), marginTop: 16, background: "rgba(255,255,255,.7)" }} onClick={back}>← Start over</button>}
+          <div style={{ marginTop: 4 }}>{children}</div>
+        </div>
+      </div>
     </div>
+  );
+}
+
+// ---- Premium Screen-1 visuals (scoped CSS for real hover/focus/active + responsive stacking) ----
+function PremiumStyles() {
+  return (
+    <style>{`
+      .gmiw-underlay{ position:relative; overflow:hidden; border-radius:30px; padding:22px;
+        background:linear-gradient(135deg,#f3e8fb 0%,#fceef6 46%,#efeafc 100%);
+        box-shadow:0 34px 80px -34px rgba(96,52,148,.5); }
+      .gmiw-underlay::before{ content:""; position:absolute; width:240px; height:240px; border-radius:50%;
+        background:radial-gradient(circle,rgba(206,142,222,.35),transparent 70%); top:-84px; right:-56px; }
+      .gmiw-underlay::after{ content:""; position:absolute; width:220px; height:220px; border-radius:50%;
+        background:radial-gradient(circle,rgba(255,206,168,.30),transparent 70%); bottom:-70px; left:-50px; }
+      .gmiw-surface{ position:relative; z-index:1; background:rgba(255,255,255,.85); border-radius:22px; padding:24px; }
+      .gmiw-banner{ position:relative; text-align:center; color:#fff; border-radius:20px; padding:26px 60px;
+        background:linear-gradient(135deg,#6d74ee,#764ba2); box-shadow:0 16px 34px -16px rgba(84,42,124,.65); }
+      .gmiw-wand{ position:absolute; left:26px; top:50%; transform:translateY(-50%); display:inline-flex; }
+      .gmiw-eyebrow{ font-size:.68rem; letter-spacing:.24em; font-weight:800; color:#f2dca6; }
+      .gmiw-title{ margin:.35rem 0 0; font-family:Georgia,'Times New Roman',serif; font-weight:600; font-size:1.95rem; letter-spacing:.01em; text-wrap:balance; }
+      .gmiw-tagline{ margin-top:.25rem; font-family:Georgia,serif; font-style:italic; font-size:1.05rem; color:#f5e7cb; }
+      .gmiw-heading{ text-align:center; font-family:Georgia,'Times New Roman',serif; font-weight:600; color:#382a52;
+        font-size:1.95rem; margin:28px 0 22px; text-wrap:balance; }
+      .gmiw-panels{ display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:stretch; }
+      .gmiw-panel{ display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px;
+        min-height:230px; padding:32px 24px; cursor:pointer; color:#2c2140; font-family:inherit; border-radius:24px;
+        border:2px solid #b98fd6; background:linear-gradient(160deg,#f7f0ff 0%,#fdeef7 100%);
+        box-shadow:0 14px 30px -18px rgba(120,60,160,.55); transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
+      .gmiw-panel:hover{ transform:translateY(-3px); border-color:#8a4fbf; box-shadow:0 22px 44px -18px rgba(120,60,160,.62); }
+      .gmiw-panel:focus-visible{ outline:3px solid #6d74ee; outline-offset:3px; }
+      .gmiw-panel:active{ transform:translateY(-1px) scale(.995); box-shadow:0 12px 24px -16px rgba(120,60,160,.6); }
+      .gmiw-medallion{ width:78px; height:78px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff;
+        background:radial-gradient(circle at 32% 30%,#8a5fd0,#5b3a9e); box-shadow:0 10px 20px -8px rgba(70,30,120,.7); }
+      .gmiw-medallion--plum{ background:radial-gradient(circle at 32% 30%,#a552a3,#6d2d6d); }
+      .gmiw-panel-title{ font-size:1.28rem; font-weight:800; letter-spacing:-.01em; }
+      .gmiw-panel-copy{ color:#5a5170; font-size:.95rem; max-width:28ch; line-height:1.5; }
+      .gmiw-cta{ margin-top:4px; font-weight:800; letter-spacing:.09em; font-size:.82rem; color:#6b3fa0; }
+      .gmiw-footer{ text-align:center; color:#6b6580; font-size:.86rem; margin:22px 0 2px; }
+      @media (max-width:640px){
+        .gmiw-underlay{ padding:14px; border-radius:22px; } .gmiw-surface{ padding:16px; }
+        .gmiw-banner{ padding:22px 20px; } .gmiw-wand{ display:none; }
+        .gmiw-title{ font-size:1.5rem; } .gmiw-heading{ font-size:1.5rem; margin:22px 0 18px; }
+        .gmiw-panels{ grid-template-columns:1fr; } .gmiw-panel{ min-height:0; padding:26px 20px; }
+      }
+    `}</style>
+  );
+}
+function WandSparkles() {
+  return (
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#f2dca6" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" role="img" aria-label="wand and sparkles">
+      <path d="M4 20l9.5-9.5" />
+      <path d="M13 6.5l4.5 4.5" />
+      <path d="M17 3l.9 2.1L20 6l-2.1.9L17 9l-.9-2.1L14 6l2.1-.9z" fill="#f2dca6" stroke="none" />
+      <path d="M7 4l.5 1.3L8.8 5.8 7.5 6.3 7 7.6 6.5 6.3 5.2 5.8 6.5 5.3z" fill="#fff" stroke="none" opacity=".9" />
+      <path d="M20 15l.4 1.1 1.1.4-1.1.4-.4 1.1-.4-1.1-1.1-.4 1.1-.4z" fill="#fff" stroke="none" opacity=".9" />
+    </svg>
+  );
+}
+function HeartIcon() {
+  return (
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="#fff" role="img" aria-hidden="true">
+      <path d="M12 21s-7.5-4.9-10-9.2C.4 8.7 1.9 5 5.3 5c2 0 3.4 1.2 4.2 2.4C10.3 6.2 11.7 5 13.7 5c3.4 0 4.9 3.7 3.3 6.8C19.5 16.1 12 21 12 21z" />
+    </svg>
+  );
+}
+function BriefcaseIcon() {
+  return (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" role="img" aria-hidden="true">
+      <rect x="3" y="7.5" width="18" height="12" rx="2.2" />
+      <path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5" />
+      <path d="M3 12.5h18" />
+    </svg>
   );
 }
 function Empty({ title, body }) {

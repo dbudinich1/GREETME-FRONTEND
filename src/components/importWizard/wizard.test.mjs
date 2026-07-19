@@ -226,10 +226,14 @@ test("org context never comes from user.id / useAuth", () => {
   assert.ok(!/user\??\.id/.test(WIZ));
   assert.ok(!/useAuth/.test(WIZ));
 });
-test("entry contains EXACTLY two primary paths: Individual and Business", () => {
-  assert.match(WIZ, /pickMode\(MODES\.PERSONAL\)\}><b>Individual<\/b>/);
-  assert.match(WIZ, /pickMode\(MODES\.CORPORATE\)\}><b>Business<\/b>/);
+test("entry has EXACTLY two premium path panels wired to the unchanged routes", () => {
+  // whole-panel buttons still call pickMode() — routing/mechanics unchanged
+  assert.match(WIZ, /panel-personal[\s\S]*?onClick=\{\(\) => pickMode\(MODES\.PERSONAL\)\}/);
+  assert.match(WIZ, /panel-business[\s\S]*?onClick=\{\(\) => pickMode\(MODES\.CORPORATE\)\}/);
   assert.equal((WIZ.match(/onClick=\{\(\) => pickMode\(MODES\.(PERSONAL|CORPORATE)\)\}/g) || []).length, 2);
+  // exactly two panels, each a semantic button
+  assert.equal((WIZ.match(/data-testid="panel-(personal|business)"/g) || []).length, 2);
+  assert.equal((WIZ.match(/className="gmiw-panel"/g) || []).length, 2);
 });
 test("Business has the four recipient types; dormant corporate is truthful", () => {
   assert.match(WIZ, /Employees \/ Personnel/);
@@ -265,4 +269,54 @@ test("Sample Workspace: session-scoped, zero API mutations, cleanup", () => {
   assert.match(WIZ, /sample \? commitSample :/);
   const fn = (WIZ.match(/const commitSample = useCallback\(\(\) => \{[\s\S]*?\}, \[sample/) || [""])[0];
   assert.ok(fn.length > 0 && !/api\./.test(fn) && /saveSampleWorkspace\(/.test(fn), "commitSample: no API, sessionStorage only");
+});
+
+// ---- Screen 1 premium visual refinement (path-selection only; no mechanics) ----
+test("premium banner: branded title + tagline + eyebrow + wand; old IMPORT eyebrow removed", () => {
+  assert.match(WIZ, /Greet-Me™ Import Wizard/);                       // 1
+  assert.match(WIZ, /Forget Them Not!/);                              // 2
+  assert.match(WIZ, /A PREMIUM GREET-ME EXPERIENCE/);                 // 5
+  assert.match(WIZ, /wand-icon/);                                     // 4
+  assert.match(WIZ, /function WandSparkles/);
+  assert.ok(!/>Contact Import Wizard</.test(WIZ), "old banner title element removed");
+  // the old monospace uppercase "Import" eyebrow div is gone (3)
+  assert.ok(!/letterSpacing: "\.14em"[^}]*\}\}>Import<\/div>/.test(WIZ));
+  assert.ok(!/>Import<\/div>/.test(WIZ), "small IMPORT eyebrow removed");
+});
+test("main heading + no explanatory subscript", () => {
+  assert.match(WIZ, /Import Those Important to You/);                 // 6
+  assert.ok(!/How would you like to import\?/.test(WIZ), "old heading removed");
+  assert.ok(!/Choose the path that best describes/.test(WIZ), "no explanatory subscript");  // 7
+});
+test("exact panel copy (Personal + Business) + CTAs + footer", () => {
+  assert.match(WIZ, /Personal Relationships/);                       // 9
+  assert.match(WIZ, /Family, friends, and whoever is important to you\./);
+  assert.match(WIZ, /CHOOSE PERSONAL →/);
+  assert.match(WIZ, /Business Relationships/);                       // 10
+  assert.match(WIZ, /Employees, clients, vendors, and professional contacts\./);
+  assert.match(WIZ, /CHOOSE BUSINESS →/);
+  assert.match(WIZ, /You can return and choose a different path at any time\./);   // footer
+});
+test("premium underlay + panel visuals + accessible/interactive styles present", () => {
+  assert.match(WIZ, /gmiw-underlay/);                                // colored underlay
+  assert.match(WIZ, /gmiw-surface/);                                 // inner content surface
+  assert.match(WIZ, /grid-template-columns:1fr 1fr/);                // side-by-side on desktop
+  assert.match(WIZ, /@media \(max-width:640px\)[\s\S]*?grid-template-columns:1fr;/);  // stacks on mobile
+  assert.match(WIZ, /\.gmiw-panel:focus-visible\{ outline:/);        // visible focus
+  assert.match(WIZ, /\.gmiw-panel:hover/);
+  assert.match(WIZ, /\.gmiw-panel:active/);
+  assert.match(WIZ, /gmiw-medallion/);                               // circular medallion
+  assert.match(WIZ, /function HeartIcon/);
+  assert.match(WIZ, /function BriefcaseIcon/);
+});
+test("panels are semantic buttons with full accessible names", () => {
+  assert.match(WIZ, /type="button" className="gmiw-panel" data-testid="panel-personal"/);
+  assert.match(WIZ, /aria-label="Personal Relationships — Family, friends, and whoever is important to you"/);
+  assert.match(WIZ, /aria-label="Business Relationships — Employees, clients, vendors, and professional contacts"/);
+});
+test("no wizard mechanics changed by the visual screen (still one importer, dedup, fail-closed intact)", () => {
+  assert.equal((WIZ.match(/api\.importContacts\(/g) || []).length, 1);
+  assert.match(WIZ, /classifyCommitOutcome\(res\)/);
+  assert.match(WIZ, /existingEmailsFromResponse/);
+  assert.match(WIZ, /buildReviewPayload\(rows, reviewState\)/);
 });

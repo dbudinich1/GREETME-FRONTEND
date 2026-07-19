@@ -108,7 +108,7 @@ async function mountWizard() {
   const container = document.createElement("div"); document.body.appendChild(container);
   await act(async () => { createRoot(container).render(React.createElement(Wizard)); });
 }
-const goIndividual = async () => { await act(async () => fireClick(btnByText(/^Individual/))); };
+const goIndividual = async () => { await act(async () => fireClick(tid("panel-personal"))); };
 const CSV2 = "Name,Email\nAda,ada@x.co\nBo,bo@x.co";
 
 // ---------- SAMPLE (individual) ----------
@@ -153,12 +153,12 @@ test("sample: Delete / Exit / Start Over all clear it and return to selection", 
     await mountWizard(); await goIndividual();
     await act(async () => fireClick(btnByText(/Try the sample/)));
     await act(async () => fireClick(tid(id)));
-    assert.match(txt(), /How would you like to import\?/, `${id} returns to selection`);
+    assert.match(txt(), /Import Those Important to You?/, `${id} returns to selection`);
   }
   await mountWizard(); await goIndividual();
   await act(async () => fireClick(btnByText(/Try the sample/)));
   await act(async () => fireClick(tid("startover")));
-  assert.match(txt(), /How would you like to import\?/);
+  assert.match(txt(), /Import Those Important to You?/);
 });
 
 // ---------- REAL import ----------
@@ -228,7 +228,7 @@ test("real under-13 row is blocked in the quick-fix area and excluded", async ()
 // ---------- Business regression ----------
 test("Business path stays gated — never renders the Individual real 'Add' confirmation or sample bar", async () => {
   await mountWizard();
-  await act(async () => fireClick(btnByText(/^Business/)));
+  await act(async () => fireClick(tid("panel-business")));
   await flush();
   assert.equal(tid("sample-upload-own"), null, "individual sample action bar never appears on Business");
   assert.ok(!/Preview your sample contacts/.test(txt()), "Business does not open the individual sample preview");
@@ -243,7 +243,7 @@ test("Start Over from the combined screen returns to selection (keyboard-operabl
   assert.equal(so.tagName, "BUTTON");
   so.focus(); assert.equal(document.activeElement, so);
   await act(async () => fireClick(so));
-  assert.match(txt(), /How would you like to import\?/);
+  assert.match(txt(), /Import Those Important to You?/);
 });
 
 test("mobile width: the combined screen still renders", async () => {
@@ -252,4 +252,37 @@ test("mobile width: the combined screen still renders", async () => {
   await mountWizard(); await goIndividual();
   await act(async () => fireClick(btnByText(/Try the sample/)));
   assert.ok(tid("confirm-screen") && tid("sample-exit"));
+});
+
+// ---------- Screen 1 premium path panels (accessibility + whole-panel activation) ----------
+test("entry: exactly two semantic path-panel buttons with full accessible names", async () => {
+  await mountWizard();
+  assert.match(txt(), /Import Those Important to You/);
+  assert.match(txt(), /Greet-Me™ Import Wizard/);
+  assert.match(txt(), /Forget Them Not!/);
+  const p = tid("panel-personal"), b = tid("panel-business");
+  assert.ok(p && b, "both panels present");
+  assert.equal(document.querySelectorAll('[data-testid^="panel-"]').length, 2, "exactly two panels");
+  assert.equal(p.tagName, "BUTTON"); assert.equal(b.tagName, "BUTTON");   // semantic + keyboard-operable
+  assert.match(p.getAttribute("aria-label"), /Personal Relationships — Family, friends/);
+  assert.match(b.getAttribute("aria-label"), /Business Relationships — Employees, clients/);
+});
+test("the WHOLE Personal panel is focusable and activates the Personal flow (pointer)", async () => {
+  await mountWizard();
+  const p = tid("panel-personal");
+  p.focus(); assert.equal(document.activeElement, p, "panel is keyboard-focusable");
+  // click on a child (the medallion) — the whole panel activates (event bubbles to the button)
+  const medallion = p.querySelector(".gmiw-medallion") || p;
+  await act(async () => fireClick(medallion));
+  await flush();
+  assert.match(txt(), /Choose a \.csv file/, "Personal panel routed to the Individual upload flow");
+  assert.equal(tid("panel-personal"), null, "left the selection screen");
+});
+test("the WHOLE Business panel activates the Business flow", async () => {
+  await mountWizard();
+  const b = tid("panel-business");
+  await act(async () => fireClick(b.querySelector(".gmiw-panel-title") || b));
+  await flush();
+  assert.equal(tid("panel-personal"), null, "left the selection screen");
+  assert.equal(tid("sample-upload-own"), null, "Business did not open the Individual sample bar");
 });
