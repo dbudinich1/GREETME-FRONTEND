@@ -9,6 +9,7 @@ import {
   buildReview, buildReviewPayload, freshReviewState, paginate, REVIEW_BUCKET,
   setName, setEmail, setBirthday, setGroup, setRelation,
   chooseAudience, categoryForRelation, relationsForGroup,
+  markCommitted, setCommitErrors, addExistingEmails,
 } from "./reviewModel.js";
 
 const TODAY = "2026-07-18";
@@ -136,7 +137,7 @@ test("every row is in exactly one bucket; counts sum to total", () => {
   assert.deepEqual(all, [0, 1, 2, 3, 4, 5]);            // union = every row
   assert.equal(new Set(all).size, all.length);          // no index appears twice
   const c = rev.counts;
-  assert.equal(c.ready + c.needsFix + c.alreadyInList + c.willSkip + c.invalidExcluded, c.total);
+  assert.equal(c.ready + c.needsFix + c.alreadyInList + c.willSkip + c.invalidExcluded + c.added, c.total);
 });
 
 // fixing a blocker moves the row between buckets exactly once.
@@ -234,4 +235,38 @@ test("buildReview is pure (no mutation, idempotent)", () => {
   const snap = JSON.stringify(s);
   assert.deepEqual(buildReview(rows, s), buildReview(rows, s));
   assert.equal(JSON.stringify(s), snap);
+});
+
+// ---- partial real-import handling (ADDED bucket, no double-submit) ----
+test("committed emails move to ADDED, are excluded from the payload, and can't be re-submitted", () => {
+  const rows = [row(0, { email: "a@x.co" }), row(1, { email: "b@x.co" })];
+  const s = markCommitted(ind(), ["a@x.co"]);
+  const rev = buildReview(rows, s);
+  assert.equal(at(rev, 0).bucket, REVIEW_BUCKET.ADDED);
+  assert.equal(rev.counts.added, 1);
+  assert.equal(rev.importCount, 1);                        // only the un-added row is importable
+  const payload = buildReviewPayload(rows, s);
+  assert.equal(payload.length, 1);
+  assert.equal(payload[0].email, "b@x.co");               // the added row is NOT re-sent
+});
+test("a backend failure leaves the row Ready with a plain retry note (retryable)", () => {
+  const rows = [row(0, { email: "a@x.co" })];
+  const s = setCommitErrors(ind(), { "a@x.co": "This contact couldn't be added. You can try again." });
+  const it = at(buildReview(rows, s), 0);
+  assert.equal(it.bucket, REVIEW_BUCKET.READY);           // still importable → a retry re-sends it
+  assert.equal(it.retryNote, "This contact couldn't be added. You can try again.");
+  assert.equal(buildReviewPayload(rows, s).length, 1);
+});
+test("an 'already exists' partial failure folds into already-in-list (excluded)", () => {
+  const rows = [row(0, { email: "dup@x.co" })];
+  const s = addExistingEmails(ind(), ["dup@x.co"]);
+  assert.equal(at(buildReview(rows, s), 0).bucket, REVIEW_BUCKET.ALREADY_IN_LIST);
+  assert.equal(buildReviewPayload(rows, s).length, 0);
+});
+test("bucket sum still holds with ADDED present", () => {
+  const rows = [row(0), row(1), row(2, { name: "" })];
+  const s = markCommitted(ind(), ["p0@x.co"]);
+  const c = buildReview(rows, s).counts;
+  assert.equal(c.ready + c.needsFix + c.alreadyInList + c.willSkip + c.invalidExcluded + c.added, c.total);
+  assert.equal(c.added, 1);
 });

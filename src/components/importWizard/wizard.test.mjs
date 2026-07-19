@@ -60,23 +60,45 @@ test("buildPersonalImportContacts transmits every recognized field INCLUDING bir
   assert.equal(c.name, "Ada Lovelace"); assert.equal(c.birthday, "1990-05-14");
 });
 
-// ---- CONFIRMATION-FIRST surface ----
+// ---- CONFIRMATION-FIRST surface (Individual two-screen flow) ----
 test("upload lands on a confirmation, not a walkthrough/decision funnel", () => {
   assert.match(WIZ, /ReviewScreen/);
-  assert.match(WIZ, /Your contacts are ready/);
+  assert.match(WIZ, /Review your contacts/);              // real heading
+  assert.match(WIZ, /Preview your sample contacts/);      // sample heading
   assert.match(WIZ, /confirm-screen/);
-  // the mandatory walkthrough + defaults funnel + prior 'attention' framing are gone
+  // the mandatory walkthrough + defaults funnel + prior framing are gone
   for (const gone of ["Defaults were applied", "DecisionScreen", "AttentionCard", "need your attention",
-    "Save &amp; next", "Contact {progress", "Review your contacts", "needing review", "StateChips"]) {
+    "Save &amp; next", "Contact {progress", "needing review", "StateChips"]) {
     assert.ok(!WIZ.includes(gone), `removed artifact must be gone: ${gone}`);
   }
 });
-test("primary CTA is 'Add X contacts'; sample says 'View X sample recipients'; one clear primary", () => {
-  assert.match(WIZ, /Add \$\{importCount\} contact/);
-  assert.match(WIZ, /View \$\{importCount\} sample recipient/);
+test("Individual two-screen flow: real primary 'Add X'; individual sample = terminal action bar; no wizard result screen", () => {
+  assert.match(WIZ, /Add \$\{importCount\} contact/);      // real primary
   assert.match(WIZ, /add-cta/);
   assert.match(WIZ, /details-cta/);                        // quiet optional relationship CTA
   assert.match(WIZ, /Add relationship details first/);
+  // individual sample is terminal on the combined screen (action bar, NO commit/View CTA there)
+  assert.match(WIZ, /sample-upload-own/);
+  assert.match(WIZ, /Upload my own CSV/);
+  assert.match(WIZ, /sample-delete/);
+  assert.match(WIZ, /sample-exit/);
+  assert.match(WIZ, /isIndividualSample/);
+  // real full success navigates straight to Recipients with a truthful toast — NO result/list screen
+  assert.match(WIZ, /added successfully\./);
+  assert.match(WIZ, /showManualToast\(/);
+  assert.match(WIZ, /returnToRecipients\(\);\s*\n\s*return;/);   // navigate then stop
+  assert.ok(!/function ImportSummary/.test(WIZ), "dead Individual result screen removed");
+  assert.ok(!/function ListActions/.test(WIZ), "dead ListActions removed");
+  // "View X sample recipients" survives ONLY for the Business sample path (unchanged)
+  assert.match(WIZ, /View \{importCount\} sample recipient/);
+});
+test("partial real import stays on the combined screen; added rows can't be re-submitted", () => {
+  assert.match(WIZ, /setPartial\(/);
+  assert.match(WIZ, /data-testid="partial"/);
+  assert.match(WIZ, /could not be added/);
+  assert.match(WIZ, /markCommitted\(/);                    // added emails → ADDED bucket (excluded)
+  assert.match(WIZ, /setCommitErrors\(/);
+  assert.match(WIZ, /if \(!contacts\.length\) return;/);   // never POST an empty payload
 });
 test("genuine blockers only: quick-fix area with plain messages + Don't add", () => {
   assert.match(WIZ, /quickfix/);

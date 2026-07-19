@@ -71,21 +71,29 @@ export function reconcileSampleRaw(rawJson, currentSid) {
   if (currentSid === "anon" || parsed.sid !== currentSid) return { contacts: [], cleared: true };
   return { contacts: parsed.contacts, cleared: false };
 }
-export function serializeSample(contacts, currentSid) {
-  return JSON.stringify({ sid: currentSid, v: 1, contacts: Array.isArray(contacts) ? contacts : [] });
+// `kind` (individual | employee | client | vendor | mixed) is stored so a same-session reload can
+// restore the sample into the right surface (individual → combined preview; business → its own list).
+export function serializeSample(contacts, currentSid, kind = "individual") {
+  return JSON.stringify({ sid: currentSid, v: 1, kind: kind || "individual", contacts: Array.isArray(contacts) ? contacts : [] });
+}
+// Read the stored kind (best-effort; reconcile still owns the security decision on `contacts`).
+export function sampleKindFromRaw(rawJson) {
+  try { const p = JSON.parse(rawJson); return (p && typeof p.kind === "string") ? p.kind : "individual"; } catch { return "individual"; }
 }
 
 // ---- sessionStorage wrappers (no-op when storage is unavailable, e.g. Node tests) ----
 function _ss() { try { return globalThis.sessionStorage || null; } catch { return null; } }
+// Returns { contacts, kind }. Contacts only survive the non-secret session-discriminator check.
 export function loadSampleWorkspace() {
-  const ss = _ss(); if (!ss) return [];
-  const { contacts, cleared } = reconcileSampleRaw(ss.getItem(SAMPLE_STORAGE_KEY), sessionDiscriminator());
-  if (cleared) { try { ss.removeItem(SAMPLE_STORAGE_KEY); } catch { /* ignore */ } }
-  return contacts;
+  const ss = _ss(); if (!ss) return { contacts: [], kind: "individual" };
+  const raw = ss.getItem(SAMPLE_STORAGE_KEY);
+  const { contacts, cleared } = reconcileSampleRaw(raw, sessionDiscriminator());
+  if (cleared) { try { ss.removeItem(SAMPLE_STORAGE_KEY); } catch { /* ignore */ } return { contacts: [], kind: "individual" }; }
+  return { contacts, kind: sampleKindFromRaw(raw) };
 }
-export function saveSampleWorkspace(contacts) {
+export function saveSampleWorkspace(contacts, kind = "individual") {
   const ss = _ss(); if (!ss) return;
-  try { ss.setItem(SAMPLE_STORAGE_KEY, serializeSample(contacts, sessionDiscriminator())); } catch { /* ignore */ }
+  try { ss.setItem(SAMPLE_STORAGE_KEY, serializeSample(contacts, sessionDiscriminator(), kind)); } catch { /* ignore */ }
 }
 export function clearSampleWorkspace() {
   const ss = _ss(); if (!ss) return;

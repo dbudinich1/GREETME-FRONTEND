@@ -17,21 +17,40 @@ import {
   buildPlan, looksLikeZip,
 } from "../../import/importCore.js";
 import { assertNoRealMix } from "../../import/demoData.js";
-import { MODES, corporateContext, corporateRoute, existingEmailsFromResponse, classifyImportSummary, classifyCommitOutcome } from "./wizardModel.js";
+import { MODES, corporateContext, corporateRoute, existingEmailsFromResponse, classifyCommitOutcome } from "./wizardModel.js";
 import { RELATIONSHIP_CATEGORIES, CLOSENESS_OPTIONS } from "../../import/completionModel.js";
 import { RECIPIENT_KINDS, RECIPIENT_TYPE_OPTIONS } from "../../import/recipientTypeModel.js";
+import { normalizeEmail } from "../../import/importCore.js";
 import {
   buildReview, buildReviewPayload, freshReviewState, paginate,
   setGroup, setRelation, setCloseness, setName, setEmail, setBirthday, leaveRelationshipBlank,
-  chooseAudience, skipContact, relationsForGroup, AUDIENCE_CHOICES, REVIEW_BUCKET, relationLabelFor,
+  chooseAudience, skipContact, markCommitted, setCommitErrors, addExistingEmails,
+  relationsForGroup, AUDIENCE_CHOICES, REVIEW_BUCKET, relationLabelFor,
 } from "../../import/reviewModel.js";
 import { sampleContactsFor, sampleCsvFor, loadSampleWorkspace, saveSampleWorkspace, clearSampleWorkspace } from "../../import/sampleWorkspace.js";
+import { showManualToast } from "../../utils/notify";
+import { COMMS_CATEGORIES } from "../../utils/commsCatalog";
 
 const PURPLE = "linear-gradient(135deg,#6d74ee,#764ba2)";
 const card = { background: "#fff", border: "1px solid rgba(27,24,48,.1)", borderRadius: 14, padding: 18 };
 const btn = (bg, fg = "#fff") => ({ background: bg, color: fg, border: bg === "transparent" ? "1px solid rgba(27,24,48,.15)" : "none", borderRadius: 11, padding: "10px 16px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer" });
 // Real calendar date for the age gate (never guessed). computeContactErrors needs it (audit F1).
 const todayIso = () => new Date().toISOString().slice(0, 10);
+// Rebuild wizard-shaped rows from persisted (payload-shaped) sample contacts so a same-session reload
+// restores the individual sample directly into the combined preview.
+function rehydrateSampleRows(contacts) {
+  return (contacts || []).map((c, i) => ({
+    contact: { fullName: c.name || "", email: c.email || "", relationship: c.relationship || "", recipientType: c.recipientType || "" },
+    index: i, demo: true, __raw: c.birthday ? { B: c.birthday } : {}, __map: c.birthday ? { birthday: "B" } : {},
+  }));
+}
+// Translate a backend per-row import error into first-time-user language (no raw error strings shown).
+function friendlyCommitError(raw) {
+  const s = String(raw || "");
+  if (/already exists/i.test(s)) return "Already in your recipient list—we'll skip this contact.";
+  if (/limit|cap/i.test(s)) return "Your recipient limit was reached.";
+  return "This contact couldn't be added. You can try again.";
+}
 
 export default function ContactImportWizard() {
   const client = useMemo(() => createCorporateCampaignsClient(), []);
@@ -50,26 +69,47 @@ export default function ContactImportWizard() {
   // Session-scoped Sample Workspace (never persisted to backend).
   const [sample, setSample] = useState(false);
   const [sampleContacts, setSampleContacts] = useState([]);
+  // Partial real-import outcome ({added, failed}) — keeps the user on the combined screen (never a
+  // false "complete success"). null = no partial result to show.
+  const [partial, setPartial] = useState(null);
   // The single Review state (relationship/audience choices, removals, description default). It is
   // reset — never carried — whenever a new file/kind/path is chosen.
   const [reviewState, setReviewState] = useState(() => freshReviewState({ business: false, kind: null }));
   const resetReview = (business, kind, existingEmails = []) => setReviewState(freshReviewState({ business, kind, existingEmails, todayIso: todayIso() }));
 
   // Restore a same-session sample on mount (non-secret session-scoped; a NEW login never restores an
-  // old sample). Clear the sample on session expiry — do not rely on logout alone.
+  // old sample). Individual → rehydrate straight into the combined preview (no separate list);
+  // Business → keep its own terminal list. Clear the sample on session expiry.
   useEffect(() => {
-    const existing = loadSampleWorkspace();
-    if (existing.length) { setSample(true); setSampleContacts(existing); }
-    const onExpire = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); };
+    const { contacts, kind } = loadSampleWorkspace();
+    if (contacts.length) {
+      setSample(true);
+      if (kind && kind !== "individual") {
+        setSampleContacts(contacts);                         // Business sample — unchanged presentation
+      } else {
+        setRecipientKind(null);
+        setReviewState(freshReviewState({ business: false, kind: null, existingEmails: [], todayIso: todayIso() }));
+        setRows(rehydrateSampleRows(contacts));              // Individual sample — combined preview
+      }
+    }
+    const onExpire = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setRows(null); };
     if (typeof window !== "undefined") window.addEventListener("auth:session-expired", onExpire);
     return () => { if (typeof window !== "undefined") window.removeEventListener("auth:session-expired", onExpire); };
   }, []);
+
+  // Persist the INDIVIDUAL sample live (session-scoped only) so a same-session reload restores the
+  // combined preview. Never a backend call. Business sample persists via its own commit path.
+  useEffect(() => {
+    if (sample && mode !== MODES.CORPORATE && !recipientKind && Array.isArray(rows)) {
+      try { saveSampleWorkspace(buildReviewPayload(rows, reviewState), "individual"); } catch { /* ignore */ }
+    }
+  }, [sample, mode, recipientKind, rows, reviewState]);
 
   const ctx = useMemo(() => (mode === MODES.CORPORATE ? corporateContext(membershipResult, selectedOrgId) : null), [mode, membershipResult, selectedOrgId]);
   const orgId = ctx && ctx.selectedOrgId;
 
   const pickMode = useCallback(async (m) => {
-    setMode(m); setRows(null); setPlan(null); setSummary(null); setError(null); setSelectedOrgId(null); setRecipientKind(null); setSample(false);
+    setMode(m); setRows(null); setPlan(null); setSummary(null); setError(null); setPartial(null); setSelectedOrgId(null); setRecipientKind(null); setSample(false);
     resetReview(m === MODES.CORPORATE, null);
     if (m === MODES.CORPORATE) {
       setBusy(true);
@@ -82,6 +122,7 @@ export default function ContactImportWizard() {
   function ingest(records, existingEmails = [], business = false, kind = null) {
     const capped = checkRowCount(records.length);
     if (!capped.ok) { setError(`Too many rows (max ${capped.max}).`); return; }
+    setPartial(null);                                    // a fresh file clears any prior partial result
     // Retain the raw row + mapping so the commit can transmit the birthday column. Pass a REAL
     // calendar date so importCore's age gate is active (audit F1 — a blank date is never used). The
     // review re-runs the same validator, so both layers agree.
@@ -134,23 +175,44 @@ export default function ContactImportWizard() {
 
   const commitPersonal = useCallback(async () => {
     if (mode !== MODES.PERSONAL) return;
-    setBusy(true); setError(null);
-    // Personal ownership: import into the authenticated user's own collection. buildReviewPayload
-    // transmits every recognized mapped field (incl. birthday) for the READY rows only, with the
-    // Individual/business recipientType boundary enforced (Individual → recipientType stripped).
+    // Only the READY rows are sent; ADDED (already-committed) rows are excluded, so a partial retry can
+    // never submit a row twice. Individual/business recipientType boundary enforced in the payload.
     const contacts = buildReviewPayload(rows, reviewState);
+    if (!contacts.length) return;
+    setBusy(true); setError(null);
     let res;
     // Preserve the thrown status (api.request throws Error{status} on 403/429/5xx) so the outcome
     // classifier can distinguish failures and message them correctly.
     try { res = await api.importContacts(contacts); } catch (e) { res = { ok: false, status: e && e.status, error: String(e && e.message) }; }
     setBusy(false);
-    // FAIL CLOSED: only render a success summary for a recognized successful results body. Any
-    // non-2xx / {ok:false} / network / thrown / empty-or-malformed 2xx becomes a clear error and
-    // NEVER "Import complete — 0 added".
+    // FAIL CLOSED: never treat a non-2xx / {ok:false} / network / thrown / empty body as success.
     const outcome = classifyCommitOutcome(res);
-    if (outcome.status !== "success") { setError(outcome.message); return; }
-    setSummary(outcome.summary);
-  }, [mode, rows, reviewState]);
+    if (outcome.status !== "success") { setError(outcome.message); return; }   // zero-success → stay, plain error
+
+    // Split the recognized results body into added vs per-row failures.
+    const s = outcome.summary;
+    const errs = Array.isArray(s.errors) ? s.errors : [];
+    const failed = new Map();                                   // normalized email → plain retry message
+    for (const er of errs) {
+      const em = normalizeEmail((er && er.contact && er.contact.email) || (er && er.email) || "");
+      if (em) failed.set(em, friendlyCommitError(er && er.error));
+    }
+    const addedEmails = contacts.map((c) => normalizeEmail(c.email)).filter((em) => em && !failed.has(em));
+
+    if (failed.size === 0) {
+      // FULL success → go straight to the actual Recipients page with a truthful toast. No result screen.
+      try { showManualToast("Added ✓", `${addedEmails.length} contact${addedEmails.length === 1 ? "" : "s"} added successfully.`, COMMS_CATEGORIES.PROFILE); } catch { /* ignore */ }
+      returnToRecipients();
+      return;
+    }
+    // PARTIAL → stay on the combined screen. Mark added rows (ADDED, never re-sent); "already exists"
+    // failures read as already-in-list; other failures stay Ready with a plain retry note.
+    const alreadyExisting = [];
+    const retryMap = {};
+    for (const [em, msg] of failed) { if (/already exists/i.test((errs.find((x) => normalizeEmail((x.contact && x.contact.email) || x.email) === em) || {}).error || "")) alreadyExisting.push(em); else retryMap[em] = msg; }
+    setReviewState((st) => setCommitErrors(addExistingEmails(markCommitted(st, addedEmails), alreadyExisting), retryMap));
+    setPartial({ added: addedEmails.length, failed: failed.size });
+  }, [mode, rows, reviewState, returnToRecipients]);
 
   const pickRecipientKind = useCallback((kind) => {
     setRecipientKind(kind); setRows(null); setPlan(null); setSummary(null); setError(null); resetReview(true, kind);
@@ -160,7 +222,7 @@ export default function ContactImportWizard() {
   // the exact same Review flow. NEVER touches a backend endpoint. kind ∈ individual/employee/client/
   // vendor/mixed (mixed = Universal List).
   const trySample = useCallback((kind) => {
-    setSample(true); setError(null); setSummary(null); setSampleContacts([]);
+    setSample(true); setError(null); setSummary(null); setSampleContacts([]); setPartial(null);
     const business = kind !== "individual";
     const rk = business ? kind : null;
     setRecipientKind(rk);
@@ -181,16 +243,17 @@ export default function ContactImportWizard() {
     } catch { setError("Could not generate the sample file."); }
   }, []);
 
-  // Finish a sample: build the completed recipients and persist ONLY to the session-scoped Sample
-  // Workspace (sessionStorage) — never POST to contacts/import or any backend mutation endpoint.
+  // BUSINESS sample terminal step ("View X sample recipients"): build the sample recipients and
+  // persist ONLY to the session-scoped Sample Workspace — never a backend mutation. (Individual sample
+  // is already terminal on the combined screen and does not use this path.)
   const commitSample = useCallback(() => {
     if (!sample) return;
     try { assertNoRealMix((rows || []).map((r) => r.contact)); } catch (e) { setError(String(e && e.message)); return; }
     const built = buildReviewPayload(rows, reviewState);
-    saveSampleWorkspace(built);
+    saveSampleWorkspace(built, recipientKind || "mixed");
     setSampleContacts(built); setRows(null); setPlan(null);
     setSummary({ sampleWorkspace: true, count: built.length });
-  }, [sample, rows, reviewState]);
+  }, [sample, rows, reviewState, recipientKind]);
 
   const commitCorporate = useCallback(() => {
     if (mode !== MODES.CORPORATE) return;
@@ -199,20 +262,18 @@ export default function ContactImportWizard() {
     setError("Organization import isn't available yet. Your selections are complete and will import once organization import is turned on.");
   }, [mode]);
 
-  const backToTypeSelector = () => { setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setError(null); resetReview(true, null); };
-  // START OVER (root-cause fix): the old handler reset rows/reviewState but never cleared `mode`,
-  // `recipientKind`, or `sample`. The entry screen is gated on `!mode && !sample`, so Start Over could
-  // never reach the Individual/Business selection — it fell through to the same mode's Upload screen
-  // (and from a sample, a stuck mode-less-but-sample state). This clears ALL selection/parse/edit/
-  // result state and returns to the selection screen. It does NOT delete a saved Sample Workspace —
-  // that stays reachable and is only removed by the explicit "Delete all sample contacts".
+  // START OVER — clears ALL selection/parse/edit/result state (and the session-scoped sample workspace)
+  // and returns to the Individual/Business selection. Never touches production contacts.
   const startOver = () => {
+    clearSampleWorkspace();
     setMode(null); setRecipientKind(null); setMembershipResult(null); setSelectedOrgId(null);
-    setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setSummary(null);
+    setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setSummary(null); setPartial(null);
     setError(null); setBusy(false); setReviewState(freshReviewState({ business: false, kind: null }));
   };
-  const exitSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setError(null); };
+  const exitSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); };
   const deleteAllSample = exitSample;   // both clear the session-scoped sample data
+  // From an INDIVIDUAL sample, swap to a real Individual upload (clears the sample, keeps the path).
+  const uploadOwnFromSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setError(null); setPartial(null); setMode(MODES.PERSONAL); resetReview(false, null); };
 
   // ---------- render ----------
   // Session-scoped Sample Recipients (completed or resumed) — read-only presentation.
@@ -308,6 +369,14 @@ export default function ContactImportWizard() {
   const kindLabel = (RECIPIENT_KINDS.find((k) => k.value === recipientKind) || {}).label;
   const templateKind = business ? (recipientKind || "employee") : "individual";
   const onCommit = sample ? commitSample : (business ? commitCorporate : commitPersonal);
+  // Individual sample is terminal on the combined screen — it carries its own action bar (no commit CTA,
+  // no separate "View sample recipients" screen). Business sample keeps its existing commit path.
+  const sampleActions = (sample && !business) ? {
+    onUploadOwn: uploadOwnFromSample,
+    onDownloadCsv: () => downloadSampleCsv("individual"),
+    onDelete: deleteAllSample,
+    onExit: exitSample,
+  } : null;
   return (
     <Shell back={startOver}>
       {business && !sample && <div style={{ ...card, marginBottom: 12, fontSize: ".82rem" }}>Organization <b style={{ fontFamily: "monospace" }}>{orgId}</b>{kindLabel ? <> · <b>{kindLabel}</b></> : null}</div>}
@@ -328,25 +397,15 @@ export default function ContactImportWizard() {
         </div>
       )}
 
-      {/* Upload lands DIRECTLY here — one plain-language Review surface, no defaults intermediary. */}
+      {/* Combined Review/Preview — the ONLY screen after the upload/sample choice for Individual.
+          Real success navigates straight to Recipients; there is no wizard result/list screen. */}
       {rows && !summary && (
         <ReviewScreen
           rows={rows} state={reviewState} setState={setReviewState}
           business={business} kindLabel={kindLabel} demo={sample} busy={busy}
+          partial={partial} sampleActions={sampleActions}
           onCommit={onCommit} onStartOver={startOver}
         />
-      )}
-
-      {summary && !summary.sampleWorkspace && (
-        <>
-          <ImportSummary summary={summary} />
-          {recipientKind
-            ? <ListActions onPick={pickRecipientKind} onReturn={backToTypeSelector} onReturnRecipients={returnToRecipients} />
-            : <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
-                <button style={btn("transparent", "#1b1830")} onClick={startOver}>Start over</button>
-                <button style={btn(PURPLE)} onClick={returnToRecipients}>Return to Recipients</button>
-              </div>}
-        </>
       )}
     </Shell>
   );
@@ -372,23 +431,6 @@ function Shell({ children, back }) {
 function Empty({ title, body }) {
   return <div style={{ ...card, textAlign: "center" }}><h3 style={{ margin: "0 0 6px", fontFamily: "Georgia,serif" }}>{title}</h3><p style={muted}>{body}</p></div>;
 }
-function ImportSummary({ summary }) {
-  // "Email already exists" is not a failure to act on — surface it truthfully as already-present.
-  const c = classifyImportSummary(summary);
-  const parts = [`${c.added} added`];
-  if (c.updated) parts.push(`${c.updated} updated`);
-  if (c.skipped) parts.push(`${c.skipped} skipped`);
-  if (c.alreadyPresent) parts.push(`${c.alreadyPresent} already in your recipients`);
-  if (c.needsAttention) parts.push(`${c.needsAttention} needs attention`);
-  return (
-    <div style={{ ...card, textAlign: "center" }}>
-      <div style={{ fontSize: "1.6rem" }}>✅</div>
-      <h3 style={{ fontFamily: "Georgia,serif", margin: "6px 0" }}>Import complete</h3>
-      <p style={muted}>{parts.join(" · ")}</p>
-    </div>
-  );
-}
-
 // ============================================================================
 // ReviewScreen — CONFIRMATION-FIRST. A clean file shows "Your contacts are ready" + one primary
 // "Add X contacts". Genuine blockers (missing name/email, under-13, unknown Universal audience) get a
@@ -402,13 +444,15 @@ const linkBtn = { ...btn("transparent", "#4a3fb0"), padding: "4px 10px", fontSiz
 const PREVIEW_N = 6;          // small confirmation preview
 const DETAILS_BATCH = 25;     // optional-relationship editor page size
 
-export function ReviewScreen({ rows, state, setState, business, kindLabel, demo, busy, onCommit, onStartOver }) {
+export function ReviewScreen({ rows, state, setState, business, kindLabel, demo, busy, partial, sampleActions, onCommit, onStartOver }) {
   const review = buildReview(rows, state);
   const { buckets, counts, importCount, importEnabled } = review;
   const [view, setView] = useState("confirm");   // "confirm" | "details"
   const [seeAll, setSeeAll] = useState(false);
   const [confPage, setConfPage] = useState(0);
   const [detPage, setDetPage] = useState(0);
+  const isSample = !!demo;
+  const isIndividualSample = !!sampleActions;      // individual sample → terminal action bar, no commit CTA
 
   const bind = (fn) => (i, v) => setState((s) => fn(s, i, v));
   const on = {
@@ -425,27 +469,35 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
   }
 
   const blockers = [...buckets.needsFix, ...buckets.invalidExcluded];
-  const primaryLabel = demo
-    ? `View ${importCount} sample recipient${importCount === 1 ? "" : "s"}`
-    : busy ? "Adding…" : business
-      ? `Continue with ${importCount} contact${importCount === 1 ? "" : "s"}`
-      : `Add ${importCount} contact${importCount === 1 ? "" : "s"}`;
-
+  // Every non-blocker contact appears once, as a recipient-style card, with its state.
+  const shown = [...buckets.ready, ...buckets.added, ...buckets.alreadyInList, ...buckets.willSkip];
+  const heading = isSample ? "Preview your sample contacts" : "Review your contacts";
+  const supporting = isSample
+    ? "This is how these contacts would appear in your recipient list. Nothing has been saved or sent."
+    : "Check the contacts below, make any changes you want, then add them to your recipient list.";
   const preview = seeAll
-    ? paginate(buckets.ready, confPage, DETAILS_BATCH)
-    : { slice: buckets.ready.slice(0, PREVIEW_N), pages: 1, page: 0, total: buckets.ready.length };
+    ? paginate(shown, confPage, DETAILS_BATCH)
+    : { slice: shown.slice(0, PREVIEW_N), pages: 1, page: 0, total: shown.length };
 
   return (
     <div data-testid="confirm-screen" style={{ display: "grid", gap: 14 }}>
       <div style={card}>
-        <h2 style={{ margin: 0, fontFamily: "Georgia,serif", fontSize: "1.3rem" }}>{importCount > 0 ? "Your contacts are ready" : "Let's fix a couple of things"}</h2>
-        {importCount > 0 && <div style={{ fontSize: "1.05rem", color: "#1f9d6b", fontWeight: 700, marginTop: 4 }}>{importCount} contact{importCount === 1 ? "" : "s"} ready to add</div>}
-        <p style={{ ...sub, marginTop: 4 }}>Everything can be edited later.</p>
-        <div style={{ display: "grid", gap: 2, marginTop: 2 }}>
-          {counts.alreadyInList > 0 && <div style={sub}>{counts.alreadyInList} already in your list—we'll skip {counts.alreadyInList === 1 ? "it" : "them"}.</div>}
+        <h2 style={{ margin: 0, fontFamily: "Georgia,serif", fontSize: "1.3rem" }}>{heading}</h2>
+        <p style={{ ...sub, marginTop: 4 }}>{supporting}</p>
+        <div style={{ display: "grid", gap: 2, marginTop: 4 }}>
+          {!isSample && importCount > 0 && <div style={{ fontSize: ".98rem", color: "#1f9d6b", fontWeight: 700 }}>{importCount} contact{importCount === 1 ? "" : "s"} ready to add</div>}
+          {counts.alreadyInList > 0 && <div style={sub}>{counts.alreadyInList} already in your recipient list—we'll skip {counts.alreadyInList === 1 ? "this contact" : "them"}.</div>}
           {counts.willSkip > 0 && <div style={sub}>{counts.willSkip} won't be added.</div>}
         </div>
       </div>
+
+      {/* Partial real import — truthful, never a false 'complete success' */}
+      {partial && (
+        <div data-testid="partial" style={{ ...card, borderColor: "rgba(31,157,107,.45)", background: "rgba(31,157,107,.06)" }}>
+          <b style={{ fontSize: ".95rem", color: "#1f7a57" }}>{partial.added} contact{partial.added === 1 ? " was" : "s were"} added. {partial.failed} could not be added.</b>
+          <div style={{ ...sub, marginTop: 3 }}>Added contacts won't be submitted again. Fix the ones below and add them when you're ready.</div>
+        </div>
+      )}
 
       {/* Quick fix — genuine blockers only */}
       {blockers.length > 0 && (
@@ -457,12 +509,12 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
         </div>
       )}
 
-      {/* Bounded preview of ready contacts */}
-      {buckets.ready.length > 0 && (
+      {/* Recipient-style preview (bounded/paginated) — one card per contact, with its state */}
+      {shown.length > 0 && (
         <div style={card}>
           <div style={{ ...rowStyle, marginBottom: 6 }}>
-            <b style={{ fontSize: ".9rem" }}>{seeAll ? "All ready contacts" : "A quick look"}</b>
-            {buckets.ready.length > PREVIEW_N && <button style={linkBtn} onClick={() => { setSeeAll((v) => !v); setConfPage(0); }}>{seeAll ? "Show less" : `See all ${buckets.ready.length}`}</button>}
+            <b style={{ fontSize: ".9rem" }}>Your contacts</b>
+            {shown.length > PREVIEW_N && <button style={linkBtn} onClick={() => { setSeeAll((v) => !v); setConfPage(0); }}>{seeAll ? "Show less" : `See all ${shown.length}`}</button>}
           </div>
           <div style={{ border: "1px solid #eee", borderRadius: 10, overflow: "hidden" }}>
             {preview.slice.map((it, i) => <ReadyPreviewRow key={it.index} it={it} business={business} first={i === 0} onAddRelationship={openDetails} />)}
@@ -471,12 +523,23 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
         </div>
       )}
 
-      {/* Actions — one clear primary */}
+      {/* Actions */}
       <div style={{ ...rowStyle }}>
         <button data-testid="startover" style={btn("transparent", "#1b1830")} onClick={onStartOver}>Start over</button>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           {counts.ready > 0 && <button data-testid="details-cta" style={btn("transparent", "#4a3fb0")} onClick={openDetails}>Add relationship details first</button>}
-          <button data-testid="add-cta" style={btn(PURPLE)} disabled={busy || !importEnabled} onClick={onCommit}>{primaryLabel}</button>
+          {isIndividualSample ? (
+            <>
+              <button data-testid="sample-upload-own" style={btn("transparent", "#1b1830")} onClick={sampleActions.onUploadOwn}>Upload my own CSV</button>
+              <button data-testid="sample-download" style={btn("transparent", "#1b1830")} onClick={sampleActions.onDownloadCsv}>Download sample CSV</button>
+              <button data-testid="sample-delete" style={btn("transparent", "#8a1f1f")} onClick={sampleActions.onDelete}>Delete sample contacts</button>
+              <button data-testid="sample-exit" style={btn(PURPLE)} onClick={sampleActions.onExit}>Exit Sample Mode</button>
+            </>
+          ) : isSample ? (
+            <button data-testid="add-cta" style={btn(PURPLE)} onClick={onCommit}>View {importCount} sample recipient{importCount === 1 ? "" : "s"}</button>
+          ) : (
+            <button data-testid="add-cta" style={btn(PURPLE)} disabled={busy || !importEnabled} onClick={onCommit}>{busy ? "Adding…" : `Add ${importCount} contact${importCount === 1 ? "" : "s"}`}</button>
+          )}
         </div>
       </div>
     </div>
@@ -511,17 +574,29 @@ function QuickFixRow({ it, on }) {
   );
 }
 
-// One row of the ready preview. Truthful about a missing relationship (Morgan Doe rule).
+// Per-contact state label for the recipient-style preview.
+const STATE_LABEL = {
+  added: { t: "Added ✓", c: "#1f7a57" },
+  already_in_list: { t: "Already in your list", c: "#605c78" },
+  will_skip: { t: "Won't be added", c: "#605c78" },
+};
+// One recipient-style card. Truthful about a missing relationship (Morgan Doe rule) and its state.
 function ReadyPreviewRow({ it, business, first, onAddRelationship }) {
   const rel = business
     ? (it.audience ? (RECIPIENT_TYPE_OPTIONS.find((o) => o.value === it.audience) || {}).label || "" : "")
     : (it.relationProvided ? it.relationLabel : "Relationship not provided (optional)");
+  const state = STATE_LABEL[it.bucket];
+  const editable = it.bucket === "ready";
   return (
     <div style={{ ...rowStyle, padding: "8px 12px", borderTop: first ? "none" : "1px solid #f4f4f7", fontSize: ".82rem" }}>
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}><b>{it.name}</b> <span style={{ color: "#605c78" }}>· {it.email}</span></span>
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+        <b>{it.name}</b> <span style={{ color: "#605c78" }}>· {it.email}</span>
+        {it.retryNote && <span style={{ color: "#b8791b" }}> · {it.retryNote}</span>}
+      </span>
       <span style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+        {state && <span style={{ color: state.c, fontWeight: 700 }}>{state.t}</span>}
         <span style={{ color: (business || it.relationProvided) ? "#605c78" : "#a08a5a" }}>{it.birthday ? it.birthday + " · " : ""}{rel}</span>
-        {!business && !it.relationProvided && <button style={linkBtn} onClick={onAddRelationship}>Add relationship</button>}
+        {editable && !business && !it.relationProvided && <button style={linkBtn} onClick={onAddRelationship}>Add relationship</button>}
       </span>
     </div>
   );
@@ -647,22 +722,6 @@ function SampleRecipientsView({ contacts, onDeleteAll, onExit, onReturn }) {
           <button style={btn("transparent", "#1b1830")} onClick={onExit}>Exit Sample Mode</button>
           <button style={btn(PURPLE)} onClick={onReturn}>Return to Recipients</button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function ListActions({ onPick, onReturn, onReturnRecipients }) {
-  return (
-    <div style={{ ...card, marginTop: 12 }}>
-      <b style={{ fontSize: ".85rem" }}>Import another list</b>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-        <button style={btn("transparent", "#1b1830")} onClick={() => onPick("employee")}>Import Another Employee List</button>
-        <button style={btn("transparent", "#1b1830")} onClick={() => onPick("client")}>Import Another Client List</button>
-        <button style={btn("transparent", "#1b1830")} onClick={() => onPick("vendor")}>Import Another Vendor List</button>
-        <button style={btn("transparent", "#1b1830")} onClick={() => onPick("mixed")}>Import a Mixed List</button>
-        <button style={btn(PURPLE)} onClick={onReturn}>Return to Organization Contacts</button>
-        <button style={btn("transparent", "#1b1830")} onClick={onReturnRecipients}>Return to Recipients</button>
       </div>
     </div>
   );

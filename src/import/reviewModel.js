@@ -31,6 +31,7 @@ export const REVIEW_BUCKET = Object.freeze({
   ALREADY_IN_LIST: "already_in_list",
   WILL_SKIP: "will_skip",
   INVALID_EXCLUDED: "invalid_excluded",
+  ADDED: "added",              // successfully committed this session — excluded so it can't be re-submitted
 });
 
 // importCore error codes that a user can correct inline (name / email field, or an editable birthday).
@@ -73,7 +74,28 @@ export function freshReviewState({ business = false, kind = null, existingEmails
     business: !!business, kind: kind || null,
     context: { existingEmails: (existingEmails || []).map(normalizeEmail).filter(Boolean), todayIso: todayIso || null },
     edits: {},
+    committed: [],              // emails added successfully this session (partial-import retry safety)
+    commitErrors: {},           // email → plain retry message for a backend per-row failure
   };
+}
+
+// ---- partial-import state (real success/partial handling) ----
+// Mark emails as successfully added so they move to the ADDED bucket and can never be re-submitted.
+export function markCommitted(state, emails = []) {
+  const add = (emails || []).map(normalizeEmail).filter(Boolean);
+  return { ...state, committed: [...new Set([...(state.committed || []), ...add])] };
+}
+// Attach a plain-language retry note to rows the backend rejected (they stay Ready → retryable).
+export function setCommitErrors(state, map = {}) {
+  const out = { ...(state.commitErrors || {}) };
+  for (const k of Object.keys(map || {})) { const e = normalizeEmail(k); if (e) out[e] = map[k]; }
+  return { ...state, commitErrors: out };
+}
+// Fold "already exists" emails into the existing-recipient set so they read as already-in-list.
+export function addExistingEmails(state, emails = []) {
+  const add = (emails || []).map(normalizeEmail).filter(Boolean);
+  const existing = new Set([...((state.context && state.context.existingEmails) || []), ...add]);
+  return { ...state, context: { ...state.context, existingEmails: [...existing] } };
 }
 
 // ---- helpers ----
@@ -158,6 +180,8 @@ function _relationOf(row, e) {
 export function buildReview(rows = [], state = freshReviewState()) {
   const ctx = state.context || {};
   const existing = new Set(ctx.existingEmails || []);
+  const committed = new Set((state.committed || []).map(normalizeEmail).filter(Boolean));
+  const commitErrors = state.commitErrors || {};
   const seen = new Map();                                   // first valid occurrence of an email in-file
   const items = [];
 
@@ -192,19 +216,23 @@ export function buildReview(rows = [], state = freshReviewState()) {
 
     // ---- bucket (exactly one) ----
     let bucket, blockerCode = null;
-    if (e.skipped) bucket = REVIEW_BUCKET.WILL_SKIP;
+    if (committed.has(eff.email)) bucket = REVIEW_BUCKET.ADDED;   // already committed this session — never re-submit
+    else if (e.skipped) bucket = REVIEW_BUCKET.WILL_SKIP;
     else if (errors.length && errors.some((c) => !FIXABLE.has(c))) { bucket = REVIEW_BUCKET.INVALID_EXCLUDED; blockerCode = errors.find((c) => !FIXABLE.has(c)); }
     else if (errors.length) { bucket = REVIEW_BUCKET.NEEDS_FIX; blockerCode = errors[0]; }
     else if (duplicate) bucket = REVIEW_BUCKET.ALREADY_IN_LIST;
     else if (audienceState === "needs_audience") { bucket = REVIEW_BUCKET.NEEDS_FIX; blockerCode = "needs_audience"; }
     else bucket = REVIEW_BUCKET.READY;
 
+    // A backend per-row failure leaves the row Ready but flags a plain retry note (retryable next Add).
+    const retryNote = (bucket === REVIEW_BUCKET.READY && commitErrors[eff.email]) ? commitErrors[eff.email] : "";
+
     items.push({
       index: i, name: eff.name, email: eff.email, birthday: eff.birthday, edited: Object.keys(e).length > 0,
       rawRel: rel.rawRel, hasRelation: !!rel.relation, relation: rel.relation, group: rel.group, closeness: rel.closeness,
       relationLabel: relationLabelFor(rel.relation), groupLabel: groupLabelFor(rel.group),
       relationUnrecognizedRaw: rel.unrecognizedRaw, relationProvided: !!rel.relation,
-      audience, audienceState, bucket, blockerCode,
+      audience, audienceState, bucket, blockerCode, retryNote,
       blockerMessage: blockerCode ? blockerMessageFor(blockerCode) : "",
       fixField: _fixFieldFor(blockerCode),                 // which control unblocks the row (no codes in the UI)
       errorCodes: errors,
@@ -218,10 +246,12 @@ export function buildReview(rows = [], state = freshReviewState()) {
     alreadyInList: by(REVIEW_BUCKET.ALREADY_IN_LIST),
     willSkip: by(REVIEW_BUCKET.WILL_SKIP),
     invalidExcluded: by(REVIEW_BUCKET.INVALID_EXCLUDED),
+    added: by(REVIEW_BUCKET.ADDED),
   };
   const counts = {
     ready: buckets.ready.length, needsFix: buckets.needsFix.length, alreadyInList: buckets.alreadyInList.length,
-    willSkip: buckets.willSkip.length, invalidExcluded: buckets.invalidExcluded.length, total: items.length,
+    willSkip: buckets.willSkip.length, invalidExcluded: buckets.invalidExcluded.length,
+    added: buckets.added.length, total: items.length,
   };
   return {
     items, buckets, counts,
