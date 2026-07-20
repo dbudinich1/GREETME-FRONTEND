@@ -216,22 +216,17 @@ export function buildReview(rows = [], state = freshReviewState()) {
       else seen.set(eff.email, i);
     }
 
-    // audience (business only). Precedence: user review edit > explicit valid CSV cell > path default.
-    // Single-type paths default the recipientType from the path, but an explicit valid Recipient Type
-    // cell overrides PER ROW (flagged when it differs from the list type); a non-blank UNKNOWN cell needs
-    // review and is never guessed. Universal ("mixed") reads the cell / needs review.
+    // audience (business only). A single-type path derives recipientType EXCLUSIVELY from the Wizard
+    // pathway (Employees→employee, Clients→client, Vendors→vendor) — the six-path templates carry no
+    // Recipient Type column, so there is no per-row spreadsheet override on this surface. The internal
+    // "mixed"/Universal model still reads a recipientType column (user review edit > recognized synonym
+    // > needs review), but it is off the template surface.
     const business = !!state.business, kind = state.kind;
     let audience = "", audienceState = "none";
     if (business) {
-      const cellRaw = String((row.contact || {}).recipientType || "").trim();
-      const cellNorm = normalizeRecipientTypeRaw(cellRaw);                         // recognized synonym → canonical, else null
-      if (e.audience && isCanonicalType(e.audience)) { audience = e.audience; audienceState = "chosen"; }   // user edit wins
-      else if (kind && kind !== "mixed") {
-        if (cellNorm && isCanonicalType(cellNorm)) { audience = cellNorm; audienceState = cellNorm === kind ? "auto" : "override_cell"; }
-        else if (cellRaw) audienceState = "needs_audience";                        // non-blank unknown cell → review
-        else { audience = isCanonicalType(kind) ? kind : ""; audienceState = "auto"; }   // blank cell → path default
-      } else if (cellNorm) { audience = cellNorm; audienceState = "auto"; }        // mixed: recognized synonym
-      else audienceState = "needs_audience";                                       // mixed: unknown/blank → review
+      if (kind && kind !== "mixed") { audience = isCanonicalType(kind) ? kind : ""; audienceState = "auto"; }
+      else if (e.audience && isCanonicalType(e.audience)) { audience = e.audience; audienceState = "chosen"; }
+      else { const n = normalizeRecipientTypeRaw((row.contact || {}).recipientType); if (n) { audience = n; audienceState = "auto"; } else audienceState = "needs_audience"; }
     }
 
     const rel = _relationOf(row, e);

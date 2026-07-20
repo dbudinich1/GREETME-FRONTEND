@@ -332,3 +332,53 @@ test("Relation controls align on the same baseline (desktop) and stack cleanly (
   expect(stacked.t2, "Description below Relation").toBeGreaterThan(stacked.t1);
   expect(Math.abs(stacked.l0 - stacked.l1) + Math.abs(stacked.l1 - stacked.l2), "stacked controls share a left edge").toBeLessThanOrEqual(1);
 });
+
+// ---- OPTION 1 / OPTION 2 labeled sections: labels render subordinate, contained, OR divider between ----
+function pageOptions(css, wrap) {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box}html,body{margin:0}body{background:#e9e3f2;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}${css}</style></head><body>
+    <div style="${wrap};margin:0 auto;padding:12px">
+      <div class="gmiw-underlay" id="underlay"><div class="gmiw-surface">
+        <div class="gmiw-upload" id="upload">
+          <section class="gmiw-upsec" id="sec1">
+            <span class="gmiw-optlabel" id="opt1">OPTION 1</span>
+            <h3 id="h1">Upload your contacts</h3>
+            <p>Choose your own CSV file. Only a name and valid email are required. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future.</p>
+            <label class="gmiw-choose">Choose a CSV file</label>
+          </section>
+          <div class="gmiw-or" id="ordiv"><span>OR</span></div>
+          <section class="gmiw-upsec gmiw-practice" id="sec2">
+            <span class="gmiw-optlabel" id="opt2">OPTION 2</span>
+            <span class="gmiw-badge">Safe practice mode</span>
+            <h3 id="h2">Test Drive the Import Wizard</h3>
+            <p>See the complete import process using fictional contacts. Nothing will be saved or sent.</p>
+          </section>
+        </div>
+      </div></div>
+    </div></body></html>`;
+}
+test("OPTION 1/OPTION 2 labels render, stay subordinate to headings, and remain contained (desktop/mobile/narrow)", async ({ page }) => {
+  for (const [tag, vp, wrap] of [["desktop", 1200, "max-width:900px"], ["mobile", 390, "max-width:900px"], ["narrow", 1360, "width:360px"]]) {
+    await page.setViewportSize({ width: vp, height: 1000 });
+    await page.setContent(pageOptions(CSS_AFTER, wrap));
+    const m = await page.evaluate(() => {
+      const u = document.getElementById("underlay").getBoundingClientRect();
+      const fs = (id) => parseFloat(getComputedStyle(document.getElementById(id)).fontSize);
+      const t = (id) => document.getElementById(id).innerText.trim();
+      const r = (id) => document.getElementById(id).getBoundingClientRect();
+      return { over: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        uL: u.left, uR: u.right, opt1: t("opt1"), opt2: t("opt2"), orText: t("ordiv"),
+        opt1Fs: fs("opt1"), h1Fs: fs("h1"), opt2Fs: fs("opt2"), h2Fs: fs("h2"),
+        s1R: r("sec1").right, s2R: r("sec2").right, s2Top: r("sec2").top, s1Bottom: r("sec1").bottom };
+    });
+    await page.locator("#underlay").screenshot({ path: join(SHOTS, `options-labeled-${tag}.jpg`), type: "jpeg", quality: 60 });
+    expect(m.over, `no horizontal scroll ${tag}`).toBeLessThanOrEqual(1);
+    expect(m.opt1, `OPTION 1 label ${tag}`).toBe("OPTION 1");
+    expect(m.opt2, `OPTION 2 label ${tag}`).toBe("OPTION 2");
+    expect(m.orText, `OR divider ${tag}`).toBe("OR");
+    expect(m.opt1Fs, `OPTION 1 subordinate to heading ${tag}`).toBeLessThan(m.h1Fs);
+    expect(m.opt2Fs, `OPTION 2 subordinate to heading ${tag}`).toBeLessThan(m.h2Fs);
+    expect(m.s1R, `section 1 in underlay ${tag}`).toBeLessThanOrEqual(m.uR + 0.5);
+    expect(m.s2R, `section 2 in underlay ${tag}`).toBeLessThanOrEqual(m.uR + 0.5);
+    expect(m.s2Top, `sections stacked ${tag}`).toBeGreaterThanOrEqual(m.s1Bottom - 0.5);
+  }
+});

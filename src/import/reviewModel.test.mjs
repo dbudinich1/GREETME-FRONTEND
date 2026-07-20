@@ -208,27 +208,19 @@ test("buildReviewPayload carries the canonical shippingAddress for real imports;
   assert.equal("shippingAddress" in pb, false);
 });
 
-// §9 — per-row Recipient Type override on a single-type business path.
-test("single-type path: an explicit valid Recipient Type cell overrides the path default (flagged)", () => {
-  // Employees list, but a row is explicitly a vendor → override applied + flagged, never silently kept as employee
+// Single-type business recipientType is derived EXCLUSIVELY from the path (no spreadsheet override on
+// the six-path template surface). A stray recipientType cell does not change the path-derived type.
+test("single-type path: recipientType is path-derived; a stray recipientType cell does not override it", () => {
   const rev = buildReview([row(0, { type: "vendor" }), row(1, { type: "" })], biz("employee"));
-  assert.equal(at(rev, 0).audience, "vendor");
-  assert.equal(at(rev, 0).audienceState, "override_cell");           // designation differs from the list type
-  assert.equal(at(rev, 0).bucket, REVIEW_BUCKET.READY);
-  assert.equal(at(rev, 1).audience, "employee");                     // blank cell → path default
-  assert.equal(at(rev, 1).audienceState, "auto");
-  assert.equal(buildReviewPayload([row(0, { type: "vendor" })], biz("employee"))[0].recipientType, "vendor");
+  assert.equal(at(rev, 0).audience, "employee");                     // path-derived, cell ignored
+  assert.equal(at(rev, 0).audienceState, "auto");
+  assert.equal(at(rev, 1).audience, "employee");
+  assert.equal(buildReviewPayload([row(0, { type: "vendor" })], biz("employee"))[0].recipientType, "employee");
 });
-test("single-type path: a recognized synonym cell normalizes; an UNKNOWN cell requires review", () => {
-  const rev = buildReview([row(0, { type: "supplier" }), row(1, { type: "contractor" })], biz("client"));
-  assert.equal(at(rev, 0).audience, "vendor");                       // supplier → vendor (override, canonical)
-  assert.equal(at(rev, 1).bucket, REVIEW_BUCKET.NEEDS_FIX);          // contractor unknown → review, never guessed
-  assert.equal(at(rev, 1).blockerCode, "needs_audience");
-});
-test("single-type override restricted to canonical values; a user review edit still wins", () => {
-  let s = biz("vendor");
-  s = chooseAudience(s, 0, "client");                                // user edit overrides everything
-  assert.equal(at(buildReview([row(0, { type: "vendor" })], s), 0).audience, "client");
+test("internal mixed/Universal model still reads a recipientType column (off the template surface)", () => {
+  const rev = buildReview([row(0, { type: "supplier" }), row(1, { type: "contractor" })], biz("mixed"));
+  assert.equal(at(rev, 0).audience, "vendor");                       // supplier → vendor (recognized)
+  assert.equal(at(rev, 1).bucket, REVIEW_BUCKET.NEEDS_FIX);          // unknown → review, never guessed
 });
 
 // group→relation dependency, clearing counts as an edit (F6).

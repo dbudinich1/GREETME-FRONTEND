@@ -445,10 +445,11 @@ export default function ContactImportWizard() {
               <button data-testid="change-group" style={{ ...btn("transparent", "#4a3fb0"), padding: "4px 10px", fontSize: ".78rem" }} onClick={changeGroup}>Change</button>
             </div>
           )}
-          {/* FIRST STACKED SECTION — upload your own CSV */}
+          {/* FIRST STACKED SECTION — OPTION 1: upload your own CSV */}
           <section className="gmiw-upsec" data-testid="upload-section">
+            <span className="gmiw-optlabel" data-testid="option-1-label">OPTION 1</span>
             <h3>Upload your contacts</h3>
-            <p>Choose your own CSV file. Only a name and valid email are required; you can review everything before importing.</p>
+            <p>Choose your own CSV file. Only a name and valid email are required. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future.</p>
             <label className="gmiw-choose" data-testid="choose-csv">
               Choose a CSV file
               <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onRealFile(e.target.files[0])} />
@@ -465,8 +466,9 @@ export default function ContactImportWizard() {
           </section>
           {/* CENTERED DIVIDER — visual text, not an interactive control */}
           <div className="gmiw-or" data-testid="upload-or"><span>OR</span></div>
-          {/* SECOND STACKED SECTION — Safe practice mode / Test Drive */}
+          {/* SECOND STACKED SECTION — OPTION 2: Safe practice mode / Test Drive */}
           <section className="gmiw-upsec gmiw-practice" data-testid="testdrive-section">
+            <span className="gmiw-optlabel" data-testid="option-2-label">OPTION 2</span>
             <span className="gmiw-badge">Safe practice mode</span>
             <h3>Test Drive the Import Wizard</h3>
             <p>See the complete import process using fictional contacts. Nothing will be saved or sent.</p>
@@ -570,6 +572,7 @@ function PremiumStyles() {
       .gmiw-upload{ display:grid; gap:16px; margin-top:16px; }
       .gmiw-upsec{ box-sizing:border-box; width:100%; min-width:0; display:grid; gap:10px; border-radius:16px;
         padding:22px 20px; background:rgba(255,255,255,.92); border:1px solid rgba(27,24,48,.1); }
+      .gmiw-optlabel{ justify-self:start; font-size:.68rem; font-weight:800; letter-spacing:.18em; color:#8a7fb5; text-transform:uppercase; }
       .gmiw-upsec h3{ margin:0; font-family:Georgia,'Times New Roman',serif; font-weight:600; font-size:1.2rem; color:#332a52; text-wrap:balance; max-width:100%; overflow-wrap:anywhere; }
       .gmiw-upsec p{ margin:0; color:#5a5170; font-size:.9rem; line-height:1.5; max-width:60ch; overflow-wrap:anywhere; }
       .gmiw-choose{ display:inline-flex; align-items:center; justify-content:center; text-align:center; justify-self:start;
@@ -795,7 +798,7 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
             {shown.length > PREVIEW_N && <button style={linkBtn} onClick={() => { setSeeAll((v) => !v); setConfPage(0); }}>{seeAll ? "Show less" : `See all ${shown.length}`}</button>}
           </div>
           <div style={{ border: "1px solid #eee", borderRadius: 10, overflow: "hidden" }}>
-            {preview.slice.map((it, i) => <ReadyPreviewRow key={it.index} it={it} business={business} first={i === 0} onAddRelationship={openDetails} listLabel={kindLabel} />)}
+            {preview.slice.map((it, i) => <ReadyPreviewRow key={it.index} it={it} business={business} first={i === 0} onAddRelationship={openDetails} />)}
           </div>
           {seeAll && preview.pages > 1 && <Pager page={preview.page} pages={preview.pages} onPage={setConfPage} />}
         </div>
@@ -859,14 +862,12 @@ const STATE_LABEL = {
   will_skip: { t: "Won't be added", c: "#605c78" },
 };
 // One recipient-style card. Truthful about a missing relationship (Morgan Doe rule) and its state.
-function ReadyPreviewRow({ it, business, first, onAddRelationship, listLabel }) {
+function ReadyPreviewRow({ it, business, first, onAddRelationship }) {
   const rel = business
     ? (it.audience ? (RECIPIENT_TYPE_OPTIONS.find((o) => o.value === it.audience) || {}).label || "" : "")
     : (it.relationProvided ? it.relationLabel : "Relationship not provided (optional)");
   const state = STATE_LABEL[it.bucket];
   const editable = it.bucket === "ready";
-  // §9/§10 — plainly flag a business row whose designation differs from the selected list type.
-  const differs = business && it.audienceState === "override_cell";
   return (
     <div style={{ ...rowStyle, padding: "8px 12px", borderTop: first ? "none" : "1px solid #f4f4f7", fontSize: ".82rem" }}>
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
@@ -876,7 +877,6 @@ function ReadyPreviewRow({ it, business, first, onAddRelationship, listLabel }) 
       <span style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
         {state && <span style={{ color: state.c, fontWeight: 700 }}>{state.t}</span>}
         <span style={{ color: (business || it.relationProvided) ? "#605c78" : "#a08a5a" }}>{it.birthday ? it.birthday + " · " : ""}{rel}</span>
-        {differs && <span data-testid="designation-differs" style={{ color: "#8a5410", fontSize: ".72rem" }}>differs from {listLabel || "this"} list</span>}
         {editable && !business && !it.relationProvided && <button style={linkBtn} onClick={onAddRelationship}>Add relationship</button>}
       </span>
     </div>

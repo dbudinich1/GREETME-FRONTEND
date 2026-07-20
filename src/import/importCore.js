@@ -84,11 +84,14 @@ const ALIASES = Object.freeze({
   email: ["email", "e-mail", "email address", "work email"],
   phone: ["phone", "mobile", "cell", "telephone", "tel"],
   relationship: ["relationship", "relation", "role"],
-  relationshipCategory: ["relationship group", "relationship category", "group"],
-  relationshipCloseness: ["closeness", "relationship closeness", "description"],
+  // "Type" is ContactForm's label for relationshipCategory (Family/Friend/Professional); the six-path
+  // templates use it that way. relationshipCategory precedes recipientType in CANONICAL_FIELDS, so a
+  // "Type" header maps here. "Description" is the template label for relationshipCloseness.
+  relationshipCategory: ["type", "relationship group", "relationship category", "group"],
+  relationshipCloseness: ["description", "closeness", "relationship closeness"],
   company: ["company", "employer", "organization", "org", "business"],
   department: ["department", "dept", "team", "division"],
-  recipientType: ["recipient type", "type", "category", "employee/client"],
+  recipientType: ["recipient type", "category", "employee/client"],
   birthday: ["birthday", "birth date", "dob", "date of birth"],
   consent: ["consent", "opt-in", "optin", "consented"],
   source: ["source", "origin", "list", "acquired from"],

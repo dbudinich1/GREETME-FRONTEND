@@ -187,7 +187,7 @@ test("ContactForm relationship row — Type / Relation / Description aligned", a
 
 // ---- Excel templates rendered faithfully from the ACTUAL generated .xlsx bytes ----
 import { templateXlsx } from "../src/import/xlsxTemplate.js";
-import { templateColumns } from "../src/import/templateModel.js";
+import { templateColumns, templateInstructions, templateTitle, RELATION_OPTIONS_BY_TYPE, TYPE_OPTIONS, DESCRIPTION_OPTIONS } from "../src/import/templateModel.js";
 function unzipHeaders(bytes) {
   const d = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let eocd = bytes.length - 22; while (eocd >= 0 && d.getUint32(eocd, true) !== 0x06054b50) eocd -= 1;
@@ -201,24 +201,57 @@ function unzipHeaders(bytes) {
   }
   return files;
 }
-for (const kind of ["family", "employee"]) {
-  test(`Excel ${kind} template — faithful render from the generated .xlsx (headers, widths, frozen, filter)`, async ({ page }) => {
+const SHELL_HTML = (body) => `<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0;font-family:Calibri,system-ui,sans-serif;background:#fff}</style></head><body>${body}</body></html>`;
+for (const kind of ["family", "friend", "professional", "employee", "client", "vendor"]) {
+  test(`Excel ${kind} template — faithful render from the generated .xlsx (15 headers, widths, frozen, filter)`, async ({ page }) => {
     const files = unzipHeaders(templateXlsx(kind));
     const sheet = files["xl/worksheets/sheet1.xml"];
     const headers = [...sheet.matchAll(/<t[^>]*>([^<]*)<\/t>/g)].map((m) => m[1]);
     const widths = [...sheet.matchAll(/<col [^>]*width="([\d.]+)"[^>]*\/>/g)].map((m) => parseFloat(m[1]));
     const cells = headers.map((h, i) => `<th style="min-width:${Math.round(widths[i] * 7)}px;border:1px solid #cfc6e0;background:#ede7f6;color:#2c2140;font-weight:700;padding:6px 10px;text-align:left;white-space:nowrap;font-size:13px">${h}</th>`).join("");
     const empty = headers.map((_, i) => `<td style="min-width:${Math.round(widths[i] * 7)}px;border:1px solid #eee;padding:6px 10px;height:22px"></td>`).join("");
-    await page.setViewportSize({ width: 1300, height: 360 });
-    await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0;font-family:Calibri,system-ui,sans-serif;background:#fff}</style></head><body>
-      <div style="padding:14px">
-        <div style="font-size:12px;color:#6b6580;margin-bottom:8px">greetme-${kind}-contacts-template.xlsx — Contacts sheet (rendered from the generated file bytes; headless cannot launch Excel). Header row frozen · autofilter enabled · date-formatted Birthday.</div>
+    await page.setViewportSize({ width: 1240, height: 320 });
+    await page.setContent(SHELL_HTML(`<div style="padding:14px">
+        <div style="font-size:12px;color:#6b6580;margin-bottom:8px">greetme-${kind}-contacts-template.xlsx — Contacts sheet (rendered from the generated file bytes; headless cannot launch Excel). 15 columns · header frozen · autofilter · Type/Relation/Description dropdowns · date-formatted Birthday.</div>
         <div style="overflow-x:auto;border:1px solid #cfc6e0;border-radius:8px"><table style="border-collapse:collapse;font-size:13px"><thead><tr>${cells}</tr></thead><tbody><tr>${empty}</tr><tr>${empty}</tr></tbody></table></div>
-      </div></body></html>`);
+      </div>`));
     await page.locator("body").screenshot({ path: join(SHOTS, `excel-${kind}-template.jpg`), type: "jpeg", quality: 68 });
     expect(headers).toEqual(templateColumns(kind).map((c) => c.header));
   });
 }
+// Dropdown-open preview (data from the ACTUAL taxonomy that feeds the generated file's named ranges).
+for (const [kind, typeLabel] of [["family", "Family"], ["employee", "Professional"]]) {
+  test(`Excel ${kind} template — Relation dropdown OPEN (${typeLabel})`, async ({ page }) => {
+    const relCols = ["Name", "Email", "Type", "Relation", "Description"];
+    const relations = RELATION_OPTIONS_BY_TYPE[typeLabel];
+    const th = relCols.map((h) => `<th style="min-width:110px;border:1px solid #cfc6e0;background:#ede7f6;color:#2c2140;font-weight:700;padding:6px 10px;text-align:left;font-size:13px">${h}</th>`).join("");
+    const opts = relations.map((r, i) => `<div style="padding:4px 12px;font-size:13px;${i === 0 ? "background:#e7defb;" : ""}border-bottom:1px solid #f0ecfa">${r}</div>`).join("");
+    await page.setViewportSize({ width: 760, height: 460 });
+    await page.setContent(SHELL_HTML(`<div style="padding:16px">
+        <div style="font-size:12px;color:#6b6580;margin-bottom:8px">${templateTitle(kind)} — Relation dropdown depends on Type ("${typeLabel}"). Values from the workbook's named range (no macros, no network).</div>
+        <table style="border-collapse:collapse"><thead><tr>${th}</tr></thead><tbody>
+          <tr><td style="border:1px solid #eee;padding:6px 10px">Robin</td><td style="border:1px solid #eee;padding:6px 10px">robin@example.com</td>
+          <td style="border:1px solid #eee;padding:6px 10px;background:#faf7ff">${typeLabel} ▾</td>
+          <td style="border:1.5px solid #7c5bd6;padding:0;vertical-align:top;position:relative;background:#fff">
+            <div style="padding:6px 10px">Select ▾</div>
+            <div style="position:absolute;left:0;top:100%;z-index:2;width:180px;background:#fff;border:1.5px solid #7c5bd6;border-radius:6px;box-shadow:0 8px 20px -8px rgba(80,40,130,.5);max-height:280px;overflow:auto">${opts}</div>
+          </td>
+          <td style="border:1px solid #eee;padding:6px 10px;background:#faf7ff">Greet-Me Worthy ▾</td></tr>
+        </tbody></table>
+        <div style="height:260px"></div></div>`));
+    await page.locator("body").screenshot({ path: join(SHOTS, `excel-${kind}-dropdown.jpg`), type: "jpeg", quality: 70 });
+    expect(relations.length).toBeGreaterThan(3);
+  });
+}
+// Instructions sheet preview (from the actual templateInstructions content).
+test("Excel Instructions sheet preview", async ({ page }) => {
+  const blocks = templateInstructions("family");
+  const html = blocks.map((b) => `<div style="font-weight:700;color:#2c2140;margin:12px 0 4px;font-size:14px">${b.heading}</div>` + b.lines.map((l) => `<div style="color:#4a4663;font-size:12.5px;margin-bottom:2px">${l}</div>`).join("")).join("");
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.setContent(SHELL_HTML(`<div style="padding:20px;max-width:820px">${html}</div>`));
+  await page.locator("body").screenshot({ path: join(SHOTS, "excel-instructions-sheet.jpg"), type: "jpeg", quality: 70 });
+  expect(blocks.length).toBeGreaterThan(5);
+});
 
 // ---- Family recommended default (correction): Family Member applied ----
 test("Family recommended default applies canonical Family Member", async ({ page }) => {

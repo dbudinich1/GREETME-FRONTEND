@@ -383,9 +383,15 @@ test("upload screen reflects the chosen category with canonical '...Contacts' he
   assert.equal((WIZ.match(/activeGroupMeta\.uploadHeading/g) || []).length, 1);
   assert.match(WIZ, /activeGroupMeta && \(/);
 });
-test("Structured Upload Options: upload section, OR divider, and Safe practice mode / Test Drive", () => {
+test("Structured Upload Options: OPTION 1 / OPTION 2 labels, OR divider, and Safe practice mode / Test Drive", () => {
+  // OPTION labels (subordinate to the section headings) on both options
+  assert.match(WIZ, /option-1-label[^>]*>OPTION 1/);
+  assert.match(WIZ, /option-2-label[^>]*>OPTION 2/);
   assert.match(WIZ, /Upload your contacts/);
-  assert.match(WIZ, /Choose your own CSV file\. Only a name and valid email are required; you can review everything before importing\./);
+  // exact revised Option 1 copy ("as needed", editable now + in the future)
+  assert.match(WIZ, /Choose your own CSV file\. Only a name and valid email are required\. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future\./);
+  assert.ok(!/as need be/.test(WIZ), "uses 'as needed', not 'as need be'");
+  assert.ok(!/you can review everything before importing\./.test(WIZ), "old Option 1 copy replaced");
   assert.match(WIZ, /choose-csv/);
   assert.match(WIZ, />\s*Choose a CSV file/);
   assert.match(WIZ, /data-testid="upload-or"><span>OR<\/span>/);      // centered divider, non-interactive text
@@ -451,9 +457,9 @@ test("Review screen: OPT-IN recommended defaults notice with apply / review-indi
   // never applied silently: application is behind the explicit apply-defaults click
   assert.match(WIZ, /applyRecommendedDefaults\(state, dflt\.indices, dflt\.def\)/);
   assert.match(WIZ, /undoRecommendedDefaults\(s, u\)/);
-  // business rows whose designation differs from the list are plainly flagged
-  assert.match(WIZ, /designation-differs/);
   assert.match(WIZ, /defaultsPath=\{templateKind\}/);
+  // business recipientType is path-derived (no per-row spreadsheet override on the template surface)
+  assert.ok(!/designation-differs/.test(WIZ), "per-row recipientType override removed from the template surface");
 });
 test("Personal Professional stays Individual (recipientType blank) — never the Business Wizard", () => {
   // Professional group → pickMode(PERSONAL) (individual), so applyRecipientTypes/boundary keeps recipientType ""
