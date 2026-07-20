@@ -58,9 +58,9 @@ export const CONTROLLED = Object.freeze({
   recipientType: ["employee", "client", "vendor"],
 });
 
-// Recommended default for a path, in plain words (Family HELD pending canonical `loved_one`).
+// Recommended default for a path, in plain words.
 const DEFAULT_WORDS = {
-  family: "Family group; a relationship default is pending (loved_one) and is not applied automatically yet.",
+  family: "Family group · Family Member · Greet-Me Worthy",
   friend: "Friend group · Acquaintance · Greet-Me Worthy",
   professional: "Professional group · Colleague · Greet-Me Worthy",
   employee: "Recipient Type employee · Professional · Employee · Greet-Me Worthy",

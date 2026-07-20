@@ -314,16 +314,39 @@ test("Business upload Change returns to Business Screen 2; Start Over returns to
 });
 
 // ---------- Safe defaults + blank templates ----------
-test("recommended-default notice appears only for eligible blank rows; Family is HELD (no notice)", async () => {
+test("recommended-default notice appears for eligible blank rows (Friend, exact count)", async () => {
   await mountWizard(); globalThis.__getContacts = () => ({ data: [] });
   await goIndividual("friend"); await uploadCsv(CSV2);
   assert.ok(tid("defaults-notice"), "Friend import with blank relationships → notice");
   assert.match(txt(), /Recommended settings are available/);
   assert.match(txt(), /Apply recommended settings to 2 contacts/);
-  // Family path default is held pending canonical loved_one → NO notice even with blank rows
-  await mountWizard(); globalThis.__getContacts = () => ({ data: [] });
+});
+
+test("FAMILY UX PROOF: before opt-in unchanged; after opt-in shows Family Member; undo restores exactly", async () => {
+  await mountWizard();
+  globalThis.__getContacts = () => ({ data: [] });
+  globalThis.__importContacts = (c) => ({ data: { imported: c.length, failed: 0, errors: [] } });
   await goIndividual("family"); await uploadCsv(CSV2);
-  assert.equal(tid("defaults-notice"), null, "Family held → no notice");
+  assert.ok(tid("defaults-notice"), "Family now has a canonical recommended default");
+  // before opt-in: relationship blank / unchanged
+  assert.match(txt(), /Relationship not provided/);
+  assert.ok(!txt().includes("Family Member"), "no relationship applied before opt-in");
+  // after opt-in: review displays Family / Family Member
+  await act(async () => fireClick(tid("apply-defaults")));
+  assert.ok(tid("defaults-applied"));
+  assert.match(txt(), /Family Member/, "Family Member shown after opt-in");
+  // undo restores the exact prior state
+  await act(async () => fireClick(tid("undo-defaults")));
+  assert.ok(tid("defaults-notice"));
+  assert.match(txt(), /Relationship not provided/);
+  assert.ok(!txt().includes("Family Member"), "undo removed the applied relationship");
+  // and the payload carries the canonical family default when applied + committed
+  await act(async () => fireClick(tid("apply-defaults")));
+  await act(async () => fireClick(tid("add-cta")));
+  await flush();
+  const p = globalThis.__lastImport || [];
+  assert.ok(p.length === 2 && p.every((c) => c.relationship === "family_member" && c.relationshipCategory === "family" && c.relationshipCloseness === "greetme_worthy"), "family payload");
+  assert.ok(p.every((c) => c.recipientType === ""), "Personal → no business recipientType");
 });
 
 test("Apply updates rows + count; Undo restores; Review individually dismisses with no change", async () => {

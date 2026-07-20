@@ -15,20 +15,22 @@ const row = (i, { name = "N" + i, email = `p${i}@x.co`, rel = "", type = "" } = 
 const ind = (extra = {}) => freshReviewState({ business: false, kind: null, todayIso: TODAY, ...extra });
 const biz = (kind, extra = {}) => freshReviewState({ business: true, kind, todayIso: TODAY, ...extra });
 
-// ---- matrix + taxonomy gate ----
-test("every non-pending default value is canonical (nothing invented)", () => {
+// ---- matrix + taxonomy ----
+test("EVERY default value is canonical (nothing invented; no pending/held entries remain)", () => {
   for (const [path, d] of Object.entries(DEFAULT_MATRIX)) {
-    if (d.pending) continue;
+    assert.ok(!d.pending, `${path} has no held/pending marker`);
     assert.ok(isValidRelation(d.relationshipCategory, d.relationship), `${path} relation canonical`);
     assert.ok(isValidCloseness(d.relationshipCloseness), `${path} closeness canonical`);
   }
 });
-test("Family is HELD pending loved_one — never substituted", () => {
-  assert.equal(DEFAULT_MATRIX.family.pending, "loved_one");
-  assert.equal(DEFAULT_MATRIX.family.relationship, null);
-  assert.equal(defaultForPath("family"), null);                 // not applicable until authorized
-  // and it never falls back to spouse/partner/sibling/cousin
-  for (const bad of ["spouse", "partner", "sibling", "cousin"]) assert.notEqual(DEFAULT_MATRIX.family.relationship, bad);
+test("Family default is the canonical family_member — loved_one is never used or substituted", () => {
+  assert.deepEqual(defaultForPath("family"), { relationshipCategory: "family", relationship: "family_member", relationshipCloseness: "greetme_worthy" });
+  assert.equal(DEFAULT_MATRIX.family.relationship, "family_member");
+  assert.equal(DEFAULT_MATRIX.family.label, "Family Member");
+  // loved_one appears nowhere in the matrix, and no spouse/partner/sibling/cousin substitution
+  const dump = JSON.stringify(DEFAULT_MATRIX);
+  assert.ok(!/loved_one/.test(dump), "loved_one absent from the default matrix");
+  for (const bad of ["spouse", "partner", "sibling", "cousin"]) assert.ok(!dump.includes(`"${bad}"`), `no ${bad} substitution`);
 });
 test("Friend/Professional/Employee/Client/Vendor defaults expose the exact canonical values", () => {
   assert.deepEqual(defaultForPath("friend"), { relationshipCategory: "friend", relationship: "acquaintance", relationshipCloseness: "greetme_worthy" });
@@ -60,11 +62,13 @@ for (const [path, cat, rel] of [["friend", "friend", "acquaintance"], ["professi
     assert.equal(items[1].relation, "sibling");               // CSV value untouched
   });
 }
-test("Family path applies NOTHING (held) even with blank rows", () => {
-  const rows = [row(0), row(1)];
+test("Family default applies family_member/greetme_worthy to blank rows only", () => {
+  const rows = [row(0), row(1, { rel: "sibling" })];              // row1 has a canonical CSV relationship
   const { appliedCount, state } = applyDefaultsForPath(rows, ind(), "family");
-  assert.equal(appliedCount, 0);
-  assert.deepEqual(state.edits, {});
+  assert.equal(appliedCount, 1);                                  // only the blank row
+  const items = buildReview(rows, state).items;
+  assert.equal(items[0].group, "family"); assert.equal(items[0].relation, "family_member"); assert.equal(items[0].closeness, "greetme_worthy");
+  assert.equal(items[1].relation, "sibling");                     // CSV value untouched
 });
 
 // ---- 5/6: business defaults; canonical values ----

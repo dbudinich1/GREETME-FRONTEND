@@ -72,6 +72,19 @@ test("closeness taxonomy is identical to ContactForm (values + exact labels)", (
   assert.deepEqual(fromModel.map((o) => o.label), ["Inner Circle", "Greet-Me Worthy", "You Gotta Do What Ya Gotta Do"]);
 });
 
+test("family_member is canonical under Family (Wizard + ContactForm); loved_one is absent everywhere", () => {
+  // present in the Import Wizard relationship model
+  assert.ok(RELATIONS_BY_CATEGORY.family.some((r) => r.value === "family_member" && r.label === "Family Member"), "Wizard Family has family_member");
+  // present in ContactForm's Family dropdown (parsed from the real JSX)
+  const fam = optionsForCategory("family");
+  assert.ok(fam.some((o) => o.value === "family_member" && o.label === "Family Member"), "ContactForm Family has Family Member");
+  // it exists ONLY under Family (relation values are unique across categories)
+  for (const cat of ["friend", "professional"]) assert.ok(!optionsForCategory(cat).some((o) => o.value === "family_member"), `family_member not under ${cat}`);
+  // loved_one is absent from the taxonomy AND ContactForm
+  const modelValues = Object.values(RELATIONS_BY_CATEGORY).flat().map((r) => r.value);
+  assert.ok(!modelValues.includes("loved_one"), "loved_one not in canonical taxonomy");
+  assert.ok(!FORM.includes("loved_one"), "loved_one not in ContactForm");
+});
 test("no extra relationship values exist in the Import Wizard beyond ContactForm's", () => {
   const modelValues = Object.values(RELATIONS_BY_CATEGORY).flat().map((r) => r.value).sort();
   const formValues = ["family", "friend", "professional"].flatMap((c) => optionsForCategory(c).map((o) => o.value)).sort();

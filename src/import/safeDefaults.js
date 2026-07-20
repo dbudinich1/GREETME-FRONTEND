@@ -12,10 +12,8 @@
 //   • Applying fills ONLY blank group/relation/closeness; it never overwrites a supplied/edited value.
 //   • recipientType is owned by the path/review audience logic and is NOT touched here.
 //
-// TAXONOMY GATE: Family's recommended relationship is `loved_one`, which is NOT in the canonical
-// completionModel vocabulary. It is HELD here (never substituted with spouse/partner/sibling/etc.) and
-// reported. When `loved_one` is authorized + added canonically, set Family's `relationship` and drop
-// `pending` — nothing else changes.
+// TAXONOMY: Family's recommended relationship is the canonical `family_member` ("Family Member"), added
+// to completionModel + ContactForm and enforced by the taxonomy lock. Every default value is canonical.
 
 import { isValidRelation, isValidCloseness } from "./completionModel.js";
 import { buildReview, DEFAULT_CLOSENESS } from "./reviewModel.js";
@@ -23,7 +21,7 @@ import { buildReview, DEFAULT_CLOSENESS } from "./reviewModel.js";
 // Per-path recommended defaults (matrix). `pending` marks a value awaiting a canonical taxonomy
 // addition — such a path is NOT applicable until authorized.
 export const DEFAULT_MATRIX = Object.freeze({
-  family: Object.freeze({ relationshipCategory: "family", relationship: null, label: "Loved One", relationshipCloseness: "greetme_worthy", pending: "loved_one" }),
+  family: Object.freeze({ relationshipCategory: "family", relationship: "family_member", label: "Family Member", relationshipCloseness: "greetme_worthy" }),
   friend: Object.freeze({ relationshipCategory: "friend", relationship: "acquaintance", label: "Acquaintance", relationshipCloseness: "greetme_worthy" }),
   professional: Object.freeze({ relationshipCategory: "professional", relationship: "colleague", label: "Colleague", relationshipCloseness: "greetme_worthy" }),
   employee: Object.freeze({ relationshipCategory: "professional", relationship: "employee", label: "Employee", relationshipCloseness: "greetme_worthy" }),

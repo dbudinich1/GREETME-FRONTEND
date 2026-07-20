@@ -219,3 +219,18 @@ for (const kind of ["family", "employee"]) {
     expect(headers).toEqual(templateColumns(kind).map((c) => c.header));
   });
 }
+
+// ---- Family recommended default (correction): Family Member applied ----
+test("Family recommended default applies canonical Family Member", async ({ page }) => {
+  await mount(page, 1180);
+  await page.click('[data-testid="panel-personal"]');
+  await page.click('[data-testid="panel-family"]');
+  await page.setInputFiles('input[type="file"]', { name: "family.csv", mimeType: "text/csv",
+    buffer: Buffer.from("Name,Email\nRobin Hollis,robin@example.com\nCasey Hollis,casey@example.org") });
+  await page.waitForSelector('[data-testid="defaults-notice"]');
+  await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, "family-defaults-available.jpg"), type: "jpeg", quality: 62 });
+  await page.click('[data-testid="apply-defaults"]');
+  await page.waitForSelector('[data-testid="defaults-applied"]');
+  await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, "family-defaults-applied.jpg"), type: "jpeg", quality: 62 });
+  await expect(page.locator("body")).toContainText("Family Member");
+});

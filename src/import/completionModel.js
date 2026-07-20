@@ -18,6 +18,7 @@ export const RELATIONSHIP_CATEGORIES = Object.freeze([
 
 export const RELATIONS_BY_CATEGORY = Object.freeze({
   family: Object.freeze([
+    { value: "family_member", label: "Family Member" },
     { value: "parent", label: "Parent" }, { value: "sibling", label: "Sibling" }, { value: "child", label: "Child" },
     { value: "grandparent", label: "Grandparent" }, { value: "grandchild", label: "Grandchild" }, { value: "aunt_uncle", label: "Aunt/Uncle" },
     { value: "cousin", label: "Cousin" }, { value: "nephew", label: "Nephew" }, { value: "niece", label: "Niece" },

@@ -704,6 +704,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               <option value="">Select...</option>
               {formData.relationshipCategory === 'family' && (
                 <>
+                  <option value="family_member">Family Member</option>
                   <option value="parent">Parent</option>
                   <option value="sibling">Sibling</option>
                   <option value="child">Child</option>
