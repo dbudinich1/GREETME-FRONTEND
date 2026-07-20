@@ -198,6 +198,16 @@ test("Individual strips a business recipientType; Business assigns it", () => {
   assert.equal(buildReviewPayload([r], biz("vendor"))[0].recipientType, "vendor");
 });
 
+// Address mapping → payload chain (what the backend now persists).
+test("buildReviewPayload carries the canonical shippingAddress for real imports; omitted when blank", () => {
+  const addr = { line1: "1 Main St", line2: "", city: "Reno", state: "NV", zip: "89501", country: "USA" };
+  const withAddr = { contact: { fullName: "A", email: "a@x.co", relationship: "", recipientType: "", shippingAddress: addr }, index: 0, __raw: {}, __map: {} };
+  const noAddr = { contact: { fullName: "B", email: "b@x.co" }, index: 1, __raw: {}, __map: {} };
+  const [pa, pb] = buildReviewPayload([withAddr, noAddr], ind());
+  assert.deepEqual(pa.shippingAddress, addr);
+  assert.equal("shippingAddress" in pb, false);
+});
+
 // §9 — per-row Recipient Type override on a single-type business path.
 test("single-type path: an explicit valid Recipient Type cell overrides the path default (flagged)", () => {
   // Employees list, but a row is explicitly a vendor → override applied + flagged, never silently kept as employee
