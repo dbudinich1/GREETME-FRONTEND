@@ -594,8 +594,8 @@ function HomeIcon() {
 // or a recipientType). `uploadHeading` tailors the existing upload screen; nothing here invents data.
 const PERSONAL_GROUPS = [
   { value: "family", title: "Family", copy: "Parents, children, siblings, and extended family.", cta: "CHOOSE FAMILY →", medallion: "", Icon: HomeIcon, uploadHeading: "Import Family Contacts" },
-  { value: "friend", title: "Friends", copy: "Best friends, neighbors, teammates, and classmates.", cta: "CHOOSE FRIENDS →", medallion: "gmiw-medallion--rose", Icon: HeartIcon, uploadHeading: "Import Friends" },
-  { value: "professional", title: "Professional", copy: "Colleagues, mentors, and work connections important to you.", cta: "CHOOSE PROFESSIONAL →", medallion: "gmiw-medallion--plum", Icon: BriefcaseIcon, uploadHeading: "Import Professional Relationships" },
+  { value: "friend", title: "Friends", copy: "Best friends, neighbors, teammates, and classmates.", cta: "CHOOSE FRIENDS →", medallion: "gmiw-medallion--rose", Icon: HeartIcon, uploadHeading: "Import Friend Contacts" },
+  { value: "professional", title: "Professional", copy: "Colleagues, mentors, and work connections important to you.", cta: "CHOOSE PROFESSIONAL →", medallion: "gmiw-medallion--plum", Icon: BriefcaseIcon, uploadHeading: "Import Professional Contacts" },
 ];
 function Empty({ title, body }) {
   return <div style={{ ...card, textAlign: "center" }}><h3 style={{ margin: "0 0 6px", fontFamily: "Georgia,serif" }}>{title}</h3><p style={muted}>{body}</p></div>;

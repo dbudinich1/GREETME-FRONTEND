@@ -147,3 +147,50 @@ test("REGRESSION: the previously-deployed CSS clips in a narrow container (Found
   }
   expect(anyDefect, "deployed CSS overflows a tile/its text in a narrow container").toBe(true);
 });
+
+// ---- Personal upload-screen headings (Family / Friend / Professional) — canonical "…Contacts" ----
+const CARD = "background:#fff;border:1px solid rgba(27,24,48,.1);border-radius:14px;padding:18px";
+function pageUpload(css, heading, wrap) {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box}html,body{margin:0}body{background:#e9e3f2;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}${css}</style></head><body>
+    <div style="${wrap};margin:0 auto;padding:12px">
+      <div class="gmiw-underlay" id="underlay"><div class="gmiw-surface">
+        <header class="gmiw-banner"><div class="gmiw-eyebrow">A PREMIUM GREET-ME EXPERIENCE</div><h1 class="gmiw-title">Greet-Me™ Import Wizard</h1><div class="gmiw-tagline">Forget Them Not!</div></header>
+        <div style="display:grid;gap:12px;margin-top:16px">
+          <div id="ctx" style="${CARD};display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px">
+            <b id="uploadheading" style="font-family:Georgia,serif;font-size:1.05rem">${heading}</b>
+            <button style="background:transparent;border:1px solid rgba(27,24,48,.15);color:#4a3fb0;border-radius:11px;padding:4px 10px;font-weight:700;font-size:.78rem">Change</button>
+          </div>
+          <label style="${CARD};display:block;text-align:center;border-style:dashed">
+            <b>Choose a .csv file</b><div style="font-size:.8rem;color:#605c78;margin-top:4px">Only a name and a valid email are required. Everything else is optional — you can review before importing.</div>
+          </label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+            <button style="background:transparent;border:1px solid rgba(27,24,48,.15);color:#1b1830;border-radius:11px;padding:10px 16px;font-weight:700;font-size:.85rem">Download Greet-Me sample CSV</button>
+            <button style="background:linear-gradient(135deg,#6d74ee,#764ba2);color:#fff;border:none;border-radius:11px;padding:10px 16px;font-weight:700;font-size:.85rem">Try the sample</button>
+          </div>
+        </div>
+      </div></div>
+    </div></body></html>`;
+}
+const UPLOAD_HEADINGS = { family: "Import Family Contacts", friend: "Import Friend Contacts", professional: "Import Professional Contacts" };
+test("Personal upload headings render the exact canonical text and fit cleanly (desktop/mobile/narrow)", async ({ page }) => {
+  for (const [g, heading] of Object.entries(UPLOAD_HEADINGS)) {
+    for (const [tag, vp, wrap] of [["desktop", 1200, "max-width:900px"], ["mobile", 390, "max-width:900px"], ["narrow", 1360, "width:460px"]]) {
+      await page.setViewportSize({ width: vp, height: 900 });
+      await page.setContent(pageUpload(CSS_AFTER, heading, wrap));
+      const m = await page.evaluate(() => {
+        const u = document.getElementById("underlay").getBoundingClientRect();
+        const h = document.getElementById("uploadheading"); const hr = h.getBoundingClientRect();
+        const ctx = document.getElementById("ctx").getBoundingClientRect();
+        return { over: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          sw: h.scrollWidth, cw: h.clientWidth, text: h.innerText, hRight: hr.right, ctxL: ctx.left, ctxR: ctx.right, uL: u.left, uR: u.right };
+      });
+      await page.locator("#underlay").screenshot({ path: join(SHOTS, `upload-${g}-${tag}.jpg`), type: "jpeg", quality: 60 });
+      expect(m.text, `exact heading ${g}`).toBe(heading);
+      expect(m.sw, `heading not clipped ${g}/${tag}`).toBeLessThanOrEqual(m.cw + 1);
+      expect(m.over, `no horizontal scroll ${g}/${tag}`).toBeLessThanOrEqual(1);
+      expect(m.ctxL, `context in underlay L ${g}/${tag}`).toBeGreaterThanOrEqual(m.uL - 0.5);
+      expect(m.ctxR, `context in underlay R ${g}/${tag}`).toBeLessThanOrEqual(m.uR + 0.5);
+      expect(m.hRight, `heading inside its card ${g}/${tag}`).toBeLessThanOrEqual(m.ctxR + 0.5);
+    }
+  }
+});

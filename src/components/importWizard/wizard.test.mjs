@@ -353,11 +353,18 @@ test("Screen 2 Back + upload Change + Start-Over clear/route correctly", () => {
   assert.match(WIZ, /changePersonalGroup = \(\) => \{[\s\S]*?setEntryView\("group"\)/);
   assert.match(WIZ, /setEntryView\("path"\); setPersonalGroup\(null\);\s*\/\/ back to Screen 1/);   // startOver clears context
 });
-test("upload screen reflects the chosen Personal group + Change link (no upload/review redesign)", () => {
+test("upload screen reflects the chosen Personal group with the canonical '...Contacts' headings", () => {
   assert.match(WIZ, /upload-context/);
-  assert.match(WIZ, /Import Family Contacts/);
-  assert.match(WIZ, /Import Friends/);
-  assert.match(WIZ, /Import Professional Relationships/);
+  // canonical, consistent headings — a single source (PERSONAL_GROUPS.uploadHeading)
+  assert.match(WIZ, /uploadHeading: "Import Family Contacts"/);
+  assert.match(WIZ, /uploadHeading: "Import Friend Contacts"/);
+  assert.match(WIZ, /uploadHeading: "Import Professional Contacts"/);
+  // the old/inconsistent headings are gone
+  assert.ok(!/Import Friends\b/.test(WIZ), "old 'Import Friends' heading removed");
+  assert.ok(!/Import Professional Relationships/.test(WIZ), "old 'Import Professional Relationships' heading removed");
+  // exactly one heading source (rendered once), no duplicate/alternate mapping
+  assert.equal((WIZ.match(/uploadHeading:/g) || []).length, 3);       // one per Personal group, nowhere else
+  assert.equal((WIZ.match(/personalGroupMeta\.uploadHeading/g) || []).length, 1);
   assert.match(WIZ, /personalGroupMeta && \(/);
 });
 test("Personal Professional stays Individual (recipientType blank) — never the Business Wizard", () => {

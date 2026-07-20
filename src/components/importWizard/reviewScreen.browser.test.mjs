@@ -294,7 +294,7 @@ test("the WHOLE Business panel activates the Business flow (skips Screen 2)", as
 
 // ---------- Screen 2 — Personal relationship group ----------
 test("Screen 2 has exactly Family/Friends/Professional; each routes to the upload with its context", async () => {
-  const cases = [["family", "Import Family Contacts"], ["friend", "Import Friends"], ["professional", "Import Professional Relationships"]];
+  const cases = [["family", "Import Family Contacts"], ["friend", "Import Friend Contacts"], ["professional", "Import Professional Contacts"]];
   await mountWizard(); await act(async () => fireClick(tid("panel-personal")));
   assert.equal(document.querySelectorAll('[data-testid="group-panels"] [data-testid^="panel-"]').length, 3);
   for (const [g, heading] of cases) {
@@ -316,10 +316,15 @@ test("Screen 2 Back returns to Screen 1; upload Change returns to Screen 2; Star
   await act(async () => fireClick(tid("back-to-path")));
   assert.match(txt(), /Import Those Important to You/);
   assert.ok(tid("panel-personal") && tid("panel-business"), "back to Screen 1");
-  // Change from upload → Screen 2
+  // Change from upload → Screen 2, then picking a DIFFERENT category updates the heading immediately
   await mountWizard(); await goIndividual("friend");
+  assert.match(txt(), /Import Friend Contacts/);
   await act(async () => fireClick(tid("change-group")));
   assert.ok(tid("group-panels"), "Change returned to Screen 2");
+  await act(async () => fireClick(tid("panel-professional")));
+  await flush();
+  assert.match(txt(), /Import Professional Contacts/, "new category → new heading");
+  assert.ok(!txt().includes("Import Friend Contacts"), "old heading replaced");
   // Start Over from upload clears the Personal context → Screen 1 (no upload-context on re-entry)
   await mountWizard(); await goIndividual("family");
   await act(async () => fireClick(btnByText(/Start over/)));    // Shell "← Start over" on the upload screen
@@ -327,7 +332,7 @@ test("Screen 2 Back returns to Screen 1; upload Change returns to Screen 2; Star
   await act(async () => fireClick(tid("panel-personal")));
   await act(async () => fireClick(tid("panel-professional")));
   await flush();
-  assert.match(txt(), /Import Professional Relationships/, "fresh context after Start Over (no stale Family)");
+  assert.match(txt(), /Import Professional Contacts/, "fresh context after Start Over (no stale Family)");
 });
 test("real import through a Personal group still navigates to Recipients (mechanics intact)", async () => {
   await mountWizard();
