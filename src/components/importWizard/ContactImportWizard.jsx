@@ -591,7 +591,7 @@ function HomeIcon() {
 // Screen 2 — Personal relationship GROUPS. `value` is UI context only (never a persisted relationship
 // or a recipientType). `uploadHeading` tailors the existing upload screen; nothing here invents data.
 const PERSONAL_GROUPS = [
-  { value: "family", title: "Family", copy: "Parents, children, siblings, partners, and extended family.", cta: "CHOOSE FAMILY →", medallion: "", Icon: HomeIcon, uploadHeading: "Import Family Contacts" },
+  { value: "family", title: "Family", copy: "Parents, children, siblings, and extended family.", cta: "CHOOSE FAMILY →", medallion: "", Icon: HomeIcon, uploadHeading: "Import Family Contacts" },
   { value: "friend", title: "Friends", copy: "Best friends, neighbors, teammates, and classmates.", cta: "CHOOSE FRIENDS →", medallion: "gmiw-medallion--rose", Icon: HeartIcon, uploadHeading: "Import Friends" },
   { value: "professional", title: "Professional", copy: "Colleagues, mentors, and work connections important to you.", cta: "CHOOSE PROFESSIONAL →", medallion: "gmiw-medallion--plum", Icon: BriefcaseIcon, uploadHeading: "Import Professional Relationships" },
 ];

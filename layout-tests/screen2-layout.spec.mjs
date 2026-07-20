@@ -32,10 +32,24 @@ const page2 = (css) => `<!doctype html><html><head><meta charset="utf-8"><style>
       <header class="gmiw-banner"><div class="gmiw-eyebrow">PERSONAL RELATIONSHIPS</div><h1 class="gmiw-title">Greet-Me™ Import Wizard</h1><div class="gmiw-tagline">Forget Them Not!</div></header>
       <h2 class="gmiw-heading">Who Are You Importing?</h2>
       <div class="gmiw-panels gmiw-panels--three" id="panels">
-        ${panel("Family", "Parents, children, siblings, partners, and extended family.", "CHOOSE FAMILY →")}
+        ${panel("Family", "Parents, children, siblings, and extended family.", "CHOOSE FAMILY →")}
         ${panel("Friends", "Best friends, neighbors, teammates, and classmates.", "CHOOSE FRIENDS →")}
         ${panel("Professional", "Colleagues, mentors, and work connections important to you.", "CHOOSE PROFESSIONAL →")}
       </div>
+    </div></div>
+  </div></body></html>`;
+
+// Screen 1 harness (for regenerated screenshots + an unchanged-copy check). Uses the same CSS.
+const page1 = (css) => `<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box}html,body{margin:0}body{background:#e9e3f2;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}${css}</style></head><body>
+  <div style="max-width:900px;margin:0 auto;padding:12px">
+    <div class="gmiw-underlay" id="underlay"><div class="gmiw-surface">
+      <header class="gmiw-banner"><div class="gmiw-eyebrow">A PREMIUM GREET-ME EXPERIENCE</div><h1 class="gmiw-title">Greet-Me™ Import Wizard</h1><div class="gmiw-tagline">Forget Them Not!</div></header>
+      <h2 class="gmiw-heading">Import Those Important to You</h2>
+      <div class="gmiw-panels" id="panels">
+        ${panel("Personal Relationships", "Family, friends, and whoever is important to you.", "CHOOSE PERSONAL →")}
+        ${panel("Business Relationships", "Employees, clients, vendors, and professional contacts.", "CHOOSE BUSINESS →")}
+      </div>
+      <p class="gmiw-footer">You can return and choose a different path at any time.</p>
     </div></div>
   </div></body></html>`;
 
@@ -57,6 +71,29 @@ async function measure(page) {
     };
   });
 }
+
+test("Screen 1 unchanged: exact copy + capture desktop/mobile screenshots", async ({ page }) => {
+  for (const [w, tag] of [[1200, "desktop"], [375, "mobile"]]) {
+    await page.setViewportSize({ width: w, height: 1000 });
+    await page.setContent(page1(CSS_AFTER));
+    await page.locator("#underlay").screenshot({ path: join(SHOTS, `screen1-${tag}.jpg`), type: "jpeg", quality: 62 });
+    const t = await page.locator("body").innerText();
+    for (const s of ["A PREMIUM GREET-ME EXPERIENCE", "Greet-Me™ Import Wizard", "Forget Them Not!", "Import Those Important to You",
+      "Personal Relationships", "Family, friends, and whoever is important to you.", "CHOOSE PERSONAL →",
+      "Business Relationships", "Employees, clients, vendors, and professional contacts.", "CHOOSE BUSINESS →",
+      "You can return and choose a different path at any time."]) {
+      expect(t, `Screen 1 exact copy @${w}`).toContain(s);
+    }
+  }
+});
+
+test("Family copy is amended: corrected sentence renders, 'partners' is absent", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 1000 });
+  await page.setContent(page2(CSS_AFTER));
+  const familyText = await page.locator(".gmiw-panel-copy").first().innerText();
+  expect(familyText.trim()).toBe("Parents, children, siblings, and extended family.");
+  expect(await page.locator("body").innerText()).not.toContain("partners");
+});
 
 test("AFTER: Screen 2 has no overflow/clip/overlap/truncation, and a resilient column count", async ({ page }) => {
   for (const w of WIDTHS) {

@@ -327,7 +327,11 @@ test("Screen 2 banner + heading exact copy", () => {
   assert.match(WIZ, /entryView === "group"/);
 });
 test("Screen 2 has EXACTLY Family, Friends, Professional with exact copy + CTAs", () => {
-  assert.match(WIZ, /value: "family", title: "Family", copy: "Parents, children, siblings, partners, and extended family\.", cta: "CHOOSE FAMILY →"/);
+  // Family copy amended: "partners" removed (superseded term). Exact new sentence, nothing substituted.
+  assert.match(WIZ, /value: "family", title: "Family", copy: "Parents, children, siblings, and extended family\.", cta: "CHOOSE FAMILY →"/);
+  assert.ok(!/Parents, children, siblings, partners/.test(WIZ), "superseded 'partners' Family copy is gone");
+  assert.ok(!/partners, and extended family/.test(WIZ), "no 'partners' anywhere in the Family sentence");
+  assert.ok(!/(partner|spouse)[^A-Za-z]*and extended family/i.test(WIZ), "no partner/spouse substitution");
   assert.match(WIZ, /value: "friend", title: "Friends", copy: "Best friends, neighbors, teammates, and classmates\.", cta: "CHOOSE FRIENDS →"/);
   assert.match(WIZ, /value: "professional", title: "Professional", copy: "Colleagues, mentors, and work connections important to you\.", cta: "CHOOSE PROFESSIONAL →"/);
   assert.equal((WIZ.match(/value: "(family|friend|professional)",/g) || []).length, 3);
