@@ -64,7 +64,7 @@ test("buildPersonalImportContacts transmits every recognized field INCLUDING bir
 test("upload lands on a confirmation, not a walkthrough/decision funnel", () => {
   assert.match(WIZ, /ReviewScreen/);
   assert.match(WIZ, /Review your contacts/);              // real heading
-  assert.match(WIZ, /Preview your sample contacts/);      // sample heading
+  assert.match(WIZ, /Preview your practice contacts/);    // practice heading
   assert.match(WIZ, /confirm-screen/);
   // the mandatory walkthrough + defaults funnel + prior framing are gone
   for (const gone of ["Defaults were applied", "DecisionScreen", "AttentionCard", "need your attention",
@@ -89,8 +89,8 @@ test("Individual two-screen flow: real primary 'Add X'; individual sample = term
   assert.match(WIZ, /returnToRecipients\(\);\s*\n\s*return;/);   // navigate then stop
   assert.ok(!/function ImportSummary/.test(WIZ), "dead Individual result screen removed");
   assert.ok(!/function ListActions/.test(WIZ), "dead ListActions removed");
-  // "View X sample recipients" survives ONLY for the Business sample path (unchanged)
-  assert.match(WIZ, /View \{importCount\} sample recipient/);
+  // "View X practice recipients" survives ONLY for the Business practice path (terminal)
+  assert.match(WIZ, /View \{importCount\} practice recipient/);
 });
 test("partial real import stays on the combined screen; added rows can't be re-submitted", () => {
   assert.match(WIZ, /setPartial\(/);
@@ -226,18 +226,30 @@ test("org context never comes from user.id / useAuth", () => {
   assert.ok(!/user\??\.id/.test(WIZ));
   assert.ok(!/useAuth/.test(WIZ));
 });
-test("Screen 1: two premium path panels; Personal opens Screen 2, Business keeps the existing route", () => {
+test("Screen 1: two premium path panels; Personal opens Screen 2, Business opens its OWN Screen 2", () => {
   assert.match(WIZ, /panel-personal[\s\S]*?onClick=\{\(\) => setEntryView\("group"\)\}/);       // Personal → Screen 2
-  assert.match(WIZ, /panel-business[\s\S]*?onClick=\{\(\) => pickMode\(MODES\.CORPORATE\)\}/);   // Business → existing flow
+  assert.match(WIZ, /panel-business[\s\S]*?onClick=\{\(\) => setEntryView\("bizgroup"\)\}/);     // Business → Business Screen 2
   assert.equal((WIZ.match(/data-testid="panel-(personal|business)"/g) || []).length, 2);
   // entering the Individual flow still goes through the unchanged pickMode(PERSONAL) — only via Screen 2
   assert.match(WIZ, /choosePersonalGroup = \(group\) => \{[\s\S]*?pickMode\(MODES\.PERSONAL\)/);
 });
-test("Business has the four recipient types; dormant corporate is truthful", () => {
-  assert.match(WIZ, /Employees \/ Personnel/);
-  assert.match(WIZ, /Universal List/);
-  assert.match(WIZ, /RECIPIENT_KINDS\.map/);
+test("Business mirrors Personal: Employees/Clients/Vendors tiles; NO Universal List primary tile; dormant is truthful", () => {
+  // the three canonical Business tiles (exact copy + CTAs), driven by BUSINESS_GROUPS
+  assert.match(WIZ, /value: "employee", title: "Employees", copy: "Employees, personnel, departments, and workplace contacts\.", cta: "CHOOSE EMPLOYEES →"/);
+  assert.match(WIZ, /value: "client", title: "Clients", copy: "Clients, customers, companies, and important customer contacts\.", cta: "CHOOSE CLIENTS →"/);
+  assert.match(WIZ, /value: "vendor", title: "Vendors", copy: "Vendors, suppliers, service providers, and business partners\.", cta: "CHOOSE VENDORS →"/);
+  assert.equal((WIZ.match(/value: "(employee|client|vendor)", title:/g) || []).length, 3);
+  assert.match(WIZ, /entryView === "bizgroup"/);
+  assert.match(WIZ, /biz-panels/);
+  assert.match(WIZ, /eyebrow="BUSINESS RELATIONSHIPS"/);
+  // Universal List / the old recipient-type selector are NOT on the entry surface anymore
+  assert.ok(!/Universal List/.test(WIZ), "no Universal List primary tile on the Business entry surface");
+  assert.ok(!/RECIPIENT_KINDS/.test(WIZ), "old RECIPIENT_KINDS selector removed from the wizard surface");
+  assert.ok(!/Employees \/ Personnel/.test(WIZ), "old plain recipient-type list removed");
+  // real Business import stays dormant/fail-closed with a truthful state (no "coming soon")
   assert.match(WIZ, /Organization import is currently turned off/);
+  assert.match(WIZ, /onBusinessRealFile = useCallback\(\(\) => \{ setError\(null\); setBizDormant\(true\); \}/);
+  assert.match(WIZ, /biz-dormant/);
   assert.ok(!/coming soon/i.test(WIZ));
 });
 test("corporateRoute maps every phase", () => {
@@ -259,9 +271,9 @@ test("Sample Workspace: session-scoped, zero API mutations, cleanup", () => {
   assert.match(WIZ, /saveSampleWorkspace/);
   assert.match(WIZ, /clearSampleWorkspace/);
   assert.match(WIZ, /SampleRecipientsView/);
-  assert.match(WIZ, /Sample Mode — Nothing will be saved or sent/);
-  assert.match(WIZ, /Delete all sample contacts/);
-  assert.match(WIZ, /Exit Sample Mode/);
+  assert.match(WIZ, /Safe practice mode — Nothing will be saved or sent/);
+  assert.match(WIZ, /Delete practice contacts/);
+  assert.match(WIZ, /Exit Test Drive/);
   assert.match(WIZ, /auth:session-expired/);
   assert.equal((WIZ.match(/api\.importContacts\(/g) || []).length, 1);
   assert.match(WIZ, /sample \? commitSample :/);
@@ -353,19 +365,62 @@ test("Screen 2 Back + upload Change + Start-Over clear/route correctly", () => {
   assert.match(WIZ, /changePersonalGroup = \(\) => \{[\s\S]*?setEntryView\("group"\)/);
   assert.match(WIZ, /setEntryView\("path"\); setPersonalGroup\(null\);\s*\/\/ back to Screen 1/);   // startOver clears context
 });
-test("upload screen reflects the chosen Personal group with the canonical '...Contacts' headings", () => {
+test("upload screen reflects the chosen category with canonical '...Contacts' headings (Personal + Business)", () => {
   assert.match(WIZ, /upload-context/);
-  // canonical, consistent headings — a single source (PERSONAL_GROUPS.uploadHeading)
+  // canonical Personal headings (source: PERSONAL_GROUPS.uploadHeading)
   assert.match(WIZ, /uploadHeading: "Import Family Contacts"/);
   assert.match(WIZ, /uploadHeading: "Import Friend Contacts"/);
   assert.match(WIZ, /uploadHeading: "Import Professional Contacts"/);
-  // the old/inconsistent headings are gone
+  // canonical Business headings (source: BUSINESS_GROUPS.uploadHeading)
+  assert.match(WIZ, /uploadHeading: "Import Employee Contacts"/);
+  assert.match(WIZ, /uploadHeading: "Import Client Contacts"/);
+  assert.match(WIZ, /uploadHeading: "Import Vendor Contacts"/);
+  // the old/inconsistent Personal headings are gone
   assert.ok(!/Import Friends\b/.test(WIZ), "old 'Import Friends' heading removed");
   assert.ok(!/Import Professional Relationships/.test(WIZ), "old 'Import Professional Relationships' heading removed");
-  // exactly one heading source (rendered once), no duplicate/alternate mapping
-  assert.equal((WIZ.match(/uploadHeading:/g) || []).length, 3);       // one per Personal group, nowhere else
-  assert.equal((WIZ.match(/personalGroupMeta\.uploadHeading/g) || []).length, 1);
-  assert.match(WIZ, /personalGroupMeta && \(/);
+  // exactly six heading sources (3 Personal + 3 Business), each rendered once via a single shared site
+  assert.equal((WIZ.match(/uploadHeading:/g) || []).length, 6);
+  assert.equal((WIZ.match(/activeGroupMeta\.uploadHeading/g) || []).length, 1);
+  assert.match(WIZ, /activeGroupMeta && \(/);
+});
+test("Structured Upload Options: upload section, OR divider, and Safe practice mode / Test Drive", () => {
+  assert.match(WIZ, /Upload your contacts/);
+  assert.match(WIZ, /Choose your own CSV file\. Only a name and valid email are required; you can review everything before importing\./);
+  assert.match(WIZ, /choose-csv/);
+  assert.match(WIZ, />\s*Choose a CSV file/);
+  assert.match(WIZ, /data-testid="upload-or"><span>OR<\/span>/);      // centered divider, non-interactive text
+  assert.match(WIZ, /Safe practice mode/);
+  assert.match(WIZ, /Test Drive the Import Wizard/);
+  assert.match(WIZ, /See the complete import process using fictional contacts\. Nothing will be saved or sent\./);
+  assert.match(WIZ, /Download the Practice CSV and upload it yourself\./);
+  assert.match(WIZ, /Start test drive instantly with the Practice CSV already loaded\./);
+  assert.match(WIZ, /Download Practice CSV/);
+  assert.match(WIZ, /Start Test Drive/);
+  // old sample-language is gone from the upload/practice surface (Practice CSV used consistently)
+  assert.ok(!/Try the sample/.test(WIZ), "old 'Try the sample' removed");
+  assert.ok(!/Download Greet-Me sample CSV/.test(WIZ), "old 'Download Greet-Me sample CSV' removed");
+  assert.ok(!/Sample Import/.test(WIZ), "old 'Sample Import' removed");
+  assert.ok(!/sample CSV/.test(WIZ), "old 'sample CSV' phrasing removed");
+  // downloadable practice file is named for its category
+  assert.match(WIZ, /greetme-practice-\$\{kind\}\.csv/);
+});
+test("Practice CSV / Test Drive dataset is category-appropriate for all six categories", () => {
+  // personal categories default to their own template kind (family/friend/professional), business to its type
+  assert.match(WIZ, /const templateKind = business \? \(recipientKind \|\| "employee"\) : \(personalGroup \|\| "individual"\)/);
+  assert.match(WIZ, /downloadSampleCsv\(templateKind\)/);
+  assert.match(WIZ, /trySample\(templateKind\)/);
+  // a Personal category NEVER becomes a business kind for the practice split
+  assert.match(WIZ, /const isBusinessKind = \(k\) => BUSINESS_KINDS\.has\(k\)/);
+  assert.match(WIZ, /const business = isBusinessKind\(kind\)/);       // trySample split
+});
+test("Business Test Drive is zero mutation; real Business commit is dormant/fail-closed", () => {
+  // Test Drive uses the session-scoped practice workspace only — never api.importContacts
+  const fn = (WIZ.match(/const trySample = useCallback\(\(kind\) => \{[\s\S]*?\}, \[\]\);/) || [""])[0];
+  assert.ok(fn.length > 0 && !/api\./.test(fn), "trySample makes no API call");
+  // real business file → dormant BEFORE any read/write (no parse, no api)
+  const bf = (WIZ.match(/const onBusinessRealFile = useCallback\([\s\S]*?\);/) || [""])[0];
+  assert.ok(bf.length > 0 && !/api\.|Papa\.|processRow|getContacts/.test(bf), "onBusinessRealFile never reads/parses/writes");
+  assert.match(WIZ, /onRealFile = business \? onBusinessRealFile : onFile/);
 });
 test("Personal Professional stays Individual (recipientType blank) — never the Business Wizard", () => {
   // Professional group → pickMode(PERSONAL) (individual), so applyRecipientTypes/boundary keeps recipientType ""

@@ -113,15 +113,21 @@ const goIndividual = async (group = "family") => {
   await act(async () => fireClick(tid("panel-personal")));   // Screen 1 → Screen 2
   await act(async () => fireClick(tid(`panel-${group}`)));    // Screen 2 → Individual upload (group context)
 };
+// Business path mirrors Personal: Screen 1 (Business) → Screen 2 (Employees/Clients/Vendors) → upload.
+const goBusiness = async (kind = "employee") => {
+  await act(async () => fireClick(tid("panel-business")));    // Screen 1 → Business Screen 2
+  await act(async () => fireClick(tid(`panel-${kind}`)));     // Screen 2 → Business upload options
+  await flush();
+};
 const CSV2 = "Name,Email\nAda,ada@x.co\nBo,bo@x.co";
 
 // ---------- SAMPLE (individual) ----------
 test("Individual → Try sample → combined preview (no separate list, no Finish/View CTA)", async () => {
   await mountWizard(); await goIndividual();
-  await act(async () => fireClick(btnByText(/Try the sample/)));
+  await act(async () => fireClick(tid("start-testdrive")));
   assert.ok(tid("confirm-screen"), "sample opens directly on the combined preview");
-  assert.match(txt(), /Preview your sample contacts/);
-  assert.match(txt(), /Sample Mode — Nothing will be saved or sent/);
+  assert.match(txt(), /Preview your practice contacts/);
+  assert.match(txt(), /Safe practice mode — Nothing will be saved or sent/);
   assert.ok(tid("sample-upload-own") && tid("sample-download") && tid("sample-delete") && tid("sample-exit"));
   assert.equal(tid("add-cta"), null, "individual sample has no commit/View CTA");
   assert.ok(!/View \d+ sample recipient/.test(txt()), "no 'View X sample recipients' for individual");
@@ -130,7 +136,7 @@ test("Individual → Try sample → combined preview (no separate list, no Finis
 
 test("sample: open optional relationship editor, change a value, return", async () => {
   await mountWizard(); await goIndividual();
-  await act(async () => fireClick(btnByText(/Try the sample/)));
+  await act(async () => fireClick(tid("start-testdrive")));
   await act(async () => fireClick(tid("details-cta")));
   assert.ok(tid("details-screen"));
   await act(async () => fireChange(tid("group-select"), "friend"));
@@ -142,25 +148,25 @@ test("sample: open optional relationship editor, change a value, return", async 
 
 test("sample persists for a same-session reload (remount restores the preview)", async () => {
   await mountWizard(); await goIndividual();
-  await act(async () => fireClick(btnByText(/Try the sample/)));
+  await act(async () => fireClick(tid("start-testdrive")));
   await flush();
   document.body.innerHTML = "";
   const c2 = document.createElement("div"); document.body.appendChild(c2);
   await act(async () => { createRoot(c2).render(React.createElement(Wizard)); });
   await flush();
   assert.ok(tid("confirm-screen"), "sample restored into the combined preview on reload");
-  assert.match(txt(), /Preview your sample contacts/);
+  assert.match(txt(), /Preview your practice contacts/);
 });
 
 test("sample: Delete / Exit / Start Over all clear it and return to selection", async () => {
   for (const id of ["sample-delete", "sample-exit"]) {
     await mountWizard(); await goIndividual();
-    await act(async () => fireClick(btnByText(/Try the sample/)));
+    await act(async () => fireClick(tid("start-testdrive")));
     await act(async () => fireClick(tid(id)));
     assert.match(txt(), /Import Those Important to You?/, `${id} returns to selection`);
   }
   await mountWizard(); await goIndividual();
-  await act(async () => fireClick(btnByText(/Try the sample/)));
+  await act(async () => fireClick(tid("start-testdrive")));
   await act(async () => fireClick(tid("startover")));
   assert.match(txt(), /Import Those Important to You?/);
 });
@@ -229,13 +235,96 @@ test("real under-13 row is blocked in the quick-fix area and excluded", async ()
   assert.match(tid("add-cta").textContent, /Add 1 contact/);
 });
 
-// ---------- Business regression ----------
-test("Business path stays gated — never renders the Individual real 'Add' confirmation or sample bar", async () => {
+// ---------- Business path (mirrors Personal; dormant real import) ----------
+test("Business opens its OWN Screen 2 (Employees/Clients/Vendors), not the Personal group screen", async () => {
   await mountWizard();
   await act(async () => fireClick(tid("panel-business")));
   await flush();
-  assert.equal(tid("sample-upload-own"), null, "individual sample action bar never appears on Business");
-  assert.ok(!/Preview your sample contacts/.test(txt()), "Business does not open the individual sample preview");
+  assert.ok(tid("biz-panels"), "Business opened its category selector");
+  assert.equal(document.querySelectorAll('[data-testid="biz-panels"] [data-testid^="panel-"]').length, 3);
+  for (const id of ["panel-employee", "panel-client", "panel-vendor"]) assert.ok(tid(id), `${id} present`);
+  assert.equal(tid("group-panels"), null, "Business does NOT open the Personal group screen");
+  assert.equal(tid("panel-personal"), null, "left the Screen-1 selection");
+  assert.match(txt(), /BUSINESS RELATIONSHIPS/);
+  assert.match(txt(), /Who Are You Importing\?/);
+});
+
+test("each Business selection → Business Upload Options (canonical heading, stacked sections, Test Drive)", async () => {
+  const cases = [["employee", "Import Employee Contacts"], ["client", "Import Client Contacts"], ["vendor", "Import Vendor Contacts"]];
+  for (const [kind, heading] of cases) {
+    await mountWizard();
+    await goBusiness(kind);
+    assert.ok(tid("upload-context"), `${kind} shows the category context`);
+    assert.match(txt(), new RegExp(heading), `${kind} canonical heading`);
+    assert.match(txt(), /Upload your contacts/);
+    assert.ok(tid("choose-csv"), "Choose a CSV file control present");
+    assert.match(txt(), /Choose a CSV file/);
+    assert.ok(tid("upload-or"), "OR divider present");
+    assert.match(txt(), /Safe practice mode/);
+    assert.match(txt(), /Test Drive the Import Wizard/);
+    assert.ok(tid("download-practice") && tid("start-testdrive"), "practice CTAs present");
+    assert.equal(tid("sample-upload-own"), null, "no individual sample bar on business upload options");
+  }
+});
+
+test("Business Test Drive is ZERO mutation and applies only the canonical recipientType", async () => {
+  for (const [kind, typeLabel] of [["employee", "Employee"], ["client", "Client"], ["vendor", "Vendor"]]) {
+    await mountWizard();
+    globalThis.__importContacts = (c) => ({ data: { imported: c.length, failed: 0, errors: [] } });
+    await goBusiness(kind);
+    await act(async () => fireClick(tid("start-testdrive")));
+    await flush();
+    assert.ok(tid("confirm-screen"), `${kind} test drive opens the preview`);
+    assert.match(txt(), /Preview your practice contacts/);
+    assert.match(tid("add-cta").textContent, /View \d+ practice recipient/);
+    await act(async () => fireClick(tid("add-cta")));
+    await flush();
+    assert.match(txt(), /Practice Recipients/);
+    assert.match(txt(), new RegExp(typeLabel), `${kind} shows its canonical type`);
+    assert.equal(globalThis.__lastImport, undefined, `${kind} test drive made NO import API call`);
+    assert.equal(globalThis.__nav, undefined, `${kind} test drive never navigated to prod`);
+  }
+});
+
+test("real Business CSV → truthful dormant state BEFORE any read/write (no API, no parse, no nav)", async () => {
+  await mountWizard();
+  globalThis.__getContacts = () => ({ data: [{ email: "should-not-be-read@x.co" }] });
+  globalThis.__importContacts = (c) => ({ data: { imported: c.length } });
+  await goBusiness("client");
+  await uploadCsv(CSV2);                                   // choose a real Business CSV
+  assert.match(txt(), /Organization import is currently turned off/, "dormant state shown");
+  assert.ok(tid("biz-dormant"), "dormant recovery actions present");
+  assert.equal(globalThis.__lastImport, undefined, "no import call");
+  assert.equal(globalThis.__nav, undefined, "no navigation");
+  assert.ok(!tid("confirm-screen"), "never reached a review/commit of a real business file");
+});
+
+test("Business upload Change returns to Business Screen 2; Start Over returns to Screen 1", async () => {
+  await mountWizard(); await goBusiness("employee");
+  assert.match(txt(), /Import Employee Contacts/);
+  await act(async () => fireClick(tid("change-group")));
+  assert.ok(tid("biz-panels"), "Change returned to Business Screen 2");
+  await act(async () => fireClick(tid("panel-vendor")));
+  await flush();
+  assert.match(txt(), /Import Vendor Contacts/, "new category → new heading");
+  assert.ok(!txt().includes("Import Employee Contacts"), "old heading replaced");
+  await act(async () => fireClick(btnByText(/Start over/)));
+  assert.match(txt(), /Import Those Important to You/);
+  assert.ok(tid("panel-personal") && tid("panel-business"));
+});
+
+test("Personal Test Drive loads the CATEGORY dataset (Family names differ from Friends)", async () => {
+  await mountWizard(); await goIndividual("family");
+  await act(async () => fireClick(tid("start-testdrive")));
+  await flush();
+  const familyTxt = txt();
+  await mountWizard(); await goIndividual("friend");
+  await act(async () => fireClick(tid("start-testdrive")));
+  await flush();
+  const friendTxt = txt();
+  assert.match(familyTxt, /Hollis/, "family practice set present");
+  assert.match(friendTxt, /Marsh|Nguyen|Vega/, "friend practice set present");
+  assert.ok(!/Hollis/.test(friendTxt), "friend preview is a different, category-appropriate dataset");
 });
 
 // ---------- Start Over, keyboard, mobile ----------
@@ -254,7 +343,7 @@ test("mobile width: the combined screen still renders", async () => {
   Object.defineProperty(window, "innerWidth", { value: 375, configurable: true });
   window.dispatchEvent(new window.Event("resize"));
   await mountWizard(); await goIndividual();
-  await act(async () => fireClick(btnByText(/Try the sample/)));
+  await act(async () => fireClick(tid("start-testdrive")));
   assert.ok(tid("confirm-screen") && tid("sample-exit"));
 });
 
@@ -282,12 +371,14 @@ test("the WHOLE Personal panel is focusable and opens Screen 2 (pointer)", async
   assert.match(txt(), /Who Are You Importing\?/);
   assert.match(txt(), /PERSONAL RELATIONSHIPS/);
 });
-test("the WHOLE Business panel activates the Business flow (skips Screen 2)", async () => {
+test("the WHOLE Business panel is focusable and opens the Business category screen (pointer)", async () => {
   await mountWizard();
   const b = tid("panel-business");
-  await act(async () => fireClick(b.querySelector(".gmiw-panel-title") || b));
+  b.focus(); assert.equal(document.activeElement, b, "panel is keyboard-focusable");
+  await act(async () => fireClick(b.querySelector(".gmiw-panel-title") || b));   // click a child → whole panel
   await flush();
   assert.equal(tid("panel-personal"), null, "left the selection screen");
+  assert.ok(tid("biz-panels"), "Business opened its OWN category screen (Employees/Clients/Vendors)");
   assert.equal(tid("group-panels"), null, "Business does NOT open the Personal group screen");
   assert.equal(tid("sample-upload-own"), null, "Business did not open the Individual sample bar");
 });
@@ -305,7 +396,7 @@ test("Screen 2 has exactly Family/Friends/Professional; each routes to the uploa
     gp.focus(); assert.equal(document.activeElement, gp, `${g} panel focusable`);
     await act(async () => fireClick(gp.querySelector(".gmiw-panel-title") || gp));   // whole panel
     await flush();
-    assert.match(txt(), /Choose a \.csv file/, `${g} → Individual upload`);
+    assert.match(txt(), /Choose a CSV file/, `${g} → Individual upload`);
     assert.ok(tid("upload-context"), `${g} shows the group context`);
     assert.match(txt(), new RegExp(heading), `${g} heading`);
     assert.ok(tid("change-group"), "Change link present");

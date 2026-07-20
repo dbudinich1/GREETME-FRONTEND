@@ -55,6 +55,30 @@ export const DEMO_PERSONAL = Object.freeze([
   { fullName: "Morgan Doe", email: "morgan@example.com", relationship: "", recipientType: "" },
 ].map(Object.freeze));
 
+// Fictional PERSONAL practice sets, one per Personal category (Family / Friends / Professional). The
+// selected Personal path is UI CONTEXT ONLY: these carry NO relationship classification and NO
+// recipientType — a personal record never inherits a relationship/business type merely because a
+// category tile was chosen. Distinct fictional names on reserved domains make each download
+// category-appropriate without inventing data.
+export const DEMO_FAMILY = Object.freeze([
+  { fullName: "Robin Hollis", email: "robin@example.com", relationship: "", recipientType: "" },
+  { fullName: "Casey Hollis", email: "casey@example.org", relationship: "", recipientType: "" },
+  { fullName: "Dana Hollis", email: "dana@example.net", relationship: "", recipientType: "" },
+  { fullName: "Jamie Hollis", email: "jamie@example.com", relationship: "", recipientType: "" },
+].map(Object.freeze));
+export const DEMO_FRIENDS = Object.freeze([
+  { fullName: "Alex Marsh", email: "alex@example.com", relationship: "", recipientType: "" },
+  { fullName: "Sky Nguyen", email: "sky@example.org", relationship: "", recipientType: "" },
+  { fullName: "Remy Park", email: "remy@example.net", relationship: "", recipientType: "" },
+  { fullName: "Toni Vega", email: "toni@example.com", relationship: "", recipientType: "" },
+].map(Object.freeze));
+export const DEMO_PROFESSIONAL = Object.freeze([
+  { fullName: "Lee Cortez", email: "lee@example.com", relationship: "", recipientType: "" },
+  { fullName: "Sam Okafor", email: "sam.o@example.org", relationship: "", recipientType: "" },
+  { fullName: "Priya Raman", email: "priya@example.net", relationship: "", recipientType: "" },
+  { fullName: "Chris Wald", email: "chris@example.com", relationship: "", recipientType: "" },
+].map(Object.freeze));
+
 // Fictional MIXED list — a recipientType column with recognized synonyms + one unknown ("contractor").
 export const DEMO_MIXED = Object.freeze([
   { fullName: "Ada Lovelace", email: "ada2@example.com", relationship: "colleague", recipientType: "Employee", company: "Demo Corp" },
@@ -64,7 +88,10 @@ export const DEMO_MIXED = Object.freeze([
 ].map(Object.freeze));
 
 export function demoDataset(kind) {
-  const map = { employees: DEMO_EMPLOYEES, clients: DEMO_CLIENTS, vendors: DEMO_VENDORS, personal: DEMO_PERSONAL, mixed: DEMO_MIXED };
+  const map = {
+    employees: DEMO_EMPLOYEES, clients: DEMO_CLIENTS, vendors: DEMO_VENDORS, personal: DEMO_PERSONAL, mixed: DEMO_MIXED,
+    family: DEMO_FAMILY, friends: DEMO_FRIENDS, professional: DEMO_PROFESSIONAL,
+  };
   const base = map[kind] || DEMO_EMPLOYEES;
   return base.map((c) => ({ ...c, demo: true, source: "demo" }));
 }

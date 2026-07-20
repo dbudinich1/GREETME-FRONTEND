@@ -1,25 +1,27 @@
 // src/components/importWizard/ContactImportWizard.jsx
 //
-// TEAM A — Greet-Me Import Wizard. Two first-level paths (Individual / Business), then the canonical
-// low-friction flow: Choose/upload CSV → Review contacts → Import. There is NO separate "defaults
-// were applied" decision screen — uploading lands directly on one plain-language Review surface
-// (ReviewScreen) built for a first-time, nontechnical user. Heavy logic lives in tested pure models
-// (importCore / completionModel / recipientTypeModel / reviewModel). This component orchestrates and
-// never modifies the locked Recipients page or adds backend routes.
+// TEAM A — Greet-Me Import Wizard. Screen 1 has two first-level paths (Personal / Business). Each
+// path mirrors the other: a premium three-tile category selector (Screen 2) → a structured Upload
+// Options screen (upload-your-own OR a zero-mutation Test Drive). Personal categories
+// (Family/Friends/Professional) are UI context only — never a persisted relationship or a business
+// type. Business categories (Employees/Clients/Vendors) auto-apply their canonical recipientType.
+// Real Business import is dormant/fail-closed: choosing a real Business CSV shows the truthful dormant
+// state BEFORE any read or write. Heavy logic lives in tested pure models (importCore / completionModel
+// / recipientTypeModel / reviewModel). This component orchestrates and never modifies the locked
+// Recipients page or adds backend routes.
 
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Papa from "papaparse";
 import api from "../../api/api";
-import { createCorporateCampaignsClient } from "../../api/corporateCampaigns.js";
 import {
   checkFileLimits, checkRowCount, autoMapHeaders, processRow, detectDuplicates,
   buildPlan, looksLikeZip,
 } from "../../import/importCore.js";
 import { assertNoRealMix } from "../../import/demoData.js";
-import { MODES, corporateContext, corporateRoute, existingEmailsFromResponse, classifyCommitOutcome } from "./wizardModel.js";
+import { MODES, existingEmailsFromResponse, classifyCommitOutcome } from "./wizardModel.js";
 import { RELATIONSHIP_CATEGORIES, CLOSENESS_OPTIONS } from "../../import/completionModel.js";
-import { RECIPIENT_KINDS, RECIPIENT_TYPE_OPTIONS } from "../../import/recipientTypeModel.js";
+import { RECIPIENT_TYPE_OPTIONS } from "../../import/recipientTypeModel.js";
 import { normalizeEmail } from "../../import/importCore.js";
 import {
   buildReview, buildReviewPayload, freshReviewState, paginate,
@@ -36,6 +38,10 @@ const card = { background: "#fff", border: "1px solid rgba(27,24,48,.1)", border
 const btn = (bg, fg = "#fff") => ({ background: bg, color: fg, border: bg === "transparent" ? "1px solid rgba(27,24,48,.15)" : "none", borderRadius: 11, padding: "10px 16px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer" });
 // Real calendar date for the age gate (never guessed). computeContactErrors needs it (audit F1).
 const todayIso = () => new Date().toISOString().slice(0, 10);
+// Business sample kinds auto-apply a recipientType; personal kinds (individual/family/friend/
+// professional) never do. This decides the business/personal split for a Test Drive + reload restore.
+const BUSINESS_KINDS = new Set(["employee", "client", "vendor", "mixed"]);
+const isBusinessKind = (k) => BUSINESS_KINDS.has(k);
 // Rebuild wizard-shaped rows from persisted (payload-shaped) sample contacts so a same-session reload
 // restores the individual sample directly into the combined preview.
 function rehydrateSampleRows(contacts) {
@@ -53,12 +59,9 @@ function friendlyCommitError(raw) {
 }
 
 export default function ContactImportWizard() {
-  const client = useMemo(() => createCorporateCampaignsClient(), []);
   const navigate = useNavigate();
   const returnToRecipients = useCallback(() => navigate("/dashboard/contacts"), [navigate]);
   const [mode, setMode] = useState(null);
-  const [membershipResult, setMembershipResult] = useState(null);
-  const [selectedOrgId, setSelectedOrgId] = useState(null);
   const [rows, setRows] = useState(null);       // full deduped rows for the Review surface
   const [plan, setPlan] = useState(null);       // accounting (skipped/invalid) only
   const [summary, setSummary] = useState(null);
@@ -66,15 +69,18 @@ export default function ContactImportWizard() {
   const [busy, setBusy] = useState(false);
   // Business recipient TYPE selection (null = individual ownership, no type gate).
   const [recipientKind, setRecipientKind] = useState(null);
-  // Session-scoped Sample Workspace (never persisted to backend).
+  // Session-scoped Sample/Practice Workspace (never persisted to backend).
   const [sample, setSample] = useState(false);
   const [sampleContacts, setSampleContacts] = useState([]);
+  // Real Business CSV attempt while organization import is dormant → truthful gated state (no read/write).
+  const [bizDormant, setBizDormant] = useState(false);
   // Partial real-import outcome ({added, failed}) — keeps the user on the combined screen (never a
   // false "complete success"). null = no partial result to show.
   const [partial, setPartial] = useState(null);
-  // Entry navigation: "path" = Screen 1 (Personal/Business), "group" = Screen 2 (Personal group).
-  // personalGroup is UI CONTEXT ONLY — it NEVER becomes relationship data, a structured category,
-  // or a business type; it only tailors the upload heading (and, later, sample/editor scoping).
+  // Entry navigation: "path" = Screen 1 (Personal/Business), "group" = Screen 2 Personal category,
+  // "bizgroup" = Screen 2 Business category. personalGroup/recipientKind carry the chosen category.
+  // A Personal category is UI CONTEXT ONLY — it NEVER becomes relationship data, a structured category,
+  // or a business type; it only tailors the upload heading + which Practice CSV loads.
   const [entryView, setEntryView] = useState("path");
   const [personalGroup, setPersonalGroup] = useState(null);
   // The single Review state (relationship/audience choices, removals, description default). It is
@@ -83,18 +89,19 @@ export default function ContactImportWizard() {
   const resetReview = (business, kind, existingEmails = []) => setReviewState(freshReviewState({ business, kind, existingEmails, todayIso: todayIso() }));
 
   // Restore a same-session sample on mount (non-secret session-scoped; a NEW login never restores an
-  // old sample). Individual → rehydrate straight into the combined preview (no separate list);
+  // old sample). Individual/Personal → rehydrate straight into the combined preview (no separate list);
   // Business → keep its own terminal list. Clear the sample on session expiry.
   useEffect(() => {
     const { contacts, kind } = loadSampleWorkspace();
     if (contacts.length) {
       setSample(true);
-      if (kind && kind !== "individual") {
-        setSampleContacts(contacts);                         // Business sample — unchanged presentation
+      if (kind && isBusinessKind(kind)) {
+        setRecipientKind(kind); setMode(MODES.CORPORATE);
+        setSampleContacts(contacts);                         // Business practice — its own terminal list
       } else {
-        setRecipientKind(null);
+        setRecipientKind(null); setMode(MODES.PERSONAL);
         setReviewState(freshReviewState({ business: false, kind: null, existingEmails: [], todayIso: todayIso() }));
-        setRows(rehydrateSampleRows(contacts));              // Individual sample — combined preview
+        setRows(rehydrateSampleRows(contacts));              // Personal practice — combined preview
       }
     }
     const onExpire = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setRows(null); };
@@ -102,27 +109,18 @@ export default function ContactImportWizard() {
     return () => { if (typeof window !== "undefined") window.removeEventListener("auth:session-expired", onExpire); };
   }, []);
 
-  // Persist the INDIVIDUAL sample live (session-scoped only) so a same-session reload restores the
-  // combined preview. Never a backend call. Business sample persists via its own commit path.
+  // Persist the PERSONAL practice live (session-scoped only) so a same-session reload restores the
+  // combined preview. Never a backend call. Business practice persists via its own commit path.
   useEffect(() => {
     if (sample && mode !== MODES.CORPORATE && !recipientKind && Array.isArray(rows)) {
       try { saveSampleWorkspace(buildReviewPayload(rows, reviewState), "individual"); } catch { /* ignore */ }
     }
   }, [sample, mode, recipientKind, rows, reviewState]);
 
-  const ctx = useMemo(() => (mode === MODES.CORPORATE ? corporateContext(membershipResult, selectedOrgId) : null), [mode, membershipResult, selectedOrgId]);
-  const orgId = ctx && ctx.selectedOrgId;
-
-  const pickMode = useCallback(async (m) => {
-    setMode(m); setRows(null); setPlan(null); setSummary(null); setError(null); setPartial(null); setSelectedOrgId(null); setRecipientKind(null); setSample(false);
+  const pickMode = useCallback((m) => {
+    setMode(m); setRows(null); setPlan(null); setSummary(null); setError(null); setPartial(null); setRecipientKind(null); setSample(false); setBizDormant(false);
     resetReview(m === MODES.CORPORATE, null);
-    if (m === MODES.CORPORATE) {
-      setBusy(true);
-      const res = await client.listMemberships();
-      setBusy(false);
-      setMembershipResult(res);
-    }
-  }, [client]);
+  }, []);
 
   function ingest(records, existingEmails = [], business = false, kind = null) {
     const capped = checkRowCount(records.length);
@@ -154,7 +152,7 @@ export default function ContactImportWizard() {
     // Personal import: load the user's EXISTING recipients so an already-present email previews as
     // a duplicate (skipped) rather than entering the import and failing at commit. FAIL CLOSED — if
     // the lookup fails we do NOT proceed with an empty existing-email list (that would re-open the
-    // preview↔commit mismatch). Corporate/sample do not dedup against the personal collection.
+    // preview↔commit mismatch).
     let existingEmails = [];
     if (mode === MODES.PERSONAL) {
       setBusy(true);
@@ -165,18 +163,21 @@ export default function ContactImportWizard() {
       if (!ex.ok) { setError("Couldn't load your existing recipients, so duplicates can't be checked. Please try again."); return; }
       existingEmails = ex.emails;
     }
-    const business = mode === MODES.CORPORATE;
     Papa.parse(file, {
       header: true, skipEmptyLines: true,
       complete: (out) => {
         const headers = (out.meta && out.meta.fields) || [];
         const { mapping } = autoMapHeaders(headers);
         const data = (out.data || []).map((raw) => ({ __raw: raw, __map: mapping }));
-        ingest(data, existingEmails, business, recipientKind);
+        ingest(data, existingEmails, false, null);
       },
       error: () => setError("Could not parse the file."),
     });
-  }, [mode, recipientKind]);
+  }, [mode]);
+
+  // BUSINESS real CSV — organization importing is dormant/fail-closed. The file is NEVER read, parsed,
+  // validated, or written; we show the existing truthful dormant state BEFORE touching it or any backend.
+  const onBusinessRealFile = useCallback(() => { setError(null); setBizDormant(true); }, []);
 
   const commitPersonal = useCallback(async () => {
     if (mode !== MODES.PERSONAL) return;
@@ -219,17 +220,13 @@ export default function ContactImportWizard() {
     setPartial({ added: addedEmails.length, failed: failed.size });
   }, [mode, rows, reviewState, returnToRecipients]);
 
-  const pickRecipientKind = useCallback((kind) => {
-    setRecipientKind(kind); setRows(null); setPlan(null); setSummary(null); setError(null); resetReview(true, kind);
-  }, []);
-
-  // "Try the sample" — load fictional data for a kind into a SESSION-SCOPED Sample Workspace and run
-  // the exact same Review flow. NEVER touches a backend endpoint. kind ∈ individual/employee/client/
-  // vendor/mixed (mixed = Universal List).
+  // "Start Test Drive" — load fictional data for a category into a SESSION-SCOPED Practice Workspace
+  // and run the exact same Review flow. NEVER touches a backend endpoint. kind ∈ individual/family/
+  // friend/professional (personal) or employee/client/vendor/mixed (business).
   const trySample = useCallback((kind) => {
-    setSample(true); setError(null); setSummary(null); setSampleContacts([]); setPartial(null);
-    const business = kind !== "individual";
-    const rk = business ? kind : null;
+    setSample(true); setError(null); setSummary(null); setSampleContacts([]); setPartial(null); setBizDormant(false);
+    const business = isBusinessKind(kind);
+    const rk = business ? kind : null;                         // personal categories persist NO type
     setRecipientKind(rk);
     setReviewState(freshReviewState({ business, kind: rk, existingEmails: [], todayIso: todayIso() }));
     const ds = sampleContactsFor(kind);
@@ -243,14 +240,14 @@ export default function ContactImportWizard() {
       const blob = new Blob([sampleCsvFor(kind)], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `greetme-sample-${kind}.csv`;
+      a.href = url; a.download = `greetme-practice-${kind}.csv`;
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { setError("Could not generate the sample file."); }
+    } catch { setError("Could not generate the practice file."); }
   }, []);
 
-  // BUSINESS sample terminal step ("View X sample recipients"): build the sample recipients and
-  // persist ONLY to the session-scoped Sample Workspace — never a backend mutation. (Individual sample
-  // is already terminal on the combined screen and does not use this path.)
+  // BUSINESS practice terminal step ("View X practice recipients"): build the practice recipients and
+  // persist ONLY to the session-scoped Practice Workspace — never a backend mutation. (Personal
+  // practice is already terminal on the combined screen and does not use this path.)
   const commitSample = useCallback(() => {
     if (!sample) return;
     try { assertNoRealMix((rows || []).map((r) => r.contact)); } catch (e) { setError(String(e && e.message)); return; }
@@ -264,37 +261,44 @@ export default function ContactImportWizard() {
     if (mode !== MODES.CORPORATE) return;
     // Corporate import backend is dormant/fail-closed — NEVER writes, never enables a campaign,
     // occasion, schedule, queue, worker, gift, or send. Truthful gated state.
-    setError("Organization import isn't available yet. Your selections are complete and will import once organization import is turned on.");
+    setBizDormant(true);
   }, [mode]);
 
-  // START OVER — clears ALL selection/parse/edit/result state (and the session-scoped sample workspace)
-  // and returns to the Individual/Business selection. Never touches production contacts.
+  // START OVER — clears ALL selection/parse/edit/result state (and the session-scoped practice
+  // workspace) and returns to Screen 1 (Personal/Business). Never touches production contacts.
   const startOver = () => {
     clearSampleWorkspace();
-    setMode(null); setRecipientKind(null); setMembershipResult(null); setSelectedOrgId(null);
-    setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setSummary(null); setPartial(null);
+    setMode(null); setRecipientKind(null);
+    setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setSummary(null); setPartial(null); setBizDormant(false);
     setError(null); setBusy(false); setReviewState(freshReviewState({ business: false, kind: null }));
-    setEntryView("path"); setPersonalGroup(null);        // back to Screen 1, no stale Personal context
+    setEntryView("path"); setPersonalGroup(null);        // back to Screen 1, no stale category context
   };
-  const exitSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); };
-  const deleteAllSample = exitSample;   // both clear the session-scoped sample data
-  // From an INDIVIDUAL sample, swap to a real Individual upload (clears the sample, keeps the path).
+  const exitSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setBizDormant(false); setError(null); };
+  const deleteAllSample = exitSample;   // both clear the session-scoped practice data
+  // From a PERSONAL practice, swap to a real Personal upload (clears the practice, keeps the path).
   const uploadOwnFromSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setError(null); setPartial(null); setMode(MODES.PERSONAL); resetReview(false, null); };
-  // Screen 2: choose a Personal relationship GROUP → store context only, then continue to the existing
-  // Individual upload/sample screen (mode = personal). Never persists a relationship or a business type.
+  // Screen 2 (Personal): choose a category → store context only, then continue to the Personal upload
+  // options screen (mode = personal). Never persists a relationship or a business type.
   const choosePersonalGroup = (group) => { setPersonalGroup(group); setEntryView("path"); pickMode(MODES.PERSONAL); };
+  // Screen 2 (Business): choose a category → set its canonical recipientType + business ownership, then
+  // continue to the Business upload options screen. No membership call (import is dormant by design).
+  const chooseBusinessGroup = (kind) => {
+    setMode(MODES.CORPORATE); setRecipientKind(kind); setEntryView("path");
+    setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setSample(false); setBizDormant(false);
+    resetReview(true, kind);
+  };
   const backToPath = () => { setEntryView("path"); setPersonalGroup(null); };   // Screen 2 → Screen 1
-  const changePersonalGroup = () => { setMode(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setEntryView("group"); };   // upload → Screen 2
+  const changePersonalGroup = () => { setMode(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setBizDormant(false); setEntryView("group"); };   // upload → Screen 2 (Personal)
+  const changeBusinessGroup = () => { setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setBizDormant(false); setEntryView("bizgroup"); };   // upload → Screen 2 (Business)
 
   // ---------- render ----------
-  // Session-scoped Sample Recipients (completed or resumed) — read-only presentation.
+  // Session-scoped Practice Recipients (completed or resumed) — read-only presentation.
   if (sample && sampleContacts.length > 0 && !rows) {
     return <SampleRecipientsView contacts={sampleContacts} onDeleteAll={deleteAllSample} onExit={exitSample} onReturn={returnToRecipients} />;
   }
-  // Canonical entry — EXACTLY two primary paths (premium path-selection screen). Routing is unchanged:
-  // each whole panel calls pickMode() exactly as the old CTAs did.
+  // Canonical entry — Screen 1 (two premium paths) and Screen 2 (Personal or Business category tiles).
   if (!mode && !sample) {
-    // SCREEN 2 — Personal relationship group (Family / Friends / Professional).
+    // SCREEN 2 — Personal category (Family / Friends / Professional).
     if (entryView === "group") {
       return (
         <Shell eyebrow="PERSONAL RELATIONSHIPS">
@@ -306,6 +310,33 @@ export default function ContactImportWizard() {
                 <button
                   type="button" className="gmiw-panel" data-testid={`panel-${g.value}`} key={g.value}
                   aria-label={`${g.title} — ${g.copy}`} onClick={() => choosePersonalGroup(g.value)}
+                >
+                  <span className={`gmiw-medallion ${g.medallion}`} aria-hidden="true"><Icon /></span>
+                  <span className="gmiw-panel-title">{g.title}</span>
+                  <span className="gmiw-panel-copy">{g.copy}</span>
+                  <span className="gmiw-cta">{g.cta}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ textAlign: "center", marginTop: 18 }}>
+            <button type="button" data-testid="back-to-path" style={{ ...btn("transparent", "#5a3fb0"), background: "rgba(255,255,255,.7)" }} onClick={backToPath}>← Back to Personal or Business</button>
+          </div>
+        </Shell>
+      );
+    }
+    // SCREEN 2 — Business category (Employees / Clients / Vendors). Mirrors the Personal selector.
+    if (entryView === "bizgroup") {
+      return (
+        <Shell eyebrow="BUSINESS RELATIONSHIPS">
+          <h2 className="gmiw-heading">Who Are You Importing?</h2>
+          <div className="gmiw-panels gmiw-panels--three" data-testid="biz-panels">
+            {BUSINESS_GROUPS.map((g) => {
+              const Icon = g.Icon;
+              return (
+                <button
+                  type="button" className="gmiw-panel" data-testid={`panel-${g.value}`} key={g.value}
+                  aria-label={`${g.title} — ${g.copy}`} onClick={() => chooseBusinessGroup(g.value)}
                 >
                   <span className={`gmiw-medallion ${g.medallion}`} aria-hidden="true"><Icon /></span>
                   <span className="gmiw-panel-title">{g.title}</span>
@@ -339,7 +370,7 @@ export default function ContactImportWizard() {
           <button
             type="button" className="gmiw-panel" data-testid="panel-business"
             aria-label="Business Relationships — Employees, clients, vendors, and professional contacts"
-            onClick={() => pickMode(MODES.CORPORATE)}
+            onClick={() => setEntryView("bizgroup")}
           >
             <span className="gmiw-medallion gmiw-medallion--plum" aria-hidden="true"><BriefcaseIcon /></span>
             <span className="gmiw-panel-title">Business Relationships</span>
@@ -352,119 +383,84 @@ export default function ContactImportWizard() {
     );
   }
 
-  if (mode === MODES.CORPORATE && !sample) {
-    const route = corporateRoute(ctx);
-    if ((busy && !membershipResult) || route === "loading") return <Shell back={startOver}><p style={muted}>Checking your organization eligibility…</p></Shell>;
-    if (route === "dormant") {
-      // Authorized-but-dormant corporate backend — a TRUTHFUL, usable gated state (never a blank
-      // screen, no vague future promise, never implies data was saved).
-      return (
-        <Shell back={startOver}>
-          <Empty title="Organization import is currently turned off" body="This feature isn't accepting imports right now, and nothing has been saved. Your personal recipient list is ready to use." />
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
-            <button style={btn(PURPLE)} onClick={() => setMode(null)}>Return to Import Options</button>
-            <button style={btn("transparent", "#1b1830")} onClick={() => trySample("mixed")}>Explore Sample Import</button>
-            <button style={btn("transparent", "#1b1830")} onClick={returnToRecipients}>Return to Recipients</button>
-          </div>
-        </Shell>
-      );
-    }
-    if (route === "ineligible") {
-      return (
-        <Shell back={startOver}>
-          <Empty title="You're not part of an organization yet" body="Organization Contacts import is for members of a Greet-Me for Business organization. Explore Business to get set up." />
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
-            <button style={btn(PURPLE)} onClick={() => navigate("/business")}>Explore Greet-Me for Business</button>
-            <button style={btn("transparent", "#1b1830")} onClick={returnToRecipients}>Return to Recipients</button>
-          </div>
-        </Shell>
-      );
-    }
-    if (route === "error") {
-      return (
-        <Shell back={startOver}>
-          <Empty title="We couldn't check your organization" body="Something went wrong resolving your organization. Please try again." />
-          <RecoveryActions onStartOver={startOver} onReturn={returnToRecipients} />
-        </Shell>
-      );
-    }
-    if (route === "select_org") {
-      return (
-        <Shell back={startOver}>
-          <h3 style={{ margin: "0 0 8px" }}>Choose an organization</h3>
-          <div style={{ display: "grid", gap: 10 }}>
-            {ctx.memberships.map((m) => (
-              <button key={m.corporateOrganizationId} style={{ ...card, textAlign: "left", cursor: "pointer", fontFamily: "monospace", fontSize: ".85rem" }} onClick={() => setSelectedOrgId(m.corporateOrganizationId)}>
-                {m.corporateOrganizationId}<div style={sub}>Role: {m.role}</div>
-              </button>
-            ))}
-          </div>
-        </Shell>
-      );
-    }
-    // route === "ready" → fall through to the recipient-type selector
-  }
+  const business = mode === MODES.CORPORATE;
 
-  // Business recipient-type selector (Employees / Clients / Vendors / Universal List).
-  if (mode === MODES.CORPORATE && !sample && !recipientKind) {
+  // BUSINESS real import is dormant — a truthful, usable gated state reached from a real Business-upload
+  // attempt (never a blank screen, no vague future promise, never implies data was saved).
+  if (business && bizDormant && !sample) {
     return (
       <Shell back={startOver}>
-        <h3 style={{ margin: "0 0 4px", fontFamily: "Georgia,serif" }}>Who are you importing?</h3>
-        <p style={{ ...sub, marginTop: 0 }}>A single type is applied automatically — no type column required. Universal List maps a mixed file.</p>
-        <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
-          {RECIPIENT_KINDS.map((k) => (
-            <button key={k.value} style={{ ...card, textAlign: "left", cursor: "pointer" }} onClick={() => pickRecipientKind(k.value)}>
-              <b>{k.value === "employee" ? "Employees / Personnel" : k.label}</b><div style={sub}>{k.blurb}</div>
-            </button>
-          ))}
+        <Empty title="Organization import is currently turned off" body="This feature isn't accepting imports right now, and nothing has been saved. Your personal recipient list is ready to use." />
+        <div data-testid="biz-dormant" style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
+          <button style={btn("transparent", "#1b1830")} onClick={() => setBizDormant(false)}>Back to upload options</button>
+          <button style={btn(PURPLE)} onClick={() => { setBizDormant(false); trySample(recipientKind); }}>Start Test Drive instead</button>
+          <button style={btn("transparent", "#1b1830")} onClick={returnToRecipients}>Return to Recipients</button>
         </div>
-        <RecoveryActions onStartOver={startOver} onReturn={returnToRecipients} />
       </Shell>
     );
   }
 
-  // Import UI — Individual, Business (type chosen), or an active Sample.
-  const business = mode === MODES.CORPORATE;
-  const kindLabel = (RECIPIENT_KINDS.find((k) => k.value === recipientKind) || {}).label;
-  const templateKind = business ? (recipientKind || "employee") : "individual";
-  // Personal-group upload context (label only — no data implication).
-  const personalGroupMeta = PERSONAL_GROUPS.find((g) => g.value === personalGroup) || null;
+  // Upload Options / Test Drive UI — Personal or Business. Both share the same structured screen.
+  const activeGroupMeta = business
+    ? (BUSINESS_GROUPS.find((g) => g.value === recipientKind) || null)
+    : (PERSONAL_GROUPS.find((g) => g.value === personalGroup) || null);
+  const kindLabel = business && activeGroupMeta ? activeGroupMeta.title : undefined;
+  // Category-appropriate Practice CSV / Test Drive dataset (personal categories carry no type).
+  const templateKind = business ? (recipientKind || "employee") : (personalGroup || "individual");
   const onCommit = sample ? commitSample : (business ? commitCorporate : commitPersonal);
-  // Individual sample is terminal on the combined screen — it carries its own action bar (no commit CTA,
-  // no separate "View sample recipients" screen). Business sample keeps its existing commit path.
+  const onRealFile = business ? onBusinessRealFile : onFile;
+  const changeGroup = business ? changeBusinessGroup : changePersonalGroup;
+  // Personal practice is terminal on the combined screen — it carries its own action bar (no commit CTA,
+  // no separate "View recipients" screen). Business practice keeps its existing commit path.
   const sampleActions = (sample && !business) ? {
     onUploadOwn: uploadOwnFromSample,
-    onDownloadCsv: () => downloadSampleCsv("individual"),
+    onDownloadCsv: () => downloadSampleCsv(templateKind),
     onDelete: deleteAllSample,
     onExit: exitSample,
   } : null;
   return (
     <Shell back={startOver}>
-      {business && !sample && <div style={{ ...card, marginBottom: 12, fontSize: ".82rem" }}>Organization <b style={{ fontFamily: "monospace" }}>{orgId}</b>{kindLabel ? <> · <b>{kindLabel}</b></> : null}</div>}
       {sample && <SampleBanner />}
       {error && <div role="alert" style={{ ...card, borderColor: "rgba(214,69,69,.4)", background: "rgba(214,69,69,.08)", color: "#8a1f1f", marginBottom: 12 }}>{error}</div>}
 
-      {/* Entry — CSV upload + downloadable sample CSV + "Try the sample" (inside every path). */}
+      {/* Structured Upload Options — upload-your-own (OR) a zero-mutation Test Drive. */}
       {!rows && !summary && (
-        <div style={{ display: "grid", gap: 12 }}>
-          {!business && personalGroupMeta && (
+        <div className="gmiw-upload">
+          {activeGroupMeta && (
             <div data-testid="upload-context" style={{ ...card, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "12px 16px" }}>
-              <b style={{ fontFamily: "Georgia,serif", fontSize: "1.05rem" }}>{personalGroupMeta.uploadHeading}</b>
-              <button data-testid="change-group" style={{ ...btn("transparent", "#4a3fb0"), padding: "4px 10px", fontSize: ".78rem" }} onClick={changePersonalGroup}>Change</button>
+              <b style={{ fontFamily: "Georgia,serif", fontSize: "1.05rem" }}>{activeGroupMeta.uploadHeading}</b>
+              <button data-testid="change-group" style={{ ...btn("transparent", "#4a3fb0"), padding: "4px 10px", fontSize: ".78rem" }} onClick={changeGroup}>Change</button>
             </div>
           )}
-          <label style={{ ...card, display: "block", textAlign: "center", cursor: "pointer", borderStyle: "dashed" }}>
-            <b>Choose a .csv file{kindLabel ? ` · ${kindLabel}` : ""}</b><div style={sub}>Only a name and a valid email are required. Everything else is optional — you can review before importing.</div>
-            <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onFile(e.target.files[0])} />
-          </label>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-            <button style={btn("transparent", "#1b1830")} onClick={() => downloadSampleCsv(templateKind)}>Download Greet-Me sample CSV</button>
-            <button style={btn(PURPLE)} onClick={() => trySample(templateKind)}>Try the sample</button>
-          </div>
+          {/* FIRST STACKED SECTION — upload your own CSV */}
+          <section className="gmiw-upsec" data-testid="upload-section">
+            <h3>Upload your contacts</h3>
+            <p>Choose your own CSV file. Only a name and valid email are required; you can review everything before importing.</p>
+            <label className="gmiw-choose" data-testid="choose-csv">
+              Choose a CSV file
+              <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onRealFile(e.target.files[0])} />
+            </label>
+          </section>
+          {/* CENTERED DIVIDER — visual text, not an interactive control */}
+          <div className="gmiw-or" data-testid="upload-or"><span>OR</span></div>
+          {/* SECOND STACKED SECTION — Safe practice mode / Test Drive */}
+          <section className="gmiw-upsec gmiw-practice" data-testid="testdrive-section">
+            <span className="gmiw-badge">Safe practice mode</span>
+            <h3>Test Drive the Import Wizard</h3>
+            <p>See the complete import process using fictional contacts. Nothing will be saved or sent.</p>
+            <ul>
+              <li>Download the Practice CSV and upload it yourself.</li>
+              <li>Start test drive instantly with the Practice CSV already loaded.</li>
+            </ul>
+            <div className="gmiw-practice-cta">
+              <button data-testid="download-practice" style={btn("transparent", "#1b1830")} onClick={() => downloadSampleCsv(templateKind)}>Download Practice CSV</button>
+              <button data-testid="start-testdrive" style={btn(PURPLE)} onClick={() => trySample(templateKind)}>Start Test Drive</button>
+            </div>
+          </section>
         </div>
       )}
 
-      {/* Combined Review/Preview — the ONLY screen after the upload/sample choice for Individual.
+      {/* Combined Review/Preview — the ONLY screen after the upload/practice choice for Personal.
           Real success navigates straight to Recipients; there is no wizard result/list screen. */}
       {rows && !summary && (
         <ReviewScreen
@@ -547,11 +543,32 @@ function PremiumStyles() {
       .gmiw-panel-copy{ color:#5a5170; font-size:.95rem; max-width:min(30ch, 100%); line-height:1.5; white-space:normal; overflow-wrap:anywhere; }
       .gmiw-cta{ margin-top:4px; font-weight:800; letter-spacing:.09em; font-size:.82rem; color:#6b3fa0; max-width:100%; overflow-wrap:anywhere; }
       .gmiw-footer{ text-align:center; color:#6b6580; font-size:.86rem; margin:22px 0 2px; }
+      /* Structured Upload Options — sections ALWAYS stacked vertically (never side by side), each fully
+         contained (min-width:0 + border-box + wrap) so nothing overflows a narrow container. */
+      .gmiw-upload{ display:grid; gap:16px; margin-top:16px; }
+      .gmiw-upsec{ box-sizing:border-box; width:100%; min-width:0; display:grid; gap:10px; border-radius:16px;
+        padding:22px 20px; background:rgba(255,255,255,.92); border:1px solid rgba(27,24,48,.1); }
+      .gmiw-upsec h3{ margin:0; font-family:Georgia,'Times New Roman',serif; font-weight:600; font-size:1.2rem; color:#332a52; text-wrap:balance; max-width:100%; overflow-wrap:anywhere; }
+      .gmiw-upsec p{ margin:0; color:#5a5170; font-size:.9rem; line-height:1.5; max-width:60ch; overflow-wrap:anywhere; }
+      .gmiw-choose{ display:inline-flex; align-items:center; justify-content:center; text-align:center; justify-self:start;
+        box-sizing:border-box; max-width:100%; cursor:pointer; overflow-wrap:anywhere;
+        background:linear-gradient(135deg,#6d74ee,#764ba2); color:#fff; border-radius:12px; padding:13px 20px; font-weight:800; font-size:.95rem; }
+      .gmiw-choose:focus-within{ outline:3px solid #6d74ee; outline-offset:3px; }
+      .gmiw-or{ display:flex; align-items:center; gap:14px; color:#6b6580; font-weight:800; letter-spacing:.18em; font-size:.78rem; }
+      .gmiw-or::before, .gmiw-or::after{ content:""; flex:1 1 0; min-width:0; height:1px; background:rgba(27,24,48,.16); }
+      .gmiw-or span{ flex:0 0 auto; }
+      .gmiw-practice{ background:linear-gradient(160deg,#f7f0ff 0%,#fdeef7 100%); border-color:#e6d5f2; }
+      .gmiw-badge{ justify-self:start; box-sizing:border-box; max-width:100%; overflow-wrap:anywhere;
+        background:rgba(214,145,16,.14); color:#8a5410; border:1px solid rgba(214,145,16,.35); border-radius:999px; padding:4px 12px; font-weight:800; font-size:.72rem; letter-spacing:.05em; }
+      .gmiw-practice ul{ margin:2px 0 0; padding-left:18px; color:#5a5170; font-size:.86rem; line-height:1.5; display:grid; gap:4px; }
+      .gmiw-practice li{ max-width:100%; overflow-wrap:anywhere; }
+      .gmiw-practice-cta{ display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
       @media (max-width:640px){
         .gmiw-underlay{ padding:14px; border-radius:22px; } .gmiw-surface{ padding:16px; }
         .gmiw-banner{ padding:22px 20px; } .gmiw-wand{ display:none; }
         .gmiw-title{ font-size:1.5rem; } .gmiw-heading{ font-size:1.5rem; margin:22px 0 18px; }
         .gmiw-panels, .gmiw-panels--three{ grid-template-columns:1fr; } .gmiw-panel{ min-height:0; padding:26px 20px; }
+        .gmiw-choose{ width:100%; } .gmiw-practice-cta{ flex-direction:column; } .gmiw-practice-cta button{ width:100%; }
       }
     `}</style>
   );
@@ -590,12 +607,45 @@ function HomeIcon() {
     </svg>
   );
 }
-// Screen 2 — Personal relationship GROUPS. `value` is UI context only (never a persisted relationship
-// or a recipientType). `uploadHeading` tailors the existing upload screen; nothing here invents data.
+// Business medallion icons: Employees = people/team, Clients = handshake/relationship, Vendors = package.
+function PeopleIcon() {
+  return (
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" role="img" aria-hidden="true">
+      <circle cx="9" cy="8" r="3" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+      <path d="M16 5.2a3 3 0 0 1 0 5.6" /><path d="M17.5 14.3A6.5 6.5 0 0 1 21.5 20" />
+    </svg>
+  );
+}
+function HandshakeIcon() {
+  return (
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" role="img" aria-hidden="true">
+      <path d="M11 6.5 8.5 9a2 2 0 0 0 0 2.8l.2.2a2 2 0 0 0 2.8 0L13 10.5" />
+      <path d="m13 10.5 2.5 2.5a2 2 0 0 1 0 2.8l-.2.2a2 2 0 0 1-2.8 0l-2-2" />
+      <path d="M3 8.5 6.5 5H10l3 3" /><path d="M21 8.5 17.5 5H14" /><path d="M3 8.5v6M21 8.5v6" />
+    </svg>
+  );
+}
+function PackageIcon() {
+  return (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" role="img" aria-hidden="true">
+      <path d="M21 8 12 3 3 8v8l9 5 9-5z" /><path d="M3 8l9 5 9-5" /><path d="M12 13v8" /><path d="M7.5 5.5 16.5 10.5" />
+    </svg>
+  );
+}
+// Screen 2 — Personal categories. `value` is UI context only (never a persisted relationship or a
+// recipientType). `uploadHeading` tailors the upload screen; nothing here invents data.
 const PERSONAL_GROUPS = [
   { value: "family", title: "Family", copy: "Parents, children, siblings, and extended family.", cta: "CHOOSE FAMILY →", medallion: "", Icon: HomeIcon, uploadHeading: "Import Family Contacts" },
   { value: "friend", title: "Friends", copy: "Best friends, neighbors, teammates, and classmates.", cta: "CHOOSE FRIENDS →", medallion: "gmiw-medallion--rose", Icon: HeartIcon, uploadHeading: "Import Friend Contacts" },
   { value: "professional", title: "Professional", copy: "Colleagues, mentors, and work connections important to you.", cta: "CHOOSE PROFESSIONAL →", medallion: "gmiw-medallion--plum", Icon: BriefcaseIcon, uploadHeading: "Import Professional Contacts" },
+];
+// Screen 2 — Business categories. `value` is the canonical recipientType (employee/client/vendor),
+// auto-applied to that path's records. The mixed/combined-list capability stays in the pure model
+// (recipientTypeModel), NOT on this three-choice entry surface.
+const BUSINESS_GROUPS = [
+  { value: "employee", title: "Employees", copy: "Employees, personnel, departments, and workplace contacts.", cta: "CHOOSE EMPLOYEES →", medallion: "", Icon: PeopleIcon, uploadHeading: "Import Employee Contacts" },
+  { value: "client", title: "Clients", copy: "Clients, customers, companies, and important customer contacts.", cta: "CHOOSE CLIENTS →", medallion: "gmiw-medallion--rose", Icon: HandshakeIcon, uploadHeading: "Import Client Contacts" },
+  { value: "vendor", title: "Vendors", copy: "Vendors, suppliers, service providers, and business partners.", cta: "CHOOSE VENDORS →", medallion: "gmiw-medallion--plum", Icon: PackageIcon, uploadHeading: "Import Vendor Contacts" },
 ];
 function Empty({ title, body }) {
   return <div style={{ ...card, textAlign: "center" }}><h3 style={{ margin: "0 0 6px", fontFamily: "Georgia,serif" }}>{title}</h3><p style={muted}>{body}</p></div>;
@@ -621,7 +671,7 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
   const [confPage, setConfPage] = useState(0);
   const [detPage, setDetPage] = useState(0);
   const isSample = !!demo;
-  const isIndividualSample = !!sampleActions;      // individual sample → terminal action bar, no commit CTA
+  const isIndividualSample = !!sampleActions;      // personal practice → terminal action bar, no commit CTA
 
   const bind = (fn) => (i, v) => setState((s) => fn(s, i, v));
   const on = {
@@ -640,7 +690,7 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
   const blockers = [...buckets.needsFix, ...buckets.invalidExcluded];
   // Every non-blocker contact appears once, as a recipient-style card, with its state.
   const shown = [...buckets.ready, ...buckets.added, ...buckets.alreadyInList, ...buckets.willSkip];
-  const heading = isSample ? "Preview your sample contacts" : "Review your contacts";
+  const heading = isSample ? "Preview your practice contacts" : "Review your contacts";
   const supporting = isSample
     ? "This is how these contacts would appear in your recipient list. Nothing has been saved or sent."
     : "Check the contacts below, make any changes you want, then add them to your recipient list.";
@@ -700,12 +750,12 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
           {isIndividualSample ? (
             <>
               <button data-testid="sample-upload-own" style={btn("transparent", "#1b1830")} onClick={sampleActions.onUploadOwn}>Upload my own CSV</button>
-              <button data-testid="sample-download" style={btn("transparent", "#1b1830")} onClick={sampleActions.onDownloadCsv}>Download sample CSV</button>
-              <button data-testid="sample-delete" style={btn("transparent", "#8a1f1f")} onClick={sampleActions.onDelete}>Delete sample contacts</button>
-              <button data-testid="sample-exit" style={btn(PURPLE)} onClick={sampleActions.onExit}>Exit Sample Mode</button>
+              <button data-testid="sample-download" style={btn("transparent", "#1b1830")} onClick={sampleActions.onDownloadCsv}>Download Practice CSV</button>
+              <button data-testid="sample-delete" style={btn("transparent", "#8a1f1f")} onClick={sampleActions.onDelete}>Delete practice contacts</button>
+              <button data-testid="sample-exit" style={btn(PURPLE)} onClick={sampleActions.onExit}>Exit Test Drive</button>
             </>
           ) : isSample ? (
-            <button data-testid="add-cta" style={btn(PURPLE)} onClick={onCommit}>View {importCount} sample recipient{importCount === 1 ? "" : "s"}</button>
+            <button data-testid="add-cta" style={btn(PURPLE)} onClick={onCommit}>View {importCount} practice recipient{importCount === 1 ? "" : "s"}</button>
           ) : (
             <button data-testid="add-cta" style={btn(PURPLE)} disabled={busy || !importEnabled} onClick={onCommit}>{busy ? "Adding…" : `Add ${importCount} contact${importCount === 1 ? "" : "s"}`}</button>
           )}
@@ -849,35 +899,27 @@ function Pager({ page, pages, onPage }) {
     </div>
   );
 }
-function RecoveryActions({ onStartOver, onReturn }) {
-  return (
-    <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
-      <button style={btn("transparent", "#1b1830")} onClick={onStartOver}>Start over</button>
-      <button style={btn(PURPLE)} onClick={onReturn}>Return to Recipients</button>
-    </div>
-  );
-}
 
 function SampleBanner() {
   return (
     <div style={{ ...card, marginBottom: 12, borderColor: "rgba(214,145,16,.4)", background: "rgba(214,145,16,.08)" }}>
-      <b>Sample Mode — Nothing will be saved or sent</b>
+      <b>Safe practice mode — Nothing will be saved or sent</b>
       <div style={{ fontSize: ".82rem", color: "#7a5410", marginTop: 2 }}>Fictional data on reserved <code>example.com</code> domains. No import, schedule, worker, gift, payment, email, voice, or animation call is ever made.</div>
     </div>
   );
 }
 
-// Read-only Sample Recipients presentation — session-scoped data only; edits/deletes never touch prod.
+// Read-only Practice Recipients presentation — session-scoped data only; edits/deletes never touch prod.
 function SampleRecipientsView({ contacts, onDeleteAll, onExit, onReturn }) {
   const typeLabel = (v) => (RECIPIENT_TYPE_OPTIONS.find((o) => o.value === v) || {}).label || "";
   return (
     <div style={{ maxWidth: 820, margin: "0 auto" }}>
       <div style={{ ...card, marginBottom: 12, borderColor: "rgba(214,145,16,.4)", background: "rgba(214,145,16,.08)" }}>
-        <b>Sample Mode — nothing has been saved or sent</b>
-        <div style={{ fontSize: ".82rem", color: "#7a5410", marginTop: 2 }}>These sample recipients live only in this browser session — never saved to your account, never sent anything.</div>
+        <b>Safe practice mode — nothing has been saved or sent</b>
+        <div style={{ fontSize: ".82rem", color: "#7a5410", marginTop: 2 }}>These practice recipients live only in this browser session — never saved to your account, never sent anything.</div>
       </div>
       <div style={card}>
-        <b style={{ fontSize: ".95rem", fontFamily: "Georgia,serif" }}>Sample Recipients · {contacts.length}</b>
+        <b style={{ fontSize: ".95rem", fontFamily: "Georgia,serif" }}>Practice Recipients · {contacts.length}</b>
         <div style={{ maxHeight: 340, overflow: "auto", border: "1px solid #eee", borderRadius: 10, marginTop: 8 }}>
           {contacts.map((c, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "8px 12px", borderTop: i ? "1px solid #f4f4f7" : "none", fontSize: ".82rem" }}>
@@ -887,8 +929,8 @@ function SampleRecipientsView({ contacts, onDeleteAll, onExit, onReturn }) {
           ))}
         </div>
         <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-          <button style={btn("transparent", "#8a1f1f")} onClick={onDeleteAll}>Delete all sample contacts</button>
-          <button style={btn("transparent", "#1b1830")} onClick={onExit}>Exit Sample Mode</button>
+          <button style={btn("transparent", "#8a1f1f")} onClick={onDeleteAll}>Delete practice contacts</button>
+          <button style={btn("transparent", "#1b1830")} onClick={onExit}>Exit Test Drive</button>
           <button style={btn(PURPLE)} onClick={onReturn}>Return to Recipients</button>
         </div>
       </div>

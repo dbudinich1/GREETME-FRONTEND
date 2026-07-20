@@ -11,15 +11,22 @@ test("sample templates are appropriate to the selected path", () => {
   assert.ok(sampleColumnsFor("mixed").includes("Recipient Type"));
   assert.ok(!sampleColumnsFor("employee").includes("Recipient Type"));
   assert.ok(!sampleColumnsFor("individual").includes("Recipient Type"));
-  // each path maps to its own fictional dataset (reserved example domains)
-  for (const kind of ["individual", "employee", "client", "vendor", "mixed"]) {
+  // each path maps to its own fictional dataset (reserved example domains) — incl. the three Personal
+  // categories (family/friend/professional), which carry NO relationship/recipientType (path = context)
+  for (const kind of ["individual", "family", "friend", "professional", "employee", "client", "vendor", "mixed"]) {
     const csv = sampleCsvFor(kind);
     assert.ok(csv.startsWith("Name,Email"), kind);
     assert.ok(/@example\.(com|org|net)/.test(csv), `${kind} uses reserved demo domains`);
     assert.ok(sampleContactsFor(kind).length > 0);
     assert.ok(sampleContactsFor(kind).every((c) => c.demo === true), `${kind} contacts are demo-tagged`);
   }
-  assert.deepEqual(Object.keys(SAMPLE_DATASET).sort(), ["client", "employee", "individual", "mixed", "vendor"]);
+  // Personal-category practice sets never invent a relationship classification or a recipientType.
+  for (const kind of ["family", "friend", "professional"]) {
+    assert.ok(!sampleColumnsFor(kind).includes("Recipient Type"), `${kind} has no type column`);
+    assert.ok(sampleContactsFor(kind).every((c) => !c.recipientType && !c.relationship), `${kind} persists no relationship/type`);
+  }
+  assert.deepEqual(Object.keys(SAMPLE_DATASET).sort(),
+    ["client", "employee", "family", "friend", "individual", "mixed", "professional", "vendor"]);
 });
 
 test("session isolation: same discriminator restores; different user / new login / anon never restores", () => {

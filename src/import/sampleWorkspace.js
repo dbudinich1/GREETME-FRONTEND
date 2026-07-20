@@ -9,10 +9,12 @@ import { demoDataset } from "./demoData.js";
 
 export const SAMPLE_STORAGE_KEY = "greetme_sample_workspace";
 
-// Sample kind → demo dataset key. "individual" (personal) + the four business recipientKinds
-// (employee/client/vendor/mixed — the last is the "Universal List").
+// Sample kind → demo dataset key. Personal kinds ("individual" plus the three Personal categories
+// family/friend/professional — path is context only, no relationship/type invented) + the four
+// business recipientKinds (employee/client/vendor/mixed — the last is the "Universal List").
 export const SAMPLE_DATASET = Object.freeze({
-  individual: "personal", employee: "employees", client: "clients", vendor: "vendors", mixed: "mixed",
+  individual: "personal", family: "family", friend: "friends", professional: "professional",
+  employee: "employees", client: "clients", vendor: "vendors", mixed: "mixed",
 });
 
 // ---- Downloadable sample CSV templates (fictional, reserved domains) ----
