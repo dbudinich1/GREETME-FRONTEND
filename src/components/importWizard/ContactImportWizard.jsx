@@ -524,8 +524,11 @@ function PremiumStyles() {
       .gmiw-heading{ text-align:center; font-family:Georgia,'Times New Roman',serif; font-weight:600; color:#382a52;
         font-size:1.95rem; margin:28px 0 22px; text-wrap:balance; }
       .gmiw-panels{ display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:stretch; }
-      .gmiw-panels--three{ grid-template-columns:1fr 1fr 1fr; }
+      /* Resilient: 3 columns only when each panel (>=240px) fits comfortably; otherwise 2, then 1 —
+         driven by the actual constrained content width, not a fixed viewport breakpoint. */
+      .gmiw-panels--three{ grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); }
       .gmiw-panel{ display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px;
+        min-width:0;   /* grid/flex items must be allowed to shrink below content min-width (prevents overflow/clipping) */
         min-height:230px; padding:32px 24px; cursor:pointer; color:#2c2140; font-family:inherit; border-radius:24px;
         border:2px solid #b98fd6; background:linear-gradient(160deg,#f7f0ff 0%,#fdeef7 100%);
         box-shadow:0 14px 30px -18px rgba(120,60,160,.55); transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
@@ -537,7 +540,9 @@ function PremiumStyles() {
       .gmiw-medallion--plum{ background:radial-gradient(circle at 32% 30%,#a552a3,#6d2d6d); }
       .gmiw-medallion--rose{ background:radial-gradient(circle at 32% 30%,#cf6aa2,#8e2f66); }
       .gmiw-panel-title{ font-size:1.28rem; font-weight:800; letter-spacing:-.01em; }
-      .gmiw-panel-copy{ color:#5a5170; font-size:.95rem; max-width:28ch; line-height:1.5; }
+      /* 28ch readability cap on wide panels (Screen 1 unchanged), but never wider than the panel
+         itself on a narrow track (Screen 2) so copy wraps instead of overflowing the CTA/underlay. */
+      .gmiw-panel-copy{ color:#5a5170; font-size:.95rem; max-width:min(28ch, 100%); line-height:1.5; overflow-wrap:break-word; }
       .gmiw-cta{ margin-top:4px; font-weight:800; letter-spacing:.09em; font-size:.82rem; color:#6b3fa0; }
       .gmiw-footer{ text-align:center; color:#6b6580; font-size:.86rem; margin:22px 0 2px; }
       @media (max-width:640px){

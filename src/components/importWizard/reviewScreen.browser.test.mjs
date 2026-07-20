@@ -342,3 +342,18 @@ test("real import through a Personal group still navigates to Recipients (mechan
   // Personal Professional stays individual — payload carried no business recipientType
   assert.ok((globalThis.__lastImport || []).every((c) => c.recipientType === ""));
 });
+
+test("Screen 2 renders all three group panels at every representative width (DOM presence)", async () => {
+  for (const w of [1200, 900, 768, 640, 375]) {
+    Object.defineProperty(window, "innerWidth", { value: w, configurable: true });
+    window.dispatchEvent(new window.Event("resize"));
+    await mountWizard();
+    await act(async () => fireClick(tid("panel-personal")));
+    const panels = document.querySelectorAll('[data-testid="group-panels"] .gmiw-panel');
+    assert.equal(panels.length, 3, `three panels present at ${w}px`);
+    for (const id of ["panel-family", "panel-friend", "panel-professional"]) assert.ok(tid(id), `${id} present at ${w}px`);
+    // order preserved: Family, Friends, Professional
+    assert.deepEqual([...panels].map((p) => p.getAttribute("data-testid")), ["panel-family", "panel-friend", "panel-professional"]);
+    assert.ok(document.querySelector(".gmiw-panels--three"), `resilient grid class applied at ${w}px`);
+  }
+});

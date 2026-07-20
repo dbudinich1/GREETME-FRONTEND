@@ -362,3 +362,18 @@ test("Personal Professional stays Individual (recipientType blank) — never the
     freshReviewState({ business: false, kind: null, todayIso: TODAY }));
   assert.equal(payload[0].recipientType, "");
 });
+
+// ---- Screen 2 responsive-layout fix (root cause: forced 3 columns + non-shrinking grid items) ----
+test("Screen 2 grid is resilient (auto-fit), items may shrink, copy caps at the panel; Screen 1 unchanged", () => {
+  // resilient grid — NOT three forced columns
+  assert.match(WIZ, /\.gmiw-panels--three\{ grid-template-columns:repeat\(auto-fit, minmax\(240px, 1fr\)\); \}/);
+  assert.ok(!/\.gmiw-panels--three\{ grid-template-columns:1fr 1fr 1fr; \}/.test(WIZ), "old forced 3-column removed");
+  // grid/flex items allowed to shrink below content min-width (prevents overflow/clipping)
+  assert.match(WIZ, /\.gmiw-panel\{[\s\S]*?min-width:0;/);
+  // copy capped at panel width on narrow tracks, 28ch on wide (Screen 1 identical)
+  assert.match(WIZ, /\.gmiw-panel-copy\{[^}]*max-width:min\(28ch, 100%\)/);
+  // Screen 1 grid is untouched (still two fixed columns)
+  assert.match(WIZ, /\.gmiw-panels\{ display:grid; grid-template-columns:1fr 1fr;/);
+  // mobile stack + order preserved (source order Family/Friends/Professional is unchanged)
+  assert.match(WIZ, /@media \(max-width:640px\)[\s\S]*?\.gmiw-panels, \.gmiw-panels--three\{ grid-template-columns:1fr; \}/);
+});
