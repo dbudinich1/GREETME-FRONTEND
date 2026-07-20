@@ -523,13 +523,15 @@ function PremiumStyles() {
       .gmiw-tagline{ margin-top:.25rem; font-family:Georgia,serif; font-style:italic; font-size:1.05rem; color:#f5e7cb; }
       .gmiw-heading{ text-align:center; font-family:Georgia,'Times New Roman',serif; font-weight:600; color:#382a52;
         font-size:1.95rem; margin:28px 0 22px; text-wrap:balance; }
-      .gmiw-panels{ display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:stretch; }
-      /* Resilient: 3 columns only when each panel (>=240px) fits comfortably; otherwise 2, then 1 —
-         driven by the actual constrained content width, not a fixed viewport breakpoint. */
-      .gmiw-panels--three{ grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); }
+      /* CONTAINER-responsive (not viewport-responsive): columns collapse based on the tile's ACTUAL
+         available width, so a narrow content area (e.g. the wizard shown in a half-screen window /
+         dashboard) stacks correctly even when window.innerWidth is wide. The min(100%, Npx) floor is
+         essential — it lets a single track shrink below Npx instead of overflowing the container. */
+      .gmiw-panels{ display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap:22px; align-items:stretch; }
+      .gmiw-panels--three{ grid-template-columns:repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
       .gmiw-panel{ display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px;
-        min-width:0;   /* grid/flex items must be allowed to shrink below content min-width (prevents overflow/clipping) */
-        min-height:230px; padding:32px 24px; cursor:pointer; color:#2c2140; font-family:inherit; border-radius:24px;
+        box-sizing:border-box; width:100%; min-width:0;   /* fill the track; allow shrink below content min-width (no overflow) */
+        min-height:230px; height:auto; padding:32px 24px; cursor:pointer; color:#2c2140; font-family:inherit; border-radius:24px;
         border:2px solid #b98fd6; background:linear-gradient(160deg,#f7f0ff 0%,#fdeef7 100%);
         box-shadow:0 14px 30px -18px rgba(120,60,160,.55); transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
       .gmiw-panel:hover{ transform:translateY(-3px); border-color:#8a4fbf; box-shadow:0 22px 44px -18px rgba(120,60,160,.62); }
@@ -539,11 +541,11 @@ function PremiumStyles() {
         background:radial-gradient(circle at 32% 30%,#8a5fd0,#5b3a9e); box-shadow:0 10px 20px -8px rgba(70,30,120,.7); }
       .gmiw-medallion--plum{ background:radial-gradient(circle at 32% 30%,#a552a3,#6d2d6d); }
       .gmiw-medallion--rose{ background:radial-gradient(circle at 32% 30%,#cf6aa2,#8e2f66); }
-      .gmiw-panel-title{ font-size:1.28rem; font-weight:800; letter-spacing:-.01em; }
-      /* 28ch readability cap on wide panels (Screen 1 unchanged), but never wider than the panel
-         itself on a narrow track (Screen 2) so copy wraps instead of overflowing the CTA/underlay. */
-      .gmiw-panel-copy{ color:#5a5170; font-size:.95rem; max-width:min(28ch, 100%); line-height:1.5; overflow-wrap:break-word; }
-      .gmiw-cta{ margin-top:4px; font-weight:800; letter-spacing:.09em; font-size:.82rem; color:#6b3fa0; }
+      /* All tile text: never exceed the tile's inner width, and wrap (incl. long single tokens) so
+         nothing runs past the tile border. Copy keeps a readability cap that is never wider than the tile. */
+      .gmiw-panel-title{ font-size:1.28rem; font-weight:800; letter-spacing:-.01em; max-width:100%; overflow-wrap:anywhere; }
+      .gmiw-panel-copy{ color:#5a5170; font-size:.95rem; max-width:min(30ch, 100%); line-height:1.5; white-space:normal; overflow-wrap:anywhere; }
+      .gmiw-cta{ margin-top:4px; font-weight:800; letter-spacing:.09em; font-size:.82rem; color:#6b3fa0; max-width:100%; overflow-wrap:anywhere; }
       .gmiw-footer{ text-align:center; color:#6b6580; font-size:.86rem; margin:22px 0 2px; }
       @media (max-width:640px){
         .gmiw-underlay{ padding:14px; border-radius:22px; } .gmiw-surface{ padding:16px; }

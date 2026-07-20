@@ -298,7 +298,7 @@ test("exact panel copy (Personal + Business) + CTAs + footer", () => {
 test("premium underlay + panel visuals + accessible/interactive styles present", () => {
   assert.match(WIZ, /gmiw-underlay/);                                // colored underlay
   assert.match(WIZ, /gmiw-surface/);                                 // inner content surface
-  assert.match(WIZ, /grid-template-columns:1fr 1fr/);                // side-by-side on desktop
+  assert.match(WIZ, /\.gmiw-panels\{ display:grid; grid-template-columns:repeat\(auto-fit/);   // container-responsive: 2-up on desktop
   assert.match(WIZ, /@media \(max-width:640px\)[\s\S]*?grid-template-columns:1fr;/);  // stacks on mobile
   assert.match(WIZ, /\.gmiw-panel:focus-visible\{ outline:/);        // visible focus
   assert.match(WIZ, /\.gmiw-panel:hover/);
@@ -367,17 +367,25 @@ test("Personal Professional stays Individual (recipientType blank) — never the
   assert.equal(payload[0].recipientType, "");
 });
 
-// ---- Screen 2 responsive-layout fix (root cause: forced 3 columns + non-shrinking grid items) ----
-test("Screen 2 grid is resilient (auto-fit), items may shrink, copy caps at the panel; Screen 1 unchanged", () => {
-  // resilient grid — NOT three forced columns
-  assert.match(WIZ, /\.gmiw-panels--three\{ grid-template-columns:repeat\(auto-fit, minmax\(240px, 1fr\)\); \}/);
-  assert.ok(!/\.gmiw-panels--three\{ grid-template-columns:1fr 1fr 1fr; \}/.test(WIZ), "old forced 3-column removed");
-  // grid/flex items allowed to shrink below content min-width (prevents overflow/clipping)
-  assert.match(WIZ, /\.gmiw-panel\{[\s\S]*?min-width:0;/);
-  // copy capped at panel width on narrow tracks, 28ch on wide (Screen 1 identical)
-  assert.match(WIZ, /\.gmiw-panel-copy\{[^}]*max-width:min\(28ch, 100%\)/);
-  // Screen 1 grid is untouched (still two fixed columns)
-  assert.match(WIZ, /\.gmiw-panels\{ display:grid; grid-template-columns:1fr 1fr;/);
-  // mobile stack + order preserved (source order Family/Friends/Professional is unchanged)
+// ---- Shared Wizard tile CONTAINMENT fix (root cause: viewport-based breakpoints + fixed/floored
+//      grids that ignore the real container width; text with no wrap guard on title/CTA) ----
+test("both grids are CONTAINER-responsive (min(100%,Npx) floor); text can't overflow the tile", () => {
+  // BOTH Screen 1 and Screen 2 grids collapse on the actual container width, not the viewport
+  assert.match(WIZ, /\.gmiw-panels\{ display:grid; grid-template-columns:repeat\(auto-fit, minmax\(min\(100%, 300px\), 1fr\)\);/);
+  assert.match(WIZ, /\.gmiw-panels--three\{ grid-template-columns:repeat\(auto-fit, minmax\(min\(100%, 240px\), 1fr\)\); \}/);
+  // the min(100%, …) floor is the key fix — a plain minmax(240px…) overflows a narrow container
+  assert.ok(!/grid-template-columns:1fr 1fr;/.test(WIZ), "fixed 2-column Screen-1 grid removed");
+  assert.ok(!/minmax\(240px, 1fr\)/.test(WIZ), "bare minmax(240px) floor removed (overflowed narrow containers)");
+  // tiles fill their track, may shrink, keep padding inside
+  assert.match(WIZ, /\.gmiw-panel\{[\s\S]*?box-sizing:border-box; width:100%; min-width:0;/);
+  assert.match(WIZ, /min-height:230px; height:auto;/);   // grows vertically instead of a rigid fixed height
+  // every text element caps at the tile and wraps (incl. long single tokens)
+  assert.match(WIZ, /\.gmiw-panel-title\{[^}]*max-width:100%; overflow-wrap:anywhere;/);
+  assert.match(WIZ, /\.gmiw-panel-copy\{[^}]*max-width:min\(30ch, 100%\)[^}]*white-space:normal; overflow-wrap:anywhere;/);
+  assert.match(WIZ, /\.gmiw-cta\{[^}]*max-width:100%; overflow-wrap:anywhere;/);
+  // no forbidden containment anti-patterns on the shared tile
+  assert.ok(!/\.gmiw-panel[^{]*\{[^}]*white-space:nowrap/.test(WIZ), "no white-space:nowrap on tiles");
+  assert.ok(!/text-overflow:ellipsis/.test(WIZ), "no ellipsis truncation");
+  // mobile stack + source order preserved
   assert.match(WIZ, /@media \(max-width:640px\)[\s\S]*?\.gmiw-panels, \.gmiw-panels--three\{ grid-template-columns:1fr; \}/);
 });
