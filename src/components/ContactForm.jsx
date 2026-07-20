@@ -623,9 +623,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               color: 'var(--text-secondary)',
               marginBottom: '0.375rem'
             }}>
-              Type <span style={{ fontWeight: 400, color: 'var(--text-tertiary)' }}>(optional)</span>
+              Type
             </label>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '-0.125rem 0 0.5rem' }}>Optional — add this to help Greet-Me personalize greetings.</p>
             <select
               name="relationshipCategory"
               value={formData.relationshipCategory || ''}
@@ -668,7 +667,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               color: 'var(--text-secondary)',
               marginBottom: '0.375rem'
             }}>
-              Relation <span style={{ color: '#ef4444' }}>*</span>
+              Relation
             </label>
             <select
               name="relationship"
@@ -757,7 +756,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               color: 'var(--text-secondary)',
               marginBottom: '0.375rem'
             }}>
-              Description <span style={{ fontWeight: 400, color: 'var(--text-tertiary)' }}>(optional)</span>
+              Description
             </label>
             <select
               name="relationshipCloseness"

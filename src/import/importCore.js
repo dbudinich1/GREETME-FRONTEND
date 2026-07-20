@@ -72,7 +72,10 @@ export function normalizePhone(raw) {
 // ----- Header aliasing / auto-map -----
 export const CANONICAL_FIELDS = Object.freeze([
   "fullName", "firstName", "lastName", "email", "phone", "relationship",
+  "relationshipCategory", "relationshipCloseness",
   "company", "department", "recipientType", "birthday", "consent", "source", "notes",
+  // shipping address (maps to canonical contact.shippingAddress { line1, line2, city, state, zip, country })
+  "addressLine1", "addressLine2", "city", "state", "postalCode", "country",
 ]);
 const ALIASES = Object.freeze({
   fullName: ["full name", "name", "contact name", "recipient"],
@@ -81,6 +84,8 @@ const ALIASES = Object.freeze({
   email: ["email", "e-mail", "email address", "work email"],
   phone: ["phone", "mobile", "cell", "telephone", "tel"],
   relationship: ["relationship", "relation", "role"],
+  relationshipCategory: ["relationship group", "relationship category", "group"],
+  relationshipCloseness: ["closeness", "relationship closeness", "description"],
   company: ["company", "employer", "organization", "org", "business"],
   department: ["department", "dept", "team", "division"],
   recipientType: ["recipient type", "type", "category", "employee/client"],
@@ -88,6 +93,12 @@ const ALIASES = Object.freeze({
   consent: ["consent", "opt-in", "optin", "consented"],
   source: ["source", "origin", "list", "acquired from"],
   notes: ["notes", "note", "comments", "remarks"],
+  addressLine1: ["address line 1", "address line1", "address1", "address", "street", "street address"],
+  addressLine2: ["address line 2", "address line2", "address2", "apt", "suite", "unit"],
+  city: ["city", "town"],
+  state: ["state", "province", "state/province", "region"],
+  postalCode: ["postal/zip code", "postal code", "zip", "zip code", "postcode", "postal", "zip/postal code"],
+  country: ["country"],
 });
 const norm = (h) => String(h || "").trim().toLowerCase().replace(/\s+/g, " ");
 export function autoMapHeaders(headers = []) {
@@ -122,17 +133,33 @@ export function processRow(rawRow = {}, mapping = {}, opts = {}) {
   const phone = normalizePhone(get("phone"));
   const birthday = trim(get("birthday")) || "";
 
+  // Optional shipping address → canonical contact.shippingAddress { line1, line2, city, state, zip,
+  // country }. Included ONLY when at least one field is present (a blank address never changes the
+  // contact shape and never blocks import). Preparation only — storing an address triggers nothing.
+  const shippingAddress = {
+    line1: trim(get("addressLine1")) || "",
+    line2: trim(get("addressLine2")) || "",
+    city: trim(get("city")) || "",
+    state: trim(get("state")) || "",
+    zip: trim(get("postalCode")) || "",
+    country: trim(get("country")) || "",
+  };
+  const hasAddress = Object.values(shippingAddress).some((v) => v);
+
   const contact = {
     fullName,
     email,
     phone,                                   // normalized; transmission policy decided by caller
     relationship: trim(get("relationship")) || "",
+    relationshipCategory: trim(get("relationshipCategory")) || "",
+    relationshipCloseness: trim(get("relationshipCloseness")) || "",
     company: trim(get("company")) || "",
     department: trim(get("department")) || "",
     recipientType: trim(get("recipientType")) || "",
     consent: trim(get("consent")) || "",
     source: trim(get("source")) || "",
     notes: trim(get("notes")) || "",
+    ...(hasAddress ? { shippingAddress } : {}),
   };
 
   const { errors, warnings } = computeContactErrors(

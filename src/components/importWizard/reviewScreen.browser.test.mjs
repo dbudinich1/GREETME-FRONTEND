@@ -313,6 +313,59 @@ test("Business upload Change returns to Business Screen 2; Start Over returns to
   assert.ok(tid("panel-personal") && tid("panel-business"));
 });
 
+// ---------- Safe defaults + blank templates ----------
+test("recommended-default notice appears only for eligible blank rows; Family is HELD (no notice)", async () => {
+  await mountWizard(); globalThis.__getContacts = () => ({ data: [] });
+  await goIndividual("friend"); await uploadCsv(CSV2);
+  assert.ok(tid("defaults-notice"), "Friend import with blank relationships → notice");
+  assert.match(txt(), /Recommended settings are available/);
+  assert.match(txt(), /Apply recommended settings to 2 contacts/);
+  // Family path default is held pending canonical loved_one → NO notice even with blank rows
+  await mountWizard(); globalThis.__getContacts = () => ({ data: [] });
+  await goIndividual("family"); await uploadCsv(CSV2);
+  assert.equal(tid("defaults-notice"), null, "Family held → no notice");
+});
+
+test("Apply updates rows + count; Undo restores; Review individually dismisses with no change", async () => {
+  await mountWizard(); globalThis.__getContacts = () => ({ data: [] });
+  await goIndividual("professional"); await uploadCsv(CSV2);
+  assert.ok(tid("defaults-notice"));
+  await act(async () => fireClick(tid("apply-defaults")));
+  assert.ok(tid("defaults-applied"), "applied banner shown");
+  assert.match(txt(), /Recommended settings applied to 2 contacts/);
+  await act(async () => fireClick(tid("undo-defaults")));
+  assert.ok(tid("defaults-notice"), "Undo returns to the available notice");
+  assert.equal(tid("defaults-applied"), null);
+  await act(async () => fireClick(tid("review-individually")));
+  assert.equal(tid("defaults-notice"), null, "Review individually dismisses the notice");
+  assert.equal(tid("defaults-applied"), null, "and applies nothing");
+});
+
+test("applied defaults flow into the import payload (professional/colleague/greetme_worthy), no business type", async () => {
+  await mountWizard(); globalThis.__getContacts = () => ({ data: [] });
+  globalThis.__importContacts = (c) => ({ data: { imported: c.length, failed: 0, errors: [] } });
+  await goIndividual("professional"); await uploadCsv(CSV2);
+  await act(async () => fireClick(tid("apply-defaults")));
+  await act(async () => fireClick(tid("add-cta")));
+  await flush();
+  const p = globalThis.__lastImport || [];
+  assert.equal(p.length, 2);
+  assert.ok(p.every((c) => c.relationship === "colleague" && c.relationshipCategory === "professional" && c.relationshipCloseness === "greetme_worthy"), "manual-compatible payload");
+  assert.ok(p.every((c) => c.recipientType === ""), "Personal Professional → no business recipientType");
+  assert.equal(globalThis.__nav, "/dashboard/contacts", "real import mechanics unchanged (navigates)");
+});
+
+test("all six blank-template download actions are wired and separate from the Practice CSV", async () => {
+  for (const [nav, kind] of [["p", "family"], ["p", "friend"], ["p", "professional"], ["b", "employee"], ["b", "client"], ["b", "vendor"]]) {
+    await mountWizard();
+    if (nav === "p") await goIndividual(kind); else await goBusiness(kind);
+    assert.match(txt(), /Need a file to fill out\?/, `${kind} template block`);
+    assert.ok(tid("download-excel-template"), `${kind} Excel template action`);
+    assert.ok(tid("download-csv-template"), `${kind} CSV template action`);
+    assert.ok(tid("download-practice"), `${kind} Practice CSV still present + separate`);
+  }
+});
+
 test("Personal Test Drive loads the CATEGORY dataset (Family names differ from Friends)", async () => {
   await mountWizard(); await goIndividual("family");
   await act(async () => fireClick(tid("start-testdrive")));

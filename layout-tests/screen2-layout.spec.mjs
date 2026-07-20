@@ -255,3 +255,80 @@ test("Upload Options: six canonical headings + stacked sections + OR divider fit
     }
   }
 });
+
+// ---- Upload Options template block + recommended-defaults notice: contained + wrapping ----
+function pageOptionsPlus(css, wrap) {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box}html,body{margin:0}body{background:#e9e3f2;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}${css}</style></head><body>
+    <div style="${wrap};margin:0 auto;padding:12px">
+      <div class="gmiw-underlay" id="underlay"><div class="gmiw-surface">
+        <div class="gmiw-upload" id="upload">
+          <section class="gmiw-upsec" id="sec1">
+            <h3>Upload your contacts</h3>
+            <label class="gmiw-choose">Choose a CSV file</label>
+            <div class="gmiw-template" id="tpl">
+              <h4>Need a file to fill out?</h4>
+              <p>Download a blank template with the right columns for this contact type, complete it, then upload it here.</p>
+              <div class="gmiw-template-cta" id="tplcta"><button style="padding:10px 16px">Download Excel Template</button><button style="padding:10px 16px">Download CSV Template</button></div>
+            </div>
+          </section>
+          <div class="gmiw-defaults" id="dflt">
+            <b>Recommended settings are available</b>
+            <p>We can apply conservative relationship settings to contacts with missing details. Existing CSV values and any changes you make will always take priority.</p>
+            <p style="font-weight:700">Apply recommended settings to 12 contacts</p>
+            <div class="gmiw-defaults-cta" id="dfltcta"><button style="padding:10px 16px">Apply recommended settings</button><button style="padding:10px 16px">Review individually</button></div>
+          </div>
+        </div>
+      </div></div>
+    </div></body></html>`;
+}
+test("Template block + defaults notice fit and wrap cleanly (desktop/narrow/mobile)", async ({ page }) => {
+  for (const [tag, vp, wrap] of [["desktop", 1200, "max-width:900px"], ["mobile", 390, "max-width:900px"], ["narrow", 1360, "width:380px"]]) {
+    await page.setViewportSize({ width: vp, height: 1000 });
+    await page.setContent(pageOptionsPlus(CSS_AFTER, wrap));
+    const m = await page.evaluate(() => {
+      const u = document.getElementById("underlay").getBoundingClientRect();
+      const rect = (id) => document.getElementById(id).getBoundingClientRect();
+      const sw = (id) => { const e = document.getElementById(id); return { sw: e.scrollWidth, cw: e.clientWidth }; };
+      return { over: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        uL: u.left, uR: u.right, tpl: rect("tpl"), dflt: rect("dflt"), tplSw: sw("tpl"), dfltSw: sw("dflt"), upSw: sw("upload") };
+    });
+    await page.locator("#underlay").screenshot({ path: join(SHOTS, `options-plus-${tag}.jpg`), type: "jpeg", quality: 60 });
+    expect(m.over, `no horizontal scroll ${tag}`).toBeLessThanOrEqual(1);
+    expect(m.upSw.sw, `upload column no overflow ${tag}`).toBeLessThanOrEqual(m.upSw.cw + 1);
+    expect(m.tplSw.sw, `template block no overflow ${tag}`).toBeLessThanOrEqual(m.tplSw.cw + 1);
+    expect(m.dfltSw.sw, `defaults notice no overflow ${tag}`).toBeLessThanOrEqual(m.dfltSw.cw + 1);
+    expect(m.tpl.left, `template in underlay L ${tag}`).toBeGreaterThanOrEqual(m.uL - 0.5);
+    expect(m.tpl.right, `template in underlay R ${tag}`).toBeLessThanOrEqual(m.uR + 0.5);
+    expect(m.dflt.right, `defaults in underlay R ${tag}`).toBeLessThanOrEqual(m.uR + 0.5);
+  }
+});
+
+// ---- ContactForm relationship row: Type / Relation / Description align on desktop, stack on mobile ----
+function pageRelationRow(cols) {
+  const cell = (id, label) => `<div id="${id}"><label style="display:block;font-size:0.8125rem;font-weight:600;color:#555;margin-bottom:0.375rem">${label}</label><select id="${id}-s" style="width:100%;padding:0.625rem 0.875rem;border:1.5px solid #ccc;border-radius:8px;font-size:1rem;font-family:inherit"><option>Select...</option></select></div>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box}html,body{margin:0}body{font-family:system-ui,sans-serif}</style></head><body>
+    <div style="max-width:900px;margin:0 auto;padding:12px">
+      <div style="display:grid;grid-template-columns:${cols === 3 ? "1fr 1fr 1fr" : "1fr"};gap:1rem">
+        ${cell("c0", "Type")}${cell("c1", "Relation")}${cell("c2", "Description")}
+      </div>
+    </div></body></html>`;
+}
+test("Relation controls align on the same baseline (desktop) and stack cleanly (mobile)", async ({ page }) => {
+  // Desktop: 3 columns → the three selects share the same top (aligned baseline)
+  await page.setViewportSize({ width: 1100, height: 700 });
+  await page.setContent(pageRelationRow(3));
+  const tops = await page.evaluate(() => ["c0-s", "c1-s", "c2-s"].map((id) => document.getElementById(id).getBoundingClientRect().top));
+  expect(Math.max(...tops) - Math.min(...tops), "selects aligned on one baseline").toBeLessThanOrEqual(1);
+  // Mobile: single column, order Type → Relation → Description, no horizontal overflow
+  await page.setViewportSize({ width: 380, height: 900 });
+  await page.setContent(pageRelationRow(1));
+  const stacked = await page.evaluate(() => {
+    const r = (id) => document.getElementById(id).getBoundingClientRect();
+    return { over: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      t0: r("c0").top, t1: r("c1").top, t2: r("c2").top, l0: r("c0").left, l1: r("c1").left, l2: r("c2").left };
+  });
+  expect(stacked.over, "no horizontal overflow on mobile").toBeLessThanOrEqual(1);
+  expect(stacked.t1, "Relation below Type").toBeGreaterThan(stacked.t0);
+  expect(stacked.t2, "Description below Relation").toBeGreaterThan(stacked.t1);
+  expect(Math.abs(stacked.l0 - stacked.l1) + Math.abs(stacked.l1 - stacked.l2), "stacked controls share a left edge").toBeLessThanOrEqual(1);
+});

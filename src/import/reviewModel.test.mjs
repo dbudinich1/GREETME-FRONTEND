@@ -198,6 +198,29 @@ test("Individual strips a business recipientType; Business assigns it", () => {
   assert.equal(buildReviewPayload([r], biz("vendor"))[0].recipientType, "vendor");
 });
 
+// §9 — per-row Recipient Type override on a single-type business path.
+test("single-type path: an explicit valid Recipient Type cell overrides the path default (flagged)", () => {
+  // Employees list, but a row is explicitly a vendor → override applied + flagged, never silently kept as employee
+  const rev = buildReview([row(0, { type: "vendor" }), row(1, { type: "" })], biz("employee"));
+  assert.equal(at(rev, 0).audience, "vendor");
+  assert.equal(at(rev, 0).audienceState, "override_cell");           // designation differs from the list type
+  assert.equal(at(rev, 0).bucket, REVIEW_BUCKET.READY);
+  assert.equal(at(rev, 1).audience, "employee");                     // blank cell → path default
+  assert.equal(at(rev, 1).audienceState, "auto");
+  assert.equal(buildReviewPayload([row(0, { type: "vendor" })], biz("employee"))[0].recipientType, "vendor");
+});
+test("single-type path: a recognized synonym cell normalizes; an UNKNOWN cell requires review", () => {
+  const rev = buildReview([row(0, { type: "supplier" }), row(1, { type: "contractor" })], biz("client"));
+  assert.equal(at(rev, 0).audience, "vendor");                       // supplier → vendor (override, canonical)
+  assert.equal(at(rev, 1).bucket, REVIEW_BUCKET.NEEDS_FIX);          // contractor unknown → review, never guessed
+  assert.equal(at(rev, 1).blockerCode, "needs_audience");
+});
+test("single-type override restricted to canonical values; a user review edit still wins", () => {
+  let s = biz("vendor");
+  s = chooseAudience(s, 0, "client");                                // user edit overrides everything
+  assert.equal(at(buildReview([row(0, { type: "vendor" })], s), 0).audience, "client");
+});
+
 // group→relation dependency, clearing counts as an edit (F6).
 test("changing group clears only an incompatible relation; explicit clear counts as an edit", () => {
   let s = setGroup(ind(), 0, "friend");                             // family/sibling → cleared under friend

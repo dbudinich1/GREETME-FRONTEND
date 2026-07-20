@@ -140,3 +140,82 @@ test("Truthful dormant state from a real Business-upload attempt", async ({ page
   await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, "business-dormant.jpg"), type: "jpeg", quality: 62 });
   await expect(page.locator("body")).toContainText("Organization import is currently turned off");
 });
+
+// ---- Recommended-defaults flow (real Personal Review): before / notice / applied / undo ----
+test("Recommended defaults flow — notice, applied, and undo (Professional import)", async ({ page }) => {
+  await mount(page, 1180);
+  await page.click('[data-testid="panel-personal"]');
+  await page.click('[data-testid="panel-professional"]');
+  await page.setInputFiles('input[type="file"]', { name: "contacts.csv", mimeType: "text/csv",
+    buffer: Buffer.from("Name,Email\nAda Lovelace,ada@example.com\nGrace Hopper,grace@example.org\nAlan Turing,alan@example.net") });
+  await page.waitForSelector('[data-testid="confirm-screen"]');
+  await page.waitForSelector('[data-testid="defaults-notice"]');
+  await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, "review-defaults-available.jpg"), type: "jpeg", quality: 62 });
+  await expect(page.locator('[data-testid="defaults-notice"]')).toContainText("Recommended settings are available");
+  await page.click('[data-testid="apply-defaults"]');
+  await page.waitForSelector('[data-testid="defaults-applied"]');
+  await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, "review-defaults-applied.jpg"), type: "jpeg", quality: 62 });
+  await expect(page.locator("body")).toContainText("Recommended settings applied to 3 contacts");
+  await page.click('[data-testid="undo-defaults"]');
+  await page.waitForSelector('[data-testid="defaults-notice"]');
+  await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, "review-defaults-undo.jpg"), type: "jpeg", quality: 62 });
+});
+
+// ---- Business Review (Test Drive) showing the canonical recipient type ----
+test("Business Review shows the canonical recipient type (Clients)", async ({ page }) => {
+  await mount(page, 1180);
+  await page.click('[data-testid="panel-business"]');
+  await page.click('[data-testid="panel-client"]');
+  await page.click('[data-testid="start-testdrive"]');
+  await page.waitForSelector('[data-testid="confirm-screen"]');
+  await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, "business-review-client.jpg"), type: "jpeg", quality: 62 });
+  await expect(page.locator("body")).toContainText("Client");
+});
+
+// ---- ContactForm relationship row after alignment (exact shipped markup + inline styles) ----
+test("ContactForm relationship row — Type / Relation / Description aligned", async ({ page }) => {
+  const cell = (label, dis) => `<div><label style="display:block;font-size:0.8125rem;font-weight:600;color:#475569;margin-bottom:0.375rem">${label}</label>`
+    + `<select style="width:100%;padding:0.625rem 0.875rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:1rem;background:${dis ? "#f1f5f9" : "white"};color:${dis ? "#94a3b8" : "inherit"}"><option>Select...</option></select></div>`;
+  await page.setViewportSize({ width: 900, height: 460 });
+  await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0;font-family:system-ui,'Segoe UI',sans-serif;background:#f8fafc}</style></head><body>
+    <div style="max-width:760px;margin:24px auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px 24px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
+      <h3 style="font-size:1rem;font-weight:600;display:flex;align-items:center;gap:.5rem;margin:0 0 1.25rem"><span style="color:#ec4899">&#10084;</span> Relation</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">${cell("Type")}${cell("Relation", true)}${cell("Description")}</div>
+    </div></body></html>`);
+  await page.locator("div").first().screenshot({ path: join(SHOTS, "contactform-relation-row.jpg"), type: "jpeg", quality: 65 });
+});
+
+// ---- Excel templates rendered faithfully from the ACTUAL generated .xlsx bytes ----
+import { templateXlsx } from "../src/import/xlsxTemplate.js";
+import { templateColumns } from "../src/import/templateModel.js";
+function unzipHeaders(bytes) {
+  const d = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let eocd = bytes.length - 22; while (eocd >= 0 && d.getUint32(eocd, true) !== 0x06054b50) eocd -= 1;
+  const count = d.getUint16(eocd + 10, true); let cd = d.getUint32(eocd + 16, true); const files = {};
+  for (let i = 0; i < count; i++) {
+    const nameLen = d.getUint16(cd + 28, true), extraLen = d.getUint16(cd + 30, true), commentLen = d.getUint16(cd + 32, true), lho = d.getUint32(cd + 42, true);
+    const name = new TextDecoder().decode(bytes.subarray(cd + 46, cd + 46 + nameLen));
+    const lNameLen = d.getUint16(lho + 26, true), lExtraLen = d.getUint16(lho + 28, true), size = d.getUint32(lho + 18, true);
+    const start = lho + 30 + lNameLen + lExtraLen; files[name] = new TextDecoder().decode(bytes.subarray(start, start + size));
+    cd += 46 + nameLen + extraLen + commentLen;
+  }
+  return files;
+}
+for (const kind of ["family", "employee"]) {
+  test(`Excel ${kind} template — faithful render from the generated .xlsx (headers, widths, frozen, filter)`, async ({ page }) => {
+    const files = unzipHeaders(templateXlsx(kind));
+    const sheet = files["xl/worksheets/sheet1.xml"];
+    const headers = [...sheet.matchAll(/<t[^>]*>([^<]*)<\/t>/g)].map((m) => m[1]);
+    const widths = [...sheet.matchAll(/<col [^>]*width="([\d.]+)"[^>]*\/>/g)].map((m) => parseFloat(m[1]));
+    const cells = headers.map((h, i) => `<th style="min-width:${Math.round(widths[i] * 7)}px;border:1px solid #cfc6e0;background:#ede7f6;color:#2c2140;font-weight:700;padding:6px 10px;text-align:left;white-space:nowrap;font-size:13px">${h}</th>`).join("");
+    const empty = headers.map((_, i) => `<td style="min-width:${Math.round(widths[i] * 7)}px;border:1px solid #eee;padding:6px 10px;height:22px"></td>`).join("");
+    await page.setViewportSize({ width: 1300, height: 360 });
+    await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0;font-family:Calibri,system-ui,sans-serif;background:#fff}</style></head><body>
+      <div style="padding:14px">
+        <div style="font-size:12px;color:#6b6580;margin-bottom:8px">greetme-${kind}-contacts-template.xlsx — Contacts sheet (rendered from the generated file bytes; headless cannot launch Excel). Header row frozen · autofilter enabled · date-formatted Birthday.</div>
+        <div style="overflow-x:auto;border:1px solid #cfc6e0;border-radius:8px"><table style="border-collapse:collapse;font-size:13px"><thead><tr>${cells}</tr></thead><tbody><tr>${empty}</tr><tr>${empty}</tr></tbody></table></div>
+      </div></body></html>`);
+    await page.locator("body").screenshot({ path: join(SHOTS, `excel-${kind}-template.jpg`), type: "jpeg", quality: 68 });
+    expect(headers).toEqual(templateColumns(kind).map((c) => c.header));
+  });
+}

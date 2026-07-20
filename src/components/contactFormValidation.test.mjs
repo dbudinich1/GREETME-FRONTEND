@@ -82,10 +82,16 @@ test("ContactForm delegates to the guarded validator and sanitizes on save", () 
   // the old hard-coded "always required" relationship errors are gone
   assert.ok(!/Please select a relationship category/.test(CF));
   assert.ok(!/Please select relationship closeness/.test(CF));
-  // relationship section is presented as optional with the helper copy
-  assert.match(CF, /Optional — add this to help Greet-Me personalize greetings\./);
-  assert.ok(!/Type <span style=\{\{ color: '#ef4444' \}\}>\*<\/span>/.test(CF), "Type required-asterisk removed");
-  assert.ok(!/Description <span style=\{\{ color: '#ef4444' \}\}>\*<\/span>/.test(CF), "Description required-asterisk removed");
+  // ALIGNMENT FIX (§4): the Type "(optional)" tag + helper line are removed so Type/Relation/Description
+  // labels are single-line and their controls align on the same baseline; no required asterisks added.
+  assert.ok(!/Optional — add this to help Greet-Me personalize greetings\./.test(CF), "Type helper line removed");
+  assert.ok(!/Type <span[^>]*>\(optional\)<\/span>/.test(CF), "Type (optional) tag removed");
+  assert.ok(!/Relation <span style=\{\{ color: '#ef4444' \}\}>\*<\/span>/.test(CF), "no required asterisk on Relation");
+  // the three labels are the exact plain words, aligned in the 3-column grid
+  assert.match(CF, /gridTemplateColumns: isWideForm \? '1fr 1fr 1fr' : '1fr'/);   // desktop 3-up, mobile stacked
+  assert.match(CF, />\s*Type\s*<\/label>/);
+  assert.match(CF, />\s*Relation\s*<\/label>/);
+  assert.match(CF, />\s*Description\s*<\/label>/);
   // canonical taxonomy/options untouched
   assert.match(CF, /<option value="family">Family<\/option>/);
   assert.match(CF, /<option value="greetme_worthy">Greet-Me Worthy<\/option>/);

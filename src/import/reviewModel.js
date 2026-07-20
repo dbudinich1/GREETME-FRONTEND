@@ -134,6 +134,7 @@ function _effective(row, e) {
     consent: c.consent || "",
     phone: c.phone || "", company: c.company || "", department: c.department || "",
     source: c.source || "", notes: c.notes || "",
+    shippingAddress: c.shippingAddress || null,        // canonical { line1,line2,city,state,zip,country } or null
   };
 }
 
@@ -162,6 +163,16 @@ export function chooseAudience(state, i, v) {
 export function skipContact(state, i) { return _patch(state, i, { skipped: true }); }
 export function unskipContact(state, i) { return _patch(state, i, { skipped: false }); }
 
+// Resolve a raw closeness cell (canonical VALUE or its exact LABEL) to a canonical value, else "".
+function _closenessValue(raw) {
+  const s = String(raw || "").trim().toLowerCase();
+  if (!s) return "";
+  const v = CLOSENESS_OPTIONS.find((o) => o.value === s);
+  if (v) return v.value;
+  const l = CLOSENESS_OPTIONS.find((o) => o.label.toLowerCase() === s);
+  return l ? l.value : "";
+}
+
 // ---- resolve one row's relationship (never mutates) ----
 function _relationOf(row, e) {
   const rawRel = (row.contact && row.contact.relationship) || "";
@@ -172,7 +183,9 @@ function _relationOf(row, e) {
     group = e.group || (e.relation ? categoryForRelation(e.relation) : "");
     relation = e.relation && isValidRelation(group, e.relation) ? e.relation : "";
   } else if (det.deterministic) { group = det.category; relation = det.relation; }
-  const closeness = e.closeness && isValidCloseness(e.closeness) ? e.closeness : DEFAULT_CLOSENESS;
+  // Closeness precedence: user edit > explicit CSV Closeness column (value or label) > default.
+  const csvClose = _closenessValue((row.contact && row.contact.relationshipCloseness) || "");
+  const closeness = (e.closeness && isValidCloseness(e.closeness)) ? e.closeness : (csvClose || DEFAULT_CLOSENESS);
   return { rawRel, group, relation, closeness, unrecognizedRaw: !!rawRel && !det.deterministic };
 }
 
@@ -203,13 +216,22 @@ export function buildReview(rows = [], state = freshReviewState()) {
       else seen.set(eff.email, i);
     }
 
-    // audience (business only)
+    // audience (business only). Precedence: user review edit > explicit valid CSV cell > path default.
+    // Single-type paths default the recipientType from the path, but an explicit valid Recipient Type
+    // cell overrides PER ROW (flagged when it differs from the list type); a non-blank UNKNOWN cell needs
+    // review and is never guessed. Universal ("mixed") reads the cell / needs review.
     const business = !!state.business, kind = state.kind;
     let audience = "", audienceState = "none";
     if (business) {
-      if (kind && kind !== "mixed") { audience = isCanonicalType(kind) ? kind : ""; audienceState = "auto"; }
-      else if (e.audience && isCanonicalType(e.audience)) { audience = e.audience; audienceState = "chosen"; }
-      else { const n = normalizeRecipientTypeRaw((row.contact || {}).recipientType); if (n) { audience = n; audienceState = "auto"; } else audienceState = "needs_audience"; }
+      const cellRaw = String((row.contact || {}).recipientType || "").trim();
+      const cellNorm = normalizeRecipientTypeRaw(cellRaw);                         // recognized synonym → canonical, else null
+      if (e.audience && isCanonicalType(e.audience)) { audience = e.audience; audienceState = "chosen"; }   // user edit wins
+      else if (kind && kind !== "mixed") {
+        if (cellNorm && isCanonicalType(cellNorm)) { audience = cellNorm; audienceState = cellNorm === kind ? "auto" : "override_cell"; }
+        else if (cellRaw) audienceState = "needs_audience";                        // non-blank unknown cell → review
+        else { audience = isCanonicalType(kind) ? kind : ""; audienceState = "auto"; }   // blank cell → path default
+      } else if (cellNorm) { audience = cellNorm; audienceState = "auto"; }        // mixed: recognized synonym
+      else audienceState = "needs_audience";                                       // mixed: unknown/blank → review
     }
 
     const rel = _relationOf(row, e);
@@ -292,6 +314,9 @@ export function buildReviewPayload(rows = [], state = freshReviewState()) {
       out.relationshipRaw = it.rawRel || "";
     }
     if (eff.birthday) out.birthday = eff.birthday;
+    // Optional shipping address in the canonical shape — preparation only; never blocks import, never
+    // triggers gift/automation/payment. Emitted only when at least one field is present.
+    if (eff.shippingAddress && Object.values(eff.shippingAddress).some((v) => v)) out.shippingAddress = eff.shippingAddress;
     return out;
   });
 }

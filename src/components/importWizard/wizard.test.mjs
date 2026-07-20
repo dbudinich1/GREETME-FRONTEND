@@ -422,6 +422,39 @@ test("Business Test Drive is zero mutation; real Business commit is dormant/fail
   assert.ok(bf.length > 0 && !/api\.|Papa\.|processRow|getContacts/.test(bf), "onBusinessRealFile never reads/parses/writes");
   assert.match(WIZ, /onRealFile = business \? onBusinessRealFile : onFile/);
 });
+test("Upload Options: blank category templates (Excel + CSV) separate from the Practice CSV", () => {
+  assert.match(WIZ, /template-block/);
+  assert.match(WIZ, /Need a file to fill out\?/);
+  assert.match(WIZ, /Download a blank template with the right columns for this contact type/);
+  assert.match(WIZ, /download-excel-template/);
+  assert.match(WIZ, /download-csv-template/);
+  assert.match(WIZ, /Download Excel Template/);
+  assert.match(WIZ, /Download CSV Template/);
+  assert.match(WIZ, /downloadTemplate\(templateKind, "xlsx"\)/);
+  assert.match(WIZ, /downloadTemplate\(templateKind, "csv"\)/);
+  assert.match(WIZ, /import \{ templateXlsx, XLSX_MIME \} from "\.\.\/\.\.\/import\/xlsxTemplate\.js"/);
+  assert.match(WIZ, /import \{ templateCsv, templateFileBase \} from "\.\.\/\.\.\/import\/templateModel\.js"/);
+  // the blank template is NEVER called a Practice CSV, and the Practice CSV stays populated + separate
+  assert.match(WIZ, /Download Practice CSV/);
+  assert.ok(!/Practice.*Template|Template.*Practice CSV/.test(WIZ), "blank template never labeled a Practice CSV");
+});
+test("Review screen: OPT-IN recommended defaults notice with apply / review-individually / undo", () => {
+  assert.match(WIZ, /import \{ recommendedDefaults, applyRecommendedDefaults, undoRecommendedDefaults \} from "\.\.\/\.\.\/import\/safeDefaults\.js"/);
+  assert.match(WIZ, /defaults-notice/);
+  assert.match(WIZ, /Recommended settings are available/);
+  assert.match(WIZ, /We can apply conservative relationship settings to contacts with missing details\. Existing CSV values and any changes you make will always take priority\./);
+  assert.match(WIZ, /Apply recommended settings to \{dflt\.count\} contact/);
+  assert.match(WIZ, /apply-defaults/);
+  assert.match(WIZ, /review-individually/);
+  assert.match(WIZ, /Recommended settings applied to \{dfltApplied\} contact/);
+  assert.match(WIZ, /undo-defaults/);
+  // never applied silently: application is behind the explicit apply-defaults click
+  assert.match(WIZ, /applyRecommendedDefaults\(state, dflt\.indices, dflt\.def\)/);
+  assert.match(WIZ, /undoRecommendedDefaults\(s, u\)/);
+  // business rows whose designation differs from the list are plainly flagged
+  assert.match(WIZ, /designation-differs/);
+  assert.match(WIZ, /defaultsPath=\{templateKind\}/);
+});
 test("Personal Professional stays Individual (recipientType blank) — never the Business Wizard", () => {
   // Professional group → pickMode(PERSONAL) (individual), so applyRecipientTypes/boundary keeps recipientType ""
   const payload = buildReviewPayload([{ contact: { fullName: "P", email: "p@x.co", recipientType: "vendor" }, index: 0, __raw: {}, __map: {} }],

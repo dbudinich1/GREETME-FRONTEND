@@ -30,6 +30,9 @@ import {
   relationsForGroup, AUDIENCE_CHOICES, REVIEW_BUCKET, relationLabelFor,
 } from "../../import/reviewModel.js";
 import { sampleContactsFor, sampleCsvFor, loadSampleWorkspace, saveSampleWorkspace, clearSampleWorkspace } from "../../import/sampleWorkspace.js";
+import { templateCsv, templateFileBase } from "../../import/templateModel.js";
+import { templateXlsx, XLSX_MIME } from "../../import/xlsxTemplate.js";
+import { recommendedDefaults, applyRecommendedDefaults, undoRecommendedDefaults } from "../../import/safeDefaults.js";
 import { showManualToast } from "../../utils/notify";
 import { COMMS_CATEGORIES } from "../../utils/commsCatalog";
 
@@ -235,14 +238,24 @@ export default function ContactImportWizard() {
     setRows(processed); setPlan(buildPlan(processed, { duplicateStrategy: "skip" }));
   }, []);
 
+  const triggerDownload = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  };
   const downloadSampleCsv = useCallback((kind) => {
+    try { triggerDownload(new Blob([sampleCsvFor(kind)], { type: "text/csv;charset=utf-8" }), `greetme-practice-${kind}.csv`); }
+    catch { setError("Could not generate the practice file."); }
+  }, []);
+  // Blank, category-specific template (Excel recommended). A blank template is NOT a Practice CSV —
+  // it carries only headers, no fictional/production rows.
+  const downloadTemplate = useCallback((kind, fmt) => {
     try {
-      const blob = new Blob([sampleCsvFor(kind)], { type: "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `greetme-practice-${kind}.csv`;
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { setError("Could not generate the practice file."); }
+      const base = templateFileBase(kind);
+      if (fmt === "xlsx") triggerDownload(new Blob([templateXlsx(kind)], { type: XLSX_MIME }), `${base}.xlsx`);
+      else triggerDownload(new Blob([templateCsv(kind)], { type: "text/csv;charset=utf-8" }), `${base}.csv`);
+    } catch { setError("Could not generate the template file."); }
   }, []);
 
   // BUSINESS practice terminal step ("View X practice recipients"): build the practice recipients and
@@ -440,6 +453,15 @@ export default function ContactImportWizard() {
               Choose a CSV file
               <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onRealFile(e.target.files[0])} />
             </label>
+            {/* Blank, category-specific templates (NOT the populated Practice CSV). Excel is recommended. */}
+            <div className="gmiw-template" data-testid="template-block">
+              <h4>Need a file to fill out?</h4>
+              <p>Download a blank template with the right columns for this contact type, complete it, then upload it here.</p>
+              <div className="gmiw-template-cta">
+                <button data-testid="download-excel-template" style={btn(PURPLE)} onClick={() => downloadTemplate(templateKind, "xlsx")}>Download Excel Template</button>
+                <button data-testid="download-csv-template" style={btn("transparent", "#1b1830")} onClick={() => downloadTemplate(templateKind, "csv")}>Download CSV Template</button>
+              </div>
+            </div>
           </section>
           {/* CENTERED DIVIDER — visual text, not an interactive control */}
           <div className="gmiw-or" data-testid="upload-or"><span>OR</span></div>
@@ -466,7 +488,7 @@ export default function ContactImportWizard() {
         <ReviewScreen
           rows={rows} state={reviewState} setState={setReviewState}
           business={business} kindLabel={kindLabel} demo={sample} busy={busy}
-          partial={partial} sampleActions={sampleActions}
+          partial={partial} sampleActions={sampleActions} defaultsPath={templateKind}
           onCommit={onCommit} onStartOver={startOver}
         />
       )}
@@ -563,6 +585,16 @@ function PremiumStyles() {
       .gmiw-practice ul{ margin:2px 0 0; padding-left:18px; color:#5a5170; font-size:.86rem; line-height:1.5; display:grid; gap:4px; }
       .gmiw-practice li{ max-width:100%; overflow-wrap:anywhere; }
       .gmiw-practice-cta{ display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
+      .gmiw-template{ margin-top:14px; padding-top:14px; border-top:1px dashed rgba(27,24,48,.15); display:grid; gap:8px; min-width:0; }
+      .gmiw-template h4{ margin:0; font-family:Georgia,'Times New Roman',serif; font-weight:600; font-size:1rem; color:#332a52; max-width:100%; overflow-wrap:anywhere; }
+      .gmiw-template p{ margin:0; }
+      .gmiw-template-cta{ display:flex; gap:10px; flex-wrap:wrap; margin-top:2px; }
+      /* Recommended safe-defaults notice on the Review screen */
+      .gmiw-defaults{ box-sizing:border-box; width:100%; min-width:0; border:1px solid rgba(109,116,238,.35); background:rgba(109,116,238,.07); border-radius:12px; padding:14px 16px; display:grid; gap:6px; }
+      .gmiw-defaults b{ font-size:.95rem; color:#3a2f6e; overflow-wrap:anywhere; }
+      .gmiw-defaults p{ margin:0; color:#5a5170; font-size:.84rem; line-height:1.5; max-width:70ch; overflow-wrap:anywhere; }
+      .gmiw-defaults-cta{ display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; align-items:center; }
+      @media (max-width:640px){ .gmiw-template-cta button, .gmiw-defaults-cta button{ width:100%; } }
       @media (max-width:640px){
         .gmiw-underlay{ padding:14px; border-radius:22px; } .gmiw-surface{ padding:16px; }
         .gmiw-banner{ padding:22px 20px; } .gmiw-wand{ display:none; }
@@ -663,15 +695,22 @@ const linkBtn = { ...btn("transparent", "#4a3fb0"), padding: "4px 10px", fontSiz
 const PREVIEW_N = 6;          // small confirmation preview
 const DETAILS_BATCH = 25;     // optional-relationship editor page size
 
-export function ReviewScreen({ rows, state, setState, business, kindLabel, demo, busy, partial, sampleActions, onCommit, onStartOver }) {
+export function ReviewScreen({ rows, state, setState, business, kindLabel, demo, busy, partial, sampleActions, defaultsPath, onCommit, onStartOver }) {
   const review = buildReview(rows, state);
   const { buckets, counts, importCount, importEnabled } = review;
   const [view, setView] = useState("confirm");   // "confirm" | "details"
   const [seeAll, setSeeAll] = useState(false);
   const [confPage, setConfPage] = useState(0);
   const [detPage, setDetPage] = useState(0);
+  // Opt-in recommended (safe) defaults — never applied without an explicit click; Undo restores exactly.
+  const [dfltUndo, setDfltUndo] = useState(null);
+  const [dfltApplied, setDfltApplied] = useState(0);
+  const [dfltDismissed, setDfltDismissed] = useState(false);
   const isSample = !!demo;
   const isIndividualSample = !!sampleActions;      // personal practice → terminal action bar, no commit CTA
+  const dflt = recommendedDefaults(rows, state, defaultsPath);
+  const applyDefaults = () => { const res = applyRecommendedDefaults(state, dflt.indices, dflt.def); setState(res.state); setDfltUndo(res.undo); setDfltApplied(res.appliedCount); };
+  const undoDefaults = () => { const u = dfltUndo; setDfltUndo(null); setDfltApplied(0); if (u) setState((s) => undoRecommendedDefaults(s, u)); };
 
   const bind = (fn) => (i, v) => setState((s) => fn(s, i, v));
   const on = {
@@ -710,6 +749,26 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
         </div>
       </div>
 
+      {/* Opt-in recommended safe defaults — compact notice; never applied silently. */}
+      {dfltApplied > 0 ? (
+        <div className="gmiw-defaults" data-testid="defaults-applied">
+          <b>Recommended settings applied to {dfltApplied} contact{dfltApplied === 1 ? "" : "s"}.</b>
+          <div className="gmiw-defaults-cta">
+            <button data-testid="undo-defaults" style={btn("transparent", "#8a1f1f")} onClick={undoDefaults}>Undo</button>
+          </div>
+        </div>
+      ) : (dflt.available && !dfltDismissed) ? (
+        <div className="gmiw-defaults" data-testid="defaults-notice">
+          <b>Recommended settings are available</b>
+          <p>We can apply conservative relationship settings to contacts with missing details. Existing CSV values and any changes you make will always take priority.</p>
+          <p style={{ fontWeight: 700, color: "#3a2f6e" }}>Apply recommended settings to {dflt.count} contact{dflt.count === 1 ? "" : "s"}</p>
+          <div className="gmiw-defaults-cta">
+            <button data-testid="apply-defaults" style={btn(PURPLE)} onClick={applyDefaults}>Apply recommended settings</button>
+            <button data-testid="review-individually" style={btn("transparent", "#4a3fb0")} onClick={() => setDfltDismissed(true)}>Review individually</button>
+          </div>
+        </div>
+      ) : null}
+
       {/* Partial real import — truthful, never a false 'complete success' */}
       {partial && (
         <div data-testid="partial" style={{ ...card, borderColor: "rgba(31,157,107,.45)", background: "rgba(31,157,107,.06)" }}>
@@ -736,7 +795,7 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
             {shown.length > PREVIEW_N && <button style={linkBtn} onClick={() => { setSeeAll((v) => !v); setConfPage(0); }}>{seeAll ? "Show less" : `See all ${shown.length}`}</button>}
           </div>
           <div style={{ border: "1px solid #eee", borderRadius: 10, overflow: "hidden" }}>
-            {preview.slice.map((it, i) => <ReadyPreviewRow key={it.index} it={it} business={business} first={i === 0} onAddRelationship={openDetails} />)}
+            {preview.slice.map((it, i) => <ReadyPreviewRow key={it.index} it={it} business={business} first={i === 0} onAddRelationship={openDetails} listLabel={kindLabel} />)}
           </div>
           {seeAll && preview.pages > 1 && <Pager page={preview.page} pages={preview.pages} onPage={setConfPage} />}
         </div>
@@ -800,12 +859,14 @@ const STATE_LABEL = {
   will_skip: { t: "Won't be added", c: "#605c78" },
 };
 // One recipient-style card. Truthful about a missing relationship (Morgan Doe rule) and its state.
-function ReadyPreviewRow({ it, business, first, onAddRelationship }) {
+function ReadyPreviewRow({ it, business, first, onAddRelationship, listLabel }) {
   const rel = business
     ? (it.audience ? (RECIPIENT_TYPE_OPTIONS.find((o) => o.value === it.audience) || {}).label || "" : "")
     : (it.relationProvided ? it.relationLabel : "Relationship not provided (optional)");
   const state = STATE_LABEL[it.bucket];
   const editable = it.bucket === "ready";
+  // §9/§10 — plainly flag a business row whose designation differs from the selected list type.
+  const differs = business && it.audienceState === "override_cell";
   return (
     <div style={{ ...rowStyle, padding: "8px 12px", borderTop: first ? "none" : "1px solid #f4f4f7", fontSize: ".82rem" }}>
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
@@ -815,6 +876,7 @@ function ReadyPreviewRow({ it, business, first, onAddRelationship }) {
       <span style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
         {state && <span style={{ color: state.c, fontWeight: 700 }}>{state.t}</span>}
         <span style={{ color: (business || it.relationProvided) ? "#605c78" : "#a08a5a" }}>{it.birthday ? it.birthday + " · " : ""}{rel}</span>
+        {differs && <span data-testid="designation-differs" style={{ color: "#8a5410", fontSize: ".72rem" }}>differs from {listLabel || "this"} list</span>}
         {editable && !business && !it.relationProvided && <button style={linkBtn} onClick={onAddRelationship}>Add relationship</button>}
       </span>
     </div>
