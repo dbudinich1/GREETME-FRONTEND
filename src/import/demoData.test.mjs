@@ -49,3 +49,12 @@ test("reset returns a fresh dataset; exit drops demo + requires confirmation for
   assert.deepEqual(exit.records, []);
   assert.equal(exit.requiresConfirmation, true);
 });
+
+test("every fictional practice contact uses the surname Sample on a reserved domain", () => {
+  for (const kind of ["family", "friends", "professional", "employees", "clients", "vendors", "personal", "mixed"]) {
+    for (const c of demoDataset(kind)) {
+      assert.match(c.fullName, / Sample$/, `${kind}: ${c.fullName} ends with Sample`);
+      assert.ok(/@example\.(com|org|net)$/.test(c.email), `${kind}: ${c.email} reserved domain`);
+    }
+  }
+});

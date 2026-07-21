@@ -120,6 +120,17 @@ const goBusiness = async (kind = "employee") => {
   await flush();
 };
 const CSV2 = "Name,Email\nAda,ada@x.co\nBo,bo@x.co";
+// upload a CSV through a SPECIFIC control's hidden file input (choose-csv | upload-practice)
+async function uploadCsvVia(controlTid, csv) {
+  const input = tid(controlTid).querySelector('input[type="file"]');
+  const file = new File([csv], "picked.csv", { type: "text/csv" });
+  Object.defineProperty(input, "files", { value: [file], configurable: true });
+  await act(async () => { input.dispatchEvent(new window.Event("change", { bubbles: true })); });
+  await flush(); await flush();
+}
+const PRACTICE_CSV = "Name,Email,Relationship,Company,Birthday,Greet-Me Practice File\nRobin Sample,robin@example.com,,,,practice-v2\nCasey Sample,casey@example.org,,,,practice-v2";
+const PRACTICE_BAD = "Name,Email,Greet-Me Practice File\nRobin Sample,robin@example.com,practice-v9";
+const ORDINARY_SAMPLE = "Name,Email\nReal Sample,real@x.co\nOther Person,other@x.co";
 
 // ---------- SAMPLE (individual) ----------
 test("Individual → Try sample → combined preview (no separate list, no Finish/View CTA)", async () => {
@@ -381,6 +392,84 @@ test("applied defaults flow into the import payload (professional/colleague/gree
   assert.equal(globalThis.__nav, "/dashboard/contacts", "real import mechanics unchanged (navigates)");
 });
 
+// ---------- Manual Practice CSV upload — zero-mutation ----------
+test("dedicated Upload Practice CSV → Test Drive; primary CTA is View Practice Contacts (never Add/Import)", async () => {
+  await mountWizard();
+  globalThis.__importContacts = (c) => ({ data: { imported: c.length } });
+  await goIndividual("family");
+  assert.ok(tid("upload-practice"), "dedicated Upload Practice CSV lives inside Option 1");
+  await uploadCsvVia("upload-practice", PRACTICE_CSV);
+  assert.ok(tid("confirm-screen"), "entered Test Drive review");
+  assert.match(txt(), /Preview your practice contacts/);
+  assert.match(txt(), /Robin Sample/);
+  assert.ok(tid("view-practice-recipients"), "primary CTA = View Practice Contacts in Recipients");
+  assert.equal(tid("add-cta"), null, "never an Add/Import/Save CTA");
+  assert.equal(globalThis.__lastImport, undefined, "no api.importContacts");
+  assert.equal(globalThis.__nav, undefined, "no navigation to prod");
+});
+test("normal Choose CSV detects a marked Practice CSV → notice → Continue in Test Drive (no production import)", async () => {
+  await mountWizard();
+  globalThis.__getContacts = () => ({ data: [{ email: "should-not-load@x.co" }] });
+  globalThis.__importContacts = (c) => ({ data: { imported: c.length } });
+  await goIndividual("professional");
+  await uploadCsvVia("choose-csv", PRACTICE_CSV);
+  assert.ok(tid("practice-detected"), "detected notice shown");
+  assert.match(txt(), /Greet-Me Practice CSV detected/);
+  assert.match(txt(), /It will open in Test Drive, and nothing will be saved or sent/);
+  assert.equal(tid("add-cta"), null, "no production continuation offered");
+  await act(async () => fireClick(tid("continue-in-testdrive")));
+  await flush();
+  assert.ok(tid("confirm-screen"));
+  assert.match(txt(), /Preview your practice contacts/);
+  assert.ok(tid("view-practice-recipients"));
+  assert.equal(globalThis.__lastImport, undefined, "marked file never reaches importContacts");
+});
+test("the practice marker is stripped from the persisted workspace (never a contact field / payload)", async () => {
+  await mountWizard();
+  await goIndividual("family");
+  await uploadCsvVia("upload-practice", PRACTICE_CSV);
+  await act(async () => fireClick(tid("view-practice-recipients")));
+  await flush();
+  const raw = window.sessionStorage.getItem("greetme_sample_workspace");
+  assert.ok(raw, "workspace persisted");
+  assert.ok(!/Greet-Me Practice File|practice-v2/.test(raw), "marker never persisted");
+  assert.match(raw, /Robin Sample/, "practice contacts (Sample surname) persisted");
+  assert.equal(globalThis.__nav, "/dashboard/contacts?practice=1", "opens Recipients Practice View");
+  assert.equal(globalThis.__lastImport, undefined, "zero import mutations end-to-end");
+});
+test("a malformed practice marker fails closed (no Test Drive, no import)", async () => {
+  await mountWizard();
+  globalThis.__getContacts = () => ({ data: [] });
+  await goIndividual("family");
+  await uploadCsvVia("choose-csv", PRACTICE_BAD);
+  assert.equal(tid("confirm-screen"), null, "did not enter Test Drive");
+  assert.equal(tid("practice-detected"), null, "no practice notice for a malformed marker");
+  assert.match(txt(), /Practice CSV is invalid/);
+  assert.equal(globalThis.__lastImport, undefined);
+});
+test("an ordinary CSV with a real 'Sample' surname (no marker) imports normally — not classified as practice", async () => {
+  await mountWizard();
+  globalThis.__getContacts = () => ({ data: [] });
+  globalThis.__importContacts = (c) => ({ data: { imported: c.length, failed: 0, errors: [] } });
+  await goIndividual("family");
+  await uploadCsvVia("choose-csv", ORDINARY_SAMPLE);
+  assert.equal(tid("practice-detected"), null, "not classified as practice");
+  assert.ok(tid("confirm-screen"));
+  assert.match(tid("add-cta").textContent, /Add 2 contacts/, "normal production Add path (marker is the sole signal)");
+});
+test("Business Choose CSV: a marked Practice CSV opens Test Drive (not dormant); an unmarked one stays dormant", async () => {
+  await mountWizard(); await goBusiness("employee");
+  await uploadCsvVia("choose-csv", PRACTICE_CSV);
+  assert.ok(tid("practice-detected"), "marked business practice CSV → detected notice");
+  await act(async () => fireClick(tid("continue-in-testdrive")));
+  await flush();
+  assert.ok(tid("confirm-screen") && tid("view-practice-recipients"));
+  assert.equal(globalThis.__lastImport, undefined);
+  await mountWizard(); await goBusiness("employee");
+  await uploadCsvVia("choose-csv", CSV2);                       // unmarked business CSV
+  assert.match(txt(), /Organization import is currently turned off/, "genuine business CSV → dormant");
+});
+
 test("all six blank-template download actions are wired and separate from the Practice CSV", async () => {
   for (const [nav, kind] of [["p", "family"], ["p", "friend"], ["p", "professional"], ["b", "employee"], ["b", "client"], ["b", "vendor"]]) {
     await mountWizard();
@@ -455,9 +544,10 @@ test("Personal Test Drive loads the CATEGORY dataset (Family names differ from F
   await act(async () => fireClick(tid("start-testdrive")));
   await flush();
   const friendTxt = txt();
-  assert.match(familyTxt, /Hollis/, "family practice set present");
-  assert.match(friendTxt, /Marsh|Nguyen|Vega/, "friend practice set present");
-  assert.ok(!/Hollis/.test(friendTxt), "friend preview is a different, category-appropriate dataset");
+  // every practice contact has surname "Sample"; datasets differ by distinct first names
+  assert.match(familyTxt, /Robin Sample|Casey Sample|Dana Sample|Jamie Sample/, "family practice set present (Sample surname)");
+  assert.match(friendTxt, /Alex Sample|Remy Sample|Toni Sample/, "friend practice set present (Sample surname)");
+  assert.ok(!/Robin Sample|Casey Sample|Dana Sample|Jamie Sample/.test(friendTxt), "friend preview is a different, category-appropriate dataset");
 });
 
 // ---------- Start Over, keyboard, mobile ----------

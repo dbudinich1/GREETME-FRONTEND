@@ -127,7 +127,7 @@ test("Test Drive previews (Personal + Business) — zero mutation", async ({ pag
   await page.click('[data-testid="start-testdrive"]');
   await page.waitForSelector('[data-testid="confirm-screen"]');
   await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, "business-testdrive.jpg"), type: "jpeg", quality: 62 });
-  await expect(page.locator('[data-testid="add-cta"]')).toContainText("practice recipient");
+  await expect(page.locator('[data-testid="view-practice-recipients"]')).toBeVisible();
 });
 
 test("Truthful dormant state from a real Business-upload attempt", async ({ page }) => {
@@ -282,3 +282,24 @@ for (const [nav, kind, panel] of [["p", "family", "panel-family"], ["b", "employ
     await expect(page.locator('[data-testid="upload-section"]')).not.toContainText("OPTION");
   });
 }
+
+// ---- Manual Practice CSV upload flow: Option 1 (download + upload), detected notice, manual review ----
+test("Practice CSV upload flow — Option 1 controls, detected notice, manual practice review", async ({ page }) => {
+  await mount(page, 1120);
+  await page.click('[data-testid="panel-personal"]');
+  await page.click('[data-testid="panel-family"]');
+  await page.waitForSelector('[data-testid="testdrive-option-1"]');
+  await page.locator('[data-testid="testdrive-option-1"]').screenshot({ path: join(SHOTS, "option1-download-upload.jpg"), type: "jpeg", quality: 72 });
+  await expect(page.locator('[data-testid="testdrive-option-1"]')).toContainText("Download Practice CSV");
+  await expect(page.locator('[data-testid="testdrive-option-1"]')).toContainText("Upload Practice CSV");
+  const PRACTICE = "Name,Email,Relationship,Company,Birthday,Greet-Me Practice File\nRobin Sample,robin@example.com,,,,practice-v2\nCasey Sample,casey@example.org,,,,practice-v2\nDana Sample,dana@example.net,,,,practice-v2";
+  await page.setInputFiles('[data-testid="choose-csv"] input[type="file"]', { name: "greetme-family-practice.csv", mimeType: "text/csv", buffer: Buffer.from(PRACTICE) });
+  await page.waitForSelector('[data-testid="practice-detected"]');
+  await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, "practice-detected.jpg"), type: "jpeg", quality: 66 });
+  await expect(page.locator("body")).toContainText("Greet-Me Practice CSV detected");
+  await page.click('[data-testid="continue-in-testdrive"]');
+  await page.waitForSelector('[data-testid="confirm-screen"]');
+  await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, "manual-practice-review.jpg"), type: "jpeg", quality: 64 });
+  await expect(page.locator("body")).toContainText("Robin Sample");
+  await expect(page.locator('[data-testid="view-practice-recipients"]')).toBeVisible();
+});

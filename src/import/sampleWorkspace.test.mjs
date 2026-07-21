@@ -4,7 +4,46 @@ import assert from "node:assert/strict";
 import {
   SAMPLE_DATASET, sampleColumnsFor, sampleCsvFor, sampleContactsFor,
   reconcileSampleRaw, serializeSample, sessionDiscriminator, resolvePracticeView,
+  detectPracticeCsv, stripPracticeMarker, PRACTICE_MARKER_HEADER, PRACTICE_MARKER_VALUE,
 } from "./sampleWorkspace.js";
+
+// ---- Practice CSV marker contract + Sample surnames ----
+const KINDS6 = ["family", "friend", "professional", "employee", "client", "vendor"];
+test("every generated Practice CSV carries 'Greet-Me Practice File = practice-v2' and Sample surnames", () => {
+  assert.equal(PRACTICE_MARKER_HEADER, "Greet-Me Practice File");
+  assert.equal(PRACTICE_MARKER_VALUE, "practice-v2");
+  for (const kind of KINDS6) {
+    const lines = sampleCsvFor(kind).replace(/\r/g, "").split("\n").filter(Boolean);
+    const headers = lines[0].split(",");
+    assert.ok(headers.includes(PRACTICE_MARKER_HEADER), `${kind}: marker header present`);
+    assert.equal(headers[headers.length - 1], PRACTICE_MARKER_HEADER, `${kind}: marker is the last column`);
+    for (const row of lines.slice(1)) {
+      assert.ok(row.endsWith(PRACTICE_MARKER_VALUE), `${kind}: every row carries the marker value`);
+      assert.match(row.split(",")[0], / Sample$/, `${kind}: every contact surname is Sample`);
+    }
+    // the fictional contacts themselves also use the Sample surname on reserved domains
+    for (const c of sampleContactsFor(kind)) { assert.match(c.fullName, / Sample$/); assert.match(c.email, /@example\.(com|org|net)$/); }
+  }
+});
+test("detectPracticeCsv: authoritative marker (marked+valid / conflicting=invalid / unmarked / Sample-surname decoy)", () => {
+  const F = ["Name", "Email", PRACTICE_MARKER_HEADER];
+  assert.deepEqual(detectPracticeCsv(F, [{ Name: "Robin Sample", Email: "r@example.com", [PRACTICE_MARKER_HEADER]: "practice-v2" }]), { marked: true, valid: true });
+  assert.deepEqual(detectPracticeCsv(F, [{ Name: "Robin Sample", [PRACTICE_MARKER_HEADER]: "practice-v9" }]), { marked: true, valid: false });   // conflicting → invalid (fail closed)
+  assert.deepEqual(detectPracticeCsv(F, [{ Name: "Robin Sample", [PRACTICE_MARKER_HEADER]: "" }]), { marked: true, valid: false });             // marker column but no value → invalid
+  assert.equal(detectPracticeCsv(["Name", "Email"], [{ Name: "x", Email: "x@x.co" }]).marked, false);                                            // no marker → not practice
+  // an ORDINARY user CSV where a genuine person's surname is Sample is NOT classified as practice
+  assert.equal(detectPracticeCsv(["Name", "Email"], [{ Name: "Real Sample", Email: "real@gmail.com" }]).marked, false);
+});
+test("stripPracticeMarker removes the marker column (never a contact field / payload value)", () => {
+  const { fields, rows } = stripPracticeMarker(["Name", "Email", PRACTICE_MARKER_HEADER], [{ Name: "Robin Sample", Email: "r@example.com", [PRACTICE_MARKER_HEADER]: "practice-v2" }]);
+  assert.deepEqual(fields, ["Name", "Email"]);
+  assert.equal(PRACTICE_MARKER_HEADER in rows[0], false);
+  assert.equal(rows[0].Name, "Robin Sample");
+});
+test("detection is filename-independent (marker lives in parsed contents, not the name)", () => {
+  // whatever the file is called, the parsed marker column drives the decision
+  assert.equal(detectPracticeCsv(["Name", PRACTICE_MARKER_HEADER], [{ Name: "Casey Sample", [PRACTICE_MARKER_HEADER]: "practice-v2" }]).valid, true);
+});
 
 // ---- Recipients Practice View fail-closed resolver ----
 const SID = "u:USER_A:1000";

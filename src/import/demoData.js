@@ -20,39 +20,41 @@ export const DEMO_SENDS_ALLOWED = false;
 // `relationship` values are intentionally mixed so the sample exercises the completion flow:
 // deterministic ("colleague"/"co-worker"→Professional·Colleague), an unknown value that needs one
 // bulk mapping ("work bud"), and blanks that stay "optional details missing".
+// Every fictional practice contact uses the surname "Sample" (a visual safeguard; the authoritative
+// practice signal is the practice-v2 marker, not the surname). Reserved example.* domains only.
 export const DEMO_EMPLOYEES = Object.freeze([
-  { fullName: "Ada Lovelace", email: "ada@example.com", relationship: "colleague", recipientType: "employee", department: "Engineering", company: "Demo Corp" },
-  { fullName: "Alan Turing", email: "alan@example.com", relationship: "co-worker", recipientType: "employee", department: "Research", company: "Demo Corp" },
-  { fullName: "Grace Hopper", email: "grace@example.com", relationship: "work bud", recipientType: "employee", department: "Engineering", company: "Demo Corp" },
-  { fullName: "Katherine Johnson", email: "katherine@example.com", relationship: "work bud", recipientType: "employee", department: "Analytics", company: "Demo Corp" },
-  { fullName: "Mae Jemison", email: "mae@example.com", relationship: "", recipientType: "employee", department: "Operations", company: "Demo Corp" },
-  { fullName: "Hedy Lamarr", email: "hedy@example.com", relationship: "mentor", recipientType: "employee", department: "Product", company: "Demo Corp" },
+  { fullName: "Ada Sample", email: "ada@example.com", relationship: "colleague", recipientType: "employee", department: "Engineering", company: "Demo Corp" },
+  { fullName: "Alan Sample", email: "alan@example.com", relationship: "co-worker", recipientType: "employee", department: "Research", company: "Demo Corp" },
+  { fullName: "Grace Sample", email: "grace@example.com", relationship: "work bud", recipientType: "employee", department: "Engineering", company: "Demo Corp" },
+  { fullName: "Kate Sample", email: "katherine@example.com", relationship: "work bud", recipientType: "employee", department: "Analytics", company: "Demo Corp" },
+  { fullName: "Mae Sample", email: "mae@example.com", relationship: "", recipientType: "employee", department: "Operations", company: "Demo Corp" },
+  { fullName: "Hedy Sample", email: "hedy@example.com", relationship: "mentor", recipientType: "employee", department: "Product", company: "Demo Corp" },
 ].map(Object.freeze));
 
 // Fictional clients (reserved domain).
 export const DEMO_CLIENTS = Object.freeze([
-  { fullName: "Riverstone Bakery", email: "hello@example.org", relationship: "client", recipientType: "client", company: "Riverstone Bakery" },
-  { fullName: "Northwind Traders", email: "accounts@example.org", relationship: "client", recipientType: "client", company: "Northwind Traders" },
-  { fullName: "Blue Yonder Airlines", email: "care@example.net", relationship: "vendor", recipientType: "client", company: "Blue Yonder Airlines" },
-  { fullName: "Contoso Ltd", email: "team@example.com", relationship: "key account", recipientType: "client", company: "Contoso Ltd" },
-  { fullName: "Fabrikam Inc", email: "partners@example.org", relationship: "", recipientType: "client", company: "Fabrikam Inc" },
-  { fullName: "Tailspin Toys", email: "orders@example.net", relationship: "client", recipientType: "client", company: "Tailspin Toys" },
+  { fullName: "River Sample", email: "hello@example.org", relationship: "client", recipientType: "client", company: "Riverstone Bakery" },
+  { fullName: "North Sample", email: "accounts@example.org", relationship: "client", recipientType: "client", company: "Northwind Traders" },
+  { fullName: "Bly Sample", email: "care@example.net", relationship: "vendor", recipientType: "client", company: "Blue Yonder Airlines" },
+  { fullName: "Cora Sample", email: "team@example.com", relationship: "key account", recipientType: "client", company: "Contoso Ltd" },
+  { fullName: "Fabian Sample", email: "partners@example.org", relationship: "", recipientType: "client", company: "Fabrikam Inc" },
+  { fullName: "Tally Sample", email: "orders@example.net", relationship: "client", recipientType: "client", company: "Tailspin Toys" },
 ].map(Object.freeze));
 
 // Fictional vendors (reserved domains); includes a "supplier" synonym + a blank type.
 export const DEMO_VENDORS = Object.freeze([
-  { fullName: "Acme Print Co", email: "print@example.com", relationship: "vendor", recipientType: "vendor", company: "Acme Print Co" },
-  { fullName: "Skyline Catering", email: "events@example.org", relationship: "vendor", recipientType: "vendor", company: "Skyline Catering" },
-  { fullName: "Beacon IT Services", email: "support@example.net", relationship: "supplier", recipientType: "supplier", company: "Beacon IT Services" },
-  { fullName: "Harbor Logistics", email: "ops@example.com", relationship: "", recipientType: "vendor", company: "Harbor Logistics" },
+  { fullName: "Ames Sample", email: "print@example.com", relationship: "vendor", recipientType: "vendor", company: "Acme Print Co" },
+  { fullName: "Skye Sample", email: "events@example.org", relationship: "vendor", recipientType: "vendor", company: "Skyline Catering" },
+  { fullName: "Bea Sample", email: "support@example.net", relationship: "supplier", recipientType: "supplier", company: "Beacon IT Services" },
+  { fullName: "Harbor Sample", email: "ops@example.com", relationship: "", recipientType: "vendor", company: "Harbor Logistics" },
 ].map(Object.freeze));
 
 // Fictional PERSONAL recipients (for the personal sample) — deterministic + unknown relationships.
 export const DEMO_PERSONAL = Object.freeze([
-  { fullName: "Sam Rivera", email: "sam@example.com", relationship: "best friend", recipientType: "" },
-  { fullName: "Jordan Lee", email: "jordan@example.org", relationship: "sibling", recipientType: "" },
-  { fullName: "Taylor Kim", email: "taylor@example.net", relationship: "bestie", recipientType: "" },
-  { fullName: "Morgan Doe", email: "morgan@example.com", relationship: "", recipientType: "" },
+  { fullName: "Sam Sample", email: "sam@example.com", relationship: "best friend", recipientType: "" },
+  { fullName: "Jordan Sample", email: "jordan@example.org", relationship: "sibling", recipientType: "" },
+  { fullName: "Taylor Sample", email: "taylor@example.net", relationship: "bestie", recipientType: "" },
+  { fullName: "Morgan Sample", email: "morgan@example.com", relationship: "", recipientType: "" },
 ].map(Object.freeze));
 
 // Fictional PERSONAL practice sets, one per Personal category (Family / Friends / Professional). The
@@ -61,30 +63,30 @@ export const DEMO_PERSONAL = Object.freeze([
 // category tile was chosen. Distinct fictional names on reserved domains make each download
 // category-appropriate without inventing data.
 export const DEMO_FAMILY = Object.freeze([
-  { fullName: "Robin Hollis", email: "robin@example.com", relationship: "", recipientType: "" },
-  { fullName: "Casey Hollis", email: "casey@example.org", relationship: "", recipientType: "" },
-  { fullName: "Dana Hollis", email: "dana@example.net", relationship: "", recipientType: "" },
-  { fullName: "Jamie Hollis", email: "jamie@example.com", relationship: "", recipientType: "" },
+  { fullName: "Robin Sample", email: "robin@example.com", relationship: "", recipientType: "" },
+  { fullName: "Casey Sample", email: "casey@example.org", relationship: "", recipientType: "" },
+  { fullName: "Dana Sample", email: "dana@example.net", relationship: "", recipientType: "" },
+  { fullName: "Jamie Sample", email: "jamie@example.com", relationship: "", recipientType: "" },
 ].map(Object.freeze));
 export const DEMO_FRIENDS = Object.freeze([
-  { fullName: "Alex Marsh", email: "alex@example.com", relationship: "", recipientType: "" },
-  { fullName: "Sky Nguyen", email: "sky@example.org", relationship: "", recipientType: "" },
-  { fullName: "Remy Park", email: "remy@example.net", relationship: "", recipientType: "" },
-  { fullName: "Toni Vega", email: "toni@example.com", relationship: "", recipientType: "" },
+  { fullName: "Alex Sample", email: "alex@example.com", relationship: "", recipientType: "" },
+  { fullName: "Sky Sample", email: "sky@example.org", relationship: "", recipientType: "" },
+  { fullName: "Remy Sample", email: "remy@example.net", relationship: "", recipientType: "" },
+  { fullName: "Toni Sample", email: "toni@example.com", relationship: "", recipientType: "" },
 ].map(Object.freeze));
 export const DEMO_PROFESSIONAL = Object.freeze([
-  { fullName: "Lee Cortez", email: "lee@example.com", relationship: "", recipientType: "" },
-  { fullName: "Sam Okafor", email: "sam.o@example.org", relationship: "", recipientType: "" },
-  { fullName: "Priya Raman", email: "priya@example.net", relationship: "", recipientType: "" },
-  { fullName: "Chris Wald", email: "chris@example.com", relationship: "", recipientType: "" },
+  { fullName: "Lee Sample", email: "lee@example.com", relationship: "", recipientType: "" },
+  { fullName: "Sasha Sample", email: "sam.o@example.org", relationship: "", recipientType: "" },
+  { fullName: "Priya Sample", email: "priya@example.net", relationship: "", recipientType: "" },
+  { fullName: "Chris Sample", email: "chris@example.com", relationship: "", recipientType: "" },
 ].map(Object.freeze));
 
 // Fictional MIXED list — a recipientType column with recognized synonyms + one unknown ("contractor").
 export const DEMO_MIXED = Object.freeze([
-  { fullName: "Ada Lovelace", email: "ada2@example.com", relationship: "colleague", recipientType: "Employee", company: "Demo Corp" },
-  { fullName: "Riverstone Bakery", email: "hello2@example.org", relationship: "client", recipientType: "customer", company: "Riverstone Bakery" },
-  { fullName: "Acme Print Co", email: "print2@example.com", relationship: "vendor", recipientType: "supplier", company: "Acme Print Co" },
-  { fullName: "Pat Contractor", email: "pat@example.net", relationship: "", recipientType: "contractor", company: "Freelance" },
+  { fullName: "Adair Sample", email: "ada2@example.com", relationship: "colleague", recipientType: "Employee", company: "Demo Corp" },
+  { fullName: "Rory Sample", email: "hello2@example.org", relationship: "client", recipientType: "customer", company: "Riverstone Bakery" },
+  { fullName: "Andy Sample", email: "print2@example.com", relationship: "vendor", recipientType: "supplier", company: "Acme Print Co" },
+  { fullName: "Pat Sample", email: "pat@example.net", relationship: "", recipientType: "contractor", company: "Freelance" },
 ].map(Object.freeze));
 
 export function demoDataset(kind) {

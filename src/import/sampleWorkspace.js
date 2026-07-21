@@ -28,10 +28,34 @@ export function sampleColumnsFor(kind) {
   const base = ["Name", "Email", "Relationship", "Company", "Birthday"];
   return kind === "mixed" ? ["Name", "Email", "Recipient Type", "Relationship", "Company", "Birthday"] : base;  // "mixed" = Universal List
 }
+
+// ---- Practice-CSV marker (authoritative practice signal — inspected in the PARSED CONTENTS, not the
+// filename, so renaming can't defeat it). Practice-CSV-only: it is NOT in blank production templates and
+// is stripped before a contact/payload is built (never persisted as contact data).
+const _norm = (s) => String(s == null ? "" : s).trim().toLowerCase();
+export const PRACTICE_MARKER_HEADER = "Greet-Me Practice File";
+export const PRACTICE_MARKER_VALUE = "practice-v2";
+// Classify parsed Papa output ({fields, rows}). marked = the marker column is present; valid = it is
+// present on ≥1 data row and every non-empty value equals practice-v2 (mixed/conflicting → invalid).
+export function detectPracticeCsv(fields = [], rows = []) {
+  const col = (fields || []).find((f) => _norm(f) === _norm(PRACTICE_MARKER_HEADER));
+  if (!col) return { marked: false, valid: false };
+  const vals = (rows || []).map((r) => _norm(r && r[col])).filter(Boolean);
+  const valid = vals.length > 0 && vals.every((v) => v === PRACTICE_MARKER_VALUE);
+  return { marked: true, valid };
+}
+// Remove the marker column from parsed fields/rows so it never becomes a contact field or payload value.
+export function stripPracticeMarker(fields = [], rows = []) {
+  const keep = (fields || []).filter((f) => _norm(f) !== _norm(PRACTICE_MARKER_HEADER));
+  const cleaned = (rows || []).map((r) => { const o = {}; for (const k of keep) o[k] = r ? r[k] : ""; return o; });
+  return { fields: keep, rows: cleaned };
+}
+
 export function sampleCsvFor(kind) {
-  const cols = sampleColumnsFor(kind);
+  const cols = [...sampleColumnsFor(kind), PRACTICE_MARKER_HEADER];   // marker column identifies a Practice CSV
   const rows = demoDataset(SAMPLE_DATASET[kind] || "personal");
-  return cols.join(",") + "\n" + rows.map((r) => cols.map((c) => _cell(r, c)).join(",")).join("\n") + "\n";
+  const cellFor = (r, c) => (c === PRACTICE_MARKER_HEADER ? PRACTICE_MARKER_VALUE : _cell(r, c));
+  return cols.join(",") + "\n" + rows.map((r) => cols.map((c) => cellFor(r, c)).join(",")).join("\n") + "\n";
 }
 // Fictional sample contacts (tagged demo:true, reserved domains) for "Try the sample".
 export function sampleContactsFor(kind) {

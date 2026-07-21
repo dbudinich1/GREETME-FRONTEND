@@ -29,7 +29,7 @@ import {
   chooseAudience, skipContact, markCommitted, setCommitErrors, addExistingEmails,
   relationsForGroup, AUDIENCE_CHOICES, REVIEW_BUCKET, relationLabelFor,
 } from "../../import/reviewModel.js";
-import { sampleContactsFor, sampleCsvFor, loadSampleWorkspace, saveSampleWorkspace, clearSampleWorkspace } from "../../import/sampleWorkspace.js";
+import { sampleContactsFor, sampleCsvFor, loadSampleWorkspace, saveSampleWorkspace, clearSampleWorkspace, detectPracticeCsv, stripPracticeMarker } from "../../import/sampleWorkspace.js";
 import { templateCsv, templateFileBase } from "../../import/templateModel.js";
 import { templateXlsx, XLSX_MIME } from "../../import/xlsxTemplate.js";
 import { recommendedDefaults, applyRecommendedDefaults, undoRecommendedDefaults } from "../../import/safeDefaults.js";
@@ -77,6 +77,8 @@ export default function ContactImportWizard() {
   const [sampleContacts, setSampleContacts] = useState([]);
   // Real Business CSV attempt while organization import is dormant → truthful gated state (no read/write).
   const [bizDormant, setBizDormant] = useState(false);
+  // A marked Practice CSV chosen through the NORMAL uploader → a gate before Test Drive (no production path).
+  const [practiceDetected, setPracticeDetected] = useState(null);   // { fields, rows } | null
   // Partial real-import outcome ({added, failed}) — keeps the user on the combined screen (never a
   // false "complete success"). null = no partial result to show.
   const [partial, setPartial] = useState(null);
@@ -141,46 +143,80 @@ export default function ContactImportWizard() {
     setReviewState(freshReviewState({ business, kind, existingEmails, todayIso: today }));
   }
 
-  const onFile = useCallback(async (file) => {
+  // Validate + parse a CSV to { fields, rows } (never trusts the extension: rejects a spoofed XLSX/ZIP).
+  // Resolves null (and sets a user error) on any rejection — never throws.
+  const parseCsvFile = (file) => new Promise((resolve) => {
     setError(null);
     const lim = checkFileLimits(file);
-    if (!lim.ok) { setError(`File rejected: ${lim.error}.`); return; }
-    if (!/\.csv$/i.test(file.name)) { setError("Unsupported format. Only CSV (.csv) is supported — XLSX is not accepted."); return; }
-    // Content-based check: reject a spoofed XLSX/ZIP even when the extension says .csv. Never
-    // trust the extension alone.
-    try {
-      const head = new Uint8Array(await file.slice(0, 8).arrayBuffer());
-      if (looksLikeZip(head)) { setError("This file looks like an XLSX/ZIP, not a CSV. Only genuine CSV is supported."); return; }
-    } catch { setError("Could not read the file."); return; }
-    // Personal import: load the user's EXISTING recipients so an already-present email previews as
-    // a duplicate (skipped) rather than entering the import and failing at commit. FAIL CLOSED — if
-    // the lookup fails we do NOT proceed with an empty existing-email list (that would re-open the
-    // preview↔commit mismatch).
-    let existingEmails = [];
-    if (mode === MODES.PERSONAL) {
-      setBusy(true);
-      let resp;
-      try { resp = await api.getContacts(); } catch { resp = { ok: false }; }
-      setBusy(false);
-      const ex = existingEmailsFromResponse(resp);
-      if (!ex.ok) { setError("Couldn't load your existing recipients, so duplicates can't be checked. Please try again."); return; }
-      existingEmails = ex.emails;
-    }
-    Papa.parse(file, {
-      header: true, skipEmptyLines: true,
-      complete: (out) => {
-        const headers = (out.meta && out.meta.fields) || [];
-        const { mapping } = autoMapHeaders(headers);
-        const data = (out.data || []).map((raw) => ({ __raw: raw, __map: mapping }));
-        ingest(data, existingEmails, false, null);
-      },
-      error: () => setError("Could not parse the file."),
-    });
-  }, [mode]);
+    if (!lim.ok) { setError(`File rejected: ${lim.error}.`); return resolve(null); }
+    if (!/\.csv$/i.test(file.name)) { setError("Unsupported format. Only CSV (.csv) is supported — XLSX is not accepted."); return resolve(null); }
+    file.slice(0, 8).arrayBuffer().then((buf) => {
+      if (looksLikeZip(new Uint8Array(buf))) { setError("This file looks like an XLSX/ZIP, not a CSV. Only genuine CSV is supported."); return resolve(null); }
+      Papa.parse(file, { header: true, skipEmptyLines: true,
+        complete: (out) => resolve({ fields: (out.meta && out.meta.fields) || [], rows: out.data || [] }),
+        error: () => { setError("Could not parse the file."); resolve(null); } });
+    }).catch(() => { setError("Could not read the file."); resolve(null); });
+  });
 
-  // BUSINESS real CSV — organization importing is dormant/fail-closed. The file is NEVER read, parsed,
-  // validated, or written; we show the existing truthful dormant state BEFORE touching it or any backend.
-  const onBusinessRealFile = useCallback(() => { setError(null); setBizDormant(true); }, []);
+  // Ingest a PRACTICE upload → Test Drive. Sets the practice boundary (sample=true) BEFORE any review, so a
+  // production commit path is structurally unreachable. Strips the marker column (never a contact field /
+  // payload value). NEVER calls api.getContacts or api.importContacts.
+  const ingestPracticeUpload = (fields, rawRows) => {
+    const { fields: cleanFields, rows: cleanRows } = stripPracticeMarker(fields, rawRows);
+    const capped = checkRowCount(cleanRows.length);
+    if (!capped.ok) { setError(`Too many rows (max ${capped.max}).`); return; }
+    const today = todayIso();
+    const { mapping } = autoMapHeaders(cleanFields);
+    const business = mode === MODES.CORPORATE;
+    const kind = business ? recipientKind : null;          // recipientType is path-derived; personal → ""
+    const processed = cleanRows.map((raw, i) => ({ ...processRow(raw, mapping, { todayIso: today }), index: i, demo: true, __raw: raw, __map: mapping }));
+    setSample(true); setError(null); setSummary(null); setSampleContacts([]); setPartial(null); setBizDormant(false); setPracticeDetected(null);
+    setReviewState(freshReviewState({ business, kind, existingEmails: [], todayIso: today }));
+    const deduped = detectDuplicates(processed, []);
+    setRows(deduped); setPlan(buildPlan(deduped, { duplicateStrategy: "skip" }));
+  };
+
+  // Dedicated "Upload Practice CSV" control (inside Test Drive Option 1) — ALWAYS enters Test Drive.
+  const onUploadPracticeCsv = useCallback(async (file) => {
+    const parsed = await parseCsvFile(file);
+    if (parsed) ingestPracticeUpload(parsed.fields, parsed.rows);
+  }, [mode, recipientKind]);
+
+  const onFile = useCallback(async (file) => {
+    const parsed = await parseCsvFile(file);
+    if (!parsed) return;
+    // Practice-file defense: a marked Practice CSV never reaches the production review/commit path.
+    const det = detectPracticeCsv(parsed.fields, parsed.rows);
+    if (det.marked) {
+      if (!det.valid) { setError("This Practice CSV is invalid — its practice marker is malformed. Download a fresh Practice CSV and try again."); return; }
+      setPracticeDetected({ fields: parsed.fields, rows: parsed.rows });   // gate → Continue in Test Drive
+      return;
+    }
+    // Ordinary Personal import: load EXISTING recipients so an already-present email previews as a
+    // duplicate. FAIL CLOSED if the lookup fails (never proceed with an empty existing-email list).
+    setBusy(true);
+    let resp; try { resp = await api.getContacts(); } catch { resp = { ok: false }; }
+    setBusy(false);
+    const ex = existingEmailsFromResponse(resp);
+    if (!ex.ok) { setError("Couldn't load your existing recipients, so duplicates can't be checked. Please try again."); return; }
+    const { mapping } = autoMapHeaders(parsed.fields);
+    const data = parsed.rows.map((raw) => ({ __raw: raw, __map: mapping }));
+    ingest(data, ex.emails, false, null);
+  }, [mode, recipientKind]);
+
+  // BUSINESS "Choose a CSV file". A marked Practice CSV → Test Drive (read only to classify). A genuine
+  // (unmarked) business CSV → the truthful dormant state; it never reaches a parse-to-commit or any write.
+  const onBusinessRealFile = useCallback(async (file) => {
+    const parsed = await parseCsvFile(file);
+    if (!parsed) return;
+    const det = detectPracticeCsv(parsed.fields, parsed.rows);
+    if (det.marked) {
+      if (!det.valid) { setError("This Practice CSV is invalid — its practice marker is malformed. Download a fresh Practice CSV and try again."); return; }
+      setPracticeDetected({ fields: parsed.fields, rows: parsed.rows });
+      return;
+    }
+    setError(null); setBizDormant(true);                   // genuine business CSV → dormant/fail-closed (no write)
+  }, [mode, recipientKind]);
 
   const commitPersonal = useCallback(async () => {
     if (mode !== MODES.PERSONAL) return;
@@ -295,11 +331,11 @@ export default function ContactImportWizard() {
   const startOver = () => {
     clearSampleWorkspace();
     setMode(null); setRecipientKind(null);
-    setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setSummary(null); setPartial(null); setBizDormant(false);
+    setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setSummary(null); setPartial(null); setBizDormant(false); setPracticeDetected(null);
     setError(null); setBusy(false); setReviewState(freshReviewState({ business: false, kind: null }));
     setEntryView("path"); setPersonalGroup(null);        // back to Screen 1, no stale category context
   };
-  const exitSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setBizDormant(false); setError(null); };
+  const exitSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setBizDormant(false); setPracticeDetected(null); setError(null); };
   const deleteAllSample = exitSample;   // both clear the session-scoped practice data
   // From a PERSONAL practice, swap to a real Personal upload (clears the practice, keeps the path).
   const uploadOwnFromSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setError(null); setPartial(null); setMode(MODES.PERSONAL); resetReview(false, null); };
@@ -314,8 +350,8 @@ export default function ContactImportWizard() {
     resetReview(true, kind);
   };
   const backToPath = () => { setEntryView("path"); setPersonalGroup(null); };   // Screen 2 → Screen 1
-  const changePersonalGroup = () => { setMode(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setBizDormant(false); setEntryView("group"); };   // upload → Screen 2 (Personal)
-  const changeBusinessGroup = () => { setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setBizDormant(false); setEntryView("bizgroup"); };   // upload → Screen 2 (Business)
+  const changePersonalGroup = () => { setMode(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setBizDormant(false); setPracticeDetected(null); setEntryView("group"); };   // upload → Screen 2 (Personal)
+  const changeBusinessGroup = () => { setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setBizDormant(false); setPracticeDetected(null); setEntryView("bizgroup"); };   // upload → Screen 2 (Business)
 
   // ---------- render ----------
   // Session-scoped Practice Recipients (completed or resumed) — read-only presentation.
@@ -449,8 +485,24 @@ export default function ContactImportWizard() {
       {sample && <SampleBanner />}
       {error && <div role="alert" style={{ ...card, borderColor: "rgba(214,69,69,.4)", background: "rgba(214,69,69,.08)", color: "#8a1f1f", marginBottom: 12 }}>{error}</div>}
 
+      {/* NORMAL-UPLOADER DEFENSE — a marked Practice CSV chosen through "Choose a CSV file" is forced into
+          Test Drive. The ONLY continuation is Test Drive (no production import). */}
+      {!rows && !summary && practiceDetected && (
+        <div className="gmiw-upload">
+          <div className="gmiw-upsec gmiw-practice" data-testid="practice-detected" role="alert">
+            <span className="gmiw-badge">Safe practice mode</span>
+            <h3>Greet-Me Practice CSV detected</h3>
+            <p>This file contains fictional practice contacts. It will open in Test Drive, and nothing will be saved or sent.</p>
+            <div className="gmiw-practice-cta">
+              <button data-testid="continue-in-testdrive" style={btn(PURPLE)} onClick={() => ingestPracticeUpload(practiceDetected.fields, practiceDetected.rows)}>Continue in Test Drive</button>
+              <button data-testid="practice-detected-cancel" style={btn("transparent", "#1b1830")} onClick={() => setPracticeDetected(null)}>Choose a different file</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Structured Upload Options — upload-your-own (OR) a zero-mutation Test Drive. */}
-      {!rows && !summary && (
+      {!rows && !summary && !practiceDetected && (
         <div className="gmiw-upload">
           {activeGroupMeta && (
             <div data-testid="upload-context" style={{ ...card, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "12px 16px" }}>
@@ -485,12 +537,19 @@ export default function ContactImportWizard() {
             <span className="gmiw-badge">Safe practice mode</span>
             <h3>Test Drive the Import Wizard</h3>
             <p>See the complete import process using fictional contacts. Nothing will be saved or sent.</p>
-            {/* OPTION 1 tile — download only (no load, no navigate, no API) */}
+            {/* OPTION 1 tile — Download then Upload the Practice CSV. Both stay inside this Test Drive tile;
+                the dedicated Upload always enters Test Drive (never a production import). */}
             <div className="gmiw-tdtile" data-testid="testdrive-option-1">
               <span className="gmiw-optlabel" data-testid="td-option-1-label">OPTION 1</span>
               <h4>Download and upload the Practice CSV</h4>
               <p>Download the Practice CSV, review or complete it, then upload it yourself to experience the complete import process.</p>
-              <button data-testid="download-practice" style={btn("transparent", "#1b1830")} onClick={() => downloadSampleCsv(templateKind)}>Download Practice CSV</button>
+              <div className="gmiw-tdtile-cta">
+                <button data-testid="download-practice" style={btn("transparent", "#1b1830")} onClick={() => downloadSampleCsv(templateKind)}>Download Practice CSV</button>
+                <label className="gmiw-choose gmiw-choose--sm" data-testid="upload-practice">
+                  Upload Practice CSV
+                  <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onUploadPracticeCsv(e.target.files[0])} />
+                </label>
+              </div>
             </div>
             {/* INTERNAL divider between the two Test Drive choice tiles */}
             <div className="gmiw-or gmiw-or--inner" data-testid="testdrive-or"><span>OR</span></div>
@@ -615,6 +674,8 @@ function PremiumStyles() {
       .gmiw-tdtile h4{ margin:0; font-family:Georgia,'Times New Roman',serif; font-weight:600; font-size:1.05rem; color:#332a52; text-wrap:balance; max-width:100%; overflow-wrap:anywhere; }
       .gmiw-tdtile p{ margin:0; color:#5a5170; font-size:.86rem; line-height:1.5; max-width:60ch; overflow-wrap:anywhere; }
       .gmiw-tdtile button{ justify-self:start; max-width:100%; overflow-wrap:anywhere; margin-top:3px; }
+      .gmiw-tdtile-cta{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:3px; }
+      .gmiw-choose--sm{ margin-top:0; padding:10px 16px; font-size:.85rem; background:linear-gradient(135deg,#6d74ee,#764ba2); }
       .gmiw-or--inner{ margin:2px 0; font-size:.72rem; }
       @media (max-width:640px){ .gmiw-tdtile button{ width:100%; } }
       .gmiw-template{ margin-top:14px; padding-top:14px; border-top:1px dashed rgba(27,24,48,.15); display:grid; gap:8px; min-width:0; }

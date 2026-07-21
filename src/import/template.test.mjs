@@ -178,3 +178,12 @@ test("address headers still map to canonical shippingAddress; no Recipient Type 
   assert.deepEqual(contact.shippingAddress, { line1: "1 Main St", line2: "", city: "Reno", state: "", zip: "", country: "USA" });
   assert.equal(contact.recipientType, "");
 });
+
+// blank production templates must NOT carry the Practice-CSV marker (that's Practice-CSV-only)
+test("blank production templates never contain the Greet-Me Practice File marker column", () => {
+  for (const k of TEMPLATE_KINDS) {
+    assert.ok(!templateHeaders(k).includes("Greet-Me Practice File"), `${k}: no practice marker in blank template`);
+    assert.ok(!/Greet-Me Practice File|practice-v2/.test(templateCsv(k)), `${k}: no practice marker in blank CSV`);
+    assert.ok(!/Greet-Me Practice File|practice-v2/.test(Object.values(buildXlsxParts(k)).join("\n")), `${k}: no practice marker in XLSX`);
+  }
+});

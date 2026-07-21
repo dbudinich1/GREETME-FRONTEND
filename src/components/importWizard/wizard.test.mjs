@@ -247,9 +247,11 @@ test("Business mirrors Personal: Employees/Clients/Vendors tiles; NO Universal L
   assert.ok(!/Universal List/.test(WIZ), "no Universal List primary tile on the Business entry surface");
   assert.ok(!/RECIPIENT_KINDS/.test(WIZ), "old RECIPIENT_KINDS selector removed from the wizard surface");
   assert.ok(!/Employees \/ Personnel/.test(WIZ), "old plain recipient-type list removed");
-  // real Business import stays dormant/fail-closed with a truthful state (no "coming soon")
+  // real Business import stays dormant/fail-closed with a truthful state (no "coming soon"). A genuine
+  // (unmarked) business CSV → dormant; only a marked Practice CSV goes to Test Drive.
   assert.match(WIZ, /Organization import is currently turned off/);
-  assert.match(WIZ, /onBusinessRealFile = useCallback\(\(\) => \{ setError\(null\); setBizDormant\(true\); \}/);
+  assert.match(WIZ, /const onBusinessRealFile = useCallback\(async \(file\) => \{/);
+  assert.match(WIZ, /setError\(null\); setBizDormant\(true\);\s*\/\/ genuine business CSV/);
   assert.match(WIZ, /biz-dormant/);
   assert.ok(!/coming soon/i.test(WIZ));
 });
@@ -431,9 +433,11 @@ test("Business Test Drive is zero mutation; real Business commit is dormant/fail
   // Test Drive uses the session-scoped practice workspace only — never api.importContacts
   const fn = (WIZ.match(/const trySample = useCallback\(\(kind\) => \{[\s\S]*?\}, \[\]\);/) || [""])[0];
   assert.ok(fn.length > 0 && !/api\./.test(fn), "trySample makes no API call");
-  // real business file → dormant BEFORE any read/write (no parse, no api)
-  const bf = (WIZ.match(/const onBusinessRealFile = useCallback\([\s\S]*?\);/) || [""])[0];
-  assert.ok(bf.length > 0 && !/api\.|Papa\.|processRow|getContacts/.test(bf), "onBusinessRealFile never reads/parses/writes");
+  // a genuine (unmarked) business CSV → dormant/fail-closed; the handler classifies practice-vs-real but
+  // never calls a production API (no importContacts/getContacts/createContact) and never writes.
+  const bf = (WIZ.match(/const onBusinessRealFile = useCallback\(async \(file\) => \{[\s\S]*?\}, \[mode, recipientKind\]\);/) || [""])[0];
+  assert.ok(bf.length > 0 && !/api\.importContacts|api\.getContacts|api\.createContact|api\.updateContact|api\.deleteContact/.test(bf), "onBusinessRealFile calls no production API");
+  assert.match(bf, /setBizDormant\(true\)/);   // genuine business CSV ends in dormant
   assert.match(WIZ, /onRealFile = business \? onBusinessRealFile : onFile/);
 });
 test("Upload Options: blank category templates (Excel + CSV) separate from the Practice CSV", () => {
@@ -484,6 +488,27 @@ test("Test Drive → Recipients Practice View CTA (session-scoped, no backend wr
   assert.match(WIZ, /Version 2 — includes guided Type, Relation, and Description dropdowns in Excel\./);
   assert.match(WIZ, /CSV templates contain the same columns but cannot include Excel dropdown controls or formatting\./);
   assert.match(WIZ, /templateXlsx\(kind, \{ generatedUtc: new Date\(\)\.toISOString\(\)\.slice\(0, 10\) \}\)/);
+});
+test("Manual Practice CSV upload is structurally zero-mutation (dedicated control + normal-uploader defense)", () => {
+  assert.match(WIZ, /import \{[^}]*detectPracticeCsv, stripPracticeMarker[^}]*\} from "\.\.\/\.\.\/import\/sampleWorkspace\.js"/);
+  // dedicated Upload Practice CSV inside Option 1
+  assert.match(WIZ, /upload-practice/);
+  assert.match(WIZ, />\s*Upload Practice CSV/);
+  assert.match(WIZ, /onUploadPracticeCsv\(e\.target\.files\[0\]\)/);
+  // normal uploader defense: detect marker → notice → Continue in Test Drive (no production continuation)
+  assert.match(WIZ, /const det = detectPracticeCsv\(parsed\.fields, parsed\.rows\)/);
+  assert.match(WIZ, /practice-detected/);
+  assert.match(WIZ, /Greet-Me Practice CSV detected/);
+  assert.match(WIZ, /This file contains fictional practice contacts\. It will open in Test Drive, and nothing will be saved or sent\./);
+  assert.match(WIZ, /continue-in-testdrive/);
+  // marked file → practice boundary (sample=true) set in ingest, marker stripped, no getContacts/import
+  const ing = (WIZ.match(/const ingestPracticeUpload = \(fields, rawRows\) => \{[\s\S]*?setRows\(deduped\)[\s\S]*?\};/) || [""])[0];
+  assert.ok(ing.length > 0, "ingestPracticeUpload present");
+  assert.match(ing, /stripPracticeMarker\(fields, rawRows\)/);
+  assert.match(ing, /setSample\(true\)/);
+  assert.ok(!/api\.getContacts|api\.importContacts/.test(ing), "practice ingest never calls getContacts/importContacts");
+  // malformed marker fails closed
+  assert.match(WIZ, /This Practice CSV is invalid — its practice marker is malformed/);
 });
 test("Personal Professional stays Individual (recipientType blank) — never the Business Wizard", () => {
   // Professional group → pickMode(PERSONAL) (individual), so applyRecipientTypes/boundary keeps recipientType ""

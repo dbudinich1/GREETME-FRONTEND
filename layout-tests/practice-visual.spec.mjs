@@ -16,26 +16,26 @@ mkdirSync(SHOTS, { recursive: true });
 
 const FIXTURES = {
   family: [
-    { name: "Robin Hollis", email: "robin@example.com", relationship: "", recipientType: "" },
-    { name: "Casey Hollis", email: "casey@example.org", relationship: "", recipientType: "" },
-    { name: "Dana Hollis", email: "dana@example.net", relationship: "", recipientType: "" },
+    { name: "Robin Sample", email: "robin@example.com", relationship: "", recipientType: "" },
+    { name: "Casey Sample", email: "casey@example.org", relationship: "", recipientType: "" },
+    { name: "Dana Sample", email: "dana@example.net", relationship: "", recipientType: "" },
   ],
   friend: [
-    { name: "Alex Marsh", email: "alex@example.com", relationship: "", recipientType: "" },
-    { name: "Sky Nguyen", email: "sky@example.org", relationship: "", recipientType: "" },
+    { name: "Alex Sample", email: "alex@example.com", relationship: "", recipientType: "" },
+    { name: "Sky Sample", email: "sky@example.org", relationship: "", recipientType: "" },
   ],
   professional: [
-    { name: "Lee Cortez", email: "lee@example.com", relationship: "colleague", relationshipCloseness: "greetme_worthy", recipientType: "" },
+    { name: "Lee Sample", email: "lee@example.com", relationship: "colleague", relationshipCloseness: "greetme_worthy", recipientType: "" },
   ],
   employee: [
-    { name: "Ada Lovelace", email: "ada@example.com", relationship: "employee", relationshipCategory: "professional", relationshipCloseness: "greetme_worthy", recipientType: "employee", company: "Demo Corp", department: "Engineering", birthday: "1990-05-14", shippingAddress: { line1: "1 Main St", city: "Reno", state: "NV", zip: "89501", country: "USA" } },
-    { name: "Grace Hopper", email: "grace@example.org", relationship: "employee", relationshipCloseness: "greetme_worthy", recipientType: "employee", company: "Demo Corp" },
+    { name: "Ada Sample", email: "ada@example.com", relationship: "employee", relationshipCategory: "professional", relationshipCloseness: "greetme_worthy", recipientType: "employee", company: "Demo Corp", department: "Engineering", birthday: "1990-05-14", shippingAddress: { line1: "1 Main St", city: "Reno", state: "NV", zip: "89501", country: "USA" } },
+    { name: "Grace Sample", email: "grace@example.org", relationship: "employee", relationshipCloseness: "greetme_worthy", recipientType: "employee", company: "Demo Corp" },
   ],
   client: [
-    { name: "Riverstone Bakery", email: "hello@example.org", relationship: "client", relationshipCloseness: "greetme_worthy", recipientType: "client", company: "Riverstone Bakery" },
+    { name: "River Sample", email: "hello@example.org", relationship: "client", relationshipCloseness: "greetme_worthy", recipientType: "client", company: "Riverstone Bakery" },
   ],
   vendor: [
-    { name: "Acme Print Co", email: "print@example.com", relationship: "vendor", relationshipCloseness: "greetme_worthy", recipientType: "vendor", company: "Acme Print Co" },
+    { name: "Ames Sample", email: "print@example.com", relationship: "vendor", relationshipCloseness: "greetme_worthy", recipientType: "vendor", company: "Acme Print Co" },
   ],
 };
 
