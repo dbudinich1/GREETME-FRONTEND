@@ -133,15 +133,16 @@ test("Test Drive previews (Personal + Business) — zero mutation", async ({ pag
   await expect(page.locator('[data-testid="view-practice-recipients"]')).toBeVisible();
 });
 
-test("Truthful dormant state from a real Business-upload attempt", async ({ page }) => {
+test("Slice 2B-1: commit-free corporate delivery-address preview from a real Business upload", async ({ page }) => {
   await mount(page, 1200);
   await page.click('[data-testid="panel-business"]');
   await page.click('[data-testid="panel-client"]');
   await page.waitForSelector('[data-testid="choose-csv"]');
-  await page.setInputFiles('input[type="file"]', { name: "clients.csv", mimeType: "text/csv", buffer: Buffer.from("Name,Email\nAcme,acme@example.com") });
-  await page.waitForSelector('[data-testid="biz-dormant"]');
-  await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, "business-dormant.jpg"), type: "jpeg", quality: 62 });
-  await expect(page.locator("body")).toContainText("Organization import is currently turned off");
+  await page.setInputFiles('input[type="file"]', { name: "clients.csv", mimeType: "text/csv", buffer: Buffer.from("Name,Email,Company,Address Line 1,City,State/Province,Postal/ZIP Code,Country\nAcme One,one@acme.co,Acme,1 Main St,Austin,TX,78701,United States\nBeta Two,two@beta.co,Beta,,,,,") });
+  await page.waitForSelector('[data-testid="corporate-preview"]');
+  await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, "corporate-address-preview.jpg"), type: "jpeg", quality: 62 });
+  await expect(page.locator("body")).toContainText("nothing has been saved or sent");
+  await expect(page.locator('[data-testid="corp-addr-badge"]').first()).toBeVisible();
 });
 
 // ---- Recommended-defaults flow (real Personal Review): before / notice / applied / undo ----

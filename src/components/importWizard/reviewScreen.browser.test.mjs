@@ -303,17 +303,20 @@ test("Business Test Drive is ZERO mutation; primary CTA opens the Recipients Pra
   }
 });
 
-test("real Business CSV → truthful dormant state BEFORE any read/write (no API, no parse, no nav)", async () => {
+test("Slice 2B-1: real Business CSV → COMMIT-FREE preview (no API, no getContacts read, no nav, no commit)", async () => {
   await mountWizard();
   globalThis.__getContacts = () => ({ data: [{ email: "should-not-be-read@x.co" }] });
   globalThis.__importContacts = (c) => ({ data: { imported: c.length } });
   await goBusiness("client");
-  await uploadCsv(CSV2);                                   // choose a real Business CSV
-  assert.match(txt(), /Organization import is currently turned off/, "dormant state shown");
-  assert.ok(tid("biz-dormant"), "dormant recovery actions present");
-  assert.equal(globalThis.__lastImport, undefined, "no import call");
+  await uploadCsv(CSV2);                                   // choose a real Business CSV (no address)
+  assert.ok(tid("corporate-preview"), "corporate delivery-address preview shown");
+  assert.match(txt(), /nothing has been saved or sent/i, "truthful commit-free note");
+  assert.equal(tid("add-cta"), null, "no production commit CTA");
+  assert.ok(!tid("confirm-screen"), "not the Personal review/commit screen");
+  assert.equal(globalThis.__lastImport, undefined, "ZERO import call");
   assert.equal(globalThis.__nav, undefined, "no navigation");
-  assert.ok(!tid("confirm-screen"), "never reached a review/commit of a real business file");
+  // rows are previewed; with no address columns every row shows the 'No delivery address' badge
+  assert.match(txt(), /No delivery address/);
 });
 
 test("Business upload Change returns to Business Screen 2; Start Over returns to Screen 1", async () => {
@@ -460,7 +463,7 @@ test("an ordinary CSV with a real 'Sample' surname (no marker) imports normally 
   assert.ok(tid("confirm-screen"));
   assert.match(tid("add-cta").textContent, /Add 2 contacts/, "normal production Add path (marker is the sole signal)");
 });
-test("Business Choose CSV: a marked Practice CSV opens Test Drive (not dormant); an unmarked one stays dormant", async () => {
+test("Business Choose CSV: a marked Practice CSV opens Test Drive; an unmarked one → commit-free preview (Slice 2B-1)", async () => {
   await mountWizard(); await goBusiness("employee");
   await uploadCsvVia("choose-csv", PRACTICE_CSV);
   assert.ok(tid("practice-detected"), "marked business practice CSV → detected notice");
@@ -469,8 +472,9 @@ test("Business Choose CSV: a marked Practice CSV opens Test Drive (not dormant);
   assert.ok(tid("confirm-screen") && tid("view-practice-recipients"));
   assert.equal(globalThis.__lastImport, undefined);
   await mountWizard(); await goBusiness("employee");
-  await uploadCsvVia("choose-csv", CSV2);                       // unmarked business CSV
-  assert.match(txt(), /Organization import is currently turned off/, "genuine business CSV → dormant");
+  await uploadCsvVia("choose-csv", CSV2);                       // unmarked business CSV → preview (not dormant)
+  assert.ok(tid("corporate-preview"), "genuine business CSV → commit-free preview");
+  assert.equal(globalThis.__lastImport, undefined);
 });
 
 test("all six blank-template download actions are wired and separate from the Practice CSV", async () => {
@@ -834,5 +838,73 @@ test("a Practice workbook with a conflicting/unsupported marker fails closed (no
   assert.equal(tid("confirm-screen"), null, "no review");
   assert.equal(tid("practice-detected"), null, "not routed to Test Drive");
   assert.match(txt(), /practice file is invalid/, "fails closed with a clear message");
+  assert.equal(globalThis.__lastImport, undefined);
+});
+
+// ---------- Slice 2B-1: corporate delivery-address preview (read-only, commit-free) ----------
+const BIZ_ADDR_CSV = [
+  "Name,Email,Company,Address Line 1,Address Line 2,City,State/Province,Postal/ZIP Code,Country",
+  "Ada Corp,ada@corp.co,Acme,1 Main St,Suite 4,Austin,TX,78701,United States", // complete → Needs review
+  "Bo Corp,bo@corp.co,Acme,,,,,,",                                             // no address → No delivery address
+  "Cy Corp,cy@corp.co,Beacon,2 Oak Ave,,Metropolis,,99999,Freedonia",          // missing state → Incomplete
+].join("\n");
+
+test("2B-1: business workbook with addresses → preview shows the six address fields + per-row status badges", async () => {
+  await mountWizard(); await goBusiness("employee");
+  await uploadCsvVia("choose-csv", BIZ_ADDR_CSV);
+  assert.ok(tid("corporate-preview"), "preview rendered");
+  // six structured address fields are present
+  for (const k of ["line1", "line2", "city", "state", "zip", "country"]) {
+    assert.ok(document.querySelector(`[data-testid="corp-addr-${k}"]`), `address field ${k} shown`);
+  }
+  assert.match(txt(), /1 Main St/); assert.match(txt(), /Austin/); assert.match(txt(), /78701/);
+  // status badges: complete → review, absent, incomplete
+  const badges = [...document.querySelectorAll('[data-testid="corp-addr-badge"]')].map((b) => b.getAttribute("data-status"));
+  assert.ok(badges.includes("review"), "complete address → review");
+  assert.ok(badges.includes("absent"), "no-address row → absent");
+  assert.ok(badges.includes("incomplete"), "missing-required row → incomplete");
+  assert.ok(!/verified/i.test(txt()), "FE never claims an address is verified");
+  // exception count surfaced; commit-free
+  assert.match(txt(), /need review/);
+  assert.equal(tid("add-cta"), null);
+  assert.equal(globalThis.__lastImport, undefined, "ZERO mutation");
+  assert.equal(globalThis.__nav, undefined);
+});
+
+test("2B-1: unrecognized country → 'Unrecognized country' badge (never guessed, never verified)", async () => {
+  await mountWizard(); await goBusiness("client");
+  await uploadCsvVia("choose-csv", "Name,Email,Address Line 1,City,State/Province,Postal/ZIP Code,Country\nZed,zed@corp.co,9 Elm,Gotham,NJ,07001,Freedonia");
+  assert.ok(tid("corporate-preview"));
+  const b = document.querySelector('[data-testid="corp-addr-badge"]');
+  assert.equal(b.getAttribute("data-status"), "unknown_country");
+  assert.match(txt(), /Unrecognized country/);
+  assert.equal(globalThis.__lastImport, undefined);
+});
+
+test("2B-1: real Excel (.xlsx) business workbook → same commit-free preview", async () => {
+  await mountWizard(); await goBusiness("vendor");
+  const bytes = wbBytes([["Contacts", [["Name", "Email", "Address Line 1", "City", "State/Province", "Postal/ZIP Code", "Country"], ["Vee Corp", "vee@corp.co", "3 Pine", "Denver", "CO", "80014", "US"]]]]);
+  await uploadFileVia("choose-csv", new File([bytes], "vendors.xlsx"));
+  assert.ok(tid("corporate-preview"), "xlsx business upload previews");
+  assert.match(txt(), /Vee Corp/); assert.match(txt(), /3 Pine/);
+  assert.equal(document.querySelector('[data-testid="corp-addr-badge"]').getAttribute("data-status"), "review");
+  assert.equal(globalThis.__lastImport, undefined);
+});
+
+test("2B-1: Start Over from the corporate preview returns to Screen 1 (no stale preview)", async () => {
+  await mountWizard(); await goBusiness("employee");
+  await uploadCsvVia("choose-csv", BIZ_ADDR_CSV);
+  assert.ok(tid("corporate-preview"));
+  await act(async () => fireClick(tid("corp-start-over")));
+  await flush();
+  assert.equal(tid("corporate-preview"), null, "preview cleared");
+  assert.ok(tid("path-panels") || tid("panel-personal"), "back to Screen 1");
+});
+
+test("2B-1: a marked Practice business workbook still → Test Drive (never the genuine preview), ZERO mutation", async () => {
+  await mountWizard(); await goBusiness("employee");
+  await uploadCsvVia("choose-csv", PRACTICE_CSV);
+  assert.ok(tid("practice-detected"), "practice marker wins over the genuine preview");
+  assert.equal(tid("corporate-preview"), null);
   assert.equal(globalThis.__lastImport, undefined);
 });

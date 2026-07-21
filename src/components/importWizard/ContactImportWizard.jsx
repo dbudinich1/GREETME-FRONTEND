@@ -33,6 +33,8 @@ import { sampleContactsFor, sampleCsvFor, loadSampleWorkspace, saveSampleWorkspa
 import { templateCsv, templateFileBase } from "../../import/templateModel.js";
 import { templateXlsx, templatePracticeXlsx, practiceFileBase, XLSX_MIME } from "../../import/xlsxTemplate.js";
 import { recommendedDefaults, applyRecommendedDefaults, undoRecommendedDefaults } from "../../import/safeDefaults.js";
+import { corporateAddressStatus } from "../../import/corporateAddressStatus.js";
+import CorporateImportPreview from "./CorporateImportPreview.jsx";
 import { showManualToast } from "../../utils/notify";
 import { COMMS_CATEGORIES } from "../../utils/commsCatalog";
 
@@ -77,6 +79,9 @@ export default function ContactImportWizard() {
   const [sampleContacts, setSampleContacts] = useState([]);
   // Real Business CSV attempt while organization import is dormant → truthful gated state (no read/write).
   const [bizDormant, setBizDormant] = useState(false);
+  // Slice 2B-1: a genuine Corporate workbook → a READ-ONLY, COMMIT-FREE delivery-address preview
+  // (normalized rows + address exception badges). No API call, no write — corporate import stays dormant.
+  const [corporatePreview, setCorporatePreview] = useState(null);   // { items:[{index,contact,valid,errors,address,addressStatus}], kindLabel } | null
   // A marked Practice CSV chosen through the NORMAL uploader → a gate before Test Drive (no production path).
   const [practiceDetected, setPracticeDetected] = useState(null);   // { fields, rows } | null
   // A workbook with MULTIPLE eligible worksheets → the user must pick exactly one before mapping.
@@ -216,7 +221,20 @@ export default function ContactImportWizard() {
       setPracticeDetected({ fields, rows });               // gate → Continue in Test Drive (no production path)
       return;
     }
-    if (source === "business") { setError(null); setBizDormant(true); return; }  // genuine business file → dormant (no write)
+    if (source === "business") {
+      // Slice 2B-1: build a READ-ONLY, COMMIT-FREE preview of the corporate workbook. Same shared
+      // normalization the future commit (2B-2) would submit — but NO API call, NO write, NO order.
+      const { mapping } = autoMapHeaders(fields);
+      const today = todayIso();
+      const items = rows.map((raw, i) => {
+        const p = processRow(raw, mapping, { todayIso: today });
+        return { index: i, contact: p.contact, valid: p.valid, errors: p.errors, address: p.contact.shippingAddress || null, addressStatus: corporateAddressStatus(p.contact.shippingAddress) };
+      });
+      setError(null); setBizDormant(false);
+      const kindLabel = recipientKind ? recipientKind[0].toUpperCase() + recipientKind.slice(1) : "Corporate";
+      setCorporatePreview({ items, kindLabel });
+      return;
+    }
     // Ordinary Personal import: load EXISTING recipients so an already-present email previews as a
     // duplicate. FAIL CLOSED if the lookup fails (never proceed with an empty existing-email list).
     setBusy(true);
@@ -385,11 +403,11 @@ export default function ContactImportWizard() {
   const startOver = () => {
     clearSampleWorkspace();
     setMode(null); setRecipientKind(null);
-    setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setSummary(null); setPartial(null); setBizDormant(false); setPracticeDetected(null); setWorksheetChoice(null);
+    setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setSummary(null); setPartial(null); setBizDormant(false); setPracticeDetected(null); setWorksheetChoice(null); setCorporatePreview(null);
     setError(null); setBusy(false); setReviewState(freshReviewState({ business: false, kind: null }));
     setEntryView("path"); setPersonalGroup(null);        // back to Screen 1, no stale category context
   };
-  const exitSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setBizDormant(false); setPracticeDetected(null); setWorksheetChoice(null); setError(null); };
+  const exitSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setBizDormant(false); setPracticeDetected(null); setWorksheetChoice(null); setCorporatePreview(null); setError(null); };
   const deleteAllSample = exitSample;   // both clear the session-scoped practice data
   // From a PERSONAL practice, swap to a real Personal upload (clears the practice, keeps the path).
   const uploadOwnFromSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setError(null); setPartial(null); setMode(MODES.PERSONAL); resetReview(false, null); };
@@ -400,12 +418,12 @@ export default function ContactImportWizard() {
   // continue to the Business upload options screen. No membership call (import is dormant by design).
   const chooseBusinessGroup = (kind) => {
     setMode(MODES.CORPORATE); setRecipientKind(kind); setEntryView("path");
-    setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setSample(false); setBizDormant(false);
+    setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setSample(false); setBizDormant(false); setCorporatePreview(null);
     resetReview(true, kind);
   };
   const backToPath = () => { setEntryView("path"); setPersonalGroup(null); };   // Screen 2 → Screen 1
-  const changePersonalGroup = () => { setMode(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setBizDormant(false); setPracticeDetected(null); setWorksheetChoice(null); setEntryView("group"); };   // upload → Screen 2 (Personal)
-  const changeBusinessGroup = () => { setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setBizDormant(false); setPracticeDetected(null); setWorksheetChoice(null); setEntryView("bizgroup"); };   // upload → Screen 2 (Business)
+  const changePersonalGroup = () => { setMode(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setBizDormant(false); setPracticeDetected(null); setWorksheetChoice(null); setCorporatePreview(null); setEntryView("group"); };   // upload → Screen 2 (Personal)
+  const changeBusinessGroup = () => { setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setBizDormant(false); setPracticeDetected(null); setWorksheetChoice(null); setCorporatePreview(null); setEntryView("bizgroup"); };   // upload → Screen 2 (Business)
 
   // ---------- render ----------
   // Session-scoped Practice Recipients (completed or resumed) — read-only presentation.
@@ -500,6 +518,16 @@ export default function ContactImportWizard() {
   }
 
   const business = mode === MODES.CORPORATE;
+
+  // Slice 2B-1: a genuine Corporate workbook renders a READ-ONLY, COMMIT-FREE delivery-address preview.
+  // No API call, no write, no order — corporate import is still dormant. Personal review is untouched.
+  if (business && corporatePreview && !sample) {
+    return (
+      <Shell back={startOver}>
+        <CorporateImportPreview items={corporatePreview.items} kindLabel={corporatePreview.kindLabel} onStartOver={startOver} />
+      </Shell>
+    );
+  }
 
   // BUSINESS real import is dormant — a truthful, usable gated state reached from a real Business-upload
   // attempt (never a blank screen, no vague future promise, never implies data was saved).

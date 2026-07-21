@@ -251,7 +251,7 @@ test("Business mirrors Personal: Employees/Clients/Vendors tiles; NO Universal L
   // (unmarked) business CSV → dormant; only a marked Practice CSV goes to Test Drive.
   assert.match(WIZ, /Organization import is currently turned off/);
   assert.match(WIZ, /const onBusinessRealFile = useCallback\(async \(file\) => \{/);
-  assert.match(WIZ, /if \(source === "business"\) \{ setError\(null\); setBizDormant\(true\); return; \}/);   // genuine business file → dormant
+  assert.match(WIZ, /if \(source === "business"\) \{[\s\S]*?setCorporatePreview\(\{ items, kindLabel \}\);[\s\S]*?return;/);   // Slice 2B-1: genuine business file → COMMIT-FREE preview
   assert.match(WIZ, /biz-dormant/);
   assert.ok(!/coming soon/i.test(WIZ));
 });
@@ -437,9 +437,12 @@ test("Business Test Drive is zero mutation; real Business commit is dormant/fail
   // never calls a production API (no importContacts/getContacts/createContact) and never writes.
   const bf = (WIZ.match(/const onBusinessRealFile = useCallback\(async \(file\) => \{[\s\S]*?\}, \[routeParsedRows\]\);/) || [""])[0];
   assert.ok(bf.length > 0 && !/api\.importContacts|api\.getContacts|api\.createContact|api\.updateContact|api\.deleteContact/.test(bf), "onBusinessRealFile calls no production API");
-  assert.match(bf, /routeParsedRows\("business"/);   // classifies then routes to the dormant branch
+  assert.match(bf, /routeParsedRows\("business"/);   // classifies then routes to the commit-free preview branch
   const rp = (WIZ.match(/const routeParsedRows = useCallback\(async \(source, fields, rows\) => \{[\s\S]*?\}, \[mode, recipientKind\]\);/) || [""])[0];
-  assert.match(rp, /if \(source === "business"\) \{ setError\(null\); setBizDormant\(true\); return; \}/);   // dormant, no write
+  // Slice 2B-1: the business branch builds a READ-ONLY preview (processRow + corporateAddressStatus) — no API, no write
+  const bizBranch = (rp.match(/if \(source === "business"\) \{[\s\S]*?setCorporatePreview\(\{ items, kindLabel \}\);[\s\S]*?return;\s*\}/) || [""])[0];
+  assert.ok(bizBranch.length > 0, "business branch builds a preview");
+  assert.ok(!/api\./.test(bizBranch), "business preview makes NO API call");
   assert.match(WIZ, /onRealFile = business \? onBusinessRealFile : onFile/);
 });
 test("Upload Options: blank category templates (Excel + CSV) separate from the Practice CSV", () => {
@@ -589,9 +592,9 @@ test("Excel path is READ-ONLY: no production mutation API anywhere near the read
   assert.ok(!/api\.createContact|api\.updateContact|api\.deleteContact/.test(WIZ));
   // reader/selection/practice paths never call importContacts
   assert.ok(!/routeParsedRows[\s\S]*?api\.importContacts/.test(WIZ.split("routeParsedRows")[1] || ""));
-  // practice/business sources set state only (Test Drive / dormant), never a write
+  // practice/business sources set state only (Test Drive / commit-free preview), never a write
   assert.match(WIZ, /if \(source === "practice"\) \{ ingestPracticeUpload/);
-  assert.match(WIZ, /if \(source === "business"\) \{ setError\(null\); setBizDormant\(true\); return; \}/);
+  assert.match(WIZ, /if \(source === "business"\) \{[\s\S]*?setCorporatePreview\(\{ items, kindLabel \}\);[\s\S]*?return;/);
 });
 
 test("worksheetChoice is cleared on every reset path (no stale multi-sheet state)", () => {
@@ -631,4 +634,22 @@ test("Slice 2: the dedicated practice upload accepts .xlsx/.xls/.csv and always 
   // onUploadPracticeCsv → practice source (always Test Drive), workbooks supported via parseFile
   const u = (WIZ.match(/const onUploadPracticeCsv = useCallback\(async \(file\) => \{[\s\S]*?\}, \[routeParsedRows\]\);/) || [""])[0];
   assert.match(u, /routeParsedRows\("practice"/);
+});
+
+// ---- Slice 2B-1: corporate delivery-address preview (source-scan; behavior in the browser suite) ----
+test("Slice 2B-1: corporate preview is wired COMMIT-FREE and read-only", () => {
+  assert.match(WIZ, /import CorporateImportPreview from "\.\/CorporateImportPreview\.jsx"/);
+  assert.match(WIZ, /import \{ corporateAddressStatus \} from "\.\.\/\.\.\/import\/corporateAddressStatus\.js"/);
+  // render early-return for the preview, gated on business + corporatePreview + !sample
+  assert.match(WIZ, /if \(business && corporatePreview && !sample\) \{[\s\S]*?<CorporateImportPreview items=\{corporatePreview\.items\}/);
+  // the preview NEVER wires a corporate commit/import API
+  assert.ok(!/api\.importCorporate|\/api\/corporate-contacts|corporateImportClient/.test(WIZ), "no corporate commit/API wired in 2B-1");
+  // commitCorporate stays the dormant stub (no write) — commit is Slice 2B-2, not here
+  const cc = (WIZ.match(/const commitCorporate = useCallback\(\(\) => \{[\s\S]*?\}, \[mode\]\);/) || [""])[0];
+  assert.ok(cc.length > 0 && !/api\./.test(cc), "commitCorporate makes no API call (dormant)");
+  // corporatePreview is cleared on every reset path (no stale preview)
+  for (const fn of ["startOver", "exitSample", "changePersonalGroup", "changeBusinessGroup", "chooseBusinessGroup"]) {
+    const body = WIZ.slice(WIZ.indexOf(`const ${fn} = `));
+    assert.match(body.slice(0, 500), /setCorporatePreview\(null\)/, `${fn} clears corporatePreview`);
+  }
 });
