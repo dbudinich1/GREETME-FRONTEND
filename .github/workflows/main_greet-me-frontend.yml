@@ -37,7 +37,7 @@ jobs:
           # `import.meta.env.VITE_IMPORT_WIZARD_ENTRY === 'true'`. Set to 'true' to activate.
           # ROLLED BACK 2026-07-21: Excel workbook upload not yet supported (CSV-only round-trip
           # would mislead users about guided-dropdown support). Flip to 'true' when Excel ships.
-          VITE_IMPORT_WIZARD_ENTRY: 'false'
+          VITE_IMPORT_WIZARD_ENTRY: 'true'
         run: npm run build
 
       - name: Create web.config for Azure static hosting
