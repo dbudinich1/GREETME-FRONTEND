@@ -13,6 +13,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import esbuild from "esbuild";
 import * as XLSX from "xlsx";
+import { templatePracticeXlsx } from "../src/import/xlsxTemplate.js";
+import { sampleContactsFor } from "../src/import/sampleWorkspace.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SHOTS = join(__dirname, "..", "..", "wizard-visual-shots");
@@ -277,7 +279,7 @@ for (const [nav, kind, panel] of [["p", "family", "panel-family"], ["b", "employ
     await page.click(`[data-testid="${panel}"]`);
     await page.waitForSelector('[data-testid="testdrive-section"]');
     await page.locator('[data-testid="testdrive-section"]').screenshot({ path: join(SHOTS, `testdrive-container-${kind}.jpg`), type: "jpeg", quality: 70 });
-    await expect(page.locator('[data-testid="testdrive-option-1"]')).toContainText("Download and upload the Practice CSV");
+    await expect(page.locator('[data-testid="testdrive-option-1"]')).toContainText("Download and upload a practice file");
     await expect(page.locator('[data-testid="testdrive-option-2"]')).toContainText("Start the Test Drive instantly");
     // OPTION labels are NOT on the parent Upload section
     await expect(page.locator('[data-testid="upload-section"]')).not.toContainText("OPTION");
@@ -291,8 +293,9 @@ test("Practice CSV upload flow — Option 1 controls, detected notice, manual pr
   await page.click('[data-testid="panel-family"]');
   await page.waitForSelector('[data-testid="testdrive-option-1"]');
   await page.locator('[data-testid="testdrive-option-1"]').screenshot({ path: join(SHOTS, "option1-download-upload.jpg"), type: "jpeg", quality: 72 });
+  await expect(page.locator('[data-testid="testdrive-option-1"]')).toContainText("Download Practice Excel Workbook");
   await expect(page.locator('[data-testid="testdrive-option-1"]')).toContainText("Download Practice CSV");
-  await expect(page.locator('[data-testid="testdrive-option-1"]')).toContainText("Upload Practice CSV");
+  await expect(page.locator('[data-testid="testdrive-option-1"]')).toContainText("Upload practice file");
   const PRACTICE = "Name,Email,Relationship,Company,Birthday,Greet-Me Practice File\nRobin Sample,robin@example.com,,,,practice-v2\nCasey Sample,casey@example.org,,,,practice-v2\nDana Sample,dana@example.net,,,,practice-v2";
   await page.setInputFiles('[data-testid="choose-csv"] input[type="file"]', { name: "greetme-family-practice.csv", mimeType: "text/csv", buffer: Buffer.from(PRACTICE) });
   await page.waitForSelector('[data-testid="practice-detected"]');
@@ -332,5 +335,33 @@ test("Worksheet selector — multiple eligible sheets (desktop + mobile)", async
     await page.waitForSelector('[data-testid="worksheet-select"]');
     await expect(page.locator('[data-testid="worksheet-option"]')).toHaveCount(2);
     await page.locator('[data-testid="worksheet-select"]').screenshot({ path: join(SHOTS, `worksheet-select-${tag}.jpg`), type: "jpeg", quality: 62 });
+  }
+});
+
+// ---- Slice 2: Excel-primary download choices + generated Practice Excel detection ----
+test("Slice 2 download choices — Guided Excel (recommended) + Basic CSV + Practice Excel (desktop + mobile)", async ({ page }) => {
+  for (const [tag, w] of [["desktop", 1200], ["mobile", 390]]) {
+    await mount(page, w);
+    await page.click('[data-testid="panel-personal"]');
+    await page.click('[data-testid="panel-family"]');
+    await page.waitForSelector('[data-testid="download-excel-template"]');
+    await expect(page.locator('[data-testid="download-excel-template"]')).toHaveText("Download Guided Excel Template");
+    await expect(page.locator('[data-testid="download-csv-template"]')).toHaveText("Download Basic CSV Template");
+    await expect(page.locator('[data-testid="download-practice-excel"]')).toBeVisible();
+    await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, `slice2-download-choices-${tag}.jpg`), type: "jpeg", quality: 62 });
+  }
+});
+test("Slice 2 Practice Excel detection — generated workbook forces Test Drive (desktop + mobile)", async ({ page }) => {
+  const buf = Buffer.from(templatePracticeXlsx("family", { contacts: sampleContactsFor("family") }));
+  for (const [tag, w] of [["desktop", 1200], ["mobile", 390]]) {
+    await mount(page, w);
+    await page.click('[data-testid="panel-personal"]');
+    await page.click('[data-testid="panel-family"]');
+    await page.waitForSelector('[data-testid="choose-csv"]');
+    await page.setInputFiles('[data-testid="choose-csv"] input[type="file"]', { name: "renamed.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: buf });
+    await page.waitForSelector('[data-testid="practice-detected"]');
+    await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, `slice2-practice-detected-${tag}.jpg`), type: "jpeg", quality: 62 });
+    await page.click('[data-testid="continue-in-testdrive"]');
+    await page.waitForSelector('[data-testid="view-practice-recipients"]');
   }
 });

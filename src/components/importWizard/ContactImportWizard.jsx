@@ -31,7 +31,7 @@ import {
 } from "../../import/reviewModel.js";
 import { sampleContactsFor, sampleCsvFor, loadSampleWorkspace, saveSampleWorkspace, clearSampleWorkspace, detectPracticeCsv, stripPracticeMarker } from "../../import/sampleWorkspace.js";
 import { templateCsv, templateFileBase } from "../../import/templateModel.js";
-import { templateXlsx, XLSX_MIME } from "../../import/xlsxTemplate.js";
+import { templateXlsx, templatePracticeXlsx, practiceFileBase, XLSX_MIME } from "../../import/xlsxTemplate.js";
 import { recommendedDefaults, applyRecommendedDefaults, undoRecommendedDefaults } from "../../import/safeDefaults.js";
 import { showManualToast } from "../../utils/notify";
 import { COMMS_CATEGORIES } from "../../utils/commsCatalog";
@@ -329,6 +329,15 @@ export default function ContactImportWizard() {
     try { triggerDownload(new Blob([sampleCsvFor(kind)], { type: "text/csv;charset=utf-8" }), `greetme-practice-${kind}.csv`); }
     catch { setError("Could not generate the practice file."); }
   }, []);
+  // Practice EXCEL workbook — the same guided .xlsx structure + dropdowns, PLUS fictional Sample rows and
+  // the authoritative practice marker column. Uploading it (here or via "Choose a file") always opens Test
+  // Drive. It is NEVER a production import (the marker forces the practice boundary before review).
+  const downloadPracticeXlsx = useCallback((kind) => {
+    try {
+      const contacts = sampleContactsFor(kind);
+      triggerDownload(new Blob([templatePracticeXlsx(kind, { contacts, generatedUtc: new Date().toISOString().slice(0, 10) })], { type: XLSX_MIME }), `${practiceFileBase(kind)}.xlsx`);
+    } catch { setError("Could not generate the practice workbook."); }
+  }, []);
   // Blank, category-specific template (Excel recommended). A blank template is NOT a Practice CSV —
   // it carries only headers, no fictional/production rows.
   const downloadTemplate = useCallback((kind, fmt) => {
@@ -589,10 +598,11 @@ export default function ContactImportWizard() {
               <p>Download a blank template with the right columns for this contact type, complete it, then upload it here.</p>
               <p className="gmiw-tpl-note" data-testid="template-version-note">Version 2 — includes guided Type, Relation, and Description dropdowns in Excel.</p>
               <div className="gmiw-template-cta">
-                <button data-testid="download-excel-template" style={btn(PURPLE)} onClick={() => downloadTemplate(templateKind, "xlsx")}>Download Excel Template</button>
-                <button data-testid="download-csv-template" style={btn("transparent", "#1b1830")} onClick={() => downloadTemplate(templateKind, "csv")}>Download CSV Template</button>
+                <button data-testid="download-excel-template" style={btn(PURPLE)} onClick={() => downloadTemplate(templateKind, "xlsx")}>Download Guided Excel Template</button>
+                <button data-testid="download-csv-template" style={btn("transparent", "#1b1830")} onClick={() => downloadTemplate(templateKind, "csv")}>Download Basic CSV Template</button>
               </div>
-              <p className="gmiw-tpl-note" data-testid="csv-disclosure">CSV templates contain the same columns but cannot include Excel dropdown controls or formatting.</p>
+              <p className="gmiw-tpl-note" data-testid="excel-recommend-note">Guided Excel Template — recommended; includes guided dropdowns and instructions.</p>
+              <p className="gmiw-tpl-note" data-testid="csv-disclosure">Basic CSV Template — compatibility option; CSV files do not contain dropdowns, formatting, or workbook instructions.</p>
             </div>
           </section>
           {/* PAGE-LEVEL DIVIDER between normal upload and Safe practice mode — non-interactive text */}
@@ -606,13 +616,14 @@ export default function ContactImportWizard() {
                 the dedicated Upload always enters Test Drive (never a production import). */}
             <div className="gmiw-tdtile" data-testid="testdrive-option-1">
               <span className="gmiw-optlabel" data-testid="td-option-1-label">OPTION 1</span>
-              <h4>Download and upload the Practice CSV</h4>
-              <p>Download the Practice CSV, review or complete it, then upload it yourself to experience the complete import process.</p>
+              <h4>Download and upload a practice file</h4>
+              <p>Download a practice file (Excel recommended), review or complete it, then upload it yourself to experience the complete import process. It always opens in Test Drive — nothing is saved or sent.</p>
               <div className="gmiw-tdtile-cta">
+                <button data-testid="download-practice-excel" style={btn(PURPLE)} onClick={() => downloadPracticeXlsx(templateKind)}>Download Practice Excel Workbook</button>
                 <button data-testid="download-practice" style={btn("transparent", "#1b1830")} onClick={() => downloadSampleCsv(templateKind)}>Download Practice CSV</button>
                 <label className="gmiw-choose gmiw-choose--sm" data-testid="upload-practice">
-                  Upload Practice CSV
-                  <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onUploadPracticeCsv(e.target.files[0])} />
+                  Upload practice file
+                  <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onUploadPracticeCsv(e.target.files[0])} />
                 </label>
               </div>
             </div>

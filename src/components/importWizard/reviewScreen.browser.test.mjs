@@ -19,6 +19,8 @@ import { writeFileSync, rmSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
 import * as XLSX from "xlsx";   // author real .xlsx/.xls bytes for the Excel-upload tests
+import { templatePracticeXlsx, templateXlsx } from "../../import/xlsxTemplate.js";
+import { sampleContactsFor } from "../../import/sampleWorkspace.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUNDLE = join(__dirname, ".__reviewscreen.bundle.mjs");
@@ -783,4 +785,54 @@ test("marked Practice .xlsx through the normal uploader → forced Test Drive, Z
   assert.ok(tid("view-practice-recipients"), "practice review ends only at View Practice Contacts");
   assert.equal(tid("add-cta"), null, "no production-import CTA for a marked Practice workbook");
   assert.equal(globalThis.__lastImport, undefined, "ZERO import calls on the marked-workbook path");
+});
+
+// ---------- Slice 2: generated Practice/Guided Excel workbook round-trip ----------
+test("generated Practice Excel via 'Choose a file' → forced Test Drive, zero mutation, View-Practice CTA", async () => {
+  await mountWizard(); await goIndividual();
+  const bytes = templatePracticeXlsx("family", { contacts: sampleContactsFor("family") });
+  await uploadFileVia("choose-csv", new File([bytes], "renamed-not-obvious.xlsx"));   // filename-independent
+  assert.ok(tid("practice-detected"), "generated Practice workbook is intercepted before review");
+  assert.match(txt(), /nothing will be saved or sent/i);
+  await act(async () => fireClick(tid("continue-in-testdrive")));
+  await flush();
+  assert.ok(tid("view-practice-recipients"), "terminal CTA is View Practice Contacts");
+  assert.equal(tid("add-cta"), null, "no production Add/Import CTA for a marked Practice workbook");
+  assert.match(txt(), /Robin Sample/);   // fictional Sample data, marker stripped
+  assert.ok(!/Greet-Me Practice File/.test(txt()), "marker never rendered as a contact field");
+  assert.equal(globalThis.__lastImport, undefined, "ZERO import calls");
+});
+
+test("generated Practice Excel via the dedicated 'Upload practice file' control → Test Drive", async () => {
+  await mountWizard(); await goIndividual();
+  const bytes = templatePracticeXlsx("family", { contacts: sampleContactsFor("family") });
+  await uploadFileVia("upload-practice", new File([bytes], "practice.xlsx"));
+  assert.ok(tid("confirm-screen"), "dedicated practice upload opens the combined Test Drive preview");
+  assert.ok(tid("view-practice-recipients"));
+  assert.equal(tid("add-cta"), null);
+  assert.equal(globalThis.__lastImport, undefined);
+});
+
+test("a genuine FILLED guided workbook (no marker) reaches the real production review", async () => {
+  await mountWizard(); await goIndividual();
+  const bytes = templateXlsx("family", { dataRows: [{ Name: "Real Person", Email: "real@company.co", Type: "Family" }] });
+  await uploadFileVia("choose-csv", new File([bytes], "my-real-contacts.xlsx"));
+  assert.ok(tid("confirm-screen"), "genuine workbook reaches review");
+  assert.ok(tid("add-cta"), "production Add CTA present for a genuine (unmarked) workbook");
+  assert.equal(tid("view-practice-recipients"), null, "not a practice preview");
+  assert.match(txt(), /Real Person/);
+});
+
+test("a Practice workbook with a conflicting/unsupported marker fails closed (no Test Drive, no import)", async () => {
+  await mountWizard(); await goIndividual();
+  // author a workbook whose marker column carries an unsupported version → detectPracticeCsv → invalid
+  const H = ["Name", "Email", "Greet-Me Practice File"];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([H, ["Robin Sample", "robin@example.com", "practice-v9"]]), "Contacts");
+  const bytes = new Uint8Array(XLSX.write(wb, { type: "array", bookType: "xlsx" }));
+  await uploadFileVia("choose-csv", new File([bytes], "bad-practice.xlsx"));
+  assert.equal(tid("confirm-screen"), null, "no review");
+  assert.equal(tid("practice-detected"), null, "not routed to Test Drive");
+  assert.match(txt(), /practice file is invalid/, "fails closed with a clear message");
+  assert.equal(globalThis.__lastImport, undefined);
 });

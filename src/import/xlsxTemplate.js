@@ -14,6 +14,7 @@
 
 import { templateColumns, templateHeaders, templateInstructions, templateTitle, isBusinessTemplateKind,
   TYPE_OPTIONS, DESCRIPTION_OPTIONS, RELATION_OPTIONS_BY_TYPE, TEMPLATE_VERSION } from "./templateModel.js";
+import { PRACTICE_MARKER_HEADER, PRACTICE_MARKER_VALUE } from "./sampleWorkspace.js";
 
 const MAIN = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 const REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -143,22 +144,38 @@ function dataValidations(kind) {
     dv(d, "GmDesc") +
     `</dataValidations>`;
 }
-function contactsSheet(kind) {
-  const cols = templateColumns(kind);
+// The Contacts sheet. Blank guided template by default (ZERO data rows). For the Practice workbook,
+// opts.marker appends the authoritative "Greet-Me Practice File" = "practice-v2" column and opts.dataRows
+// (objects keyed by header) fill fictional Sample rows. The Type/Relation/Description dropdowns keep the
+// SAME column indices (the marker column is appended LAST), so validation is unchanged.
+function contactsSheet(kind, opts = {}) {
+  const marker = !!opts.marker;
+  const base = templateColumns(kind);
+  const cols = marker ? [...base, { header: PRACTICE_MARKER_HEADER, width: 20 }] : base;
+  const dataRows = Array.isArray(opts.dataRows) ? opts.dataRows : [];
   const last = colLetter(cols.length - 1);
+  const lastRow = 1 + dataRows.length;
   const colXml = cols.map((c, i) => {
     const n = i + 1;
     const style = c.format === "date" ? ` style="2"` : "";
     return `<col min="${n}" max="${n}" width="${c.width}" customWidth="1"${style}/>`;
   }).join("");
   const headerCells = cols.map((c, i) => cell(`${colLetter(i)}1`, 1, c.header)).join("");
+  const dataXml = dataRows.map((row, ri) => {
+    const r = ri + 2;
+    const cells = cols.map((c, i) => {
+      const val = c.header === PRACTICE_MARKER_HEADER ? PRACTICE_MARKER_VALUE : (row[c.header] == null ? "" : String(row[c.header]));
+      return val === "" ? "" : cell(`${colLetter(i)}${r}`, 0, val);
+    }).join("");
+    return `<row r="${r}">${cells}</row>`;
+  }).join("");
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
     `<worksheet xmlns="${MAIN}" xmlns:r="${REL}">` +
-    `<dimension ref="A1:${last}1"/>` +
+    `<dimension ref="A1:${last}${lastRow}"/>` +
     `<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>` +
     `<sheetFormatPr defaultRowHeight="15" baseColWidth="10"/>` +
     `<cols>${colXml}</cols>` +
-    `<sheetData><row r="1" ht="18" customHeight="1">${headerCells}</row></sheetData>` +
+    `<sheetData><row r="1" ht="18" customHeight="1">${headerCells}</row>${dataXml}</sheetData>` +
     `<autoFilter ref="A1:${last}1"/>` +
     dataValidations(kind) +
     `</worksheet>`;
@@ -217,7 +234,7 @@ export function buildXlsxParts(kind, opts) {
     "xl/workbook.xml": workbook(),
     "xl/_rels/workbook.xml.rels": workbookRels(),
     "xl/styles.xml": styles(),
-    "xl/worksheets/sheet1.xml": contactsSheet(kind),
+    "xl/worksheets/sheet1.xml": contactsSheet(kind, opts),
     "xl/worksheets/sheet2.xml": instructionsSheet(kind, opts),
     "xl/worksheets/sheet3.xml": listsSheet(),
   };
@@ -273,5 +290,19 @@ export function zipStore(files) {
 }
 
 export function templateXlsx(kind, opts) { return zipStore(buildXlsxParts(kind, opts)); }
+
+// Practice Excel workbook: the SAME guided .xlsx structure + dropdowns, PLUS fictional Sample rows and
+// the authoritative practice marker column. `contacts` are the fictional demo contacts (Sample surnames,
+// reserved example.* domains) — only Name/Email/Company are written; the marker column is stamped by the
+// generator. The blank guided template NEVER carries the marker (marker is Practice-only).
+export function practiceWorkbookRows(contacts = []) {
+  return contacts.map((c) => ({ Name: c.fullName, Email: c.email, Company: c.company || "" }));
+}
+export function templatePracticeXlsx(kind, opts = {}) {
+  const dataRows = practiceWorkbookRows(opts.contacts || []);
+  return zipStore(buildXlsxParts(kind, { generatedUtc: opts.generatedUtc, dataRows, marker: true }));
+}
+export function practiceFileBase(kind) { return `greetme-${kind}-practice-workbook-v${TEMPLATE_VERSION}`; }
+
 export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-export { isBusinessTemplateKind, templateHeaders };
+export { isBusinessTemplateKind, templateHeaders, PRACTICE_MARKER_HEADER, PRACTICE_MARKER_VALUE };

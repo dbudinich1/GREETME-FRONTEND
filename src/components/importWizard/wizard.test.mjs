@@ -404,7 +404,7 @@ test("Upload Options: unnumbered Upload/Test-Drive sections; numbering ONLY insi
   assert.ok(!/Start test drive instantly with the Practice CSV already loaded\./.test(WIZ), "old bullet 2 removed");
   assert.ok(!/<ul>[\s\S]*?Practice CSV[\s\S]*?<\/ul>/.test(WIZ), "no Practice-CSV bullet list");
   // TWO numbered Test Drive choice tiles inside the practice container, with an internal OR between them
-  assert.match(WIZ, /testdrive-option-1[\s\S]*?td-option-1-label[^>]*>OPTION 1[\s\S]*?Download and upload the Practice CSV[\s\S]*?Download Practice CSV/);
+  assert.match(WIZ, /testdrive-option-1[\s\S]*?td-option-1-label[^>]*>OPTION 1[\s\S]*?Download and upload a practice file[\s\S]*?Download Practice Excel Workbook[\s\S]*?Download Practice CSV/);
   assert.match(WIZ, /testdrive-or"><span>OR<\/span>/);
   assert.match(WIZ, /testdrive-option-2[\s\S]*?td-option-2-label[^>]*>OPTION 2[\s\S]*?Start the Test Drive instantly[\s\S]*?Start Test Drive/);
   // OPTION 1 appears only in tile 1, OPTION 2 only in tile 2 (single occurrence each)
@@ -448,15 +448,16 @@ test("Upload Options: blank category templates (Excel + CSV) separate from the P
   assert.match(WIZ, /Download a blank template with the right columns for this contact type/);
   assert.match(WIZ, /download-excel-template/);
   assert.match(WIZ, /download-csv-template/);
-  assert.match(WIZ, /Download Excel Template/);
-  assert.match(WIZ, /Download CSV Template/);
+  assert.match(WIZ, /Download Guided Excel Template/);   // Slice 2: Excel primary (recommended)
+  assert.match(WIZ, /Download Basic CSV Template/);       // Slice 2: CSV secondary (compatibility)
   assert.match(WIZ, /downloadTemplate\(templateKind, "xlsx"\)/);
   assert.match(WIZ, /downloadTemplate\(templateKind, "csv"\)/);
-  assert.match(WIZ, /import \{ templateXlsx, XLSX_MIME \} from "\.\.\/\.\.\/import\/xlsxTemplate\.js"/);
+  assert.match(WIZ, /import \{ templateXlsx, templatePracticeXlsx, practiceFileBase, XLSX_MIME \} from "\.\.\/\.\.\/import\/xlsxTemplate\.js"/);
   assert.match(WIZ, /import \{ templateCsv, templateFileBase \} from "\.\.\/\.\.\/import\/templateModel\.js"/);
-  // the blank template is NEVER called a Practice CSV, and the Practice CSV stays populated + separate
+  // the blank template is NEVER labeled a Practice file, and the practice downloads stay populated + separate
   assert.match(WIZ, /Download Practice CSV/);
-  assert.ok(!/Practice.*Template|Template.*Practice CSV/.test(WIZ), "blank template never labeled a Practice CSV");
+  assert.match(WIZ, /Download Practice Excel Workbook/);   // Slice 2 primary practice download
+  assert.ok(!/Practice (Excel |CSV )?Template\b|Template[^"]{0,20}Practice CSV/.test(WIZ), "blank template never labeled a Practice file");
 });
 test("Review screen: OPT-IN recommended defaults notice with apply / review-individually / undo", () => {
   assert.match(WIZ, /import \{ recommendedDefaults, applyRecommendedDefaults, undoRecommendedDefaults \} from "\.\.\/\.\.\/import\/safeDefaults\.js"/);
@@ -488,14 +489,16 @@ test("Test Drive → Recipients Practice View CTA (session-scoped, no backend wr
   assert.ok(fn.length > 0 && !/api\.importContacts|api\.createContact|api\.updateContact|api\.deleteContact/.test(fn), "practice CTA makes no production API call");
   // V2 template UI: version note + CSV disclosure; download uses the V2 base + stamps a UTC date
   assert.match(WIZ, /Version 2 — includes guided Type, Relation, and Description dropdowns in Excel\./);
-  assert.match(WIZ, /CSV templates contain the same columns but cannot include Excel dropdown controls or formatting\./);
+  assert.match(WIZ, /Guided Excel Template — recommended; includes guided dropdowns and instructions\./);
+  assert.match(WIZ, /Basic CSV Template — compatibility option; CSV files do not contain dropdowns, formatting, or workbook instructions\./);
   assert.match(WIZ, /templateXlsx\(kind, \{ generatedUtc: new Date\(\)\.toISOString\(\)\.slice\(0, 10\) \}\)/);
 });
 test("Manual Practice CSV upload is structurally zero-mutation (dedicated control + normal-uploader defense)", () => {
   assert.match(WIZ, /import \{[^}]*detectPracticeCsv, stripPracticeMarker[^}]*\} from "\.\.\/\.\.\/import\/sampleWorkspace\.js"/);
-  // dedicated Upload Practice CSV inside Option 1
+  // dedicated practice-file upload inside Option 1 (now accepts .xlsx/.xls/.csv, always Test Drive)
   assert.match(WIZ, /upload-practice/);
-  assert.match(WIZ, />\s*Upload Practice CSV/);
+  assert.match(WIZ, />\s*Upload practice file/);
+  assert.match(WIZ, /data-testid="upload-practice"[\s\S]{0,120}accept="\.xlsx,\.xls,\.csv"/);
   assert.match(WIZ, /onUploadPracticeCsv\(e\.target\.files\[0\]\)/);
   // normal uploader defense: detect marker → notice → Continue in Test Drive (no production continuation)
   assert.match(WIZ, /const det = detectPracticeCsv\(fields, rows\)/);   // shared route for CSV + workbook uploads
@@ -565,7 +568,7 @@ test("format routing preserves the CSV path and never claims CSV has dropdowns",
   assert.match(WIZ, /\/\\.csv\$\/\.test\(lower\)/);            // csv branch
   assert.match(WIZ, /\/\\.\(xlsx\|xls\)\$\/\.test\(lower\)/);  // workbook branch
   // CSV disclosure remains truthful (no dropdown claim for CSV)
-  assert.match(WIZ, /CSV templates contain the same columns but cannot include Excel dropdown controls/);
+  assert.match(WIZ, /CSV files do not contain dropdowns, formatting, or workbook instructions/);
 });
 
 test("worksheet selection: multiple eligible → user picks one; sheets are never merged", () => {
@@ -596,4 +599,36 @@ test("worksheetChoice is cleared on every reset path (no stale multi-sheet state
     const body = WIZ.slice(WIZ.indexOf(`const ${fn} = `));
     assert.match(body.slice(0, 400), /setWorksheetChoice\(null\)/, `${fn} clears worksheetChoice`);
   }
+});
+
+// ---- Slice 2: guided/practice workbook round-trip UI (source-scan; behavior in generator + browser suites) ----
+test("Slice 2: Excel-primary / CSV-secondary download choices with accurate copy", () => {
+  // format ORDER: Guided Excel first, Basic CSV second
+  const block = WIZ.slice(WIZ.indexOf('data-testid="template-block"'));
+  assert.ok(block.indexOf("Download Guided Excel Template") < block.indexOf("Download Basic CSV Template"), "Excel appears before CSV");
+  assert.match(WIZ, /Guided Excel Template — recommended; includes guided dropdowns and instructions/);
+  // CSV is explicitly described as NOT carrying dropdowns/formatting/instructions (truthful disclosure)
+  assert.match(WIZ, /Basic CSV Template — compatibility option; CSV files do not contain dropdowns, formatting, or workbook instructions/);
+  assert.match(WIZ, /data-testid="csv-disclosure"[\s\S]{0,120}CSV files do not contain dropdowns/);
+});
+
+test("Slice 2: Download Practice Excel Workbook is wired as a primary Test Drive action", () => {
+  assert.match(WIZ, /data-testid="download-practice-excel"[\s\S]{0,120}Download Practice Excel Workbook/);
+  assert.match(WIZ, /onClick=\{\(\) => downloadPracticeXlsx\(templateKind\)\}/);
+  // handler builds a genuine .xlsx from templatePracticeXlsx with fictional Sample contacts + marker
+  const h = (WIZ.match(/const downloadPracticeXlsx = useCallback\(\(kind\) => \{[\s\S]*?\}, \[\]\);/) || [""])[0];
+  assert.ok(h.length > 0, "downloadPracticeXlsx present");
+  assert.match(h, /sampleContactsFor\(kind\)/);
+  assert.match(h, /templatePracticeXlsx\(kind, \{ contacts/);
+  assert.match(h, /practiceFileBase\(kind\)/);
+  assert.match(h, /XLSX_MIME/);
+  // it never touches a production API
+  assert.ok(!/api\./.test(h), "practice-workbook download makes no API call");
+});
+
+test("Slice 2: the dedicated practice upload accepts .xlsx/.xls/.csv and always routes to Test Drive", () => {
+  assert.match(WIZ, /data-testid="upload-practice"[\s\S]{0,140}accept="\.xlsx,\.xls,\.csv"/);
+  // onUploadPracticeCsv → practice source (always Test Drive), workbooks supported via parseFile
+  const u = (WIZ.match(/const onUploadPracticeCsv = useCallback\(async \(file\) => \{[\s\S]*?\}, \[routeParsedRows\]\);/) || [""])[0];
+  assert.match(u, /routeParsedRows\("practice"/);
 });
