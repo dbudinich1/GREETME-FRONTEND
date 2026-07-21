@@ -32,6 +32,10 @@ jobs:
         env:
           VITE_API_BASE: https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net
           VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
+          # Activation: route the Recipients Import button to the new Import Wizard.
+          # Build-time (Vite bakes it in). Value MUST be the string 'true' — Contacts.jsx gates on
+          # `import.meta.env.VITE_IMPORT_WIZARD_ENTRY === 'true'`. Set to 'false' to roll back.
+          VITE_IMPORT_WIZARD_ENTRY: 'true'
         run: npm run build
 
       - name: Create web.config for Azure static hosting
