@@ -34,7 +34,7 @@ import { templateCsv, templateFileBase } from "../../import/templateModel.js";
 import { templateXlsx, templatePracticeXlsx, practiceFileBase, XLSX_MIME } from "../../import/xlsxTemplate.js";
 import { recommendedDefaults, applyRecommendedDefaults, undoRecommendedDefaults } from "../../import/safeDefaults.js";
 import { corporateAddressStatus } from "../../import/corporateAddressStatus.js";
-import CorporateImportPreview from "./CorporateImportPreview.jsx";
+import CorporateImportFlow from "./CorporateImportFlow.jsx";
 import { showManualToast } from "../../utils/notify";
 import { COMMS_CATEGORIES } from "../../utils/commsCatalog";
 
@@ -519,12 +519,15 @@ export default function ContactImportWizard() {
 
   const business = mode === MODES.CORPORATE;
 
-  // Slice 2B-1: a genuine Corporate workbook renders a READ-ONLY, COMMIT-FREE delivery-address preview.
-  // No API call, no write, no order — corporate import is still dormant. Personal review is untouched.
+  // Slice 2B-2B: a genuine Corporate workbook drives the commit flow — preview → confirm + authorized
+  // organization selection → authenticated commit (dormant endpoint → truthful 503) → deterministic
+  // reconciliation → results summary (stays put). Practice/Test Drive can never reach here (!sample)
+  // and CorporateImportFlow additionally fail-closed-guards every network call on `sample`. Personal
+  // review is untouched. Commit uses the dedicated corporate client — NOT the Personal api helper.
   if (business && corporatePreview && !sample) {
     return (
       <Shell back={startOver}>
-        <CorporateImportPreview items={corporatePreview.items} kindLabel={corporatePreview.kindLabel} onStartOver={startOver} />
+        <CorporateImportFlow items={corporatePreview.items} kindLabel={corporatePreview.kindLabel} sample={sample} onStartOver={startOver} />
       </Shell>
     );
   }

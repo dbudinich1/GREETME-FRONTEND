@@ -23,7 +23,7 @@ const BADGE = {
 const card = { background: "#fffdf8", border: "1px solid #e7e0d4", borderRadius: 12, padding: "18px 20px", margin: "12px 0" };
 const muted = { color: "#6a5f86", fontSize: ".85rem", lineHeight: 1.5 };
 
-export default function CorporateImportPreview({ items = [], kindLabel = "Corporate", onStartOver }) {
+export default function CorporateImportPreview({ items = [], kindLabel = "Corporate", onStartOver, onContinue }) {
   const total = items.length;
   const withException = items.filter((it) => it.addressStatus.status !== PREVIEW_STATUS.REVIEW).length;
   const invalidRows = items.filter((it) => !it.valid).length;
@@ -80,11 +80,17 @@ export default function CorporateImportPreview({ items = [], kindLabel = "Corpor
         })}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+      <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
         <button data-testid="corp-start-over" onClick={onStartOver}
           style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid #d7d0ea", background: "#fbfaff", cursor: "pointer", fontWeight: 600 }}>
           Start over
         </button>
+        {onContinue && (
+          <button data-testid="corp-continue" onClick={onContinue}
+            style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "#6b3a2a", color: "#fff", cursor: "pointer", fontWeight: 700 }}>
+            Continue to import
+          </button>
+        )}
       </div>
     </div>
   );

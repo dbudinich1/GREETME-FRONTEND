@@ -636,20 +636,21 @@ test("Slice 2: the dedicated practice upload accepts .xlsx/.xls/.csv and always 
   assert.match(u, /routeParsedRows\("practice"/);
 });
 
-// ---- Slice 2B-1: corporate delivery-address preview (source-scan; behavior in the browser suite) ----
-test("Slice 2B-1: corporate preview is wired COMMIT-FREE and read-only", () => {
-  assert.match(WIZ, /import CorporateImportPreview from "\.\/CorporateImportPreview\.jsx"/);
+// ---- Slice 2B-2B: corporate commit flow wiring (source-scan; behavior in the browser suite) ----
+test("Slice 2B-2B: corporate commit flow is wired via CorporateImportFlow (NOT the Personal api helper)", () => {
+  assert.match(WIZ, /import CorporateImportFlow from "\.\/CorporateImportFlow\.jsx"/);
   assert.match(WIZ, /import \{ corporateAddressStatus \} from "\.\.\/\.\.\/import\/corporateAddressStatus\.js"/);
-  // render early-return for the preview, gated on business + corporatePreview + !sample
-  assert.match(WIZ, /if \(business && corporatePreview && !sample\) \{[\s\S]*?<CorporateImportPreview items=\{corporatePreview\.items\}/);
-  // the preview NEVER wires a corporate commit/import API
-  assert.ok(!/api\.importCorporate|\/api\/corporate-contacts|corporateImportClient/.test(WIZ), "no corporate commit/API wired in 2B-1");
-  // commitCorporate stays the dormant stub (no write) — commit is Slice 2B-2, not here
-  const cc = (WIZ.match(/const commitCorporate = useCallback\(\(\) => \{[\s\S]*?\}, \[mode\]\);/) || [""])[0];
-  assert.ok(cc.length > 0 && !/api\./.test(cc), "commitCorporate makes no API call (dormant)");
-  // corporatePreview is cleared on every reset path (no stale preview)
+  // render early-return delegates to the flow, gated on business + corporatePreview + !sample
+  assert.match(WIZ, /if \(business && corporatePreview && !sample\) \{[\s\S]*?<CorporateImportFlow items=\{corporatePreview\.items\}/);
+  // sample is threaded so the flow's fail-closed guard sees practice state
+  assert.match(WIZ, /<CorporateImportFlow[^>]*sample=\{sample\}/);
+  // the WIZARD itself never calls a corporate/personal API for the corporate commit — the flow owns it
+  assert.ok(!/api\.importCorporate|api\.importContacts\([^)]*corporate/i.test(WIZ), "wizard does not commit corporate via the Personal api helper");
+  // corporatePreview (and thus the flow) is cleared on every reset path (no stale org/preview/results)
   for (const fn of ["startOver", "exitSample", "changePersonalGroup", "changeBusinessGroup", "chooseBusinessGroup"]) {
     const body = WIZ.slice(WIZ.indexOf(`const ${fn} = `));
     assert.match(body.slice(0, 500), /setCorporatePreview\(null\)/, `${fn} clears corporatePreview`);
   }
+  // Personal commit still uses the Personal api helper (unchanged) — isolation from the corporate path
+  assert.match(WIZ, /const commitPersonal = useCallback\(async \(\) => \{[\s\S]*?api\.importContacts\(contacts\)/);
 });
