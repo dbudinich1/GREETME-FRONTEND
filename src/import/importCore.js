@@ -11,13 +11,20 @@
 export const LIMITS = Object.freeze({
   maxBytes: 5 * 1024 * 1024,     // 5 MB
   maxRows: 5000,
+  maxSheets: 12,                 // reject workbooks with more than this many worksheets (fail closed)
   allowedMime: Object.freeze([
     "text/csv", "application/csv", "text/plain",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",  // legacy .xls
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  // .xlsx
   ]),
-  allowedExt: Object.freeze([".csv", ".xlsx"]),
+  allowedExt: Object.freeze([".csv", ".xlsx", ".xls"]),
 });
+
+// Worksheet-count guard (workbooks only). Kept beside checkRowCount for a single limits source.
+export function checkSheetCount(n) {
+  if (n > LIMITS.maxSheets) return { ok: false, error: "too_many_sheets", max: LIMITS.maxSheets };
+  return { ok: true };
+}
 
 export function checkFileLimits(file) {
   if (!file) return { ok: false, error: "no_file" };

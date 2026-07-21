@@ -18,6 +18,7 @@ import { dirname, join } from "node:path";
 import { writeFileSync, rmSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
+import * as XLSX from "xlsx";   // author real .xlsx/.xls bytes for the Excel-upload tests
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUNDLE = join(__dirname, ".__reviewscreen.bundle.mjs");
@@ -269,7 +270,7 @@ test("each Business selection → Business Upload Options (canonical heading, st
     assert.match(txt(), new RegExp(heading), `${kind} canonical heading`);
     assert.match(txt(), /Upload your contacts/);
     assert.ok(tid("choose-csv"), "Choose a CSV file control present");
-    assert.match(txt(), /Choose a CSV file/);
+    assert.match(txt(), /Choose a file/);
     assert.ok(tid("upload-or"), "OR divider present");
     assert.match(txt(), /Safe practice mode/);
     assert.match(txt(), /Test Drive the Import Wizard/);
@@ -444,7 +445,7 @@ test("a malformed practice marker fails closed (no Test Drive, no import)", asyn
   await uploadCsvVia("choose-csv", PRACTICE_BAD);
   assert.equal(tid("confirm-screen"), null, "did not enter Test Drive");
   assert.equal(tid("practice-detected"), null, "no practice notice for a malformed marker");
-  assert.match(txt(), /Practice CSV is invalid/);
+  assert.match(txt(), /practice file is invalid/);
   assert.equal(globalThis.__lastImport, undefined);
 });
 test("an ordinary CSV with a real 'Sample' surname (no marker) imports normally — not classified as practice", async () => {
@@ -619,7 +620,7 @@ test("Screen 2 has exactly Family/Friends/Professional; each routes to the uploa
     gp.focus(); assert.equal(document.activeElement, gp, `${g} panel focusable`);
     await act(async () => fireClick(gp.querySelector(".gmiw-panel-title") || gp));   // whole panel
     await flush();
-    assert.match(txt(), /Choose a CSV file/, `${g} → Individual upload`);
+    assert.match(txt(), /Choose a file/, `${g} → Individual upload`);
     assert.ok(tid("upload-context"), `${g} shows the group context`);
     assert.match(txt(), new RegExp(heading), `${g} heading`);
     assert.ok(tid("change-group"), "Change link present");
@@ -675,4 +676,111 @@ test("Screen 2 renders all three group panels at every representative width (DOM
     assert.deepEqual([...panels].map((p) => p.getAttribute("data-testid")), ["panel-family", "panel-friend", "panel-professional"]);
     assert.ok(document.querySelector(".gmiw-panels--three"), `resilient grid class applied at ${w}px`);
   }
+});
+
+// ---------- Slice 1: native Excel (.xlsx/.xls) upload through the SAME pipeline ----------
+function wbBytes(sheets, { hidden = {}, bookType = "xlsx" } = {}) {
+  const wb = XLSX.utils.book_new();
+  for (const [name, aoa] of sheets) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), name);
+  wb.Workbook = { Sheets: wb.SheetNames.map((name) => ({ name, Hidden: hidden[name] || 0 })) };
+  return new Uint8Array(XLSX.write(wb, { type: "array", bookType }));
+}
+async function uploadFileVia(controlTid, file) {
+  const input = tid(controlTid).querySelector('input[type="file"]');
+  Object.defineProperty(input, "files", { value: [file], configurable: true });
+  await act(async () => { input.dispatchEvent(new window.Event("change", { bubbles: true })); });
+  await flush(); await flush(); await flush();   // extra tick: workbook read is async (dynamic import + parse)
+}
+const XL_HDR = ["Name", "Email"];
+const XL_ROWS = [["Ada Xlsx", "ada@x.co"], ["Bo Xlsx", "bo@x.co"]];
+
+test("xlsx: a genuine .xlsx enters the real mapping/preview pipeline (parity with CSV)", async () => {
+  await mountWizard(); await goIndividual();
+  const bytes = wbBytes([["Contacts", [XL_HDR, ...XL_ROWS]], ["Instructions", [["x"]]]]);
+  await uploadFileVia("choose-csv", new File([bytes], "book.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+  assert.ok(tid("confirm-screen"), "xlsx reaches the combined review");
+  assert.match(txt(), /Ada Xlsx/); assert.match(txt(), /Bo Xlsx/);
+  assert.equal(globalThis.__lastImport, undefined, "preview makes ZERO import calls");
+});
+
+test("xls: a legacy .xls (BIFF8) parses into the same pipeline", async () => {
+  await mountWizard(); await goIndividual();
+  const bytes = wbBytes([["Contacts", [XL_HDR, ...XL_ROWS]]], { bookType: "biff8" });
+  await uploadFileVia("choose-csv", new File([bytes], "legacy.xls", { type: "application/vnd.ms-excel" }));
+  assert.ok(tid("confirm-screen"), ".xls reaches the combined review");
+  assert.match(txt(), /Ada Xlsx/);
+});
+
+test("Excel↔CSV parity: same data → same normalized preview + duplicate detection", async () => {
+  // CSV
+  await mountWizard(); await goIndividual();
+  globalThis.__getContacts = () => ({ data: [{ email: "ada@x.co" }] });   // Ada already exists → duplicate
+  await uploadCsvVia("choose-csv", "Name,Email\nAda Xlsx,ada@x.co\nBo Xlsx,bo@x.co");
+  const csvHasDup = /1 duplicate|duplicate/i.test(txt());
+  const csvCount = (txt().match(/Ada Xlsx/g) || []).length;
+  // XLSX with the identical data
+  await mountWizard(); await goIndividual();
+  globalThis.__getContacts = () => ({ data: [{ email: "ada@x.co" }] });
+  await uploadFileVia("choose-csv", new File([wbBytes([["Contacts", [XL_HDR, ...XL_ROWS]]])], "d.xlsx"));
+  assert.ok(tid("confirm-screen"));
+  assert.equal(/1 duplicate|duplicate/i.test(txt()), csvHasDup, "duplicate detection identical across formats");
+  assert.ok((txt().match(/Ada Xlsx/g) || []).length >= 1 && csvCount >= 1);
+  delete globalThis.__getContacts;
+});
+
+test("required-field validation is format-independent (xlsx row missing email is flagged, not imported)", async () => {
+  await mountWizard(); await goIndividual();
+  await uploadFileVia("choose-csv", new File([wbBytes([["Contacts", [XL_HDR, ["No Email Sample", ""], ["Ok Person", "ok@x.co"]]]])], "req.xlsx"));
+  assert.ok(tid("confirm-screen"));
+  assert.match(txt(), /Ok Person/);
+  assert.equal(globalThis.__lastImport, undefined, "no auto-import; the invalid row is surfaced for review");
+});
+
+test("worksheet selection: multiple eligible sheets → selector (name + row count); pick one → that sheet only", async () => {
+  await mountWizard(); await goIndividual();
+  const bytes = wbBytes([["Team A", [XL_HDR, ["A One", "a1@x.co"]]], ["Team B", [XL_HDR, ["B One", "b1@x.co"], ["B Two", "b2@x.co"]]], ["Instructions", [["x"]]]]);
+  await uploadFileVia("choose-csv", new File([bytes], "multi.xlsx"));
+  assert.ok(tid("worksheet-select"), "worksheet selector shown for multiple eligible sheets");
+  const opts = [...document.querySelectorAll('[data-testid="worksheet-option"]')];
+  assert.equal(opts.length, 2);
+  assert.match(txt(), /Team A/); assert.match(txt(), /Team B/);
+  assert.match(txt(), /1 row/); assert.match(txt(), /2 rows/);
+  await act(async () => fireClick(opts.find((o) => /Team B/.test(o.textContent))));
+  await flush(); await flush();
+  assert.ok(tid("confirm-screen"), "picking a sheet proceeds to review");
+  assert.match(txt(), /B One/); assert.match(txt(), /B Two/);
+  assert.ok(!/A One/.test(txt()), "only the chosen worksheet's rows are imported (never merged)");
+  assert.equal(globalThis.__lastImport, undefined);
+});
+
+test(".xlsm is rejected clearly (no review, no import)", async () => {
+  await mountWizard(); await goIndividual();
+  await uploadFileVia("choose-csv", new File([wbBytes([["Contacts", [XL_HDR, ...XL_ROWS]]])], "macro.xlsm"));
+  assert.equal(tid("confirm-screen"), null);
+  assert.match(txt(), /Macro-enabled workbooks \(\.xlsm\) aren.t supported/);
+  assert.equal(globalThis.__lastImport, undefined);
+});
+
+test("a corrupt workbook fails safely with a clear message", async () => {
+  await mountWizard(); await goIndividual();
+  const full = wbBytes([["Contacts", [XL_HDR, ...XL_ROWS]]]);
+  const truncated = full.slice(0, Math.floor(full.length * 0.6));   // valid PK header, broken central directory
+  await uploadFileVia("choose-csv", new File([truncated], "broken.xlsx"));
+  assert.equal(tid("confirm-screen"), null);
+  assert.match(txt(), /couldn.t be read as a valid Excel workbook/);
+  assert.equal(globalThis.__lastImport, undefined);
+});
+
+test("marked Practice .xlsx through the normal uploader → forced Test Drive, ZERO mutation", async () => {
+  await mountWizard(); await goIndividual();
+  const H = ["Name", "Email", "Greet-Me Practice File"];
+  const bytes = wbBytes([["Contacts", [H, ["Robin Sample", "robin@example.com", "practice-v2"], ["Casey Sample", "casey@example.org", "practice-v2"]]]]);
+  await uploadFileVia("choose-csv", new File([bytes], "practice.xlsx"));
+  assert.ok(tid("practice-detected"), "marked Practice workbook is intercepted");
+  assert.match(txt(), /nothing will be saved or sent/i);
+  await act(async () => fireClick(tid("continue-in-testdrive")));
+  await flush();
+  assert.ok(tid("view-practice-recipients"), "practice review ends only at View Practice Contacts");
+  assert.equal(tid("add-cta"), null, "no production-import CTA for a marked Practice workbook");
+  assert.equal(globalThis.__lastImport, undefined, "ZERO import calls on the marked-workbook path");
 });

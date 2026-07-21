@@ -2,7 +2,7 @@
 // Run: node --test src/import/importCore.edge.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { processRow, sanitizeCellValue, checkRowCount, checkFileLimits, looksLikeZip } from "./importCore.js";
+import { processRow, sanitizeCellValue, checkRowCount, checkFileLimits, looksLikeZip, checkSheetCount, LIMITS } from "./importCore.js";
 
 const M = { fullName: "Name", email: "Email", notes: "Notes" };
 
@@ -43,4 +43,17 @@ test("row-count + media/extension limits hold for edge inputs", () => {
   assert.equal(checkFileLimits({ name: "ข้อมูล.csv", type: "text/csv", size: 10 }).ok, true); // unicode filename ok
   assert.equal(checkFileLimits({ name: "sheet.xlsx", type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", size: 10 }).ok, true); // extension allowed at file-gate; content-sniff rejects spoofs
   assert.equal(checkFileLimits({ name: "evil.exe", type: "application/x-msdownload", size: 10 }).error, "unsupported_extension");
+});
+
+test("Excel extensions accepted at the file-gate: .xls + .xlsx allowed, .xlsm rejected", () => {
+  assert.deepEqual([...LIMITS.allowedExt].sort(), [".csv", ".xls", ".xlsx"]);
+  assert.equal(checkFileLimits({ name: "legacy.xls", type: "application/vnd.ms-excel", size: 10 }).ok, true);
+  assert.equal(checkFileLimits({ name: "book.xlsx", type: "", size: 10 }).ok, true);
+  assert.equal(checkFileLimits({ name: "macro.xlsm", type: "", size: 10 }).error, "unsupported_extension"); // .xlsm never file-gated in
+});
+
+test("worksheet-count guard: at-limit ok, over-limit fails closed", () => {
+  assert.equal(LIMITS.maxSheets, 12);
+  assert.equal(checkSheetCount(12).ok, true);
+  assert.deepEqual(checkSheetCount(13), { ok: false, error: "too_many_sheets", max: 12 });
 });

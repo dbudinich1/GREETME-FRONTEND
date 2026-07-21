@@ -251,7 +251,7 @@ test("Business mirrors Personal: Employees/Clients/Vendors tiles; NO Universal L
   // (unmarked) business CSV → dormant; only a marked Practice CSV goes to Test Drive.
   assert.match(WIZ, /Organization import is currently turned off/);
   assert.match(WIZ, /const onBusinessRealFile = useCallback\(async \(file\) => \{/);
-  assert.match(WIZ, /setError\(null\); setBizDormant\(true\);\s*\/\/ genuine business CSV/);
+  assert.match(WIZ, /if \(source === "business"\) \{ setError\(null\); setBizDormant\(true\); return; \}/);   // genuine business file → dormant
   assert.match(WIZ, /biz-dormant/);
   assert.ok(!/coming soon/i.test(WIZ));
 });
@@ -392,7 +392,7 @@ test("Upload Options: unnumbered Upload/Test-Drive sections; numbering ONLY insi
   assert.ok(!/"option-1-label"/.test(WIZ), "no parent OPTION 1 label on the Upload section");
   assert.ok(!/"option-2-label"/.test(WIZ), "no parent OPTION 2 label on the Test Drive section");
   assert.match(WIZ, /Upload your contacts/);
-  assert.match(WIZ, /Choose your own CSV file\. Only a name and valid email are required\. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future\./);
+  assert.match(WIZ, /Upload an Excel or CSV file\. Accepted formats: \.xlsx, \.xls, or \.csv \(\.xlsx recommended[\s\S]*?Only a name and valid email are required\. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future\./);
   assert.ok(!/as need be/.test(WIZ), "uses 'as needed', not 'as need be'");
   assert.match(WIZ, /choose-csv/);
   assert.match(WIZ, /data-testid="upload-or"><span>OR<\/span>/);      // page-level divider between upload and practice
@@ -435,9 +435,11 @@ test("Business Test Drive is zero mutation; real Business commit is dormant/fail
   assert.ok(fn.length > 0 && !/api\./.test(fn), "trySample makes no API call");
   // a genuine (unmarked) business CSV → dormant/fail-closed; the handler classifies practice-vs-real but
   // never calls a production API (no importContacts/getContacts/createContact) and never writes.
-  const bf = (WIZ.match(/const onBusinessRealFile = useCallback\(async \(file\) => \{[\s\S]*?\}, \[mode, recipientKind\]\);/) || [""])[0];
+  const bf = (WIZ.match(/const onBusinessRealFile = useCallback\(async \(file\) => \{[\s\S]*?\}, \[routeParsedRows\]\);/) || [""])[0];
   assert.ok(bf.length > 0 && !/api\.importContacts|api\.getContacts|api\.createContact|api\.updateContact|api\.deleteContact/.test(bf), "onBusinessRealFile calls no production API");
-  assert.match(bf, /setBizDormant\(true\)/);   // genuine business CSV ends in dormant
+  assert.match(bf, /routeParsedRows\("business"/);   // classifies then routes to the dormant branch
+  const rp = (WIZ.match(/const routeParsedRows = useCallback\(async \(source, fields, rows\) => \{[\s\S]*?\}, \[mode, recipientKind\]\);/) || [""])[0];
+  assert.match(rp, /if \(source === "business"\) \{ setError\(null\); setBizDormant\(true\); return; \}/);   // dormant, no write
   assert.match(WIZ, /onRealFile = business \? onBusinessRealFile : onFile/);
 });
 test("Upload Options: blank category templates (Excel + CSV) separate from the Practice CSV", () => {
@@ -496,7 +498,7 @@ test("Manual Practice CSV upload is structurally zero-mutation (dedicated contro
   assert.match(WIZ, />\s*Upload Practice CSV/);
   assert.match(WIZ, /onUploadPracticeCsv\(e\.target\.files\[0\]\)/);
   // normal uploader defense: detect marker → notice → Continue in Test Drive (no production continuation)
-  assert.match(WIZ, /const det = detectPracticeCsv\(parsed\.fields, parsed\.rows\)/);
+  assert.match(WIZ, /const det = detectPracticeCsv\(fields, rows\)/);   // shared route for CSV + workbook uploads
   assert.match(WIZ, /practice-detected/);
   assert.match(WIZ, /Greet-Me Practice CSV detected/);
   assert.match(WIZ, /This file contains fictional practice contacts\. It will open in Test Drive, and nothing will be saved or sent\./);
@@ -507,8 +509,8 @@ test("Manual Practice CSV upload is structurally zero-mutation (dedicated contro
   assert.match(ing, /stripPracticeMarker\(fields, rawRows\)/);
   assert.match(ing, /setSample\(true\)/);
   assert.ok(!/api\.getContacts|api\.importContacts/.test(ing), "practice ingest never calls getContacts/importContacts");
-  // malformed marker fails closed
-  assert.match(WIZ, /This Practice CSV is invalid — its practice marker is malformed/);
+  // malformed marker fails closed (shared CSV + workbook message)
+  assert.match(WIZ, /This practice file is invalid — its practice marker is malformed/);
 });
 test("Personal Professional stays Individual (recipientType blank) — never the Business Wizard", () => {
   // Professional group → pickMode(PERSONAL) (individual), so applyRecipientTypes/boundary keeps recipientType ""
@@ -538,4 +540,60 @@ test("both grids are CONTAINER-responsive (min(100%,Npx) floor); text can't over
   assert.ok(!/text-overflow:ellipsis/.test(WIZ), "no ellipsis truncation");
   // mobile stack + source order preserved
   assert.match(WIZ, /@media \(max-width:640px\)[\s\S]*?\.gmiw-panels, \.gmiw-panels--three\{ grid-template-columns:1fr; \}/);
+});
+
+// ---- Slice 1: shared workbook reader integration (source-scan; behavior covered in browser + reader suites) ----
+test("Excel reader is LAZY-loaded (dynamic import) so SheetJS code-splits out of the main bundle", () => {
+  // the reader is reached via dynamic import(); it is never statically imported into the component
+  assert.match(WIZ, /await import\(["']\.\.\/\.\.\/import\/xlsxReader\.js["']\)/);
+  assert.ok(!/^\s*import\s+[^;]*from\s+["']\.\.\/\.\.\/import\/xlsxReader\.js["']/m.test(WIZ), "xlsxReader must NOT be statically imported");
+  assert.ok(!/from ["']xlsx["']/.test(WIZ), "SheetJS (xlsx) must never be imported directly by the component");
+});
+
+test("uploader accepts .xlsx/.xls/.csv; the CSV-only claim is gone; .xlsm rejected with a clear message", () => {
+  assert.match(WIZ, /accept="\.xlsx,\.xls,\.csv"/);            // the normal uploader
+  assert.match(WIZ, /Upload an Excel or CSV file\. Accepted formats: \.xlsx, \.xls, or \.csv/);
+  assert.match(WIZ, /\.xlsx recommended/);
+  assert.ok(!/Only CSV \(\.csv\) is supported/.test(WIZ), "removed the CSV-only message");
+  assert.ok(!/XLSX is not accepted/.test(WIZ), "removed the 'XLSX not accepted' message");
+  assert.match(WIZ, /\.xlsm\$/);                               // extension check
+  assert.match(WIZ, /Macro-enabled workbooks \(\.xlsm\) aren.t supported/);
+});
+
+test("format routing preserves the CSV path and never claims CSV has dropdowns", () => {
+  assert.match(WIZ, /Papa\.parse\(file, \{ header: true/);      // CSV still parsed by Papa
+  assert.match(WIZ, /\/\\.csv\$\/\.test\(lower\)/);            // csv branch
+  assert.match(WIZ, /\/\\.\(xlsx\|xls\)\$\/\.test\(lower\)/);  // workbook branch
+  // CSV disclosure remains truthful (no dropdown claim for CSV)
+  assert.match(WIZ, /CSV templates contain the same columns but cannot include Excel dropdown controls/);
+});
+
+test("worksheet selection: multiple eligible → user picks one; sheets are never merged", () => {
+  assert.match(WIZ, /needsSelection/);
+  assert.match(WIZ, /setWorksheetChoice\(\{ source: "personal"/);
+  assert.match(WIZ, /setWorksheetChoice\(\{ source: "business"/);
+  assert.match(WIZ, /setWorksheetChoice\(\{ source: "practice"/);
+  assert.match(WIZ, /data-testid="worksheet-select"/);
+  assert.match(WIZ, /data-testid="worksheet-option"/);
+  // exactly the chosen sheet's rows are routed; no concatenation/merge of multiple sheets
+  assert.match(WIZ, /const s = wc\.sheets\.find\(\(x\) => x\.name === sheetName\); if \(s\) routeParsedRows\(wc\.source, s\.fields, s\.rows\)/);
+  assert.ok(!/\.flatMap\(|concat\(.*sheets|sheets\.reduce/.test(WIZ), "worksheets are never combined");
+});
+
+test("Excel path is READ-ONLY: no production mutation API anywhere near the reader/worksheet flow", () => {
+  // the ONLY production write CALL remains commitPersonal → api.importContacts( (unchanged).
+  assert.equal((WIZ.match(/api\.importContacts\(/g) || []).length, 1);
+  assert.ok(!/api\.createContact|api\.updateContact|api\.deleteContact/.test(WIZ));
+  // reader/selection/practice paths never call importContacts
+  assert.ok(!/routeParsedRows[\s\S]*?api\.importContacts/.test(WIZ.split("routeParsedRows")[1] || ""));
+  // practice/business sources set state only (Test Drive / dormant), never a write
+  assert.match(WIZ, /if \(source === "practice"\) \{ ingestPracticeUpload/);
+  assert.match(WIZ, /if \(source === "business"\) \{ setError\(null\); setBizDormant\(true\); return; \}/);
+});
+
+test("worksheetChoice is cleared on every reset path (no stale multi-sheet state)", () => {
+  for (const fn of ["startOver", "exitSample", "changePersonalGroup", "changeBusinessGroup"]) {
+    const body = WIZ.slice(WIZ.indexOf(`const ${fn} = `));
+    assert.match(body.slice(0, 400), /setWorksheetChoice\(null\)/, `${fn} clears worksheetChoice`);
+  }
 });

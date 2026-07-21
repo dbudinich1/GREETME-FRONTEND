@@ -79,6 +79,8 @@ export default function ContactImportWizard() {
   const [bizDormant, setBizDormant] = useState(false);
   // A marked Practice CSV chosen through the NORMAL uploader → a gate before Test Drive (no production path).
   const [practiceDetected, setPracticeDetected] = useState(null);   // { fields, rows } | null
+  // A workbook with MULTIPLE eligible worksheets → the user must pick exactly one before mapping.
+  const [worksheetChoice, setWorksheetChoice] = useState(null);     // { source, format, sheets:[{name,rowCount,fields,rows}] } | null
   // Partial real-import outcome ({added, failed}) — keeps the user on the combined screen (never a
   // false "complete success"). null = no partial result to show.
   const [partial, setPartial] = useState(null);
@@ -143,19 +145,45 @@ export default function ContactImportWizard() {
     setReviewState(freshReviewState({ business, kind, existingEmails, todayIso: today }));
   }
 
-  // Validate + parse a CSV to { fields, rows } (never trusts the extension: rejects a spoofed XLSX/ZIP).
-  // Resolves null (and sets a user error) on any rejection — never throws.
-  const parseCsvFile = (file) => new Promise((resolve) => {
+  // Validate + parse an uploaded file. CSV → the existing Papa parser; .xlsx/.xls → the LAZY-LOADED
+  // workbook reader (SheetJS is code-split into its own chunk, absent from the main bundle, and loads
+  // only here on first Excel selection). Never trusts the extension — content is validated. Resolves
+  // one of: null (a user error was set) | {kind:"rows",fields,rows} | {kind:"sheets",format,sheets}
+  // (multiple eligible worksheets → the user picks one). Never throws.
+  const parseFile = (file) => new Promise((resolve) => {
     setError(null);
+    const name = String((file && file.name) || "");
+    const lower = name.toLowerCase();
+    if (/\.xlsm$/.test(lower)) { setError("Macro-enabled workbooks (.xlsm) aren’t supported. Save as .xlsx and upload again."); return resolve(null); }
     const lim = checkFileLimits(file);
-    if (!lim.ok) { setError(`File rejected: ${lim.error}.`); return resolve(null); }
-    if (!/\.csv$/i.test(file.name)) { setError("Unsupported format. Only CSV (.csv) is supported — XLSX is not accepted."); return resolve(null); }
-    file.slice(0, 8).arrayBuffer().then((buf) => {
-      if (looksLikeZip(new Uint8Array(buf))) { setError("This file looks like an XLSX/ZIP, not a CSV. Only genuine CSV is supported."); return resolve(null); }
-      Papa.parse(file, { header: true, skipEmptyLines: true,
-        complete: (out) => resolve({ fields: (out.meta && out.meta.fields) || [], rows: out.data || [] }),
-        error: () => { setError("Could not parse the file."); resolve(null); } });
-    }).catch(() => { setError("Could not read the file."); resolve(null); });
+    if (!lim.ok) {
+      setError(lim.error === "file_too_large" ? "This file is too large (max 5 MB)."
+        : lim.error === "unsupported_extension" ? "Unsupported file type. Upload an .xlsx, .xls, or .csv file."
+        : `File rejected: ${lim.error}.`);
+      return resolve(null);
+    }
+    if (/\.csv$/.test(lower)) {
+      file.slice(0, 8).arrayBuffer().then((buf) => {
+        if (looksLikeZip(new Uint8Array(buf))) { setError("This file looks like an Excel workbook, not a CSV. Rename it to .xlsx or upload a genuine CSV."); return resolve(null); }
+        Papa.parse(file, { header: true, skipEmptyLines: true,
+          complete: (out) => resolve({ kind: "rows", fields: (out.meta && out.meta.fields) || [], rows: out.data || [] }),
+          error: () => { setError("Could not parse the file."); resolve(null); } });
+      }).catch(() => { setError("Could not read the file."); resolve(null); });
+      return;
+    }
+    if (/\.(xlsx|xls)$/.test(lower)) {
+      file.arrayBuffer().then(async (buf) => {
+        const mod = await import("../../import/xlsxReader.js");        // dynamic → SheetJS code-split (never eager)
+        const res = await mod.readWorkbookBytes(new Uint8Array(buf), name);
+        if (!res.ok) { setError(mod.readerMessage(res.error)); return resolve(null); }
+        if (res.needsSelection) return resolve({ kind: "sheets", format: res.format, sheets: res.eligible });
+        const only = res.eligible[0];
+        resolve({ kind: "rows", fields: only.fields, rows: only.rows });
+      }).catch(() => { setError("Could not read the file."); resolve(null); });
+      return;
+    }
+    setError("Unsupported file type. Upload an .xlsx, .xls, or .csv file.");
+    resolve(null);
   });
 
   // Ingest a PRACTICE upload → Test Drive. Sets the practice boundary (sample=true) BEFORE any review, so a
@@ -176,22 +204,19 @@ export default function ContactImportWizard() {
     setRows(deduped); setPlan(buildPlan(deduped, { duplicateStrategy: "skip" }));
   };
 
-  // Dedicated "Upload Practice CSV" control (inside Test Drive Option 1) — ALWAYS enters Test Drive.
-  const onUploadPracticeCsv = useCallback(async (file) => {
-    const parsed = await parseCsvFile(file);
-    if (parsed) ingestPracticeUpload(parsed.fields, parsed.rows);
-  }, [mode, recipientKind]);
-
-  const onFile = useCallback(async (file) => {
-    const parsed = await parseCsvFile(file);
-    if (!parsed) return;
-    // Practice-file defense: a marked Practice CSV never reaches the production review/commit path.
-    const det = detectPracticeCsv(parsed.fields, parsed.rows);
+  // After parsing yields concrete rows, route by source (Excel and CSV converge here identically):
+  //   practice → always Test Drive; personal → practice-defense then real import (loads existing
+  //   recipients, fail-closed); business → practice-defense then the truthful dormant state.
+  const routeParsedRows = useCallback(async (source, fields, rows) => {
+    if (source === "practice") { ingestPracticeUpload(fields, rows); return; }
+    // Practice-file defense: a marked Practice file (CSV or workbook) never reaches production commit.
+    const det = detectPracticeCsv(fields, rows);
     if (det.marked) {
-      if (!det.valid) { setError("This Practice CSV is invalid — its practice marker is malformed. Download a fresh Practice CSV and try again."); return; }
-      setPracticeDetected({ fields: parsed.fields, rows: parsed.rows });   // gate → Continue in Test Drive
+      if (!det.valid) { setError("This practice file is invalid — its practice marker is malformed. Download a fresh practice file and try again."); return; }
+      setPracticeDetected({ fields, rows });               // gate → Continue in Test Drive (no production path)
       return;
     }
+    if (source === "business") { setError(null); setBizDormant(true); return; }  // genuine business file → dormant (no write)
     // Ordinary Personal import: load EXISTING recipients so an already-present email previews as a
     // duplicate. FAIL CLOSED if the lookup fails (never proceed with an empty existing-email list).
     setBusy(true);
@@ -199,24 +224,44 @@ export default function ContactImportWizard() {
     setBusy(false);
     const ex = existingEmailsFromResponse(resp);
     if (!ex.ok) { setError("Couldn't load your existing recipients, so duplicates can't be checked. Please try again."); return; }
-    const { mapping } = autoMapHeaders(parsed.fields);
-    const data = parsed.rows.map((raw) => ({ __raw: raw, __map: mapping }));
+    const { mapping } = autoMapHeaders(fields);
+    const data = rows.map((raw) => ({ __raw: raw, __map: mapping }));
     ingest(data, ex.emails, false, null);
   }, [mode, recipientKind]);
 
-  // BUSINESS "Choose a CSV file". A marked Practice CSV → Test Drive (read only to classify). A genuine
-  // (unmarked) business CSV → the truthful dormant state; it never reaches a parse-to-commit or any write.
+  // Multiple eligible worksheets → the user picks EXACTLY ONE (worksheets are never merged), then we
+  // route that sheet's rows by the original upload source.
+  const chooseWorksheet = useCallback((sheetName) => {
+    setWorksheetChoice((wc) => {
+      if (wc) { const s = wc.sheets.find((x) => x.name === sheetName); if (s) routeParsedRows(wc.source, s.fields, s.rows); }
+      return null;
+    });
+  }, [routeParsedRows]);
+  const cancelWorksheet = () => { setWorksheetChoice(null); setError(null); };
+
+  // Dedicated "Upload Practice CSV" control (inside Test Drive Option 1) — ALWAYS enters Test Drive.
+  const onUploadPracticeCsv = useCallback(async (file) => {
+    const p = await parseFile(file);
+    if (!p) return;
+    if (p.kind === "sheets") { setWorksheetChoice({ source: "practice", format: p.format, sheets: p.sheets }); return; }
+    routeParsedRows("practice", p.fields, p.rows);
+  }, [routeParsedRows]);
+
+  const onFile = useCallback(async (file) => {
+    const p = await parseFile(file);
+    if (!p) return;
+    if (p.kind === "sheets") { setWorksheetChoice({ source: "personal", format: p.format, sheets: p.sheets }); return; }
+    routeParsedRows("personal", p.fields, p.rows);
+  }, [routeParsedRows]);
+
+  // BUSINESS "Choose a file". A marked Practice file → Test Drive. A genuine (unmarked) business file →
+  // the truthful dormant state; it never reaches a parse-to-commit or any write.
   const onBusinessRealFile = useCallback(async (file) => {
-    const parsed = await parseCsvFile(file);
-    if (!parsed) return;
-    const det = detectPracticeCsv(parsed.fields, parsed.rows);
-    if (det.marked) {
-      if (!det.valid) { setError("This Practice CSV is invalid — its practice marker is malformed. Download a fresh Practice CSV and try again."); return; }
-      setPracticeDetected({ fields: parsed.fields, rows: parsed.rows });
-      return;
-    }
-    setError(null); setBizDormant(true);                   // genuine business CSV → dormant/fail-closed (no write)
-  }, [mode, recipientKind]);
+    const p = await parseFile(file);
+    if (!p) return;
+    if (p.kind === "sheets") { setWorksheetChoice({ source: "business", format: p.format, sheets: p.sheets }); return; }
+    routeParsedRows("business", p.fields, p.rows);
+  }, [routeParsedRows]);
 
   const commitPersonal = useCallback(async () => {
     if (mode !== MODES.PERSONAL) return;
@@ -331,11 +376,11 @@ export default function ContactImportWizard() {
   const startOver = () => {
     clearSampleWorkspace();
     setMode(null); setRecipientKind(null);
-    setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setSummary(null); setPartial(null); setBizDormant(false); setPracticeDetected(null);
+    setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setSummary(null); setPartial(null); setBizDormant(false); setPracticeDetected(null); setWorksheetChoice(null);
     setError(null); setBusy(false); setReviewState(freshReviewState({ business: false, kind: null }));
     setEntryView("path"); setPersonalGroup(null);        // back to Screen 1, no stale category context
   };
-  const exitSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setBizDormant(false); setPracticeDetected(null); setError(null); };
+  const exitSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setBizDormant(false); setPracticeDetected(null); setWorksheetChoice(null); setError(null); };
   const deleteAllSample = exitSample;   // both clear the session-scoped practice data
   // From a PERSONAL practice, swap to a real Personal upload (clears the practice, keeps the path).
   const uploadOwnFromSample = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setRows(null); setPlan(null); setError(null); setPartial(null); setMode(MODES.PERSONAL); resetReview(false, null); };
@@ -350,8 +395,8 @@ export default function ContactImportWizard() {
     resetReview(true, kind);
   };
   const backToPath = () => { setEntryView("path"); setPersonalGroup(null); };   // Screen 2 → Screen 1
-  const changePersonalGroup = () => { setMode(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setBizDormant(false); setPracticeDetected(null); setEntryView("group"); };   // upload → Screen 2 (Personal)
-  const changeBusinessGroup = () => { setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setBizDormant(false); setPracticeDetected(null); setEntryView("bizgroup"); };   // upload → Screen 2 (Business)
+  const changePersonalGroup = () => { setMode(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setBizDormant(false); setPracticeDetected(null); setWorksheetChoice(null); setEntryView("group"); };   // upload → Screen 2 (Personal)
+  const changeBusinessGroup = () => { setMode(null); setRecipientKind(null); setRows(null); setPlan(null); setSummary(null); setPartial(null); setError(null); setBizDormant(false); setPracticeDetected(null); setWorksheetChoice(null); setEntryView("bizgroup"); };   // upload → Screen 2 (Business)
 
   // ---------- render ----------
   // Session-scoped Practice Recipients (completed or resumed) — read-only presentation.
@@ -501,8 +546,28 @@ export default function ContactImportWizard() {
         </div>
       )}
 
+      {/* Worksheet selector — a workbook with multiple eligible sheets. Safe metadata only (name +
+          approximate populated-row count). Picking one routes THAT sheet only; sheets are never merged. */}
+      {!rows && !summary && !practiceDetected && worksheetChoice && (
+        <div className="gmiw-upload">
+          <div className="gmiw-upsec" data-testid="worksheet-select">
+            <h3>Choose a worksheet</h3>
+            <p>This workbook has more than one sheet of contacts. Pick the one to import — only that sheet is used, and nothing is combined. Instructions, Lists, and Reference sheets and hidden or empty sheets are skipped.</p>
+            <div className="gmiw-ws-list">
+              {worksheetChoice.sheets.map((s) => (
+                <button key={s.name} data-testid="worksheet-option" className="gmiw-ws-option" onClick={() => chooseWorksheet(s.name)}>
+                  <b>{s.name}</b>
+                  <span>{s.rowCount} row{s.rowCount === 1 ? "" : "s"}</span>
+                </button>
+              ))}
+            </div>
+            <button data-testid="worksheet-cancel" style={btn("transparent", "#1b1830")} onClick={cancelWorksheet}>Choose a different file</button>
+          </div>
+        </div>
+      )}
+
       {/* Structured Upload Options — upload-your-own (OR) a zero-mutation Test Drive. */}
-      {!rows && !summary && !practiceDetected && (
+      {!rows && !summary && !practiceDetected && !worksheetChoice && (
         <div className="gmiw-upload">
           {activeGroupMeta && (
             <div data-testid="upload-context" style={{ ...card, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "12px 16px" }}>
@@ -513,10 +578,10 @@ export default function ContactImportWizard() {
           {/* NORMAL UPLOAD — unnumbered. Blank templates stay associated with normal upload. */}
           <section className="gmiw-upsec" data-testid="upload-section">
             <h3>Upload your contacts</h3>
-            <p>Choose your own CSV file. Only a name and valid email are required. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future.</p>
+            <p>Upload an Excel or CSV file. Accepted formats: .xlsx, .xls, or .csv (.xlsx recommended — it carries the guided dropdowns). Only a name and valid email are required. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future.</p>
             <label className="gmiw-choose" data-testid="choose-csv">
-              Choose a CSV file
-              <input type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onRealFile(e.target.files[0])} />
+              Choose a file
+              <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onRealFile(e.target.files[0])} />
             </label>
             {/* Blank, category-specific templates (NOT the populated Practice CSV). Excel is recommended. */}
             <div className="gmiw-template" data-testid="template-block">
@@ -677,6 +742,11 @@ function PremiumStyles() {
       .gmiw-tdtile-cta{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:3px; }
       .gmiw-choose--sm{ margin-top:0; padding:10px 16px; font-size:.85rem; background:linear-gradient(135deg,#6d74ee,#764ba2); }
       .gmiw-or--inner{ margin:2px 0; font-size:.72rem; }
+      .gmiw-ws-list{ display:grid; gap:8px; margin-top:4px; }
+      .gmiw-ws-option{ display:flex; justify-content:space-between; align-items:center; gap:12px; width:100%; text-align:left; padding:12px 16px; border:1px solid #d7d0ea; border-radius:10px; background:#fbfaff; cursor:pointer; }
+      .gmiw-ws-option:hover{ border-color:#764ba2; background:#f3effc; }
+      .gmiw-ws-option b{ font-size:.95rem; color:#332a52; overflow-wrap:anywhere; }
+      .gmiw-ws-option span{ flex:none; font-size:.8rem; color:#6a5f86; font-variant-numeric:tabular-nums; }
       @media (max-width:640px){ .gmiw-tdtile button{ width:100%; } }
       .gmiw-template{ margin-top:14px; padding-top:14px; border-top:1px dashed rgba(27,24,48,.15); display:grid; gap:8px; min-width:0; }
       .gmiw-template h4{ margin:0; font-family:Georgia,'Times New Roman',serif; font-weight:600; font-size:1rem; color:#332a52; max-width:100%; overflow-wrap:anywhere; }

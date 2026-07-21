@@ -12,6 +12,7 @@ import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import esbuild from "esbuild";
+import * as XLSX from "xlsx";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SHOTS = join(__dirname, "..", "..", "wizard-visual-shots");
@@ -302,4 +303,34 @@ test("Practice CSV upload flow — Option 1 controls, detected notice, manual pr
   await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, "manual-practice-review.jpg"), type: "jpeg", quality: 64 });
   await expect(page.locator("body")).toContainText("Robin Sample");
   await expect(page.locator('[data-testid="view-practice-recipients"]')).toBeVisible();
+});
+
+// ---- Slice 1: Excel format choices + worksheet selector (desktop + mobile) ----
+function wbBuf(sheets) {
+  const wb = XLSX.utils.book_new();
+  for (const [name, aoa] of sheets) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), name);
+  return Buffer.from(XLSX.write(wb, { type: "array", bookType: "xlsx" }));
+}
+test("Excel/CSV format choices — updated uploader copy (desktop + mobile)", async ({ page }) => {
+  for (const [tag, w] of [["desktop", 1200], ["mobile", 390]]) {
+    await mount(page, w);
+    await page.click('[data-testid="panel-personal"]');
+    await page.click('[data-testid="panel-family"]');
+    await page.waitForSelector('[data-testid="choose-csv"]');
+    await page.locator('[data-testid="upload-section"]').screenshot({ path: join(SHOTS, `excel-format-choices-${tag}.jpg`), type: "jpeg", quality: 62 });
+  }
+});
+test("Worksheet selector — multiple eligible sheets (desktop + mobile)", async ({ page }) => {
+  const H = ["Name", "Email"];
+  const buf = wbBuf([["Team A", [H, ["Ada One", "a1@example.com"]]], ["Team B", [H, ["Bo Two", "b2@example.com"], ["Cy Three", "c3@example.com"]]], ["Instructions", [["Fill in..."]]]]);
+  for (const [tag, w] of [["desktop", 1200], ["mobile", 390]]) {
+    await mount(page, w);
+    await page.click('[data-testid="panel-personal"]');
+    await page.click('[data-testid="panel-family"]');
+    await page.waitForSelector('[data-testid="choose-csv"]');
+    await page.setInputFiles('[data-testid="choose-csv"] input[type="file"]', { name: "teams.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: buf });
+    await page.waitForSelector('[data-testid="worksheet-select"]');
+    await expect(page.locator('[data-testid="worksheet-option"]')).toHaveCount(2);
+    await page.locator('[data-testid="worksheet-select"]').screenshot({ path: join(SHOTS, `worksheet-select-${tag}.jpg`), type: "jpeg", quality: 62 });
+  }
 });
