@@ -389,6 +389,60 @@ test("all six blank-template download actions are wired and separate from the Pr
   }
 });
 
+// ---------- Test Drive two-tile structure (rendered DOM, all six paths) ----------
+const q = (sel) => document.querySelector(sel);
+const within = (containerTid, sel) => q(`[data-testid="${containerTid}"] ${sel}`);
+test("Upload/Test-Drive numbering: OPTION labels live ONLY in the two Test Drive tiles (DOM structure)", async () => {
+  for (const [nav, kind] of [["p", "family"], ["p", "friend"], ["p", "professional"], ["b", "employee"], ["b", "client"], ["b", "vendor"]]) {
+    await mountWizard();
+    if (nav === "p") await goIndividual(kind); else await goBusiness(kind);
+    const upload = tid("upload-section"), td = tid("testdrive-section");
+    assert.ok(upload && td, `${kind}: both containers present`);
+    // (1/2) normal-upload container has NO OPTION label / numbered tile
+    assert.equal(within("upload-section", '[data-testid^="td-option-"]'), null, `${kind}: no OPTION label in Upload`);
+    assert.ok(!/OPTION\s*[12]/.test(upload.textContent), `${kind}: Upload section text has no OPTION 1/2`);
+    // (3/4) Safe practice mode heading area has no parent OPTION label — the only OPTION labels are the tiles' eyebrows
+    assert.ok(!within("testdrive-section", '[data-testid="option-2-label"]'), `${kind}: no parent OPTION 2 label`);
+    // (5) old bullet list absent
+    assert.equal(within("testdrive-section", "ul"), null, `${kind}: no bullet list in Test Drive`);
+    // (6/7/8) exactly two numbered tiles inside the Test Drive container, in order
+    const tiles = td.querySelectorAll('[data-testid^="testdrive-option-"]');
+    assert.equal(tiles.length, 2, `${kind}: exactly two Test Drive tiles`);
+    assert.equal(tiles[0].getAttribute("data-testid"), "testdrive-option-1");
+    assert.equal(tiles[1].getAttribute("data-testid"), "testdrive-option-2");
+    assert.equal(within("testdrive-option-1", '[data-testid="td-option-1-label"]').textContent.trim(), "OPTION 1");
+    assert.equal(within("testdrive-option-2", '[data-testid="td-option-2-label"]').textContent.trim(), "OPTION 2");
+    assert.ok(!within("testdrive-option-2", '[data-testid="td-option-1-label"]'), `${kind}: OPTION 1 only in tile 1`);
+    // (9/10) each tile owns its CTA
+    assert.ok(within("testdrive-option-1", '[data-testid="download-practice"]'), `${kind}: tile 1 → Download Practice CSV`);
+    assert.ok(within("testdrive-option-2", '[data-testid="start-testdrive"]'), `${kind}: tile 2 → Start Test Drive`);
+    // (11) internal OR between the two tiles, positioned after tile 1 and before tile 2
+    const children = [...td.children];
+    const i1 = children.indexOf(tiles[0]), iOr = children.findIndex((c) => c.getAttribute && c.getAttribute("data-testid") === "testdrive-or"), i2 = children.indexOf(tiles[1]);
+    assert.ok(i1 >= 0 && iOr > i1 && i2 > iOr, `${kind}: OPTION1 → OR → OPTION2 order`);
+    assert.equal(tid("testdrive-or").textContent.trim(), "OR");
+  }
+});
+test("Test Drive OPTION 1 downloads only (no load / no navigate / no API); OPTION 2 loads the review (zero mutation)", async () => {
+  // OPTION 1 — download only
+  await mountWizard(); await goIndividual("professional");
+  window.URL.createObjectURL = () => "blob:stub"; window.URL.revokeObjectURL = () => {};
+  await act(async () => fireClick(within("testdrive-option-1", '[data-testid="download-practice"]')));
+  await flush();
+  assert.equal(tid("confirm-screen"), null, "OPTION 1 did NOT navigate to the review");
+  assert.ok(tid("testdrive-option-1"), "still on the upload options screen");
+  assert.equal(globalThis.__lastImport, undefined, "OPTION 1 made no import API call");
+  assert.equal(globalThis.__nav, undefined, "OPTION 1 did not navigate to prod");
+  // OPTION 2 — load fictional data → review, zero mutation
+  await mountWizard(); await goIndividual("professional");
+  await act(async () => fireClick(within("testdrive-option-2", '[data-testid="start-testdrive"]')));
+  await flush();
+  assert.ok(tid("confirm-screen"), "OPTION 2 loaded the Test Drive review");
+  assert.match(txt(), /Preview your practice contacts/);
+  assert.equal(globalThis.__lastImport, undefined, "OPTION 2 made no import API call");
+  assert.equal(globalThis.__nav, undefined, "OPTION 2 made no navigation to prod");
+});
+
 test("Personal Test Drive loads the CATEGORY dataset (Family names differ from Friends)", async () => {
   await mountWizard(); await goIndividual("family");
   await act(async () => fireClick(tid("start-testdrive")));

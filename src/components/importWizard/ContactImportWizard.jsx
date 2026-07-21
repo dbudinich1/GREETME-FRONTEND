@@ -445,9 +445,8 @@ export default function ContactImportWizard() {
               <button data-testid="change-group" style={{ ...btn("transparent", "#4a3fb0"), padding: "4px 10px", fontSize: ".78rem" }} onClick={changeGroup}>Change</button>
             </div>
           )}
-          {/* FIRST STACKED SECTION — OPTION 1: upload your own CSV */}
+          {/* NORMAL UPLOAD — unnumbered. Blank templates stay associated with normal upload. */}
           <section className="gmiw-upsec" data-testid="upload-section">
-            <span className="gmiw-optlabel" data-testid="option-1-label">OPTION 1</span>
             <h3>Upload your contacts</h3>
             <p>Choose your own CSV file. Only a name and valid email are required. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future.</p>
             <label className="gmiw-choose" data-testid="choose-csv">
@@ -464,20 +463,27 @@ export default function ContactImportWizard() {
               </div>
             </div>
           </section>
-          {/* CENTERED DIVIDER — visual text, not an interactive control */}
+          {/* PAGE-LEVEL DIVIDER between normal upload and Safe practice mode — non-interactive text */}
           <div className="gmiw-or" data-testid="upload-or"><span>OR</span></div>
-          {/* SECOND STACKED SECTION — OPTION 2: Safe practice mode / Test Drive */}
+          {/* SAFE PRACTICE MODE — unnumbered intro, then TWO numbered choice tiles inside the container */}
           <section className="gmiw-upsec gmiw-practice" data-testid="testdrive-section">
-            <span className="gmiw-optlabel" data-testid="option-2-label">OPTION 2</span>
             <span className="gmiw-badge">Safe practice mode</span>
             <h3>Test Drive the Import Wizard</h3>
             <p>See the complete import process using fictional contacts. Nothing will be saved or sent.</p>
-            <ul>
-              <li>Download the Practice CSV and upload it yourself.</li>
-              <li>Start test drive instantly with the Practice CSV already loaded.</li>
-            </ul>
-            <div className="gmiw-practice-cta">
+            {/* OPTION 1 tile — download only (no load, no navigate, no API) */}
+            <div className="gmiw-tdtile" data-testid="testdrive-option-1">
+              <span className="gmiw-optlabel" data-testid="td-option-1-label">OPTION 1</span>
+              <h4>Download and upload the Practice CSV</h4>
+              <p>Download the Practice CSV, review or complete it, then upload it yourself to experience the complete import process.</p>
               <button data-testid="download-practice" style={btn("transparent", "#1b1830")} onClick={() => downloadSampleCsv(templateKind)}>Download Practice CSV</button>
+            </div>
+            {/* INTERNAL divider between the two Test Drive choice tiles */}
+            <div className="gmiw-or gmiw-or--inner" data-testid="testdrive-or"><span>OR</span></div>
+            {/* OPTION 2 tile — load fictional data → Test Drive review (zero mutation) */}
+            <div className="gmiw-tdtile" data-testid="testdrive-option-2">
+              <span className="gmiw-optlabel" data-testid="td-option-2-label">OPTION 2</span>
+              <h4>Start the Test Drive instantly</h4>
+              <p>Start with the Practice CSV already loaded and proceed directly to the Test Drive review.</p>
               <button data-testid="start-testdrive" style={btn(PURPLE)} onClick={() => trySample(templateKind)}>Start Test Drive</button>
             </div>
           </section>
@@ -588,6 +594,14 @@ function PremiumStyles() {
       .gmiw-practice ul{ margin:2px 0 0; padding-left:18px; color:#5a5170; font-size:.86rem; line-height:1.5; display:grid; gap:4px; }
       .gmiw-practice li{ max-width:100%; overflow-wrap:anywhere; }
       .gmiw-practice-cta{ display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
+      /* Two numbered Test Drive choice tiles inside the practice container (stacked, each self-contained) */
+      .gmiw-tdtile{ box-sizing:border-box; width:100%; min-width:0; display:grid; gap:7px; border:1px solid #e3d4f0; border-radius:12px;
+        padding:16px 18px; background:rgba(255,255,255,.72); }
+      .gmiw-tdtile h4{ margin:0; font-family:Georgia,'Times New Roman',serif; font-weight:600; font-size:1.05rem; color:#332a52; text-wrap:balance; max-width:100%; overflow-wrap:anywhere; }
+      .gmiw-tdtile p{ margin:0; color:#5a5170; font-size:.86rem; line-height:1.5; max-width:60ch; overflow-wrap:anywhere; }
+      .gmiw-tdtile button{ justify-self:start; max-width:100%; overflow-wrap:anywhere; margin-top:3px; }
+      .gmiw-or--inner{ margin:2px 0; font-size:.72rem; }
+      @media (max-width:640px){ .gmiw-tdtile button{ width:100%; } }
       .gmiw-template{ margin-top:14px; padding-top:14px; border-top:1px dashed rgba(27,24,48,.15); display:grid; gap:8px; min-width:0; }
       .gmiw-template h4{ margin:0; font-family:Georgia,'Times New Roman',serif; font-weight:600; font-size:1rem; color:#332a52; max-width:100%; overflow-wrap:anywhere; }
       .gmiw-template p{ margin:0; }

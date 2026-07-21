@@ -383,23 +383,30 @@ test("upload screen reflects the chosen category with canonical '...Contacts' he
   assert.equal((WIZ.match(/activeGroupMeta\.uploadHeading/g) || []).length, 1);
   assert.match(WIZ, /activeGroupMeta && \(/);
 });
-test("Structured Upload Options: OPTION 1 / OPTION 2 labels, OR divider, and Safe practice mode / Test Drive", () => {
-  // OPTION labels (subordinate to the section headings) on both options
-  assert.match(WIZ, /option-1-label[^>]*>OPTION 1/);
-  assert.match(WIZ, /option-2-label[^>]*>OPTION 2/);
+test("Upload Options: unnumbered Upload/Test-Drive sections; numbering ONLY inside two Test Drive tiles", () => {
+  // Normal Upload + Safe practice mode headings carry NO parent OPTION label (numbering moved into the
+  // Test Drive tiles, whose testids are td-option-N-label — distinct from the old parent option-N-label).
+  assert.ok(!/"option-1-label"/.test(WIZ), "no parent OPTION 1 label on the Upload section");
+  assert.ok(!/"option-2-label"/.test(WIZ), "no parent OPTION 2 label on the Test Drive section");
   assert.match(WIZ, /Upload your contacts/);
-  // exact revised Option 1 copy ("as needed", editable now + in the future)
   assert.match(WIZ, /Choose your own CSV file\. Only a name and valid email are required\. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future\./);
   assert.ok(!/as need be/.test(WIZ), "uses 'as needed', not 'as need be'");
-  assert.ok(!/you can review everything before importing\./.test(WIZ), "old Option 1 copy replaced");
   assert.match(WIZ, /choose-csv/);
-  assert.match(WIZ, />\s*Choose a CSV file/);
-  assert.match(WIZ, /data-testid="upload-or"><span>OR<\/span>/);      // centered divider, non-interactive text
+  assert.match(WIZ, /data-testid="upload-or"><span>OR<\/span>/);      // page-level divider between upload and practice
   assert.match(WIZ, /Safe practice mode/);
   assert.match(WIZ, /Test Drive the Import Wizard/);
   assert.match(WIZ, /See the complete import process using fictional contacts\. Nothing will be saved or sent\./);
-  assert.match(WIZ, /Download the Practice CSV and upload it yourself\./);
-  assert.match(WIZ, /Start test drive instantly with the Practice CSV already loaded\./);
+  // the old bullet list is GONE
+  assert.ok(!/Download the Practice CSV and upload it yourself\./.test(WIZ), "old bullet 1 removed");
+  assert.ok(!/Start test drive instantly with the Practice CSV already loaded\./.test(WIZ), "old bullet 2 removed");
+  assert.ok(!/<ul>[\s\S]*?Practice CSV[\s\S]*?<\/ul>/.test(WIZ), "no Practice-CSV bullet list");
+  // TWO numbered Test Drive choice tiles inside the practice container, with an internal OR between them
+  assert.match(WIZ, /testdrive-option-1[\s\S]*?td-option-1-label[^>]*>OPTION 1[\s\S]*?Download and upload the Practice CSV[\s\S]*?Download Practice CSV/);
+  assert.match(WIZ, /testdrive-or"><span>OR<\/span>/);
+  assert.match(WIZ, /testdrive-option-2[\s\S]*?td-option-2-label[^>]*>OPTION 2[\s\S]*?Start the Test Drive instantly[\s\S]*?Start Test Drive/);
+  // OPTION 1 appears only in tile 1, OPTION 2 only in tile 2 (single occurrence each)
+  assert.equal((WIZ.match(/>OPTION 1</g) || []).length, 1);
+  assert.equal((WIZ.match(/>OPTION 2</g) || []).length, 1);
   assert.match(WIZ, /Download Practice CSV/);
   assert.match(WIZ, /Start Test Drive/);
   // old sample-language is gone from the upload/practice surface (Practice CSV used consistently)

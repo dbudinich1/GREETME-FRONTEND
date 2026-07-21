@@ -267,3 +267,18 @@ test("Family recommended default applies canonical Family Member", async ({ page
   await page.locator(".gmiw-underlay").screenshot({ path: join(SHOTS, "family-defaults-applied.jpg"), type: "jpeg", quality: 62 });
   await expect(page.locator("body")).toContainText("Family Member");
 });
+
+// ---- Test Drive container close-up: unnumbered intro → OPTION 1 tile → internal OR → OPTION 2 tile ----
+for (const [nav, kind, panel] of [["p", "family", "panel-family"], ["b", "employee", "panel-employee"]]) {
+  test(`Test Drive two-tile close-up (${kind})`, async ({ page }) => {
+    await mount(page, 1120);
+    await page.click(nav === "p" ? '[data-testid="panel-personal"]' : '[data-testid="panel-business"]');
+    await page.click(`[data-testid="${panel}"]`);
+    await page.waitForSelector('[data-testid="testdrive-section"]');
+    await page.locator('[data-testid="testdrive-section"]').screenshot({ path: join(SHOTS, `testdrive-container-${kind}.jpg`), type: "jpeg", quality: 70 });
+    await expect(page.locator('[data-testid="testdrive-option-1"]')).toContainText("Download and upload the Practice CSV");
+    await expect(page.locator('[data-testid="testdrive-option-2"]')).toContainText("Start the Test Drive instantly");
+    // OPTION labels are NOT on the parent Upload section
+    await expect(page.locator('[data-testid="upload-section"]')).not.toContainText("OPTION");
+  });
+}

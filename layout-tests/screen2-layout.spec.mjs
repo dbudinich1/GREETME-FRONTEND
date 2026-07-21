@@ -340,45 +340,51 @@ function pageOptions(css, wrap) {
       <div class="gmiw-underlay" id="underlay"><div class="gmiw-surface">
         <div class="gmiw-upload" id="upload">
           <section class="gmiw-upsec" id="sec1">
-            <span class="gmiw-optlabel" id="opt1">OPTION 1</span>
             <h3 id="h1">Upload your contacts</h3>
             <p>Choose your own CSV file. Only a name and valid email are required. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future.</p>
             <label class="gmiw-choose">Choose a CSV file</label>
           </section>
           <div class="gmiw-or" id="ordiv"><span>OR</span></div>
           <section class="gmiw-upsec gmiw-practice" id="sec2">
-            <span class="gmiw-optlabel" id="opt2">OPTION 2</span>
             <span class="gmiw-badge">Safe practice mode</span>
             <h3 id="h2">Test Drive the Import Wizard</h3>
             <p>See the complete import process using fictional contacts. Nothing will be saved or sent.</p>
+            <div class="gmiw-tdtile" id="t1"><span class="gmiw-optlabel" id="opt1">OPTION 1</span><h4>Download and upload the Practice CSV</h4><p>Download the Practice CSV, review or complete it, then upload it yourself to experience the complete import process.</p><button style="padding:10px 16px">Download Practice CSV</button></div>
+            <div class="gmiw-or gmiw-or--inner" id="innor"><span>OR</span></div>
+            <div class="gmiw-tdtile" id="t2"><span class="gmiw-optlabel" id="opt2">OPTION 2</span><h4>Start the Test Drive instantly</h4><p>Start with the Practice CSV already loaded and proceed directly to the Test Drive review.</p><button style="padding:10px 16px">Start Test Drive</button></div>
           </section>
         </div>
       </div></div>
     </div></body></html>`;
 }
-test("OPTION 1/OPTION 2 labels render, stay subordinate to headings, and remain contained (desktop/mobile/narrow)", async ({ page }) => {
-  for (const [tag, vp, wrap] of [["desktop", 1200, "max-width:900px"], ["mobile", 390, "max-width:900px"], ["narrow", 1360, "width:360px"]]) {
-    await page.setViewportSize({ width: vp, height: 1000 });
+test("Test Drive two-tile structure: numbered tiles inside the practice container, internal OR, contained (desktop/mobile/narrow)", async ({ page }) => {
+  for (const [tag, vp, wrap] of [["desktop", 1200, "max-width:900px"], ["mobile", 390, "max-width:900px"], ["narrow", 1360, "width:340px"]]) {
+    await page.setViewportSize({ width: vp, height: 1100 });
     await page.setContent(pageOptions(CSS_AFTER, wrap));
     const m = await page.evaluate(() => {
-      const u = document.getElementById("underlay").getBoundingClientRect();
-      const fs = (id) => parseFloat(getComputedStyle(document.getElementById(id)).fontSize);
       const t = (id) => document.getElementById(id).innerText.trim();
       const r = (id) => document.getElementById(id).getBoundingClientRect();
+      const sw = (id) => { const e = document.getElementById(id); return e.scrollWidth <= e.clientWidth + 1; };
+      const sec2 = r("sec2");
       return { over: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-        uL: u.left, uR: u.right, opt1: t("opt1"), opt2: t("opt2"), orText: t("ordiv"),
-        opt1Fs: fs("opt1"), h1Fs: fs("h1"), opt2Fs: fs("opt2"), h2Fs: fs("h2"),
-        s1R: r("sec1").right, s2R: r("sec2").right, s2Top: r("sec2").top, s1Bottom: r("sec1").bottom };
+        opt1: t("opt1"), opt2: t("opt2"), innor: t("innor"),
+        sec1HasOpt: /OPTION\s*[12]/.test(document.getElementById("sec1").innerText),
+        t1: r("t1"), t2: r("t2"), innorTop: r("innor").top, sec2, t1Fit: sw("t1"), t2Fit: sw("t2"),
+        badgeBottom: document.querySelector("#sec2 .gmiw-badge").getBoundingClientRect().bottom };
     });
     await page.locator("#underlay").screenshot({ path: join(SHOTS, `options-labeled-${tag}.jpg`), type: "jpeg", quality: 60 });
     expect(m.over, `no horizontal scroll ${tag}`).toBeLessThanOrEqual(1);
-    expect(m.opt1, `OPTION 1 label ${tag}`).toBe("OPTION 1");
-    expect(m.opt2, `OPTION 2 label ${tag}`).toBe("OPTION 2");
-    expect(m.orText, `OR divider ${tag}`).toBe("OR");
-    expect(m.opt1Fs, `OPTION 1 subordinate to heading ${tag}`).toBeLessThan(m.h1Fs);
-    expect(m.opt2Fs, `OPTION 2 subordinate to heading ${tag}`).toBeLessThan(m.h2Fs);
-    expect(m.s1R, `section 1 in underlay ${tag}`).toBeLessThanOrEqual(m.uR + 0.5);
-    expect(m.s2R, `section 2 in underlay ${tag}`).toBeLessThanOrEqual(m.uR + 0.5);
-    expect(m.s2Top, `sections stacked ${tag}`).toBeGreaterThanOrEqual(m.s1Bottom - 0.5);
+    expect(m.sec1HasOpt, `Upload section has NO OPTION label ${tag}`).toBe(false);
+    expect(m.opt1, `tile 1 OPTION 1 ${tag}`).toBe("OPTION 1");
+    expect(m.opt2, `tile 2 OPTION 2 ${tag}`).toBe("OPTION 2");
+    expect(m.innor, `internal OR ${tag}`).toBe("OR");
+    // both tiles inside the practice container, stacked, with the internal OR between them
+    expect(m.t1.left, `tile1 in container L ${tag}`).toBeGreaterThanOrEqual(m.sec2.left - 0.5);
+    expect(m.t1.right, `tile1 in container R ${tag}`).toBeLessThanOrEqual(m.sec2.right + 0.5);
+    expect(m.t2.right, `tile2 in container R ${tag}`).toBeLessThanOrEqual(m.sec2.right + 0.5);
+    expect(m.t1.top, `tile1 below the intro ${tag}`).toBeGreaterThanOrEqual(m.badgeBottom - 0.5);
+    expect(m.innorTop, `OR below tile1 ${tag}`).toBeGreaterThanOrEqual(m.t1.bottom - 0.5);
+    expect(m.t2.top, `tile2 below OR ${tag}`).toBeGreaterThanOrEqual(m.innorTop - 0.5);
+    expect(m.t1Fit && m.t2Fit, `tiles have no text overflow ${tag}`).toBe(true);
   }
 });
