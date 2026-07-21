@@ -1,8 +1,12 @@
 // src/pages/Contacts.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Plus, Upload, Search, Edit, Trash2, ArrowLeft, Users, Calendar, Gift, Clock, Send } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from "../api/api";
+import RecipientsPracticeView from '../components/RecipientsPracticeView';
+import { readPracticeView, clearSampleWorkspace } from '../import/sampleWorkspace.js';
+import { showManualToast } from '../utils/notify';
+import { COMMS_CATEGORIES } from '../utils/commsCatalog';
 import Modal from '../components/Modal';
 import ContactForm from '../components/ContactForm';
 import CSVImport from '../components/CSVImport';
@@ -90,6 +94,17 @@ const OCCASION_CATEGORIES = [
 export default function Recipients() {
   const navigate = useNavigate();
   const location = useLocation();
+  // Recipients PRACTICE VIEW (fail-closed): render session-scoped Test Drive contacts in the normal
+  // layout ONLY when the explicit marker is present AND a valid current-session workspace exists.
+  const practiceMarker = new URLSearchParams(location.search || '').get('practice') === '1';
+  const practiceView = useMemo(() => (practiceMarker ? readPracticeView() : { status: 'none', contacts: [] }), [practiceMarker]);
+  const practiceActive = practiceMarker && (practiceView.status === 'active' || practiceView.status === 'empty');
+  const exitPractice = () => {
+    clearSampleWorkspace();                                   // deterministic cleanup; never a production delete
+    try { showManualToast('Test Drive ended', 'Test Drive ended. Practice contacts were removed. Your real recipients were not changed.', COMMS_CATEGORIES.PROFILE); } catch { /* ignore */ }
+    navigate('/dashboard/contacts', { replace: true });      // drop the practice=1 marker; Back cannot restore cleared data
+  };
+  const returnToWizardFromPractice = () => navigate('/dashboard/import-wizard');
   const [recipients, setRecipients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -135,6 +150,7 @@ export default function Recipients() {
   }, []);
 
   useEffect(() => {
+    if (practiceActive) return;               // Practice View never fetches production recipients
     fetchRecipients();
 
     // Check if there's a saved form draft
@@ -340,6 +356,12 @@ export default function Recipients() {
     contact.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // PRACTICE VIEW — render the session-scoped Test Drive contacts in the normal layout, in place of the
+  // ordinary Recipients page. Genuine recipients are never fetched or shown here (fail-closed above).
+  if (practiceActive) {
+    return <RecipientsPracticeView status={practiceView.status} contacts={practiceView.contacts} onExit={exitPractice} onReturnToWizard={returnToWizardFromPractice} isMobile={isMobile} />;
+  }
 
   if (loading) {
     return <LoadingSpinner text="Loading recipients..." />;

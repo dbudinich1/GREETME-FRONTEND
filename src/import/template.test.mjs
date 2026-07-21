@@ -125,9 +125,12 @@ test("XLSX Contacts sheet is header-only (no fake contact rows); correct filenam
     assert.equal(rows.length, 1, `${k}: only the header row on Contacts`);
     const headers = [...files["xl/worksheets/sheet1.xml"].matchAll(/<t[^>]*>([^<]*)<\/t>/g)].map((m) => m[1]);
     assert.deepEqual(headers, FINAL_HEADERS, `${k}: XLSX headers`);
-    assert.equal(templateFileBase(k), `greetme-${k}-contacts-template`);
+    assert.equal(templateFileBase(k), `greetme-${k}-contacts-template-v2`);   // V2 filename
     assert.match(files["docProps/core.xml"], new RegExp(`<dc:title>${esc(templateTitle(k))}</dc:title>`));
+    assert.match(files["docProps/core.xml"], /<cp:version>2<\/cp:version>/);   // version in neutral metadata
     assert.match(files["xl/worksheets/sheet2.xml"], new RegExp(esc(templateTitle(k))));   // Instructions carries the title
+    assert.match(files["xl/worksheets/sheet2.xml"], /Template version: 2/);    // version visible on Instructions
+    assert.match(files["xl/worksheets/sheet2.xml"], /The Relation dropdown will remain unavailable or empty until Type is selected/);   // dropdown guidance
   }
 });
 

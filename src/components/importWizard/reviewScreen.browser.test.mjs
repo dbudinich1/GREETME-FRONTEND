@@ -267,8 +267,8 @@ test("each Business selection → Business Upload Options (canonical heading, st
   }
 });
 
-test("Business Test Drive is ZERO mutation and applies only the canonical recipientType", async () => {
-  for (const [kind, typeLabel] of [["employee", "Employee"], ["client", "Client"], ["vendor", "Vendor"]]) {
+test("Business Test Drive is ZERO mutation; primary CTA opens the Recipients Practice View (no backend write)", async () => {
+  for (const kind of ["employee", "client", "vendor"]) {
     await mountWizard();
     globalThis.__importContacts = (c) => ({ data: { imported: c.length, failed: 0, errors: [] } });
     await goBusiness(kind);
@@ -276,13 +276,16 @@ test("Business Test Drive is ZERO mutation and applies only the canonical recipi
     await flush();
     assert.ok(tid("confirm-screen"), `${kind} test drive opens the preview`);
     assert.match(txt(), /Preview your practice contacts/);
-    assert.match(tid("add-cta").textContent, /View \d+ practice recipient/);
-    await act(async () => fireClick(tid("add-cta")));
+    // primary CTA → Recipients Practice View (explicit marker), persists the session workspace only
+    assert.ok(tid("view-practice-recipients"), `${kind} has the Practice View CTA`);
+    assert.match(txt(), /See how the fictional contacts will look in your Recipients page/);
+    await act(async () => fireClick(tid("view-practice-recipients")));
     await flush();
-    assert.match(txt(), /Practice Recipients/);
-    assert.match(txt(), new RegExp(typeLabel), `${kind} shows its canonical type`);
+    assert.equal(globalThis.__nav, "/dashboard/contacts?practice=1", `${kind} navigates to Recipients Practice View`);
     assert.equal(globalThis.__lastImport, undefined, `${kind} test drive made NO import API call`);
-    assert.equal(globalThis.__nav, undefined, `${kind} test drive never navigated to prod`);
+    // the fictional contacts were persisted to the session-scoped workspace (never a backend write)
+    const raw = window.sessionStorage.getItem("greetme_sample_workspace");
+    assert.ok(raw && JSON.parse(raw).contacts.length > 0, `${kind} practice workspace persisted`);
   }
 });
 

@@ -101,3 +101,25 @@ export function clearSampleWorkspace() {
   const ss = _ss(); if (!ss) return;
   try { ss.removeItem(SAMPLE_STORAGE_KEY); } catch { /* ignore */ }
 }
+
+// ---- Recipients Practice View (fail-closed entry decision). Pure resolver + a thin sessionStorage reader.
+// status:
+//   "none"    — no practice workspace stored → ignore the marker, render the normal Recipients page
+//   "cleared" — malformed / discriminator mismatch → storage cleared, render the normal page (fail closed)
+//   "empty"   — a valid workspace with zero contacts → the "no practice contacts" empty state
+//   "active"  — a valid workspace with ≥1 contact → render Practice View with these contacts
+export function resolvePracticeView(rawJson, currentSid) {
+  if (rawJson == null || rawJson === "") return { status: "none", contacts: [] };
+  const { contacts, cleared } = reconcileSampleRaw(rawJson, currentSid);
+  if (cleared) return { status: "cleared", contacts: [] };
+  return { status: contacts.length ? "active" : "empty", contacts, kind: sampleKindFromRaw(rawJson) };
+}
+// Read + fail-close: returns the resolved practice view, and PURGES storage on a "cleared" (mismatch/
+// malformed) outcome so stale/foreign practice data can never be shown. Never throws.
+export function readPracticeView() {
+  const ss = _ss(); if (!ss) return { status: "none", contacts: [] };
+  let raw = null; try { raw = ss.getItem(SAMPLE_STORAGE_KEY); } catch { return { status: "none", contacts: [] }; }
+  const res = resolvePracticeView(raw, sessionDiscriminator());
+  if (res.status === "cleared") { try { ss.removeItem(SAMPLE_STORAGE_KEY); } catch { /* ignore */ } }
+  return res;
+}

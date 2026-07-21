@@ -13,7 +13,7 @@
 // NO remote images. Header text is plain words. STORE zip method (no compression).
 
 import { templateColumns, templateHeaders, templateInstructions, templateTitle, isBusinessTemplateKind,
-  TYPE_OPTIONS, DESCRIPTION_OPTIONS, RELATION_OPTIONS_BY_TYPE } from "./templateModel.js";
+  TYPE_OPTIONS, DESCRIPTION_OPTIONS, RELATION_OPTIONS_BY_TYPE, TEMPLATE_VERSION } from "./templateModel.js";
 
 const MAIN = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 const REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -89,7 +89,9 @@ function coreProps(kind) {
     `<dc:creator>Greet-Me</dc:creator>` +
     `<cp:lastModifiedBy>Greet-Me</cp:lastModifiedBy>` +
     `<dc:title>${xml(templateTitle(kind))}</dc:title>` +
-    `<dc:description>Blank Greet-Me contact import template</dc:description>` +
+    `<dc:description>Blank Greet-Me contact import template (Version ${TEMPLATE_VERSION})</dc:description>` +
+    `<cp:keywords>Greet-Me template v${TEMPLATE_VERSION}</cp:keywords>` +
+    `<cp:version>${TEMPLATE_VERSION}</cp:version>` +
     `</cp:coreProperties>`;
 }
 function appProps() {
@@ -161,8 +163,8 @@ function contactsSheet(kind) {
     dataValidations(kind) +
     `</worksheet>`;
 }
-function instructionsSheet(kind) {
-  const blocks = templateInstructions(kind);
+function instructionsSheet(kind, opts) {
+  const blocks = templateInstructions(kind, opts);
   const rows = [];
   let r = 1;
   for (const b of blocks) {
@@ -206,7 +208,7 @@ function listsSheet() {
 }
 
 // The ordered set of package parts (name → UTF-8 xml text). Exported for structural testing.
-export function buildXlsxParts(kind) {
+export function buildXlsxParts(kind, opts) {
   return {
     "[Content_Types].xml": contentTypes(),
     "_rels/.rels": rootRels(),
@@ -216,7 +218,7 @@ export function buildXlsxParts(kind) {
     "xl/_rels/workbook.xml.rels": workbookRels(),
     "xl/styles.xml": styles(),
     "xl/worksheets/sheet1.xml": contactsSheet(kind),
-    "xl/worksheets/sheet2.xml": instructionsSheet(kind),
+    "xl/worksheets/sheet2.xml": instructionsSheet(kind, opts),
     "xl/worksheets/sheet3.xml": listsSheet(),
   };
 }
@@ -270,6 +272,6 @@ export function zipStore(files) {
   return out;
 }
 
-export function templateXlsx(kind) { return zipStore(buildXlsxParts(kind)); }
+export function templateXlsx(kind, opts) { return zipStore(buildXlsxParts(kind, opts)); }
 export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 export { isBusinessTemplateKind, templateHeaders };

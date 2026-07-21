@@ -3,8 +3,43 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   SAMPLE_DATASET, sampleColumnsFor, sampleCsvFor, sampleContactsFor,
-  reconcileSampleRaw, serializeSample, sessionDiscriminator,
+  reconcileSampleRaw, serializeSample, sessionDiscriminator, resolvePracticeView,
 } from "./sampleWorkspace.js";
+
+// ---- Recipients Practice View fail-closed resolver ----
+const SID = "u:USER_A:1000";
+const wsWith = (contacts, sid = SID) => serializeSample(contacts, sid, "individual");
+test("practice view: valid matching workspace with contacts → active", () => {
+  const r = resolvePracticeView(wsWith([{ name: "Ada", email: "ada@example.com" }]), SID);
+  assert.equal(r.status, "active");
+  assert.equal(r.contacts.length, 1);
+});
+test("practice view: valid matching workspace with zero contacts → empty", () => {
+  assert.equal(resolvePracticeView(wsWith([]), SID).status, "empty");
+});
+test("practice view: no workspace → none (marker ignored, normal Recipients)", () => {
+  assert.equal(resolvePracticeView(null, SID).status, "none");
+  assert.equal(resolvePracticeView("", SID).status, "none");
+});
+test("practice view: different user subject → cleared (fail closed)", () => {
+  assert.equal(resolvePracticeView(wsWith([{ email: "a@example.com" }], "u:USER_A:1000"), "u:USER_B:1000").status, "cleared");
+});
+test("practice view: different issued-at session → cleared", () => {
+  assert.equal(resolvePracticeView(wsWith([{ email: "a@example.com" }], "u:USER_A:1000"), "u:USER_A:2000").status, "cleared");
+});
+test("practice view: anonymous session → cleared (never renders an authenticated sample under anon)", () => {
+  assert.equal(resolvePracticeView(wsWith([{ email: "a@example.com" }], "u:USER_A:1000"), "anon").status, "cleared");
+});
+test("practice view: malformed storage → cleared", () => {
+  assert.equal(resolvePracticeView("{not json", SID).status, "cleared");
+  assert.equal(resolvePracticeView(JSON.stringify({ nope: 1 }), SID).status, "cleared");
+});
+test("practice view: resolver never stores a token or token-derived secret", () => {
+  const raw = wsWith([{ email: "a@example.com" }]);
+  assert.ok(!/token/i.test(raw), "no token substring in the workspace");
+  const p = JSON.parse(raw);
+  assert.equal(p.sid, SID); assert.equal("token" in p, false);
+});
 
 test("sample templates are appropriate to the selected path", () => {
   // Universal List ("mixed") carries a Recipient Type column; single-type/individual do not.

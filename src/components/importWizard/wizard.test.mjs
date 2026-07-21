@@ -89,8 +89,9 @@ test("Individual two-screen flow: real primary 'Add X'; individual sample = term
   assert.match(WIZ, /returnToRecipients\(\);\s*\n\s*return;/);   // navigate then stop
   assert.ok(!/function ImportSummary/.test(WIZ), "dead Individual result screen removed");
   assert.ok(!/function ListActions/.test(WIZ), "dead ListActions removed");
-  // "View X practice recipients" survives ONLY for the Business practice path (terminal)
-  assert.match(WIZ, /View \{importCount\} practice recipient/);
+  // The Test Drive review's primary CTA opens the fictional contacts in the Recipients Practice View
+  assert.match(WIZ, /view-practice-recipients/);
+  assert.match(WIZ, /View Practice Contacts in Recipients/);
 });
 test("partial real import stays on the combined screen; added rows can't be re-submitted", () => {
   assert.match(WIZ, /setPartial\(/);
@@ -467,6 +468,22 @@ test("Review screen: OPT-IN recommended defaults notice with apply / review-indi
   assert.match(WIZ, /defaultsPath=\{templateKind\}/);
   // business recipientType is path-derived (no per-row spreadsheet override on the template surface)
   assert.ok(!/designation-differs/.test(WIZ), "per-row recipientType override removed from the template surface");
+});
+test("Test Drive → Recipients Practice View CTA (session-scoped, no backend write) + V2 template copy", () => {
+  // primary CTA + descriptive note on the Test Drive review
+  assert.match(WIZ, /View Practice Contacts in Recipients/);
+  assert.match(WIZ, /practice-cta-note/);
+  assert.match(WIZ, /See how the fictional contacts will look in your Recipients page\. They exist only during this Test Drive and will be automatically removed when you exit Test Drive or log out\./);
+  // the handler persists the session workspace and opens ?practice=1 — never api.importContacts / Cosmos
+  assert.match(WIZ, /const viewPracticeInRecipients = useCallback/);
+  assert.match(WIZ, /saveSampleWorkspace\(built, recipientKind \|\| "individual"\)/);
+  assert.match(WIZ, /navigate\("\/dashboard\/contacts\?practice=1"\)/);
+  const fn = (WIZ.match(/const viewPracticeInRecipients = useCallback\(\(\) => \{[\s\S]*?\}, \[sample/) || [""])[0];
+  assert.ok(fn.length > 0 && !/api\.importContacts|api\.createContact|api\.updateContact|api\.deleteContact/.test(fn), "practice CTA makes no production API call");
+  // V2 template UI: version note + CSV disclosure; download uses the V2 base + stamps a UTC date
+  assert.match(WIZ, /Version 2 — includes guided Type, Relation, and Description dropdowns in Excel\./);
+  assert.match(WIZ, /CSV templates contain the same columns but cannot include Excel dropdown controls or formatting\./);
+  assert.match(WIZ, /templateXlsx\(kind, \{ generatedUtc: new Date\(\)\.toISOString\(\)\.slice\(0, 10\) \}\)/);
 });
 test("Personal Professional stays Individual (recipientType blank) — never the Business Wizard", () => {
   // Professional group → pickMode(PERSONAL) (individual), so applyRecipientTypes/boundary keeps recipientType ""

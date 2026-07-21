@@ -252,8 +252,8 @@ export default function ContactImportWizard() {
   // it carries only headers, no fictional/production rows.
   const downloadTemplate = useCallback((kind, fmt) => {
     try {
-      const base = templateFileBase(kind);
-      if (fmt === "xlsx") triggerDownload(new Blob([templateXlsx(kind)], { type: XLSX_MIME }), `${base}.xlsx`);
+      const base = templateFileBase(kind);   // greetme-<kind>-contacts-template-v2
+      if (fmt === "xlsx") triggerDownload(new Blob([templateXlsx(kind, { generatedUtc: new Date().toISOString().slice(0, 10) })], { type: XLSX_MIME }), `${base}.xlsx`);
       else triggerDownload(new Blob([templateCsv(kind)], { type: "text/csv;charset=utf-8" }), `${base}.csv`);
     } catch { setError("Could not generate the template file."); }
   }, []);
@@ -269,6 +269,19 @@ export default function ContactImportWizard() {
     setSampleContacts(built); setRows(null); setPlan(null);
     setSummary({ sampleWorkspace: true, count: built.length });
   }, [sample, rows, reviewState, recipientKind]);
+
+  // "View Practice Contacts in Recipients" — persist the session-scoped practice workspace (NEVER a
+  // backend write) and open the Recipients page in explicit Practice View. No api.importContacts, no
+  // Cosmos write, and never the production list without the practice marker.
+  const viewPracticeInRecipients = useCallback(() => {
+    if (!sample) return;
+    try {
+      assertNoRealMix((rows || []).map((r) => r.contact));
+      const built = buildReviewPayload(rows, reviewState);
+      saveSampleWorkspace(built, recipientKind || "individual");
+      navigate("/dashboard/contacts?practice=1");
+    } catch (e) { setError(String(e && e.message)); }
+  }, [sample, rows, reviewState, recipientKind, navigate]);
 
   const commitCorporate = useCallback(() => {
     if (mode !== MODES.CORPORATE) return;
@@ -457,10 +470,12 @@ export default function ContactImportWizard() {
             <div className="gmiw-template" data-testid="template-block">
               <h4>Need a file to fill out?</h4>
               <p>Download a blank template with the right columns for this contact type, complete it, then upload it here.</p>
+              <p className="gmiw-tpl-note" data-testid="template-version-note">Version 2 — includes guided Type, Relation, and Description dropdowns in Excel.</p>
               <div className="gmiw-template-cta">
                 <button data-testid="download-excel-template" style={btn(PURPLE)} onClick={() => downloadTemplate(templateKind, "xlsx")}>Download Excel Template</button>
                 <button data-testid="download-csv-template" style={btn("transparent", "#1b1830")} onClick={() => downloadTemplate(templateKind, "csv")}>Download CSV Template</button>
               </div>
+              <p className="gmiw-tpl-note" data-testid="csv-disclosure">CSV templates contain the same columns but cannot include Excel dropdown controls or formatting.</p>
             </div>
           </section>
           {/* PAGE-LEVEL DIVIDER between normal upload and Safe practice mode — non-interactive text */}
@@ -497,7 +512,7 @@ export default function ContactImportWizard() {
           rows={rows} state={reviewState} setState={setReviewState}
           business={business} kindLabel={kindLabel} demo={sample} busy={busy}
           partial={partial} sampleActions={sampleActions} defaultsPath={templateKind}
-          onCommit={onCommit} onStartOver={startOver}
+          onCommit={onCommit} onStartOver={startOver} onViewPractice={viewPracticeInRecipients}
         />
       )}
     </Shell>
@@ -605,6 +620,7 @@ function PremiumStyles() {
       .gmiw-template{ margin-top:14px; padding-top:14px; border-top:1px dashed rgba(27,24,48,.15); display:grid; gap:8px; min-width:0; }
       .gmiw-template h4{ margin:0; font-family:Georgia,'Times New Roman',serif; font-weight:600; font-size:1rem; color:#332a52; max-width:100%; overflow-wrap:anywhere; }
       .gmiw-template p{ margin:0; }
+      .gmiw-tpl-note{ font-size:.78rem; color:#6b6580; }
       .gmiw-template-cta{ display:flex; gap:10px; flex-wrap:wrap; margin-top:2px; }
       /* Recommended safe-defaults notice on the Review screen */
       .gmiw-defaults{ box-sizing:border-box; width:100%; min-width:0; border:1px solid rgba(109,116,238,.35); background:rgba(109,116,238,.07); border-radius:12px; padding:14px 16px; display:grid; gap:6px; }
@@ -712,7 +728,7 @@ const linkBtn = { ...btn("transparent", "#4a3fb0"), padding: "4px 10px", fontSiz
 const PREVIEW_N = 6;          // small confirmation preview
 const DETAILS_BATCH = 25;     // optional-relationship editor page size
 
-export function ReviewScreen({ rows, state, setState, business, kindLabel, demo, busy, partial, sampleActions, defaultsPath, onCommit, onStartOver }) {
+export function ReviewScreen({ rows, state, setState, business, kindLabel, demo, busy, partial, sampleActions, defaultsPath, onCommit, onStartOver, onViewPractice }) {
   const review = buildReview(rows, state);
   const { buckets, counts, importCount, importEnabled } = review;
   const [view, setView] = useState("confirm");   // "confirm" | "details"
@@ -818,6 +834,14 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
         </div>
       )}
 
+      {/* Primary Test Drive CTA — view the fictional contacts in the normal Recipients page (Practice View) */}
+      {isSample && (
+        <div data-testid="practice-cta-block" style={{ ...card, borderColor: "rgba(214,145,16,.4)", background: "rgba(214,145,16,.06)", display: "grid", gap: 8 }}>
+          <button data-testid="view-practice-recipients" style={btn(PURPLE)} onClick={onViewPractice}>View Practice Contacts in Recipients</button>
+          <p data-testid="practice-cta-note" style={{ margin: 0, fontSize: ".8rem", color: "#7a5410", lineHeight: 1.5 }}>See how the fictional contacts will look in your Recipients page. They exist only during this Test Drive and will be automatically removed when you exit Test Drive or log out.</p>
+        </div>
+      )}
+
       {/* Actions */}
       <div style={{ ...rowStyle }}>
         <button data-testid="startover" style={btn("transparent", "#1b1830")} onClick={onStartOver}>Start over</button>
@@ -828,10 +852,10 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
               <button data-testid="sample-upload-own" style={btn("transparent", "#1b1830")} onClick={sampleActions.onUploadOwn}>Upload my own CSV</button>
               <button data-testid="sample-download" style={btn("transparent", "#1b1830")} onClick={sampleActions.onDownloadCsv}>Download Practice CSV</button>
               <button data-testid="sample-delete" style={btn("transparent", "#8a1f1f")} onClick={sampleActions.onDelete}>Delete practice contacts</button>
-              <button data-testid="sample-exit" style={btn(PURPLE)} onClick={sampleActions.onExit}>Exit Test Drive</button>
+              <button data-testid="sample-exit" style={btn("transparent", "#1b1830")} onClick={sampleActions.onExit}>Exit Test Drive</button>
             </>
           ) : isSample ? (
-            <button data-testid="add-cta" style={btn(PURPLE)} onClick={onCommit}>View {importCount} practice recipient{importCount === 1 ? "" : "s"}</button>
+            <button data-testid="sample-exit" style={btn("transparent", "#1b1830")} onClick={onStartOver}>Exit Test Drive</button>
           ) : (
             <button data-testid="add-cta" style={btn(PURPLE)} disabled={busy || !importEnabled} onClick={onCommit}>{busy ? "Adding…" : `Add ${importCount} contact${importCount === 1 ? "" : "s"}`}</button>
           )}
