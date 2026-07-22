@@ -26,12 +26,26 @@ test("user.id is never used as corporateOrganizationId (source)", () => {
 });
 
 // (2) Dormant 503 hides the surface + implies zero writes.
-test("dormant hides the surface and never fabricates an organization", () => {
+test("dormant renders a truthful stable state and never fabricates an organization", () => {
   const c = resolveOrganizationContext({ dormant: true });
   assert.equal(c.phase, "dormant");
   assert.equal(c.selectedOrgId, null);
-  assert.match(SURFACE, /ctx\.phase === "dormant"[\s\S]*?return null/); // hidden
+  // D1: the dormant/not-enrolled branch renders DormantNotice — NOT a blank content area (return null).
+  assert.match(SURFACE, /ctx\.phase === "dormant"[\s\S]*?return <DormantNotice/);
+  assert.ok(!/ctx\.phase === "dormant"[\s\S]*?return null/.test(SURFACE), "dormant must no longer return null");
   assert.equal(interpretCapability({ ok: false, dormant: true }).available, false);
+});
+
+// (2b) D1 — dormant state shows the exact approved F3 copy, makes zero writes, adds no CTA/link.
+test("D1 dormant state uses the exact approved copy and stays inert", () => {
+  const notice = (SURFACE.match(/function DormantNotice[\s\S]*?\n}/) || [""])[0];
+  assert.ok(notice, "DormantNotice component present");
+  assert.match(notice, /Corporate Campaign Dashboard/);
+  assert.match(notice, /Corporate campaign management is available to enrolled organizations\. Your account isn’t currently enrolled\./);
+  // Inert: no network client call, no write verb, no button/link/form/enrollment CTA in the dormant panel.
+  assert.ok(!/client\./.test(notice), "dormant panel makes no client/endpoint call");
+  // No interactive/actionable element (the approved copy legitimately contains the word "enrolled").
+  assert.ok(!/<button\b|<a\b|<form\b|href\s*=|onClick\s*=|createCampaign\s*\(/i.test(notice), "dormant panel adds no CTA/link/form");
 });
 
 // (3) Zero memberships → safe empty state; no org campaign request.

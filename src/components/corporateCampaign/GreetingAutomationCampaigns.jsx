@@ -24,6 +24,25 @@ function StatusPill({ label, kind }) {
   return <span style={{ fontSize: ".72rem", fontWeight: 700, color: c.fg, background: c.bg, border: `1px solid ${c.bd}`, borderRadius: 999, padding: "3px 10px" }}>{label}</span>;
 }
 
+// Dormant / not-enrolled state. Truthful graceful degradation (D1): when the corporate feature is
+// dormant or the account is not enrolled, render a stable, informative panel instead of a blank
+// content area. It makes ZERO writes and ZERO new endpoint calls, and adds no button, form, link,
+// enrollment flow, date promise, or access implication — it only tells the truth about the state.
+function DormantNotice() {
+  return (
+    <div style={{ maxWidth: 1080, margin: "0 auto" }} data-testid="corporate-campaign-dormant">
+      <div style={{ background: "#fffdf8", border: "1px solid #e7e0d4", borderRadius: 16, padding: "40px 32px", textAlign: "center" }}>
+        <h1 style={{ margin: "0 0 12px", fontSize: "1.4rem", fontWeight: 700, color: "#332a52" }} data-testid="corporate-campaign-dormant-heading">
+          Corporate Campaign Dashboard
+        </h1>
+        <p style={{ margin: 0, color: "#605c78", fontSize: ".98rem", lineHeight: 1.6, maxWidth: "52ch", marginLeft: "auto", marginRight: "auto" }} data-testid="corporate-campaign-dormant-body">
+          Corporate campaign management is available to enrolled organizations. Your account isn’t currently enrolled.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function Shell({ children }) {
   return (
     <div style={{ maxWidth: 1080, margin: "0 auto" }}>
@@ -103,8 +122,9 @@ export default function GreetingAutomationCampaigns() {
     if (res.ok) await loadCampaigns(effectiveOrgId);
   }
 
-  // Dormant (feature off) → surface hidden entirely, zero campaign writes.
-  if (ctx.phase === "dormant" || campaignDormant) return null;
+  // Dormant (feature off) or not-enrolled → truthful stable state (D1), zero campaign writes,
+  // zero new endpoint calls. Never a blank content area on the live launch surface.
+  if (ctx.phase === "dormant" || campaignDormant) return <DormantNotice />;
 
   if (selectedCampaignId && effectiveOrgId) {
     return (
