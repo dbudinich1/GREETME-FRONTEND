@@ -1,5 +1,7 @@
 // src/api/api.js
 
+import { runBudgetedImport } from "../import/importCore.js";
+
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 if (!API_BASE) console.error("VITE_API_BASE is missing — API calls will fail");
 
@@ -291,13 +293,22 @@ class ApiService {
     });
   }
 
-  // Bulk CSV import — atomic-intent endpoint. Whole-batch reject on plan limit;
-  // per-row validation + duplicate-email dedup. Resolves to { ok, data: { imported,
-  // failed, errors[] } } on 2xx; throws on 403 (RECIPIENT_LIMIT_REACHED) / 400 / 5xx.
+  // Bulk import — request-budgeted. Sends no request larger than the backend's 100-row cap and keeps
+  // the sequence inside the 5/hour limit (≤500 committable per hour), never changing or bypassing
+  // either server limit. Resolves to { ok:true, data: { imported, failed, errors[] } } on success or
+  // partial (per-row errors mark not-imported rows); resolves { ok:false, overBudget:true, ... } when a
+  // selection exceeds the hourly budget; and RE-THROWS the original error on a hard failure with zero
+  // imported (403 RECIPIENT_LIMIT_REACHED / 429 / 5xx / network) so callers keep their truthful banners.
   importContacts(contacts) {
-    return this.request("/api/contacts/import", {
-      method: "POST",
-      body: JSON.stringify({ contacts }),
+    const list = Array.isArray(contacts) ? contacts : [];
+    return runBudgetedImport(list, (batch) =>
+      this.request("/api/contacts/import", {
+        method: "POST",
+        body: JSON.stringify({ contacts: batch }),
+      }),
+    ).then((res) => {
+      if (res && res.hardFail) throw res.error;
+      return res;
     });
   }
 

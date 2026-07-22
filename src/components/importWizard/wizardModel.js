@@ -157,6 +157,21 @@ export function commitMessageForStatus(status) {
   return COMMIT_MESSAGES[status] || COMMIT_MESSAGES.generic;
 }
 
+// Maximum contacts committable in a single import within the server's request budget
+// (IMPORT_REQUEST_MAX × IMPORT_REQUEST_BUDGET). Mirrors importCore.IMPORT_MAX_COMMITTABLE; the
+// importBudgetOutcome test locks the two equal so they can never drift apart.
+export const IMPORT_MAX_COMMITTABLE = 500;
+
+// Truthful, actionable message when a selection exceeds the hourly import budget. States the limit,
+// the file's actual count, and the remedy (split into smaller files across separate hours). Never
+// implies a recipient cap and never a rate-limit exemption.
+export function overBudgetMessage(res = {}) {
+  const max = (res && res.max) || IMPORT_MAX_COMMITTABLE;
+  const requested = res && res.requested;
+  const lead = typeof requested === "number" ? `This file has ${requested} contacts. ` : "";
+  return `${lead}You can import up to ${max} contacts per hour. Please split it into files of ${max} or fewer and import them in separate hours.`;
+}
+
 // A response body is a recognized SUCCESSFUL import result only if it carries at least one of the
 // count/error fields the backend returns ({ imported | added | errors }). This rejects error
 // envelopes ({ok:false,...}) and empty/partial 2xx bodies ({}, {ok:true} with no data).
@@ -169,6 +184,10 @@ function isRecognizedResultsBody(body) {
 //   { status: "success", summary }   — recognized results body (any counts, incl. all-skipped)
 //   { status: "error",   message }   — fail closed for everything else
 export function classifyCommitOutcome(res) {
+  // Over-budget stop (no request was sent) → a specific, truthful limit message, never generic/success.
+  if (res && res.overBudget) {
+    return { status: "error", message: overBudgetMessage(res) };
+  }
   if (!res || res.ok === false) {
     return { status: "error", message: commitMessageForStatus(res && res.status) };
   }

@@ -41,6 +41,84 @@ export function checkRowCount(n) {
   return { ok: true };
 }
 
+// ---- Personal import request budget (mirrors the backend contacts-import limits) ----
+// The backend caps EACH POST /api/contacts/import at CONTACTS_IMPORT_MAX = 100 rows and rate-limits
+// the endpoint to 5 requests/hour/user+IP (rlContactsImport). A single import is therefore safely
+// committable only up to 100 × 5 = 500 contacts, sent as ≤5 sequential requests of ≤100 rows. We
+// NEVER change or bypass either server limit — we plan against them, send no request larger than the
+// per-request cap, keep the sequence inside the hourly budget, and fail closed with a truthful message
+// when a selection cannot be committed within that budget. No rate-limit exemption is created.
+export const IMPORT_REQUEST_MAX = 100;      // ≤ backend CONTACTS_IMPORT_MAX
+export const IMPORT_REQUEST_BUDGET = 5;     // ≤ backend rlContactsImport (5/hour)
+export const IMPORT_MAX_COMMITTABLE = IMPORT_REQUEST_MAX * IMPORT_REQUEST_BUDGET; // 500
+
+// Pure: can `count` be committed within the budget, and in how many ≤perRequest requests?
+export function planImportRequests(count, { perRequest = IMPORT_REQUEST_MAX, budget = IMPORT_REQUEST_BUDGET } = {}) {
+  const max = perRequest * budget;
+  const n = Math.max(0, Math.floor(Number(count) || 0));
+  if (n > max) return { ok: false, reason: "over_budget", max, perRequest, budget, requestsNeeded: Math.ceil(n / perRequest) };
+  return { ok: true, requestCount: Math.ceil(n / perRequest), perRequest, budget, max };
+}
+
+// Per-row reason for a not-imported contact when a batch fails AFTER a partial success — truthful and
+// status-specific so the wizard surfaces retryable (429) vs terminal (403) correctly.
+function importFailureReason(status) {
+  if (status === 429) return "Too many requests. Please wait and try again.";
+  if (status === 403) return "Recipient/import limit reached.";
+  if (status === 401) return "Your session expired. Please sign in again.";
+  return "Not imported — the server couldn't be reached. Please try again.";
+}
+
+// Orchestrate a budgeted personal import. `sendBatch(batch)` MUST call the existing import endpoint and
+// resolve to the backend body on 2xx, or throw Error{status[,code]} / resolve {ok:false,status} on
+// failure (the api.request contract). Behavior:
+//   • > IMPORT_MAX_COMMITTABLE selected → ZERO requests sent → { ok:false, overBudget:true, ... }.
+//   • ≤ 100 selected → exactly ONE request → identical to the pre-existing single-request behavior.
+//   • 101–500 → ≤5 sequential ≤100 requests, aggregating { imported, failed, errors }.
+//   • First batch fails before ANY import → { ok:false, hardFail:true, status, error } (caller re-throws
+//     → preserves the truthful 403/429/5xx/network banner; never a false success).
+//   • A later batch fails after ≥1 import → aggregated results body with a synthesized per-row error for
+//     every not-imported contact → the wizard shows a truthful PARTIAL and un-sent rows stay retryable.
+export async function runBudgetedImport(contacts = [], sendBatch, opts = {}) {
+  const perRequest = opts.perRequest ?? IMPORT_REQUEST_MAX;
+  const budget = opts.budget ?? IMPORT_REQUEST_BUDGET;
+  const list = Array.isArray(contacts) ? contacts : [];
+  const plan = planImportRequests(list.length, { perRequest, budget });
+  if (!plan.ok) {
+    // Stop BEFORE any request. Carry a non-zero `data.failed` so the legacy caller never reads it as
+    // an all-zero success; the wizard classifier surfaces the truthful over-budget message via overBudget.
+    return { ok: false, overBudget: true, max: plan.max, requested: list.length, data: { imported: 0, failed: list.length, errors: [] } };
+  }
+  const agg = { imported: 0, failed: 0, errors: [] };
+  for (let i = 0; i < list.length; i += perRequest) {
+    const batch = list.slice(i, i + perRequest);
+    let body = null, status = 0, caught = null;
+    try { body = await sendBatch(batch); }
+    catch (e) { caught = e; status = (e && e.status) || 0; body = null; }
+    if (body && body.ok === false) { status = body.status || 0; body = null; }
+
+    if (body == null) {
+      if (agg.imported === 0) {
+        // Nothing imported yet → preserve the throw contract; caller re-throws this exact error.
+        const error = caught || Object.assign(new Error(`HTTP ${status}`), { status });
+        return { ok: false, hardFail: true, status, error };
+      }
+      // Partial: this batch + every un-sent contact are not imported. Fail closed with a truthful,
+      // per-row reason so the wizard never shows those as added.
+      const remaining = list.slice(i);
+      const reason = importFailureReason(status);
+      for (const c of remaining) agg.errors.push({ contact: { email: (c && c.email) || "" }, error: reason });
+      agg.failed += remaining.length;
+      return { ok: true, data: { imported: agg.imported, failed: agg.failed, errors: agg.errors } };
+    }
+    const s = summarizeImport(body);
+    agg.imported += s.added;
+    agg.failed += s.failed;
+    if (Array.isArray(s.errors)) agg.errors.push(...s.errors);
+  }
+  return { ok: true, data: { imported: agg.imported, failed: agg.failed, errors: agg.errors } };
+}
+
 // Content-based spoof detection: XLSX (and any ZIP) begins with the local-file-header
 // signature "PK\x03\x04". A file claiming .csv whose BYTES are actually a zip/xlsx must NOT be
 // parsed as CSV — extension alone is never trusted.
