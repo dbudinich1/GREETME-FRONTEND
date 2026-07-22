@@ -41,6 +41,18 @@ export function checkRowCount(n) {
   return { ok: true };
 }
 
+// §4.1 — Per-import request cap. One import = exactly one POST /import; the wizard NEVER chunks,
+// splits, auto-retries, or re-submits. This client cap MIRRORS the backend per-request contact cap
+// (BACKEND routes/contactsRoutes.js: `const CONTACTS_IMPORT_MAX = 100`). A selection larger than
+// this is blocked BEFORE any request is sent (see api.importContacts). importBudget.test.mjs
+// documents the coupling; changing one without the other is a defect.
+export const IMPORT_REQUEST_MAX = 100;
+export function checkImportBudget(count) {
+  const n = Number(count) || 0;
+  if (n > IMPORT_REQUEST_MAX) return { ok: false, error: "over_import_cap", count: n, max: IMPORT_REQUEST_MAX };
+  return { ok: true, count: n, max: IMPORT_REQUEST_MAX };
+}
+
 // Content-based spoof detection: XLSX (and any ZIP) begins with the local-file-header
 // signature "PK\x03\x04". A file claiming .csv whose BYTES are actually a zip/xlsx must NOT be
 // parsed as CSV — extension alone is never trusted.

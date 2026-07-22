@@ -1,6 +1,9 @@
 // src/api/api.js
+import { IMPORT_REQUEST_MAX } from "../import/importCore.js";
 
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+// Guarded so the module is importable under `node --test` (where import.meta.env is undefined);
+// under Vite it resolves VITE_API_BASE exactly as before. Behavior in the browser is unchanged.
+const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) || '';
 if (!API_BASE) console.error("VITE_API_BASE is missing — API calls will fail");
 
 /**
@@ -293,12 +296,25 @@ class ApiService {
 
   // Bulk CSV import — atomic-intent endpoint. Whole-batch reject on plan limit;
   // per-row validation + duplicate-email dedup. Resolves to { ok, data: { imported,
-  // failed, errors[] } } on 2xx; throws on 403 (RECIPIENT_LIMIT_REACHED) / 400 / 5xx.
-  importContacts(contacts) {
-    return this.request("/api/contacts/import", {
-      method: "POST",
-      body: JSON.stringify({ contacts }),
-    });
+  // §4.1 Personal import commit. One import = EXACTLY one POST /api/contacts/import — never chunk,
+  // split, auto-retry, or re-submit. A selection over the per-import cap is BLOCKED before any
+  // request is sent (zero requests). Non-2xx (403/429/4xx/5xx, which request() throws) is
+  // normalized to a failure object that PRESERVES status + the rate-limit reset window, so the
+  // wizard renders a truthful failure and NEVER a "0 added"/success. Returns { ok:true, data:{
+  // imported, failed, errors[] } } on 2xx.
+  async importContacts(contacts) {
+    const list = Array.isArray(contacts) ? contacts : [];
+    if (list.length > IMPORT_REQUEST_MAX) {
+      return { ok: false, blocked: true, code: "IMPORT_OVER_CAP", count: list.length, max: IMPORT_REQUEST_MAX };
+    }
+    try {
+      return await this.request("/api/contacts/import", {
+        method: "POST",
+        body: JSON.stringify({ contacts: list }),
+      });
+    } catch (e) {
+      return { ok: false, status: e && e.status, code: e && e.code, retryAfter: e && e.retryAfter, error: String((e && e.message) || e) };
+    }
   }
 
   updateContact(contactId, contactData) {

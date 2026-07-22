@@ -157,6 +157,31 @@ export function commitMessageForStatus(status) {
   return COMMIT_MESSAGES[status] || COMMIT_MESSAGES.generic;
 }
 
+// §4.1 — the per-import contact cap (mirrors import/importCore.js IMPORT_REQUEST_MAX, itself
+// coupled to the backend CONTACTS_IMPORT_MAX) and the existing five-imports-per-hour limiter
+// (BACKEND middleware/rateLimiters.js rlContactsImport). Display constants only; enforcement lives
+// in api.importContacts. No limiter or cap is changed here.
+export const IMPORT_REQUEST_MAX_LABEL = 100;
+export const IMPORT_RATE_LIMIT_PER_HOUR = 5;
+
+// Over-cap copy (§4.1): states the per-import limit, the actual selected count, and the remedy —
+// split into files of 100 or fewer. The selection is never silently truncated.
+export function overCapMessage(count, max = IMPORT_REQUEST_MAX_LABEL) {
+  const n = Number(count) || 0;
+  return `You selected ${n} contacts, but each import is limited to ${max} at a time. Please split your list into files of ${max} or fewer and import each one.`;
+}
+
+// 429 copy (§4.1): a real rate-limit failure that NAMES the limit and the reset window.
+export function rateLimitMessage(retryAfterSeconds) {
+  const secs = Number(retryAfterSeconds);
+  let when = "Please wait for the limit to reset and try again.";
+  if (Number.isFinite(secs) && secs > 0) {
+    const mins = Math.ceil(secs / 60);
+    when = `Please try again in about ${mins} minute${mins === 1 ? "" : "s"}.`;
+  }
+  return `Import limit reached: ${IMPORT_RATE_LIMIT_PER_HOUR} imports per hour. ${when}`;
+}
+
 // A response body is a recognized SUCCESSFUL import result only if it carries at least one of the
 // count/error fields the backend returns ({ imported | added | errors }). This rejects error
 // envelopes ({ok:false,...}) and empty/partial 2xx bodies ({}, {ok:true} with no data).
@@ -169,7 +194,15 @@ function isRecognizedResultsBody(body) {
 //   { status: "success", summary }   — recognized results body (any counts, incl. all-skipped)
 //   { status: "error",   message }   — fail closed for everything else
 export function classifyCommitOutcome(res) {
+  // §4.1 over-cap: the >100 selection was blocked BEFORE any request was sent (api.importContacts).
+  if (res && res.blocked && res.code === "IMPORT_OVER_CAP") {
+    return { status: "error", message: overCapMessage(res.count, res.max) };
+  }
   if (!res || res.ok === false) {
+    // Non-2xx / thrown / network / {ok:false} — NEVER rendered as success.
+    if (res && res.status === 429) {
+      return { status: "error", message: rateLimitMessage(res.retryAfter) };
+    }
     return { status: "error", message: commitMessageForStatus(res && res.status) };
   }
   const body = (res && res.data != null) ? res.data : res;
