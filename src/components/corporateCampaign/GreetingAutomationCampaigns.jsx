@@ -39,8 +39,10 @@ function Shell({ children }) {
   );
 }
 
-export default function GreetingAutomationCampaigns() {
-  const client = useMemo(() => createCorporateCampaignsClient(), []);
+// `client` is an optional injection seam used ONLY by tests (default = the real server-derived
+// client). App usage renders <GreetingAutomationCampaigns /> with no props → identical behavior.
+export default function GreetingAutomationCampaigns({ client: injectedClient } = {}) {
+  const client = useMemo(() => injectedClient || createCorporateCampaignsClient(), [injectedClient]);
   const [membershipResult, setMembershipResult] = useState(null);
   const [selectedOrgId, setSelectedOrgId] = useState(null); // explicit multi-org selection only
   const [rows, setRows] = useState([]);
@@ -103,8 +105,23 @@ export default function GreetingAutomationCampaigns() {
     if (res.ok) await loadCampaigns(effectiveOrgId);
   }
 
-  // Dormant (feature off) → surface hidden entirely, zero campaign writes.
-  if (ctx.phase === "dormant" || campaignDormant) return null;
+  // Dormant (corporate capability off / caller not enrolled) → render the Founder-approved
+  // read-only state (F3 Draft B) instead of a blank page. Truthful for personal users and
+  // non-enrolled organizations. Zero writes, zero new requests, no access claim, no date promise,
+  // no support/contact promise. Preserves the existing server-derived dormancy/authorization gate:
+  // dormancy is still discovered only via the pre-existing membership probe (503 → dormant).
+  if (ctx.phase === "dormant" || campaignDormant) {
+    return (
+      <div style={{ maxWidth: 1080, margin: "0 auto" }}>
+        <div data-testid="corporate-dormant" style={{ textAlign: "center", padding: "48px 24px", border: "1px solid rgba(27,24,48,.1)", borderRadius: 18, background: "#faf9fd" }}>
+          <h1 style={{ fontFamily: "Georgia, serif", fontSize: "1.4rem", margin: "0 0 10px", color: "#1b1830" }}>Greet-Me for Business</h1>
+          <p style={{ color: "#605c78", maxWidth: "52ch", margin: "0 auto", lineHeight: 1.6 }}>
+            Corporate campaign management is available to enrolled organizations. Your account isn’t currently enrolled.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (selectedCampaignId && effectiveOrgId) {
     return (
