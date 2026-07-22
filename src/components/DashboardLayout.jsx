@@ -23,6 +23,7 @@ export default function DashboardLayout({ children }) {
   const avatarInitial = (displayName.charAt(0) || 'U').toUpperCase();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openSubmenu, setOpenSubmenu] = useState(null); // NAV-02 — desktop nested submenu (For Business)
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
 
   const [imageCredits, setImageCredits] = useState(0);
@@ -163,9 +164,16 @@ export default function DashboardLayout({ children }) {
     { name: 'Greet-Me Gifts', path: '/dashboard/gifts', icon: Gift },
     { name: '❤️ Hearts Hub', path: '/dashboard/rewards', icon: null },
     { name: '🥇 Greet-Me™ Hero™', path: '/dashboard/hero', icon: null },
-    { name: 'For Business', path: '/business', icon: null },
-    { name: 'Media Library', path: '/dashboard/media', icon: ImageIcon },
-    // TEAM B — fundraising nav is hidden while the dark gate is false; backend still authorizes.
+    // NAV-02 — FOR BUSINESS carries a nested submenu → Corporate Campaign Dashboard (Team B's
+    // canonical evolving surface at /dashboard/campaigns). The parent link to the marketing page is kept.
+    { name: 'For Business', path: '/business', icon: null, children: [
+      { name: 'Corporate Campaign Dashboard', path: '/dashboard/campaigns' },
+    ] },
+    // NAV-02 — Greet-Me Fundraise: Founder-authorized VISIBLE primary header → Partner Admin home.
+    // Destination + backend still enforce the fundraiser gate/auth (401/403/503). NEVER Founder Admin.
+    // Media Library relocated into the avatar/profile dropdown (see the user menu below).
+    { name: 'Greet-Me Fundraise', path: '/dashboard/fundraiser', icon: null },
+    // TEAM B — Founder Admin fundraising access stays separate + hidden while the dark gate is false.
     ...(isFundraiserUiEnabled() ? [{ name: 'Fundraising', path: '/dashboard/fundraiser/admin', icon: null }] : []),
   ];
 
@@ -607,6 +615,15 @@ export default function DashboardLayout({ children }) {
                         whiteSpace: 'nowrap'
                       }}>{user?.email || 'user@example.com'}</p>
                     </div>
+                    {/* NAV-02 — Media Library relocated here from the primary nav (same dropdown styling). */}
+                    <button
+                      onClick={() => { setUserMenuOpen(false); navigate('/dashboard/media'); }}
+                      style={{ width: '100%', textAlign: 'left', padding: '0.625rem 0.75rem', fontSize: '0.875rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gray-100)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <ImageIcon size={16} /><span>Media Library</span>
+                    </button>
                     {/* NAV-01 — account items moved from top nav into the user menu */}
                     <button
                       onClick={() => { setUserMenuOpen(false); navigate('/dashboard/merch/orders'); }}
@@ -741,27 +758,51 @@ export default function DashboardLayout({ children }) {
             {/* Navigation Links */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
               {navigation.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setMobileMenuOpen(false)}
-                  style={({ isActive }) => ({
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.875rem 1rem',
-                    textDecoration: 'none',
-                    fontSize: '0.9375rem',
-                    fontWeight: isActive ? 600 : 500,
-                    borderRadius: 'var(--radius-md)',
-                    background: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-                    color: isActive ? 'var(--primary)' : 'var(--text-primary)',
-                    marginBottom: '0.25rem'
-                  })}
-                >
-                  {item.icon && <item.icon size={18} />}
-                  <span>{item.name}</span>
-                </NavLink>
+                <div key={item.path}>
+                  <NavLink
+                    to={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    style={({ isActive }) => ({
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.875rem 1rem',
+                      textDecoration: 'none',
+                      fontSize: '0.9375rem',
+                      fontWeight: isActive ? 600 : 500,
+                      borderRadius: 'var(--radius-md)',
+                      background: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                      color: isActive ? 'var(--primary)' : 'var(--text-primary)',
+                      marginBottom: '0.25rem'
+                    })}
+                  >
+                    {item.icon && <item.icon size={18} />}
+                    <span>{item.name}</span>
+                  </NavLink>
+                  {/* NAV-02 — nested submenu children (indented under the parent) */}
+                  {item.children && item.children.map((child) => (
+                    <NavLink
+                      key={child.path}
+                      to={child.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                      style={({ isActive }) => ({
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.75rem 1rem 0.75rem 2.75rem',
+                        textDecoration: 'none',
+                        fontSize: '0.875rem',
+                        fontWeight: isActive ? 600 : 500,
+                        borderRadius: 'var(--radius-md)',
+                        background: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                        color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                        marginBottom: '0.25rem'
+                      })}
+                    >
+                      <span>{child.name}</span>
+                    </NavLink>
+                  ))}
+                </div>
               ))}
             </div>
 
@@ -833,47 +874,122 @@ export default function DashboardLayout({ children }) {
           alignItems: 'center'
         }}>
           {navigation.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '1rem 1.25rem',
-                textDecoration: 'none',
-                fontSize: '1rem',
-                fontWeight: 500,
-                transition: 'all 0.2s',
-                borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
-                color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                position: 'relative',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              })}
-              onMouseEnter={(e) => {
-                if (!e.currentTarget.getAttribute('aria-current')) {
-                  e.currentTarget.style.color = 'var(--text-primary)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!e.currentTarget.getAttribute('aria-current')) {
-                  e.currentTarget.style.color = 'var(--text-secondary)';
-                }
-              }}
-            >
-              {({ isActive }) => (
-                <>
-                  {item.icon && (
-                    <item.icon
-                      size={16}
-                      style={{ color: isActive ? 'var(--primary)' : 'currentColor' }}
-                    />
-                  )}
+            item.children ? (
+              /* NAV-02 — desktop nested submenu (reuses the avatar-menu dropdown pattern; no new system) */
+              <div key={item.path} style={{ position: 'relative', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => setOpenSubmenu(openSubmenu === item.name ? null : item.name)}
+                  onKeyDown={(e) => { if (e.key === 'Escape') setOpenSubmenu(null); }}
+                  aria-haspopup="true"
+                  aria-expanded={openSubmenu === item.name}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    padding: '1rem 1.25rem',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: '2px solid transparent',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: 500,
+                    fontFamily: 'inherit',
+                    color: 'var(--text-secondary)',
+                    whiteSpace: 'nowrap'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; }}
+                  onMouseLeave={(e) => { if (openSubmenu !== item.name) e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                >
                   <span>{item.name}</span>
-                </>
-              )}
-            </NavLink>
+                  <span aria-hidden="true" style={{ fontSize: '0.7rem' }}>▾</span>
+                </button>
+                {openSubmenu === item.name && (
+                  <>
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setOpenSubmenu(null)} />
+                    <div
+                      role="menu"
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        marginTop: '0.25rem',
+                        minWidth: '15rem',
+                        background: 'var(--bg-primary)',
+                        borderRadius: 'var(--radius-lg)',
+                        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',
+                        border: '1px solid var(--border)',
+                        padding: '0.5rem',
+                        zIndex: 20
+                      }}
+                    >
+                      {item.children.map((child) => (
+                        <NavLink
+                          key={child.path}
+                          to={child.path}
+                          role="menuitem"
+                          onClick={() => setOpenSubmenu(null)}
+                          style={({ isActive }) => ({
+                            display: 'block',
+                            padding: '0.625rem 0.75rem',
+                            fontSize: '0.9375rem',
+                            textDecoration: 'none',
+                            borderRadius: 'var(--radius-md)',
+                            color: isActive ? 'var(--primary)' : 'var(--text-primary)',
+                            background: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent'
+                          })}
+                          onMouseEnter={(e) => { if (!e.currentTarget.getAttribute('aria-current')) e.currentTarget.style.background = 'var(--gray-100)'; }}
+                          onMouseLeave={(e) => { if (!e.currentTarget.getAttribute('aria-current')) e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          {child.name}
+                        </NavLink>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                style={({ isActive }) => ({
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '1rem 1.25rem',
+                  textDecoration: 'none',
+                  fontSize: '1rem',
+                  fontWeight: 500,
+                  transition: 'all 0.2s',
+                  borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                  position: 'relative',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
+                })}
+                onMouseEnter={(e) => {
+                  if (!e.currentTarget.getAttribute('aria-current')) {
+                    e.currentTarget.style.color = 'var(--text-primary)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!e.currentTarget.getAttribute('aria-current')) {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                  }
+                }}
+              >
+                {({ isActive }) => (
+                  <>
+                    {item.icon && (
+                      <item.icon
+                        size={16}
+                        style={{ color: isActive ? 'var(--primary)' : 'currentColor' }}
+                      />
+                    )}
+                    <span>{item.name}</span>
+                  </>
+                )}
+              </NavLink>
+            )
           ))}
         </div>
       </nav>

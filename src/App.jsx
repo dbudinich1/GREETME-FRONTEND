@@ -112,6 +112,8 @@ const QAInspector = import.meta.env.DEV
 // backend, which enforces auth + role server-side. Navigation is hidden while the gate is false.
 const FounderFundraisingDashboard = lazy(() => import("./pages/fundraiser/FounderFundraisingDashboard"));
 const PartnerFundraisingDashboard = lazy(() => import("./pages/fundraiser/PartnerFundraisingDashboard"));
+// NAV-02 — param-less Partner Admin home; the "Greet-Me Fundraise" primary-nav header points here.
+const PartnerFundraisingHome = lazy(() => import("./pages/fundraiser/PartnerFundraisingHome"));
 import Support from "./pages/Support";
 import Legal from "./Legal";
 import VerifyEmail from "./pages/VerifyEmail";
@@ -175,6 +177,8 @@ export default function App() {
             <Route path="rewards" element={<Rewards />} />
             <Route path="notifications" element={<Notifications />} />
             {/* TEAM B — dark fundraising dashboards (self-gated; backend-authorized) */}
+            {/* NAV-02 — Partner Admin home for the "Greet-Me Fundraise" primary-nav header (param-less). */}
+            <Route path="fundraiser" element={<Suspense fallback={null}><PartnerFundraisingHome /></Suspense>} />
             <Route path="fundraiser/admin" element={<Suspense fallback={null}><FounderFundraisingDashboard /></Suspense>} />
             <Route path="fundraiser/partner/:organizationId" element={<Suspense fallback={null}><PartnerFundraisingDashboard /></Suspense>} />
           </Route>
