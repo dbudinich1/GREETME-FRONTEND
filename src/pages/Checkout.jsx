@@ -14,6 +14,13 @@ import { getCurrentPriceMap, personalPlans } from '../config/plans';
 import { fundraiserCheckoutField, clearToken as clearFundraiserToken } from './fundraiser/attributionCarrier.js';
 import { isFundraiserUiEnabled } from '../config/fundraiserGate.js';
 
+// TEAM B — a checkout response counts as a SUCCESSFULLY CREATED Stripe Checkout Session only when it
+// carries a non-empty redirect url. The transient fundraiser attribution token is cleared ONLY on this
+// condition (never merely because fetch resolved, and never on a malformed/incomplete/failed response),
+// so valid attribution survives network errors, non-2xx responses, and retries.
+// eslint-disable-next-line react-refresh/only-export-components -- pure predicate exported for unit testing (not a component)
+export const checkoutSessionCreated = (data) => !!(data && typeof data.url === 'string' && data.url.length > 0);
+
 // Platform fee mirrors the backend rule (BUSINESS_SUBSCRIPTION_PRICE_IDS in
 // routes/paymentRoutes.js): $19.99 for business subscription tiers, $4.99 otherwise.
 // Prefer the cart item's platformFee if present, else fall back to the tier rule
@@ -300,16 +307,17 @@ export default function Checkout() {
         // Dormant Fundraiser attribution — opaque token only, subscription + flag-on only (else omitted).
         ...fundraiserCheckoutField({ purchaseType: item.purchaseType || 'subscription', flagEnabled: isFundraiserUiEnabled() }),
       });
-      // Strictly clear the transient attribution token so a later unrelated checkout can't inherit it.
-      clearFundraiserToken();
       const creditEligible = item.planTier !== 'close_circle';
       if (creditAmount > 0 && creditEligible && !data.creditApplied) {
         localStorage.removeItem('greetme_courtesy_credit');
         localStorage.removeItem('greetme_referral_code');
         setErrors({ submit: 'Your credit could not be applied. Please try again or continue at full price.' });
         setIsProcessing(false);
-        return;
+        return;   // credit could not be applied → retryable; preserve any fundraiser attribution token
       }
+      // Clear the transient fundraiser token ONLY on a successfully created session (valid redirect url),
+      // so it survives network errors / non-2xx / malformed responses and remains available on retry.
+      if (checkoutSessionCreated(data)) clearFundraiserToken();
       window.location.href = data.url;
     } catch (error) {
       console.error('Stripe checkout error:', error);

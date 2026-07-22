@@ -33,3 +33,20 @@ test("Checkout never hard-codes the fundraiser token or identity fields into the
   // no direct sessionStorage read of the attribution key in Checkout (carrier owns it)
   assert.ok(!/greetme_fundraiser_attribution/.test(Checkout), "Checkout must go through the carrier utility, not raw sessionStorage");
 });
+
+test("token is cleared ONLY on a successfully created session — never merely because fetch resolved", () => {
+  // the success predicate requires a non-empty redirect url
+  assert.match(Checkout, /checkoutSessionCreated = \(data\) => !!\(data && typeof data\.url === 'string' && data\.url\.length > 0\)/);
+  // the ONLY clear call is guarded by that predicate, immediately before the redirect
+  assert.match(Checkout, /if \(checkoutSessionCreated\(data\)\) clearFundraiserToken\(\);\s*\n\s*window\.location\.href = data\.url;/);
+  // there is exactly ONE clearFundraiserToken() call site, and it is the guarded one
+  assert.equal((Checkout.match(/clearFundraiserToken\(\)/g) || []).length, 1, "exactly one (guarded) clear call");
+  // no bare clear immediately after the api.post(...) resolves
+  assert.ok(!/\}\);\s*\n\s*clearFundraiserToken\(\);/.test(Checkout), "no unguarded clear right after api.post");
+  // the credit-not-applied early-return path does NOT clear (retry preserves attribution)
+  const creditBlock = (Checkout.match(/if \(creditAmount > 0[\s\S]*?return;/) || [""])[0];
+  assert.ok(!/clearFundraiserToken/.test(creditBlock), "credit-failure retry path must not clear");
+  // the catch(error) block does NOT clear (network/non-2xx retries preserve attribution)
+  const catchBlock = (Checkout.match(/catch \(error\) \{[\s\S]*?\}/) || [""])[0];
+  assert.ok(!/clearFundraiserToken/.test(catchBlock), "catch/error path must not clear");
+});
