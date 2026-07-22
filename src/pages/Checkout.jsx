@@ -8,6 +8,18 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
 import { getCurrentPriceMap, personalPlans } from '../config/plans';
+// TEAM B — dormant Fundraiser attribution carrier. The opaque token (if captured at /#/f/:token) is
+// attached as `fundraiserAttributionToken` ONLY for a personal subscription AND ONLY while the
+// Fundraiser UI flag is enabled (false by default). Never for gifts/QR Cash/G1G1/merch/one-time.
+import { fundraiserCheckoutField, clearToken as clearFundraiserToken } from './fundraiser/attributionCarrier.js';
+import { isFundraiserUiEnabled } from '../config/fundraiserGate.js';
+
+// TEAM B — a checkout response counts as a SUCCESSFULLY CREATED Stripe Checkout Session only when it
+// carries a non-empty redirect url. The transient fundraiser attribution token is cleared ONLY on this
+// condition (never merely because fetch resolved, and never on a malformed/incomplete/failed response),
+// so valid attribution survives network errors, non-2xx responses, and retries.
+// eslint-disable-next-line react-refresh/only-export-components -- pure predicate exported for unit testing (not a component)
+export const checkoutSessionCreated = (data) => !!(data && typeof data.url === 'string' && data.url.length > 0);
 
 // Platform fee mirrors the backend rule (BUSINESS_SUBSCRIPTION_PRICE_IDS in
 // routes/paymentRoutes.js): $19.99 for business subscription tiers, $4.99 otherwise.
@@ -292,6 +304,8 @@ export default function Checkout() {
           g1g1RecipientEmail: g1g1Raw.recipientEmail || '',
           g1g1SendLater: !!g1g1Raw.sendLater,
         }),
+        // Dormant Fundraiser attribution — opaque token only, subscription + flag-on only (else omitted).
+        ...fundraiserCheckoutField({ purchaseType: item.purchaseType || 'subscription', flagEnabled: isFundraiserUiEnabled() }),
       });
       const creditEligible = item.planTier !== 'close_circle';
       if (creditAmount > 0 && creditEligible && !data.creditApplied) {
@@ -299,8 +313,11 @@ export default function Checkout() {
         localStorage.removeItem('greetme_referral_code');
         setErrors({ submit: 'Your credit could not be applied. Please try again or continue at full price.' });
         setIsProcessing(false);
-        return;
+        return;   // credit could not be applied → retryable; preserve any fundraiser attribution token
       }
+      // Clear the transient fundraiser token ONLY on a successfully created session (valid redirect url),
+      // so it survives network errors / non-2xx / malformed responses and remains available on retry.
+      if (checkoutSessionCreated(data)) clearFundraiserToken();
       window.location.href = data.url;
     } catch (error) {
       console.error('Stripe checkout error:', error);
