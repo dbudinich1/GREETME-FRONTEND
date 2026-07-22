@@ -20,6 +20,17 @@ import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
 import giftBouquet from '../assets/gifts/gift-bouquet.png';
 import giftCard from '../assets/gifts/gift-card.png';
 import giftBoxStack from '../assets/gifts/gift-box-stack.png';
+import { RELATIONS_BY_CATEGORY, RELATIONSHIP_CATEGORIES } from '../import/completionModel.js';
+
+// Human relationship labels the wizard already uses (value → label), so display shows "Family Member"
+// (not raw "family_member"). Stored data is UNCHANGED. Source of truth: src/import/completionModel.js.
+const RELATIONSHIP_LABELS = (() => {
+  const m = {};
+  for (const c of RELATIONSHIP_CATEGORIES) m[c.value] = c.label;
+  for (const arr of Object.values(RELATIONS_BY_CATEGORY)) for (const r of arr) m[r.value] = r.label;
+  return m;
+})();
+function relationshipLabel(v) { return (v && RELATIONSHIP_LABELS[v]) || v || ''; }
 
 // Session storage key (must match ContactForm.jsx)
 const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
@@ -838,7 +849,7 @@ export default function Recipients() {
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9375rem', letterSpacing: '-0.01em', lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contact.name}</div>
                         {contact.relationship && (
-                          <span style={{ display: 'inline-block', marginTop: '4px', background: 'rgba(102, 126, 234, 0.10)', color: '#5a4fcf', padding: '2px 10px', borderRadius: '9999px', fontSize: '0.6875rem', fontWeight: 600, textTransform: 'capitalize' }}>{contact.relationship}</span>
+                          <span style={{ display: 'inline-block', marginTop: '4px', background: 'rgba(102, 126, 234, 0.10)', color: '#5a4fcf', padding: '2px 10px', borderRadius: '9999px', fontSize: '0.6875rem', fontWeight: 600, textTransform: 'capitalize' }}>{relationshipLabel(contact.relationship)}</span>
                         )}
                       </div>
                     </div>
@@ -848,7 +859,7 @@ export default function Recipients() {
                       {primaryOcc ? (
                         <>
                           <span style={{ fontSize: '0.9375rem', flexShrink: 0 }}>{getOccasionIcon(primaryOcc.type)}</span>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getOccasionLabel(primaryOcc.type)} · {new Date(primaryOcc.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getOccasionLabel(primaryOcc.type)} · {new Date(primaryOcc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                         </>
                       ) : (
                         <span style={{ color: 'var(--text-tertiary)' }}>No occasions yet</span>
@@ -931,7 +942,7 @@ export default function Recipients() {
                     {soonest ? (
                       <>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {soonest.recipientName} · {new Date(soonest.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {soonest.recipientName} · {new Date(soonest.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </div>
                         {items.length > 1 && (
                           <div style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', marginTop: '2px' }}>+{items.length - 1} more</div>

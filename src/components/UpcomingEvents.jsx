@@ -24,7 +24,7 @@ export default function UpcomingEvents() {
 
           return (
             <li key={e.id}>
-              {e.title} — {new Date(e.date).toLocaleDateString()}
+              {e.title} — {new Date(e.date + 'T00:00:00').toLocaleDateString()}
             </li>
           );
         })}
