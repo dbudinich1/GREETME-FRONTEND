@@ -25,12 +25,19 @@ test("user.id is never used as corporateOrganizationId (source)", () => {
   assert.ok(!/corporateOrganizationId\s*\|\|/.test(ALL), "no '|| fallback' for org id");
 });
 
-// (2) Dormant 503 hides the surface + implies zero writes.
-test("dormant hides the surface and never fabricates an organization", () => {
+// (2) Dormant (capability off / not enrolled) → Founder-approved read-only state (F3 Draft B):
+// never a blank page, never a fabricated organization, zero writes.
+test("dormant renders the approved read-only state and never fabricates an organization", () => {
   const c = resolveOrganizationContext({ dormant: true });
   assert.equal(c.phase, "dormant");
   assert.equal(c.selectedOrgId, null);
-  assert.match(SURFACE, /ctx\.phase === "dormant"[\s\S]*?return null/); // hidden
+  // The dormant guard still short-circuits at the same decision point (before any org campaign work)…
+  assert.match(SURFACE, /if \(ctx\.phase === "dormant" \|\| campaignDormant\)/);
+  // …and now renders the Founder-approved read-only dormant state instead of returning null (blank).
+  assert.match(SURFACE, /data-testid="corporate-dormant"/);
+  assert.match(SURFACE, /Greet-Me for Business/);
+  assert.match(SURFACE, /available to enrolled organizations/);
+  assert.doesNotMatch(SURFACE, /"dormant" \|\| campaignDormant\) return null/);
   assert.equal(interpretCapability({ ok: false, dormant: true }).available, false);
 });
 
