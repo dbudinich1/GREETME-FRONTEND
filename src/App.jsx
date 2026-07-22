@@ -112,6 +112,9 @@ const QAInspector = import.meta.env.DEV
 // backend, which enforces auth + role server-side. Navigation is hidden while the gate is false.
 const FounderFundraisingDashboard = lazy(() => import("./pages/fundraiser/FounderFundraisingDashboard"));
 const PartnerFundraisingDashboard = lazy(() => import("./pages/fundraiser/PartnerFundraisingDashboard"));
+// TEAM B — PUBLIC fundraiser referral landing (/#/f/:token). Captures only the opaque token; no auth,
+// no dashboard, no private data. Carrier precursor for the (dormant) checkout-attribution slice.
+const FundraiserReferralLanding = lazy(() => import("./pages/fundraiser/FundraiserReferralLanding"));
 import Support from "./pages/Support";
 import Legal from "./Legal";
 import VerifyEmail from "./pages/VerifyEmail";
@@ -141,6 +144,8 @@ export default function App() {
           <Route path="/gift/g1g1/:giftCode" element={<G1G1Claim />} />
           <Route path="/gift/:claimToken" element={<GiftClaim />} />
           <Route path="/credit/:referralCode" element={<ReferralCredit />} />
+          {/* TEAM B — PUBLIC fundraiser referral landing (dormant carrier; no auth/dashboard/private data) */}
+          <Route path="/f/:token" element={<Suspense fallback={null}><FundraiserReferralLanding /></Suspense>} />
           <Route path="/thank-you" element={<ThankYouFlow />} />
           <Route path="/recipient-thankyou" element={<RecipientThankYouRedirect />} />
           <Route path="/courtesy-credit" element={<CourtesyCredit />} />

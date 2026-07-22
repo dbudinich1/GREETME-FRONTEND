@@ -8,6 +8,11 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
 import { getCurrentPriceMap, personalPlans } from '../config/plans';
+// TEAM B — dormant Fundraiser attribution carrier. The opaque token (if captured at /#/f/:token) is
+// attached as `fundraiserAttributionToken` ONLY for a personal subscription AND ONLY while the
+// Fundraiser UI flag is enabled (false by default). Never for gifts/QR Cash/G1G1/merch/one-time.
+import { fundraiserCheckoutField, clearToken as clearFundraiserToken } from './fundraiser/attributionCarrier.js';
+import { isFundraiserUiEnabled } from '../config/fundraiserGate.js';
 
 // Platform fee mirrors the backend rule (BUSINESS_SUBSCRIPTION_PRICE_IDS in
 // routes/paymentRoutes.js): $19.99 for business subscription tiers, $4.99 otherwise.
@@ -292,7 +297,11 @@ export default function Checkout() {
           g1g1RecipientEmail: g1g1Raw.recipientEmail || '',
           g1g1SendLater: !!g1g1Raw.sendLater,
         }),
+        // Dormant Fundraiser attribution — opaque token only, subscription + flag-on only (else omitted).
+        ...fundraiserCheckoutField({ purchaseType: item.purchaseType || 'subscription', flagEnabled: isFundraiserUiEnabled() }),
       });
+      // Strictly clear the transient attribution token so a later unrelated checkout can't inherit it.
+      clearFundraiserToken();
       const creditEligible = item.planTier !== 'close_circle';
       if (creditAmount > 0 && creditEligible && !data.creditApplied) {
         localStorage.removeItem('greetme_courtesy_credit');
