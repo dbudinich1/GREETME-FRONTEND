@@ -759,28 +759,59 @@ export default function DashboardLayout({ children }) {
             <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
               {navigation.map((item) => (
                 <div key={item.path}>
-                  <NavLink
-                    to={item.path}
-                    onClick={() => setMobileMenuOpen(false)}
-                    style={({ isActive }) => ({
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.875rem 1rem',
-                      textDecoration: 'none',
-                      fontSize: '0.9375rem',
-                      fontWeight: isActive ? 600 : 500,
-                      borderRadius: 'var(--radius-md)',
-                      background: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-                      color: isActive ? 'var(--primary)' : 'var(--text-primary)',
-                      marginBottom: '0.25rem'
-                    })}
-                  >
-                    {item.icon && <item.icon size={18} />}
-                    <span>{item.name}</span>
-                  </NavLink>
-                  {/* NAV-02 — nested submenu children (indented under the parent) */}
-                  {item.children && item.children.map((child) => (
+                  {/* NAV-03 REGRESSION FIX — label navigates to the original destination; a SEPARATE
+                     caret button expands/collapses the submenu (the whole row is never expand-only). */}
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <NavLink
+                      to={item.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                      style={({ isActive }) => ({
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.875rem 1rem',
+                        textDecoration: 'none',
+                        fontSize: '0.9375rem',
+                        fontWeight: isActive ? 600 : 500,
+                        borderRadius: 'var(--radius-md)',
+                        background: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                        color: isActive ? 'var(--primary)' : 'var(--text-primary)',
+                        marginBottom: '0.25rem',
+                        flex: 1
+                      })}
+                    >
+                      {item.icon && <item.icon size={18} />}
+                      <span>{item.name}</span>
+                    </NavLink>
+                    {item.children && (
+                      <button
+                        type="button"
+                        aria-haspopup="true"
+                        aria-expanded={openSubmenu === item.name}
+                        aria-label={openSubmenu === item.name ? `Close ${item.name} menu` : `Open ${item.name} menu`}
+                        onClick={() => setOpenSubmenu(openSubmenu === item.name ? null : item.name)}
+                        onKeyDown={(e) => { if (e.key === 'Escape') setOpenSubmenu(null); }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '0.5rem 0.9rem',
+                          marginBottom: '0.25rem',
+                          background: 'transparent',
+                          border: 'none',
+                          borderRadius: 'var(--radius-md)',
+                          cursor: 'pointer',
+                          color: 'var(--text-secondary)',
+                          fontFamily: 'inherit',
+                          fontSize: '0.8rem'
+                        }}
+                      >
+                        <span aria-hidden="true">{openSubmenu === item.name ? '▴' : '▾'}</span>
+                      </button>
+                    )}
+                  </div>
+                  {/* Children revealed only when this row's caret is expanded */}
+                  {item.children && openSubmenu === item.name && item.children.map((child) => (
                     <NavLink
                       key={child.path}
                       to={child.path}
@@ -876,33 +907,53 @@ export default function DashboardLayout({ children }) {
           {navigation.map((item) => (
             item.children ? (
               /* NAV-02 — desktop nested submenu (reuses the avatar-menu dropdown pattern; no new system) */
-              <div key={item.path} style={{ position: 'relative', flexShrink: 0 }}>
+              /* NAV-03 REGRESSION FIX — split control: the LABEL is a NavLink to the original
+                 destination (For Business → /business), and a SEPARATE caret button toggles the
+                 submenu. Clicking the words navigates; clicking the caret only opens/closes. */
+              <div key={item.path} style={{ position: 'relative', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                <NavLink
+                  to={item.path}
+                  style={({ isActive }) => ({
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '1rem 0.5rem 1rem 1.25rem',
+                    textDecoration: 'none',
+                    fontSize: '1rem',
+                    fontWeight: 500,
+                    transition: 'all 0.2s',
+                    borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
+                    color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                    whiteSpace: 'nowrap'
+                  })}
+                  onMouseEnter={(e) => { if (!e.currentTarget.getAttribute('aria-current')) e.currentTarget.style.color = 'var(--text-primary)'; }}
+                  onMouseLeave={(e) => { if (!e.currentTarget.getAttribute('aria-current')) e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                >
+                  <span>{item.name}</span>
+                </NavLink>
                 <button
                   type="button"
-                  onClick={() => setOpenSubmenu(openSubmenu === item.name ? null : item.name)}
-                  onKeyDown={(e) => { if (e.key === 'Escape') setOpenSubmenu(null); }}
                   aria-haspopup="true"
                   aria-expanded={openSubmenu === item.name}
+                  aria-label={openSubmenu === item.name ? `Close ${item.name} menu` : `Open ${item.name} menu`}
+                  onClick={() => setOpenSubmenu(openSubmenu === item.name ? null : item.name)}
+                  onKeyDown={(e) => { if (e.key === 'Escape') setOpenSubmenu(null); }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.375rem',
-                    padding: '1rem 1.25rem',
+                    padding: '1rem 1rem 1rem 0.25rem',
                     background: 'transparent',
                     border: 'none',
                     borderBottom: '2px solid transparent',
                     cursor: 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: 500,
+                    fontSize: '0.7rem',
                     fontFamily: 'inherit',
-                    color: 'var(--text-secondary)',
-                    whiteSpace: 'nowrap'
+                    color: 'var(--text-secondary)'
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; }}
                   onMouseLeave={(e) => { if (openSubmenu !== item.name) e.currentTarget.style.color = 'var(--text-secondary)'; }}
                 >
-                  <span>{item.name}</span>
-                  <span aria-hidden="true" style={{ fontSize: '0.7rem' }}>▾</span>
+                  <span aria-hidden="true">▾</span>
                 </button>
                 {openSubmenu === item.name && (
                   <>
