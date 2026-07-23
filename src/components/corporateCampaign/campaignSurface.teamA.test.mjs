@@ -113,6 +113,18 @@ test("Team C editor is imported and mounted with server-derived capability", () 
   assert.match(DETAIL, /setShowEditor\(false\)/); // Return to Campaign
 });
 
+// (11b) D2 — CampaignDetail capability is SERVER-derived (interpretCapability on the campaign-list
+// result), never the hard-coded { available: true } literal.
+test("detail capability is server-derived via interpretCapability, not hard-coded", () => {
+  assert.match(SURFACE, /capability=\{interpretCapability\(capabilityResult\)\}/);
+  assert.doesNotMatch(SURFACE, /capability=\{\{\s*available:\s*true\s*\}\}/);
+  // interpretCapability maps server results honestly (already covered below; sanity here).
+  assert.equal(interpretCapability({ ok: true }).available, true);
+  assert.equal(interpretCapability({ dormant: true }).available, false);
+  assert.equal(interpretCapability({ unauthorized: true }).available, false);
+  assert.equal(interpretCapability(null).available, false); // fail-closed before first load
+});
+
 // (12) Intro-and-Finale-Only correctness + readiness states.
 test("readiness derives correctly incl. Intro and Finale Only", () => {
   const ready = deriveCampaignSummary({}, { featuredSpreadReadiness: R.READY_ORG_DEFAULT, featuredSpreadPresent: true, approvalStatus: "approved", lockStatus: "unlocked" });
@@ -125,6 +137,14 @@ test("readiness derives correctly incl. Intro and Finale Only", () => {
   assert.equal(introFinale.ready, true);
   assert.equal(introFinale.featuredSpreadStatus, "Ready — Intro and Finale Only");
   assert.match(DETAIL, /Gifts remain independent/); // approved all-disabled statement
+});
+
+// (12b) D2 — the entered campaignType is reflected in the displayed "Type" (fallback chain).
+test("deriveCampaignSummary shows campaignType when no occasionType/type present", () => {
+  assert.equal(deriveCampaignSummary({ campaignType: "Holiday" }, {}).occasionType, "Holiday");
+  // explicit occasionType/type still win; absent everything → em dash
+  assert.equal(deriveCampaignSummary({ occasionType: "Milestone", campaignType: "Holiday" }, {}).occasionType, "Milestone");
+  assert.equal(deriveCampaignSummary({}, {}).occasionType, "—");
 });
 
 test("actions gate on server-derived approval/lock/readiness", () => {

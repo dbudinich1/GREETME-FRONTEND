@@ -78,7 +78,7 @@ export function deriveCampaignSummary(campaign = {}, readiness = {}) {
     campaignId: campaign.campaignId || campaign.id || null,
     name: campaign.name || campaign.campaignName || "Untitled campaign",
     audience: campaign.audience || campaign.recipientType || "—",
-    occasionType: campaign.occasionType || campaign.type || "—",
+    occasionType: campaign.occasionType || campaign.type || campaign.campaignType || "—",
     scheduleStatus: campaign.scheduleStatus || (campaign.scheduledForUtc ? "scheduled" : "not_scheduled"),
     featuredSpreadStatus: rd.label,
     featuredSpreadKind: rd.kind, // "ready" | "blocker" | "processing" | "unknown"

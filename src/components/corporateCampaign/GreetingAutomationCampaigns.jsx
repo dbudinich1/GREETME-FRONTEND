@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createCorporateCampaignsClient } from "../../api/corporateCampaigns.js";
 import {
-  activeMemberships, resolveOrganizationContext, deriveCampaignSummary, TERMS,
+  activeMemberships, resolveOrganizationContext, deriveCampaignSummary, interpretCapability, TERMS,
 } from "./campaignSurfaceModel.js";
 import CampaignDetail from "./CampaignDetail.jsx";
 
@@ -39,6 +39,37 @@ function Shell({ children }) {
   );
 }
 
+// Minimal create form — collects a required name and an optional free-text type. The backend
+// accepts both (`name`, `campaignType`) as optional free strings; no new endpoint, no enum, no
+// occasion/scheduling semantics implied. Inputs set explicit padding-free-safe styles inline.
+function CreateCampaignForm({ name, type, onName, onType, onSubmit, onCancel, creating }) {
+  const canCreate = name.trim().length > 0 && !creating;
+  const input = { width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(27,24,48,.2)", fontSize: ".9rem" };
+  return (
+    <form data-testid="create-form" onSubmit={(e) => { e.preventDefault(); if (canCreate) onSubmit(); }}
+      style={{ background: "#fff", border: "1px solid rgba(27,24,48,.12)", borderRadius: 16, padding: "20px 22px" }}>
+      <h2 style={{ fontFamily: "Georgia, serif", fontSize: "1.15rem", margin: "0 0 4px" }}>{TERMS.CREATE}</h2>
+      <p style={{ color: "#605c78", fontSize: ".82rem", margin: "0 0 16px" }}>Name your campaign and, optionally, add a type. {TERMS.YOU_DONT_NEED_EVERYTHING}</p>
+      <label htmlFor="cc-name" style={{ display: "block", fontSize: ".78rem", fontWeight: 700, color: "#1b1830", marginBottom: 5 }}>Campaign name</label>
+      <input id="cc-name" data-testid="create-name" value={name} onChange={(e) => onName(e.target.value)} autoFocus
+        placeholder="e.g. Q4 Client Appreciation" style={{ ...input, marginBottom: 14 }} />
+      <label htmlFor="cc-type" style={{ display: "block", fontSize: ".78rem", fontWeight: 700, color: "#1b1830", marginBottom: 5 }}>Type <span style={{ fontWeight: 400, color: "#928ea8" }}>(optional)</span></label>
+      <input id="cc-type" data-testid="create-type" value={type} onChange={(e) => onType(e.target.value)}
+        placeholder="e.g. Holiday, Milestone" style={{ ...input, marginBottom: 18 }} />
+      <div style={{ display: "flex", gap: 10 }}>
+        <button type="submit" data-testid="create-submit" disabled={!canCreate}
+          style={{ background: PURPLE, color: "#fff", border: "none", borderRadius: 11, padding: "10px 18px", fontWeight: 700, fontSize: ".85rem", cursor: canCreate ? "pointer" : "not-allowed", opacity: canCreate ? 1 : .55 }}>
+          {creating ? "Creating…" : TERMS.CREATE}
+        </button>
+        <button type="button" data-testid="create-cancel" onClick={onCancel}
+          style={{ background: "transparent", color: "#1b1830", border: "1px solid rgba(27,24,48,.15)", borderRadius: 11, padding: "10px 18px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer" }}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 // `client` is an optional injection seam used ONLY by tests (default = the real server-derived
 // client). App usage renders <GreetingAutomationCampaigns /> with no props → identical behavior.
 export default function GreetingAutomationCampaigns({ client: injectedClient } = {}) {
@@ -51,6 +82,10 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
   const [campaignDormant, setCampaignDormant] = useState(false);
   const [creating, setCreating] = useState(false);
   const [selectedCampaignId, setSelectedCampaignId] = useState(null);
+  const [capabilityResult, setCapabilityResult] = useState(null); // server-derived, from the campaign list load
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newType, setNewType] = useState("");
 
   // Organization context is derived purely from the membership response + any explicit
   // selection. Never guesses; clears a selection that is no longer active.
@@ -68,6 +103,7 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
   const loadCampaigns = useCallback(async (orgId) => {
     setCampaignAuthError(false); setCampaignDormant(false); setLoadingCampaigns(true);
     const listRes = await client.listCampaigns(orgId);
+    setCapabilityResult(listRes); // server-derived capability (ok / dormant / unauthorized) — never fabricated
     if (listRes.dormant) { setCampaignDormant(true); setRows([]); setLoadingCampaigns(false); return; }
     if (listRes.unauthorized) { setCampaignAuthError(true); setRows([]); setLoadingCampaigns(false); return; } // 401/403 clears protected data
     if (!listRes.ok) { setRows([]); setLoadingCampaigns(false); return; }
@@ -99,11 +135,21 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
 
   async function handleCreate() {
     if (!effectiveOrgId || creating) return;
+    const name = newName.trim();
+    if (!name) return; // a campaign must be named (client-side only; backend still accepts null)
+    const body = { name };
+    const campaignType = newType.trim();
+    if (campaignType) body.campaignType = campaignType;
     setCreating(true);
-    const res = await client.createCampaign(effectiveOrgId, {});
+    const res = await client.createCampaign(effectiveOrgId, body);
     setCreating(false);
-    if (res.ok) await loadCampaigns(effectiveOrgId);
+    if (res.ok) {
+      setShowCreateForm(false); setNewName(""); setNewType("");
+      await loadCampaigns(effectiveOrgId);
+    }
   }
+
+  function openCreate() { setNewName(""); setNewType(""); setShowCreateForm(true); }
 
   // Dormant (corporate capability off / caller not enrolled) → render the Founder-approved
   // read-only state (F3 Draft B) instead of a blank page. Truthful for personal users and
@@ -129,7 +175,7 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
         orgId={effectiveOrgId}
         campaignId={selectedCampaignId}
         client={client}
-        capability={{ available: true }}
+        capability={interpretCapability(capabilityResult)}
         onBack={() => { setSelectedCampaignId(null); loadMemberships(); }}
       />
     );
@@ -178,7 +224,17 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
   // phase === "ready"
   return (
     <Shell>
-      {loadingCampaigns ? (
+      {showCreateForm ? (
+        <CreateCampaignForm
+          name={newName}
+          type={newType}
+          onName={setNewName}
+          onType={setNewType}
+          onSubmit={handleCreate}
+          onCancel={() => setShowCreateForm(false)}
+          creating={creating}
+        />
+      ) : loadingCampaigns ? (
         <p style={{ color: "#605c78" }}>Loading campaigns…</p>
       ) : rows.length === 0 ? (
         <div style={{ textAlign: "center", padding: "48px 24px", border: "1px solid rgba(27,24,48,.1)", borderRadius: 18, background: "#faf9fd" }}>
@@ -186,20 +242,20 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
           <h2 style={{ fontFamily: "Georgia, serif", fontSize: "1.25rem", margin: "10px 0 6px" }}>No campaigns yet</h2>
           {/* Zero-friction empty state — one clear action; no gifts, no media required now. */}
           <p style={{ color: "#605c78", maxWidth: "44ch", margin: "0 auto 18px" }}>
-            Create your first campaign — the organization default is ready with no extra setup. {TERMS.YOU_DONT_NEED_EVERYTHING}
+            Create your first campaign — just give it a name to get started. {TERMS.YOU_DONT_NEED_EVERYTHING}
           </p>
-          <button onClick={handleCreate} disabled={creating}
+          <button data-testid="open-create" onClick={openCreate}
             style={{ background: PURPLE, color: "#fff", border: "none", borderRadius: 12, padding: "12px 22px", fontWeight: 700, fontSize: ".9rem", cursor: "pointer" }}>
-            {creating ? "Creating…" : `+ ${TERMS.CREATE}`}
+            + {TERMS.CREATE}
           </button>
         </div>
       ) : (
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <h2 style={{ fontFamily: "Georgia, serif", fontSize: "1.05rem", margin: 0 }}>Campaigns</h2>
-            <button onClick={handleCreate} disabled={creating}
+            <button data-testid="open-create" onClick={openCreate}
               style={{ background: PURPLE, color: "#fff", border: "none", borderRadius: 11, padding: "9px 16px", fontWeight: 700, fontSize: ".8rem", cursor: "pointer" }}>
-              {creating ? "Creating…" : `+ ${TERMS.CREATE}`}
+              + {TERMS.CREATE}
             </button>
           </div>
           <div style={{ display: "grid", gap: 12 }}>
