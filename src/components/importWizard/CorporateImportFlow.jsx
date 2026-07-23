@@ -119,7 +119,7 @@ export default function CorporateImportFlow({ items = [], kindLabel = "Corporate
           </div>
         )}
         {!orgs.loading && !orgs.dormant && !orgs.unauthorized && !orgs.error && orgs.list.length === 0 && (
-          <div data-testid="corp-org-empty" style={muted}>You aren't an authorized member of any organization that can import contacts.</div>
+          <div data-testid="corp-org-empty" style={muted}>No corporate organization has been set up for your account yet. A Greet-Me administrator must provision your organization before you can import corporate contacts — please contact Greet-Me to get started. Nothing has been saved or sent.</div>
         )}
         {!orgs.loading && orgs.list.length > 0 && (
           <div data-testid="corp-org-list" role="radiogroup" aria-label="Authorized organizations">

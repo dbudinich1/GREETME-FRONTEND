@@ -95,10 +95,42 @@ test("preview → Continue loads authorized organizations", async () => {
   assert.ok(tid("corp-confirm"));
 });
 
-test("zero authorized organizations → truthful message + submit disabled", async () => {
+test("zero authorized organizations → truthful provisioning state; no selectable org; import blocked", async () => {
   await mount({ items: [item(0)], client: fakeClient({ orgs: { ok: true, organizations: [] } }), onStartOver() {} });
   await clickTid("corp-continue");
-  assert.ok(tid("corp-org-empty"));
+  const empty = tid("corp-org-empty");
+  assert.ok(empty, "empty successful response renders the truthful empty state");
+  // Truthful: explains a corporate organization must first be provisioned by Greet-Me administration.
+  assert.match(empty.textContent, /provision/i);
+  assert.match(empty.textContent, /Greet-Me/);
+  // Does NOT imply an organization already exists, and offers no self-service creation.
+  assert.doesNotMatch(empty.textContent, /aren't an authorized member/i);
+  assert.doesNotMatch(txt(), /create (an? )?organization/i);
+  // No selectable organization is displayed.
+  assert.equal(tid("corp-org-list"), null);
+  assert.equal(tidAll("corp-org-radio").length, 0);
+  // Progression / import is blocked.
+  assert.equal(tid("corp-submit").disabled, true);
+});
+
+test("request failure → error state, NOT misrepresented as an empty org list; import blocked", async () => {
+  await mount({ items: [item(0)], client: fakeClient({ orgs: { ok: false, error: "boom" } }), onStartOver() {} });
+  await clickTid("corp-continue");
+  assert.ok(tid("corp-org-error"), "a load failure shows the error state");
+  assert.equal(tid("corp-org-empty"), null, "a load error is NOT shown as 'no organizations'");
+  assert.equal(tid("corp-submit").disabled, true);
+});
+
+test("still loading → loading state, NOT misrepresented as an empty org list; then resolves to empty", async () => {
+  let resolveList;
+  const pending = new Promise((r) => { resolveList = r; });
+  const client = { listOrganizations: () => pending, importContacts: async () => ({ ok: true }) };
+  await mount({ items: [item(0)], client, onStartOver() {} });
+  await clickTid("corp-continue");
+  assert.ok(tid("corp-org-loading"), "loading shown while the fetch is in flight");
+  assert.equal(tid("corp-org-empty"), null, "loading is NOT shown as 'no organizations'");
+  await act(async () => { resolveList({ ok: true, organizations: [] }); await pending; });
+  assert.ok(tid("corp-org-empty"), "resolves to the truthful empty state");
   assert.equal(tid("corp-submit").disabled, true);
 });
 
