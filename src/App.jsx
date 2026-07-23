@@ -114,6 +114,9 @@ const FounderFundraisingDashboard = lazy(() => import("./pages/fundraiser/Founde
 const PartnerFundraisingDashboard = lazy(() => import("./pages/fundraiser/PartnerFundraisingDashboard"));
 // NAV-02 — param-less Partner Admin home; the "Greet-Me Fundraise" primary-nav header points here.
 const PartnerFundraisingHome = lazy(() => import("./pages/fundraiser/PartnerFundraisingHome"));
+// TEAM B (B1, token APP-JSX-LOCK-2026-07-22-B1) — PUBLIC fundraiser referral landing (/#/f/:token).
+// Captures ONLY the opaque token into the transient carrier; no auth, no dashboard, no private data.
+const FundraiserReferralLanding = lazy(() => import("./pages/fundraiser/FundraiserReferralLanding"));
 import Support from "./pages/Support";
 import Legal from "./Legal";
 import VerifyEmail from "./pages/VerifyEmail";
@@ -147,6 +150,8 @@ export default function App() {
           <Route path="/recipient-thankyou" element={<RecipientThankYouRedirect />} />
           <Route path="/courtesy-credit" element={<CourtesyCredit />} />
           <Route path="/claim-credit/:creditCode" element={<CreditClaim />} />
+          {/* TEAM B (B1) — PUBLIC fundraiser referral landing (dormant carrier; no auth/dashboard/private data) */}
+          <Route path="/f/:token" element={<Suspense fallback={null}><FundraiserReferralLanding /></Suspense>} />
 
           {/* Protected Routes */}
           <Route
