@@ -7,7 +7,7 @@ import {
   convertLegacyGreeting,
   convertDraftToSendFormat,
   validateDraft
-} from '../models/greetingDraft';
+} from '../models/greetingDraft.js';
 
 /**
  * Test Suite: Backward Compatibility
