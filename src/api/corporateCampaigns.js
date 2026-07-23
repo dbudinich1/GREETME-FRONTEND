@@ -86,5 +86,9 @@ export function createCorporateCampaignsClient({
     approve: (orgId, campaignId) => call("POST", `${one(orgId, campaignId)}/approve`, { body: {} }),
     lock: (orgId, campaignId, body) => call("POST", `${one(orgId, campaignId)}/lock`, { body: body || {} }),
     unlock: (orgId, campaignId) => call("POST", `${one(orgId, campaignId)}/unlock`, { body: {} }),
+    // CORP-3 association bridge — read + select only (org-scoped corporate contacts).
+    listOrgContacts: (orgId) => call("GET", `/organizations/${encodeURIComponent(orgId)}/contacts`),
+    readAudience: (orgId, campaignId) => call("GET", `${one(orgId, campaignId)}/audience`),
+    setAudience: (orgId, campaignId, audienceRefs) => call("PUT", `${one(orgId, campaignId)}/audience`, { body: { audienceRefs: Array.isArray(audienceRefs) ? audienceRefs : [] } }),
   };
 }

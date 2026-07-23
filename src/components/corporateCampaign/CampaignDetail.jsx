@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import CampaignFeaturedSpreadEditor from "../../corporateCampaign/CampaignFeaturedSpreadEditor.jsx";
+import AudienceSection from "./AudienceSection.jsx";
 import { deriveCampaignSummary, writeResultMessage, TERMS, CORPORATE_VIDEO } from "./campaignSurfaceModel.js";
 
 const PURPLE = "linear-gradient(135deg, #6d74ee 0%, #764ba2 100%)";
@@ -112,6 +113,9 @@ export default function CampaignDetail({ orgId, campaignId, client, capability, 
           {a.canUnlock && <button onClick={onUnlock} disabled={busy} style={btn("transparent", "#1b1830")}>Unlock</button>}
         </div>
       </section>
+
+      {/* CORP-3 — associate org-scoped corporate contacts (select + display only; no send semantics). */}
+      <AudienceSection orgId={orgId} campaignId={campaignId} client={client} />
 
       {showEditor && (
         <section style={{ marginTop: 16 }}>

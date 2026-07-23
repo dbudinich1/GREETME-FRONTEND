@@ -80,6 +80,10 @@ function fakeClient({ campaigns = [] } = {}) {
     readReadiness: async (o, c) => { calls.readReadiness.push([o, c]); return { ok: true, data: {} }; },
     updateFeaturedSpread: async () => ({ ok: true }), approve: async () => ({ ok: true }),
     lock: async () => ({ ok: true }), unlock: async () => ({ ok: true }),
+    // CORP-3 — CampaignDetail now mounts AudienceSection, which reads the audience on mount.
+    readAudience: async () => ({ ok: true, data: { count: 0, contacts: [], unresolved: [] } }),
+    listOrgContacts: async () => ({ ok: true, data: { contacts: [], count: 0 } }),
+    setAudience: async () => ({ ok: true, data: { count: 0, contacts: [], unresolved: [] } }),
   };
 }
 

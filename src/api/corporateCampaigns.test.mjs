@@ -117,3 +117,28 @@ test("Authorization header set only when a token exists", async () => {
 test("throws if no fetch is available (no silent global dependency)", () => {
   assert.throws(() => createCorporateCampaignsClient({ fetchImpl: null }));
 });
+
+// CORP-3 association bridge client methods — method, path, and body.
+test("listOrgContacts → GET /organizations/{org}/contacts", async () => {
+  const { client, calls } = mk([{ status: 200, json: { contacts: [], count: 0 } }]);
+  const r = await client.listOrgContacts("org 1");
+  assert.equal(calls[0].method, "GET");
+  assert.equal(calls[0].url, "/api/corporate-campaigns/organizations/org%201/contacts");
+  assert.equal(r.ok, true);
+});
+
+test("readAudience → GET .../campaigns/{id}/audience", async () => {
+  const { client, calls } = mk([{ status: 200, json: { count: 0, contacts: [], unresolved: [] } }]);
+  await client.readAudience("o", "c");
+  assert.equal(calls[0].method, "GET");
+  assert.equal(calls[0].url, "/api/corporate-campaigns/organizations/o/campaigns/c/audience");
+});
+
+test("setAudience → PUT .../audience with { audienceRefs }", async () => {
+  const { client, calls } = mk([{ status: 200, json: { audienceRefs: ["c1"], count: 1, contacts: [{ id: "c1", name: "A" }], unresolved: [] } }]);
+  const r = await client.setAudience("o", "c", ["c1", "c1"]);
+  assert.equal(calls[0].method, "PUT");
+  assert.equal(calls[0].url, "/api/corporate-campaigns/organizations/o/campaigns/c/audience");
+  assert.deepEqual(JSON.parse(calls[0].body), { audienceRefs: ["c1", "c1"] }); // server dedups/verifies
+  assert.equal(r.ok, true);
+});
