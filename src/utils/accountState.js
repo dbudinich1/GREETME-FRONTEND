@@ -95,6 +95,16 @@ export function isSenderViewingOwnGreeting({ greeting, userId } = {}) {
   return !!(userId && greeting?.senderUserId && greeting.senderUserId === userId);
 }
 
+// Founder-role predicate. Mirrors the backend resolveFundraiserActor gate
+// exactly: user.plan === 'founder' || user.tier === 'founder'. There is no
+// dedicated role field in the system; plan/tier (hydrated from /api/profile)
+// is the source of truth. Null-safe — undefined user, missing plan, and
+// missing tier all return false.
+export function isFounder(user) {
+  if (!user) return false;
+  return user.plan === 'founder' || user.tier === 'founder';
+}
+
 // ---- Gates ----
 
 export function shouldShowFirstTimeCTA(state) {

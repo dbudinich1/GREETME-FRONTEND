@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { isFundraiserUiEnabled } from '../config/fundraiserGate.js'; // TEAM B — dark fundraising nav gate
+import { isFounder } from '../utils/accountState.js'; // TEAM D — FE-GATE-1 founder nav gating
 import { useAuth } from '../context/AuthContext';
 import { Gift, ShoppingBag, Settings as SettingsIcon, LogOut, Users, ShoppingCart, Film, X, Image as ImageIcon, QrCode } from 'lucide-react';
 import GreetMeLogo from './GreetMeLogo';
@@ -172,9 +173,11 @@ export default function DashboardLayout({ children }) {
     // NAV-02 — Greet-Me Fundraise: Founder-authorized VISIBLE primary header → Partner Admin home.
     // Destination + backend still enforce the fundraiser gate/auth (401/403/503). NEVER Founder Admin.
     // Media Library relocated into the avatar/profile dropdown (see the user menu below).
-    { name: 'Greet-Me Fundraise', path: '/dashboard/fundraiser', icon: null },
+    // TEAM D FE-GATE-1 — visible only when the dark gate is ON AND the caller is founder (plan/tier).
+    ...(isFundraiserUiEnabled() && isFounder(user) ? [{ name: 'Greet-Me Fundraise', path: '/dashboard/fundraiser', icon: null }] : []),
     // TEAM B — Founder Admin fundraising access stays separate + hidden while the dark gate is false.
-    ...(isFundraiserUiEnabled() ? [{ name: 'Fundraising', path: '/dashboard/fundraiser/admin', icon: null }] : []),
+    // TEAM D FE-GATE-1 — same founder gate as above.
+    ...(isFundraiserUiEnabled() && isFounder(user) ? [{ name: 'Fundraising', path: '/dashboard/fundraiser/admin', icon: null }] : []),
   ];
 
   return (
