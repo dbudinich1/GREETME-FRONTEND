@@ -33,11 +33,17 @@ jobs:
           VITE_API_BASE: https://greet-me-bzbkeqeeh2gecngt.canadacentral-01.azurewebsites.net
           VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
           # Activation: route the Recipients Import button to the new Import Wizard.
-          # Build-time (Vite bakes it in). Value MUST be the string 'true' — Contacts.jsx gates on
-          # `import.meta.env.VITE_IMPORT_WIZARD_ENTRY === 'true'`. Set to 'true' to activate.
+          # Build-time (Vite bakes it in). Value MUST be the string 'true' - Contacts.jsx gates on
+          # import.meta.env.VITE_IMPORT_WIZARD_ENTRY === 'true'. Set to 'true' to activate.
           # ROLLED BACK 2026-07-21: Excel workbook upload not yet supported (CSV-only round-trip
           # would mislead users about guided-dropdown support). Flip to 'true' when Excel ships.
           VITE_IMPORT_WIZARD_ENTRY: 'true'
+          # Fundraiser UI activation. Build-time (Vite bakes it in). Value MUST be the
+          # string 'true' - fundraiserGate.js:8 gates on VITE_FUNDRAISER_ENABLED === "true".
+          # ACTIVATED 2026-07-30 by founder ruling. Nav is founder-gated at
+          # DashboardLayout.jsx:175,177 via isFounder(user) - FE-GATE-1 at 86e32e6.
+          # ROLLBACK: set to 'false' or delete this line, commit, push. Rebuild required.
+          VITE_FUNDRAISER_ENABLED: 'true'
         run: npm run build
 
       - name: Create web.config for Azure static hosting
@@ -93,7 +99,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: node-app
-      
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
