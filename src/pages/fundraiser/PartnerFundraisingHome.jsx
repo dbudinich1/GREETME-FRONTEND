@@ -1,38 +1,84 @@
 // src/pages/fundraiser/PartnerFundraisingHome.jsx
 //
-// TEAM C — stable, param-less HOME for the "Greet-Me Fundraise" PARTNER ADMIN interface.
-// The primary-nav "Greet-Me Fundraise" header points here so Team C has one fixed destination
-// while the org-scoped dashboard (/dashboard/fundraiser/partner/:organizationId) is built out.
+// TEAM D (B3B) — param-less HOME for the "Greet-Me Fundraise" PARTNER ADMIN interface. It performs
+// ORGANIZATION DISCOVERY so a partner administrator never has to obtain or type an orgId: on load it
+// asks the authenticated endpoint GET /api/fundraiser/partner/orgs for the caller's OWN organization
+// assignments, then routes into the EXISTING org-scoped dashboard
+// (/dashboard/fundraiser/partner/:organizationId).
 //
 // SAFETY / SCOPE:
-//  • Reuses the existing dark gate + truthful state views (FundraiserUI) — no new design system,
-//    no duplicate dashboard. This is the "smallest safe home shell," not a second interface.
-//  • NEVER exposes Founder Admin controls (that surface lives at /dashboard/fundraiser/admin).
-//  • Nav visibility is Founder-authorized; what THIS page renders is still governed by
-//    isFundraiserUiEnabled() and, once enabled, the backend (401/403/503). No client role grants access.
+//  • Reuses the existing dark gate + truthful state views (FundraiserUI) — no new design system.
+//  • Authorization is server-derived: the request carries only the existing Bearer token; the
+//    endpoint returns exactly the caller's orgs. No client value asserts identity or access.
+//  • No default is chosen when the caller administers more than one org — a chooser is shown.
+//  • NEVER exposes Founder Admin controls, campaign creation, economics, or a manual orgId field.
 //  • Participants are attribution records only — this is NOT a participant login/dashboard.
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, Navigate } from "react-router-dom";
+import { fundraiserApi, stateFor } from "../../api/fundraiserApi.js";
 import { isFundraiserUiEnabled } from "../../config/fundraiserGate.js";
-import { StateView, pageWrap, box, h } from "./FundraiserUI.jsx";
+import { StateView, pageWrap, box, h, btn } from "./FundraiserUI.jsx";
+import { partnerDashboardPath, classifyOrganizations } from "./partnerOrgDiscovery.js";
 
 export default function PartnerFundraisingHome() {
+  const enabled = isFundraiserUiEnabled();
+  const navigate = useNavigate();
+  const [phase, setPhase] = useState("loading"); // loading | error | ready
+  const [errState, setErrState] = useState("error");
+  const [orgs, setOrgs] = useState([]);
+
+  const load = useCallback(async () => {
+    if (!enabled) return; // dark gate OFF ⇒ never call the backend
+    setPhase("loading");
+    const r = await fundraiserApi.partner.myOrganizations();
+    if (!r.ok) { setErrState(stateFor(r)); setPhase("error"); return; } // truthful 401/403/503/error
+    setOrgs(Array.isArray(r.data?.organizations) ? r.data.organizations : []);
+    setPhase("ready");
+  }, [enabled]);
+  useEffect(() => { load(); }, [load]);
+
   // Dark gate OFF (default) → truthful dormant state; the backend is never called.
-  if (!isFundraiserUiEnabled()) {
-    return <div style={pageWrap}><StateView state="dormant" /></div>;
+  if (!enabled) return <div style={pageWrap}><StateView state="dormant" /></div>;
+
+  if (phase === "loading") return <div style={pageWrap}><StateView state="loading" /></div>;
+  if (phase === "error") return <div style={pageWrap}><StateView state={errState} onRetry={load} /></div>;
+
+  const decision = classifyOrganizations(orgs);
+
+  // Exactly one → open the existing dashboard automatically (no chooser, no manual entry).
+  if (decision.mode === "single") return <Navigate to={partnerDashboardPath(decision.organizationId)} replace />;
+
+  // Zero → truthful empty state (no fabricated access, no default org).
+  if (decision.mode === "empty") {
+    return (
+      <div style={pageWrap}>
+        <div style={box}>
+          <h2 style={h}>Greet-Me Fundraise — Partner Admin</h2>
+          <p style={{ color: "#7b6a59" }}>
+            No approved fundraising organization is available for this account. If you believe this is
+            an error, contact your Greet-Me administrator.
+          </p>
+        </div>
+      </div>
+    );
   }
-  // Gate ON → partner access is organization-scoped. There is no param-less
-  // "my organizations" partner endpoint (GET /partner/orgs does not exist — Tier 2),
-  // so this home cannot resolve an org and must NOT fetch or redirect. Truthful
-  // in-component state: partners reach their dashboard via a direct organization link.
+
+  // Multiple → a simple chooser. Selection is explicit; nothing is pre-selected.
   return (
     <div style={pageWrap}>
       <div style={box}>
-        <h2 style={h}>Greet-Me Fundraise — Partner Admin</h2>
-        <p style={{ color: "#7b6a59" }}>
-          Partner dashboard access is organization-scoped. Open the direct
-          dashboard link issued for your organization to manage your campaign.
-          There is no shared partner home page — each organization reaches its
-          dashboard through its own link.
+        <h2 style={h}>Choose an organization</h2>
+        <p style={{ color: "#7b6a59", marginTop: 0 }}>
+          You administer more than one fundraising organization. Select one to open its dashboard.
         </p>
+        <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          {orgs.map((o) => (
+            <li key={o.organizationId} style={{ borderTop: "1px solid #f0ebe3", padding: "10px 0", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <span>{o.name || o.organizationId} <span style={{ color: "#8a7c6c", fontSize: 13 }}>· {o.status}</span></span>
+              <button style={btn} type="button" onClick={() => navigate(partnerDashboardPath(o.organizationId))}>Open dashboard</button>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

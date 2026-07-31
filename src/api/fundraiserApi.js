@@ -50,6 +50,9 @@ export const fundraiserApi = {
     payoutStatus: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/payouts/status`),
   },
   partner: {
+    // B3B — the caller's own organization assignments (server-derived; no client identity in the
+    // request). Returns { organizations: [{ organizationId, name, status }] }. Powers org discovery.
+    myOrganizations: () => get("/api/fundraiser/partner/orgs"),
     overview: (orgId, campaignId) => get(`/api/fundraiser/partner/orgs/${orgId}/overview${campaignId ? `?campaignId=${campaignId}` : ""}`),
     campaigns: (orgId) => get(`/api/fundraiser/partner/orgs/${orgId}/campaigns`),
     roster: (orgId, campaignId) => get(`/api/fundraiser/partner/orgs/${orgId}/participants${campaignId ? `?campaignId=${campaignId}` : ""}`),
