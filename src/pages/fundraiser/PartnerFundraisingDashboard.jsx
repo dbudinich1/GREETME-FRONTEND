@@ -18,25 +18,35 @@ export default function PartnerFundraisingDashboard() {
   const [earnings, setEarnings] = useState(null);
   const [payout, setPayout] = useState(null);
   const [newP, setNewP] = useState({ campaignId: "", displayName: "" });
+  // FE-SEG-1: display-scope selection only. "" ⇒ All campaigns (unfiltered, today's
+  // behavior). Sent to the backend ONLY as the ?campaignId= query param; path
+  // organizationId remains the sole authorization key. allCampaigns holds the full
+  // list captured from the unfiltered overview so the selector never narrows itself.
+  const [selectedCampaignId, setSelectedCampaignId] = useState("");
+  const [allCampaigns, setAllCampaigns] = useState([]);
 
   const load = useCallback(async () => {
     if (!isFundraiserUiEnabled()) { setState("dormant"); return; } // gate OFF ⇒ no API request
     if (!organizationId) { setState("forbidden"); return; }
     setState("loading");
-    const o = await fundraiserApi.partner.overview(organizationId);
+    const cid = selectedCampaignId || undefined; // omit the param entirely on "All"
+    const o = await fundraiserApi.partner.overview(organizationId, cid);
     const s = stateFor(o);
     if (s !== "ok") { setState(s); return; }
     if (!o.data || !o.data.dashboard) { setState("error"); return; } // fail closed on malformed
     setState("ok");
     setOv(o.data);
+    // Populate the selector from the UNFILTERED response only; a filtered overview
+    // narrows campaigns[] to the selected campaign and would erase the other options.
+    if (!cid) setAllCampaigns(o.data.campaigns || []);
     const [c, e, p] = await Promise.all([
       fundraiserApi.partner.campaigns(organizationId),
-      fundraiserApi.partner.earnings(organizationId),
+      fundraiserApi.partner.earnings(organizationId, cid),
       fundraiserApi.partner.payoutStatus(organizationId),
     ]);
     setCampaigns(stateFor(c) === "ok" ? c.data : []);
     setEarnings(e.data); setPayout(p.status === 503 ? { held: true } : p.data);
-  }, [organizationId]);
+  }, [organizationId, selectedCampaignId]);
   useEffect(() => { load(); }, [load]);
 
   async function addParticipant(e) {
@@ -56,6 +66,13 @@ export default function PartnerFundraisingDashboard() {
 
       <div style={box}>
         <h2 style={h}>Campaign summary</h2>
+        <div style={{ marginBottom: 12 }}>
+          <label htmlFor="fr-campaign-filter" style={{ fontSize: 13, color: "#8a7c6c", marginRight: 8 }}>Campaign</label>
+          <select id="fr-campaign-filter" value={selectedCampaignId} onChange={(e) => setSelectedCampaignId(e.target.value)} style={{ padding: 8, borderRadius: 6, border: "1px solid #d8cdbb" }}>
+            <option value="">All campaigns</option>
+            {allCampaigns.map((c) => <option key={c.campaignId} value={c.campaignId}>{c.title || c.campaignId}</option>)}
+          </select>
+        </div>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <Stat label="Campaigns" value={ov.campaigns?.length ?? 0} />
           <Stat label="Participants" value={rows.length} />
@@ -83,7 +100,7 @@ export default function PartnerFundraisingDashboard() {
           <input placeholder="Display name" value={newP.displayName} onChange={(e) => setNewP({ ...newP, displayName: e.target.value })} style={{ padding: 8, borderRadius: 6, border: "1px solid #d8cdbb", flex: 1, minWidth: 160 }} />
           <button style={btn} type="submit">Add participant</button>
         </form>
-        {rows.length === 0 ? <Empty>No participants yet. Add one above or import a CSV.</Empty> : (
+        {rows.length === 0 ? <Empty>{selectedCampaignId ? "This campaign has no participants yet." : "No participants yet. Add one above or import a CSV."}</Empty> : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr style={{ textAlign: "left", color: "#8a7c6c", fontSize: 13 }}><th>Participant</th><th>Referral</th><th>Visits</th><th>Scans</th><th>Conv.</th><th></th></tr></thead>
             <tbody>

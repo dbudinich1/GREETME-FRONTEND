@@ -50,7 +50,7 @@ export const fundraiserApi = {
     payoutStatus: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/payouts/status`),
   },
   partner: {
-    overview: (orgId) => get(`/api/fundraiser/partner/orgs/${orgId}/overview`),
+    overview: (orgId, campaignId) => get(`/api/fundraiser/partner/orgs/${orgId}/overview${campaignId ? `?campaignId=${campaignId}` : ""}`),
     campaigns: (orgId) => get(`/api/fundraiser/partner/orgs/${orgId}/campaigns`),
     roster: (orgId, campaignId) => get(`/api/fundraiser/partner/orgs/${orgId}/participants${campaignId ? `?campaignId=${campaignId}` : ""}`),
     createParticipant: (orgId, b) => post(`/api/fundraiser/partner/orgs/${orgId}/participants`, b),
@@ -58,7 +58,7 @@ export const fundraiserApi = {
     participantLinks: (orgId, pid) => get(`/api/fundraiser/partner/orgs/${orgId}/participants/${pid}/links`),
     deactivateParticipant: (orgId, pid) => del(`/api/fundraiser/partner/orgs/${orgId}/participants/${pid}`),
     totals: (orgId) => get(`/api/fundraiser/partner/orgs/${orgId}/totals`),
-    earnings: (orgId) => get(`/api/fundraiser/partner/orgs/${orgId}/earnings`),
+    earnings: (orgId, campaignId) => get(`/api/fundraiser/partner/orgs/${orgId}/earnings${campaignId ? `?campaignId=${campaignId}` : ""}`),
     payoutStatus: (orgId) => get(`/api/fundraiser/partner/orgs/${orgId}/payouts/status`),
     exportContract: (orgId) => get(`/api/fundraiser/partner/orgs/${orgId}/export`),
   },
