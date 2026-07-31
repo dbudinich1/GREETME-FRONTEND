@@ -55,6 +55,7 @@ export const fundraiserApi = {
     roster: (orgId, campaignId) => get(`/api/fundraiser/partner/orgs/${orgId}/participants${campaignId ? `?campaignId=${campaignId}` : ""}`),
     createParticipant: (orgId, b) => post(`/api/fundraiser/partner/orgs/${orgId}/participants`, b),
     importRoster: (orgId, b) => post(`/api/fundraiser/partner/orgs/${orgId}/participants/import`, b),
+    regenerate: (orgId, pid, reason) => post(`/api/fundraiser/partner/orgs/${orgId}/participants/${pid}/regenerate`, { reason }),
     participantLinks: (orgId, pid) => get(`/api/fundraiser/partner/orgs/${orgId}/participants/${pid}/links`),
     deactivateParticipant: (orgId, pid) => del(`/api/fundraiser/partner/orgs/${orgId}/participants/${pid}`),
     totals: (orgId) => get(`/api/fundraiser/partner/orgs/${orgId}/totals`),
