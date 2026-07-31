@@ -19,14 +19,20 @@ export default function PartnerFundraisingHome() {
   if (!isFundraiserUiEnabled()) {
     return <div style={pageWrap}><StateView state="dormant" /></div>;
   }
-  // Gate ON → the org-scoped Partner dashboard is the authorized surface. Team C wires organization
-  // resolution here (there is no param-less "my organizations" partner endpoint yet). Until then, a
-  // truthful loading state — never fabricated data, never Founder Admin.
+  // Gate ON → partner access is organization-scoped. There is no param-less
+  // "my organizations" partner endpoint (GET /partner/orgs does not exist — Tier 2),
+  // so this home cannot resolve an org and must NOT fetch or redirect. Truthful
+  // in-component state: partners reach their dashboard via a direct organization link.
   return (
     <div style={pageWrap}>
       <div style={box}>
         <h2 style={h}>Greet-Me Fundraise — Partner Admin</h2>
-        <StateView state="loading" />
+        <p style={{ color: "#7b6a59" }}>
+          Partner dashboard access is organization-scoped. Open the direct
+          dashboard link issued for your organization to manage your campaign.
+          There is no shared partner home page — each organization reaches its
+          dashboard through its own link.
+        </p>
       </div>
     </div>
   );

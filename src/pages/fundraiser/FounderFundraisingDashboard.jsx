@@ -69,10 +69,8 @@ export default function FounderFundraisingDashboard() {
           <Stat label="Campaigns" value={overview.campaigns.total} />
           <Stat label="Participants" value={overview.participants.total} />
           <Stat label="Active economics" value={overview.economics.activeVersions} />
-          <Stat label="Corrections pending" value={overview.corrections.pending} />
-          <Stat label="Ledger entries" value={(overview.ledger?.conversions || 0) + (overview.ledger?.renewals || 0) + (overview.ledger?.gifts || 0)} />
         </div>
-        <p style={{ marginTop: 12, color: "#8a7c6c" }}>Proceeds/payouts <HeldBadge /> — economics activation, checkout binding, and payouts are held.</p>
+        <p style={{ marginTop: 12, color: "#8a7c6c" }}>Proceeds/payouts <HeldBadge /> — checkout binding and payouts are held.</p>
       </div>
 
       <div style={box}>
