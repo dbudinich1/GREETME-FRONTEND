@@ -40,6 +40,11 @@ export const fundraiserApi = {
     suspendOrganization: (id, reason) => post(`/api/fundraiser/admin/organizations/${id}/suspend`, { reason }),
     closeOrganization: (id, reason) => post(`/api/fundraiser/admin/organizations/${id}/close`, { reason }),
     assignPartnerAdmin: (id, userId) => post(`/api/fundraiser/admin/organizations/${id}/partner-admins`, { userId }),
+    // P1 — founder-only exact-email resolution. POST so the email is carried in the BODY, never in
+    // the URL (no PII in logs, history, referrers, or monitoring). Returns exactly
+    // { userId, email, emailVerified, isFounder }; 400 INVALID_EMAIL / 404 USER_NOT_FOUND /
+    // 409 EMAIL_AMBIGUOUS are surfaced verbatim by the shared { ok, status, data } envelope.
+    resolveUserByEmail: (email) => post("/api/fundraiser/admin/users/resolve", { email }),
     campaigns: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/campaigns`),
     createCampaign: (b) => post("/api/fundraiser/admin/campaigns", b),
     economicsHistory: (campaignId) => get(`/api/fundraiser/admin/campaigns/${campaignId}/economics/history`),
