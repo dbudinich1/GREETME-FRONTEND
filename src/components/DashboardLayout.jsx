@@ -12,9 +12,10 @@ import imageCreditsService from '../services/imageCreditsService';
 import api from '../api/api';
 import GuidedSetupFlow, { shouldShowGuidedSetupForUser } from './GuidedSetupFlow';
 import { useAccountState } from '../hooks/useAccountState';
+import { useFundraiserPartnerAccess } from '../hooks/useFundraiserPartnerAccess'; // TEAM B B3 — server-derived partner-nav visibility
 
 export default function DashboardLayout({ children }) {
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   // Defensive display-name fallbacks: avatar/greeting must never collapse to
@@ -26,6 +27,9 @@ export default function DashboardLayout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState(null); // NAV-02 — desktop nested submenu (For Business)
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
+  // TEAM B B3 — server-derived partner-administrator signal for nav visibility only. Probes once per
+  // mount, only when authenticated AND the fundraiser gate is on; fails closed; nothing persisted.
+  const isPartnerAdmin = useFundraiserPartnerAccess(isAuthenticated);
 
   const [imageCredits, setImageCredits] = useState(0);
   const [cartCount, setCartCount] = useState(0);
@@ -170,11 +174,15 @@ export default function DashboardLayout({ children }) {
     { name: 'For Business', path: '/business', icon: null, children: [
       { name: 'Corporate Campaign Dashboard', path: '/dashboard/campaigns' },
     ] },
-    // NAV-02 — Greet-Me Fundraise: Founder-authorized VISIBLE primary header → Partner Admin home.
+    // NAV-02 — Greet-Me Fundraise: VISIBLE primary header → Partner Admin home.
     // Destination + backend still enforce the fundraiser gate/auth (401/403/503). NEVER Founder Admin.
     // Media Library relocated into the avatar/profile dropdown (see the user menu below).
-    // TEAM D FE-GATE-1 — visible only when the dark gate is ON AND the caller is founder (plan/tier).
-    ...(isFundraiserUiEnabled() && isFounder(user) ? [{ name: 'Greet-Me Fundraise', path: '/dashboard/fundraiser', icon: null }] : []),
+    // TEAM B B3 — visibility is now SERVER-DERIVED: shown only when the dark gate is ON and
+    // GET /api/fundraiser/partner/orgs returns 200 with >= 1 approved organization the caller
+    // administers (persisted adminUserIds). Replaces the FE-GATE-1 founder predicate, which pointed
+    // the PARTNER home at founders only and left real partner administrators with no entry.
+    // Display-only: it grants no route or backend authorization, and no client role is trusted.
+    ...(isFundraiserUiEnabled() && isPartnerAdmin ? [{ name: 'Greet-Me Fundraise', path: '/dashboard/fundraiser', icon: null }] : []),
     // TEAM B — Founder Admin fundraising access stays separate + hidden while the dark gate is false.
     // TEAM D FE-GATE-1 — same founder gate as above.
     ...(isFundraiserUiEnabled() && isFounder(user) ? [{ name: 'Fundraising', path: '/dashboard/fundraiser/admin', icon: null }] : []),
