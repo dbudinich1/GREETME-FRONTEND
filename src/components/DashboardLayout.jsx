@@ -15,7 +15,7 @@ import { useAccountState } from '../hooks/useAccountState';
 import { useFundraiserPartnerAccess } from '../hooks/useFundraiserPartnerAccess'; // TEAM B B3 — server-derived partner-nav visibility
 
 export default function DashboardLayout({ children }) {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   // Defensive display-name fallbacks: avatar/greeting must never collapse to
@@ -29,7 +29,8 @@ export default function DashboardLayout({ children }) {
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
   // TEAM B B3 — server-derived partner-administrator signal for nav visibility only. Probes once per
   // mount, only when authenticated AND the fundraiser gate is on; fails closed; nothing persisted.
-  const isPartnerAdmin = useFundraiserPartnerAccess(isAuthenticated);
+  // Re-probes exactly once per authentication transition; auth loss hides the entry immediately.
+  const isPartnerAdmin = useFundraiserPartnerAccess(isAuthenticated, !authLoading);
 
   const [imageCredits, setImageCredits] = useState(0);
   const [cartCount, setCartCount] = useState(0);

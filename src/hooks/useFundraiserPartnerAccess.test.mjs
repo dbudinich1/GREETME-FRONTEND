@@ -259,9 +259,13 @@ test("B3: the hook reuses the existing fundraiser API client and endpoint", asyn
   assert.ok(api.includes('myOrganizations: () => get("/api/fundraiser/partner/orgs")'), "endpoint is GET /api/fundraiser/partner/orgs");
 });
 
-test("B3: the effect runs once per mount (empty dependency list)", async () => {
+test("B3fix: the effect keys on qualification, and cleanup supersedes + clears the answer", async () => {
+  // Complements — does not replace — the rendered lifecycle coverage in
+  // src/components/dashboardPartnerNav.browser.test.mjs, which proves the real React behaviour.
   const { readFileSync } = await import("node:fs");
   const hook = readFileSync(new URL("./useFundraiserPartnerAccess.js", import.meta.url), "utf8");
-  assert.match(hook, /\}, \[\]\); \/\/ once per mount/, "useEffect must carry an empty dependency array");
-  assert.match(hook, /return \(\) => \{ active = false; \};/, "cleanup must mark the probe inactive");
+  assert.match(hook, /\}, \[qualified\]\);/, "the effect must depend on qualification, not an empty array");
+  assert.match(hook, /return \(\) => \{ active = false; setGranted\(false\); \};/, "cleanup must supersede the probe AND clear the resolved answer");
+  assert.match(hook, /return qualified && granted;/, "visibility must be DERIVED so de-qualification hides in the same render");
+  assert.ok(!/qualifiedRef/.test(hook), "the mount-time snapshot ref must be gone");
 });

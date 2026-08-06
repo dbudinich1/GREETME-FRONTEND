@@ -74,27 +74,55 @@ export async function runPartnerAccessProbe({ enabled, isAuthenticated, fetchOrg
 
 /**
  * React hook. Returns a boolean, defaulting to FALSE until a qualifying 200 arrives.
- * The effect runs once per mount (empty dependency list) — never per render.
+ *
+ * LIFECYCLE (corrected). The previous version snapshotted qualification into a ref at mount and used
+ * an EMPTY dependency list. That was wrong in both directions for a layout that outlives a session
+ * change — DashboardLayout renders on public routes (/pricing, /business) outside ProtectedRoute, so
+ * `user` can transition without the component ever remounting:
+ *   • sign-in during the mount  ⇒ the snapshot stayed `false`, so no probe ever ran and the entry
+ *     was permanently hidden for that mount;
+ *   • sign-out during the mount ⇒ the snapshot stayed `true` and the resolved `granted` state kept
+ *     the entry VISIBLE after authentication was lost.
+ *
+ * Qualification is now a derived value in the dependency list, so:
+ *   • the effect re-runs EXACTLY ONCE per transition into a qualified state (one probe per session);
+ *   • ordinary re-renders leave `qualified` unchanged ⇒ no repeat probe;
+ *   • losing authentication (or the flag) hides the entry in the SAME RENDER, because the return
+ *     value is derived — it never waits for an effect round-trip;
+ *   • cleanup marks the in-flight probe inactive AND clears the resolved answer, so a superseded or
+ *     late response cannot reveal the entry, and a subsequent session never inherits the previous
+ *     session's answer;
+ *   • an epoch counter is a second, independent guard: a response whose epoch is no longer current
+ *     is discarded even if its `active` flag were somehow still set.
+ *
+ * `authReady` is the EXISTING AuthContext readiness signal (`!loading`) passed in by the caller —
+ * no new authentication state is invented. While auth is still initializing, qualification is false,
+ * so no request is issued and nothing is shown.
  */
-export function useFundraiserPartnerAccess(isAuthenticated) {
-  const [isPartnerAdmin, setIsPartnerAdmin] = useState(false);
-  // Read once at mount; a ref keeps the effect's dependency list empty so re-renders never re-probe.
-  const qualifiedRef = useRef({ enabled: isFundraiserUiEnabled(), isAuthenticated: isAuthenticated === true });
+export function useFundraiserPartnerAccess(isAuthenticated, authReady = true) {
+  const [granted, setGranted] = useState(false);
+  const epochRef = useRef(0);
+
+  const enabled = isFundraiserUiEnabled();
+  const qualified = enabled && authReady !== false && isAuthenticated === true;
 
   useEffect(() => {
+    if (!qualified) return undefined; // unauthenticated / not ready / flag off ⇒ NO request at all
+    const epoch = ++epochRef.current;
     let active = true;
-    const { enabled, isAuthenticated: authed } = qualifiedRef.current;
     runPartnerAccessProbe({
-      enabled,
-      isAuthenticated: authed,
+      enabled: true,
+      isAuthenticated: true,
       fetchOrgs: () => fundraiserApi.partner.myOrganizations(),
-      apply: setIsPartnerAdmin,
-      isActive: () => active,
+      apply: setGranted,
+      isActive: () => active && epochRef.current === epoch,
     });
-    return () => { active = false; };
-  }, []); // once per mount
+    // Ends this qualified session: supersede the in-flight probe and drop its answer.
+    return () => { active = false; setGranted(false); };
+  }, [qualified]);
 
-  return isPartnerAdmin;
+  // DERIVED — de-qualification hides immediately, with no dependence on effect timing.
+  return qualified && granted;
 }
 
 export default useFundraiserPartnerAccess;
