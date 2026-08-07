@@ -257,6 +257,10 @@ export default function Checkout() {
         });
         // NOTE: do NOT clear the cart here — the success page is responsible for clearing
         // after Stripe confirms payment. Protects against canceled checkout / browser interruption.
+        // Fundraiser token lifecycle (founder rule: one purchase per referral visit): clear the
+        // attribution token ONLY after a checkout session was successfully created. A throw / failure /
+        // no-url response falls through WITHOUT clearing, so a retry preserves attribution.
+        if (checkoutSessionCreated(data)) clearFundraiserToken();
         window.location.href = data.url;
       } catch (error) {
         console.error('Stripe merch checkout error:', error);

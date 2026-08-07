@@ -1,6 +1,10 @@
 // src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
 import { getErrorMessage } from '../utils/errorMessages';
+// Fundraiser token lifecycle (founder rule: one purchase per referral visit) — logout always clears
+// the opaque attribution token via the existing carrier helper. Scoped removal only (never a broad
+// storage wipe). clearToken is itself fail-safe (wrapped in try/catch), so it never throws.
+import { clearToken as clearFundraiserToken } from '../pages/fundraiser/attributionCarrier.js';
 
 // Safari private browsing throws SecurityError on localStorage access.
 // These helpers prevent that from crashing the app.
@@ -156,6 +160,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    // Clear the fundraiser attribution token FIRST so it is removed even if any later logout cleanup
+    // or navigation throws. Scoped to the fundraiser key only — no broad sessionStorage/localStorage wipe.
+    clearFundraiserToken();
     safeRemove('token');
     safeRemove('user');
     // Clear account-specific cached media to prevent bleed-through on next login

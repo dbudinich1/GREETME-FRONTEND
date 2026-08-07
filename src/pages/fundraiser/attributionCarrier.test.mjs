@@ -88,3 +88,14 @@ test("no-contamination: after clear (post-checkout), a later purchase gets nothi
   clearToken();                                                                 // Checkout clears after submit
   assert.deepEqual(fundraiserCheckoutField({ purchaseType: "subscription", flagEnabled: true }), {});
 });
+
+test("one-purchase-per-visit: after a prior token is cleared, a NEW referral visit captures a NEW token", () => {
+  const TOK2 = "ftk_NEWvisit987654_-";
+  captureToken(TOK);
+  clearToken();                                   // prior purchase completed → token cleared
+  assert.equal(readToken(), null);                // fully cleared, no bleed-through
+  assert.equal(captureToken(TOK2), true);         // a new valid referral visit captures a new token
+  assert.equal(readToken(), TOK2);
+  assert.deepEqual(fundraiserCheckoutField({ purchaseType: "merch", flagEnabled: true }), { fundraiserAttributionToken: TOK2 });
+  assert.deepEqual(fundraiserCheckoutField({ purchaseType: "subscription", flagEnabled: true }), { fundraiserAttributionToken: TOK2 });
+});
