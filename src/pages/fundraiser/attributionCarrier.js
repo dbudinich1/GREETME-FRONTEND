@@ -7,8 +7,8 @@
 // identity, never persists in a cookie / server session / localStorage / global profile state.
 //
 // The token is submitted at checkout as `fundraiserAttributionToken` ONLY for a personal SUBSCRIPTION
-// purchase AND ONLY while the Fundraiser UI flag is enabled. It is never attached to gifts, QR Cash,
-// G1G1, onboarding fees, one-time purchases, or unrelated checkouts.
+// or fundraiser MERCH purchase, AND ONLY while the Fundraiser UI flag is enabled. It is never attached
+// to gifts, QR Cash, G1G1, onboarding fees, or any other one-time/unrelated checkout.
 
 export const FUNDRAISER_ATTRIBUTION_KEY = "greetme_fundraiser_attribution";
 
@@ -44,12 +44,13 @@ export function clearToken() {
 }
 
 // The checkout-request fragment. Returns `{ fundraiserAttributionToken }` ONLY when the Fundraiser UI
-// flag is enabled AND the purchase is a personal subscription AND a valid token is preserved; else `{}`
-// (the field is omitted entirely). Carries ONLY the opaque token — never org/campaign/participant/
-// economics/payout data.
+// flag is enabled AND the purchase is a personal subscription OR fundraiser merch AND a valid token is
+// preserved; else `{}` (the field is omitted entirely). Every other purchase type — gift, QR Cash,
+// G1G1, onboarding, or any other one-time purchase — is prohibited and yields `{}`. Carries ONLY the
+// opaque token — never org/campaign/participant/economics/payout data.
 export function fundraiserCheckoutField({ purchaseType, flagEnabled } = {}) {
   if (!flagEnabled) return {};
-  if (purchaseType !== "subscription") return {};
+  if (purchaseType !== "subscription" && purchaseType !== "merch") return {};
   const token = readToken();
   return token ? { fundraiserAttributionToken: token } : {};
 }

@@ -20,11 +20,21 @@ test("public HashRouter route /f/:token is registered (lazy, outside protected r
   assert.ok(idxProtectedSection > 0 && idxRoute < idxProtectedSection, "/f/:token must be a public route (before the Protected Routes section)");
 });
 
-test("Checkout attaches fundraiserAttributionToken via the carrier — flag-gated, subscription-only", () => {
+test("Checkout attaches fundraiserAttributionToken via the carrier — flag-gated, subscription AND merch", () => {
   assert.match(Checkout, /import \{ fundraiserCheckoutField, clearToken as clearFundraiserToken \} from '\.\/fundraiser\/attributionCarrier\.js'/);
   assert.match(Checkout, /import \{ isFundraiserUiEnabled \} from '\.\.\/config\/fundraiserGate\.js'/);
+  // existing subscription wiring — unchanged
   assert.match(Checkout, /\.\.\.fundraiserCheckoutField\(\{ purchaseType: item\.purchaseType \|\| 'subscription', flagEnabled: isFundraiserUiEnabled\(\) \}\)/);
+  // NEW: merch payload uses the SAME helper + field name + same flag gate
+  assert.match(Checkout, /\.\.\.fundraiserCheckoutField\(\{ purchaseType: 'merch', flagEnabled: isFundraiserUiEnabled\(\) \}\)/);
   assert.match(Checkout, /clearFundraiserToken\(\)/);
+});
+
+test("Founder v2 pricing wiring is preserved — this slice does not touch price maps or fallback", () => {
+  // the Founder v2 price wiring (getCurrentPriceMap) and stale-priceId refresh remain intact
+  assert.match(Checkout, /import \{ getCurrentPriceMap, personalPlans \} from '\.\.\/config\/plans'/);
+  assert.match(Checkout, /getCurrentPriceMap\(\)/);
+  assert.match(Checkout, /CART_STALE/);
 });
 
 test("Checkout never hard-codes the fundraiser token or identity fields into the request", () => {

@@ -41,21 +41,32 @@ test("read returns the token only if still syntactically valid; clear removes it
   assert.equal(readToken(), null);
 });
 
-test("checkout field: included ONLY for subscription + flag-on + valid token", () => {
+test("checkout field: INCLUDED for subscription + flag-on + valid token", () => {
   captureToken(TOK);
   assert.deepEqual(fundraiserCheckoutField({ purchaseType: "subscription", flagEnabled: true }), { fundraiserAttributionToken: TOK });
 });
 
-test("checkout field OMITTED while flag is OFF (dormant) — never submitted in production", () => {
+test("checkout field: INCLUDED for merch + flag-on + valid token (approved subscription-or-merch contract)", () => {
   captureToken(TOK);
-  assert.deepEqual(fundraiserCheckoutField({ purchaseType: "subscription", flagEnabled: false }), {});
+  assert.deepEqual(fundraiserCheckoutField({ purchaseType: "merch", flagEnabled: true }), { fundraiserAttributionToken: TOK });
 });
 
-test("checkout field OMITTED for non-subscription purchases (gift/QR Cash/G1G1/merch/one-time)", () => {
+test("checkout field OMITTED while flag is OFF (dormant) — never submitted in production (subscription AND merch)", () => {
   captureToken(TOK);
-  for (const pt of ["merch", "gift", "g1g1", "qr_cash", "one_time", "payment", undefined]) {
+  assert.deepEqual(fundraiserCheckoutField({ purchaseType: "subscription", flagEnabled: false }), {});
+  assert.deepEqual(fundraiserCheckoutField({ purchaseType: "merch", flagEnabled: false }), {});
+});
+
+test("checkout field OMITTED for every unsupported purchase type — gift/QR Cash/G1G1/one-time remain prohibited", () => {
+  captureToken(TOK);
+  for (const pt of ["gift", "g1g1", "qr_cash", "hero_hearts", "image_pack", "animation_pack", "one_time", "payment", "", undefined]) {
     assert.deepEqual(fundraiserCheckoutField({ purchaseType: pt, flagEnabled: true }), {}, `purchaseType=${pt}`);
   }
+});
+
+test("purchaseType 'gift' is PROHIBITED even with flag-on + valid token (explicit contract guard)", () => {
+  captureToken(TOK);
+  assert.deepEqual(fundraiserCheckoutField({ purchaseType: "gift", flagEnabled: true }), {});
 });
 
 test("checkout field OMITTED when no token was captured", () => {

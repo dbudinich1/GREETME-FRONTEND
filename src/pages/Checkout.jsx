@@ -9,8 +9,9 @@ import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
 import { getCurrentPriceMap, personalPlans } from '../config/plans';
 // TEAM B — dormant Fundraiser attribution carrier. The opaque token (if captured at /#/f/:token) is
-// attached as `fundraiserAttributionToken` ONLY for a personal subscription AND ONLY while the
-// Fundraiser UI flag is enabled (false by default). Never for gifts/QR Cash/G1G1/merch/one-time.
+// attached as `fundraiserAttributionToken` ONLY for a personal subscription OR fundraiser merch AND
+// ONLY while the Fundraiser UI flag is enabled (false by default). Never for gifts/QR Cash/G1G1/
+// onboarding/other one-time checkouts.
 import { fundraiserCheckoutField, clearToken as clearFundraiserToken } from './fundraiser/attributionCarrier.js';
 import { isFundraiserUiEnabled } from '../config/fundraiserGate.js';
 
@@ -251,6 +252,8 @@ export default function Checkout() {
           },
           // Phase 3D Batch A — A2.4: opaque send-flow resume token (when present)
           ...(sendDraftId && { sendDraftId }),
+          // Dormant Fundraiser attribution — opaque token only, merch + flag-on only (else omitted).
+          ...fundraiserCheckoutField({ purchaseType: 'merch', flagEnabled: isFundraiserUiEnabled() }),
         });
         // NOTE: do NOT clear the cart here — the success page is responsible for clearing
         // after Stripe confirms payment. Protects against canceled checkout / browser interruption.
