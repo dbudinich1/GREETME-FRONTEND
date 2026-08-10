@@ -7,6 +7,8 @@ import AddToCartModal from '../components/AddToCartModal';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 import api from '../api/api';
 import greetmeFlags from '../assets/greetme-flags.jpg';
+import { readToken } from './fundraiser/attributionCarrier';
+import { giftCtaState } from './fundraiser/giftCtaModel';
 
 // AGP-01 — American Gift Place category layer. Only 'merch' is live/purchasable.
 const AGP_CATEGORIES = [
@@ -38,6 +40,31 @@ export default function Merch() {
   const [catalogProducts, setCatalogProducts] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('merch'); // AGP-01: default live category
+  // TEAM D — Shopify gift CTA money-path. The fundraiser attribution token (if any) gates the CTA;
+  // without it, Maker-Gift cards stay display-only ("Available soon"). Dormant-safe: the server
+  // returns 503 while fundraiserEnabled=false, which giftCheckout maps to a fail-closed CTA state.
+  const fundraiserToken = readToken();
+  const [giftBusyId, setGiftBusyId] = useState(null);
+  const [giftErrorId, setGiftErrorId] = useState(null);
+
+  async function handleGiftCheckout(item) {
+    const { showCta, variantId } = giftCtaState({ token: fundraiserToken, item });
+    if (!showCta) return;
+    setGiftErrorId(null);
+    setGiftBusyId(item.id);
+    try {
+      const r = await api.giftCheckout({ token: fundraiserToken, variantId, quantity: 1 });
+      if (r && r.ok === true && r.checkoutUrl) {
+        window.location.href = r.checkoutUrl; // hand off to the Shopify-hosted cart
+        return;
+      }
+      setGiftErrorId(item.id);
+    } catch {
+      setGiftErrorId(item.id);
+    } finally {
+      setGiftBusyId(null);
+    }
+  }
 
   // Session context: recipient gift flow vs SendGreeting Just-Because flow
   const returnRecipientId = searchParams.get('returnRecipientId');
@@ -496,18 +523,40 @@ export default function Merch() {
                       }}>
                         {dollars}
                       </span>
-                      {/* DISPLAY-ONLY — no buy/checkout CTA (Batch 1). */}
-                      <span style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        color: 'var(--text-secondary)',
-                        background: 'var(--gray-100)',
-                        padding: '0.25rem 0.625rem',
-                        borderRadius: 'var(--radius-md)',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        Available soon
-                      </span>
+                      {/* TEAM D — Shopify gift CTA: shown ONLY with a fundraiser attribution token
+                          AND a giftable variant; otherwise stays display-only ("Available soon"). */}
+                      {giftCtaState({ token: fundraiserToken, item }).showCta ? (
+                        <button
+                          type="button"
+                          onClick={() => handleGiftCheckout(item)}
+                          disabled={giftBusyId === item.id}
+                          style={{
+                            fontSize: '0.8125rem',
+                            fontWeight: 700,
+                            color: '#fffdf8',
+                            background: giftBusyId === item.id ? 'var(--gray-400)' : 'var(--primary)',
+                            padding: '0.375rem 0.875rem',
+                            border: 'none',
+                            borderRadius: 'var(--radius-md)',
+                            whiteSpace: 'nowrap',
+                            cursor: giftBusyId === item.id ? 'default' : 'pointer'
+                          }}
+                        >
+                          {giftBusyId === item.id ? 'Opening…' : (giftErrorId === item.id ? 'Try again' : 'Send this gift')}
+                        </button>
+                      ) : (
+                        <span style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          color: 'var(--text-secondary)',
+                          background: 'var(--gray-100)',
+                          padding: '0.25rem 0.625rem',
+                          borderRadius: 'var(--radius-md)',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          Available soon
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

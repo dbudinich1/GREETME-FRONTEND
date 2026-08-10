@@ -859,6 +859,26 @@ class ApiService {
     return this.request("/api/gifts/catalog");
   }
 
+  // TEAM D — Shopify gift CTA money-path checkout initiation. The opaque fundraiser
+  // attribution `token` travels in the BODY (never a fabricated auth header); the server
+  // resolves trusted attribution + validates the gift and returns a Shopify-hosted cart
+  // permalink. DORMANT while fundraiserEnabled=false (server returns 503). Returns the
+  // parsed { ok, checkoutUrl, correlationId } | { ok:false, reason }.
+  async giftCheckout({ token, variantId, quantity = 1 } = {}) {
+    try {
+      const data = await this.request("/api/gifts/checkout", {
+        method: "POST",
+        body: JSON.stringify({ token, variantId, quantity }),
+      });
+      // request() returns parsed JSON on 2xx; a checkoutUrl means go.
+      if (data && data.ok === true && typeof data.checkoutUrl === "string") return data;
+      return { ok: false, reason: (data && data.reason) || "UNAVAILABLE", status: data && data.status };
+    } catch (err) {
+      // request() throws on 400/403/422/429/5xx (incl. the dormant 503) → fail closed for the CTA.
+      return { ok: false, reason: "UNAVAILABLE", status: err && err.status };
+    }
+  }
+
   // M0 — read-only Hearts Marketplace catalog (class/state facts; empty while dormant).
   getMarketplaceCatalog() {
     return this.request("/api/marketplace/catalog");
