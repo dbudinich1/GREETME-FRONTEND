@@ -7,8 +7,28 @@ import AddToCartModal from '../components/AddToCartModal';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 import api from '../api/api';
 import greetmeFlags from '../assets/greetme-flags.jpg';
-import { readToken } from './fundraiser/attributionCarrier';
-import { giftCtaState } from './fundraiser/giftCtaModel';
+import { readToken, isValidTokenSyntax } from './fundraiser/attributionCarrier';
+
+// TEAM D — pure Shopify gift-CTA decision (inlined; no React/network). The CTA shows ONLY when a
+// valid fundraiser attribution token is present AND the item has a giftable variant (available + a
+// valid Greet-Me canonical variant id with a numeric tail + a finite non-negative price). The client
+// sends `variant.id` (gm-var-<numeric>); raw Shopify GIDs are never accepted.
+const GIFT_VARIANT_ID_RE = /^gm-var-\d+$/;
+function isGiftableVariant(v) {
+  return Boolean(
+    v && v.available === true && typeof v.id === 'string' && GIFT_VARIANT_ID_RE.test(v.id) &&
+    typeof v.priceCents === 'number' && Number.isFinite(v.priceCents) && v.priceCents >= 0
+  );
+}
+function pickGiftVariant(item) {
+  if (!item || !Array.isArray(item.variants)) return null;
+  return item.variants.find(isGiftableVariant) || null;
+}
+function giftCtaState({ token, item } = {}) {
+  const variant = pickGiftVariant(item);
+  const showCta = isValidTokenSyntax(token) && variant != null;
+  return { showCta, variantId: showCta ? variant.id : null };
+}
 
 // AGP-01 — American Gift Place category layer. Only 'merch' is live/purchasable.
 const AGP_CATEGORIES = [
