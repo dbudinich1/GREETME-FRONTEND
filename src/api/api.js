@@ -859,6 +859,13 @@ class ApiService {
     return this.request("/api/gifts/catalog");
   }
 
+  // SHOPIFY THIN CONNECTION - initiate the EXISTING Shopify-hosted checkout for an approved
+  // Collective gift. An ordinary purchase OMITS the fundraiser `token` property entirely:
+  // sending it with any value (including null) is a fundraiser attempt that fails closed.
+  startGiftCheckout(variantId, quantity = 1) {
+    return this.post("/api/gifts/checkout", { variantId, quantity });
+  }
+
   // M0 — read-only Hearts Marketplace catalog (class/state facts; empty while dormant).
   getMarketplaceCatalog() {
     return this.request("/api/marketplace/catalog");
