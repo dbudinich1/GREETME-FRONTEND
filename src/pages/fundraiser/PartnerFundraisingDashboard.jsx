@@ -9,6 +9,7 @@ import { useParams } from "react-router-dom";
 import { fundraiserApi, stateFor } from "../../api/fundraiserApi.js";
 import { isFundraiserUiEnabled } from "../../config/fundraiserGate.js";
 import { pageWrap, box, h, btn, btnGhost, Stat, StateView, Empty, HeldBadge } from "./FundraiserUI.jsx";
+import ParticipantQrCode from "./ParticipantQrCode.jsx"; // F1-7 — scannable QR from the existing payload
 
 export default function PartnerFundraisingDashboard() {
   const { organizationId } = useParams();
@@ -200,6 +201,9 @@ export default function PartnerFundraisingDashboard() {
                       <div>Referral code: <code>{linksFor[r.participantId].referralCode}</code> · token v{linksFor[r.participantId].tokenVersion} · status {linksFor[r.participantId].status}</div>
                       <div>Link: <a href={linksFor[r.participantId].referralLink} target="_blank" rel="noreferrer">{linksFor[r.participantId].referralLink}</a></div>
                       <div style={{ color: "#8a7c6c" }}>QR payload: <code>{linksFor[r.participantId].qrPayload}</code></div>
+                      {/* F1-7 — scannable + printable rendering of the SAME payload shown above. Additive: the
+                          payload text, the Link / QR anchor, the Links button and all roster behavior are unchanged. */}
+                      <ParticipantQrCode payload={linksFor[r.participantId].qrPayload} referralCode={linksFor[r.participantId].referralCode} />
                     </td>
                   </tr>
                 ) : null}
