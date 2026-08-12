@@ -58,11 +58,20 @@ export default function PartnerFundraisingDashboard() {
   }, [organizationId, selectedCampaignId]);
   useEffect(() => { load(); }, [load]);
 
+  // F1-8 - the add form's Campaign ID is PREFILLED from the campaign chosen in the Campaign
+  // summary dropdown. Derived, not synced into state: an effect that called setNewP would add a
+  // second "setState synchronously within an effect" violation to this file. A typed value still
+  // wins, so the existing ability to target another campaign is preserved.
+  const addCampaignId = newP.campaignId || selectedCampaignId;
+
   async function addParticipant(e) {
     e.preventDefault();
-    if (!newP.campaignId || !newP.displayName.trim()) return;
-    const r = await fundraiserApi.partner.createParticipant(organizationId, newP);
-    if (r.ok) { setNewP({ campaignId: newP.campaignId, displayName: "" }); load(); }
+    setActionError(null);
+    if (!addCampaignId || !newP.displayName.trim()) return;
+    const r = await fundraiserApi.partner.createParticipant(organizationId, { ...newP, campaignId: addCampaignId });
+    if (!r.ok) { setActionError(`Add failed (${r.status || "network error"}). No participant was added.`); return; } // H9
+    setNewP({ campaignId: newP.campaignId, displayName: "" });
+    load(); // re-fetch from server; no optimistic roster mutation
   }
 
   // Bulk import. Backend expects JSON { campaignId, rows:[{ displayName, ... }] } — verified
@@ -160,9 +169,16 @@ export default function PartnerFundraisingDashboard() {
       <div style={box}>
         <h2 style={h}>Participant roster</h2>
         <form onSubmit={addParticipant} style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-          <input placeholder="Campaign ID" value={newP.campaignId} onChange={(e) => setNewP({ ...newP, campaignId: e.target.value })} style={{ padding: 8, borderRadius: 6, border: "1px solid #d8cdbb" }} />
+          <input placeholder="Campaign ID" value={addCampaignId} onChange={(e) => setNewP({ ...newP, campaignId: e.target.value })} style={{ padding: 8, borderRadius: 6, border: "1px solid #d8cdbb" }} />
           <input placeholder="Display name" value={newP.displayName} onChange={(e) => setNewP({ ...newP, displayName: e.target.value })} style={{ padding: 8, borderRadius: 6, border: "1px solid #d8cdbb", flex: 1, minWidth: 160 }} />
-          <button style={btn} type="submit">Add participant</button>
+          <button style={btn} type="submit" disabled={!selectedCampaignId || !newP.displayName.trim()}>Add participant</button>
+          {/* F1-8 - names the ACTUAL requirement for adding ONE participant. Deliberately not the
+              bulk-import wording, which describes a different action. */}
+          {!selectedCampaignId ? (
+            <span style={{ alignSelf: "center", fontSize: 13, color: "#8a7c6c" }}>
+              Select a specific campaign above &mdash; a participant is added to one campaign.
+            </span>
+          ) : null}
         </form>
 
         <form onSubmit={doImport} style={{ marginBottom: 12 }}>
