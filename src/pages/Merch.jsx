@@ -37,6 +37,31 @@ export default function Merch() {
   // VENDOR-GIFTS-B1 — read-only Collective catalog (display-only). Empty while dormant.
   const [catalogProducts, setCatalogProducts] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
+  const [checkoutBusyId, setCheckoutBusyId] = useState(null); // SHOPIFY THIN CONNECTION
+
+  // SHOPIFY THIN CONNECTION - hand off to the EXISTING Shopify-hosted checkout. Greet-Me builds no
+  // cart and hosts no checkout of its own; Shopify hosts, prices, taxes, ships and completes the
+  // purchase. The ordinary request carries no fundraiser token property at all.
+  const handleGiftCheckout = async (item) => {
+    const variant = Array.isArray(item?.variants) ? item.variants[0] : null;
+    if (!variant?.id || checkoutBusyId) return;
+    setCheckoutBusyId(item.id);
+    setError(null);
+    try {
+      const res = await api.startGiftCheckout(variant.id, 1);
+      if (res?.ok && res.checkoutUrl) {
+        window.location.href = res.checkoutUrl; // Shopify-hosted checkout
+        return;
+      }
+      // A 401 already dispatches the app-wide auth:session-expired handler; just release the button.
+      if (res?.status !== 401) {
+        setError('Sorry, we could not start checkout. Please try again.');
+      }
+    } catch {
+      setError('Sorry, we could not start checkout. Please try again.');
+    }
+    setCheckoutBusyId(null);
+  };
   const [selectedCategory, setSelectedCategory] = useState('merch'); // AGP-01: default live category
 
   // Session context: recipient gift flow vs SendGreeting Just-Because flow
@@ -439,6 +464,9 @@ export default function Merch() {
               const dollars = item.priceCents != null
                 ? `$${(item.priceCents / 100).toFixed(item.priceCents % 100 === 0 ? 0 : 2)}`
                 : '';
+              // SHOPIFY THIN CONNECTION - purchasable exactly when the existing catalog says so.
+              const firstVariant = Array.isArray(item.variants) ? item.variants[0] : null;
+              const buyable = Boolean(firstVariant?.id) && firstVariant.available !== false;
               return (
                 <div
                   key={item.id}
@@ -497,17 +525,25 @@ export default function Merch() {
                         {dollars}
                       </span>
                       {/* DISPLAY-ONLY — no buy/checkout CTA (Batch 1). */}
-                      <span style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        color: 'var(--text-secondary)',
-                        background: 'var(--gray-100)',
-                        padding: '0.25rem 0.625rem',
-                        borderRadius: 'var(--radius-md)',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        Available soon
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleGiftCheckout(item)}
+                        disabled={!buyable || checkoutBusyId === item.id}
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          color: buyable ? '#fff' : 'var(--text-secondary)',
+                          background: buyable ? 'var(--primary)' : 'var(--gray-100)',
+                          /* explicit padding: the global button rule would otherwise apply */
+                          padding: '0.375rem 0.875rem',
+                          border: 'none',
+                          borderRadius: 'var(--radius-md)',
+                          whiteSpace: 'nowrap',
+                          cursor: buyable && checkoutBusyId !== item.id ? 'pointer' : 'default',
+                          opacity: checkoutBusyId === item.id ? 0.7 : 1
+                        }}>
+                        {checkoutBusyId === item.id ? 'Starting...' : (buyable ? 'Buy' : 'Available soon')}
+                      </button>
                     </div>
                   </div>
                 </div>
