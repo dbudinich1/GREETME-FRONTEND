@@ -1,11 +1,12 @@
 // src/pages/Merch.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, Briefcase, Users, Check, ArrowLeft } from 'lucide-react';
 import cartService from '../services/cartService';
 import AddToCartModal from '../components/AddToCartModal';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 import api from '../api/api';
+import GiftMarketFilters from '../components/GiftMarketFilters'; // I-GIFT-1
 import greetmeFlags from '../assets/greetme-flags.jpg';
 
 // AGP-01 — American Gift Place category layer. Only 'merch' is live/purchasable.
@@ -37,6 +38,14 @@ export default function Merch() {
   // VENDOR-GIFTS-B1 — read-only Collective catalog (display-only). Empty while dormant.
   const [catalogProducts, setCatalogProducts] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
+  // I-GIFT-1 - client-side filters for the Maker Gifts grid. No fetch, no query params, no storage.
+  // priceRange null means "full range"; that keeps the bounds derivable from the payload without an
+  // effect that would re-sync state after load.
+  const [giftSearch, setGiftSearch] = useState('');
+  const [giftPriceRange, setGiftPriceRange] = useState(null);
+  // Bumped on reset so GiftMarketFilters remounts with a cleared search box - avoids syncing
+  // child state from a parent prop inside an effect.
+  const [giftFilterNonce, setGiftFilterNonce] = useState(0);
   const [checkoutBusyId, setCheckoutBusyId] = useState(null); // SHOPIFY THIN CONNECTION
 
   // SHOPIFY THIN CONNECTION - hand off to the EXISTING Shopify-hosted checkout. Greet-Me builds no
@@ -104,6 +113,31 @@ export default function Merch() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // I-GIFT-1 - bounds derived from the payload, never hardcoded. Ceiling rounds UP to the nearest
+  // $25 (2500c) above the dearest gift; step is $5 up to $200, $25 beyond.
+  const giftPriceBounds = useMemo(() => {
+    const priced = catalogProducts.map((p) => p.priceCents).filter((c) => typeof c === 'number' && Number.isFinite(c));
+    const ceiling = priced.length ? Math.ceil(Math.max(...priced) / 2500) * 2500 : 2500;
+    return { floor: 0, ceiling, step: ceiling <= 20000 ? 500 : 2500 };
+  }, [catalogProducts]);
+
+  const giftPriceMin = giftPriceRange ? giftPriceRange.min : giftPriceBounds.floor;
+  const giftPriceMax = giftPriceRange ? giftPriceRange.max : giftPriceBounds.ceiling;
+
+  // AND logic across both filters. An item with priceCents === null ALWAYS passes the price test —
+  // a gift with no price must never vanish silently because of a control the shopper did not aim at it.
+  const visibleCatalogProducts = useMemo(() => {
+    const q = giftSearch.trim().toLowerCase();
+    return catalogProducts.filter((item) => {
+      const priceOk = item.priceCents == null || (item.priceCents >= giftPriceMin && item.priceCents <= giftPriceMax);
+      const titleOk = !q || String(item.title || '').toLowerCase().includes(q);
+      return priceOk && titleOk;
+    });
+  }, [catalogProducts, giftSearch, giftPriceMin, giftPriceMax]);
+
+  const resetGiftFilters = useCallback(() => { setGiftSearch(''); setGiftPriceRange(null); setGiftFilterNonce((n) => n + 1); }, []);
+  const handleGiftPriceChange = useCallback((min, max) => setGiftPriceRange({ min, max }), []);
 
   // Handle resize for mobile detection
   useEffect(() => {
@@ -452,6 +486,52 @@ export default function Merch() {
             </p>
           </div>
         ) : (
+          /* I-GIFT-1 - filters sit ABOVE the existing grid; the grid itself is unchanged apart from
+             the array it maps. A filtered-to-nothing result gets its own explained empty state. */
+          <>
+          <GiftMarketFilters
+            key={giftFilterNonce}
+            searchCommitted={giftSearch}
+            onSearchCommit={setGiftSearch}
+            priceFloor={giftPriceBounds.floor}
+            priceCeiling={giftPriceBounds.ceiling}
+            priceStep={giftPriceBounds.step}
+            priceMin={giftPriceMin}
+            priceMax={giftPriceMax}
+            onPriceChange={handleGiftPriceChange}
+            shownCount={visibleCatalogProducts.length}
+            totalCount={catalogProducts.length}
+            onReset={resetGiftFilters}
+            isNarrow={isNarrow}
+          />
+          {visibleCatalogProducts.length === 0 ? (
+            <div style={{
+              padding: '3rem 2rem',
+              textAlign: 'center',
+              color: 'var(--text-secondary)',
+              border: '1px dashed var(--border)',
+              borderRadius: 'var(--radius-xl)'
+            }}>
+              <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>&#128269;</div>
+              <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
+                No gifts match these filters
+              </h3>
+              <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: '0 0 1.25rem' }}>
+                Try a wider price range or a different search term.
+              </p>
+              <button
+                type="button"
+                onClick={resetGiftFilters}
+                style={{
+                  padding: '0.5rem 1.25rem', borderRadius: 'var(--radius-md)', border: 'none',
+                  background: 'var(--primary)', color: 'white', fontSize: '0.875rem',
+                  fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer'
+                }}
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : (
           <div style={{
             display: 'grid',
             gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(auto-fill, minmax(300px, 1fr))',
@@ -459,7 +539,7 @@ export default function Merch() {
             maxWidth: '100%',
             overflowX: 'hidden'
           }}>
-            {catalogProducts.map((item) => {
+            {visibleCatalogProducts.map((item) => {
               const img = (Array.isArray(item.images) && item.images[0]?.url) ? item.images[0].url : null;
               const dollars = item.priceCents != null
                 ? `$${(item.priceCents / 100).toFixed(item.priceCents % 100 === 0 ? 0 : 2)}`
@@ -550,6 +630,8 @@ export default function Merch() {
               );
             })}
           </div>
+          )}
+          </>
         )
       ) : selectedCategory !== 'merch' ? (
         /* AGP-01 — Coming Soon: non-purchasable placeholder (no products, no add-to-cart) */
