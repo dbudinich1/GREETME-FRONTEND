@@ -229,7 +229,12 @@ export default function MerchOrders() {
                       fontWeight: 600,
                     }}
                   >
-                    {o.statusLabel}
+                    {/* The backend owns customer-facing status meaning. This
+                        fallback is a minimal backward-compatibility guard for a
+                        response that predates the labelled projection — it can
+                        never override a label the backend supplied, and it
+                        deliberately does NOT mirror the backend state machine. */}
+                    {o.statusLabel || "Processing"}
                   </div>
                   <div
                     style={{
