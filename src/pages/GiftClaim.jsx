@@ -232,6 +232,90 @@ export default function GiftClaim() {
     );
   }
 
+  // ============================================================
+  // GIFTING-INTEGRITY — non-cash gift reveal.
+  //
+  // Intercepts BEFORE every QR Cash branch below, so a merchandise, gift-place
+  // or curated gift never touches payout-method UI, an amount, or a claim form.
+  // giftType is the discriminator: the resolver returns it ONLY for non-cash
+  // gifts, so a QR Cash response (which has no such key) falls straight
+  // through and its behaviour is unchanged.
+  //
+  // Everything rendered here is already allow-listed server-side. There is no
+  // address, payment identifier, vendor detail, tracking, order reference,
+  // price or internal state to leak, because none of it is ever sent.
+  // ============================================================
+  if (gift && gift.giftType && gift.giftType !== 'qrcash') {
+    const isOwnerView = isSenderViewingOwnGift({ gift, userId: accountState.userId });
+    const forName = (gift.recipientName || '').trim();
+    return (
+      <div className="gm-min-h-screen" style={styles.page}>
+        <div style={styles.card}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🎁</div>
+          <h1 style={styles.title}>
+            {isOwnerView
+              ? 'This gift is for your recipient'
+              : forName ? `A gift for you, ${forName}` : 'A gift for you'}
+          </h1>
+
+          {gift.senderName && !isOwnerView && (
+            <p style={styles.subtitle}>
+              {gift.senderName} sent you something with their Greet-Me.
+            </p>
+          )}
+
+          {/* The gift itself. itemSummary is a plain item description captured
+              when the gift was created — never a price and never a vendor id. */}
+          {gift.itemSummary && (
+            <p style={{
+              fontSize: '1.05rem',
+              fontWeight: 600,
+              color: '#92400e',
+              lineHeight: 1.5,
+              margin: '0 0 1rem',
+            }}>
+              {gift.itemSummary}
+            </p>
+          )}
+
+          {/* Fulfilment, resolved live on every load. The message is composed
+              server-side so this page can never invent a status of its own. */}
+          {gift.statusMessage && (
+            <p style={{
+              fontSize: '0.95rem',
+              color: '#6b7280',
+              lineHeight: 1.6,
+              margin: '0 0 1.5rem',
+            }}>
+              {gift.statusMessage}
+            </p>
+          )}
+
+          {isOwnerView ? (
+            <>
+              <button
+                onClick={() => navigate('/dashboard/send')}
+                style={{ ...styles.ctaButton(false), marginBottom: '0.75rem' }}
+              >
+                Send another Greet-Me
+              </button>
+              <a href="/#/dashboard" style={styles.secondaryLink}>Go to Dashboard</a>
+            </>
+          ) : (
+            gift.sourceGreetingJobId && (
+              <a href={`/#/g/${gift.sourceGreetingJobId}`} style={styles.secondaryLink}>
+                See your Greet-Me
+              </a>
+            )
+          )}
+
+          <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
+        </div>
+      </div>
+    );
+  }
+
   // ---- Sender viewing own gift (Phase 3D Batch D D6 frontend) ----
   // Intercepts BEFORE fulfilled/claimed/expired/connect_pending/form branches
   // so senders never see recipient-facing claim UX for their own gift.
