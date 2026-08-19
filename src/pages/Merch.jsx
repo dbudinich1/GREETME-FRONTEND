@@ -183,6 +183,12 @@ export default function Merch() {
         priceCents: variant.priceCents,
         category: 'Merch',
         icon: '🛍️',
+        // GIFTING-INTEGRITY: the same opaque tag Gifts.jsx already stamps.
+        // Its PRESENCE is what makes an item attachable to the Greet-Me being
+        // composed; SendGreeting filters the cart on exactly this value. A
+        // storefront visit never sets cameFromSendGreeting, so standalone
+        // merchandise stays untagged and independent.
+        ...(cameFromSendGreeting && { sendContext: 'greeting-flow' }),
       });
       setAddedItems((prev) => new Set(prev).add(product.syncProductId));
       window.dispatchEvent(new Event('cartUpdated'));

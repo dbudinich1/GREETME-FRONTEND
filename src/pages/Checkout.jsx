@@ -100,6 +100,28 @@ export default function Checkout() {
   // PaymentSuccess.jsx + SendGreeting.jsx on return.
   const sendDraftId = new URLSearchParams(location.search).get('sendDraftId') || null;
 
+  // GIFTING-INTEGRITY: the recipient this attached purchase is for.
+  //
+  // Read from the send draft the greeting flow already wrote under this exact
+  // token — no new storage, no new request, and no way for the two to drift,
+  // because the draft token names the draft the contact came from. The backend
+  // treats it as an untrusted pointer and re-proves it at send time: the paid
+  // order's contact must equal the Greet-Me recipient's, or the send stops.
+  //
+  // Null for a standalone storefront checkout, which carries no draft token
+  // and needs no contact.
+  const sendDraftContactId = (() => {
+    if (!sendDraftId) return null;
+    try {
+      const raw = localStorage.getItem(`greetme_send_resume_${sendDraftId}`);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return typeof parsed?.contactId === 'string' && parsed.contactId ? parsed.contactId : null;
+    } catch {
+      return null;
+    }
+  })();
+
   // Credit: referral ($10 from gift) or courtesy ($5 from finale QR)
   const courtesyCredit = (() => {
     try {
@@ -252,6 +274,10 @@ export default function Checkout() {
           },
           // Phase 3D Batch A — A2.4: opaque send-flow resume token (when present)
           ...(sendDraftId && { sendDraftId }),
+          // GIFTING-INTEGRITY: recipient pointer for an attached purchase.
+          // Persisted on the order and carried through Stripe metadata, so the
+          // binding survives the round trip and can be re-proved at send time.
+          ...(sendDraftContactId && { contactId: sendDraftContactId }),
           // Dormant Fundraiser attribution — opaque token only, merch + flag-on only (else omitted).
           ...fundraiserCheckoutField({ purchaseType: 'merch', flagEnabled: isFundraiserUiEnabled() }),
         });
