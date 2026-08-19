@@ -138,15 +138,25 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
   const [qrImageError, setQrImageError] = useState(false);
   const [courtesyQrUrl, setCourtesyQrUrl] = useState(null);
 
+  // GIFTING-INTEGRITY: every card carries exactly one QR, and this predicate is
+  // the single place that decides which one.
+  //
+  // It is deliberately keyed on the claim URL rather than on hasGift: a card
+  // may only take the gift branch when there is a real reveal to point at.
+  // The send endpoint now refuses to enqueue an attached gift without a claim
+  // URL, so for every card sent from here on the two branches are exhaustive —
+  // gift QR, or courtesy QR — and never both, never neither.
+  const giftQrAvailable = Boolean(hasGift && gift?.claimUrl);
+
   // Generate courtesy credit QR ONLY when a real tracked credit code exists
   useEffect(() => {
-    if (hasGift || !courtesyCreditCode) return;
+    if (giftQrAvailable || !courtesyCreditCode) return;
     const creditUrl = `${window.location.origin}/#/claim-credit/${courtesyCreditCode}`;
     QRCode.toDataURL(creditUrl, {
       width: 400, margin: 2,
       color: { dark: '#000000', light: '#ffffff' },
     }).then(setCourtesyQrUrl).catch(() => {});
-  }, [hasGift, courtesyCreditCode]);
+  }, [giftQrAvailable, courtesyCreditCode]);
 
   // AUTO-FIT: shrink-only until no clipping
   const runAutoFit = useCallback(() => {
@@ -233,7 +243,7 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
         {/* Right Page */}
         <div className="gc-page gc-page-right">
           <div className="gc-page-content gc-gift-content">
-            {hasGift && gift?.type === 'qrcash' ? (
+            {giftQrAvailable ? (
               <>
                 <h3 className="gc-gift-title">A little something extra</h3>
 
@@ -244,7 +254,7 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
                       <div className="gc-qr-code">
                         <img
                           src={gift.qrUrl || gift.qrImageUrl}
-                          alt="QR Cash gift preview"
+                          alt="Gift preview"
                           style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                           onError={() => setQrImageError(true)}
                         />
@@ -255,14 +265,14 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
                     href={gift.claimUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label="Open your QR Cash gift"
+                    aria-label="Open your gift"
                     style={{ display: 'block', textDecoration: 'none' }}
                   >
                     <div className="gc-qr-frame">
                       <div className="gc-qr-code">
                         <img
                           src={gift.qrUrl || gift.qrImageUrl}
-                          alt="Scan to claim your QR Cash™ gift"
+                          alt="Scan to open your gift"
                           style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                           onError={() => setQrImageError(true)}
                         />
@@ -276,7 +286,7 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
                     href={gift.claimUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label="Open your QR Cash gift"
+                    aria-label="Open your gift"
                     style={{
                       display: 'inline-block',
                       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -292,39 +302,13 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
 
                 <p className="gc-gift-instruction">
                   {isOwner
-                    ? 'A QR Cash gift is included with this greeting'
+                    ? 'A gift is included with this greeting'
                     : (gift.qrUrl || gift.qrImageUrl) && !qrImageError
-                      ? 'Scan or tap to claim your gift'
-                    : 'A QR Cash\u2122 gift is included with this greeting'}
+                      ? 'Scan or tap to open your gift'
+                    : 'A gift is included with this greeting'}
                 </p>
 
                 {/* Gift It Forward moved to unified CTA panel below */}
-              </>
-            ) : hasGift ? (
-              <>
-                <h3 className="gc-gift-title">A little something extra</h3>
-                <p className="gc-gift-instruction" style={{ marginBottom: '0.75em' }}>
-                  Treat yourself to something that makes you smile!
-                </p>
-                {/* Browse Plans CTA is recipient-facing; suppressed for owner self-view. */}
-                {!isOwner && (
-                  <a
-                    href="/#/pricing"
-                    style={{
-                      display: 'inline-block',
-                      padding: '0.45em 1.2em',
-                      background: 'linear-gradient(135deg, #3A7BD5 0%, #1B2A4A 100%)',
-                      color: '#fff',
-                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                      fontSize: '0.7em',
-                      fontWeight: 600,
-                      borderRadius: '20px',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    Browse Plans
-                  </a>
-                )}
               </>
             ) : (
               <>

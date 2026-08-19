@@ -2,14 +2,16 @@
 import Modal from './Modal';
 import { DollarSign } from 'lucide-react';
 
+// The gift types a sender may attach. Every entry here mints a claim token and
+// resolves at /gift/:claimToken — that is the entry requirement, not a
+// nice-to-have. Digital gift cards are deliberately absent: no redemption
+// source exists for them, so they could not produce a working QR, and a type
+// that cannot be revealed must never be offered.
 const GIFT_OPTIONS = [
   { value: 'none', label: 'None', description: 'No gift for now' },
   { value: 'qrcash', label: 'QR Cash\u2122', description: 'Send cash they can scan and spend' },
   { value: 'curated', label: 'Let Greet-Me™ Select', description: 'We\'ll select something thoughtful within your limit' },
-  // Phase 3D Batch A — A2.6: 'merch' option removed. The Merch storefront at
-  // /dashboard/merch remains fully operational; it is no longer surfaced as a
-  // gift-attachment option in the send flow per the strategic frame
-  // (emotional-expression engine with commerce attached, not the inverse).
+  { value: 'merch', label: 'Greet-Me Merch', description: 'Send something from the Greet-Me collection' },
   { value: 'marketplace', label: 'Greet-Me Gift Place', description: 'Browse made-in-USA gifts' }
 ];
 
@@ -313,9 +315,42 @@ export default function GiftSelectorModal({
                     </div>
                   )}
 
-                  {/* Phase 3D Batch A — A2.6: Merch Browse Button removed
-                      from gift chooser. Merch storefront at /dashboard/merch
-                      remains accessible via dashboard nav. */}
+                  {/* Merch Browse Button */}
+                  {giftSetting.type === 'merch' && onBrowse && (
+                    <div style={{
+                      marginTop: '1rem',
+                      padding: '1.125rem',
+                      background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                      borderRadius: '0.625rem',
+                      border: '1px solid #60a5fa'
+                    }}>
+                      <p style={{
+                        fontSize: '0.8125rem',
+                        color: '#1d4ed8',
+                        marginBottom: '0.75rem'
+                      }}>
+                        Choose something from the Greet-Me collection
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => onBrowse('merch')}
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem 1.25rem',
+                          background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '0.5rem',
+                          fontSize: '0.9375rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          fontFamily: 'inherit'
+                        }}
+                      >
+                        Browse Greet-Me Merch
+                      </button>
+                    </div>
+                  )}
 
                   {/* Marketplace Browse Button */}
                   {giftSetting.type === 'marketplace' && onBrowse && (

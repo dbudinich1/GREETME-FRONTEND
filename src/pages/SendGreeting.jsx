@@ -505,23 +505,19 @@ export default function SendGreeting() {
       }
 
       const greetingData = buildGreetingData(selectedContact);
-      const snapshot = Array.isArray(draft.marketplaceItemsSnapshot)
-        ? draft.marketplaceItemsSnapshot
-        : [];
-      const totalCents = snapshot.reduce(
-        (s, i) => s + (typeof i.price === 'number' ? Math.round(i.price * 100) : 0),
-        0
-      );
+      // GIFTING-INTEGRITY: attach by REFERENCE, not by snapshot.
+      //
+      // The client used to describe the gift it had just bought — items, price,
+      // and a self-declared status:'paid'. None of that was evidence of
+      // anything. The send now carries only the draft token, and the backend
+      // finds the sender's own paid order, proves the payment, and rebuilds the
+      // gift from the durable record. hasGift is derived there, never asserted
+      // here, so a card can no longer promise a gift the server cannot produce.
       const greetingDataWithGift = {
         ...greetingData,
         includeGift: true,
-        hasGift: true,
-        gift: {
-          type: 'marketplace',
-          items: snapshot,
-          status: 'paid',
-          totalCents,
-        },
+        sendDraftId: resumeDraft,
+        gift: { type: draft.giftSettings?.type === 'merch' ? 'merch' : 'marketplace' },
       };
 
       // Layer 3: clean URL BEFORE awaiting dispatch.
@@ -790,19 +786,20 @@ export default function SendGreeting() {
           : []),
       ])].slice(0, MAX_MEMORY_PHOTOS),
       layoutBudget: { introMaxChars: 280 },
+      // GIFTING-INTEGRITY: recipient pointer. The backend re-validates it
+      // against the sender's own records before any gift is attached; it grants
+      // nothing on its own.
+      contactId: selectedContact.id,
       includeGift: Boolean(giftSettings?.type && giftSettings.type !== 'none'),
-      // Phase 3D Batch A — A2.5: curated intent attachment.
-      // Curated is founder-fulfilled out-of-band — no payment, no claim token,
-      // no items list. Backend recognizes type 'curated' and emits the
-      // CURATED_GIFT_INTENT log line. Worker passes the gift object through
-      // verbatim into the Cosmos greetings record (no claim-link UI rendered).
-      // qrcash / marketplace gift objects continue to attach at terminal
-      // handlers (charge / referral / paid snapshot) — unchanged.
+      // Curated is founder-fulfilled out of band — there is no payment to
+      // wait on, so the selected spend tier IS the evidence that a gift was
+      // chosen. GIFTING-INTEGRITY: the backend validates that tier, mints the
+      // claim token at the send endpoint, and builds the stored gift object
+      // itself; the tier never reaches the recipient-facing payload.
       ...(giftSettings?.type === 'curated' && {
         gift: {
           type: 'curated',
           maxSpendCents: (giftSettings.maxSpend || 0) * 100,
-          status: 'intent_recorded',
         },
       }),
     };
@@ -923,7 +920,6 @@ export default function SendGreeting() {
         const greetingDataWithGift = {
           ...greetingData,
           includeGift: true,
-          hasGift: true,
           gift: {
             type: 'qrcash',
             amount: referralValue / 100,
@@ -1064,7 +1060,6 @@ export default function SendGreeting() {
       const greetingDataWithGift = {
         ...pendingGreetingData,
         includeGift: true,
-        hasGift: true,
         gift: {
           type: 'qrcash',
           amount: giftAmountDollars,
@@ -2619,6 +2614,11 @@ if (typeof window !== "undefined") {
           setIsGiftModalOpen(false);
           if (type === 'marketplace') {
             navigate('/dashboard/gifts?returnTo=send&giftType=marketplace');
+          } else if (type === 'merch') {
+            // Physical merchandise attaches through the SAME cart, checkout,
+            // payment and resume path as the Gift Place — one money path, so
+            // one binding, one claim token and one reveal.
+            navigate('/dashboard/merch?returnTo=send&giftType=merch');
           }
         }}
       />
