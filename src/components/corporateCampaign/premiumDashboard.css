@@ -80,11 +80,26 @@
   padding: 18px 20px 22px;
   scrollbar-gutter: stable both-edges;
 }
-.gcd-scroll::-webkit-scrollbar { width: 10px; }
+.gcd-scroll {
+  background-color: #fff;
+  background-image:
+    linear-gradient(#ffffff 32%, rgba(255, 255, 255, 0)),                                        /* top cover  */
+    linear-gradient(rgba(255, 255, 255, 0), #ffffff 72%),                                        /* low cover  */
+    radial-gradient(farthest-side at 50% 0, rgba(74, 63, 176, .16), rgba(74, 63, 176, 0)),       /* top cue    */
+    radial-gradient(farthest-side at 50% 100%, rgba(74, 63, 176, .20), rgba(74, 63, 176, 0));    /* bottom cue */
+  background-repeat: no-repeat;
+  background-position: center top, center bottom, center top, center bottom;
+  background-size: 100% 42px, 100% 46px, 100% 15px, 100% 17px;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* A slim, unmistakably premium scrollbar — visible without shouting. */
+.gcd-scroll::-webkit-scrollbar { width: 8px; }
 .gcd-scroll::-webkit-scrollbar-track { background: var(--gcd-lav); border-radius: 999px; margin: 8px 0; }
 .gcd-scroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #c9c1f7, #a99df0);
+  background: linear-gradient(180deg, #b9aff4, #9384ea);
   border-radius: 999px; border: 2px solid var(--gcd-lav);
+  min-height: 40px;
 }
 .gcd-scroll::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #b8adf5, #9384ea); }
 .gcd-scroll { scrollbar-width: thin; scrollbar-color: #a99df0 var(--gcd-lav); }
@@ -196,11 +211,24 @@
 .gcd-btn--primary:hover:not(:disabled) { background: linear-gradient(135deg, #5f66e8 0%, #6b4295 100%); }
 .gcd-btn--quiet { background: transparent; border-color: transparent; color: var(--gcd-purple-deep); text-decoration: underline; }
 
-.gcd-footer {
-  margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--gcd-line);
+/* ACTION RAIL — pinned under the campaign header, inside the campaign viewport.
+   Sticky is scoped by the card itself, so the rail belongs to the campaign a reader is actually
+   looking at: it holds while that card's settings scroll, then leaves with it. The negative
+   margins let it span the card's full width so it reads as a rail rather than a floating row. */
+.gcd-actions {
+  position: sticky; top: 0; z-index: 2;
+  margin: 14px -22px 4px; padding: 12px 22px;
   display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  /* FULLY opaque. A translucent rail let the settings scrolling underneath show through it —
+     half-legible labels behind buttons read as a rendering fault, not as depth. The separation
+     comes from a soft shadow below the rail instead. */
+  background: #ffffff;
+  border-top: 1px solid var(--gcd-line);
+  border-bottom: 1px solid var(--gcd-line-strong);
+  box-shadow: 0 6px 12px -8px rgba(27, 24, 48, .28);
 }
 .gcd-reason { font-size: .75rem; color: var(--gcd-faint); flex-basis: 100%; margin: 0; }
+.gcd-actions .gcd-msg { flex-basis: 100%; margin: 2px 0 0; }
 
 .gcd-field { display: flex; flex-direction: column; gap: 5px; min-width: 190px; }
 .gcd-field label { font-size: .74rem; font-weight: 700; color: var(--gcd-ink); }
@@ -216,7 +244,8 @@
 
 /* ── responsive ───────────────────────────────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
-  .gcd-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }  /* wraps, never clips a CTA */
+  /* The three categories stay one equal-width row here — a 2 + 1 grid reads as a hierarchy that
+     does not exist. Stacking is the narrow breakpoint's job, below. */
   .gcd-scroll { max-height: min(40vh, 420px); }
 }
 @media (max-width: 720px) {
@@ -230,7 +259,10 @@
   .gcd-card-head { flex-direction: column; align-items: stretch; }
   .gcd-card-head > div:last-child { justify-content: flex-start; flex-wrap: wrap; }
   .gcd-panel-head { flex-direction: column; align-items: flex-start; }
-  .gcd-footer .gcd-btn { flex: 1 1 auto; }          /* actions stay reachable */
+  /* Six actions wrap into compact rows — never a horizontally scrolling strip, which hides
+     controls behind a gesture nobody is told about. */
+  .gcd-actions { margin-left: -16px; margin-right: -16px; padding: 10px 16px; gap: 8px; }
+  .gcd-actions .gcd-btn { flex: 1 1 auto; min-width: 104px; padding: 9px 10px; }
   .gcd-bubbles { gap: 4px 12px; }
 }
 

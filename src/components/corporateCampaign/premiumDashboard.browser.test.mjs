@@ -339,6 +339,102 @@ test("D-close: the membership-role approximation is gone from the surface", () =
   assert.match(src, /readViewerOwnerCapability\(listRes\)/);
 });
 
+
+// ══ SLICE D REFINEMENT — visible actions + scroll affordance ════════════════════════════════
+test("R: the action rail sits between the header and Audience, and the actions MOVED there", async () => {
+  const s = await mount(cardEl());
+  const rail = s.tid("card-footer-cmp_1");
+  assert.ok(rail, "the rail exists");
+  const order = (el) => [...s.host.querySelectorAll("*")].indexOf(el);
+  assert.ok(order(s.q("header.gcd-card-head")) < order(rail), "after the header");
+  assert.ok(order(rail) < order(s.tid("c-cmp_1-audience")), "before Audience");
+  // ...and before every other section, so it can never be scrolled past.
+  for (const sec of ["gift", "spread", "schedule"]) {
+    assert.ok(order(rail) < order(s.tid(`c-cmp_1-${sec}`)), `before ${sec}`);
+  }
+});
+
+test("R: exactly six actions exist — moved, never duplicated", async () => {
+  const s = await mount(cardEl());
+  const buttons = s.qa("[data-testid^='act-']");
+  assert.equal(buttons.length, 6, "six and only six");
+  assert.deepEqual(buttons.map((b) => b.dataset.testid).sort(),
+    ["act-activate-cmp_1", "act-approve-cmp_1", "act-lock-cmp_1", "act-save-cmp_1", "act-schedule-cmp_1", "act-unlock-cmp_1"]);
+  // Every one lives INSIDE the rail — none left behind at the bottom of the card.
+  const rail = s.tid("card-footer-cmp_1");
+  for (const b of buttons) assert.ok(rail.contains(b), `${b.dataset.testid} must be in the rail`);
+  assert.equal(s.qa(".gcd-actions").length, 1, "one rail per card");
+  assert.equal(s.qa(".gcd-footer").length, 0, "the old bottom footer is gone, not duplicated");
+});
+
+test("R: enablement, disabled reasons and owner authorization are unchanged by the move", async () => {
+  const locked = { approvalStatus: "approved", lockStatus: "locked", audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } };
+  const notOwner = await mount(cardEl(locked, { isOwner: false }));
+  assert.equal(notOwner.tid("act-schedule-cmp_1").disabled, true);
+  assert.equal(notOwner.tid("card-owner-note-cmp_1").textContent, "Organization owner authorization required");
+  calls.length = 0;
+  await click(notOwner.tid("act-schedule-cmp_1"));
+  assert.equal(calls.some((c) => c[0] === "schedule"), false, "a disabled control still calls nothing");
+
+  const owner = await mount(cardEl(locked, { isOwner: true }));
+  assert.equal(owner.tid("act-schedule-cmp_1").disabled, false);
+  calls.length = 0;
+  await click(owner.tid("act-schedule-cmp_1"));
+  assert.equal(calls.some((c) => c[0] === "schedule"), true, "and an enabled one still calls the API");
+});
+
+test("R: the rail is sticky within the campaign viewport", () => {
+  const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
+  const rail = css.slice(css.indexOf(".gcd-actions {"), css.indexOf("}", css.indexOf(".gcd-actions {")));
+  assert.match(rail, /position:\s*sticky/, "it pins rather than scrolls away");
+  assert.match(rail, /top:\s*0/);
+  assert.match(rail, /z-index:\s*\d/, "it must sit above the settings it covers");
+  // Opaque, not translucent: a see-through rail lets the settings scrolling beneath it bleed
+  // through, and half-legible labels behind buttons read as a rendering fault.
+  assert.match(rail, /background:\s*#ffffff/);
+  assert.doesNotMatch(rail, /rgba\(255,\s*255,\s*255,\s*\.\d/, "no translucent ground");
+  assert.match(rail, /box-shadow:/, "separation comes from a shadow instead");
+  // Sticky is scoped by the card, so the rail belongs to the campaign in view — not the panel.
+  assert.match(css, /\.gcd-card\s*\{[\s\S]*?border-radius/);
+});
+
+test("R: the scroll cue is CSS-only, appears while content remains, and vanishes at the bottom", () => {
+  const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
+  const block = css.slice(css.indexOf(".gcd-scroll {\n  background-color"), css.indexOf(".gcd-scroll::-webkit-scrollbar {"));
+  // Two covers travel WITH the content; two cues stay pinned to the box. When content reaches an
+  // edge its cover slides over that cue and hides it — no listener, nothing to fall out of sync.
+  assert.match(block, /background-attachment:\s*local,\s*local,\s*scroll,\s*scroll/);
+  assert.equal((block.match(/radial-gradient/g) || []).length, 2, "a cue at each edge");
+  assert.equal((block.match(/linear-gradient/g) || []).length, 2, "a cover at each edge");
+  assert.match(block, /background-color:\s*#fff/, "the covers need an opaque ground");
+  // A slim, visible scrollbar — and scrolling stays native, so keyboard and touch are untouched.
+  assert.match(css, /\.gcd-scroll::-webkit-scrollbar \{ width: 8px; \}/);
+  assert.match(css, /\.gcd-scroll \{ scrollbar-width: thin;/);
+  assert.match(css, /\.gcd-scroll\s*\{[\s\S]*?overflow-y:\s*auto/);
+  // No permanent instructional clutter: the cue is background, not text.
+  assert.equal(/scroll for more|swipe|↓/i.test(css), false);
+});
+
+test("R: no JavaScript scroll listener was introduced — the cue is pure CSS", () => {
+  const src = readFileSync(new URL("./CampaignCard.jsx", import.meta.url), "utf8");
+  for (const forbidden of [/addEventListener\(\s*["']scroll/, /onScroll/, /scrollTop/, /IntersectionObserver/]) {
+    assert.doesNotMatch(src, forbidden, String(forbidden));
+  }
+});
+
+test("R: mobile wraps the six actions compactly, with no horizontal scrolling strip", () => {
+  const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
+  const narrow = css.slice(css.indexOf("@media (max-width: 720px)"));
+  assert.match(narrow, /\.gcd-actions \.gcd-btn \{ flex: 1 1 auto/, "buttons share the row and wrap");
+  assert.match(css, /\.gcd-actions \{[\s\S]*?flex-wrap:\s*wrap/);
+  // A horizontally scrolling rail would hide controls behind an unannounced gesture.
+  const rail = css.slice(css.indexOf(".gcd-actions {"), css.indexOf("}", css.indexOf(".gcd-actions {")));
+  assert.doesNotMatch(rail, /overflow-x:\s*(auto|scroll)/);
+  assert.doesNotMatch(narrow.slice(narrow.indexOf(".gcd-actions")), /overflow-x:\s*(auto|scroll)/);
+  // Contacts stay below the bounded campaign viewport — the tiles are never nested inside it.
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.gcd-tiles\s*\{\s*grid-template-columns:\s*1fr/);
+});
+
 test("D: the campaign viewport is a fixed-height internal scroller", () => {
   const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
   assert.match(css, /\.gcd-scroll\s*\{[\s\S]*?max-height:\s*\d+vh/, "a bounded height");
@@ -347,7 +443,9 @@ test("D: the campaign viewport is a fixed-height internal scroller", () => {
   assert.match(css, /\.gcd-scroll::-webkit-scrollbar-thumb/, "a visible premium scrollbar treatment");
   assert.match(css, /\.gcd-card \+ \.gcd-card\s*\{\s*margin-top:\s*28px/, "generous separation between cards");
   // Responsive: tiles collapse rather than clip, and actions stay reachable.
-  assert.match(css, /@media \(max-width: 1024px\)[\s\S]*?\.gcd-tiles\s*\{\s*grid-template-columns:\s*repeat\(2/);
-  assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.gcd-tiles\s*\{\s*grid-template-columns:\s*1fr/);
+  // Three equal columns hold at 1024 — a 2 + 1 grid would read as a hierarchy that does not exist.
+  const tabletBlock = css.slice(css.indexOf("@media (max-width: 1024px)"), css.indexOf("@media (max-width: 720px)"));
+  assert.doesNotMatch(tabletBlock, /\.gcd-tiles/, "the tablet breakpoint must not re-grid the tiles");
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.gcd-tiles\s*\{\s*grid-template-columns:\s*1fr/, "stacking belongs to the narrow breakpoint");
   assert.match(css, /\.gcd-tiles\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*repeat\(3/, "three in one row on desktop");
 });

@@ -122,7 +122,42 @@ export default function CampaignCard({
         </div>
       </header>
 
-      {/* 2 — AUDIENCE */}
+      {/* 2 — ACTION RAIL. Moved out of the card footer and pinned directly under the header:
+          on a tall card the actions were scrolled out of reach exactly when a reader had
+          finished deciding and wanted to act. Sticky inside the campaign viewport, so the
+          ACTIVE campaign keeps its actions on screen while its own settings scroll past.
+          Layout only — every enablement rule, disabled reason, owner gate and API call is
+          the same code, unmoved. */}
+      <div className="gcd-actions" data-testid={`card-footer-${campaign.campaignId}`}>
+        <button type="button" className="gcd-btn gcd-btn--primary" data-testid={`act-save-${campaign.campaignId}`}
+          disabled={!actions.save.enabled || busy || pending === "save"} title={disabledNote(actions.save) || undefined}
+          onClick={saveDelivery}>Save Changes</button>
+        <button type="button" className="gcd-btn" data-testid={`act-approve-${campaign.campaignId}`}
+          disabled={!actions.approve.enabled || busy} title={disabledNote(actions.approve) || undefined}
+          onClick={() => run("approve", () => client.approve(orgId, campaign.campaignId))}>Approve</button>
+        <button type="button" className="gcd-btn" data-testid={`act-lock-${campaign.campaignId}`}
+          disabled={!actions.lock.enabled || busy} title={disabledNote(actions.lock) || undefined}
+          onClick={() => run("lock", () => client.lock(orgId, campaign.campaignId, { lockOperationId: `lock-${campaign.campaignId}-${campaign.snapshotVersion || 0}` }))}>Lock Campaign</button>
+        <button type="button" className="gcd-btn" data-testid={`act-unlock-${campaign.campaignId}`}
+          disabled={!actions.unlock.enabled || busy} title={disabledNote(actions.unlock) || undefined}
+          onClick={() => run("unlock", () => client.unlock(orgId, campaign.campaignId))}>Unlock</button>
+        <button type="button" className="gcd-btn" data-testid={`act-schedule-${campaign.campaignId}`}
+          disabled={!actions.schedule.enabled || busy} title={disabledNote(actions.schedule) || undefined}
+          onClick={() => run("schedule", () => client.schedule(orgId, campaign.campaignId))}>Schedule</button>
+        <button type="button" className="gcd-btn" data-testid={`act-activate-${campaign.campaignId}`}
+          disabled={!actions.activate.enabled || busy} title={disabledNote(actions.activate) || undefined}
+          onClick={() => run("activate", () => client.activate(orgId, campaign.campaignId))}>Activate</button>
+
+        {/* Why the final action is unavailable — stated, not left to a tooltip alone. */}
+        {!isOwner ? (
+          <p className="gcd-reason" data-testid={`card-owner-note-${campaign.campaignId}`}>
+            {actions.schedule.reason || actions.activate.reason}
+          </p>
+        ) : null}
+        {message ? <p className="gcd-msg" data-testid={`card-msg-${campaign.campaignId}`} role="status">{message}</p> : null}
+      </div>
+
+      {/* 3 — AUDIENCE */}
       <BubbleGroup label="Audience" testId={uid("audience")}>
         {CONTACT_CATEGORIES.map((cat) => (
           <CategoryBubble
@@ -146,7 +181,7 @@ export default function CampaignCard({
         </span>
       </div>
 
-      {/* 3 — GIFT OPTION */}
+      {/* 4 — GIFT OPTION */}
       <BubbleGroup label="Gift Option" role="radiogroup" testId={uid("gift")}>
         {CORPORATE_GIFT_OPTIONS.map((opt) => {
           const state = giftOptionState(opt.value);
@@ -175,7 +210,7 @@ export default function CampaignCard({
         </div>
       ) : null}
 
-      {/* 4 — FEATURED SPREAD */}
+      {/* 5 — FEATURED SPREAD */}
       <BubbleGroup label="Featured Spread" role="radiogroup" testId={uid("spread")}>
         {SPREAD_SOURCES.map((s) => (
           <ChoiceBubble key={s.value} id={uid(`spread-${s.value}`)} name={uid("spread-group")} value={s.value}
@@ -190,7 +225,7 @@ export default function CampaignCard({
         </div>
       ) : null}
 
-      {/* 5 — SCHEDULE */}
+      {/* 6 — SCHEDULE */}
       <BubbleGroup label="Schedule" role="radiogroup" testId={uid("schedule")}>
         {SCHEDULE_MODES.map((m) => (
           <ChoiceBubble key={m.value} id={uid(`mode-${m.value}`)} name={uid("mode-group")} value={m.value}
@@ -221,35 +256,6 @@ export default function CampaignCard({
             {TIME_ZONES.map((z) => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
           </select>
         </div>
-      </div>
-      {/* 6 — ACTION FOOTER: every action always present. */}
-      <div className="gcd-footer" data-testid={`card-footer-${campaign.campaignId}`}>
-        <button type="button" className="gcd-btn gcd-btn--primary" data-testid={`act-save-${campaign.campaignId}`}
-          disabled={!actions.save.enabled || busy || pending === "save"} title={disabledNote(actions.save) || undefined}
-          onClick={saveDelivery}>Save Changes</button>
-        <button type="button" className="gcd-btn" data-testid={`act-approve-${campaign.campaignId}`}
-          disabled={!actions.approve.enabled || busy} title={disabledNote(actions.approve) || undefined}
-          onClick={() => run("approve", () => client.approve(orgId, campaign.campaignId))}>Approve</button>
-        <button type="button" className="gcd-btn" data-testid={`act-lock-${campaign.campaignId}`}
-          disabled={!actions.lock.enabled || busy} title={disabledNote(actions.lock) || undefined}
-          onClick={() => run("lock", () => client.lock(orgId, campaign.campaignId, { lockOperationId: `lock-${campaign.campaignId}-${campaign.snapshotVersion || 0}` }))}>Lock Campaign</button>
-        <button type="button" className="gcd-btn" data-testid={`act-unlock-${campaign.campaignId}`}
-          disabled={!actions.unlock.enabled || busy} title={disabledNote(actions.unlock) || undefined}
-          onClick={() => run("unlock", () => client.unlock(orgId, campaign.campaignId))}>Unlock</button>
-        <button type="button" className="gcd-btn" data-testid={`act-schedule-${campaign.campaignId}`}
-          disabled={!actions.schedule.enabled || busy} title={disabledNote(actions.schedule) || undefined}
-          onClick={() => run("schedule", () => client.schedule(orgId, campaign.campaignId))}>Schedule</button>
-        <button type="button" className="gcd-btn" data-testid={`act-activate-${campaign.campaignId}`}
-          disabled={!actions.activate.enabled || busy} title={disabledNote(actions.activate) || undefined}
-          onClick={() => run("activate", () => client.activate(orgId, campaign.campaignId))}>Activate</button>
-
-        {/* Why the final action is unavailable — stated, not left to a tooltip alone. */}
-        {!isOwner ? (
-          <p className="gcd-reason" data-testid={`card-owner-note-${campaign.campaignId}`}>
-            {actions.schedule.reason || actions.activate.reason}
-          </p>
-        ) : null}
-        {message ? <p className="gcd-msg" data-testid={`card-msg-${campaign.campaignId}`} role="status">{message}</p> : null}
       </div>
     </article>
   );
