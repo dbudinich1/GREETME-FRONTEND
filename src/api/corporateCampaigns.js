@@ -86,6 +86,11 @@ export function createCorporateCampaignsClient({
     approve: (orgId, campaignId) => call("POST", `${one(orgId, campaignId)}/approve`, { body: {} }),
     lock: (orgId, campaignId, body) => call("POST", `${one(orgId, campaignId)}/lock`, { body: body || {} }),
     unlock: (orgId, campaignId) => call("POST", `${one(orgId, campaignId)}/unlock`, { body: {} }),
+    // SLICE D — the delivery contract + the two owner-only final actions. These map 1:1 onto the
+    // shipped backend endpoints; the client adds no persistence, no defaults, and no local state.
+    updateDeliveryConfig: (orgId, campaignId, body) => call("PATCH", `${one(orgId, campaignId)}/delivery-config`, { body: body || {} }),
+    schedule: (orgId, campaignId) => call("POST", `${one(orgId, campaignId)}/schedule`, { body: {} }),
+    activate: (orgId, campaignId) => call("POST", `${one(orgId, campaignId)}/activate`, { body: {} }),
     // CORP-3 association bridge — read + select only (org-scoped corporate contacts).
     listOrgContacts: (orgId) => call("GET", `/organizations/${encodeURIComponent(orgId)}/contacts`),
     readAudience: (orgId, campaignId) => call("GET", `${one(orgId, campaignId)}/audience`),

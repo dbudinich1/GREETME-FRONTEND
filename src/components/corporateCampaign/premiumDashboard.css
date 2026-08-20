@@ -1,0 +1,239 @@
+/* src/components/corporateCampaign/premiumDashboard.css
+ *
+ * TEAM A — SLICE D: the premium underlay for the consolidated corporate dashboard.
+ *
+ * Scoped entirely under .gcd- so it cannot reach any other surface. Purple/lavender, restrained
+ * gradients, fine borders, dimensional shadows, generous spacing, minimal noise.
+ *
+ * The selectors are genuine small circles (18px) with a 44px hit area supplied by padding on the
+ * surrounding label — the visual can be small and refined without the target being hard to hit.
+ */
+
+.gcd-root {
+  --gcd-ink: #1b1830;
+  --gcd-muted: #605c78;
+  --gcd-faint: #928ea8;
+  --gcd-line: rgba(27, 24, 48, 0.10);
+  --gcd-line-strong: rgba(27, 24, 48, 0.16);
+  --gcd-purple: #6d5cf0;
+  --gcd-purple-deep: #4a3fb0;
+  --gcd-lav: #f3f1fe;
+  --gcd-lav-2: #ebe7fd;
+  --gcd-good: #1f9d6b;
+  --gcd-warn: #bd7a10;
+  --gcd-radius: 18px;
+  --gcd-shadow: 0 1px 2px rgba(27, 24, 48, .04), 0 8px 24px rgba(27, 24, 48, .06);
+  --gcd-shadow-lift: 0 2px 4px rgba(27, 24, 48, .05), 0 14px 38px rgba(74, 63, 176, .13);
+  max-width: 1180px;
+  margin: 0 auto;
+  color: var(--gcd-ink);
+}
+
+/* The dimensional underlay everything sits on. */
+.gcd-underlay {
+  background:
+    radial-gradient(1200px 340px at 12% -8%, rgba(109, 92, 240, .10), transparent 62%),
+    radial-gradient(900px 300px at 96% 4%, rgba(191, 155, 245, .12), transparent 60%),
+    linear-gradient(180deg, #fbfaff 0%, #f6f4fd 100%);
+  border: 1px solid var(--gcd-line);
+  border-radius: 26px;
+  padding: 22px;
+  box-shadow: var(--gcd-shadow);
+}
+
+.gcd-hero { padding: 2px 6px 16px; }
+.gcd-eyebrow {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; color: var(--gcd-purple-deep); opacity: .8;
+}
+.gcd-title { font-family: Georgia, "Times New Roman", serif; font-size: 1.65rem; margin: 6px 0 4px; font-weight: 700; }
+.gcd-sub { margin: 0; color: var(--gcd-muted); font-size: .93rem; max-width: 62ch; }
+
+/* ── panels ───────────────────────────────────────────────────────────────────────────────── */
+.gcd-panel {
+  background: #fff;
+  border: 1px solid var(--gcd-line);
+  border-radius: var(--gcd-radius);
+  box-shadow: var(--gcd-shadow);
+}
+.gcd-panel + .gcd-panel { margin-top: 20px; }
+
+.gcd-panel-head {
+  position: sticky; top: 0; z-index: 3;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 16px 20px;
+  background: linear-gradient(180deg, #ffffff 72%, rgba(255, 255, 255, .94) 100%);
+  border-bottom: 1px solid var(--gcd-line);
+  border-radius: var(--gcd-radius) var(--gcd-radius) 0 0;
+}
+.gcd-panel-title { font-family: Georgia, serif; font-size: 1.12rem; margin: 0; font-weight: 700; }
+.gcd-panel-note { margin: 2px 0 0; font-size: .78rem; color: var(--gcd-faint); }
+
+/* Fixed-height internal scroll: the page never grows with the campaign list. */
+.gcd-scroll {
+  /* Capped so the three contact tiles remain visible beneath the campaigns panel on a desktop
+     screen. The list scrolls internally instead of pushing them out of view. */
+  max-height: min(42vh, 460px);
+  min-height: 200px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 20px 22px;
+  scrollbar-gutter: stable both-edges;
+}
+.gcd-scroll::-webkit-scrollbar { width: 10px; }
+.gcd-scroll::-webkit-scrollbar-track { background: var(--gcd-lav); border-radius: 999px; margin: 8px 0; }
+.gcd-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #c9c1f7, #a99df0);
+  border-radius: 999px; border: 2px solid var(--gcd-lav);
+}
+.gcd-scroll::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #b8adf5, #9384ea); }
+.gcd-scroll { scrollbar-width: thin; scrollbar-color: #a99df0 var(--gcd-lav); }
+
+/* ── campaign cards — generous separation, identical structure ────────────────────────────── */
+.gcd-card {
+  background: linear-gradient(180deg, #ffffff 0%, #fdfcff 100%);
+  border: 1px solid var(--gcd-line-strong);
+  border-radius: 16px;
+  padding: 20px 22px;
+  box-shadow: 0 1px 2px rgba(27, 24, 48, .04);
+  transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease;
+}
+.gcd-card + .gcd-card { margin-top: 28px; }
+.gcd-card:hover { box-shadow: var(--gcd-shadow-lift); border-color: rgba(109, 92, 240, .28); }
+.gcd-card:focus-within { border-color: var(--gcd-purple); box-shadow: var(--gcd-shadow-lift); }
+
+.gcd-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.gcd-card-name { font-family: Georgia, serif; font-size: 1.08rem; margin: 0 0 4px; font-weight: 700; }
+.gcd-next { margin: 0; font-size: .82rem; color: var(--gcd-muted); }
+
+.gcd-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--gcd-line); }
+.gcd-section-label {
+  font-size: .7rem; font-weight: 800; letter-spacing: .10em; text-transform: uppercase;
+  color: var(--gcd-faint); margin: 0 0 10px;
+}
+
+/* ── status chips ─────────────────────────────────────────────────────────────────────────── */
+.gcd-status { font-size: .72rem; font-weight: 700; border-radius: 999px; padding: 4px 11px; white-space: nowrap; }
+.gcd-status--good { color: var(--gcd-good); background: rgba(31, 157, 107, .10); border: 1px solid rgba(31, 157, 107, .30); }
+.gcd-status--info { color: var(--gcd-purple-deep); background: rgba(109, 92, 240, .10); border: 1px solid rgba(109, 92, 240, .28); }
+.gcd-status--warn { color: var(--gcd-warn); background: rgba(214, 145, 16, .12); border: 1px solid rgba(214, 145, 16, .34); }
+
+/* ── BUBBLES: real circles, generous hit area ─────────────────────────────────────────────── */
+.gcd-bubbles { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.gcd-bubble {
+  display: inline-flex; align-items: flex-start; gap: 10px;
+  padding: 7px 10px 7px 4px;           /* → ≥44px tall target around an 18px circle */
+  min-height: 44px; border-radius: 12px; cursor: pointer;
+  transition: background .15s ease;
+}
+.gcd-bubble:hover { background: var(--gcd-lav); }
+.gcd-bubble input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+
+.gcd-dot {
+  flex: 0 0 auto; width: 18px; height: 18px; margin-top: 2px;
+  border-radius: 50%;                   /* a circle, never a pill */
+  border: 2px solid rgba(27, 24, 48, .26);
+  background: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.gcd-dot::after {
+  content: ""; width: 8px; height: 8px; border-radius: 50%;
+  background: transparent; transition: background .15s ease, transform .15s ease; transform: scale(.6);
+}
+.gcd-bubble input:checked + .gcd-dot { border-color: var(--gcd-purple); background: #fff; }
+.gcd-bubble input:checked + .gcd-dot::after { background: var(--gcd-purple); transform: scale(1); }
+.gcd-bubble input:focus-visible + .gcd-dot { box-shadow: 0 0 0 3px rgba(109, 92, 240, .34); outline: 2px solid transparent; }
+.gcd-bubble input:disabled + .gcd-dot { border-color: rgba(27, 24, 48, .14); background: #f4f3f8; }
+.gcd-bubble--disabled { cursor: not-allowed; }
+.gcd-bubble--disabled:hover { background: transparent; }
+
+.gcd-bubble-text { display: flex; flex-direction: column; gap: 1px; }
+.gcd-bubble-label { font-size: .86rem; font-weight: 600; line-height: 1.25; }
+.gcd-bubble-note { font-size: .74rem; color: var(--gcd-faint); line-height: 1.3; }
+/* State is never communicated by colour alone — the reason text carries it too. */
+.gcd-bubble-reason { font-size: .74rem; color: var(--gcd-warn); font-weight: 600; }
+.gcd-bubble-count { font-size: .74rem; color: var(--gcd-purple-deep); font-weight: 700; }
+
+/* ── contact tiles ────────────────────────────────────────────────────────────────────────── */
+.gcd-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.gcd-tile {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfaff 100%);
+  border: 1px solid var(--gcd-line-strong); border-radius: 16px; padding: 18px 18px 16px;
+  box-shadow: 0 1px 2px rgba(27, 24, 48, .04);
+  display: flex; flex-direction: column; gap: 8px;
+  transition: box-shadow .18s ease, border-color .18s ease;
+}
+.gcd-tile:hover { box-shadow: var(--gcd-shadow-lift); border-color: rgba(109, 92, 240, .26); }
+.gcd-tile-name { font-family: Georgia, serif; font-size: 1.02rem; font-weight: 700; margin: 0; }
+.gcd-tile-count { font-size: 1.9rem; font-weight: 800; line-height: 1; color: var(--gcd-purple-deep); }
+.gcd-tile-desc { font-size: .78rem; color: var(--gcd-muted); margin: 0; }
+.gcd-tile-recent { font-size: .74rem; color: var(--gcd-faint); margin: 0; }
+.gcd-tile-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; flex-wrap: wrap; }
+
+.gcd-notice {
+  margin-top: 16px; padding: 12px 14px; border-radius: 12px;
+  background: rgba(214, 145, 16, .07); border: 1px solid rgba(214, 145, 16, .26);
+  font-size: .82rem; color: #7a5406;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.gcd-totals { margin-top: 10px; font-size: .78rem; color: var(--gcd-muted); font-variant-numeric: tabular-nums; }
+
+/* ── buttons ──────────────────────────────────────────────────────────────────────────────── */
+.gcd-btn {
+  font-size: .82rem; font-weight: 700; border-radius: 10px; padding: 9px 15px;
+  border: 1px solid var(--gcd-line-strong); background: #fff; color: var(--gcd-ink); cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, transform .1s ease;
+}
+.gcd-btn:hover:not(:disabled) { border-color: rgba(109, 92, 240, .4); background: var(--gcd-lav); }
+.gcd-btn:active:not(:disabled) { transform: translateY(1px); }
+.gcd-btn:focus-visible { outline: 2px solid var(--gcd-purple); outline-offset: 2px; }
+.gcd-btn:disabled { opacity: .5; cursor: not-allowed; }
+.gcd-btn--primary {
+  background: linear-gradient(135deg, #6d74ee 0%, #764ba2 100%); color: #fff; border-color: transparent;
+  box-shadow: 0 6px 18px rgba(109, 92, 240, .28);
+}
+.gcd-btn--primary:hover:not(:disabled) { background: linear-gradient(135deg, #5f66e8 0%, #6b4295 100%); }
+.gcd-btn--quiet { background: transparent; border-color: transparent; color: var(--gcd-purple-deep); text-decoration: underline; }
+
+.gcd-footer {
+  margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--gcd-line);
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+}
+.gcd-reason { font-size: .75rem; color: var(--gcd-faint); flex-basis: 100%; margin: 0; }
+
+.gcd-field { display: flex; flex-direction: column; gap: 5px; min-width: 190px; }
+.gcd-field label { font-size: .74rem; font-weight: 700; color: var(--gcd-ink); }
+.gcd-field input, .gcd-field select {
+  padding: 9px 11px; border-radius: 10px; border: 1px solid var(--gcd-line-strong);
+  font-size: .85rem; background: #fff; color: var(--gcd-ink); box-sizing: border-box; width: 100%;
+}
+.gcd-field input:focus-visible, .gcd-field select:focus-visible { outline: 2px solid var(--gcd-purple); outline-offset: 1px; }
+.gcd-fields { display: flex; flex-wrap: wrap; gap: 14px; }
+
+.gcd-empty { color: var(--gcd-muted); font-size: .88rem; text-align: center; padding: 34px 10px; }
+.gcd-msg { font-size: .8rem; color: var(--gcd-purple-deep); margin: 10px 0 0; }
+
+/* ── responsive ───────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .gcd-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }  /* wraps, never clips a CTA */
+  .gcd-scroll { max-height: min(40vh, 420px); }
+}
+@media (max-width: 720px) {
+  .gcd-underlay { padding: 14px; border-radius: 18px; }
+  .gcd-tiles { grid-template-columns: 1fr; }
+  .gcd-scroll { max-height: 58vh; padding: 14px; }
+  .gcd-card { padding: 16px; }
+  .gcd-card + .gcd-card { margin-top: 20px; }
+  /* Stack rather than clip: the status chip and Review affordance move under the name and align
+     left, so neither can be pushed past the right edge on a narrow screen. */
+  .gcd-card-head { flex-direction: column; align-items: stretch; }
+  .gcd-card-head > div:last-child { justify-content: flex-start; flex-wrap: wrap; }
+  .gcd-panel-head { flex-direction: column; align-items: flex-start; }
+  .gcd-footer .gcd-btn { flex: 1 1 auto; }          /* actions stay reachable */
+  .gcd-bubbles { gap: 4px 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gcd-card, .gcd-tile, .gcd-btn, .gcd-dot, .gcd-dot::after { transition: none; }
+}

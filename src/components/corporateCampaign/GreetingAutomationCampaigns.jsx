@@ -7,11 +7,18 @@
 // entire surface stays hidden with zero campaign writes. No client self-enabling flag.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { createCorporateCampaignsClient } from "../../api/corporateCampaigns.js";
 import {
   activeMemberships, resolveOrganizationContext, deriveCampaignSummary, interpretCapability, TERMS,
 } from "./campaignSurfaceModel.js";
 import CampaignDetail from "./CampaignDetail.jsx";
+// SLICE D — the consolidated premium surface.
+import CampaignCard from "./CampaignCard.jsx";
+import ContactTiles from "./ContactTiles.jsx";
+import IndividualContactPicker from "./IndividualContactPicker.jsx";
+import { isOrganizationOwner } from "./corporateDashboardModel.js";
+import "./premiumDashboard.css";
 
 const PURPLE = "linear-gradient(135deg, #6d74ee 0%, #764ba2 100%)";
 
@@ -86,11 +93,26 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("");
+  // SLICE D — the organisation contact pool and the individual-selection surface.
+  const [contacts, setContacts] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [pickerCampaign, setPickerCampaign] = useState(null);
+  const [pickerCategory, setPickerCategory] = useState(null);
+  const navigate = useNavigate();
 
   // Organization context is derived purely from the membership response + any explicit
   // selection. Never guesses; clears a selection that is no longer active.
   const ctx = useMemo(() => resolveOrganizationContext(membershipResult, selectedOrgId), [membershipResult, selectedOrgId]);
   const effectiveOrgId = ctx.selectedOrgId;
+
+  // SLICE D — the organisation's contact pool. Categories come from the PERSISTED
+  // corporateContactType the backend now returns; the frontend never infers or stores one.
+  const loadContacts = useCallback(async (orgId) => {
+    setLoadingContacts(true);
+    const res = await client.listOrgContacts(orgId);
+    setContacts(res.ok ? ((res.data && res.data.contacts) || []) : []);
+    setLoadingContacts(false);
+  }, [client]);
 
   const loadMemberships = useCallback(async () => {
     const res = await client.listMemberships();
@@ -113,7 +135,7 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
       const cid = campaign.campaignId || campaign.id;
       const rRes = await client.readReadiness(orgId, cid);
       const readiness = (rRes.ok && rRes.data) ? rRes.data : {};
-      return { summary: deriveCampaignSummary(campaign, readiness) };
+      return { summary: deriveCampaignSummary(campaign, readiness), campaign: { ...campaign, campaignId: cid }, readiness };
     }));
     setRows(merged); setLoadingCampaigns(false);
   }, [client]);
@@ -128,10 +150,12 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
     if (effectiveOrgId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       loadCampaigns(effectiveOrgId);
+      loadContacts(effectiveOrgId);
     } else {
       setRows([]);
+      setContacts([]);
     }
-  }, [effectiveOrgId, loadCampaigns]);
+  }, [effectiveOrgId, loadCampaigns, loadContacts]);
 
   async function handleCreate() {
     if (!effectiveOrgId || creating) return;
@@ -221,64 +245,92 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
     );
   }
 
-  // phase === "ready"
+  // phase === "ready" — SLICE D consolidated surface: a wide campaigns viewport with its own
+  // internal scroll, and the three contact tiles beneath it. Both stay on one desktop screen.
+  // Ownership is SERVER-derived: the role on the caller's own active membership. The backend
+  // remains the authority — it compares the actor against organization.currentOwnerUserId and
+  // answers 403 "owner_authorization_required" — so this only decides whether a control is
+  // enabled and which truthful message is shown. It can never manufacture a successful action.
+  const activeForOrg = ctx.memberships.find((m) => m.corporateOrganizationId === effectiveOrgId) || null;
+  const isOwner = isOrganizationOwner({ currentOwnerUserId: activeForOrg && activeForOrg.role === "owner" ? "self" : null }, "self");
   return (
-    <Shell>
-      {showCreateForm ? (
-        <CreateCampaignForm
-          name={newName}
-          type={newType}
-          onName={setNewName}
-          onType={setNewType}
-          onSubmit={handleCreate}
-          onCancel={() => setShowCreateForm(false)}
-          creating={creating}
-        />
-      ) : loadingCampaigns ? (
-        <p style={{ color: "#605c78" }}>Loading campaigns…</p>
-      ) : rows.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 24px", border: "1px solid rgba(27,24,48,.1)", borderRadius: 18, background: "#faf9fd" }}>
-          <div style={{ fontSize: "2.2rem" }}>📣</div>
-          <h2 style={{ fontFamily: "Georgia, serif", fontSize: "1.25rem", margin: "10px 0 6px" }}>No campaigns yet</h2>
-          {/* Zero-friction empty state — one clear action; no gifts, no media required now. */}
-          <p style={{ color: "#605c78", maxWidth: "44ch", margin: "0 auto 18px" }}>
-            Create your first campaign — just give it a name to get started. {TERMS.YOU_DONT_NEED_EVERYTHING}
-          </p>
-          <button data-testid="open-create" onClick={openCreate}
-            style={{ background: PURPLE, color: "#fff", border: "none", borderRadius: 12, padding: "12px 22px", fontWeight: 700, fontSize: ".9rem", cursor: "pointer" }}>
-            + {TERMS.CREATE}
-          </button>
-        </div>
-      ) : (
-        <>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-            <h2 style={{ fontFamily: "Georgia, serif", fontSize: "1.05rem", margin: 0 }}>Campaigns</h2>
-            <button data-testid="open-create" onClick={openCreate}
-              style={{ background: PURPLE, color: "#fff", border: "none", borderRadius: 11, padding: "9px 16px", fontWeight: 700, fontSize: ".8rem", cursor: "pointer" }}>
+    <div className="gcd-root" data-testid="corporate-dashboard">
+      <div className="gcd-underlay">
+        <header className="gcd-hero">
+          <div className="gcd-eyebrow">Corporate</div>
+          <h1 className="gcd-title">{TERMS.SURFACE}</h1>
+          <p className="gcd-sub">Set up organization-wide greetings once per campaign. {TERMS.YOU_DONT_NEED_EVERYTHING}</p>
+        </header>
+
+        {showCreateForm ? (
+          <div className="gcd-panel" style={{ padding: 4 }}>
+            <CreateCampaignForm
+              name={newName} type={newType} onName={setNewName} onType={setNewType}
+              onSubmit={handleCreate} onCancel={() => setShowCreateForm(false)} creating={creating}
+            />
+          </div>
+        ) : null}
+
+        {/* A — CAMPAIGNS: fixed-height internal scroll, sticky header + Add CTA. */}
+        <section className="gcd-panel" data-testid="campaigns-panel" aria-labelledby="gcd-campaigns-head">
+          <div className="gcd-panel-head">
+            <div>
+              <h2 className="gcd-panel-title" id="gcd-campaigns-head">Campaigns</h2>
+              <p className="gcd-panel-note">Every campaign shows the same sections, whatever its state.</p>
+            </div>
+            <button type="button" className="gcd-btn gcd-btn--primary" data-testid="open-create" onClick={openCreate}>
               + {TERMS.CREATE}
             </button>
           </div>
-          <div style={{ display: "grid", gap: 12 }}>
-            {rows.map(({ summary }) => (
-              <button key={summary.campaignId} onClick={() => setSelectedCampaignId(summary.campaignId)}
-                style={{ textAlign: "left", cursor: "pointer", background: "#fff", border: "1px solid rgba(27,24,48,.1)", borderRadius: 14, padding: "16px 18px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                  <div style={{ fontWeight: 700, fontSize: "1rem" }}>{summary.name}</div>
-                  <StatusPill label={summary.featuredSpreadStatus} kind={summary.featuredSpreadKind} />
-                </div>
-                <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 8, fontSize: ".82rem", color: "#605c78" }}>
-                  <span>Audience: <b style={{ color: "#1b1830" }}>{summary.audience}</b></span>
-                  <span>Type: <b style={{ color: "#1b1830" }}>{summary.occasionType}</b></span>
-                  <span>Schedule: <b style={{ color: "#1b1830" }}>{summary.scheduleStatus}</b></span>
-                  <span>Approval: <b style={{ color: "#1b1830" }}>{summary.approvalStatus}</b></span>
-                  <span>Lock: <b style={{ color: "#1b1830" }}>{summary.lockStatus}</b></span>
-                  <span>{summary.ready ? "✅ Ready" : "⏳ Not ready"}</span>
-                </div>
-              </button>
-            ))}
+          <div className="gcd-scroll" data-testid="campaign-viewport" tabIndex={0} role="region" aria-label="Campaigns list">
+            {loadingCampaigns ? (
+              <p className="gcd-empty">Loading campaigns…</p>
+            ) : rows.length === 0 ? (
+              <div className="gcd-empty" data-testid="campaigns-empty">
+                <div style={{ fontSize: "2rem" }}>📣</div>
+                <p style={{ margin: "8px 0 0" }}>No campaigns yet. Create your first — a name is enough to start.</p>
+              </div>
+            ) : (
+              rows.map((r) => (
+                <CampaignCard
+                  key={r.campaign.campaignId}
+                  campaign={r.campaign}
+                  contacts={contacts}
+                  orgId={effectiveOrgId}
+                  client={client}
+                  isOwner={isOwner}
+                  busy={loadingCampaigns}
+                  onOpenIndividualPicker={(c) => setPickerCampaign(c)}
+                  onAfterMutate={async () => { await loadCampaigns(effectiveOrgId); }}
+                />
+              ))
+            )}
           </div>
-        </>
-      )}
-    </Shell>
+        </section>
+
+        {/* B — CONTACT TILES: Employees / Clients / Vendors, always visible beneath the viewport. */}
+        <ContactTiles
+          contacts={contacts}
+          loading={loadingContacts}
+          onManage={(key) => setPickerCategory(key)}
+          onAddCategory={(key) => {
+            // The EXISTING import wizard, with the existing category preselected. Never a second form.
+            navigate(`/dashboard/import?mode=corporate&category=${encodeURIComponent(key)}`);
+          }}
+          onSelectIndividual={() => setPickerCampaign(rows.length ? rows[0].campaign : null)}
+        />
+
+        {pickerCampaign ? (
+          <IndividualContactPicker
+            contacts={contacts}
+            orgId={effectiveOrgId}
+            campaign={pickerCampaign}
+            client={client}
+            onClose={() => setPickerCampaign(null)}
+            onSaved={async () => { setPickerCampaign(null); await loadCampaigns(effectiveOrgId); }}
+          />
+        ) : null}
+      </div>
+    </div>
   );
 }
