@@ -7,7 +7,6 @@
 // entire surface stays hidden with zero campaign writes. No client self-enabling flag.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { createCorporateCampaignsClient } from "../../api/corporateCampaigns.js";
 import {
   activeMemberships, resolveOrganizationContext, deriveCampaignSummary, interpretCapability, TERMS,
@@ -17,7 +16,7 @@ import CampaignDetail from "./CampaignDetail.jsx";
 import CampaignCard from "./CampaignCard.jsx";
 import ContactTiles from "./ContactTiles.jsx";
 import IndividualContactPicker from "./IndividualContactPicker.jsx";
-import { isOrganizationOwner } from "./corporateDashboardModel.js";
+import { readViewerOwnerCapability } from "./corporateDashboardModel.js";
 import "./premiumDashboard.css";
 
 const PURPLE = "linear-gradient(135deg, #6d74ee 0%, #764ba2 100%)";
@@ -79,7 +78,7 @@ function CreateCampaignForm({ name, type, onName, onType, onSubmit, onCancel, cr
 
 // `client` is an optional injection seam used ONLY by tests (default = the real server-derived
 // client). App usage renders <GreetingAutomationCampaigns /> with no props → identical behavior.
-export default function GreetingAutomationCampaigns({ client: injectedClient } = {}) {
+export default function GreetingAutomationCampaigns({ client: injectedClient, navigate: injectedNavigate } = {}) {
   const client = useMemo(() => injectedClient || createCorporateCampaignsClient(), [injectedClient]);
   const [membershipResult, setMembershipResult] = useState(null);
   const [selectedOrgId, setSelectedOrgId] = useState(null); // explicit multi-org selection only
@@ -98,7 +97,12 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [pickerCampaign, setPickerCampaign] = useState(null);
   const [pickerCategory, setPickerCategory] = useState(null);
-  const navigate = useNavigate();
+  // Fails closed: nobody is treated as the owner until the server says so on a successful list.
+  const [isOwnerViewer, setIsOwnerViewer] = useState(false);
+  // Navigation without a Router dependency. The app mounts a HashRouter, so a hash assignment IS
+  // the route change; injecting it keeps this component mountable on its own, which useNavigate()
+  // would prevent by throwing outside a <Router>.
+  const goTo = injectedNavigate || ((path) => { try { window.location.hash = `#${path}`; } catch { /* non-browser host */ } });
 
   // Organization context is derived purely from the membership response + any explicit
   // selection. Never guesses; clears a selection that is no longer active.
@@ -108,9 +112,14 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
   // SLICE D — the organisation's contact pool. Categories come from the PERSISTED
   // corporateContactType the backend now returns; the frontend never infers or stores one.
   const loadContacts = useCallback(async (orgId) => {
+    if (typeof client.listOrgContacts !== "function") { setContacts([]); return; }
     setLoadingContacts(true);
-    const res = await client.listOrgContacts(orgId);
-    setContacts(res.ok ? ((res.data && res.data.contacts) || []) : []);
+    try {
+      const res = await client.listOrgContacts(orgId);
+      setContacts(res && res.ok ? ((res.data && res.data.contacts) || []) : []);
+    } catch {
+      setContacts([]);           // a contact-load failure must never surface stale or partial data
+    }
     setLoadingContacts(false);
   }, [client]);
 
@@ -123,21 +132,38 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
   }, [client]);
 
   const loadCampaigns = useCallback(async (orgId) => {
+    // STALE-AUTHORITY RESET, before the first awaited request.
+    //
+    // Ownership belongs to ONE organization. Switching organizations, or failing to load one, must
+    // never leave the previous organization's `true` on screen — an owner-only control would stay
+    // enabled for an organization the viewer may not own. Clearing FIRST means the window between
+    // organizations is unauthorized rather than optimistically authorized, and every path below —
+    // dormant, unauthorized, non-ok, or thrown — leaves it false unless a successful response says
+    // otherwise.
+    setIsOwnerViewer(false);
     setCampaignAuthError(false); setCampaignDormant(false); setLoadingCampaigns(true);
-    const listRes = await client.listCampaigns(orgId);
-    setCapabilityResult(listRes); // server-derived capability (ok / dormant / unauthorized) — never fabricated
-    if (listRes.dormant) { setCampaignDormant(true); setRows([]); setLoadingCampaigns(false); return; }
-    if (listRes.unauthorized) { setCampaignAuthError(true); setRows([]); setLoadingCampaigns(false); return; } // 401/403 clears protected data
-    if (!listRes.ok) { setRows([]); setLoadingCampaigns(false); return; }
-    const list = (listRes.data && (listRes.data.campaigns || listRes.data.items || listRes.data)) || [];
-    const arr = Array.isArray(list) ? list : [];
-    const merged = await Promise.all(arr.map(async (campaign) => {
-      const cid = campaign.campaignId || campaign.id;
-      const rRes = await client.readReadiness(orgId, cid);
-      const readiness = (rRes.ok && rRes.data) ? rRes.data : {};
-      return { summary: deriveCampaignSummary(campaign, readiness), campaign: { ...campaign, campaignId: cid }, readiness };
-    }));
-    setRows(merged); setLoadingCampaigns(false);
+    try {
+      const listRes = await client.listCampaigns(orgId);
+      setCapabilityResult(listRes); // server-derived capability (ok / dormant / unauthorized) — never fabricated
+      if (listRes.dormant) { setCampaignDormant(true); setRows([]); setLoadingCampaigns(false); return; }
+      if (listRes.unauthorized) { setCampaignAuthError(true); setRows([]); setLoadingCampaigns(false); return; } // 401/403 clears protected data
+      if (!listRes.ok) { setRows([]); setLoadingCampaigns(false); return; }
+      // Only a SUCCESSFUL list can confer ownership, and only if it says so exactly.
+      setIsOwnerViewer(readViewerOwnerCapability(listRes));
+      const list = (listRes.data && (listRes.data.campaigns || listRes.data.items || listRes.data)) || [];
+      const arr = Array.isArray(list) ? list : [];
+      const merged = await Promise.all(arr.map(async (campaign) => {
+        const cid = campaign.campaignId || campaign.id;
+        const rRes = await client.readReadiness(orgId, cid);
+        const readiness = (rRes.ok && rRes.data) ? rRes.data : {};
+        return { summary: deriveCampaignSummary(campaign, readiness), campaign: { ...campaign, campaignId: cid }, readiness };
+      }));
+      setRows(merged); setLoadingCampaigns(false);
+    } catch {
+      // A thrown load cannot retain ownership either. Fail closed and show nothing.
+      setIsOwnerViewer(false);
+      setRows([]); setLoadingCampaigns(false);
+    }
   }, [client]);
 
   useEffect(() => {
@@ -247,12 +273,10 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
 
   // phase === "ready" — SLICE D consolidated surface: a wide campaigns viewport with its own
   // internal scroll, and the three contact tiles beneath it. Both stay on one desktop screen.
-  // Ownership is SERVER-derived: the role on the caller's own active membership. The backend
-  // remains the authority — it compares the actor against organization.currentOwnerUserId and
-  // answers 403 "owner_authorization_required" — so this only decides whether a control is
-  // enabled and which truthful message is shown. It can never manufacture a successful action.
-  const activeForOrg = ctx.memberships.find((m) => m.corporateOrganizationId === effectiveOrgId) || null;
-  const isOwner = isOrganizationOwner({ currentOwnerUserId: activeForOrg && activeForOrg.role === "owner" ? "self" : null }, "self");
+  // Ownership is the AUTHORITATIVE backend signal, not the caller's membership role. The two are
+  // different facts: a member can hold an owner ROLE while the organisation names someone else as
+  // its current owner, and only the latter may authorize a run.
+  const isOwner = isOwnerViewer;
   return (
     <div className="gcd-root" data-testid="corporate-dashboard">
       <div className="gcd-underlay">
@@ -300,6 +324,7 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
                   client={client}
                   isOwner={isOwner}
                   busy={loadingCampaigns}
+                  onOpenDetail={(cid) => setSelectedCampaignId(cid)}
                   onOpenIndividualPicker={(c) => setPickerCampaign(c)}
                   onAfterMutate={async () => { await loadCampaigns(effectiveOrgId); }}
                 />
@@ -315,7 +340,8 @@ export default function GreetingAutomationCampaigns({ client: injectedClient } =
           onManage={(key) => setPickerCategory(key)}
           onAddCategory={(key) => {
             // The EXISTING import wizard, with the existing category preselected. Never a second form.
-            navigate(`/dashboard/import?mode=corporate&category=${encodeURIComponent(key)}`);
+            // The EXISTING import wizard route, with this category preselected.
+            goTo(`/dashboard/import-wizard?mode=corporate&category=${encodeURIComponent(key)}`);
           }}
           onSelectIndividual={() => setPickerCampaign(rows.length ? rows[0].campaign : null)}
         />

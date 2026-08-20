@@ -22,6 +22,7 @@ import {
   deriveCampaignStatus,
   deriveActions,
   buildDeliveryConfigBody,
+  readViewerOwnerCapability,
   centsToDisplay,
 } from "./corporateDashboardModel.js";
 
@@ -142,6 +143,54 @@ test("the model performs no mutation and infers no classification", () => {
   assert.equal(JSON.stringify(pool), snapshot);
 });
 
+
+// ══ SLICE D CLOSEOUT — the authoritative owner capability ═══════════════════════════════════
+test("D-close: the owner capability is read ONLY from viewerAuthorization, strictly", () => {
+  assert.equal(readViewerOwnerCapability({ ok: true, data: { campaigns: [], viewerAuthorization: { isCurrentOrganizationOwner: true } } }), true);
+  assert.equal(readViewerOwnerCapability({ ok: true, data: { campaigns: [], viewerAuthorization: { isCurrentOrganizationOwner: false } } }), false);
+});
+
+test("D-close: it FAILS CLOSED on anything that is not exactly true", () => {
+  const cases = [
+    ["absent response", undefined],
+    ["null", null],
+    ["no data", { ok: true }],
+    ["no envelope field", { ok: true, data: { campaigns: [] } }],
+    ["empty envelope", { ok: true, data: { viewerAuthorization: {} } }],
+    ["older server omits it", { ok: true, data: { campaigns: [{ campaignId: "c1" }] } }],
+    ["dormant", { ok: false, dormant: true, status: 503 }],
+    ["unauthorized", { ok: false, unauthorized: true, status: 403 }],
+    ["network error", { ok: false, networkError: true, status: 0 }],
+  ];
+  for (const [label, res] of cases) {
+    assert.equal(readViewerOwnerCapability(res), false, label);
+  }
+  // Truthy-but-not-true must never be promoted to ownership.
+  for (const truthy of ["true", 1, "yes", {}, [], "owner"]) {
+    assert.equal(readViewerOwnerCapability({ data: { viewerAuthorization: { isCurrentOrganizationOwner: truthy } } }), false, JSON.stringify(truthy));
+  }
+});
+
+test("D-close: a membership ROLE can no longer confer ownership", () => {
+  // The role lives on the membership response, not here. Even a payload that carries an owner role
+  // yields false unless the authoritative field says true — that separation IS the fix.
+  const withRole = { ok: true, data: { campaigns: [], memberships: [{ role: "owner", status: "active" }] } };
+  assert.equal(readViewerOwnerCapability(withRole), false);
+  const src = readFileSync(new URL("./corporateDashboardModel.js", import.meta.url), "utf8");
+  const fn = src.slice(src.indexOf("export function readViewerOwnerCapability"));
+  assert.doesNotMatch(fn.slice(0, 300), /role/, "the capability reader must not consult a role");
+});
+
+test("D-close: the capability drives the owner-only actions end to end", () => {
+  const locked = { approvalStatus: "approved", lockStatus: "locked", audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } };
+  const asOwner = readViewerOwnerCapability({ data: { viewerAuthorization: { isCurrentOrganizationOwner: true } } });
+  const asOther = readViewerOwnerCapability({ data: { viewerAuthorization: { isCurrentOrganizationOwner: false } } });
+  assert.equal(deriveActions(locked, { isOwner: asOwner }).schedule.enabled, true);
+  const denied = deriveActions(locked, { isOwner: asOther }).schedule;
+  assert.equal(denied.enabled, false);
+  assert.equal(denied.reason, "Organization owner authorization required");
+});
+
 // ══ gift capability ═════════════════════════════════════════════════════════════════════════
 test("No gift and Let Greet-Me Select are selectable; QR Cash and Greet-Me Gifts are visible but not", () => {
   assert.deepEqual(CORPORATE_GIFT_OPTIONS.map((o) => o.value), ["none", "curated", "qrcash", "marketplace"]);
@@ -215,11 +264,30 @@ test("statuses are concise human language derived from PERSISTED backend state",
     [{ approvalStatus: "approved", lockStatus: "locked", deliveryConfig: { scheduleMode: "campaign_date" } }, "Locked"],
     [{ lockStatus: "locked", deliveryConfig: { scheduleMode: "campaign_date", status: "scheduled" } }, "Scheduled"],
     [{ lockStatus: "locked", deliveryConfig: { scheduleMode: "contact_saved_date", status: "active" } }, "Active"],
-    [{ corporateBlocker: "owner_reauthorization_required" }, "Paused — owner authorization required"],
     [{ approvalStatus: "changed", deliveryConfig: { scheduleMode: "campaign_date" } }, "Attention required"],
   ];
   for (const [campaign, label] of cases) {
     assert.equal(deriveCampaignStatus(campaign).label, label, JSON.stringify(campaign));
+  }
+});
+
+test("no Paused status is derived — the backend records pauses on schedules, not campaigns", () => {
+  // Fields nothing writes must not produce a label. Feeding every shape the old readers looked for
+  // yields an ordinary status, never a fabricated pause.
+  for (const shape of [
+    { corporateBlocker: "owner_reauthorization_required" },
+    { corporateActivation: { pausedReason: "owner_reauthorization_required" } },
+    { lastRunBlockers: [{ contactId: "e1", reason: "missing_occasion_date" }] },
+  ]) {
+    const st = deriveCampaignStatus(shape);
+    assert.notEqual(st.key, "paused", JSON.stringify(shape));
+    assert.equal(/paused/i.test(st.label), false, JSON.stringify(shape));
+  }
+  // ...and the readers are gone from the source, not merely unreachable.
+  const src = readFileSync(new URL("./corporateDashboardModel.js", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
+  for (const gone of [/corporateBlocker/, /pausedReason/, /lastRunBlockers/, /isOrganizationOwner/]) {
+    assert.doesNotMatch(src, gone, String(gone));
   }
 });
 

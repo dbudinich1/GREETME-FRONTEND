@@ -54,6 +54,8 @@ before(async () => {
   dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://app.test/" });
   globalThis.window = dom.window; globalThis.document = dom.window.document;
   globalThis.HTMLElement = dom.window.HTMLElement; globalThis.Event = dom.window.Event;
+  // Node 20 allows this; Node 21+ makes globalThis.navigator a getter, so assignment must not throw.
+  try { globalThis.navigator = dom.window.navigator; } catch { /* already a read-only global */ }
   globalThis.MouseEvent = dom.window.MouseEvent; globalThis.getComputedStyle = dom.window.getComputedStyle;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   React = (await import("react")).default; act = React.act;
@@ -132,7 +134,6 @@ test("D: the card renders the same six sections in the same order at EVERY statu
     {}, { approvalStatus: "approved" }, { approvalStatus: "approved", lockStatus: "locked" },
     { lockStatus: "locked", deliveryConfig: { scheduleMode: "campaign_date", status: "scheduled" } },
     { lockStatus: "locked", deliveryConfig: { scheduleMode: "contact_saved_date", status: "active" } },
-    { corporateBlocker: "owner_reauthorization_required" },
   ];
   for (const st of states) {
     const s = await mount(cardEl(st));
@@ -215,11 +216,15 @@ test("D: the saved-date mode exposes an occasion type and a timezone", async () 
   assert.equal(s.tid("card-when-cmp_1"), null, "no fixed date in saved-date mode");
 });
 
-test("D: per-recipient blockers appear ONLY once the backend has reported them", async () => {
+test("D: the card renders NO per-recipient blocker list — no backend field carries one", async () => {
+  // scheduleCampaignEndpoint returns blockers in its HTTP response body, but persists none on the
+  // campaign. A list rendered from a field nothing writes could only ever be empty, so the card
+  // shows nothing rather than reserving space for data that never arrives.
   const none = await mount(cardEl({ deliveryConfig: { scheduleMode: "contact_saved_date" } }));
   assert.equal(none.tid("card-blockers-cmp_1"), null);
-  const some = await mount(cardEl({ lastRunBlockers: [{ contactId: "e1", reason: "missing_occasion_date" }] }));
-  assert.match(some.tid("card-blockers-cmp_1").textContent, /e1: missing occasion date/);
+  const fed = await mount(cardEl({ lastRunBlockers: [{ contactId: "e1", reason: "missing_occasion_date" }] }));
+  assert.equal(fed.tid("card-blockers-cmp_1"), null, "even when fed, no such surface exists");
+  assert.equal(/missing occasion date/i.test(fed.text()), false);
 });
 
 test("D: a non-owner sees the owner-only message and cannot fire a final action", async () => {
@@ -242,7 +247,6 @@ test("D: statuses read as human language, never as raw backend enums", async () 
     [{ approvalStatus: "approved", deliveryConfig: { scheduleMode: "campaign_date" } }, "Approved"],
     [{ lockStatus: "locked", deliveryConfig: { scheduleMode: "campaign_date", status: "scheduled" } }, "Scheduled"],
     [{ lockStatus: "locked", deliveryConfig: { scheduleMode: "contact_saved_date", status: "active" } }, "Active"],
-    [{ corporateBlocker: "owner_reauthorization_required" }, "Paused — owner authorization required"],
   ];
   for (const [st, label] of cases) {
     const s = await mount(cardEl(st));
@@ -291,6 +295,48 @@ test("D: an unclassified contact is selectable individually and labelled neutral
   const refs = calls.find((c) => c[0] === "setAudience")[3];
   assert.deepEqual([...refs].sort(), ["e1", "u1"]);
   assert.equal(new Set(refs).size, refs.length);
+});
+
+
+// ══ SLICE D CLOSEOUT — stale authority ══════════════════════════════════════════════════════
+test("D-close: ownership is reset BEFORE the first request, and no failure can retain it", () => {
+  const src = readFileSync(new URL("./GreetingAutomationCampaigns.jsx", import.meta.url), "utf8");
+  const fn = src.slice(src.indexOf("const loadCampaigns = useCallback"), src.indexOf("useEffect(() => {", src.indexOf("const loadCampaigns")));
+
+  const reset = fn.indexOf("setIsOwnerViewer(false);");
+  const firstAwait = fn.indexOf("await ");
+  const grant = fn.indexOf("setIsOwnerViewer(readViewerOwnerCapability(listRes))");
+  assert.ok(reset > -1, "the reset must exist");
+  assert.ok(firstAwait > -1 && grant > -1);
+  // The window between organizations is unauthorized, not optimistically authorized.
+  assert.ok(reset < firstAwait, "reset must precede the first awaited request");
+  assert.ok(grant > firstAwait, "ownership can only be granted by a response");
+
+  // Every non-ok branch returns BEFORE the grant, so it cannot be reached without a successful list.
+  for (const guard of ["if (listRes.dormant)", "if (listRes.unauthorized)", "if (!listRes.ok)"]) {
+    const at = fn.indexOf(guard);
+    assert.ok(at > -1, `${guard} must exist`);
+    assert.ok(at < grant, `${guard} must short-circuit before ownership is granted`);
+  }
+
+  // A thrown load also fails closed.
+  const cat = fn.indexOf("} catch {");
+  assert.ok(cat > -1, "a catch path must exist");
+  assert.ok(fn.indexOf("setIsOwnerViewer(false);", cat) > cat, "the catch must clear ownership");
+
+  // Exactly two writes: one clearing reset, one clearing catch, and one conditional grant.
+  assert.equal((fn.match(/setIsOwnerViewer\(false\);/g) || []).length, 2);
+  assert.equal((fn.match(/setIsOwnerViewer\(/g) || []).length, 3);
+  // Initial state is false — nobody is an owner before a response.
+  assert.match(src, /useState\(false\);\s*(\r?\n)?\s*(\/\/[^\n]*\n\s*)*const \[isOwnerViewer|const \[isOwnerViewer, setIsOwnerViewer\] = useState\(false\)/);
+});
+
+test("D-close: the membership-role approximation is gone from the surface", () => {
+  const src = readFileSync(new URL("./GreetingAutomationCampaigns.jsx", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
+  assert.doesNotMatch(src, /isOrganizationOwner/);
+  assert.doesNotMatch(src, /role === "owner"/);
+  assert.match(src, /readViewerOwnerCapability\(listRes\)/);
 });
 
 test("D: the campaign viewport is a fixed-height internal scroller", () => {

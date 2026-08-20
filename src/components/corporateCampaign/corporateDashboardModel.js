@@ -155,10 +155,12 @@ export const SCHEDULE_MODES = Object.freeze([
 export function deriveCampaignStatus(campaign) {
   const c = campaign || {};
   const delivery = c.deliveryConfig || {};
-  const paused = c.corporateBlocker === "owner_reauthorization_required"
-    || (c.corporateActivation && c.corporateActivation.pausedReason === "owner_reauthorization_required");
 
-  if (paused) return { key: "paused", label: "Paused — owner authorization required", tone: "warn", next: "The organization owner must authorize this campaign again." };
+  // There is deliberately no "Paused" state here. A pause IS recorded by the backend — but on the
+  // SCHEDULE document (scheduler.js writes schedule.corporateBlocker), never on the campaign. A
+  // campaign-level pause would therefore have to be a rollup the backend does not compute, and a
+  // status derived from a field nothing writes is a label that can only ever be wrong or absent.
+  // When a rollup exists, it belongs here; until then the surface says nothing rather than guessing.
   if (delivery.status === "scheduled") return { key: "scheduled", label: "Scheduled", tone: "good", next: "Sends are scheduled. Nothing further is needed." };
   if (delivery.status === "active") return { key: "active", label: "Active", tone: "good", next: "Running on each contact’s saved date." };
   if (c.lockStatus === "locked") return { key: "locked", label: "Locked", tone: "good", next: "Ready for the organization owner to authorize." };
@@ -218,9 +220,20 @@ export function deriveActions(campaign, { isOwner = false } = {}) {
   };
 }
 
-// The current member is the owner only when the SERVER says so. An absent field is not ownership.
-export function isOrganizationOwner(orgContext, userId) {
-  return Boolean(orgContext && userId && orgContext.currentOwnerUserId === userId);
+/**
+ * SLICE D CLOSEOUT — read the AUTHORITATIVE owner capability from the campaign-list response.
+ *
+ * The backend compares the caller against organization.currentOwnerUserId and publishes the answer
+ * as `viewerAuthorization.isCurrentOrganizationOwner`. This reads that and nothing else — it does
+ * not fall back to a membership role, which is a different fact and was only ever an approximation.
+ *
+ * STRICT `=== true`, so it FAILS CLOSED: an absent envelope, an old server that does not send the
+ * field, a dormant/unauthorized response, or any truthy-but-not-true value all yield false. A
+ * surface that wrongly believes you are the owner enables an action the server will refuse; one
+ * that wrongly believes you are not shows a truthful message and costs a click.
+ */
+export function readViewerOwnerCapability(listRes) {
+  return listRes?.data?.viewerAuthorization?.isCurrentOrganizationOwner === true;
 }
 
 // ── delivery-config request body ─────────────────────────────────────────────────────────────

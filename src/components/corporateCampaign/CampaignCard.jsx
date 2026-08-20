@@ -40,7 +40,7 @@ const TIME_ZONES = ["America/New_York", "America/Chicago", "America/Denver", "Am
 
 export default function CampaignCard({
   campaign, contacts, orgId, client, isOwner, busy,
-  onOpenIndividualPicker, onAfterMutate,
+  onOpenIndividualPicker, onAfterMutate, onOpenDetail,
 }) {
   const delivery = campaign.deliveryConfig || {};
   const status = deriveCampaignStatus(campaign);
@@ -99,13 +99,26 @@ export default function CampaignCard({
       {/* 1 — HEADER */}
       <header className="gcd-card-head">
         <div>
-          <h3 className="gcd-card-name" id={uid("name")}>{campaign.name || "Untitled campaign"}</h3>
+          {/* The name is the way into the full campaign detail view — the same destination the
+              pre-consolidation list offered, kept so nothing became unreachable. */}
+          <h3 className="gcd-card-name" id={uid("name")}>
+            <button type="button" className="gcd-btn gcd-btn--quiet" data-testid={`card-open-${campaign.campaignId}`}
+              style={{ font: "inherit", padding: 0, textDecoration: "none" }}
+              onClick={() => onOpenDetail && onOpenDetail(campaign.campaignId)}>
+              {campaign.name || "Untitled campaign"}
+            </button>
+          </h3>
+          {campaign.campaignType ? (
+            <p className="gcd-bubble-note" data-testid={`card-type-${campaign.campaignId}`} style={{ margin: "0 0 4px" }}>
+              {campaign.campaignType}
+            </p>
+          ) : null}
           <p className="gcd-next" data-testid={`card-next-${campaign.campaignId}`}>{status.next}</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span className={`gcd-status gcd-status--${status.tone}`} data-testid={`card-status-${campaign.campaignId}`}>{status.label}</span>
           <button type="button" className="gcd-btn gcd-btn--quiet" data-testid={`card-review-${campaign.campaignId}`}
-            onClick={() => setShowSpreadEditor((v) => !v)}>Review</button>
+            onClick={() => (onOpenDetail ? onOpenDetail(campaign.campaignId) : setShowSpreadEditor((v) => !v))}>Review</button>
         </div>
       </header>
 
@@ -209,15 +222,6 @@ export default function CampaignCard({
           </select>
         </div>
       </div>
-      {/* Per-recipient blockers appear only once the BACKEND has reported them. */}
-      {Array.isArray(campaign.lastRunBlockers) && campaign.lastRunBlockers.length > 0 ? (
-        <ul data-testid={`card-blockers-${campaign.campaignId}`} style={{ margin: "10px 0 0", paddingLeft: 18, fontSize: ".78rem", color: "#bd7a10" }}>
-          {campaign.lastRunBlockers.map((b, i) => (
-            <li key={i}>{b.contactId}: {String(b.reason || "").replace(/_/g, " ")}</li>
-          ))}
-        </ul>
-      ) : null}
-
       {/* 6 — ACTION FOOTER: every action always present. */}
       <div className="gcd-footer" data-testid={`card-footer-${campaign.campaignId}`}>
         <button type="button" className="gcd-btn gcd-btn--primary" data-testid={`act-save-${campaign.campaignId}`}
