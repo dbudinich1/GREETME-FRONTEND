@@ -435,6 +435,149 @@ test("R: mobile wraps the six actions compactly, with no horizontal scrolling st
   assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.gcd-tiles\s*\{\s*grid-template-columns:\s*1fr/);
 });
 
+
+// ══ SLICE D — sticky rail identity ══════════════════════════════════════════════════════════
+test("I: the sticky rail visibly names its campaign and its human-readable status", async () => {
+  const s = await mount(cardEl({ name: "Q4 Client Appreciation", approvalStatus: "approved", deliveryConfig: { scheduleMode: "campaign_date" } }));
+  const ctx = s.tid("rail-context-cmp_1");
+  assert.ok(ctx, "the rail carries an identity");
+  // It lives INSIDE the rail, so it travels with the pinned actions.
+  assert.ok(s.tid("card-footer-cmp_1").contains(ctx));
+  assert.match(ctx.textContent, /Q4 Client Appreciation/);
+  assert.match(ctx.textContent, /Approved/);
+  // Name, separator and status are separate spans spaced by CSS, so textContent carries no
+  // whitespace around "·". Normalise it — the visual gap is the stylesheet's job, and `title`
+  // below is the properly spaced string.
+  const railText = (el) => el.textContent.replace(/\s+/g, " ").replace(/\s*·\s*/, " · ").trim();
+  assert.equal(railText(ctx), "Q4 Client Appreciation · Approved");
+  // The full text stays available when the name is visually truncated.
+  assert.equal(ctx.getAttribute("title"), "Q4 Client Appreciation · Approved");
+  // ...and the whole rail announces itself to assistive tech.
+  assert.match(s.tid("card-footer-cmp_1").getAttribute("aria-label"), /Q4 Client Appreciation — Approved/);
+  assert.equal(s.tid("card-footer-cmp_1").getAttribute("role"), "group");
+});
+
+test("I: the rail status is the DISPLAY status — never a raw backend enum", async () => {
+  const cases = [
+    [{ deliveryConfig: { scheduleMode: null, status: "not_configured" } }, "Needs setup"],
+    [{ approvalStatus: "approved", deliveryConfig: { scheduleMode: "campaign_date" } }, "Approved"],
+    [{ approvalStatus: "approved", lockStatus: "locked", deliveryConfig: { scheduleMode: "campaign_date" } }, "Locked"],
+    [{ lockStatus: "locked", deliveryConfig: { scheduleMode: "campaign_date", status: "scheduled" } }, "Scheduled"],
+    [{ lockStatus: "locked", deliveryConfig: { scheduleMode: "contact_saved_date", status: "active" } }, "Active"],
+  ];
+  for (const [over, label] of cases) {
+    const s = await mount(cardEl(over));
+    const ctx = s.tid("rail-context-cmp_1");
+    assert.match(ctx.textContent, new RegExp(label), JSON.stringify(over));
+    // The rail agrees with the header chip — one derivation, never two.
+    assert.equal(s.tid("card-status-cmp_1").textContent, label);
+    // No enum, no snake_case, no internal vocabulary.
+    for (const raw of ["not_configured", "campaign_date", "contact_saved_date", "approvalStatus", "lockStatus", "draft", "unlocked"]) {
+      assert.equal(ctx.textContent.includes(raw), false, `${raw} must not surface`);
+    }
+    assert.doesNotMatch(ctx.textContent, /_/);
+  }
+});
+
+test("I: two campaigns produce two DISTINCT rail identities", async () => {
+  const a = await mount(cardEl({ name: "Q4 Client Appreciation", approvalStatus: "approved", deliveryConfig: { scheduleMode: "campaign_date" } }));
+  const railText = (el) => el.textContent.replace(/\s+/g, " ").replace(/\s*·\s*/, " · ").trim();
+  const one = railText(a.tid("rail-context-cmp_1"));
+
+  // A different campaign id, name and state — its rail must say so, not inherit the first.
+  const other = { ...campaign({ name: "Team Birthdays", lockStatus: "locked", deliveryConfig: { scheduleMode: "contact_saved_date", status: "active" } }), campaignId: "cmp_2" };
+  const b = await mount(React.createElement(CampaignCard, {
+    campaign: other, contacts: CONTACTS, orgId: "org1", client: fakeClient, isOwner: false, busy: false,
+    onOpenIndividualPicker: () => {}, onAfterMutate: async () => {},
+  }));
+  const two = railText(b.tid("rail-context-cmp_2"));
+
+  assert.equal(one, "Q4 Client Appreciation · Approved");
+  assert.equal(two, "Team Birthdays · Active");
+  assert.notEqual(one, two, "each rail identifies its OWN campaign");
+  // The identity is keyed by campaign id, so one card can never render another's.
+  assert.equal(a.tid("rail-context-cmp_2"), null);
+  assert.equal(b.tid("rail-context-cmp_1"), null);
+});
+
+test("I: each rail's six actions invoke ONLY their own campaign", async () => {
+  const locked = { approvalStatus: "approved", lockStatus: "locked", audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } };
+  const a = await mount(cardEl(locked, { isOwner: true }));
+  const other = { ...campaign({ ...locked, name: "Team Birthdays" }), campaignId: "cmp_2" };
+  const b = await mount(React.createElement(CampaignCard, {
+    campaign: other, contacts: CONTACTS, orgId: "org1", client: fakeClient, isOwner: true, busy: false,
+    onOpenIndividualPicker: () => {}, onAfterMutate: async () => {},
+  }));
+
+  // Both cards are locked, owned and campaign_date, so Schedule is genuinely enabled on each —
+  // the same action from two rails must reach two different campaigns.
+  calls.length = 0;
+  await click(a.tid("act-schedule-cmp_1"));
+  const afterFirst = calls.filter((c) => c[0] === "schedule");
+  assert.equal(afterFirst.length, 1, "one rail, one call");
+  assert.deepEqual([afterFirst[0][1], afterFirst[0][2]], ["org1", "cmp_1"], "card one acts on cmp_1");
+
+  await click(b.tid("act-schedule-cmp_2"));
+  const both = calls.filter((c) => c[0] === "schedule");
+  assert.equal(both.length, 2);
+  assert.deepEqual([both[1][1], both[1][2]], ["org1", "cmp_2"], "card two acts on cmp_2");
+  // Neither rail ever reached the other's campaign.
+  assert.equal(both.filter((c) => c[2] === "cmp_1").length, 1);
+  assert.equal(both.filter((c) => c[2] === "cmp_2").length, 1);
+  // Locking from card one likewise stays on cmp_1.
+  calls.length = 0;
+  await click(a.tid("act-unlock-cmp_1"));
+  const unlocked = calls.filter((c) => c[0] === "unlock");
+  assert.equal(unlocked.length, 1);
+  assert.equal(unlocked[0][2], "cmp_1");
+});
+
+test("I: still exactly six actions per card — the label is not a seventh", async () => {
+  const s = await mount(cardEl());
+  const rail = s.tid("card-footer-cmp_1");
+  assert.equal(s.qa("[data-testid^='act-']").length, 6);
+  assert.equal(rail.querySelectorAll("button").length, 6, "the identity is not a button");
+  assert.equal(s.tid("rail-context-cmp_1").tagName, "SPAN");
+  assert.equal(s.qa("[data-testid^='rail-context-']").length, 1, "one identity per rail");
+});
+
+test("I: a very long name truncates rather than overflowing, and stays readable on mobile", async () => {
+  const long = "Q4 Global Client Appreciation and Partner Recognition Programme for the Americas Region";
+  const s = await mount(cardEl({ name: long }));
+  const ctx = s.tid("rail-context-cmp_1");
+  assert.equal(ctx.getAttribute("title"), `${long} · Needs setup`, "the full name stays accessible");
+
+  const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
+  // Desktop/tablet: the name shrinks and ellipsises; the status never wraps or gets pushed out.
+  const id = css.slice(css.indexOf(".gcd-actions-id {"), css.indexOf("}", css.indexOf(".gcd-actions-id {")));
+  assert.match(id, /min-width:\s*0/, "it must be allowed to shrink");
+  assert.match(id, /flex:\s*0 1 auto/, "…and shrink BEFORE the buttons do");
+  assert.match(id, /max-width:\s*\d+%/);
+  const name = css.slice(css.indexOf(".gcd-actions-id-name {"), css.indexOf("}", css.indexOf(".gcd-actions-id-name {")));
+  assert.match(name, /text-overflow:\s*ellipsis/);
+  assert.match(name, /white-space:\s*nowrap/);
+
+  // Mobile: at most two lines, wrapping inside long words so nothing can exceed the viewport.
+  const narrow = css.slice(css.indexOf("@media (max-width: 720px)"));
+  const mobileName = narrow.slice(narrow.indexOf(".gcd-actions-id-name {"), narrow.indexOf("}", narrow.indexOf(".gcd-actions-id-name {")));
+  assert.match(mobileName, /-webkit-line-clamp:\s*2/, "at most two lines");
+  assert.match(mobileName, /overflow-wrap:\s*anywhere/, "an unbroken name cannot push the rail wide");
+  assert.match(narrow.slice(narrow.indexOf(".gcd-actions-id {")), /flex-basis:\s*100%/, "it takes its own row");
+});
+
+test("I: the identity changed nothing about state, APIs, models, or scroll height", () => {
+  const src = readFileSync(new URL("./CampaignCard.jsx", import.meta.url), "utf8");
+  // The label reads the SAME derived status the header uses — no second derivation.
+  assert.equal((src.match(/deriveCampaignStatus\(/g) || []).length, 1);
+  assert.equal((src.match(/deriveActions\(/g) || []).length, 1);
+  // It renders existing values; it sets nothing.
+  const idBlock = src.slice(src.indexOf('className="gcd-actions-id"'), src.indexOf("</span>", src.indexOf('gcd-actions-id-status')));
+  assert.doesNotMatch(idBlock, /useState|client\.|fetch\(|onClick/);
+  // The campaign viewport height is untouched by this change.
+  const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
+  assert.match(css, /\.gcd-scroll \{[\s\S]*?max-height:\s*min\(42vh,\s*460px\)/);
+});
+
 test("D: the campaign viewport is a fixed-height internal scroller", () => {
   const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
   assert.match(css, /\.gcd-scroll\s*\{[\s\S]*?max-height:\s*\d+vh/, "a bounded height");

@@ -62,6 +62,8 @@ export default function CampaignCard({
   const audienceRefs = Array.isArray(campaign.audienceRefs) ? campaign.audienceRefs : [];
   const counts = useMemo(() => selectedCountsByCategory(contacts, audienceRefs), [contacts, audienceRefs]);
 
+  // One source for the displayed name, shared by the header and the rail so they can never drift.
+  const campaignLabel = campaign.name || "Untitled campaign";
   const uid = (s) => `c-${campaign.campaignId}-${s}`;
   const run = async (key, fn) => {
     setMessage(null); setPending(key);
@@ -105,7 +107,7 @@ export default function CampaignCard({
             <button type="button" className="gcd-btn gcd-btn--quiet" data-testid={`card-open-${campaign.campaignId}`}
               style={{ font: "inherit", padding: 0, textDecoration: "none" }}
               onClick={() => onOpenDetail && onOpenDetail(campaign.campaignId)}>
-              {campaign.name || "Untitled campaign"}
+              {campaignLabel}
             </button>
           </h3>
           {campaign.campaignType ? (
@@ -128,7 +130,19 @@ export default function CampaignCard({
           ACTIVE campaign keeps its actions on screen while its own settings scroll past.
           Layout only — every enablement rule, disabled reason, owner gate and API call is
           the same code, unmoved. */}
-      <div className="gcd-actions" data-testid={`card-footer-${campaign.campaignId}`}>
+      <div className="gcd-actions" data-testid={`card-footer-${campaign.campaignId}`}
+        role="group" aria-label={`Actions for ${campaignLabel} — ${status.label}`}>
+        {/* WHOSE actions these are. Once a rail is pinned, the header that named the campaign has
+            scrolled away — six unlabelled buttons over someone else's settings is how a reader
+            locks the wrong campaign. The label rides with the rail, so the answer is always on
+            screen, and the next card's rail replaces it with its own name and status.
+            `title` carries the untruncated text for anyone whose name is clipped. */}
+        <span className="gcd-actions-id" data-testid={`rail-context-${campaign.campaignId}`}
+          title={`${campaignLabel} · ${status.label}`}>
+          <span className="gcd-actions-id-name">{campaignLabel}</span>
+          <span className="gcd-actions-id-sep" aria-hidden="true">·</span>
+          <span className={`gcd-actions-id-status gcd-actions-id-status--${status.tone}`}>{status.label}</span>
+        </span>
         <button type="button" className="gcd-btn gcd-btn--primary" data-testid={`act-save-${campaign.campaignId}`}
           disabled={!actions.save.enabled || busy || pending === "save"} title={disabledNote(actions.save) || undefined}
           onClick={saveDelivery}>Save Changes</button>

@@ -230,6 +230,26 @@
 .gcd-reason { font-size: .75rem; color: var(--gcd-faint); flex-basis: 100%; margin: 0; }
 .gcd-actions .gcd-msg { flex-basis: 100%; margin: 2px 0 0; }
 
+/* RAIL IDENTITY — whose actions these are.
+   Sits first in the rail and shrinks before the buttons do (min-width:0 + flex-shrink), so a long
+   campaign name truncates rather than pushing a control off the edge. */
+.gcd-actions-id {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  min-width: 0; flex: 0 1 auto; max-width: 46%;
+  padding-right: 12px; margin-right: 2px;
+  border-right: 1px solid var(--gcd-line);
+  font-size: .8rem; line-height: 1.25;
+}
+.gcd-actions-id-name {
+  font-weight: 700; color: var(--gcd-ink);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gcd-actions-id-sep { color: var(--gcd-faint); flex: 0 0 auto; }
+.gcd-actions-id-status { font-weight: 700; white-space: nowrap; flex: 0 0 auto; }
+.gcd-actions-id-status--good { color: var(--gcd-good); }
+.gcd-actions-id-status--info { color: var(--gcd-purple-deep); }
+.gcd-actions-id-status--warn { color: var(--gcd-warn); }
+
 .gcd-field { display: flex; flex-direction: column; gap: 5px; min-width: 190px; }
 .gcd-field label { font-size: .74rem; font-weight: 700; color: var(--gcd-ink); }
 .gcd-field input, .gcd-field select {
@@ -262,6 +282,19 @@
   /* Six actions wrap into compact rows — never a horizontally scrolling strip, which hides
      controls behind a gesture nobody is told about. */
   .gcd-actions { margin-left: -16px; margin-right: -16px; padding: 10px 16px; gap: 8px; }
+  /* On a narrow screen the identity takes the full first row and may wrap to TWO lines — long
+     names stay readable instead of collapsing to an ellipsis on a 390px device. */
+  .gcd-actions-id {
+    flex-basis: 100%; max-width: 100%;
+    padding-right: 0; margin: 0 0 2px;
+    border-right: none; border-bottom: 1px solid var(--gcd-line); padding-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .gcd-actions-id-name {
+    white-space: normal; overflow: hidden; text-overflow: clip;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow-wrap: anywhere;
+  }
   .gcd-actions .gcd-btn { flex: 1 1 auto; min-width: 104px; padding: 9px 10px; }
   .gcd-bubbles { gap: 4px 12px; }
 }
