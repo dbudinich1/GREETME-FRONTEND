@@ -16,7 +16,7 @@ import CampaignDetail from "./CampaignDetail.jsx";
 import CampaignCard from "./CampaignCard.jsx";
 import ContactTiles from "./ContactTiles.jsx";
 import IndividualContactPicker from "./IndividualContactPicker.jsx";
-import { readViewerOwnerCapability } from "./corporateDashboardModel.js";
+import { readViewerOwnerCapability, readExecutionCapability } from "./corporateDashboardModel.js";
 import "./premiumDashboard.css";
 
 const PURPLE = "linear-gradient(135deg, #6d74ee 0%, #764ba2 100%)";
@@ -99,6 +99,11 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
   const [pickerCategory, setPickerCategory] = useState(null);
   // Fails closed: nobody is treated as the owner until the server says so on a successful list.
   const [isOwnerViewer, setIsOwnerViewer] = useState(false);
+  // SLICE E3 — the backend's execution interlock, published on the campaign list. Fails closed for
+  // exactly the same reason ownership does: until a successful response says otherwise, the two
+  // owner-only actions must not look pressable. This is the SERVER's answer held verbatim — the
+  // dashboard never infers it, never remembers it across organizations, and never invents it.
+  const [canAuthorizeRun, setCanAuthorizeRun] = useState(false);
   // Navigation without a Router dependency. The app mounts a HashRouter, so a hash assignment IS
   // the route change; injecting it keeps this component mountable on its own, which useNavigate()
   // would prevent by throwing outside a <Router>.
@@ -140,7 +145,10 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
     // organizations is unauthorized rather than optimistically authorized, and every path below —
     // dormant, unauthorized, non-ok, or thrown — leaves it false unless a successful response says
     // otherwise.
-    setIsOwnerViewer(false);
+    // The execution capability is organization-scoped in exactly the same way and is cleared on the
+    // same line of defence: a stale `true` carried across a switch would re-enable Schedule for an
+    // organization whose interlock has not been read yet.
+    setIsOwnerViewer(false); setCanAuthorizeRun(false);
     setCampaignAuthError(false); setCampaignDormant(false); setLoadingCampaigns(true);
     try {
       const listRes = await client.listCampaigns(orgId);
@@ -150,6 +158,7 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
       if (!listRes.ok) { setRows([]); setLoadingCampaigns(false); return; }
       // Only a SUCCESSFUL list can confer ownership, and only if it says so exactly.
       setIsOwnerViewer(readViewerOwnerCapability(listRes));
+      setCanAuthorizeRun(readExecutionCapability(listRes));
       const list = (listRes.data && (listRes.data.campaigns || listRes.data.items || listRes.data)) || [];
       const arr = Array.isArray(list) ? list : [];
       const merged = await Promise.all(arr.map(async (campaign) => {
@@ -160,8 +169,8 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
       }));
       setRows(merged); setLoadingCampaigns(false);
     } catch {
-      // A thrown load cannot retain ownership either. Fail closed and show nothing.
-      setIsOwnerViewer(false);
+      // A thrown load cannot retain ownership or execution capability either. Fail closed.
+      setIsOwnerViewer(false); setCanAuthorizeRun(false);
       setRows([]); setLoadingCampaigns(false);
     }
   }, [client]);
@@ -323,7 +332,11 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
                   orgId={effectiveOrgId}
                   client={client}
                   isOwner={isOwner}
+                  canAuthorizeRun={canAuthorizeRun}
                   busy={loadingCampaigns}
+                  /* DEFENCE IN DEPTH, not the primary source. The list above is authoritative; this
+                     only catches the race where the interlock closes between a load and a click. */
+                  onExecutionDormant={() => setCanAuthorizeRun(false)}
                   onOpenDetail={(cid) => setSelectedCampaignId(cid)}
                   onOpenIndividualPicker={(c) => setPickerCampaign(c)}
                   onAfterMutate={async () => { await loadCampaigns(effectiveOrgId); }}

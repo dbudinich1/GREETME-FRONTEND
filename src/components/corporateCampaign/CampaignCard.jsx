@@ -24,7 +24,9 @@ import {
   selectedCountsByCategory,
   contactCategoryLabel,
   buildDeliveryConfigBody,
+  EXECUTION_DORMANT_MESSAGE,
 } from "./corporateDashboardModel.js";
+import { EXECUTION_DORMANT_REASON } from "../../api/corporateCampaigns.js";
 import { CategoryBubble, ChoiceBubble, BubbleGroup } from "./Bubbles.jsx";
 import CampaignFeaturedSpreadEditor from "../../corporateCampaign/CampaignFeaturedSpreadEditor.jsx";
 import "./premiumDashboard.css";
@@ -40,11 +42,16 @@ const TIME_ZONES = ["America/New_York", "America/Chicago", "America/Denver", "Am
 
 export default function CampaignCard({
   campaign, contacts, orgId, client, isOwner, busy,
+  // SLICE E3 — the server's execution interlock, read from the campaign list by the dashboard and
+  // handed down. Defaults to false so a card rendered without it (an older caller, a test, a
+  // partially wired parent) refuses rather than offers. Never derived here.
+  canAuthorizeRun = false,
+  onExecutionDormant,
   onOpenIndividualPicker, onAfterMutate, onOpenDetail,
 }) {
   const delivery = campaign.deliveryConfig || {};
   const status = deriveCampaignStatus(campaign);
-  const actions = deriveActions(campaign, { isOwner });
+  const actions = deriveActions(campaign, { isOwner, canAuthorizeRun });
   const locked = campaign.lockStatus === "locked";
 
   const [categories, setCategories] = useState([]);
@@ -71,7 +78,18 @@ export default function CampaignCard({
       const res = await fn();
       // Never claim success before the API confirms it.
       if (!res || res.ok !== true) {
-        setMessage((res && (res.error || (res.dormant && "This feature isn’t active yet.") || (res.unauthorized && "You don’t have access to this action."))) || "That didn’t go through. Please try again.");
+        // SLICE E3 — DEFENCE IN DEPTH. The list response is the authoritative source; this only
+        // catches the race where the interlock closed after the last load. Telling the dashboard
+        // disables the two owner-only actions on EVERY card, not just this one, because the
+        // interlock is organization-wide. Status is untouched: nothing is advanced on a refusal.
+        const executionDormant = Boolean(res && res.dormant && res.reason === EXECUTION_DORMANT_REASON);
+        if (executionDormant && onExecutionDormant) onExecutionDormant();
+        setMessage((res && (
+          (executionDormant && EXECUTION_DORMANT_MESSAGE)
+          || res.error
+          || (res.dormant && "This feature isn’t active yet.")
+          || (res.unauthorized && "You don’t have access to this action.")
+        )) || "That didn’t go through. Please try again.");
         return null;
       }
       if (onAfterMutate) await onAfterMutate();

@@ -23,6 +23,8 @@ import {
   deriveActions,
   buildDeliveryConfigBody,
   readViewerOwnerCapability,
+  readExecutionCapability,
+  EXECUTION_DORMANT_MESSAGE,
   centsToDisplay,
 } from "./corporateDashboardModel.js";
 
@@ -185,8 +187,9 @@ test("D-close: the capability drives the owner-only actions end to end", () => {
   const locked = { approvalStatus: "approved", lockStatus: "locked", audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } };
   const asOwner = readViewerOwnerCapability({ data: { viewerAuthorization: { isCurrentOrganizationOwner: true } } });
   const asOther = readViewerOwnerCapability({ data: { viewerAuthorization: { isCurrentOrganizationOwner: false } } });
-  assert.equal(deriveActions(locked, { isOwner: asOwner }).schedule.enabled, true);
-  const denied = deriveActions(locked, { isOwner: asOther }).schedule;
+  // SLICE E3 — the enabled path now also requires the server's execution capability.
+  assert.equal(deriveActions(locked, { isOwner: asOwner, canAuthorizeRun: true }).schedule.enabled, true);
+  const denied = deriveActions(locked, { isOwner: asOther, canAuthorizeRun: true }).schedule;
   assert.equal(denied.enabled, false);
   assert.equal(denied.reason, "Organization owner authorization required");
 });
@@ -326,7 +329,8 @@ test("final actions are owner-only, with the exact required message", () => {
   assert.equal(notOwner.schedule.reason, OWNER_ONLY_MESSAGE);
   assert.equal(notOwner.activate.reason, OWNER_ONLY_MESSAGE);
 
-  const owner = deriveActions(locked, { isOwner: true });
+  // SLICE E3 — execution capability granted, so ownership is the only remaining variable.
+  const owner = deriveActions(locked, { isOwner: true, canAuthorizeRun: true });
   assert.equal(owner.schedule.enabled, true);
   assert.equal(owner.activate.enabled, false, "activate belongs to the saved-date mode");
   assert.match(owner.activate.reason, /each contact’s saved date/i);
@@ -334,7 +338,7 @@ test("final actions are owner-only, with the exact required message", () => {
 
 test("Schedule belongs to campaign_date and Activate to contact_saved_date", () => {
   const saved = { approvalStatus: "approved", lockStatus: "locked", audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "contact_saved_date" } };
-  const a = deriveActions(saved, { isOwner: true });
+  const a = deriveActions(saved, { isOwner: true, canAuthorizeRun: true });
   assert.equal(a.activate.enabled, true);
   assert.equal(a.schedule.enabled, false);
   assert.match(a.schedule.reason, /single campaign date/i);
@@ -347,4 +351,111 @@ test("prerequisites are named precisely rather than generically", () => {
   assert.match(noSchedule.approve.reason, /when this campaign should send/i);
   const notApproved = deriveActions({ audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true });
   assert.match(notApproved.lock.reason, /approve the campaign/i);
+});
+
+// ══ SLICE E3 — the authoritative execution capability ════════════════════════════════════════
+//
+// The dashboard used to enable Schedule/Activate on owner + lock state alone, so an owner could
+// press a button whose only possible outcome was a 503. The capability now comes from the server,
+// on the campaign list, derived from the same reader that gates the endpoints.
+
+test("E3: only a literal true grants the capability", () => {
+  assert.equal(readExecutionCapability({ ok: true, data: { executionAvailability: { canAuthorizeRun: true, reason: null } } }), true);
+  assert.equal(readExecutionCapability({ ok: true, data: { executionAvailability: { canAuthorizeRun: false, reason: "corporate_campaign_execution_disabled" } } }), false);
+});
+
+test("E3: every truthy impostor fails closed", () => {
+  for (const truthy of ["true", 1, "yes", {}, [], "TRUE", -1, Infinity]) {
+    assert.equal(readExecutionCapability({ data: { executionAvailability: { canAuthorizeRun: truthy } } }), false, JSON.stringify(truthy));
+  }
+});
+
+test("E3: an OLDER server that omits the envelope fails closed", () => {
+  // The exact shape shipped before this slice: campaigns + viewerAuthorization, nothing else.
+  assert.equal(readExecutionCapability({ ok: true, data: { campaigns: [], viewerAuthorization: { isCurrentOrganizationOwner: true } } }), false);
+  assert.equal(readExecutionCapability({ ok: true, data: {} }), false);
+  assert.equal(readExecutionCapability({ ok: true }), false);
+});
+
+test("E3: degraded responses cannot confer the capability", () => {
+  for (const res of [null, undefined, {}, { ok: false }, { dormant: true }, { unauthorized: true },
+                     { ok: false, status: 500 }, { data: null }, { data: { executionAvailability: null } }]) {
+    assert.equal(readExecutionCapability(res), false, JSON.stringify(res));
+  }
+});
+
+test("E3: the capability and ownership are INDEPENDENT facts, read separately", () => {
+  const res = { ok: true, data: {
+    viewerAuthorization: { isCurrentOrganizationOwner: false },
+    executionAvailability: { canAuthorizeRun: true, reason: null },
+  } };
+  assert.equal(readExecutionCapability(res), true, "the door is open");
+  assert.equal(readViewerOwnerCapability(res), false, "this viewer still is not the owner");
+});
+
+test("E3: Schedule and Activate require the capability, and say so in the approved words", () => {
+  const base = { lockStatus: "locked", approvalStatus: "approved" };
+  const sched = { ...base, deliveryConfig: { scheduleMode: "campaign_date" } };
+  const activ = { ...base, deliveryConfig: { scheduleMode: "contact_saved_date" } };
+
+  // Owner + locked + right mode, but the interlock is closed → disabled with the exact text.
+  for (const [c, key] of [[sched, "schedule"], [activ, "activate"]]) {
+    const off = deriveActions(c, { isOwner: true, canAuthorizeRun: false })[key];
+    assert.equal(off.enabled, false, key);
+    assert.equal(off.reason, "Campaign sending is not active yet.", key);
+    assert.equal(off.reason, EXECUTION_DORMANT_MESSAGE, key);
+    // …and the SAME campaign with the capability granted is enabled.
+    assert.equal(deriveActions(c, { isOwner: true, canAuthorizeRun: true })[key].enabled, true, key);
+  }
+});
+
+test("E3: an omitted capability fails closed — a caller that forgets refuses, never offers", () => {
+  const c = { lockStatus: "locked", approvalStatus: "approved", deliveryConfig: { scheduleMode: "campaign_date" } };
+  const a = deriveActions(c, { isOwner: true }); // no canAuthorizeRun at all
+  assert.equal(a.schedule.enabled, false);
+  assert.equal(a.schedule.reason, EXECUTION_DORMANT_MESSAGE);
+  assert.equal(deriveActions(c, {}).schedule.enabled, false);
+  assert.equal(deriveActions(c).schedule.enabled, false);
+});
+
+test("E3: dormancy NEVER displaces owner authorization", () => {
+  const c = { lockStatus: "locked", approvalStatus: "approved", deliveryConfig: { scheduleMode: "campaign_date" } };
+  // A non-owner is told the truth about ownership whatever the interlock says — being told the
+  // feature is off would send them to the wrong person with the wrong question.
+  for (const canAuthorizeRun of [true, false]) {
+    const a = deriveActions(c, { isOwner: false, canAuthorizeRun });
+    assert.equal(a.schedule.enabled, false);
+    assert.equal(a.schedule.reason, OWNER_ONLY_MESSAGE, `canAuthorizeRun=${canAuthorizeRun}`);
+    assert.equal(a.activate.reason, OWNER_ONLY_MESSAGE);
+  }
+  // And the capability never rescues a non-owner.
+  assert.equal(deriveActions(c, { isOwner: false, canAuthorizeRun: true }).schedule.enabled, false);
+});
+
+test("E3: the capability governs ONLY the two owner-only actions", () => {
+  const unlocked = { lockStatus: "unlocked", approvalStatus: "approved", audienceRefs: ["c1"],
+                     deliveryConfig: { scheduleMode: "campaign_date" } };
+  const off = deriveActions(unlocked, { isOwner: true, canAuthorizeRun: false });
+  const on = deriveActions(unlocked, { isOwner: true, canAuthorizeRun: true });
+  // Save/approve/lock/unlock are configuration and governance, not execution — untouched.
+  for (const key of ["save", "approve", "lock", "unlock"]) {
+    assert.deepEqual(off[key], on[key], key);
+  }
+  assert.equal(off.save.enabled, true, "configuration stays usable while sending is dormant");
+});
+
+test("E3: the approved wording is used, and the rejected wordings are not", () => {
+  assert.equal(EXECUTION_DORMANT_MESSAGE, "Campaign sending is not active yet.");
+  for (const banned of [/unavailable/i, /unsupported/i, /not offered/i, /coming soon/i]) {
+    assert.doesNotMatch(EXECUTION_DORMANT_MESSAGE, banned, String(banned));
+  }
+});
+
+test("E3: no raw backend flag name appears in the dashboard model", () => {
+  const src = readFileSync(new URL("./corporateDashboardModel.js", import.meta.url), "utf8");
+  for (const flag of ["corporateCampaignExecutionEnabled", "corporateCampaignProducerEnabled",
+                      "corporateCampaignDeliveryEnabled", "campaignFeaturedSpreadEnabled",
+                      "LAUNCH_CONTROL", "launchControl"]) {
+    assert.equal(src.includes(flag), false, flag);
+  }
 });

@@ -24,6 +24,13 @@ function defaultGetToken() {
 
 export const DORMANT_REASON = "campaign_featured_spread_disabled";
 
+// SLICE E3 — the OTHER dormancy. The management gate (DORMANT_REASON) hides the whole surface;
+// this one means the surface is live but runs may not be authorized yet. They are different facts
+// with different consequences, so they must stay distinguishable: this client previously stamped
+// every 503 with DORMANT_REASON and threw the server's own answer away, which made an
+// execution-gate refusal indistinguishable from the feature being switched off entirely.
+export const EXECUTION_DORMANT_REASON = "corporate_campaign_execution_disabled";
+
 export function createCorporateCampaignsClient({
   fetchImpl = (typeof fetch !== "undefined" ? fetch : undefined),
   getToken = defaultGetToken,
@@ -49,9 +56,18 @@ export function createCorporateCampaignsClient({
       return { ok: false, networkError: true, status: 0 };
     }
 
-    // Dormant flag gate — returned BEFORE auth/reads while the feature is off.
+    // Dormant gate. TWO different 503s reach here — the management flag gate (surface off, returned
+    // before auth/reads) and the execution interlock on schedule/activate (surface on, runs not
+    // authorized). Report the server's OWN reason so callers can tell them apart; only fall back to
+    // the management default when the body is absent or unreadable, which is what an older server
+    // that sends a bare 503 looks like.
     if (res.status === 503) {
-      return { ok: false, dormant: true, status: 503, reason: DORMANT_REASON };
+      let reason = DORMANT_REASON;
+      try {
+        const body = await res.json();
+        if (body && typeof body.reason === "string" && body.reason) reason = body.reason;
+      } catch { /* empty or non-JSON body — keep the conservative default */ }
+      return { ok: false, dormant: true, status: 503, reason };
     }
     // Auth / membership — return no organization data whatsoever.
     if (res.status === 401 || res.status === 403) {

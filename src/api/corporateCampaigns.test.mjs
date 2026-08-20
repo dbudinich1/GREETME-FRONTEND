@@ -2,7 +2,7 @@
 // Run: node --test src/api/corporateCampaigns.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createCorporateCampaignsClient, DORMANT_REASON } from "./corporateCampaigns.js";
+import { createCorporateCampaignsClient, DORMANT_REASON, EXECUTION_DORMANT_REASON } from "./corporateCampaigns.js";
 
 function stub(responses) {
   const calls = [];
@@ -141,4 +141,64 @@ test("setAudience → PUT .../audience with { audienceRefs }", async () => {
   assert.equal(calls[0].url, "/api/corporate-campaigns/organizations/o/campaigns/c/audience");
   assert.deepEqual(JSON.parse(calls[0].body), { audienceRefs: ["c1", "c1"] }); // server dedups/verifies
   assert.equal(r.ok, true);
+});
+
+// ══ SLICE E3 — two different 503s must stay distinguishable ══════════════════════════════════
+//
+// Before this slice the client stamped EVERY 503 with DORMANT_REASON and discarded the server's
+// own answer, so "the whole surface is switched off" and "the surface is live but runs may not be
+// authorized" arrived identically. They have different causes and different remedies.
+
+test("E3: the server's own 503 reason is preserved, not overwritten", async () => {
+  const { client } = mk([{ status: 503, json: { disabled: true, reason: "corporate_campaign_execution_disabled" } }]);
+  const r = await client.schedule("o1", "c1");
+  assert.equal(r.ok, false);
+  assert.equal(r.dormant, true);
+  assert.equal(r.status, 503);
+  assert.equal(r.reason, "corporate_campaign_execution_disabled");
+  assert.notEqual(r.reason, DORMANT_REASON, "the management default must not have been stamped over it");
+  assert.equal(r.reason, EXECUTION_DORMANT_REASON);
+});
+
+test("E3: management dormancy still reports the management reason", async () => {
+  const { client } = mk([{ status: 503, json: { disabled: true, reason: "campaign_featured_spread_disabled" } }]);
+  const r = await client.listCampaigns("o1");
+  assert.equal(r.dormant, true);
+  assert.equal(r.reason, DORMANT_REASON);
+  assert.notEqual(r.reason, EXECUTION_DORMANT_REASON);
+});
+
+test("E3: the two dormancy reasons are distinct values, not aliases", () => {
+  assert.equal(DORMANT_REASON, "campaign_featured_spread_disabled");
+  assert.equal(EXECUTION_DORMANT_REASON, "corporate_campaign_execution_disabled");
+  assert.notEqual(DORMANT_REASON, EXECUTION_DORMANT_REASON);
+});
+
+test("E3: a 503 with no usable reason falls back to the conservative management default", async () => {
+  // An older server, an empty body, or a non-JSON body. Never invent a reason.
+  for (const json of [{ disabled: true }, {}, { reason: "" }, { reason: 123 }, { reason: null }]) {
+    const { client } = mk([{ status: 503, json }]);
+    const r = await client.listCampaigns("o1");
+    assert.equal(r.dormant, true, JSON.stringify(json));
+    assert.equal(r.reason, DORMANT_REASON, JSON.stringify(json));
+  }
+});
+
+test("E3: a 503 still leaks no organization data, whichever reason it carries", async () => {
+  const { client } = mk([{ status: 503, json: { disabled: true, reason: "corporate_campaign_execution_disabled", campaigns: [{ campaignId: "leak" }] } }]);
+  const r = await client.listCampaigns("o1");
+  assert.equal(r.ok, false);
+  assert.equal(r.data, undefined, "no payload is surfaced from a dormant response");
+  assert.equal("campaigns" in r, false);
+});
+
+test("E3: executionAvailability rides through on a successful list, untouched", async () => {
+  const { client } = mk([{ status: 200, json: {
+    campaigns: [{ campaignId: "c1" }],
+    viewerAuthorization: { isCurrentOrganizationOwner: true },
+    executionAvailability: { canAuthorizeRun: false, reason: "corporate_campaign_execution_disabled" },
+  } }]);
+  const r = await client.listCampaigns("o1");
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.data.executionAvailability, { canAuthorizeRun: false, reason: "corporate_campaign_execution_disabled" });
 });

@@ -177,7 +177,12 @@ export function deriveCampaignStatus(campaign) {
 // can always explain the missing prerequisite rather than sitting there inert.
 export const OWNER_ONLY_MESSAGE = "Organization owner authorization required";
 
-export function deriveActions(campaign, { isOwner = false } = {}) {
+// SLICE E3 — what a viewer is told when the backend interlock is closed. Says the plain thing:
+// sending is not switched on YET. Not "unavailable" (implies breakage), not "unsupported" or
+// "not offered" (implies never), not "coming soon" (a promise this surface cannot make).
+export const EXECUTION_DORMANT_MESSAGE = "Campaign sending is not active yet.";
+
+export function deriveActions(campaign, { isOwner = false, canAuthorizeRun = false } = {}) {
   const c = campaign || {};
   const delivery = c.deliveryConfig || {};
   const status = deriveCampaignStatus(c);
@@ -201,18 +206,24 @@ export function deriveActions(campaign, { isOwner = false } = {}) {
       locked ? "This campaign is already locked." : "Approve the campaign before locking it.") },
     unlock: { key: "unlock", label: "Unlock", ...gate(locked && !settled,
       settled ? "Sends are already authorized for this campaign." : "This campaign isn’t locked yet.") },
+    // SLICE E3 — the two owner-only actions now ALSO require the server's execution capability.
+    // Ordering of the reasons is deliberate: ownership is checked first and is never displaced by
+    // dormancy, because "you are not the owner" stays true whatever the interlock says, and a
+    // non-owner must not be told the interlock is the thing standing in their way.
     schedule: {
       key: "schedule", label: "Schedule",
-      ...gate(locked && mode === "campaign_date" && isOwner && !settled,
+      ...gate(canAuthorizeRun && locked && mode === "campaign_date" && isOwner && !settled,
         !isOwner ? OWNER_ONLY_MESSAGE
+          : !canAuthorizeRun ? EXECUTION_DORMANT_MESSAGE
           : mode !== "campaign_date" ? "Scheduling applies to a single campaign date."
           : !locked ? "Lock the campaign before scheduling it."
           : "This campaign is already scheduled."),
     },
     activate: {
       key: "activate", label: "Activate",
-      ...gate(locked && mode === "contact_saved_date" && isOwner && !settled,
+      ...gate(canAuthorizeRun && locked && mode === "contact_saved_date" && isOwner && !settled,
         !isOwner ? OWNER_ONLY_MESSAGE
+          : !canAuthorizeRun ? EXECUTION_DORMANT_MESSAGE
           : mode !== "contact_saved_date" ? "Activation applies to each contact’s saved date."
           : !locked ? "Lock the campaign before activating it."
           : "This campaign is already active."),
@@ -234,6 +245,24 @@ export function deriveActions(campaign, { isOwner = false } = {}) {
  */
 export function readViewerOwnerCapability(listRes) {
   return listRes?.data?.viewerAuthorization?.isCurrentOrganizationOwner === true;
+}
+
+/**
+ * SLICE E3 — read the AUTHORITATIVE execution capability from the same campaign-list response.
+ *
+ * The backend derives this from the one shared reader that gates POST /schedule and POST /activate
+ * and publishes it as the envelope sibling `executionAvailability.canAuthorizeRun`. This reads that
+ * and nothing else. It does not infer, remember, or reconstruct the answer, and it never consults a
+ * flag name — the server owns the fact.
+ *
+ * STRICT `=== true`, so it FAILS CLOSED on every degraded shape: an older server that omits the
+ * envelope, a dormant/unauthorized/failed/thrown response, a truthy-but-not-true value, or a
+ * malformed body. A surface that wrongly believes it may authorize a run offers a button that can
+ * only fail; one that wrongly believes it may not costs a support question. Only one of those is
+ * recoverable by the reader.
+ */
+export function readExecutionCapability(listRes) {
+  return listRes?.data?.executionAvailability?.canAuthorizeRun === true;
 }
 
 // ── delivery-config request body ─────────────────────────────────────────────────────────────

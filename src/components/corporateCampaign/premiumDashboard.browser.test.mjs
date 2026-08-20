@@ -236,7 +236,7 @@ test("D: a non-owner sees the owner-only message and cannot fire a final action"
   await click(s.tid("act-schedule-cmp_1"));
   assert.equal(calls.some((c) => c[0] === "schedule"), false, "a disabled control calls nothing");
 
-  const owner = await mount(cardEl(locked, { isOwner: true }));
+  const owner = await mount(cardEl(locked, { isOwner: true, canAuthorizeRun: true })); // E3: capability required
   assert.equal(owner.tid("act-schedule-cmp_1").disabled, false);
   assert.equal(owner.tid("card-owner-note-cmp_1"), null);
 });
@@ -376,7 +376,7 @@ test("R: enablement, disabled reasons and owner authorization are unchanged by t
   await click(notOwner.tid("act-schedule-cmp_1"));
   assert.equal(calls.some((c) => c[0] === "schedule"), false, "a disabled control still calls nothing");
 
-  const owner = await mount(cardEl(locked, { isOwner: true }));
+  const owner = await mount(cardEl(locked, { isOwner: true, canAuthorizeRun: true })); // E3: capability required
   assert.equal(owner.tid("act-schedule-cmp_1").disabled, false);
   calls.length = 0;
   await click(owner.tid("act-schedule-cmp_1"));
@@ -502,10 +502,11 @@ test("I: two campaigns produce two DISTINCT rail identities", async () => {
 
 test("I: each rail's six actions invoke ONLY their own campaign", async () => {
   const locked = { approvalStatus: "approved", lockStatus: "locked", audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } };
-  const a = await mount(cardEl(locked, { isOwner: true }));
+  const a = await mount(cardEl(locked, { isOwner: true, canAuthorizeRun: true })); // E3: capability required
   const other = { ...campaign({ ...locked, name: "Team Birthdays" }), campaignId: "cmp_2" };
   const b = await mount(React.createElement(CampaignCard, {
     campaign: other, contacts: CONTACTS, orgId: "org1", client: fakeClient, isOwner: true, busy: false,
+    canAuthorizeRun: true, // E3: capability required
     onOpenIndividualPicker: () => {}, onAfterMutate: async () => {},
   }));
 
@@ -591,4 +592,156 @@ test("D: the campaign viewport is a fixed-height internal scroller", () => {
   assert.doesNotMatch(tabletBlock, /\.gcd-tiles/, "the tablet breakpoint must not re-grid the tiles");
   assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.gcd-tiles\s*\{\s*grid-template-columns:\s*1fr/, "stacking belongs to the narrow breakpoint");
   assert.match(css, /\.gcd-tiles\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*repeat\(3/, "three in one row on desktop");
+});
+
+
+// ══ SLICE E3 — dormant execution disables the two owner-only actions BEFORE any click ════════
+//
+// Previously an owner with a locked campaign saw an enabled Schedule button whose only possible
+// outcome was a 503. The capability now arrives on the campaign list and gates the control itself.
+
+const LOCKED_SCHEDULABLE = { approvalStatus: "approved", lockStatus: "locked", audienceRefs: ["e1"],
+  deliveryConfig: { scheduleMode: "campaign_date", status: "locked" } };
+const LOCKED_ACTIVATABLE = { approvalStatus: "approved", lockStatus: "locked", audienceRefs: ["e1"],
+  deliveryConfig: { scheduleMode: "contact_saved_date", status: "locked" } };
+
+test("E3: with the capability FALSE, Schedule and Activate are disabled before any click", async () => {
+  for (const [over, key] of [[LOCKED_SCHEDULABLE, "schedule"], [LOCKED_ACTIVATABLE, "activate"]]) {
+    const s = await mount(cardEl(over, { isOwner: true, canAuthorizeRun: false }));
+    const btn = s.tid(`act-${key}-cmp_1`);
+    assert.ok(btn, `${key} button still renders — a control is disabled, never removed`);
+    assert.equal(btn.disabled, true, key);
+    assert.equal(btn.getAttribute("title"), "Campaign sending is not active yet.", key);
+  }
+});
+
+test("E3: with the capability TRUE, the same card enables the action", async () => {
+  for (const [over, key] of [[LOCKED_SCHEDULABLE, "schedule"], [LOCKED_ACTIVATABLE, "activate"]]) {
+    const s = await mount(cardEl(over, { isOwner: true, canAuthorizeRun: true }));
+    assert.equal(s.tid(`act-${key}-cmp_1`).disabled, false, key);
+  }
+});
+
+test("E3: an OMITTED capability fails closed", async () => {
+  // A caller that has not been wired yet must refuse, never offer.
+  const s = await mount(cardEl(LOCKED_SCHEDULABLE, { isOwner: true }));
+  assert.equal(s.tid("act-schedule-cmp_1").disabled, true);
+  assert.equal(s.tid("act-schedule-cmp_1").getAttribute("title"), "Campaign sending is not active yet.");
+});
+
+test("E3: a disabled dormant control fires ZERO API calls when clicked", async () => {
+  calls.length = 0;
+  const s = await mount(cardEl(LOCKED_SCHEDULABLE, { isOwner: true, canAuthorizeRun: false }));
+  await click(s.tid("act-schedule-cmp_1"));
+  await click(s.tid("act-activate-cmp_1"));
+  assert.equal(calls.filter((c) => c[0] === "schedule" || c[0] === "activate").length, 0,
+    "a disabled button reaches no endpoint at all");
+});
+
+test("E3: the dormant explanation is the approved wording, and none of the rejected ones", async () => {
+  const s = await mount(cardEl(LOCKED_SCHEDULABLE, { isOwner: true, canAuthorizeRun: false }));
+  const title = s.tid("act-schedule-cmp_1").getAttribute("title");
+  assert.equal(title, "Campaign sending is not active yet.");
+  for (const banned of [/unavailable/i, /unsupported/i, /not offered/i, /coming soon/i]) {
+    assert.doesNotMatch(title, banned, String(banned));
+  }
+});
+
+test("E3: a NON-OWNER still gets the ownership explanation, never the dormancy one", async () => {
+  for (const canAuthorizeRun of [true, false]) {
+    const s = await mount(cardEl(LOCKED_SCHEDULABLE, { isOwner: false, canAuthorizeRun }));
+    const btn = s.tid("act-schedule-cmp_1");
+    assert.equal(btn.disabled, true);
+    assert.equal(btn.getAttribute("title"), "Organization owner authorization required", `cap=${canAuthorizeRun}`);
+    // The visible note under the rail says the same thing.
+    assert.match(s.tid("card-owner-note-cmp_1").textContent, /Organization owner authorization required/);
+  }
+});
+
+test("E3: Save Changes stays usable while execution is dormant and the campaign is unlocked", async () => {
+  calls.length = 0;
+  const unlocked = { approvalStatus: "approved", lockStatus: "unlocked", audienceRefs: ["e1"],
+    deliveryConfig: { scheduleMode: "campaign_date", status: "configured" } };
+  const s = await mount(cardEl(unlocked, { isOwner: true, canAuthorizeRun: false }));
+  const save = s.tid("act-save-cmp_1");
+  assert.equal(save.disabled, false, "configuration is not execution");
+  await click(save);
+  assert.equal(calls.filter((c) => c[0] === "updateDeliveryConfig").length, 1, "the config write really happens");
+});
+
+test("E3: a defensive execution 503 reports upward and never advances status", async () => {
+  const refusing = { ...fakeClient,
+    schedule: () => Promise.resolve({ ok: false, dormant: true, status: 503, reason: "corporate_campaign_execution_disabled" }) };
+  let told = 0; let refreshed = 0;
+  const s = await mount(cardEl(LOCKED_SCHEDULABLE, {
+    isOwner: true, canAuthorizeRun: true, client: refusing,
+    onExecutionDormant: () => { told++; },
+    onAfterMutate: async () => { refreshed++; },
+  }));
+  const before = s.tid("card-status-cmp_1").textContent;
+  await click(s.tid("act-schedule-cmp_1"));
+  assert.equal(told, 1, "the dashboard is told, so every card can close");
+  assert.equal(refreshed, 0, "a refusal is not a mutation — no refresh, no optimistic advance");
+  assert.equal(s.tid("card-status-cmp_1").textContent, before, "status is unchanged");
+  assert.equal(s.tid("card-msg-cmp_1").textContent, "Campaign sending is not active yet.");
+});
+
+test("E3: a MANAGEMENT dormancy 503 is reported differently and does not close execution", async () => {
+  const refusing = { ...fakeClient,
+    schedule: () => Promise.resolve({ ok: false, dormant: true, status: 503, reason: "campaign_featured_spread_disabled" }) };
+  let told = 0;
+  const s = await mount(cardEl(LOCKED_SCHEDULABLE, {
+    isOwner: true, canAuthorizeRun: true, client: refusing, onExecutionDormant: () => { told++; },
+  }));
+  await click(s.tid("act-schedule-cmp_1"));
+  assert.equal(told, 0, "the execution latch is keyed on the EXECUTION reason only");
+  assert.equal(s.tid("card-msg-cmp_1").textContent, "This feature isn’t active yet.");
+});
+
+test("E3: the rail still carries exactly six actions", async () => {
+  for (const canAuthorizeRun of [true, false]) {
+    const s = await mount(cardEl(LOCKED_SCHEDULABLE, { isOwner: true, canAuthorizeRun }));
+    const rail = s.tid("card-footer-cmp_1");
+    assert.equal(rail.querySelectorAll("button").length, 6, `cap=${canAuthorizeRun}`);
+  }
+});
+
+// ── stale authority, proven at the source like the D-close ownership discipline ──
+test("E3: the execution capability is reset BEFORE the first request, and no failure retains it", () => {
+  const src = readFileSync(new URL("./GreetingAutomationCampaigns.jsx", import.meta.url), "utf8");
+  const fn = src.slice(src.indexOf("const loadCampaigns = useCallback"), src.indexOf("useEffect(() => {", src.indexOf("const loadCampaigns")));
+
+  const reset = fn.indexOf("setCanAuthorizeRun(false);");
+  const firstAwait = fn.indexOf("await ");
+  const grant = fn.indexOf("setCanAuthorizeRun(readExecutionCapability(listRes))");
+  assert.ok(reset > -1 && firstAwait > -1 && grant > -1);
+  assert.ok(reset < firstAwait, "a stale true cannot survive an organization switch");
+  assert.ok(grant > firstAwait, "only a response can grant it");
+
+  // Dormant / unauthorized / non-ok all return before the grant.
+  for (const guard of ["if (listRes.dormant)", "if (listRes.unauthorized)", "if (!listRes.ok)"]) {
+    assert.ok(fn.indexOf(guard) > -1 && fn.indexOf(guard) < grant, guard);
+  }
+  // A thrown load fails closed too.
+  const cat = fn.indexOf("} catch {");
+  assert.ok(cat > -1 && fn.indexOf("setCanAuthorizeRun(false);", cat) > cat, "the catch must clear it");
+  // Exactly two clearing writes and one conditional grant — the same discipline as ownership.
+  assert.equal((fn.match(/setCanAuthorizeRun\(false\);/g) || []).length, 2);
+  assert.equal((fn.match(/setCanAuthorizeRun\(/g) || []).length, 3);
+  // Initial state is false.
+  assert.match(src, /const \[canAuthorizeRun, setCanAuthorizeRun\] = useState\(false\)/);
+  // And it is handed to every card.
+  assert.match(src, /canAuthorizeRun=\{canAuthorizeRun\}/);
+  assert.match(src, /onExecutionDormant=\{\(\) => setCanAuthorizeRun\(false\)\}/);
+});
+
+test("E3: no raw backend flag name appears anywhere in the corporate surface", () => {
+  for (const f of ["GreetingAutomationCampaigns.jsx", "CampaignCard.jsx", "corporateDashboardModel.js"]) {
+    const src = readFileSync(new URL(`./${f}`, import.meta.url), "utf8");
+    for (const flag of ["corporateCampaignExecutionEnabled", "corporateCampaignProducerEnabled",
+                        "corporateCampaignDeliveryEnabled", "campaignFeaturedSpreadEnabled",
+                        "LAUNCH_CONTROL", "launchControl"]) {
+      assert.equal(src.includes(flag), false, `${f}: ${flag}`);
+    }
+  }
 });
