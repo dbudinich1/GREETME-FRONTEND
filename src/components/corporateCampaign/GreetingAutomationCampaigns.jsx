@@ -16,7 +16,13 @@ import CampaignDetail from "./CampaignDetail.jsx";
 import CampaignCard from "./CampaignCard.jsx";
 import ContactTiles from "./ContactTiles.jsx";
 import IndividualContactPicker from "./IndividualContactPicker.jsx";
-import { readViewerOwnerCapability, readExecutionCapability } from "./corporateDashboardModel.js";
+import {
+  readViewerOwnerCapability, readExecutionCapability, findAudienceOverlaps, overlapLine,
+} from "./corporateDashboardModel.js";
+
+// How many overlapping contacts to name before the list becomes wallpaper. The rest are counted,
+// never hidden - a warning that silently truncates reads as "these are all of them".
+const OVERLAP_SHOWN = 6;
 import "./premiumDashboard.css";
 
 const PURPLE = "linear-gradient(135deg, #6d74ee 0%, #764ba2 100%)";
@@ -106,6 +112,13 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
   // Navigation without a Router dependency. The app mounts a HashRouter, so a hash assignment IS
   // the route change; injecting it keeps this component mountable on its own, which useNavigate()
   // would prevent by throwing outside a <Router>.
+  // Recomputed from the campaigns and contacts already loaded - no extra request, and it cannot
+  // disagree with what the cards show because it reads the same data they do.
+  const overlaps = useMemo(
+    () => findAudienceOverlaps(rows.map((r) => r.campaign), contacts),
+    [rows, contacts],
+  );
+
   const goTo = injectedNavigate || ((path) => { try { window.location.hash = `#${path}`; } catch { /* non-browser host */ } });
 
   // Organization context is derived purely from the membership response + any explicit
@@ -314,6 +327,33 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
               + {TERMS.CREATE}
             </button>
           </div>
+
+          {/* SLICE E5 - OVERLAP WARNING. Names the people and the campaigns involved, then stops.
+              It blocks nothing and disables nothing: someone may genuinely belong in two
+              campaigns, and the organization knows whether that is intended far better than this
+              surface does. A guardrail that refuses would be wrong more often than it was right. */}
+          {overlaps.length > 0 ? (
+            <div className="gcd-overlap" data-testid="overlap-warning" role="status">
+              <p className="gcd-overlap-head">
+                {overlaps.length === 1
+                  ? "One contact is set to receive more than one campaign:"
+                  : `${overlaps.length} contacts are set to receive more than one campaign:`}
+              </p>
+              <ul className="gcd-overlap-list">
+                {overlaps.slice(0, OVERLAP_SHOWN).map((o) => (
+                  <li key={o.contactId} data-testid={`overlap-${o.contactId}`}>{overlapLine(o)}</li>
+                ))}
+              </ul>
+              {overlaps.length > OVERLAP_SHOWN ? (
+                <p className="gcd-overlap-more" data-testid="overlap-more">
+                  and {overlaps.length - OVERLAP_SHOWN} more
+                </p>
+              ) : null}
+              <p className="gcd-overlap-note">
+                That may be exactly what you want. Adjust an audience if it isn’t.
+              </p>
+            </div>
+          ) : null}
           <div className="gcd-scroll" data-testid="campaign-viewport" tabIndex={0} role="region" aria-label="Campaigns list">
             {loadingCampaigns ? (
               <p className="gcd-empty">Loading campaigns…</p>

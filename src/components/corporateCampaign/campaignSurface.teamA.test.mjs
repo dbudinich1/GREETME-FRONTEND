@@ -158,7 +158,10 @@ test("actions gate on server-derived approval/lock/readiness", () => {
 // (13) Corporate video unavailable; terminology; no gift/recipient/personal coupling.
 test("corporate video unavailable; approved terminology only; no forbidden imports", () => {
   assert.equal(CORPORATE_VIDEO.available, false);
-  assert.equal(TERMS.SURFACE, "Greeting Automation Campaigns");
+  // SLICE E5 - founder-approved rename. Still an EXACT assertion: the value of this lock is
+  // that the surface cannot be renamed by accident, not that it can never be renamed.
+  assert.equal(TERMS.SURFACE, "Greet-Me Automated Campaigns");
+  assert.equal(TERMS.CREATE, "Create Greet-Me Automated Campaign");
   const forbidden = [/Greeting Studio/i, /Gift Wizard/i, /Organization Campaigns/i, /Recipient Featured Spread/i, /Fundraising Campaign/i];
   for (const f of forbidden) assert.ok(!f.test(ALL), `forbidden term: ${f}`);
   assert.ok(!/gift[a-z]*\s+(is|are)\s+required/i.test(ALL), "gifts never required");

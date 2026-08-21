@@ -185,6 +185,76 @@ export const SCHEDULE_MODES = Object.freeze([
   { value: "contact_saved_date", label: "Each Contact’s Saved Date", description: "Sends on each person’s own occasion, every year." },
 ]);
 
+// ── the seasonal suggestion ──────────────────────────────────────────────────────────────────
+// December 15 covers Christmas and Hanukkah in the same send, and lands before the week most
+// offices empty out. It is offered, never applied: pre-filling a date would make every
+// unconfigured campaign look edited the moment it loaded, and Save would light up over a choice
+// nobody made. The reader takes it with one click or types their own.
+export const SEASONAL_SUGGESTION = Object.freeze({
+  monthDay: "12-15",
+  label: "December 15",
+  why: "Covers Christmas and Hanukkah, and lands before offices empty out.",
+});
+
+/**
+ * The next December 15 at 09:00, in the shape <input type="datetime-local"> round-trips.
+ *
+ * `todayIso` is required rather than read from the clock, so the suggestion is a pure function of
+ * its input and a test can ask for any year without waiting for one.
+ */
+export function suggestedSeasonalDateLocal(todayIso) {
+  const today = String(todayIso || "");
+  const year = Number(today.slice(0, 4));
+  if (!Number.isFinite(year) || year < 1970) return null;
+  // Past the date this year, the useful suggestion is next year's - offering a date that has
+  // already gone by is offering nothing.
+  const md = today.slice(5, 10);
+  const targetYear = md > SEASONAL_SUGGESTION.monthDay ? year + 1 : year;
+  return `${targetYear}-${SEASONAL_SUGGESTION.monthDay}T09:00`;
+}
+
+// ── overlapping audiences ────────────────────────────────────────────────────────────────────
+/**
+ * Contacts who would receive more than one campaign.
+ *
+ * A WARNING, never a block. Someone may genuinely belong in two campaigns, and the organization
+ * is better placed than this surface to know whether that is a mistake. So it names names and the
+ * campaigns involved, and then gets out of the way.
+ *
+ * Campaigns that are switched off are excluded: an overlap that cannot send is not an overlap.
+ */
+export function findAudienceOverlaps(campaigns, contacts) {
+  const byId = new Map((Array.isArray(contacts) ? contacts : []).map((c) => [c && c.id, c]));
+  const seen = new Map();
+  for (const c of Array.isArray(campaigns) ? campaigns : []) {
+    if (!c || isCampaignEnabled(c) === false) continue;
+    const name = c.name || "Untitled campaign";
+    for (const id of Array.isArray(c.audienceRefs) ? c.audienceRefs : []) {
+      if (typeof id !== "string" || !id) continue;
+      if (!seen.has(id)) seen.set(id, []);
+      const list = seen.get(id);
+      if (!list.includes(name)) list.push(name);
+    }
+  }
+  const out = [];
+  for (const [id, names] of seen) {
+    if (names.length < 2) continue;
+    const contact = byId.get(id);
+    out.push({ contactId: id, name: (contact && contact.name) || "Unknown contact", campaigns: names });
+  }
+  // Most-overlapping first: if the list is long, the worst cases are the ones worth reading.
+  return out.sort((a, b) => b.campaigns.length - a.campaigns.length || a.name.localeCompare(b.name));
+}
+
+/** One reader-facing line per overlapping contact: "Bob Smith — VIP and Birthdays". */
+export function overlapLine(entry) {
+  const names = entry.campaigns;
+  const joined = names.length === 2
+    ? `${names[0]} and ${names[1]}`
+    : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return `${entry.name} \u2014 ${joined}`;
+}
+
 // ── status ───────────────────────────────────────────────────────────────────────────────────
 // Backend truth → concise human language. Scheduled and Active are read from the PERSISTED
 // deliveryConfig.status; they are never inferred from a click. No raw enum, no "Ready to send",

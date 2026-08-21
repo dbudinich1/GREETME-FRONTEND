@@ -82,7 +82,37 @@ const campaign = (over = {}) => ({
 });
 
 // ══ contact tiles ═══════════════════════════════════════════════════════════════════════════
-// ══ SLICE E5 — three CTAs and the inline roster ══════════════════════════════════════════════
+// ══ SLICE E5 — the seasonal nudge ════════════════════════════════════════════════════════════
+test("E5: an empty date field offers December 15, and applying it does not save", async () => {
+  const s = await mount(cardEl({ deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true, todayIso: "2026-08-21" }));
+  const apply = s.tid("card-suggest-apply-cmp_1");
+  assert.ok(apply, "the nudge is offered while the field is empty");
+  assert.match(s.tid("card-suggest-cmp_1").textContent, /christmas and hanukkah/i, "…and says why");
+
+  calls.length = 0;
+  await click(apply);
+  assert.equal(s.tid("card-when-cmp_1").value, "2026-12-15T09:00", "it fills the field");
+  assert.equal(calls.length, 0, "and writes nothing — it is a suggestion, not a save");
+  assert.ok(s.tid("card-dirty-cmp_1"), "the change is unsaved like any other");
+});
+
+test("E5: the nudge disappears once a date exists, and never overwrites one", async () => {
+  const s = await mount(cardEl(
+    { deliveryConfig: { scheduleMode: "campaign_date", scheduledForUtc: "2026-11-01T10:00:00.000Z" } },
+    { isOwner: true, todayIso: "2026-08-21" },
+  ));
+  assert.equal(s.tid("card-suggest-cmp_1"), null, "a chosen date is never second-guessed");
+});
+
+test("E5: an unconfigured campaign does not look edited just because a date was suggested", async () => {
+  // The reason the suggestion is a button rather than a default: pre-filling would light up Save
+  // on every campaign the moment it loaded, over a date nobody chose.
+  const s = await mount(cardEl({ deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true, todayIso: "2026-08-21" }));
+  assert.equal(s.tid("act-save-cmp_1").disabled, true);
+  assert.equal(s.tid("card-dirty-cmp_1"), null);
+});
+
+// ══ SLICE E5 — three CTAs and the inline roster ═══════════════════════════════════════════════════════════════════════════════════════════
 test("E5: every tile offers Manage, Import and Add", async () => {
   const s = await mount(React.createElement(ContactTiles, { contacts: CONTACTS }));
   for (const k of ["employee", "client", "vendor"]) {
@@ -194,7 +224,9 @@ test("D: the card renders the same six sections in the same order at EVERY statu
   for (const st of states) {
     const s = await mount(cardEl(st));
     const labels = s.qa(".gcd-section-label").map((n) => n.textContent);
-    assert.deepEqual(labels, ["Audience", "Gift Option", "Featured Spread", "Schedule"], JSON.stringify(st));
+    // SLICE E5 - the spread section now asks a question rather than naming a category. The
+    // approved term "featured spread" is still inside it, so the vocabulary lock is unbroken.
+    assert.deepEqual(labels, ["Audience", "Gift Option", "Which featured spread style do you prefer?", "Schedule"], JSON.stringify(st));
     assert.ok(s.tid("card-status-cmp_1"), "header status");
     assert.ok(s.tid("card-footer-cmp_1"), "footer");
     // Every action stays present regardless of state.

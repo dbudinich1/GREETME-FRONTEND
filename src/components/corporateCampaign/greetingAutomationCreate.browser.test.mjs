@@ -69,7 +69,7 @@ async function mount(props) {
 }
 
 // Fake client: one active org; campaign list configurable; create/read/readiness recorded.
-function fakeClient({ campaigns = [] } = {}) {
+function fakeClient({ campaigns = [], orgContacts = [] } = {}) {
   const calls = { listMemberships: 0, listCampaigns: 0, createCampaign: [], readCampaign: [], readReadiness: [] };
   return {
     calls,
@@ -82,10 +82,60 @@ function fakeClient({ campaigns = [] } = {}) {
     lock: async () => ({ ok: true }), unlock: async () => ({ ok: true }),
     // CORP-3 — CampaignDetail now mounts AudienceSection, which reads the audience on mount.
     readAudience: async () => ({ ok: true, data: { count: 0, contacts: [], unresolved: [] } }),
-    listOrgContacts: async () => ({ ok: true, data: { contacts: [], count: 0 } }),
+    listOrgContacts: async () => ({ ok: true, data: { contacts: orgContacts, count: orgContacts.length } }),
+    setCampaignEnabled: async () => ({ ok: true, data: {} }),
+    updateDeliveryConfig: async () => ({ ok: true, data: {} }),
+    schedule: async () => ({ ok: true, data: {} }), activate: async () => ({ ok: true, data: {} }),
     setAudience: async () => ({ ok: true, data: { count: 0, contacts: [], unresolved: [] } }),
   };
 }
+
+// ══ SLICE E5 — the overlap warning ═══════════════════════════════════════════════════════════
+const OVERLAP_PEOPLE = [
+  { id: "e1", name: "Bob Smith", corporateContactType: "employee" },
+  { id: "e2", name: "Tommy Nguyen", corporateContactType: "employee" },
+];
+
+test("E5: overlapping audiences are named, with the campaigns involved", async () => {
+  const c = fakeClient({
+    orgContacts: OVERLAP_PEOPLE,
+    campaigns: [
+      { campaignId: "c1", name: "VIP", audienceRefs: ["e1", "e2"], deliveryConfig: { scheduleMode: "campaign_date" } },
+      { campaignId: "c2", name: "Birthdays", audienceRefs: ["e1", "e2"], deliveryConfig: { scheduleMode: "contact_saved_date" } },
+    ],
+  });
+  await mount({ client: c });
+  const warn = tid("overlap-warning");
+  assert.ok(warn, "the warning appears");
+  assert.match(warn.textContent, /Bob Smith \u2014 VIP and Birthdays/);
+  assert.match(warn.textContent, /Tommy Nguyen \u2014 VIP and Birthdays/);
+  // It warns and stops. Nothing is disabled and no audience is altered on the reader's behalf.
+  assert.match(warn.textContent, /may be exactly what you want/i);
+});
+
+test("E5: no overlap, no warning", async () => {
+  const c = fakeClient({
+    orgContacts: OVERLAP_PEOPLE,
+    campaigns: [
+      { campaignId: "c1", name: "VIP", audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } },
+      { campaignId: "c2", name: "Birthdays", audienceRefs: ["e2"], deliveryConfig: { scheduleMode: "campaign_date" } },
+    ],
+  });
+  await mount({ client: c });
+  assert.equal(tid("overlap-warning"), null);
+});
+
+test("E5: a switched-off campaign raises no warning", async () => {
+  const c = fakeClient({
+    orgContacts: OVERLAP_PEOPLE,
+    campaigns: [
+      { campaignId: "c1", name: "VIP", audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } },
+      { campaignId: "c2", name: "Birthdays", enabled: false, audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } },
+    ],
+  });
+  await mount({ client: c });
+  assert.equal(tid("overlap-warning"), null, "an overlap that cannot send is not an overlap");
+});
 
 test("empty ready state offers Create; opening shows the form with submit disabled until a name is entered", async () => {
   const c = fakeClient({ campaigns: [] });

@@ -253,6 +253,46 @@
 .gcd-roster-row:last-child { border-bottom: none; }
 .gcd-roster-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gcd-roster-empty { padding: 8px 2px; font-size: .78rem; color: var(--gcd-faint); line-height: 1.4; }
+
+/* SLICE E5 - the overlap warning.
+   Informational, so it uses the warn tone rather than an error one and never takes the whole
+   width of the panel head. `p` and `li` set colour and line-height EXPLICITLY: src/index.css
+   styles both elements, and a specified declaration there beats an inherited one here. */
+.gcd-overlap {
+  margin: 0 20px 14px; padding: 12px 14px; border-radius: 12px;
+  background: rgba(214, 145, 16, .07); border: 1px solid rgba(214, 145, 16, .26);
+}
+.gcd-overlap-head {
+  margin: 0 0 6px; font-size: .8rem; font-weight: 700;
+  color: var(--gcd-warn); line-height: 1.35;
+}
+.gcd-overlap-list {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.gcd-overlap-list li {
+  font-size: .79rem; color: var(--gcd-ink); line-height: 1.4;
+}
+.gcd-overlap-more,
+.gcd-overlap-note {
+  margin: 6px 0 0; font-size: .75rem;
+  color: var(--gcd-muted); line-height: 1.4;
+}
+
+/* SLICE E5 - the seasonal nudge, offered beside an empty date field. */
+.gcd-suggest {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 6px 0 0; line-height: 1.35;
+}
+/* The global `button` rule sets padding on the ELEMENT, so a compact inline nudge has to say
+   otherwise; it stays a real button for keyboard and assistive technology. */
+.gcd-suggest-btn {
+  padding: 4px 10px; font-size: .76rem;
+  border: 1px dashed var(--gcd-line-strong); border-radius: 8px;
+  color: var(--gcd-purple-deep); background: transparent;
+}
+.gcd-suggest-btn:hover:not(:disabled) { background: var(--gcd-lav); }
+.gcd-suggest-why { font-size: .74rem; color: var(--gcd-faint); }
 .gcd-tile {
   background: linear-gradient(180deg, #ffffff 0%, #fbfaff 100%);
   /* SLICE E5 - thicker. These read as the substantial objects they are rather than as list

@@ -27,6 +27,8 @@ import {
   buildDeliveryConfigBody,
   buildCampaignDraft,
   draftFingerprint,
+  SEASONAL_SUGGESTION,
+  suggestedSeasonalDateLocal,
   EXECUTION_DORMANT_MESSAGE,
 } from "./corporateDashboardModel.js";
 import { EXECUTION_DORMANT_REASON } from "../../api/corporateCampaigns.js";
@@ -49,6 +51,9 @@ export default function CampaignCard({
   // handed down. Defaults to false so a card rendered without it (an older caller, a test, a
   // partially wired parent) refuses rather than offers. Never derived here.
   canAuthorizeRun = false,
+  // The day the card is being read, as YYYY-MM-DD. Injectable so the seasonal suggestion is a
+  // pure function of its input; defaults to today for the real surface.
+  todayIso = new Date().toISOString().slice(0, 10),
   onExecutionDormant,
   onOpenIndividualPicker, onAfterMutate, onOpenDetail,
 }) {
@@ -87,6 +92,9 @@ export default function CampaignCard({
   const audienceRefs = Array.isArray(campaign.audienceRefs) ? campaign.audienceRefs : [];
   const counts = useMemo(() => selectedCountsByCategory(contacts, audienceRefs), [contacts, audienceRefs]);
   const draftRefs = refsOf(draft);
+  // Computed from a date the caller supplies rather than the clock, so the card renders the same
+  // way in a test as it does in December.
+  const suggestion = suggestedSeasonalDateLocal(todayIso);
 
   // One source for the displayed name, shared by the header and the rail so they can never drift.
   const campaignLabel = campaign.name || "Untitled campaign";
@@ -362,7 +370,7 @@ export default function CampaignCard({
       ) : null}
 
       {/* 5 — FEATURED SPREAD */}
-      <BubbleGroup label="Featured Spread" role="radiogroup" testId={uid("spread")}>
+      <BubbleGroup label="Which featured spread style do you prefer?" role="radiogroup" testId={uid("spread")}>
         {SPREAD_SOURCES.map((s) => (
           <ChoiceBubble key={s.value} id={uid(`spread-${s.value}`)} name={uid("spread-group")} value={s.value}
             label={s.label} note={s.note} checked={spreadSource === s.value} disabled={locked}
@@ -390,6 +398,21 @@ export default function CampaignCard({
             <label htmlFor={uid("when")}>Send date and time</label>
             <input id={uid("when")} type="datetime-local" value={draft.scheduledForLocal} disabled={locked}
               onChange={(e) => edit({ scheduledForLocal: e.target.value })} data-testid={`card-when-${campaign.campaignId}`} />
+            {/* SLICE E5 - a NUDGE, not a default.
+                Only offered while the field is empty, and it fills the field rather than saving
+                anything - so it is one click to accept, one edit to override, and it never makes
+                an untouched campaign look changed. Pre-filling would have lit up Save on every
+                unconfigured campaign over a date nobody chose. */}
+            {!draft.scheduledForLocal && !locked && suggestion ? (
+              <p className="gcd-suggest" data-testid={`card-suggest-${campaign.campaignId}`}>
+                <button type="button" className="gcd-btn gcd-btn--quiet gcd-suggest-btn"
+                  data-testid={`card-suggest-apply-${campaign.campaignId}`}
+                  onClick={() => edit({ scheduledForLocal: suggestion })}>
+                  Use {SEASONAL_SUGGESTION.label}
+                </button>
+                <span className="gcd-suggest-why">{SEASONAL_SUGGESTION.why}</span>
+              </p>
+            ) : null}
           </div>
         ) : (
           <div className="gcd-field">

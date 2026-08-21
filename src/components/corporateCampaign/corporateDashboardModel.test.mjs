@@ -23,6 +23,10 @@ import {
   isCampaignEnabled,
   deriveAudienceSelection,
   contactCategoryAbbr,
+  SEASONAL_SUGGESTION,
+  suggestedSeasonalDateLocal,
+  findAudienceOverlaps,
+  overlapLine,
   buildCampaignDraft,
   draftFingerprint,
   deriveActions,
@@ -326,6 +330,65 @@ test("every action is always present, and a disabled one always explains why", (
     assert.equal(typeof a.label, "string");
     if (!a.enabled) assert.ok(a.reason && a.reason.length > 0, `${a.key} must explain itself`);
   }
+});
+
+// ══ SLICE E5 — the seasonal suggestion ═══════════════════════════════════════════════════════
+test("E5: the suggestion is December 15 at a civilised hour", () => {
+  assert.equal(SEASONAL_SUGGESTION.monthDay, "12-15");
+  assert.equal(suggestedSeasonalDateLocal("2026-08-21"), "2026-12-15T09:00");
+});
+
+test("E5: once the date has passed, the suggestion moves to next year", () => {
+  // Offering a date that has already gone by is offering nothing.
+  assert.equal(suggestedSeasonalDateLocal("2026-12-16"), "2027-12-15T09:00");
+  assert.equal(suggestedSeasonalDateLocal("2026-12-15"), "2026-12-15T09:00", "on the day, today still counts");
+});
+
+test("E5: a nonsense date suggests nothing rather than guessing", () => {
+  for (const bad of ["", null, undefined, "not-a-date", "0001-01-01"]) {
+    assert.equal(suggestedSeasonalDateLocal(bad), null, JSON.stringify(bad));
+  }
+});
+
+// ══ SLICE E5 — overlapping audiences ═════════════════════════════════════════════════════════
+const PEOPLE = [{ id: "e1", name: "Bob Smith" }, { id: "e2", name: "Tommy Nguyen" }, { id: "e3", name: "Ada Ito" }];
+const camp = (name, refs, over = {}) => ({ campaignId: name, name, audienceRefs: refs, ...over });
+
+test("E5: a contact in two campaigns is named, with both campaigns", () => {
+  const out = findAudienceOverlaps([camp("VIP", ["e1", "e2"]), camp("Birthdays", ["e1", "e2", "e3"])], PEOPLE);
+  assert.equal(out.length, 2, "only the two who appear twice");
+  assert.equal(overlapLine(out.find((o) => o.contactId === "e1")), "Bob Smith \u2014 VIP and Birthdays");
+  assert.equal(out.some((o) => o.contactId === "e3"), false, "one campaign is not an overlap");
+});
+
+test("E5: a switched-off campaign cannot create an overlap", () => {
+  // An overlap that cannot send is not an overlap — warning about it would be noise.
+  const out = findAudienceOverlaps([camp("VIP", ["e1"]), camp("Birthdays", ["e1"], { enabled: false })], PEOPLE);
+  assert.deepEqual(out, []);
+});
+
+test("E5: three campaigns read as a list, not a run-on", () => {
+  const out = findAudienceOverlaps([camp("VIP", ["e1"]), camp("Birthdays", ["e1"]), camp("Holidays", ["e1"])], PEOPLE);
+  assert.equal(overlapLine(out[0]), "Bob Smith \u2014 VIP, Birthdays and Holidays");
+});
+
+test("E5: the worst overlaps are listed first", () => {
+  const out = findAudienceOverlaps([
+    camp("VIP", ["e1", "e2"]), camp("Birthdays", ["e1", "e2"]), camp("Holidays", ["e1"]),
+  ], PEOPLE);
+  assert.equal(out[0].contactId, "e1", "in three campaigns");
+  assert.equal(out[0].campaigns.length, 3);
+});
+
+test("E5: the same campaign listed twice is not an overlap with itself", () => {
+  const out = findAudienceOverlaps([camp("VIP", ["e1", "e1"])], PEOPLE);
+  assert.deepEqual(out, [], "a duplicated ref within one audience is still one campaign");
+});
+
+test("E5: an unknown contact is still reported rather than silently dropped", () => {
+  const out = findAudienceOverlaps([camp("VIP", ["ghost"]), camp("Birthdays", ["ghost"])], PEOPLE);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].name, "Unknown contact", "a missing name must not hide a real overlap");
 });
 
 // ══ SLICE E5 — contact-type tags ═════════════════════════════════════════════════════════════

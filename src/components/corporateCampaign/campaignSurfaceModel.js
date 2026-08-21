@@ -8,12 +8,12 @@ import { readinessLabel, availableActions, CORPORATE_VIDEO } from "../../corpora
 
 // Canonical, approved terminology. Guarded by a test against forbidden terms.
 export const TERMS = Object.freeze({
-  SURFACE: "Greeting Automation Campaigns",
+  SURFACE: "Greet-Me Automated Campaigns",
   FEATURED_SPREAD: "Campaign Featured Spread",
   CUSTOMIZE: "Customize Featured Spread",
   INTRO_FINALE: "Intro and Finale Only",
   RETURN: "Return to Campaign",
-  CREATE: "Create Greeting Automation Campaign",
+  CREATE: "Create Greet-Me Automated Campaign",
   YOU_DONT_NEED_EVERYTHING: "You don't need everything today.",
 });
 
