@@ -20,6 +20,7 @@ import {
   contactCategoryLabel,
   giftOptionState,
   deriveCampaignStatus,
+  isCampaignEnabled,
   deriveActions,
   buildDeliveryConfigBody,
   readViewerOwnerCapability,
@@ -314,11 +315,67 @@ test("Scheduled and Active are NEVER derived locally — only from persisted sta
 // ══ action footer ═══════════════════════════════════════════════════════════════════════════
 test("every action is always present, and a disabled one always explains why", () => {
   const actions = deriveActions({}, { isOwner: false });
-  assert.deepEqual(Object.keys(actions).sort(), ["activate", "approve", "lock", "save", "schedule", "unlock"]);
+  // SLICE E5 added `toggle`. Still an exact list, not a subset: the point of the assertion is
+  // that a new action cannot appear on the card without someone deciding it should.
+  assert.deepEqual(Object.keys(actions).sort(), ["activate", "approve", "lock", "save", "schedule", "toggle", "unlock"]);
   for (const a of Object.values(actions)) {
     assert.equal(typeof a.label, "string");
     if (!a.enabled) assert.ok(a.reason && a.reason.length > 0, `${a.key} must explain itself`);
   }
+});
+
+// ══ SLICE E5 — the runtime switch ════════════════════════════════════════════════════════════
+test("E5: absent enabled reads as ON, matching the scheduler's own guard", () => {
+  // The server projects `enabled: c.enabled !== false` and the runner blocks on `=== false`. A
+  // campaign stored before the switch existed therefore RUNS, and the surface must agree — saying
+  // "Off" about a campaign that is sending is the worst answer available here.
+  assert.equal(isCampaignEnabled({}), true);
+  assert.equal(isCampaignEnabled({ enabled: undefined }), true);
+  assert.equal(isCampaignEnabled({ enabled: true }), true);
+  assert.equal(isCampaignEnabled({ enabled: false }), false);
+  assert.equal(isCampaignEnabled(null), true);
+});
+
+test("E5: a switched-off campaign says Off before any other state", () => {
+  // Off outranks the approval states beneath it because those are inert while the switch is off.
+  const off = { enabled: false, approvalStatus: "approved", lockStatus: "locked", deliveryConfig: { scheduleMode: "campaign_date", status: "scheduled" } };
+  const status = deriveCampaignStatus(off);
+  assert.equal(status.label, "Off");
+  assert.equal(status.tone, "muted", "a deliberate choice is not a warning");
+  assert.match(status.next, /turn it on/i);
+});
+
+test("E5: turning OFF is never blocked by the state of the thing being stopped", () => {
+  // The asymmetry that matters. A misconfigured, unapproved, audience-less campaign that is
+  // somehow ON must still be stoppable in one click, or it cannot be called back at all.
+  const on = deriveActions({ enabled: true }, { isOwner: true });
+  assert.equal(on.toggle.on, true);
+  assert.equal(on.toggle.enabled, true, "an owner can always switch a campaign off");
+  assert.equal(on.toggle.nextLabel, "Turn off");
+
+  // ...and dormancy must not block it either: the switch records intent, it does not send.
+  const dormant = deriveActions({ enabled: true }, { isOwner: true, canAuthorizeRun: false });
+  assert.equal(dormant.toggle.enabled, true, "a stop must not depend on the execution interlock");
+});
+
+test("E5: turning ON demands an audience and a schedule, and says which is missing", () => {
+  const bare = deriveActions({ enabled: false }, { isOwner: true });
+  assert.equal(bare.toggle.enabled, false);
+  assert.match(bare.toggle.reason, /who should receive/i);
+
+  const noSchedule = deriveActions({ enabled: false, audienceRefs: ["e1"] }, { isOwner: true });
+  assert.equal(noSchedule.toggle.enabled, false);
+  assert.match(noSchedule.toggle.reason, /when this campaign should send/i);
+
+  const ready = deriveActions({ enabled: false, audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true });
+  assert.equal(ready.toggle.enabled, true);
+  assert.equal(ready.toggle.nextLabel, "Turn on");
+});
+
+test("E5: only the owner works the switch, in either direction", () => {
+  const ready = { enabled: false, audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } };
+  assert.equal(deriveActions(ready, { isOwner: false }).toggle.reason, OWNER_ONLY_MESSAGE);
+  assert.equal(deriveActions({ enabled: true }, { isOwner: false }).toggle.reason, OWNER_ONLY_MESSAGE);
 });
 
 test("final actions are owner-only, with the exact required message", () => {

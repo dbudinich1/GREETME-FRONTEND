@@ -106,6 +106,12 @@ export function createCorporateCampaignsClient({
     // shipped backend endpoints; the client adds no persistence, no defaults, and no local state.
     updateDeliveryConfig: (orgId, campaignId, body) => call("PATCH", `${one(orgId, campaignId)}/delivery-config`, { body: body || {} }),
     schedule: (orgId, campaignId) => call("POST", `${one(orgId, campaignId)}/schedule`, { body: {} }),
+    // SLICE E5 - the runtime switch. Deliberately NOT a variant of schedule/activate: those
+    // authorize a run, this records whether the organization wants the campaign running at all.
+    // The server keeps it outside the execution interlock for one reason - turning a campaign OFF
+    // must never depend on the thing being switched off - so this stays callable while dormant.
+    setCampaignEnabled: (orgId, campaignId, enabled) =>
+      call("PATCH", `${one(orgId, campaignId)}/enabled`, { body: { enabled: enabled === true } }),
     activate: (orgId, campaignId) => call("POST", `${one(orgId, campaignId)}/activate`, { body: {} }),
     // CORP-3 association bridge — read + select only (org-scoped corporate contacts).
     listOrgContacts: (orgId) => call("GET", `/organizations/${encodeURIComponent(orgId)}/contacts`),

@@ -35,6 +35,7 @@ const fakeClient = {
   approve: (...a) => { calls.push(["approve", ...a]); return Promise.resolve({ ok: true, data: {} }); },
   lock: (...a) => { calls.push(["lock", ...a]); return Promise.resolve({ ok: true, data: {} }); },
   unlock: (...a) => { calls.push(["unlock", ...a]); return Promise.resolve({ ok: true, data: {} }); },
+  setCampaignEnabled: (...a) => { calls.push(["setCampaignEnabled", ...a]); return Promise.resolve({ ok: true, data: {} }); },
   readCampaign: () => Promise.resolve({ ok: true, data: {} }),
   updateFeaturedSpread: () => Promise.resolve({ ok: true, data: {} }),
   readReadiness: () => Promise.resolve({ ok: true, data: {} }),
@@ -365,6 +366,13 @@ test("R: exactly six actions exist — moved, never duplicated", async () => {
   for (const b of buttons) assert.ok(rail.contains(b), `${b.dataset.testid} must be in the rail`);
   assert.equal(s.qa(".gcd-actions").length, 1, "one rail per card");
   assert.equal(s.qa(".gcd-footer").length, 0, "the old bottom footer is gone, not duplicated");
+
+  // SLICE E5 — the runtime switch is NOT a seventh rail action. It reports a standing state
+  // rather than performing a one-shot command, so it belongs with the status chip; putting it
+  // in the rail would have made a persistent condition read as another button to press.
+  const sw = s.tid("card-toggle-cmp_1");
+  assert.ok(sw, "the switch exists");
+  assert.equal(rail.contains(sw), false, "…and deliberately not in the rail");
 });
 
 test("R: enablement, disabled reasons and owner authorization are unchanged by the move", async () => {
@@ -537,9 +545,75 @@ test("I: still exactly six actions per card — the label is not a seventh", asy
   const s = await mount(cardEl());
   const rail = s.tid("card-footer-cmp_1");
   assert.equal(s.qa("[data-testid^='act-']").length, 6);
+  // SLICE E5 — the switch adds no button to the rail either. It is a <label> + checkbox, chosen
+  // because src/index.css styles the `button` ELEMENT (padding, and a 48px mobile min-height),
+  // which would inflate a fixed-size switch on every phone.
   assert.equal(rail.querySelectorAll("button").length, 6, "the identity is not a button");
+  assert.equal(s.tid("card-toggle-cmp_1").tagName, "INPUT", "the switch is a checkbox, not a button");
   assert.equal(s.tid("rail-context-cmp_1").tagName, "SPAN");
   assert.equal(s.qa("[data-testid^='rail-context-']").length, 1, "one identity per rail");
+});
+
+// ══ SLICE E5 — the runtime switch ════════════════════════════════════════════════════════════
+const READY = { audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } };
+
+test("E5: the switch shows the SERVER's answer, not a local guess", async () => {
+  const on = await mount(cardEl({ ...READY, enabled: true }, { isOwner: true }));
+  assert.equal(on.tid("card-toggle-cmp_1").checked, true);
+  assert.equal(on.tid("card-toggle-label-cmp_1").textContent, "On");
+
+  const off = await mount(cardEl({ ...READY, enabled: false }, { isOwner: true }));
+  assert.equal(off.tid("card-toggle-cmp_1").checked, false);
+  assert.equal(off.tid("card-toggle-label-cmp_1").textContent, "Off");
+  assert.equal(off.tid("card-status-cmp_1").textContent, "Off", "the chip agrees with the switch");
+
+  // A campaign stored before the switch existed is RUNNING, and must not be shown as off.
+  const legacy = await mount(cardEl(READY, { isOwner: true }));
+  assert.equal(legacy.tid("card-toggle-cmp_1").checked, true, "absent enabled reads as on");
+});
+
+test("E5: working the switch calls the server with the NEW value", async () => {
+  const s = await mount(cardEl({ ...READY, enabled: false }, { isOwner: true }));
+  calls.length = 0;
+  await click(s.tid("card-toggle-cmp_1"));
+  const sent = calls.filter((c) => c[0] === "setCampaignEnabled");
+  assert.equal(sent.length, 1, "exactly one call");
+  assert.equal(sent[0][2], "cmp_1", "…for this campaign");
+  assert.equal(sent[0][3], true, "…turning it on");
+});
+
+test("E5: a LOCKED running campaign can still be switched off in one click", async () => {
+  // The case that justifies keeping the switch out of Save Changes: Save is gated on !locked, so
+  // a campaign that is locked and sending would otherwise have no stop at all.
+  const running = { ...READY, enabled: true, approvalStatus: "approved", lockStatus: "locked", deliveryConfig: { scheduleMode: "campaign_date", status: "scheduled" } };
+  const s = await mount(cardEl(running, { isOwner: true }));
+  assert.equal(s.tid("act-save-cmp_1").disabled, true, "Save is unavailable while locked…");
+  assert.equal(s.tid("card-toggle-cmp_1").disabled, false, "…but the stop is not");
+  calls.length = 0;
+  await click(s.tid("card-toggle-cmp_1"));
+  assert.equal(calls.filter((c) => c[0] === "setCampaignEnabled")[0][3], false, "switched off");
+});
+
+test("E5: a non-owner cannot work the switch, and a disabled switch calls nothing", async () => {
+  const s = await mount(cardEl({ ...READY, enabled: true }, { isOwner: false }));
+  const sw = s.tid("card-toggle-cmp_1");
+  assert.equal(sw.disabled, true);
+
+  // This proves the CARD's own guard, not the browser's. jsdom dispatches change on a disabled
+  // checkbox when the click is synthetic (verified: disabled=true still fires change once), and
+  // React suppresses onClick on disabled elements but not onChange. So without the explicit gate
+  // in setEnabled this assertion would fail here while passing in a real browser - which is
+  // exactly the direction of error worth defending against.
+  calls.length = 0;
+  await click(sw);
+  assert.equal(calls.some((c) => c[0] === "setCampaignEnabled"), false);
+});
+
+test("E5: an unconfigured campaign cannot be switched ON, and says what is missing", async () => {
+  const s = await mount(cardEl({ enabled: false }, { isOwner: true }));
+  const sw = s.tid("card-toggle-cmp_1");
+  assert.equal(sw.disabled, true, "nothing to send, and nobody to send it to");
+  assert.match(sw.closest("label").getAttribute("title"), /who should receive/i, "the reason is on the control");
 });
 
 test("I: a very long name truncates rather than overflowing, and stays readable on mobile", async () => {

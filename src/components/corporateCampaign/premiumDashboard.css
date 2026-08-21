@@ -132,6 +132,53 @@
 .gcd-status--good { color: var(--gcd-good); background: rgba(31, 157, 107, .10); border: 1px solid rgba(31, 157, 107, .30); }
 .gcd-status--info { color: var(--gcd-purple-deep); background: rgba(109, 92, 240, .10); border: 1px solid rgba(109, 92, 240, .28); }
 .gcd-status--warn { color: var(--gcd-warn); background: rgba(214, 145, 16, .12); border: 1px solid rgba(214, 145, 16, .34); }
+/* SLICE E5 - a campaign switched off. Deliberately the QUIETEST chip on the card: "off" is a
+   settled, chosen state, not a problem, so it must not compete with "Attention required". */
+.gcd-status--muted { color: var(--gcd-muted); background: rgba(27, 24, 48, .05); border: 1px solid var(--gcd-line-strong); }
+
+/* SLICE E5 - THE RUNTIME SWITCH ---------------------------------------------------------------
+   Built as <label> + visually-hidden <input type="checkbox">, NOT a <button>, and the reason is
+   the global stylesheet rather than taste. src/index.css sets `button { padding: .625rem 1.25rem }`
+   and, under its mobile media query, `button { min-height: 48px }`. Both are ELEMENT selectors on
+   a fixed-size control, so a <button> switch would be inflated on desktop and 48px tall on a
+   phone. A checkbox is also natively keyboard-operable and announces its own on/off state, which
+   a <button> would need role="switch" + aria-checked to imitate. */
+.gcd-switch {
+  display: inline-flex; align-items: center; gap: 9px;
+  cursor: pointer; user-select: none;
+  /* The 44px target lives here, on the label, so the visible track can stay small. */
+  min-height: 44px; padding: 0 2px;
+}
+.gcd-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+
+.gcd-switch-track {
+  flex: 0 0 auto;                       /* never stretched by the rail's flex layout */
+  position: relative; width: 40px; height: 23px; border-radius: 999px;
+  background: rgba(27, 24, 48, .18);
+  transition: background .18s ease;
+}
+.gcd-switch-track::after {
+  content: ""; position: absolute; top: 3px; left: 3px;
+  width: 17px; height: 17px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(27, 24, 48, .30);
+  transition: transform .18s ease;
+}
+.gcd-switch input:checked + .gcd-switch-track { background: var(--gcd-good); }
+.gcd-switch input:checked + .gcd-switch-track::after { transform: translateX(17px); }
+.gcd-switch input:focus-visible + .gcd-switch-track { box-shadow: 0 0 0 3px rgba(109, 92, 240, .34); }
+
+/* Disabled is shown, never hidden: the reason text beside it explains what is missing. */
+.gcd-switch--disabled { cursor: not-allowed; }
+.gcd-switch input:disabled + .gcd-switch-track { background: rgba(27, 24, 48, .10); }
+.gcd-switch input:disabled:checked + .gcd-switch-track { background: rgba(31, 157, 107, .38); }
+
+/* State is never carried by the track colour alone - the word is always present. */
+.gcd-switch-label { font-size: .82rem; font-weight: 700; color: var(--gcd-muted); }
+.gcd-switch input:checked ~ .gcd-switch-label { color: var(--gcd-good); }
+
+@media (prefers-reduced-motion: reduce) {
+  .gcd-switch-track, .gcd-switch-track::after { transition: none; }
+}
 
 /* ── BUBBLES: real circles, generous hit area ─────────────────────────────────────────────── */
 .gcd-bubbles { display: flex; flex-wrap: wrap; gap: 8px 18px; }

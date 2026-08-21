@@ -20,6 +20,7 @@ import {
   giftOptionState,
   deriveCampaignStatus,
   deriveActions,
+  isCampaignEnabled,
   resolveAudienceRefs,
   selectedCountsByCategory,
   contactCategoryLabel,
@@ -53,6 +54,9 @@ export default function CampaignCard({
   const status = deriveCampaignStatus(campaign);
   const actions = deriveActions(campaign, { isOwner, canAuthorizeRun });
   const locked = campaign.lockStatus === "locked";
+  // Straight from the campaign the server just returned - deliberately NOT React state, so the
+  // switch cannot drift out of step with the engine while a refetch is in flight.
+  const enabled = isCampaignEnabled(campaign);
 
   const [categories, setCategories] = useState([]);
   const [giftType, setGiftType] = useState(delivery.defaultGift ? delivery.defaultGift.type : "none");
@@ -97,6 +101,20 @@ export default function CampaignCard({
     } finally { setPending(null); }
   };
 
+  // SLICE E5 - the switch is applied IMMEDIATELY, not gathered into Save Changes.
+  //
+  // Save Changes is gated on `!locked`, and a running campaign is locked - so routing the switch
+  // through it would mean a campaign could not be switched off exactly when it is sending. A stop
+  // has to be reachable in one click from any state.
+  async function setEnabled(next) {
+    // Re-check the gate rather than trusting `disabled` alone. The attribute is the browser's
+    // mechanism for suppressing the interaction, and it is the RIGHT mechanism - but it is the
+    // only one, and this control commits an organization to real sends against real money. One
+    // line buys a second lock that does not depend on the host honouring the first.
+    if (!actions.toggle.enabled) return;
+    await run("toggle", () => client.setCampaignEnabled(orgId, campaign.campaignId, next));
+  }
+
   async function saveDelivery() {
     const body = buildDeliveryConfigBody({
       scheduleMode: mode,
@@ -137,8 +155,23 @@ export default function CampaignCard({
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span className={`gcd-status gcd-status--${status.tone}`} data-testid={`card-status-${campaign.campaignId}`}>{status.label}</span>
-          <button type="button" className="gcd-btn gcd-btn--quiet" data-testid={`card-review-${campaign.campaignId}`}
-            onClick={() => (onOpenDetail ? onOpenDetail(campaign.campaignId) : setShowSpreadEditor((v) => !v))}>Review</button>
+          {/* SLICE E5 - THE RUNTIME SWITCH.
+              Sits with the STATUS, not in the action rail, because it reports a state as much as
+              it performs an action: the chip says what the campaign is doing and the switch says
+              whether it is meant to be doing it. Putting it among Save/Approve/Lock would have
+              made a persistent condition look like one more one-shot command.
+              Reads `campaign.enabled` on every render, so what it shows is the server's answer
+              after the refetch - never a local guess that could disagree with the engine. */}
+          <label className={`gcd-switch${actions.toggle.enabled ? "" : " gcd-switch--disabled"}`}
+            title={disabledNote(actions.toggle) || `${actions.toggle.nextLabel} ${campaignLabel}`}>
+            <input type="checkbox" role="switch" checked={enabled}
+              data-testid={`card-toggle-${campaign.campaignId}`}
+              aria-label={`${campaignLabel} - ${actions.toggle.nextLabel}`}
+              disabled={!actions.toggle.enabled || busy || pending === "toggle"}
+              onChange={(e) => setEnabled(e.target.checked)} />
+            <span className="gcd-switch-track" aria-hidden="true" />
+            <span className="gcd-switch-label" data-testid={`card-toggle-label-${campaign.campaignId}`}>{actions.toggle.label}</span>
+          </label>
         </div>
       </header>
 

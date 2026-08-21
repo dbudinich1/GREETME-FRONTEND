@@ -152,9 +152,26 @@ export const SCHEDULE_MODES = Object.freeze([
 // Backend truth → concise human language. Scheduled and Active are read from the PERSISTED
 // deliveryConfig.status; they are never inferred from a click. No raw enum, no "Ready to send",
 // no "not_scheduled", no "proposed" ever reaches a reader.
+// SLICE E5 - is the runtime switch on?
+//
+// ABSENT READS AS ON, matching the server exactly (`enabled: c.enabled !== false` in the list
+// projection, `enabled === false` in the scheduler guard). A campaign stored before the switch
+// existed kept running, so the surface must say it is running. This is the one place the default
+// direction is decided; everything else asks this function.
+export function isCampaignEnabled(campaign) {
+  return (campaign || {}).enabled !== false;
+}
+
 export function deriveCampaignStatus(campaign) {
   const c = campaign || {};
   const delivery = c.deliveryConfig || {};
+
+  // A campaign switched off says so before anything else. It is not a failure and not a warning -
+  // it is a deliberate choice by the organization, and the reader needs to see it above whatever
+  // approval state sits underneath, because that state is inert while the switch is off.
+  if (!isCampaignEnabled(c)) {
+    return { key: "off", label: "Off", tone: "muted", next: "Switched off. Turn it on to resume sending." };
+  }
 
   // There is deliberately no "Paused" state here. A pause IS recorded by the backend — but on the
   // SCHEDULE document (scheduler.js writes schedule.corporateBlocker), never on the campaign. A
@@ -192,11 +209,35 @@ export function deriveActions(campaign, { isOwner = false, canAuthorizeRun = fal
   const hasAudience = Array.isArray(c.audienceRefs) && c.audienceRefs.length > 0;
   const mode = delivery.scheduleMode;
   const settled = status.key === "scheduled" || status.key === "active";
+  const enabled = isCampaignEnabled(c);
 
   const gate = (enabled, reason) => ({ enabled, reason: enabled ? null : reason });
 
   return {
     save: { key: "save", label: "Save Changes", ...gate(!locked, "Unlock the campaign to make changes.") },
+    // SLICE E5 - ONE switch, and the two directions are NOT symmetric.
+    //
+    // Turning ON commits the organization to real sends against real money, so it demands the
+    // prerequisites: an owner, an audience, and a configured schedule. Turning OFF demands only
+    // ownership. That asymmetry is the whole point - a stop must never be blocked by the state of
+    // the thing being stopped, or a misconfigured campaign becomes one that cannot be called back.
+    //
+    // Deliberately NOT gated on canAuthorizeRun. `enabled` records INTENT and sends nothing by
+    // itself; the execution interlock is a separate line the server still holds. Gating intent on
+    // execution would leave an organization unable to switch a campaign off during dormancy.
+    toggle: {
+      key: "toggle",
+      label: enabled ? "On" : "Off",
+      on: enabled,
+      // What the NEXT click would do - which is what a reader is deciding about.
+      nextLabel: enabled ? "Turn off" : "Turn on",
+      ...(enabled
+        ? gate(isOwner, OWNER_ONLY_MESSAGE)
+        : gate(isOwner && configured && hasAudience,
+          !isOwner ? OWNER_ONLY_MESSAGE
+            : !hasAudience ? "Choose who should receive this campaign."
+            : "Choose when this campaign should send.")),
+    },
     approve: { key: "approve", label: "Approve", ...gate(!locked && configured && hasAudience && !approved,
       locked ? "Unlock the campaign to make changes."
         : approved ? "This campaign is already approved."
