@@ -2,10 +2,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { withOccasionDates } from "./wizardModel.js";
 import { MODES, corporateContext, commitTarget, canSelectFile, commitDecision, STEPS, buildPersonalImportContacts,
   extractContactsArray, normalizeExistingEmails, existingEmailsFromResponse, classifyImportSummary,
   classifyCommitOutcome, commitMessageForStatus, COMMIT_MESSAGES, corporateRoute } from "./wizardModel.js";
-import { autoMapHeaders, processRow, detectDuplicates, buildPlan } from "../../import/importCore.js";
+import { autoMapHeaders, processRow, detectDuplicates, buildPlan, CANONICAL_FIELDS } from "../../import/importCore.js";
+import { buildCorporatePayload } from "../../import/corporateCommit.js";
 import { buildReview, buildReviewPayload, freshReviewState, setEmail, chooseAudience, REVIEW_BUCKET } from "../../import/reviewModel.js";
 
 const WIZ = readFileSync(new URL("./ContactImportWizard.jsx", import.meta.url), "utf8");
@@ -653,4 +655,77 @@ test("Slice 2B-2B: corporate commit flow is wired via CorporateImportFlow (NOT t
   }
   // Personal commit still uses the Personal api helper (unchanged) — isolation from the corporate path
   assert.match(WIZ, /const commitPersonal = useCallback\(async \(\) => \{[\s\S]*?api\.importContacts\(contacts\)/);
+});
+
+// ══ SLICE E5 — occasion dates survive a CORPORATE import ═════════════════════════════════════
+//
+// The scheduler matches contacts to campaigns BY OCCASION TYPE, and the corporate importer derives
+// occasions[] from these raw columns. Before this, processRow read birthday for age validation and
+// left it out of `contact`, while buildCorporatePayload transmits `contact` verbatim — so a
+// corporate import silently delivered nobody a birthday, and a Birthdays campaign armed and
+// greeted nobody. The hire date had never been recognised at all.
+
+test("E5: hireDate is a recognised column, with the aliases a real spreadsheet uses", () => {
+  assert.ok(CANONICAL_FIELDS.includes("hireDate"), "it must be mappable at all");
+  for (const header of ["Hire Date", "Start Date", "Date of Hire", "Employment Date", "hiredate"]) {
+    const { mapping } = autoMapHeaders(["Name", "Email", header]);
+    assert.equal(mapping.hireDate, header, header);
+  }
+});
+
+test("E5: a hire-date column never steals the birthday column, or vice versa", () => {
+  const { mapping } = autoMapHeaders(["Name", "Email", "Birthday", "Hire Date"]);
+  assert.equal(mapping.birthday, "Birthday");
+  assert.equal(mapping.hireDate, "Hire Date");
+});
+
+test("E5: withOccasionDates carries both dates onto the contact, raw", () => {
+  const raw = { A: "Ada", B: "ada@x.com", C: "1985-07-08", D: "2019-06-01" };
+  const map = { fullName: "A", email: "B", birthday: "C", hireDate: "D" };
+  const out = withOccasionDates({ fullName: "Ada", email: "ada@x.com" }, raw, map);
+  assert.equal(out.birthday, "1985-07-08");
+  assert.equal(out.hireDate, "2019-06-01");
+  // Passed through untouched: the server owns parsing, and rejects a bare month-day itself.
+  assert.equal(withOccasionDates({}, { C: "06-01" }, { hireDate: "C" }).hireDate, "06-01");
+});
+
+test("E5: an absent or blank column adds no key at all", () => {
+  // An empty string would read as "this contact has a birthday" on the server side.
+  assert.equal("birthday" in withOccasionDates({}, {}, {}), false);
+  assert.equal("hireDate" in withOccasionDates({}, { C: "   " }, { hireDate: "C" }), false);
+  assert.equal("birthday" in withOccasionDates({}, { C: "" }, { birthday: "C" }), false);
+});
+
+test("E5: the dates reach the wire through the corporate payload", () => {
+  // The whole chain, because every link in it dropped them before.
+  const headers = ["Full Name", "Email", "Birthday", "Hire Date"];
+  const { mapping } = autoMapHeaders(headers);
+  const raw = { "Full Name": "Ada", "Email": "ada@x.com", "Birthday": "1985-07-08", "Hire Date": "2019-06-01" };
+  const p = processRow(raw, mapping, { todayIso: "2026-08-21" });
+  assert.equal("birthday" in p.contact, false, "processRow still omits it — transmission is the caller's call");
+
+  const { envelope } = buildCorporatePayload([{ index: 0, contact: withOccasionDates(p.contact, raw, mapping), valid: true }]);
+  assert.equal(envelope.contacts[0].birthday, "1985-07-08");
+  assert.equal(envelope.contacts[0].hireDate, "2019-06-01");
+});
+
+test("E5: the corporate preview attaches the dates, not just the payload builder", () => {
+  // buildCorporatePayload transmits item.contact verbatim, so the enrichment has to happen where
+  // the item is built or it never happens at all.
+  assert.match(WIZ, /withOccasionDates\(p\.contact, raw, mapping\)/);
+});
+
+// ══ SLICE E5 — entry from the corporate dashboard ════════════════════════════════════════════
+test("E5: the wizard consumes ?mode=corporate&category=", () => {
+  // The contact tiles link here with both. Ignoring them meant Add and Import landed on a generic
+  // first screen that had forgotten which tile was pressed.
+  assert.match(WIZ, /get\("mode"\) === "corporate"/);
+  assert.match(WIZ, /isBusinessKind\(category\)/, "an unknown category is never guessed at");
+  assert.match(WIZ, /setEntryView\("bizgroup"\)/, "…it opens the chooser instead");
+});
+
+test("E5: a corporate visit returns to the corporate dashboard, not the personal one", () => {
+  // /dashboard/contacts lists PERSONAL contacts. Returning an employee import there would show a
+  // list the import did not touch, which reads as the import having failed.
+  assert.match(WIZ, /cameFromCorporateDashboard \? "\/dashboard\/campaigns" : "\/dashboard\/contacts"/);
 });

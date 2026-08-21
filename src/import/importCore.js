@@ -92,7 +92,7 @@ export function normalizePhone(raw) {
 export const CANONICAL_FIELDS = Object.freeze([
   "fullName", "firstName", "lastName", "email", "phone", "relationship",
   "relationshipCategory", "relationshipCloseness",
-  "company", "department", "recipientType", "birthday", "consent", "source", "notes",
+  "company", "department", "recipientType", "birthday", "hireDate", "consent", "source", "notes",
   // shipping address (maps to canonical contact.shippingAddress { line1, line2, city, state, zip, country })
   "addressLine1", "addressLine2", "city", "state", "postalCode", "country",
 ]);
@@ -112,6 +112,10 @@ const ALIASES = Object.freeze({
   department: ["department", "dept", "team", "division"],
   recipientType: ["recipient type", "category", "employee/client"],
   birthday: ["birthday", "birth date", "dob", "date of birth"],
+  // SLICE E5 - the corporate importer derives a work-anniversary occasion from this. Without the
+  // column being recognised there is no way for one to reach the scheduler, and a Work
+  // Anniversaries campaign arms and then greets nobody.
+  hireDate: ["hire date", "hiredate", "start date", "date of hire", "date hired", "employment date", "anniversary"],
   consent: ["consent", "opt-in", "optin", "consented"],
   source: ["source", "origin", "list", "acquired from"],
   notes: ["notes", "note", "comments", "remarks"],

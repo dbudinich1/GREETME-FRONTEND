@@ -19,7 +19,7 @@ import {
   buildPlan, looksLikeZip,
 } from "../../import/importCore.js";
 import { assertNoRealMix } from "../../import/demoData.js";
-import { MODES, existingEmailsFromResponse, classifyCommitOutcome } from "./wizardModel.js";
+import { MODES, existingEmailsFromResponse, classifyCommitOutcome, withOccasionDates } from "./wizardModel.js";
 import { RELATIONSHIP_CATEGORIES, CLOSENESS_OPTIONS } from "../../import/completionModel.js";
 import { RECIPIENT_TYPE_OPTIONS } from "../../import/recipientTypeModel.js";
 import { normalizeEmail } from "../../import/importCore.js";
@@ -65,7 +65,19 @@ function friendlyCommitError(raw) {
 
 export default function ContactImportWizard() {
   const navigate = useNavigate();
-  const returnToRecipients = useCallback(() => navigate("/dashboard/contacts"), [navigate]);
+  // SLICE E5 - back to where the reader actually came from.
+  //
+  // /dashboard/contacts is the PERSONAL recipients page. Someone who arrived from a corporate
+  // contact tile and imported employees would be returned to a list their import did not touch,
+  // and would reasonably conclude the import had failed. When the visit began on the corporate
+  // dashboard, the way back leads there.
+  // Whether this visit began on the corporate dashboard, so the way back leads there rather than
+  // to the personal contacts page the wizard otherwise returns to.
+  const [cameFromCorporateDashboard, setCameFromCorporateDashboard] = useState(false);
+  const returnToRecipients = useCallback(
+    () => navigate(cameFromCorporateDashboard ? "/dashboard/campaigns" : "/dashboard/contacts"),
+    [navigate, cameFromCorporateDashboard],
+  );
   const [mode, setMode] = useState(null);
   const [rows, setRows] = useState(null);       // full deduped rows for the Review surface
   const [plan, setPlan] = useState(null);       // accounting (skipped/invalid) only
@@ -116,6 +128,34 @@ export default function ContactImportWizard() {
         setRows(rehydrateSampleRows(contacts));              // Personal practice — combined preview
       }
     }
+    // SLICE E5 - ENTRY FROM THE CORPORATE DASHBOARD.
+    //
+    // The tiles link here as ?mode=corporate&category=employee. Until now the wizard ignored both
+    // and opened on its generic first screen, so "Add Employee" and "Import" landed somewhere that
+    // had forgotten which tile was pressed.
+    //
+    // Only ever SKIPS AHEAD - it selects a path the reader already chose by pressing a labelled
+    // button, and every on-screen control (Change category, Start over) still works from there.
+    // A category outside the known set is ignored rather than guessed at.
+    try {
+      const q = new URLSearchParams(typeof window !== "undefined" ? (window.location.search || "") : "");
+      const hash = typeof window !== "undefined" ? String(window.location.hash || "") : "";
+      const hq = hash.includes("?") ? new URLSearchParams(hash.slice(hash.indexOf("?") + 1)) : null;
+      const get = (k) => q.get(k) || (hq && hq.get(k)) || null;
+      if (get("mode") === "corporate" && !contacts.length) {
+        setCameFromCorporateDashboard(true);
+        const category = String(get("category") || "").toLowerCase();
+        if (isBusinessKind(category)) {
+          setMode(MODES.CORPORATE);
+          setRecipientKind(category);
+          setEntryView("path");
+          setReviewState(freshReviewState({ business: true, kind: category, existingEmails: [], todayIso: todayIso() }));
+        } else {
+          setEntryView("bizgroup");   // corporate, but no usable category - start at the chooser
+        }
+      }
+    } catch { /* a host without a URL is simply the ordinary entry */ }
+
     const onExpire = () => { clearSampleWorkspace(); setSample(false); setSampleContacts([]); setRows(null); };
     if (typeof window !== "undefined") window.addEventListener("auth:session-expired", onExpire);
     return () => { if (typeof window !== "undefined") window.removeEventListener("auth:session-expired", onExpire); };
@@ -228,7 +268,11 @@ export default function ContactImportWizard() {
       const today = todayIso();
       const items = rows.map((raw, i) => {
         const p = processRow(raw, mapping, { todayIso: today });
-        return { index: i, contact: p.contact, valid: p.valid, errors: p.errors, address: p.contact.shippingAddress || null, addressStatus: corporateAddressStatus(p.contact.shippingAddress) };
+        // SLICE E5 - the occasion dates travel with the contact. buildCorporatePayload transmits
+        // `item.contact` verbatim, so a field absent here never reaches the server at all - which
+        // is exactly why corporate birthdays were being dropped silently.
+        const contact = withOccasionDates(p.contact, raw, mapping);
+        return { index: i, contact, valid: p.valid, errors: p.errors, address: contact.shippingAddress || null, addressStatus: corporateAddressStatus(contact.shippingAddress) };
       });
       setError(null); setBizDormant(false);
       const kindLabel = recipientKind ? recipientKind[0].toUpperCase() + recipientKind.slice(1) : "Corporate";

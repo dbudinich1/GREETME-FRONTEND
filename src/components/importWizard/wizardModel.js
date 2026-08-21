@@ -86,6 +86,33 @@ export function buildPersonalImportContacts(rows = []) {
   });
 }
 
+// SLICE E5 - attach the OCCASION DATES to a processed contact.
+//
+// processRow reads birthday for age validation but deliberately leaves it out of `contact`:
+// normalization is its job, transmission is the caller's. The personal path already makes that
+// decision in buildPersonalImportContacts; this is the corporate equivalent, and it carries the
+// hire date too.
+//
+// Both matter for the same reason. The corporate importer derives occasions[] from these raw
+// values, and the scheduler matches contacts to campaigns BY OCCASION TYPE - so a corporate
+// import without them produces contacts that no Birthdays or Work Anniversaries campaign can
+// ever reach. Values are passed through raw; the server owns parsing and rejects a bare month-day.
+export function withOccasionDates(contact, raw = {}, map = {}) {
+  const pick = (field) => {
+    const col = map[field];
+    if (col == null) return undefined;
+    const v = raw[col];
+    return v != null && String(v).trim() !== "" ? v : undefined;
+  };
+  const birthday = pick("birthday");
+  const hireDate = pick("hireDate");
+  return {
+    ...contact,
+    ...(birthday !== undefined ? { birthday } : {}),
+    ...(hireDate !== undefined ? { hireDate } : {}),
+  };
+}
+
 // ---- Existing-recipient awareness (preview↔persistence consistency) ----
 // The wizard preview must reflect recipients the user ALREADY has, so an already-present email
 // previews as a duplicate (skipped) instead of silently entering toCreate and failing at commit
