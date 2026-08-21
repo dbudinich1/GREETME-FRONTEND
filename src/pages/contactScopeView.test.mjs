@@ -137,16 +137,43 @@ test("the view never tries to make one query serve both scopes", () => {
 // ══ the page honours the boundary ════════════════════════════════════════════════════════════
 const PAGE = readFileSync(new URL("./Contacts.jsx", import.meta.url), "utf8");
 
-test("the Business view offers no personal write control", () => {
-  // Add, Edit and Delete all call the PERSONAL endpoints. In the Business view they would either
-  // write to a different list than the one on screen (Add), or hit a boundary that fails closed by
-  // design and looks like a bug (Edit/Delete). All three are gated on the scope.
+test("every write decides its store ONCE, at the top of the handler", () => {
+  // SLICE E7 — the controls are no longer hidden in Business; the endpoints they need now exist.
+  // What replaced the hiding is the thing that actually matters: each handler branches on the
+  // scope at its first line, so a corporate record is never written through a personal endpoint
+  // (which would refuse it, correctly, and look like a bug).
+  // Each handler branches on the scope before it can reach a personal API call. [\s\S] rather
+  // than a newline class, so the assertion does not depend on how the file is line-ended.
   for (const guard of [
-    /\{!isBusiness \? \(\s*<button\s+data-testid="add-recipient"/,
-    /\{!isBusiness \? \(\s*<>\s*<button\s+onClick=\{\(\) => openEditModal\(contact\)\}/,
+    /handleAddRecipient = async \(contactData\) => \{[\s\S]{0,240}?if \(isBusiness\)/,
+    /handleEditRecipient = async \(contactData\) => \{[\s\S]{0,80}?if \(isBusiness\)/,
+    /handleDeleteRecipient = async \(contactId\) => \{[\s\S]{0,80}?if \(isBusiness\)/,
   ]) {
     assert.match(PAGE, guard, String(guard));
   }
+  // The business branch returns before ever reaching the personal API calls below it.
+  for (const [handler, personalCall] of [
+    ["handleAddRecipient", "api.createContact"],
+    ["handleEditRecipient", "api.updateContact"],
+    ["handleDeleteRecipient", "api.deleteContact"],
+  ]) {
+    const body = PAGE.slice(PAGE.indexOf(handler));
+    assert.ok(body.indexOf("return;") < body.indexOf(personalCall), `${handler} returns before ${personalCall}`);
+  }
+});
+
+test("the business writes go through the corporate router, not the personal api", () => {
+  assert.match(PAGE, /corporateWrites\.createContact\(businessOrgId/);
+  assert.match(PAGE, /corporateWrites\.updateContact\(businessOrgId/);
+  assert.match(PAGE, /corporateWrites\.deleteContact\(businessOrgId/);
+});
+
+test("a delete warns which campaigns still address the contact, and does not block", () => {
+  assert.match(PAGE, /campaignsContainingContact\(businessCampaigns, deleteConfirm\.id\)/);
+  assert.match(PAGE, /delete-campaign-warning/);
+  // The confirm button is never disabled by the warning — it informs, then gets out of the way.
+  const warn = PAGE.slice(PAGE.indexOf("delete-campaign-warning"), PAGE.indexOf("handleDeleteRecipient(deleteConfirm.id)"));
+  assert.equal(/disabled=/.test(warn), false, "warning must not disable the action");
 });
 
 test("the page chooses between two endpoints and never blends them", () => {

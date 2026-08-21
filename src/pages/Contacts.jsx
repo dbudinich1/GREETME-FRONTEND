@@ -9,6 +9,10 @@ import {
   BUSINESS_READ_ONLY_NOTICE, contactsFromCorporateResponse,
 } from './contactScopeView.js';
 import { createCorporateCampaignsClient } from '../api/corporateCampaigns.js';
+// SLICE E7 — single-record writes live on a DIFFERENT router (/api/corporate-contacts) behind a
+// DIFFERENT dormancy flag than the campaign reads, so they get their own client rather than a
+// method bolted onto one whose base path is only correct for half the calls.
+import { createCorporateContactsClient, campaignsContainingContact, deleteWarningLine } from '../api/corporateContacts.js';
 import { Plus, Upload, Search, Edit, Trash2, ArrowLeft, Users, Calendar, Gift, Clock, Send } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from "../api/api";
@@ -137,6 +141,10 @@ export default function Recipients() {
   const [businessError, setBusinessError] = useState(null);
   const [typeFilter, setTypeFilter] = useState('all');
   const corporateClient = useMemo(() => createCorporateCampaignsClient(), []);
+  const corporateWrites = useMemo(() => createCorporateContactsClient(), []);
+  // Campaigns are loaded in the Business view for ONE reason: to warn, before a delete, that
+  // someone is still addressed by a campaign. Nothing here blocks the delete.
+  const [businessCampaigns, setBusinessCampaigns] = useState([]);
 
   // Membership decides whether the Business view exists at all. NOT subscription: billing state
   // moves for reasons unrelated to data ownership, and a declined card must never re-interpret a
@@ -160,6 +168,9 @@ export default function Recipients() {
     if (scope !== VIEW_SCOPE.BUSINESS || !businessOrgId) return undefined;
     let cancelled = false;
     setBusinessLoading(true); setBusinessError(null);
+    corporateClient.listCampaigns(businessOrgId)
+      .then((r) => { if (!cancelled) setBusinessCampaigns((r && r.ok && r.data && r.data.campaigns) || []); })
+      .catch(() => { if (!cancelled) setBusinessCampaigns([]); });
     corporateClient.listOrgContacts(businessOrgId)
       .then((res) => {
         if (cancelled) return;
@@ -287,12 +298,68 @@ export default function Recipients() {
     }
   };
 
+  // ── SLICE E7 — business contact writes ─────────────────────────────────────────────────────
+  // Separate handlers from the personal ones on purpose: they call a different router, and the
+  // roster they refresh is a different list. Sharing a handler would have meant one function that
+  // guesses which store it is talking to.
+  const reloadBusinessContacts = async () => {
+    if (!businessOrgId) return;
+    const res = await corporateClient.listOrgContacts(businessOrgId);
+    setBusinessContacts(contactsFromCorporateResponse(res));
+  };
+
+  const businessWriteFailed = (res) => {
+    if (res && res.notFound) return 'That contact no longer exists. The list has been refreshed.';
+    if (res && res.conflict) return 'Someone with that email is already here.';
+    if (res && res.dormant) return 'Business contacts aren\u2019t available yet.';
+    if (res && res.unauthorized) return 'You don\u2019t have access to change business contacts.';
+    if (res && res.error === 'valid_email_required') return 'That email doesn\u2019t look right.';
+    if (res && res.error === 'name_required') return 'A name is required.';
+    return 'That didn\u2019t go through. Please try again.';
+  };
+
+  const handleCreateBusinessContact = async (contactData) => {
+    const res = await corporateWrites.createContact(businessOrgId, contactData);
+    if (!res || res.ok !== true) { showAlertMessage('error', businessWriteFailed(res)); return false; }
+    await reloadBusinessContacts();
+    showAlertMessage('success', 'Contact added.');
+    return true;
+  };
+
+  const handleUpdateBusinessContact = async (contactId, patch) => {
+    const res = await corporateWrites.updateContact(businessOrgId, contactId, patch);
+    if (!res || res.ok !== true) {
+      showAlertMessage('error', businessWriteFailed(res));
+      if (res && res.notFound) await reloadBusinessContacts();
+      return false;
+    }
+    await reloadBusinessContacts();
+    showAlertMessage('success', 'Contact updated.');
+    return true;
+  };
+
+  const handleDeleteBusinessContact = async (contactId) => {
+    const res = await corporateWrites.deleteContact(businessOrgId, contactId);
+    // Already gone is the outcome that was asked for; refresh rather than report a failure.
+    if (!res || (res.ok !== true && !res.notFound)) { showAlertMessage('error', businessWriteFailed(res)); return false; }
+    await reloadBusinessContacts();
+    showAlertMessage('success', 'Contact removed.');
+    return true;
+  };
+
   const showAlertMessage = (type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 5000);
   };
 
   const handleAddRecipient = async (contactData) => {
+    // SLICE E7 — the Business roster is a different store on a different router. One decision,
+    // taken here, rather than a handler that guesses which list it is writing to.
+    if (isBusiness) {
+      const done = await handleCreateBusinessContact(contactData);
+      if (done) setShowAddModal(false);
+      return;
+    }
     try {
       const response = await api.createContact(contactData);
 
@@ -347,6 +414,11 @@ export default function Recipients() {
   };
 
   const handleEditRecipient = async (contactData) => {
+    if (isBusiness) {
+      const done = await handleUpdateBusinessContact(editingContact && editingContact.id, contactData);
+      if (done) { setShowEditModal(false); setEditingContact(null); }
+      return;
+    }
     try {
       await api.updateContact(editingContact.id, contactData);
 
@@ -363,6 +435,11 @@ export default function Recipients() {
   };
 
   const handleDeleteRecipient = async (contactId) => {
+    if (isBusiness) {
+      await handleDeleteBusinessContact(contactId);
+      setDeleteConfirm(null);
+      return;
+    }
     try {
       await api.deleteContact(contactId);
       showAlertMessage('success', 'Recipient deleted successfully');
@@ -837,12 +914,8 @@ export default function Recipients() {
             <Users size={18} style={{ color: '#667eea', flexShrink: 0 }} />
             <h3 style={PANEL_TITLE}>Recipients</h3>
             {/* Premium CTA — reuses the existing Add Recipient handler; no new behavior.
-                SLICE E6 — ABSENT in the Business view. It writes to the PERSONAL store, so in
-                Business it would silently add someone to a different list than the one on screen.
-                Hidden rather than disabled: there is no corporate single-record create endpoint
-                for it to reach, so a greyed-out button would imply a capability that does not
-                exist. The read-only notice above names import, which is the real route. */}
-            {!isBusiness ? (
+                SLICE E7 — now present in BOTH views. It was hidden in Business while no corporate
+                create endpoint existed; one exists, so the button is real rather than a promise. */}
             <button
               data-testid="add-recipient"
               onClick={() => {
@@ -876,7 +949,6 @@ export default function Recipients() {
             >
               + Add Recipient
             </button>
-            ) : null}
           </div>
 
           {/* Search — Spotlight-style inset surface */}
@@ -943,10 +1015,10 @@ export default function Recipients() {
                 })}
               </div>
 
-              {/* Read-only, stated rather than discovered. There is genuinely no single-record
-                  write path for a corporate contact — a list endpoint and a bulk import, and
-                  nothing else — so the one action that exists is the one offered. */}
-              <div data-testid="business-readonly-notice" role="status"
+              {/* SLICE E7 — no longer a read-only notice. Single-record writes exist now, so
+                  this points at import for what import is actually best at: many people at once,
+                  and correcting many at once, since a re-import updates people already here. */}
+              <div data-testid="business-import-notice" role="status"
                 style={{
                   marginBottom: '12px', padding: '10px 12px', borderRadius: '10px',
                   background: 'rgba(214,145,16,.07)', border: '1px solid rgba(214,145,16,.26)',
@@ -1021,11 +1093,10 @@ export default function Recipients() {
                         <Send size={14} />
                         Send
                       </button>
-                      {/* SLICE E6 — Edit and Delete call the PERSONAL endpoints, which fail
-                          closed against a corporate record by design (isPersonalVisible admits
-                          only an absent scope or exactly "personal"). Offering them here would
-                          produce a refusal that looks like a bug rather than a boundary. */}
-                      {!isBusiness ? (
+                      {/* SLICE E7 — Edit and Delete now work in both views. Each handler
+                          branches on the scope, so a corporate record is written through the
+                          corporate router and never through a personal endpoint that would
+                          (correctly) refuse it. */}
                       <>
                       <button
                         onClick={() => openEditModal(contact)}
@@ -1047,7 +1118,6 @@ export default function Recipients() {
                         <Trash2 size={16} />
                       </button>
                       </>
-                      ) : null}
                     </div>
                   </div>
                 );
@@ -1187,9 +1257,24 @@ export default function Recipients() {
           size="sm"
         >
           <div>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.9375rem' }}>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: isBusiness ? '12px' : '24px', fontSize: '0.9375rem' }}>
               Are you sure you want to delete <strong>{deleteConfirm.name}</strong>? This action cannot be undone.
             </p>
+            {/* SLICE E7 — WARN, never block. Removing someone who is in a campaign is a
+                legitimate thing to want; being surprised by it afterwards is not. The campaigns
+                are named so the decision is informed, and then the button does what it says.
+                Nothing cascades: the scheduler re-reads the contact and skips a vanished one, so
+                a stale reference is already harmless. */}
+            {isBusiness && deleteWarningLine(deleteConfirm.name, campaignsContainingContact(businessCampaigns, deleteConfirm.id)) ? (
+              <p data-testid="delete-campaign-warning" style={{
+                marginBottom: '24px', padding: '10px 12px', borderRadius: '10px',
+                background: 'rgba(214,145,16,.07)', border: '1px solid rgba(214,145,16,.26)',
+                color: 'var(--text-secondary)', fontSize: '0.83rem', lineHeight: 1.45,
+              }}>
+                {deleteWarningLine(deleteConfirm.name, campaignsContainingContact(businessCampaigns, deleteConfirm.id))}
+                {' '}Those campaigns will simply skip them from now on.
+              </p>
+            ) : null}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button
                 onClick={() => setDeleteConfirm(null)}

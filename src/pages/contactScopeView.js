@@ -93,15 +93,15 @@ export function corporateTypeCounts(contacts) {
 }
 
 /**
- * Why the Business view cannot be edited here.
+ * What import is still the best route for.
  *
- * Stated OUT LOUD rather than left to be discovered by a disabled button. There is genuinely no
- * single-record write path for a corporate contact — the backend exposes a list endpoint and a
- * bulk import, and nothing else — so add, edit and delete are absent rather than broken, and the
- * one action that does exist is named.
+ * SLICE E7 replaced the read-only state: business contacts can now be added, edited and removed
+ * one at a time. Import remains the right tool for MANY at once — and, because a re-import updates
+ * people who are already here, for correcting many at once too. Kept under its original export
+ * name so no caller had to change; the wording no longer claims a restriction that has gone.
  */
 export const BUSINESS_READ_ONLY_NOTICE = Object.freeze({
-  text: "Business contacts are managed by import. Add or update them by importing a file — a re-import updates people who are already here.",
+  text: "Add or edit people here one at a time — or import a file to do many at once. A re-import updates people who are already here.",
   actionLabel: "Import business contacts",
   actionPath: "/dashboard/import-wizard?mode=corporate",
 });
