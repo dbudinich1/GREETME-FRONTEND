@@ -1,5 +1,14 @@
 // src/pages/Contacts.jsx
 import { useState, useEffect, useRef, useMemo } from 'react';
+// SLICE E6 — the Personal / Business view. One page, TWO endpoints: the personal list keeps its
+// own fail-closed scope predicate and the corporate roster is read through the corporate client.
+// Neither query learns about the other.
+import {
+  VIEW_SCOPE, canUseBusinessView, effectiveScope, businessOrganizations,
+  CORPORATE_TYPE_FILTERS, filterByCorporateType, corporateTypeCounts,
+  BUSINESS_READ_ONLY_NOTICE, contactsFromCorporateResponse,
+} from './contactScopeView.js';
+import { createCorporateCampaignsClient } from '../api/corporateCampaigns.js';
 import { Plus, Upload, Search, Edit, Trash2, ArrowLeft, Users, Calendar, Gift, Clock, Send } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from "../api/api";
@@ -119,6 +128,56 @@ export default function Recipients() {
   const [recipients, setRecipients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // ── SLICE E6 — Personal / Business ─────────────────────────────────────────────────────────
+  const [requestedScope, setRequestedScope] = useState(VIEW_SCOPE.PERSONAL);
+  const [membershipResult, setMembershipResult] = useState(null);
+  const [businessContacts, setBusinessContacts] = useState([]);
+  const [businessLoading, setBusinessLoading] = useState(false);
+  const [businessError, setBusinessError] = useState(null);
+  const [typeFilter, setTypeFilter] = useState('all');
+  const corporateClient = useMemo(() => createCorporateCampaignsClient(), []);
+
+  // Membership decides whether the Business view exists at all. NOT subscription: billing state
+  // moves for reasons unrelated to data ownership, and a declined card must never re-interpret a
+  // roster. A failure here simply leaves the toggle hidden.
+  useEffect(() => {
+    let cancelled = false;
+    corporateClient.listMemberships()
+      .then((res) => { if (!cancelled) setMembershipResult(res); })
+      .catch(() => { if (!cancelled) setMembershipResult({ ok: false }); });
+    return () => { cancelled = true; };
+  }, [corporateClient]);
+
+  const businessAvailable = canUseBusinessView(membershipResult);
+  const scope = effectiveScope(requestedScope, membershipResult);
+  const businessOrgId = businessAvailable
+    ? businessOrganizations(membershipResult)[0].corporateOrganizationId
+    : null;
+
+  // The corporate roster, fetched only when it is actually being looked at.
+  useEffect(() => {
+    if (scope !== VIEW_SCOPE.BUSINESS || !businessOrgId) return undefined;
+    let cancelled = false;
+    setBusinessLoading(true); setBusinessError(null);
+    corporateClient.listOrgContacts(businessOrgId)
+      .then((res) => {
+        if (cancelled) return;
+        if (!res || res.ok !== true) {
+          setBusinessContacts([]);
+          setBusinessError(res && res.dormant
+            ? 'Business contacts aren\u2019t available yet.'
+            : 'That list didn\u2019t load. Please try again.');
+          return;
+        }
+        setBusinessContacts(contactsFromCorporateResponse(res));
+      })
+      .catch(() => { if (!cancelled) { setBusinessContacts([]); setBusinessError('That list didn\u2019t load. Please try again.'); } })
+      .finally(() => { if (!cancelled) setBusinessLoading(false); });
+    return () => { cancelled = true; };
+  }, [scope, businessOrgId, corporateClient]);
+
+  const isBusiness = scope === VIEW_SCOPE.BUSINESS;
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -363,10 +422,15 @@ export default function Recipients() {
     }, 100);
   };
 
-  const filteredRecipients = recipients.filter(contact =>
+  // SLICE E6 — the list follows the scope. The two sources are chosen between, never combined:
+  // `recipients` came from the personal endpoint with its own fail-closed scope predicate, and
+  // `businessContacts` from the corporate one. Search applies to whichever is in view.
+  const scopedContacts = isBusiness ? filterByCorporateType(businessContacts, typeFilter) : recipients;
+  const filteredRecipients = scopedContacts.filter(contact =>
     contact.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const businessCounts = corporateTypeCounts(businessContacts);
 
   // PRACTICE VIEW — render the session-scoped Test Drive contacts in the normal layout, in place of the
   // ordinary Recipients page. Genuine recipients are never fetched or shown here (fail-closed above).
@@ -772,8 +836,15 @@ export default function Recipients() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
             <Users size={18} style={{ color: '#667eea', flexShrink: 0 }} />
             <h3 style={PANEL_TITLE}>Recipients</h3>
-            {/* Premium CTA — reuses the existing Add Recipient handler; no new behavior */}
+            {/* Premium CTA — reuses the existing Add Recipient handler; no new behavior.
+                SLICE E6 — ABSENT in the Business view. It writes to the PERSONAL store, so in
+                Business it would silently add someone to a different list than the one on screen.
+                Hidden rather than disabled: there is no corporate single-record create endpoint
+                for it to reach, so a greyed-out button would imply a capability that does not
+                exist. The read-only notice above names import, which is the real route. */}
+            {!isBusiness ? (
             <button
+              data-testid="add-recipient"
               onClick={() => {
                 try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch (e) {}
                 setShowAddModal(true);
@@ -805,6 +876,7 @@ export default function Recipients() {
             >
               + Add Recipient
             </button>
+            ) : null}
           </div>
 
           {/* Search — Spotlight-style inset surface */}
@@ -823,7 +895,80 @@ export default function Recipients() {
           </div>
 
           {/* Recipient list — fixed-height internal scroll */}
-          {filteredRecipients.length === 0 ? (
+          {/* SLICE E6 — PERSONAL / BUSINESS.
+              Shown only to someone with an active corporate membership, so a personal-only user
+              never sees a control that would lead nowhere. */}
+          {businessAvailable ? (
+            <div data-testid="scope-toggle" role="tablist" aria-label="Which contacts to show"
+              style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+              {[{ key: VIEW_SCOPE.PERSONAL, label: 'Personal' }, { key: VIEW_SCOPE.BUSINESS, label: 'Business' }].map((t) => {
+                const on = scope === t.key;
+                return (
+                  <button key={t.key} type="button" role="tab" aria-selected={on}
+                    data-testid={`scope-${t.key}`}
+                    onClick={() => { setRequestedScope(t.key); setSearchTerm(''); }}
+                    style={{
+                      padding: '7px 14px', fontSize: '0.8125rem', fontWeight: 700,
+                      borderRadius: '999px', cursor: 'pointer',
+                      border: on ? '1px solid #667eea' : '1px solid var(--border, rgba(0,0,0,.12))',
+                      background: on ? 'rgba(102,126,234,.10)' : 'transparent',
+                      color: on ? '#4a3fb0' : 'var(--text-secondary)',
+                    }}>
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {isBusiness ? (
+            <>
+              {/* Filter by contact type — the same three categories the campaign audience uses,
+                  with the same tags that appear on the corporate dashboard. */}
+              <div data-testid="business-type-filter" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                {CORPORATE_TYPE_FILTERS.map((f) => {
+                  const on = typeFilter === f.key;
+                  return (
+                    <button key={f.key} type="button" data-testid={`type-filter-${f.key}`}
+                      aria-pressed={on} onClick={() => setTypeFilter(f.key)}
+                      style={{
+                        padding: '5px 11px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px', cursor: 'pointer',
+                        border: on ? '1px solid #667eea' : '1px solid var(--border, rgba(0,0,0,.12))',
+                        background: on ? 'rgba(102,126,234,.10)' : 'transparent',
+                        color: on ? '#4a3fb0' : 'var(--text-secondary)',
+                      }}>
+                      {f.label} ({businessCounts[f.key] ?? 0})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Read-only, stated rather than discovered. There is genuinely no single-record
+                  write path for a corporate contact — a list endpoint and a bulk import, and
+                  nothing else — so the one action that exists is the one offered. */}
+              <div data-testid="business-readonly-notice" role="status"
+                style={{
+                  marginBottom: '12px', padding: '10px 12px', borderRadius: '10px',
+                  background: 'rgba(214,145,16,.07)', border: '1px solid rgba(214,145,16,.26)',
+                  fontSize: '0.78rem', lineHeight: 1.45, color: 'var(--text-secondary)',
+                }}>
+                <span>{BUSINESS_READ_ONLY_NOTICE.text}</span>{' '}
+                <button type="button" data-testid="business-import-cta"
+                  onClick={() => navigate(BUSINESS_READ_ONLY_NOTICE.actionPath)}
+                  style={{ padding: 0, background: 'none', border: 'none', color: '#4a3fb0', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', textDecoration: 'underline' }}>
+                  {BUSINESS_READ_ONLY_NOTICE.actionLabel}
+                </button>
+              </div>
+
+              {businessError ? (
+                <p data-testid="business-error" role="status" style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{businessError}</p>
+              ) : null}
+            </>
+          ) : null}
+
+          {isBusiness && businessLoading ? (
+            <p data-testid="business-loading" style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-tertiary)' }}>Loading business contacts\u2026</p>
+          ) : filteredRecipients.length === 0 ? (
             <div style={{ ...PANEL_VIEWPORT, overflowY: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', textAlign: 'center' }}>
               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '1rem', fontWeight: 600, letterSpacing: '-0.01em' }}>{searchTerm ? `No one matches “${searchTerm}”` : 'No people yet'}</p>
               <p style={{ margin: 0, color: 'var(--text-tertiary)', fontSize: '0.875rem' }}>{searchTerm ? 'Try a different name or email.' : 'Add someone you care about.'}</p>
@@ -876,6 +1021,12 @@ export default function Recipients() {
                         <Send size={14} />
                         Send
                       </button>
+                      {/* SLICE E6 — Edit and Delete call the PERSONAL endpoints, which fail
+                          closed against a corporate record by design (isPersonalVisible admits
+                          only an absent scope or exactly "personal"). Offering them here would
+                          produce a refusal that looks like a bug rather than a boundary. */}
+                      {!isBusiness ? (
+                      <>
                       <button
                         onClick={() => openEditModal(contact)}
                         style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '0 12px', height: '40px', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid rgba(15, 23, 42, 0.12)', borderRadius: 'var(--radius-lg)', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'inherit' }}
@@ -895,6 +1046,8 @@ export default function Recipients() {
                       >
                         <Trash2 size={16} />
                       </button>
+                      </>
+                      ) : null}
                     </div>
                   </div>
                 );
