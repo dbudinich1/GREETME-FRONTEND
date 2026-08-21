@@ -21,6 +21,9 @@ import {
   giftOptionState,
   deriveCampaignStatus,
   isCampaignEnabled,
+  deriveAudienceSelection,
+  buildCampaignDraft,
+  draftFingerprint,
   deriveActions,
   buildDeliveryConfigBody,
   readViewerOwnerCapability,
@@ -321,6 +324,102 @@ test("every action is always present, and a disabled one always explains why", (
   for (const a of Object.values(actions)) {
     assert.equal(typeof a.label, "string");
     if (!a.enabled) assert.ok(a.reason && a.reason.length > 0, `${a.key} must explain itself`);
+  }
+});
+
+// ══ SLICE E5 — reading a persisted audience back into a selection ════════════════════════════
+const ROSTER = [
+  { id: "e1", corporateContactType: "employee" },
+  { id: "e2", corporateContactType: "employee" },
+  { id: "c1", corporateContactType: "client" },
+  // A SECOND client, deliberately. With only one, including it completes the whole client
+  // category - so there would be no way to express "an individual pick that no category explains",
+  // which is precisely the case the selection logic exists to preserve.
+  { id: "c2", corporateContactType: "client" },
+  { id: "v1", corporateContactType: "vendor" },
+];
+
+test("E5: a category is checked only when EVERY member of it is included", () => {
+  assert.deepEqual(deriveAudienceSelection(ROSTER, ["e1", "e2"]).categories, ["employee"]);
+  // One employee missing means the category is not selected — showing it ticked would claim the
+  // campaign reaches someone it does not.
+  assert.deepEqual(deriveAudienceSelection(ROSTER, ["e1"]).categories, []);
+  assert.deepEqual(deriveAudienceSelection(ROSTER, ["e1"]).individualRefs, ["e1"]);
+});
+
+test("E5: an empty category is never vacuously checked", () => {
+  // `[].every(...)` is true, so without the non-empty guard a category with no members reads as
+  // fully selected and the surface shows a ticked box representing nobody.
+  const noVendors = ROSTER.filter((c) => c.corporateContactType !== "vendor");
+  assert.equal(deriveAudienceSelection(noVendors, []).categories.includes("vendor"), false);
+});
+
+test("E5: whoever a checked category covers is not also an individual pick", () => {
+  const sel = deriveAudienceSelection(ROSTER, ["e1", "e2", "c1"]);
+  assert.deepEqual(sel.categories, ["employee"]);
+  assert.deepEqual(sel.individualRefs, ["c1"], "only the one a category cannot explain");
+});
+
+test("E5: the selection round-trips through resolveAudienceRefs", () => {
+  // The property that makes the buffer trustworthy: reading an audience and immediately writing
+  // it back must produce the same audience, or opening a card would quietly alter it.
+  for (const refs of [[], ["e1"], ["e1", "e2"], ["e1", "e2", "c1"], ["c1", "v1"]]) {
+    const { categories, individualRefs } = deriveAudienceSelection(ROSTER, refs);
+    const back = resolveAudienceRefs({ contacts: ROSTER, selectedCategories: categories, individuallySelected: individualRefs });
+    assert.deepEqual([...back].sort(), [...refs].sort(), `round-trip ${JSON.stringify(refs)}`);
+  }
+});
+
+// ══ SLICE E5 — the draft and its fingerprint ═════════════════════════════════════════════════
+test("E5: a fresh draft of an unconfigured campaign offers No gift and a campaign date", () => {
+  const d = buildCampaignDraft({}, ROSTER);
+  assert.equal(d.giftType, "none", "No gift is the default");
+  assert.equal(d.scheduleMode, "campaign_date");
+  assert.deepEqual(d.categories, []);
+  assert.deepEqual(d.individualRefs, []);
+});
+
+test("E5: a draft reads the persisted delivery config back exactly", () => {
+  const campaign = {
+    audienceRefs: ["e1", "e2"],
+    deliveryConfig: {
+      scheduleMode: "contact_saved_date", occasionType: "work-anniversary",
+      timeZone: "UTC", defaultGift: { type: "curated", maxSpendCents: 7500 },
+    },
+  };
+  const d = buildCampaignDraft(campaign, ROSTER);
+  assert.deepEqual(d.categories, ["employee"]);
+  assert.equal(d.occasionType, "work-anniversary");
+  assert.equal(d.timeZone, "UTC");
+  assert.equal(d.giftType, "curated");
+  assert.equal(d.tierCents, 7500);
+});
+
+test("E5: the fingerprint ignores ordering, so a re-ordered list is not a change", () => {
+  const a = { categories: ["employee", "client"], individualRefs: ["v1", "c1"], giftType: "none", scheduleMode: "campaign_date", scheduledForLocal: "", timeZone: "UTC" };
+  const b = { ...a, categories: ["client", "employee"], individualRefs: ["c1", "v1"] };
+  assert.equal(draftFingerprint(a), draftFingerprint(b), "same audience, different order");
+});
+
+test("E5: the fingerprint ignores fields the current mode would not send", () => {
+  // Switching mode away and back must return to clean, or Save stays lit over an identical
+  // campaign and the reader learns to ignore it.
+  const base = buildCampaignDraft({ deliveryConfig: { scheduleMode: "campaign_date" } }, ROSTER);
+  assert.equal(draftFingerprint({ ...base, occasionType: "birthday" }), draftFingerprint({ ...base, occasionType: "holiday" }),
+    "the occasion is irrelevant while a single campaign date is in force");
+
+  const saved = { ...base, scheduleMode: "contact_saved_date" };
+  assert.equal(draftFingerprint({ ...saved, scheduledForLocal: "2026-12-15T10:00" }), draftFingerprint({ ...saved, scheduledForLocal: "" }),
+    "…and the date is irrelevant on a per-contact schedule");
+});
+
+test("E5: a real change DOES move the fingerprint", () => {
+  const base = buildCampaignDraft({ deliveryConfig: { scheduleMode: "campaign_date" } }, ROSTER);
+  for (const patch of [
+    { categories: ["employee"] }, { individualRefs: ["c1"] }, { giftType: "curated" },
+    { scheduleMode: "contact_saved_date" }, { scheduledForLocal: "2026-12-15T10:00" }, { timeZone: "UTC" },
+  ]) {
+    assert.notEqual(draftFingerprint({ ...base, ...patch }), draftFingerprint(base), JSON.stringify(patch));
   }
 });
 

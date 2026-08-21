@@ -97,6 +97,30 @@ export function resolveAudienceRefs({ contacts, selectedCategories = [], individ
 }
 
 // Per-category selected counts, for the bubble labels.
+// SLICE E5 - read a persisted audience BACK into the selection that would produce it.
+//
+// The card previously could not tell a category-derived recipient from an individually picked one,
+// so it fed the whole persisted list back as "individually selected" - and unchecking a category
+// then removed nobody, because everyone in it was also, apparently, an individual pick. Verified
+// before the change: check Employees, save, uncheck, and both employees remain.
+//
+// A category counts as checked only when EVERY current member of it is in the audience. The
+// non-empty guard matters: without it a category with no members is vacuously "all selected" and
+// the surface shows a ticked box representing nobody.
+export function deriveAudienceSelection(contacts, audienceRefs) {
+  const bucket = bucketContactsByCategory(contacts);
+  const refs = new Set((Array.isArray(audienceRefs) ? audienceRefs : []).filter((id) => typeof id === "string" && id));
+  const categories = CATEGORY_KEYS.filter((key) => {
+    const members = bucket.byCategory[key];
+    return members.length > 0 && members.every((c) => refs.has(c.id));
+  });
+  // Whoever a checked category already accounts for is not ALSO an individual pick; the remainder
+  // is, and must survive a category being unchecked.
+  const covered = new Set();
+  for (const key of categories) for (const c of bucket.byCategory[key]) covered.add(c.id);
+  return { categories, individualRefs: [...refs].filter((id) => !covered.has(id)) };
+}
+
 export function selectedCountsByCategory(contacts, audienceRefs) {
   const bucket = bucketContactsByCategory(contacts);
   const chosen = new Set(Array.isArray(audienceRefs) ? audienceRefs : []);
@@ -309,6 +333,49 @@ export function readExecutionCapability(listRes) {
 // ── delivery-config request body ─────────────────────────────────────────────────────────────
 // Built here so exactly one place decides the wire shape. maxSpendCents only — a bare maxSpend or
 // amount is never produced, and the budget never travels anywhere it could be shown to a recipient.
+// SLICE E5 - THE EDIT BUFFER.
+//
+// Everything a reader can change on a card, gathered into one value. Two reasons it is one object
+// rather than seven pieces of component state: "has anything changed?" becomes a single
+// comparison, and Cancel becomes a single assignment instead of seven that could drift apart.
+//
+// Audience is INCLUDED. It used to be saved the instant a box was ticked, which would have made
+// Cancel a lie - it would restore the schedule and the gift while leaving the audience already
+// changed on the server. A bail-out has to undo everything the reader did, or it undoes nothing
+// they can rely on.
+export function buildCampaignDraft(campaign, contacts) {
+  const c = campaign || {};
+  const d = c.deliveryConfig || {};
+  const { categories, individualRefs } = deriveAudienceSelection(contacts, c.audienceRefs);
+  return {
+    categories,
+    individualRefs,
+    giftType: d.defaultGift ? d.defaultGift.type : "none",
+    tierCents: d.defaultGift && d.defaultGift.maxSpendCents ? d.defaultGift.maxSpendCents : CURATED_TIERS_CENTS[0],
+    scheduleMode: d.scheduleMode || "campaign_date",
+    // The <input type="datetime-local"> shape, which is what the field round-trips.
+    scheduledForLocal: d.scheduledForUtc ? String(d.scheduledForUtc).slice(0, 16) : "",
+    occasionType: d.occasionType || "birthday",
+    timeZone: d.timeZone || "America/New_York",
+  };
+}
+
+// A stable, order-independent identity for a draft. Sorted, because two audiences holding the same
+// people in a different order are the same audience - and a Save button that lights up because a
+// list came back re-ordered teaches a reader to ignore it.
+export function draftFingerprint(draft) {
+  const d = draft || {};
+  return JSON.stringify([
+    [...(d.categories || [])].sort(),
+    [...(d.individualRefs || [])].sort(),
+    d.giftType, d.giftType === "curated" ? d.tierCents : null,
+    d.scheduleMode,
+    d.scheduleMode === "campaign_date" ? d.scheduledForLocal : null,
+    d.scheduleMode === "contact_saved_date" ? d.occasionType : null,
+    d.timeZone,
+  ]);
+}
+
 export function buildDeliveryConfigBody({ scheduleMode, scheduledForUtc, occasionType, timeZone, giftType, curatedTierCents, overrides = [] } = {}) {
   const body = { scheduleMode };
   if (scheduleMode === "campaign_date") body.scheduledForUtc = scheduledForUtc || null;

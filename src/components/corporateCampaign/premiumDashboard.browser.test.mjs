@@ -175,9 +175,17 @@ test("D: the Curated tier control persists CENTS and is described as private", a
   assert.equal(sel.value, "5000");
   assert.match(s.text(), /private to you/i);
   calls.length = 0;
+
+  // SLICE E5 - Save only fires when something changed, so the value is CHANGED and then saved.
+  // That proves more than the old version did: the cents the reader picked are the cents sent.
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(sel.constructor.prototype, "value").set;
+    setter.call(sel, "7500");
+    sel.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
   await click(s.tid("act-save-cmp_1"));
   const [, , , body] = calls.find((c) => c[0] === "updateDeliveryConfig");
-  assert.deepEqual(body.defaultGift, { type: "curated", maxSpendCents: 5000 });
+  assert.deepEqual(body.defaultGift, { type: "curated", maxSpendCents: 7500 });
   assert.equal(JSON.stringify(body).includes('"maxSpend"'), false);
   assert.equal(JSON.stringify(body).includes('"amount"'), false);
 });
@@ -259,6 +267,8 @@ test("D: statuses read as human language, never as raw backend enums", async () 
 test("D: a failed call surfaces a message and never fakes success", async () => {
   const failing = { ...fakeClient, updateDeliveryConfig: () => Promise.resolve({ ok: false, status: 400, error: "delivery_config_invalid_date" }) };
   const s = await mount(cardEl({ deliveryConfig: { scheduleMode: "campaign_date" } }, { client: failing }));
+  // SLICE E5 - Save is dirty-gated, so there must be a change to save.
+  await act(async () => { s.q("#c-cmp_1-aud-employee").click(); });
   await click(s.tid("act-save-cmp_1"));
   assert.ok(s.tid("card-msg-cmp_1"), "the failure is shown");
   assert.equal(s.tid("card-status-cmp_1").textContent, "Draft", "status did not advance on a failure");
@@ -271,6 +281,13 @@ test("D: category bubbles call setAudience with a deduplicated, unclassified-fre
   // A real click, so React's own value tracker sees the change exactly as a user would cause it.
   await act(async () => { box.click(); });
   await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+
+  // SLICE E5 - ticking a box no longer writes to the server. This is the guarantee that makes
+  // Cancel honest: if the audience were written here, Cancel could not take it back.
+  assert.equal(calls.some((c) => c[0] === "setAudience"), false, "nothing is sent until Save");
+  assert.ok(s.tid("card-dirty-cmp_1"), "…and the card says so");
+
+  await click(s.tid("act-save-cmp_1"));
   const call = calls.find((c) => c[0] === "setAudience");
   assert.ok(call, "the EXISTING audience endpoint is used");
   const refs = call[3];
@@ -358,9 +375,11 @@ test("R: the action rail sits between the header and Audience, and the actions M
 test("R: exactly six actions exist — moved, never duplicated", async () => {
   const s = await mount(cardEl());
   const buttons = s.qa("[data-testid^='act-']");
-  assert.equal(buttons.length, 6, "six and only six");
+  // SLICE E5 added Cancel. Still an exact list: the value of this assertion is that a control
+  // cannot appear in the rail without someone deciding it should.
+  assert.equal(buttons.length, 7, "seven and only seven");
   assert.deepEqual(buttons.map((b) => b.dataset.testid).sort(),
-    ["act-activate-cmp_1", "act-approve-cmp_1", "act-lock-cmp_1", "act-save-cmp_1", "act-schedule-cmp_1", "act-unlock-cmp_1"]);
+    ["act-activate-cmp_1", "act-approve-cmp_1", "act-cancel-cmp_1", "act-lock-cmp_1", "act-save-cmp_1", "act-schedule-cmp_1", "act-unlock-cmp_1"]);
   // Every one lives INSIDE the rail — none left behind at the bottom of the card.
   const rail = s.tid("card-footer-cmp_1");
   for (const b of buttons) assert.ok(rail.contains(b), `${b.dataset.testid} must be in the rail`);
@@ -408,7 +427,13 @@ test("R: the rail is sticky within the campaign viewport", () => {
 
 test("R: the scroll cue is CSS-only, appears while content remains, and vanishes at the bottom", () => {
   const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
-  const block = css.slice(css.indexOf(".gcd-scroll {\n  background-color"), css.indexOf(".gcd-scroll::-webkit-scrollbar {"));
+  // The literal newline that used to be in this slice made the test line-ending dependent: the
+  // repo stores LF, there is no .gitattributes, and core.autocrlf=true hands a Windows checkout
+  // CRLF - so `.gcd-scroll {\n  background-color` matched nothing and the block silently came
+  // back empty, passing an assertion against "" only by luck of which rules preceded it.
+  const scrollAt = css.search(/\.gcd-scroll \{\r?\n\s*background-color/);
+  assert.ok(scrollAt > -1, "the cue block exists");
+  const block = css.slice(scrollAt, css.indexOf(".gcd-scroll::-webkit-scrollbar {"));
   // Two covers travel WITH the content; two cues stay pinned to the box. When content reaches an
   // edge its cover slides over that cue and hides it — no listener, nothing to fall out of sync.
   assert.match(block, /background-attachment:\s*local,\s*local,\s*scroll,\s*scroll/);
@@ -541,14 +566,14 @@ test("I: each rail's six actions invoke ONLY their own campaign", async () => {
   assert.equal(unlocked[0][2], "cmp_1");
 });
 
-test("I: still exactly six actions per card — the label is not a seventh", async () => {
+test("I: still exactly seven actions per card — the label is not an eighth", async () => {
   const s = await mount(cardEl());
   const rail = s.tid("card-footer-cmp_1");
-  assert.equal(s.qa("[data-testid^='act-']").length, 6);
+  assert.equal(s.qa("[data-testid^='act-']").length, 7);
   // SLICE E5 — the switch adds no button to the rail either. It is a <label> + checkbox, chosen
   // because src/index.css styles the `button` ELEMENT (padding, and a 48px mobile min-height),
   // which would inflate a fixed-size switch on every phone.
-  assert.equal(rail.querySelectorAll("button").length, 6, "the identity is not a button");
+  assert.equal(rail.querySelectorAll("button").length, 7, "the identity is not a button");
   assert.equal(s.tid("card-toggle-cmp_1").tagName, "INPUT", "the switch is a checkbox, not a button");
   assert.equal(s.tid("rail-context-cmp_1").tagName, "SPAN");
   assert.equal(s.qa("[data-testid^='rail-context-']").length, 1, "one identity per rail");
@@ -614,6 +639,107 @@ test("E5: an unconfigured campaign cannot be switched ON, and says what is missi
   const sw = s.tid("card-toggle-cmp_1");
   assert.equal(sw.disabled, true, "nothing to send, and nobody to send it to");
   assert.match(sw.closest("label").getAttribute("title"), /who should receive/i, "the reason is on the control");
+});
+
+// ══ SLICE E5 — the edit buffer ═══════════════════════════════════════════════════════════════
+const tick = async (s, id) => { await act(async () => { s.q(id).click(); }); };
+
+test("E5: Save and Cancel are both inert until something has actually changed", async () => {
+  const s = await mount(cardEl({ audienceRefs: ["e1"] }, { isOwner: true }));
+  assert.equal(s.tid("act-save-cmp_1").disabled, true, "nothing to save");
+  assert.equal(s.tid("act-cancel-cmp_1").disabled, true, "nothing to discard");
+  assert.equal(s.tid("card-dirty-cmp_1"), null, "and no unsaved-changes notice");
+
+  await tick(s, "#c-cmp_1-aud-employee");
+  assert.equal(s.tid("act-save-cmp_1").disabled, false);
+  assert.equal(s.tid("act-cancel-cmp_1").disabled, false);
+  assert.ok(s.tid("card-dirty-cmp_1"), "the card says there is something unsaved");
+});
+
+test("E5: Cancel restores every field at once and sends nothing", async () => {
+  const s = await mount(cardEl({ audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date", timeZone: "UTC" } }, { isOwner: true }));
+  const before = s.tid("card-audience-total-cmp_1").textContent;
+  calls.length = 0;
+
+  await tick(s, "#c-cmp_1-aud-employee");
+  assert.notEqual(s.tid("card-audience-total-cmp_1").textContent, before, "the edit is visible");
+
+  await click(s.tid("act-cancel-cmp_1"));
+  assert.equal(s.tid("card-audience-total-cmp_1").textContent, before, "…and fully undone");
+  assert.equal(s.tid("act-save-cmp_1").disabled, true, "back to clean");
+  assert.equal(s.tid("card-dirty-cmp_1"), null);
+  // The whole point: a bail-out that never touched the server has nothing to roll back.
+  assert.equal(calls.length, 0, "Cancel is a local operation");
+});
+
+test("E5: unchecking a category actually removes its members", async () => {
+  // Before the edit buffer this silently did nothing: the card fed the whole persisted audience
+  // back as "individually selected", so everyone a category had added stayed added forever.
+  const s = await mount(cardEl({ audienceRefs: ["e1", "e2"] }, { isOwner: true }));
+  const box = s.q("#c-cmp_1-aud-employee");
+  assert.equal(box.checked, true, "a fully-included category reads as checked");
+
+  await tick(s, "#c-cmp_1-aud-employee");
+  assert.equal(s.tid("card-audience-total-cmp_1").textContent.startsWith("0 contacts"), true, "both employees removed");
+
+  calls.length = 0;
+  await click(s.tid("act-save-cmp_1"));
+  const call = calls.find((c) => c[0] === "setAudience");
+  assert.deepEqual(call[3], [], "and the empty audience is what is saved");
+});
+
+test("E5: an individual pick survives a category being unchecked", async () => {
+  // e1+e2 are the employees; c1 is a client, so it can only have come from an individual pick.
+  const s = await mount(cardEl({ audienceRefs: ["e1", "e2", "c1"] }, { isOwner: true }));
+  await tick(s, "#c-cmp_1-aud-employee");
+  calls.length = 0;
+  await click(s.tid("act-save-cmp_1"));
+  assert.deepEqual(calls.find((c) => c[0] === "setAudience")[3], ["c1"], "the individual pick is not collateral");
+});
+
+test("E5: working the switch does NOT discard unsaved edits", async () => {
+  // The switch refetches, which hands the card a brand-new campaign object. Resyncing on object
+  // identity would wipe the buffer here; resyncing on VALUE leaves it alone.
+  const s = await mount(cardEl({ audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true }));
+  await tick(s, "#c-cmp_1-aud-employee");
+  const edited = s.tid("card-audience-total-cmp_1").textContent;
+
+  await click(s.tid("card-toggle-cmp_1"));
+  assert.equal(s.tid("card-audience-total-cmp_1").textContent, edited, "the edit survived");
+  assert.ok(s.tid("card-dirty-cmp_1"), "…and is still flagged unsaved");
+});
+
+test("E5: Save writes the audience BEFORE the delivery config", async () => {
+  // If the second call fails the campaign is left addressed to fewer people rather than more,
+  // which is the safer direction for a half-applied save.
+  const s = await mount(cardEl({ audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true }));
+  await tick(s, "#c-cmp_1-aud-employee");
+  calls.length = 0;
+  await click(s.tid("act-save-cmp_1"));
+  const names = calls.map((c) => c[0]).filter((n) => n === "setAudience" || n === "updateDeliveryConfig");
+  assert.deepEqual(names, ["setAudience", "updateDeliveryConfig"]);
+});
+
+test("E5: a schedule-only change does not rewrite the audience", async () => {
+  const s = await mount(cardEl({ audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date", timeZone: "UTC" } }, { isOwner: true }));
+  const tz = s.tid("card-tz-cmp_1");
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(tz.constructor.prototype, "value").set;
+    setter.call(tz, "America/Denver");
+    tz.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
+  calls.length = 0;
+  await click(s.tid("act-save-cmp_1"));
+  assert.equal(calls.some((c) => c[0] === "setAudience"), false, "only what changed is sent");
+  assert.equal(calls.filter((c) => c[0] === "updateDeliveryConfig").length, 1);
+});
+
+test("E5: No gift is the default and the first option offered", async () => {
+  const s = await mount(cardEl({ deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true }));
+  const first = s.q("#c-cmp_1-gift-none");
+  assert.ok(first, "No gift is present");
+  assert.equal(first.checked, true, "…and selected when nothing is configured");
+  assert.equal(s.tid("card-tier-cmp_1"), null, "no spend control until a gift is chosen");
 });
 
 test("I: a very long name truncates rather than overflowing, and stays readable on mobile", async () => {
@@ -737,6 +863,9 @@ test("E3: Save Changes stays usable while execution is dormant and the campaign 
   const unlocked = { approvalStatus: "approved", lockStatus: "unlocked", audienceRefs: ["e1"],
     deliveryConfig: { scheduleMode: "campaign_date", status: "configured" } };
   const s = await mount(cardEl(unlocked, { isOwner: true, canAuthorizeRun: false }));
+  // SLICE E5 - Save is dirty-gated, so make a change first; the point of the test is that
+  // dormancy does not disable it, not that it is clickable with nothing to save.
+  await act(async () => { s.q("#c-cmp_1-aud-client").click(); });
   const save = s.tid("act-save-cmp_1");
   assert.equal(save.disabled, false, "configuration is not execution");
   await click(save);
@@ -772,11 +901,11 @@ test("E3: a MANAGEMENT dormancy 503 is reported differently and does not close e
   assert.equal(s.tid("card-msg-cmp_1").textContent, "This feature isn’t active yet.");
 });
 
-test("E3: the rail still carries exactly six actions", async () => {
+test("E3: the rail still carries exactly seven actions", async () => {
   for (const canAuthorizeRun of [true, false]) {
     const s = await mount(cardEl(LOCKED_SCHEDULABLE, { isOwner: true, canAuthorizeRun }));
     const rail = s.tid("card-footer-cmp_1");
-    assert.equal(rail.querySelectorAll("button").length, 6, `cap=${canAuthorizeRun}`);
+    assert.equal(rail.querySelectorAll("button").length, 7, `cap=${canAuthorizeRun}`);
   }
 });
 

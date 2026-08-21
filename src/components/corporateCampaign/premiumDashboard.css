@@ -276,6 +276,16 @@
 }
 .gcd-reason { font-size: .75rem; color: var(--gcd-faint); flex-basis: 100%; margin: 0; }
 .gcd-actions .gcd-msg { flex-basis: 100%; margin: 2px 0 0; }
+/* SLICE E5 - the unsaved-changes notice.
+   Takes a full row of the rail so it never squeezes the buttons, and states the reassuring half
+   out loud ("nothing is sent until you save") - the anxious reading of an edited campaign is that
+   it has already gone out. `color`/`line-height` are set explicitly because src/index.css styles
+   the p ELEMENT, and a SPECIFIED declaration there beats an inherited one here. */
+.gcd-dirty {
+  flex-basis: 100%; margin: 2px 0 0;
+  font-size: .76rem; font-weight: 600;
+  color: var(--gcd-warn); line-height: 1.35;
+}
 
 /* RAIL IDENTITY — whose actions these are.
    Sits first in the rail and shrinks before the buttons do (min-width:0 + flex-shrink), so a long

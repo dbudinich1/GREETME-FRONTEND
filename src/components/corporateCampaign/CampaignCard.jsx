@@ -25,6 +25,8 @@ import {
   selectedCountsByCategory,
   contactCategoryLabel,
   buildDeliveryConfigBody,
+  buildCampaignDraft,
+  draftFingerprint,
   EXECUTION_DORMANT_MESSAGE,
 } from "./corporateDashboardModel.js";
 import { EXECUTION_DORMANT_REASON } from "../../api/corporateCampaigns.js";
@@ -50,7 +52,6 @@ export default function CampaignCard({
   onExecutionDormant,
   onOpenIndividualPicker, onAfterMutate, onOpenDetail,
 }) {
-  const delivery = campaign.deliveryConfig || {};
   const status = deriveCampaignStatus(campaign);
   const actions = deriveActions(campaign, { isOwner, canAuthorizeRun });
   const locked = campaign.lockStatus === "locked";
@@ -58,24 +59,53 @@ export default function CampaignCard({
   // switch cannot drift out of step with the engine while a refetch is in flight.
   const enabled = isCampaignEnabled(campaign);
 
-  const [categories, setCategories] = useState([]);
-  const [giftType, setGiftType] = useState(delivery.defaultGift ? delivery.defaultGift.type : "none");
-  const [tierCents, setTierCents] = useState(delivery.defaultGift ? delivery.defaultGift.maxSpendCents : CURATED_TIERS_CENTS[0]);
+  // ── THE EDIT BUFFER ────────────────────────────────────────────────────────────────────────
+  // What the server currently holds, and what the reader has changed on top of it. Nothing is
+  // sent until Save, so Cancel can restore every field at once - including the audience, which
+  // used to be written the instant a box was ticked.
+  const persisted = useMemo(() => buildCampaignDraft(campaign, contacts), [campaign, contacts]);
+  const persistedKey = draftFingerprint(persisted);
+  const [draft, setDraft] = useState(persisted);
+  const [syncedKey, setSyncedKey] = useState(persistedKey);
+
+  // Resync on VALUE, not on object identity. A refetch hands down a new campaign object every
+  // time, so an identity check would wipe unsaved edits whenever anything else on the card
+  // mutated - notably the runtime switch, which refetches but changes nothing in this buffer.
+  if (syncedKey !== persistedKey) {
+    setDraft(persisted);
+    setSyncedKey(persistedKey);
+  }
+
   const [spreadSource, setSpreadSource] = useState("organization_default");
   const [showSpreadEditor, setShowSpreadEditor] = useState(false);
-  const [mode, setMode] = useState(delivery.scheduleMode || "campaign_date");
-  const [whenUtc, setWhenUtc] = useState(delivery.scheduledForUtc ? String(delivery.scheduledForUtc).slice(0, 16) : "");
-  const [occasionType, setOccasionType] = useState(delivery.occasionType || OCCASION_TYPES[0]);
-  const [timeZone, setTimeZone] = useState(delivery.timeZone || TIME_ZONES[0]);
   const [message, setMessage] = useState(null);
   const [pending, setPending] = useState(null);
 
+  const edit = (patch) => setDraft((d) => ({ ...d, ...patch }));
+  const dirty = draftFingerprint(draft) !== persistedKey;
+
   const audienceRefs = Array.isArray(campaign.audienceRefs) ? campaign.audienceRefs : [];
   const counts = useMemo(() => selectedCountsByCategory(contacts, audienceRefs), [contacts, audienceRefs]);
+  const draftRefs = refsOf(draft);
 
   // One source for the displayed name, shared by the header and the rail so they can never drift.
   const campaignLabel = campaign.name || "Untitled campaign";
   const uid = (s) => `c-${campaign.campaignId}-${s}`;
+  // Report a refusal. Extracted from run() because Save now makes TWO calls and both report the
+  // same way; returns false so a caller can stop on the first failure.
+  const reportFailure = (res) => {
+    const executionDormant = Boolean(res && res.dormant && res.reason === EXECUTION_DORMANT_REASON);
+    if (executionDormant && onExecutionDormant) onExecutionDormant();
+    setMessage((res && (
+      (executionDormant && EXECUTION_DORMANT_MESSAGE)
+      || res.error
+      || (res.dormant && "This feature isn’t active yet.")
+      || (res.unauthorized && "You don’t have access to this action.")
+      || (res.conflict && "Someone else changed this campaign. Reload to see the current version.")
+    )) || "That didn’t go through. Please try again.");
+    return false;
+  };
+
   const run = async (key, fn) => {
     setMessage(null); setPending(key);
     try {
@@ -115,19 +145,55 @@ export default function CampaignCard({
     await run("toggle", () => client.setCampaignEnabled(orgId, campaign.campaignId, next));
   }
 
-  async function saveDelivery() {
-    const body = buildDeliveryConfigBody({
-      scheduleMode: mode,
-      scheduledForUtc: whenUtc ? new Date(whenUtc).toISOString() : null,
-      occasionType, timeZone, giftType, curatedTierCents: tierCents,
+  // The audience a draft actually describes: the checked categories expanded to their members,
+  // plus anyone picked individually. Unchecking a category now genuinely removes its members,
+  // because the individual picks are tracked separately rather than being the whole saved list.
+  // A function DECLARATION, not a const arrow: it is called from the render body above, and a
+  // const would sit in the temporal dead zone there and throw on first paint.
+  function refsOf(d) {
+    return resolveAudienceRefs({
+      contacts, selectedCategories: d.categories, individuallySelected: d.individualRefs,
     });
-    await run("save", () => client.updateDeliveryConfig(orgId, campaign.campaignId, body));
+  }
+  const sameRefs = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+
+  // ── SAVE ───────────────────────────────────────────────────────────────────────────────────
+  // Two endpoints, one button. Only what actually changed is sent, so saving a schedule tweak
+  // does not rewrite the audience - and the audience is written FIRST, because it is the
+  // narrowing decision: if the second call fails, the campaign is left addressed to fewer people
+  // rather than to more.
+  async function saveAll() {
+    if (!dirty || !actions.save.enabled) return;
+    setMessage(null); setPending("save");
+    try {
+      const nextRefs = refsOf(draft);
+      if (!sameRefs(nextRefs, refsOf(persisted))) {
+        const res = await client.setAudience(orgId, campaign.campaignId, nextRefs);
+        if (!res || res.ok !== true) return reportFailure(res);
+      }
+      const body = buildDeliveryConfigBody({
+        scheduleMode: draft.scheduleMode,
+        scheduledForUtc: draft.scheduledForLocal ? new Date(draft.scheduledForLocal).toISOString() : null,
+        occasionType: draft.occasionType,
+        timeZone: draft.timeZone,
+        giftType: draft.giftType,
+        curatedTierCents: draft.tierCents,
+      });
+      const res = await client.updateDeliveryConfig(orgId, campaign.campaignId, body);
+      if (!res || res.ok !== true) return reportFailure(res);
+
+      // The refetch resyncs the buffer, so the card ends up showing the server's answer rather
+      // than the values that were typed into it.
+      if (onAfterMutate) await onAfterMutate();
+      return true;
+    } finally { setPending(null); }
   }
 
-  async function applyCategories(nextKeys) {
-    setCategories(nextKeys);
-    const refs = resolveAudienceRefs({ contacts, selectedCategories: nextKeys, individuallySelected: audienceRefs });
-    await run("audience", () => client.setAudience(orgId, campaign.campaignId, refs));
+  // ── CANCEL ─────────────────────────────────────────────────────────────────────────────────
+  // Nothing to undo on the server, because nothing was sent. One assignment restores every field.
+  function cancelEdits() {
+    setDraft(persisted);
+    setMessage(null);
   }
 
   const disabledNote = (a) => (a.enabled ? null : a.reason);
@@ -195,8 +261,17 @@ export default function CampaignCard({
           <span className={`gcd-actions-id-status gcd-actions-id-status--${status.tone}`}>{status.label}</span>
         </span>
         <button type="button" className="gcd-btn gcd-btn--primary" data-testid={`act-save-${campaign.campaignId}`}
-          disabled={!actions.save.enabled || busy || pending === "save"} title={disabledNote(actions.save) || undefined}
-          onClick={saveDelivery}>Save Changes</button>
+          disabled={!actions.save.enabled || !dirty || busy || pending === "save"}
+          title={disabledNote(actions.save) || (!dirty ? "No unsaved changes." : undefined)}
+          onClick={saveAll}>{pending === "save" ? "Saving..." : "Save Changes"}</button>
+        {/* SLICE E5 - the bail-out. Enabled ONLY while there is something to discard, so it never
+            offers to undo nothing; and it touches the server not at all, because nothing has been
+            sent yet. It is not gated on `locked` the way Save is: discarding your own unsaved
+            edits is always safe, whatever state the campaign is in. */}
+        <button type="button" className="gcd-btn" data-testid={`act-cancel-${campaign.campaignId}`}
+          disabled={!dirty || busy || pending === "save"}
+          title={dirty ? "Discard your unsaved changes." : "No unsaved changes."}
+          onClick={cancelEdits}>Cancel</button>
         <button type="button" className="gcd-btn" data-testid={`act-approve-${campaign.campaignId}`}
           disabled={!actions.approve.enabled || busy} title={disabledNote(actions.approve) || undefined}
           onClick={() => run("approve", () => client.approve(orgId, campaign.campaignId))}>Approve</button>
@@ -219,6 +294,11 @@ export default function CampaignCard({
             {actions.schedule.reason || actions.activate.reason}
           </p>
         ) : null}
+        {dirty ? (
+          <p className="gcd-dirty" data-testid={`card-dirty-${campaign.campaignId}`} role="status">
+            Unsaved changes - nothing is sent until you save.
+          </p>
+        ) : null}
         {message ? <p className="gcd-msg" data-testid={`card-msg-${campaign.campaignId}`} role="status">{message}</p> : null}
       </div>
 
@@ -228,10 +308,14 @@ export default function CampaignCard({
           <CategoryBubble
             key={cat.key} id={uid(`aud-${cat.key}`)} label={cat.label}
             count={counts[cat.key]}
-            checked={categories.includes(cat.key)}
+            checked={draft.categories.includes(cat.key)}
             disabled={locked}
             reason={locked ? "Unlock the campaign to change its audience." : null}
-            onChange={(on) => applyCategories(on ? [...categories, cat.key] : categories.filter((k) => k !== cat.key))}
+            onChange={(on) => edit({
+              categories: on
+                ? [...draft.categories, cat.key]
+                : draft.categories.filter((k) => k !== cat.key),
+            })}
           />
         ))}
       </BubbleGroup>
@@ -240,8 +324,10 @@ export default function CampaignCard({
           disabled={locked} onClick={() => onOpenIndividualPicker && onOpenIndividualPicker(campaign)}>
           Select Individual Contacts
         </button>
+        {/* Counts the DRAFT, not the saved campaign: ticking a category has to visibly change
+            something, or the control reads as broken while the change sits unsaved. */}
         <span className="gcd-bubble-note" data-testid={`card-audience-total-${campaign.campaignId}`}>
-          {audienceRefs.length} {audienceRefs.length === 1 ? "contact" : "contacts"} selected
+          {draftRefs.length} {draftRefs.length === 1 ? "contact" : "contacts"} selected
           {counts.unclassified > 0 ? ` · ${counts.unclassified} unclassified` : ""}
         </span>
       </div>
@@ -255,19 +341,19 @@ export default function CampaignCard({
               key={opt.value} id={uid(`gift-${opt.value}`)} name={uid("gift-group")} value={opt.value}
               label={opt.label} note={state.selectable ? opt.description : null}
               reason={state.selectable ? null : state.reason}
-              checked={giftType === opt.value}
+              checked={draft.giftType === opt.value}
               disabled={!state.selectable || locked}
-              onChange={setGiftType}
+              onChange={(v) => edit({ giftType: v })}
             />
           );
         })}
       </BubbleGroup>
-      {giftType === "curated" ? (
+      {draft.giftType === "curated" ? (
         <div className="gcd-fields" data-testid={`card-curated-${campaign.campaignId}`} style={{ marginTop: 10 }}>
           <div className="gcd-field">
             <label htmlFor={uid("tier")}>Spend limit <span style={{ fontWeight: 400, color: "#928ea8" }}>(private to you)</span></label>
-            <select id={uid("tier")} value={tierCents} disabled={locked}
-              onChange={(e) => setTierCents(Number(e.target.value))} data-testid={`card-tier-${campaign.campaignId}`}>
+            <select id={uid("tier")} value={draft.tierCents} disabled={locked}
+              onChange={(e) => edit({ tierCents: Number(e.target.value) })} data-testid={`card-tier-${campaign.campaignId}`}>
               {/* Values are CENTS on the wire; the label is only a display. */}
               {CURATED_TIERS_CENTS.map((c) => <option key={c} value={c}>{centsToDisplay(c)}</option>)}
             </select>
@@ -294,30 +380,30 @@ export default function CampaignCard({
       <BubbleGroup label="Schedule" role="radiogroup" testId={uid("schedule")}>
         {SCHEDULE_MODES.map((m) => (
           <ChoiceBubble key={m.value} id={uid(`mode-${m.value}`)} name={uid("mode-group")} value={m.value}
-            label={m.label} note={m.description} checked={mode === m.value} disabled={locked}
-            onChange={setMode} />
+            label={m.label} note={m.description} checked={draft.scheduleMode === m.value} disabled={locked}
+            onChange={(v) => edit({ scheduleMode: v })} />
         ))}
       </BubbleGroup>
       <div className="gcd-fields" style={{ marginTop: 10 }}>
-        {mode === "campaign_date" ? (
+        {draft.scheduleMode === "campaign_date" ? (
           <div className="gcd-field">
             <label htmlFor={uid("when")}>Send date and time</label>
-            <input id={uid("when")} type="datetime-local" value={whenUtc} disabled={locked}
-              onChange={(e) => setWhenUtc(e.target.value)} data-testid={`card-when-${campaign.campaignId}`} />
+            <input id={uid("when")} type="datetime-local" value={draft.scheduledForLocal} disabled={locked}
+              onChange={(e) => edit({ scheduledForLocal: e.target.value })} data-testid={`card-when-${campaign.campaignId}`} />
           </div>
         ) : (
           <div className="gcd-field">
             <label htmlFor={uid("occasion")}>Occasion</label>
-            <select id={uid("occasion")} value={occasionType} disabled={locked}
-              onChange={(e) => setOccasionType(e.target.value)} data-testid={`card-occasion-${campaign.campaignId}`}>
+            <select id={uid("occasion")} value={draft.occasionType} disabled={locked}
+              onChange={(e) => edit({ occasionType: e.target.value })} data-testid={`card-occasion-${campaign.campaignId}`}>
               {OCCASION_TYPES.map((o) => <option key={o} value={o}>{o.replace(/-/g, " ")}</option>)}
             </select>
           </div>
         )}
         <div className="gcd-field">
           <label htmlFor={uid("tz")}>Time zone</label>
-          <select id={uid("tz")} value={timeZone} disabled={locked}
-            onChange={(e) => setTimeZone(e.target.value)} data-testid={`card-tz-${campaign.campaignId}`}>
+          <select id={uid("tz")} value={draft.timeZone} disabled={locked}
+            onChange={(e) => edit({ timeZone: e.target.value })} data-testid={`card-tz-${campaign.campaignId}`}>
             {TIME_ZONES.map((z) => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
           </select>
         </div>
