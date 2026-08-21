@@ -29,6 +29,7 @@ import {
   draftFingerprint,
   SEASONAL_SUGGESTION,
   suggestedSeasonalDateLocal,
+  describeCampaignPlan,
   EXECUTION_DORMANT_MESSAGE,
 } from "./corporateDashboardModel.js";
 import { EXECUTION_DORMANT_REASON } from "../../api/corporateCampaigns.js";
@@ -81,6 +82,7 @@ export default function CampaignCard({
     setSyncedKey(persistedKey);
   }
 
+  const [showInfo, setShowInfo] = useState(false);
   const [spreadSource, setSpreadSource] = useState("organization_default");
   const [showSpreadEditor, setShowSpreadEditor] = useState(false);
   const [message, setMessage] = useState(null);
@@ -236,6 +238,17 @@ export default function CampaignCard({
               made a persistent condition look like one more one-shot command.
               Reads `campaign.enabled` on every render, so what it shows is the server's answer
               after the refetch - never a local guess that could disagree with the engine. */}
+          {/* SLICE E5 - the information control. `padding: 0` is set INLINE deliberately: the
+              global `button` rule in src/index.css sets padding on the ELEMENT, and would inflate
+              a fixed 26px circle into an oval on desktop and a 48px block on a phone. */}
+          <button type="button" className="gcd-info-btn" data-testid={`card-info-${campaign.campaignId}`}
+            style={{ padding: 0 }}
+            aria-expanded={showInfo} aria-controls={uid("info")}
+            title={showInfo ? "Hide the summary" : "What will this campaign do?"}
+            aria-label={`What will ${campaignLabel} do?`}
+            onClick={() => setShowInfo((v) => !v)}>
+            i
+          </button>
           <label className={`gcd-switch${actions.toggle.enabled ? "" : " gcd-switch--disabled"}`}
             title={disabledNote(actions.toggle) || `${actions.toggle.nextLabel} ${campaignLabel}`}>
             <input type="checkbox" role="switch" checked={enabled}
@@ -309,6 +322,22 @@ export default function CampaignCard({
         ) : null}
         {message ? <p className="gcd-msg" data-testid={`card-msg-${campaign.campaignId}`} role="status">{message}</p> : null}
       </div>
+
+      {/* SLICE E5 - WHAT THIS CAMPAIGN WILL DO.
+          Every line is derived from the draft in front of the reader, never written as prose, so
+          it cannot drift out of step with the controls below it. Because it reads the DRAFT it
+          describes what SAVING would do while there are unsaved changes - which is the question
+          someone actually has at that moment. */}
+      {showInfo ? (
+        <dl className="gcd-info" id={uid("info")} data-testid={`card-info-panel-${campaign.campaignId}`}>
+          {describeCampaignPlan({ draft, recipientCount: draftRefs.length, enabled }).map((row) => (
+            <div className="gcd-info-row" key={row.key}>
+              <dt className="gcd-info-label">{row.label}</dt>
+              <dd className="gcd-info-value" data-testid={`card-info-${row.key}-${campaign.campaignId}`}>{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
 
       {/* 3 — AUDIENCE */}
       <BubbleGroup label="Audience" testId={uid("audience")}>

@@ -27,6 +27,8 @@ import {
   suggestedSeasonalDateLocal,
   findAudienceOverlaps,
   overlapLine,
+  describeCampaignPlan,
+  formatLocalDay,
   buildCampaignDraft,
   draftFingerprint,
   deriveActions,
@@ -329,6 +331,55 @@ test("every action is always present, and a disabled one always explains why", (
   for (const a of Object.values(actions)) {
     assert.equal(typeof a.label, "string");
     if (!a.enabled) assert.ok(a.reason && a.reason.length > 0, `${a.key} must explain itself`);
+  }
+});
+
+// ══ SLICE E5 — what this campaign will do ════════════════════════════════════════════════════
+const planOf = (draft, over = {}) => {
+  const rows = describeCampaignPlan({ draft, recipientCount: 3, enabled: true, ...over });
+  return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+};
+
+test("E5: a per-contact campaign says every year, in plain words", () => {
+  // The single fact most likely to be assumed wrongly in either direction — so it is stated
+  // outright rather than left to be inferred from the schedule controls.
+  const p = planOf({ scheduleMode: "contact_saved_date", occasionType: "work-anniversary", giftType: "none" });
+  assert.match(p.when, /each contact's work anniversary/i);
+  assert.match(p.when, /every year/i);
+});
+
+test("E5: a shared-date campaign names the day and says every year", () => {
+  const p = planOf({ scheduleMode: "campaign_date", scheduledForLocal: "2026-12-15T09:00", giftType: "none" });
+  assert.match(p.when, /15 December/);
+  assert.match(p.when, /every year/i);
+});
+
+test("E5: an unset date is admitted, never invented", () => {
+  const p = planOf({ scheduleMode: "campaign_date", scheduledForLocal: "", giftType: "none" });
+  assert.match(p.when, /no date chosen/i);
+});
+
+test("E5: the gift line states the ceiling in dollars, from cents", () => {
+  assert.match(planOf({ scheduleMode: "campaign_date", giftType: "curated", tierCents: 7500 }).gift, /\$75/);
+  assert.match(planOf({ scheduleMode: "campaign_date", giftType: "none" }).gift, /no gift/i);
+});
+
+test("E5: an empty audience says so rather than claiming nobody is a plan", () => {
+  assert.match(planOf({ scheduleMode: "campaign_date" }, { recipientCount: 0 }).who, /nobody yet/i);
+  assert.equal(planOf({ scheduleMode: "campaign_date" }, { recipientCount: 1 }).who, "1 contact");
+  assert.equal(planOf({ scheduleMode: "campaign_date" }, { recipientCount: 3 }).who, "3 contacts");
+});
+
+test("E5: the status line reflects the switch", () => {
+  assert.match(planOf({ scheduleMode: "campaign_date" }, { enabled: true }).state, /switched on/i);
+  assert.match(planOf({ scheduleMode: "campaign_date" }, { enabled: false }).state, /nothing will send/i);
+});
+
+test("E5: a day is formatted, and nonsense is never formatted into a date", () => {
+  assert.equal(formatLocalDay("2026-12-15T09:00"), "15 December");
+  assert.equal(formatLocalDay("2026-01-05T09:00"), "5 January");
+  for (const bad of ["", null, "not-a-date", "2026-13-01T09:00"]) {
+    assert.match(formatLocalDay(bad), /no date chosen/i, JSON.stringify(bad));
   }
 });
 

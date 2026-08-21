@@ -82,7 +82,47 @@ const campaign = (over = {}) => ({
 });
 
 // ══ contact tiles ═══════════════════════════════════════════════════════════════════════════
-// ══ SLICE E5 — the seasonal nudge ════════════════════════════════════════════════════════════
+// ══ SLICE E5 — the information panel ═════════════════════════════════════════════════════════
+test("E5: the info control reveals what the campaign will do, and hides it again", async () => {
+  const s = await mount(cardEl(
+    { audienceRefs: ["e1", "e2"], deliveryConfig: { scheduleMode: "contact_saved_date", occasionType: "birthday" } },
+    { isOwner: true },
+  ));
+  assert.equal(s.tid("card-info-panel-cmp_1"), null, "closed until asked for");
+
+  await click(s.tid("card-info-cmp_1"));
+  const panel = s.tid("card-info-panel-cmp_1");
+  assert.ok(panel, "the panel opened");
+  assert.equal(s.tid("card-info-cmp_1").getAttribute("aria-expanded"), "true");
+  assert.match(panel.textContent, /every year/i, "the recurrence question is answered outright");
+  assert.match(panel.textContent, /2 contacts/);
+
+  await click(s.tid("card-info-cmp_1"));
+  assert.equal(s.tid("card-info-panel-cmp_1"), null, "and closes again");
+});
+
+test("E5: the panel describes the DRAFT, so it answers what saving would do", async () => {
+  const s = await mount(cardEl({ audienceRefs: [], deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true }));
+  await click(s.tid("card-info-cmp_1"));
+  assert.match(s.tid("card-info-who-cmp_1").textContent, /nobody yet/i);
+
+  // Tick a category — nothing is saved, but the summary must already reflect the intent.
+  await act(async () => { s.q("#c-cmp_1-aud-employee").click(); });
+  assert.match(s.tid("card-info-who-cmp_1").textContent, /2 contacts/, "it tracks the unsaved edit");
+});
+
+test("E5: the info control is a fixed circle the global button rule cannot inflate", async () => {
+  // src/index.css sets padding on the `button` ELEMENT and a 48px min-height on mobile. A
+  // fixed-size icon button has to override that inline or it becomes an oval, then a block.
+  const s = await mount(cardEl());
+  assert.equal(s.tid("card-info-cmp_1").style.padding, "0px", "padding is neutralised inline");
+  const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
+  const block = css.slice(css.indexOf(".gcd-info-btn {"), css.indexOf("}", css.indexOf(".gcd-info-btn {")));
+  assert.match(block, /width:\s*26px/);
+  assert.match(block, /height:\s*26px/);
+});
+
+// ══ SLICE E5 — the seasonal nudge ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 test("E5: an empty date field offers December 15, and applying it does not save", async () => {
   const s = await mount(cardEl({ deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true, todayIso: "2026-08-21" }));
   const apply = s.tid("card-suggest-apply-cmp_1");

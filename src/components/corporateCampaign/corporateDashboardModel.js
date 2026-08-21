@@ -213,6 +213,73 @@ export function suggestedSeasonalDateLocal(todayIso) {
   return `${targetYear}-${SEASONAL_SUGGESTION.monthDay}T09:00`;
 }
 
+// ── what this campaign will actually do ──────────────────────────────────────────────────────
+/**
+ * A plain-language account of a campaign, DERIVED from the draft in front of the reader.
+ *
+ * Every line is computed from state, never written as prose, so the panel cannot drift out of
+ * step with the settings it sits beside. It reads the DRAFT rather than the saved campaign, so
+ * while there are unsaved changes it describes what saving them would do — which is the question
+ * a reader actually has at that moment.
+ *
+ * It answers the recurrence question explicitly. Both schedule shapes now repeat annually, and
+ * "every year" is the single fact most likely to be assumed wrongly in either direction.
+ */
+export function describeCampaignPlan({ draft, recipientCount = 0, orgName, enabled = true } = {}) {
+  const d = draft || {};
+  const rows = [];
+
+  rows.push({
+    key: "who",
+    label: "Who",
+    value: recipientCount === 0
+      ? "Nobody yet — choose an audience."
+      : `${recipientCount} ${recipientCount === 1 ? "contact" : "contacts"}`,
+  });
+
+  if (d.scheduleMode === "contact_saved_date") {
+    const occasion = String(d.occasionType || "").replace(/-/g, " ") || "occasion";
+    rows.push({ key: "when", label: "When", value: `On each contact's ${occasion} — every year.` });
+  } else if (d.scheduledForLocal) {
+    rows.push({ key: "when", label: "When", value: `${formatLocalDay(d.scheduledForLocal)} — every year.` });
+  } else {
+    rows.push({ key: "when", label: "When", value: "No date chosen yet." });
+  }
+
+  rows.push({
+    key: "gift",
+    label: "Gift",
+    value: d.giftType === "curated"
+      ? `Let Greet-Me\u2122 select, up to ${centsToDisplay(d.tierCents)} per person.`
+      : "No gift — the greeting on its own.",
+  });
+
+  // The organization signs it, not the person who happened to set it up. Named here because it is
+  // the detail most often assumed wrongly, and it is not visible anywhere else on the card.
+  rows.push({ key: "from", label: "From", value: orgName ? `${orgName}` : "Your organization" });
+
+  rows.push({
+    key: "state",
+    label: "Status",
+    value: enabled
+      ? "Switched on. It will keep sending until you switch it off."
+      : "Switched off. Nothing will send.",
+  });
+
+  return rows;
+}
+
+/** "15 December" from the datetime-local shape, without importing a date library. */
+export function formatLocalDay(local) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(local || ""));
+  if (!m) return "No date chosen yet.";
+  const MONTHS = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"];
+  const month = MONTHS[Number(m[2]) - 1];
+  if (!month) return "No date chosen yet.";
+  return `${Number(m[3])} ${month}`;
+}
+
 // ── overlapping audiences ────────────────────────────────────────────────────────────────────
 /**
  * Contacts who would receive more than one campaign.
