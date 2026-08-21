@@ -24,9 +24,11 @@
 // ABSENCE of a category, not another one, and inventing a tile for it would imply a classification
 // that was never made.
 export const CONTACT_CATEGORIES = Object.freeze([
-  { key: "employee", label: "Employees", description: "Employees, personnel, departments, and workplace contacts." },
-  { key: "client", label: "Clients", description: "Clients, customers, companies, and important customer contacts." },
-  { key: "vendor", label: "Vendors", description: "Vendors, suppliers, service providers, and business partners." },
+  // SLICE E5 - `abbr` is the at-a-glance tag shown beside a name wherever a mixed roster appears.
+  // Three letters, because two ("EM"/"CL"/"VE") read as truncation rather than as a code.
+  { key: "employee", label: "Employees", abbr: "EMP", description: "Employees, personnel, departments, and workplace contacts." },
+  { key: "client", label: "Clients", abbr: "CLI", description: "Clients, customers, companies, and important customer contacts." },
+  { key: "vendor", label: "Vendors", abbr: "VND", description: "Vendors, suppliers, service providers, and business partners." },
 ]);
 
 const CATEGORY_KEYS = Object.freeze(CONTACT_CATEGORIES.map((c) => c.key));
@@ -135,6 +137,17 @@ export function selectedCountsByCategory(contacts, audienceRefs) {
 export function contactCategoryLabel(contact) {
   const found = CONTACT_CATEGORIES.find((c) => c.key === (contact && contact.corporateContactType));
   return found ? found.label.replace(/s$/, "") : "Unclassified";
+}
+
+// SLICE E5 - the same fact as contactCategoryLabel, compressed to a tag.
+//
+// An unclassified contact gets an em dash, NOT a three-letter code. Inventing "UNC" would make the
+// absence of a category look like a fourth category, which is the one thing this surface has been
+// careful never to imply. The full word still travels with it as a title/aria-label, so the tag is
+// a convenience for the eye and never the only way to know what a row is.
+export function contactCategoryAbbr(contact) {
+  const found = CONTACT_CATEGORIES.find((c) => c.key === (contact && contact.corporateContactType));
+  return found ? found.abbr : "\u2014";
 }
 
 // ── gift capability ──────────────────────────────────────────────────────────────────────────

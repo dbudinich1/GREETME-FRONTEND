@@ -219,9 +219,46 @@
 
 /* ── contact tiles ────────────────────────────────────────────────────────────────────────── */
 .gcd-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+
+/* SLICE E5 - the contact-type tag.
+   Uppercase and set on its own ground so it reads as a code rather than as part of the name.
+   Colour DISTINGUISHES but never carries the meaning alone - the full word is always present as a
+   title, and spelled out beneath the name in the picker. */
+.gcd-abbr {
+  display: inline-block; flex: 0 0 auto;
+  min-width: 34px; padding: 2px 6px; margin-right: 8px;
+  border-radius: 6px; border: 1px solid var(--gcd-line-strong);
+  font-size: .62rem; font-weight: 800; letter-spacing: .06em;
+  text-align: center; text-transform: uppercase;
+  color: var(--gcd-muted); background: rgba(27, 24, 48, .04);
+  vertical-align: baseline;
+}
+.gcd-abbr--employee { color: var(--gcd-purple-deep); background: rgba(109, 92, 240, .10); border-color: rgba(109, 92, 240, .28); }
+.gcd-abbr--client   { color: var(--gcd-good);        background: rgba(31, 157, 107, .10); border-color: rgba(31, 157, 107, .30); }
+.gcd-abbr--vendor   { color: var(--gcd-warn);        background: rgba(214, 145, 16, .12); border-color: rgba(214, 145, 16, .34); }
+
+/* SLICE E5 - the inline roster a tile opens.
+   Capped and scrollable, so opening a category holding four hundred people does not push the page
+   into next week; the cap is generous enough that most organizations never meet it. */
+.gcd-roster {
+  list-style: none; margin: 10px 0 0; padding: 8px 0 0;
+  border-top: 1px solid var(--gcd-line);
+  max-height: 190px; overflow-y: auto; scrollbar-width: thin;
+}
+.gcd-roster-row {
+  display: flex; align-items: center; gap: 2px;
+  padding: 5px 2px; font-size: .8rem; line-height: 1.3;
+  border-bottom: 1px solid var(--gcd-line);
+}
+.gcd-roster-row:last-child { border-bottom: none; }
+.gcd-roster-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gcd-roster-empty { padding: 8px 2px; font-size: .78rem; color: var(--gcd-faint); line-height: 1.4; }
 .gcd-tile {
   background: linear-gradient(180deg, #ffffff 0%, #fbfaff 100%);
-  border: 1px solid var(--gcd-line-strong); border-radius: 16px; padding: 18px 18px 16px;
+  /* SLICE E5 - thicker. These read as the substantial objects they are rather than as list
+     items with a border drawn round them. Height already matches across the row: the grid
+     stretches them and `margin-top: auto` on .gcd-tile-actions pins each footer to the bottom. */
+  border: 1px solid var(--gcd-line-strong); border-radius: 16px; padding: 22px 22px 20px;
   box-shadow: 0 1px 2px rgba(27, 24, 48, .04);
   display: flex; flex-direction: column; gap: 8px;
   transition: box-shadow .18s ease, border-color .18s ease;

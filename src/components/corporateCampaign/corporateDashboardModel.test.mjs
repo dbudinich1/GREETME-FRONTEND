@@ -22,6 +22,7 @@ import {
   deriveCampaignStatus,
   isCampaignEnabled,
   deriveAudienceSelection,
+  contactCategoryAbbr,
   buildCampaignDraft,
   draftFingerprint,
   deriveActions,
@@ -324,6 +325,31 @@ test("every action is always present, and a disabled one always explains why", (
   for (const a of Object.values(actions)) {
     assert.equal(typeof a.label, "string");
     if (!a.enabled) assert.ok(a.reason && a.reason.length > 0, `${a.key} must explain itself`);
+  }
+});
+
+// ══ SLICE E5 — contact-type tags ═════════════════════════════════════════════════════════════
+test("E5: each category has a distinct three-letter tag", () => {
+  const abbrs = CONTACT_CATEGORIES.map((c) => c.abbr);
+  assert.deepEqual(abbrs, ["EMP", "CLI", "VND"]);
+  assert.equal(new Set(abbrs).size, 3, "a tag that repeats distinguishes nothing");
+  for (const a of abbrs) assert.equal(a.length, 3, "two letters read as truncation, not a code");
+});
+
+test("E5: an unclassified contact gets a dash, never a fourth code", () => {
+  // "UNC" would make the ABSENCE of a category look like another category — the one thing this
+  // surface has been careful never to imply.
+  assert.equal(contactCategoryAbbr({ corporateContactType: null }), "\u2014");
+  assert.equal(contactCategoryAbbr({}), "\u2014");
+  assert.equal(contactCategoryAbbr(null), "\u2014");
+  assert.equal(contactCategoryAbbr({ corporateContactType: "partner" }), "\u2014", "an unknown type is not guessed at");
+});
+
+test("E5: the tag and the full label always describe the same contact", () => {
+  for (const cat of CONTACT_CATEGORIES) {
+    const c = { corporateContactType: cat.key };
+    assert.equal(contactCategoryAbbr(c), cat.abbr);
+    assert.equal(contactCategoryLabel(c), cat.label.replace(/s$/, ""));
   }
 });
 

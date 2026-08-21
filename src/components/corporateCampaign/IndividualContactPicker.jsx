@@ -11,7 +11,7 @@
 // stays a single ref. Saving PUTs the deduplicated list through the EXISTING audience endpoint.
 
 import { useMemo, useState } from "react";
-import { contactCategoryLabel } from "./corporateDashboardModel.js";
+import { contactCategoryLabel, contactCategoryAbbr } from "./corporateDashboardModel.js";
 import "./premiumDashboard.css";
 
 export default function IndividualContactPicker({ contacts, orgId, campaign, client, onClose, onSaved }) {
@@ -67,7 +67,16 @@ export default function IndividualContactPicker({ contacts, orgId, campaign, cli
                 <input id={`pick-${c.id}`} type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
                 <span className="gcd-dot" aria-hidden="true" />
                 <span className="gcd-bubble-text">
-                  <span className="gcd-bubble-label">{c.name}</span>
+                  <span className="gcd-bubble-label">
+                    {/* SLICE E5 - the tag, on the ONE list that genuinely mixes categories. The
+                        full descriptor stays directly beneath it, so the tag never has to be
+                        decoded and an unclassified row still reads as unclassified. */}
+                    <span className={`gcd-abbr gcd-abbr--${c.corporateContactType || "none"}`}
+                      data-testid={`pick-${c.id}-abbr`} title={contactCategoryLabel(c)} aria-hidden="true">
+                      {contactCategoryAbbr(c)}
+                    </span>
+                    {c.name}
+                  </span>
                   {/* Neutral descriptor. An unclassified contact is never labelled Employee. */}
                   <span className="gcd-bubble-note" data-testid={`pick-${c.id}-category`}>{contactCategoryLabel(c)}</span>
                 </span>

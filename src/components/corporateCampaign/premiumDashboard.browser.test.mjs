@@ -82,6 +82,61 @@ const campaign = (over = {}) => ({
 });
 
 // ══ contact tiles ═══════════════════════════════════════════════════════════════════════════
+// ══ SLICE E5 — three CTAs and the inline roster ══════════════════════════════════════════════
+test("E5: every tile offers Manage, Import and Add", async () => {
+  const s = await mount(React.createElement(ContactTiles, { contacts: CONTACTS }));
+  for (const k of ["employee", "client", "vendor"]) {
+    assert.ok(s.tid(`tile-${k}-manage`), `${k} manage`);
+    assert.ok(s.tid(`tile-${k}-import`), `${k} import`);
+    assert.ok(s.tid(`tile-${k}-add`), `${k} add`);
+  }
+});
+
+test("E5: Manage opens that category's roster, and only that one", async () => {
+  const s = await mount(React.createElement(ContactTiles, { contacts: CONTACTS }));
+  assert.equal(s.tid("tile-employee-roster"), null, "closed until asked for");
+
+  await click(s.tid("tile-employee-manage"));
+  const roster = s.tid("tile-employee-roster");
+  assert.ok(roster, "the roster opened");
+  assert.equal(roster.querySelectorAll("li").length, 2, "both employees, and nobody else");
+  assert.equal(s.tid("tile-client-roster"), null, "one category at a time");
+  assert.equal(s.tid("tile-employee-manage").getAttribute("aria-expanded"), "true");
+
+  await click(s.tid("tile-employee-manage"));
+  assert.equal(s.tid("tile-employee-roster"), null, "and it closes again");
+});
+
+test("E5: each roster row carries its contact-type tag", async () => {
+  const s = await mount(React.createElement(ContactTiles, { contacts: CONTACTS }));
+  await click(s.tid("tile-employee-manage"));
+  const tags = [...s.tid("tile-employee-roster").querySelectorAll(".gcd-abbr")];
+  assert.equal(tags.length, 2);
+  for (const t of tags) {
+    assert.equal(t.textContent, "EMP");
+    // Colour is never the only carrier: the full word travels with the tag.
+    assert.equal(t.getAttribute("title"), "Employee");
+  }
+});
+
+test("E5: an empty category says so rather than showing an empty box", async () => {
+  const s = await mount(React.createElement(ContactTiles, { contacts: [{ id: "e1", name: "Ann", corporateContactType: "employee" }] }));
+  await click(s.tid("tile-vendor-manage"));
+  assert.match(s.tid("tile-vendor-roster").textContent, /nobody in this category yet/i);
+});
+
+test("E5: Manage does NOT navigate — the personal contacts page is a different roster", async () => {
+  // /dashboard/contacts reads the PERSONAL partition; these contacts live under the organization
+  // with contactScope "corporate". Sending a reader there would show them the wrong people.
+  const raw = readFileSync(new URL("./GreetingAutomationCampaigns.jsx", import.meta.url), "utf8");
+  // Strip comments first: the file EXPLAINS why it does not navigate there, and prose describing
+  // the trap must not read as the trap itself.
+  const src = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.equal(/onManage=/.test(src), false, "the tile owns this interaction");
+  assert.equal(/goTo\([^)]*dashboard\/contacts/.test(src), false, "nothing routes to the personal page");
+  assert.equal(/pickerCategory/.test(src), false, "the dead state that made it a no-op is gone");
+});
+
 test("D: exactly three contact tiles, counted from the persisted classification", async () => {
   const s = await mount(React.createElement(ContactTiles, { contacts: CONTACTS }));
   assert.equal(s.qa("[data-testid^='tile-'][data-testid$='-count']").length, 3, "three tiles, no fourth");

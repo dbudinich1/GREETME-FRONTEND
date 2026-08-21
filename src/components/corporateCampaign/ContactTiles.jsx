@@ -14,6 +14,7 @@
 // can — the import wizard classifies contacts it imports; it cannot reclassify one that already
 // exists, and pretending otherwise would be a button that lies.
 
+import { useState } from "react";
 import {
   CONTACT_CATEGORIES,
   bucketContactsByCategory,
@@ -22,9 +23,13 @@ import {
 } from "./corporateDashboardModel.js";
 import "./premiumDashboard.css";
 
-export default function ContactTiles({ contacts, loading = false, onManage, onAddCategory, onSelectIndividual }) {
+export default function ContactTiles({ contacts, loading = false, onManage, onAddCategory, onImportCategory, onSelectIndividual }) {
   const bucket = bucketContactsByCategory(contacts);
   const notice = unclassifiedNotice(bucket);
+
+  // SLICE E5 - which category has its roster open. One at a time: three open lists would push the
+  // campaigns panel off-screen, which is the thing the tiles sit beneath in the first place.
+  const [openCategory, setOpenCategory] = useState(null);
 
   return (
     <section className="gcd-panel" data-testid="contact-tiles-panel" aria-labelledby="gcd-contacts-head">
@@ -40,6 +45,7 @@ export default function ContactTiles({ contacts, loading = false, onManage, onAd
           {CONTACT_CATEGORIES.map((cat) => {
             const rows = bucket.byCategory[cat.key];
             const recent = rows.slice(0, 2).map((c) => c.name).join(", ");
+            const open = openCategory === cat.key;
             return (
               <article className="gcd-tile" key={cat.key} data-testid={`tile-${cat.key}`} aria-labelledby={`tile-${cat.key}-name`}>
                 <h3 className="gcd-tile-name" id={`tile-${cat.key}-name`}>{cat.label}</h3>
@@ -53,9 +59,20 @@ export default function ContactTiles({ contacts, loading = false, onManage, onAd
                     : `Most recent: ${recent}${rows.length > 2 ? ` +${rows.length - 2} more` : ""}`}
                 </p>
                 <div className="gcd-tile-actions">
+                  {/* SLICE E5 - MANAGE shows who is actually in this category, inline.
+                      It deliberately does NOT navigate to /dashboard/contacts: that page reads the
+                      PERSONAL contact partition, while these live under the organization with
+                      contactScope "corporate". Sending a reader there would show them a different
+                      roster and let them believe it was this one. Until a corporate contacts page
+                      exists, the honest thing this button can do is show the list it already has. */}
                   <button type="button" className="gcd-btn" data-testid={`tile-${cat.key}-manage`}
-                    onClick={() => onManage && onManage(cat.key)}>
-                    Manage
+                    aria-expanded={open} aria-controls={`tile-${cat.key}-roster`}
+                    onClick={() => { setOpenCategory(open ? null : cat.key); if (onManage) onManage(cat.key); }}>
+                    {open ? "Hide" : "Manage"}
+                  </button>
+                  <button type="button" className="gcd-btn" data-testid={`tile-${cat.key}-import`}
+                    onClick={() => (onImportCategory || onAddCategory) && (onImportCategory || onAddCategory)(cat.key)}>
+                    Import
                   </button>
                   {/* Opens the EXISTING import wizard with this category preselected — never a second form. */}
                   <button type="button" className="gcd-btn gcd-btn--primary" data-testid={`tile-${cat.key}-add`}
@@ -63,6 +80,22 @@ export default function ContactTiles({ contacts, loading = false, onManage, onAd
                     {`Add ${cat.label.replace(/s$/, "")}`}
                   </button>
                 </div>
+
+                {open ? (
+                  <ul className="gcd-roster" id={`tile-${cat.key}-roster`} data-testid={`tile-${cat.key}-roster`}>
+                    {rows.length === 0 ? (
+                      <li className="gcd-roster-empty">Nobody in this category yet. Add or import to get started.</li>
+                    ) : rows.map((c) => (
+                      <li className="gcd-roster-row" key={c.id} data-testid={`roster-${c.id}`}>
+                        {/* The tag is a convenience for the eye; the full word rides along for
+                            anyone reading with assistive technology or hovering. */}
+                        <span className={`gcd-abbr gcd-abbr--${cat.key}`} title={cat.label.replace(/s$/, "")}
+                          aria-label={cat.label.replace(/s$/, "")}>{cat.abbr}</span>
+                        <span className="gcd-roster-name">{c.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </article>
             );
           })}

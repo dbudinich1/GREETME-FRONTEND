@@ -96,7 +96,6 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
   const [contacts, setContacts] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [pickerCampaign, setPickerCampaign] = useState(null);
-  const [pickerCategory, setPickerCategory] = useState(null);
   // Fails closed: nobody is treated as the owner until the server says so on a successful list.
   const [isOwnerViewer, setIsOwnerViewer] = useState(false);
   // SLICE E3 — the backend's execution interlock, published on the campaign list. Fails closed for
@@ -346,14 +345,22 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
           </div>
         </section>
 
-        {/* B — CONTACT TILES: Employees / Clients / Vendors, always visible beneath the viewport. */}
+        {/* B — CONTACT TILES: Employees / Clients / Vendors, always visible beneath the viewport.
+
+            SLICE E5 - Manage is handled INSIDE the tile, which opens its own roster inline. It is
+            deliberately NOT routed to /dashboard/contacts: that page reads the PERSONAL contact
+            partition, while these contacts live under the organization with contactScope
+            "corporate". Navigating there would show a different roster and let a reader believe it
+            was this one. The dead `pickerCategory` state this used to set is gone - it was written
+            and never read, so the button did nothing at all. */}
         <ContactTiles
           contacts={contacts}
           loading={loadingContacts}
-          onManage={(key) => setPickerCategory(key)}
           onAddCategory={(key) => {
-            // The EXISTING import wizard, with the existing category preselected. Never a second form.
-            // The EXISTING import wizard route, with this category preselected.
+            // The EXISTING import wizard route, with this category carried in the URL.
+            goTo(`/dashboard/import-wizard?mode=corporate&category=${encodeURIComponent(key)}`);
+          }}
+          onImportCategory={(key) => {
             goTo(`/dashboard/import-wizard?mode=corporate&category=${encodeURIComponent(key)}`);
           }}
           onSelectIndividual={() => setPickerCampaign(rows.length ? rows[0].campaign : null)}
