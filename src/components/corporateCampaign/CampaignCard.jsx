@@ -28,9 +28,9 @@ import {
   buildCampaignDraft,
   draftFingerprint,
   SEASONAL_SUGGESTION,
+  describeSchedule,
   suggestedSeasonalDateLocal,
   describeCampaignPlan,
-  selectorSummaries,
   rankActions,
   OWNER_ONLY_MESSAGE,
   EXECUTION_DORMANT_MESSAGE,
@@ -96,15 +96,11 @@ export default function CampaignCard({
     setSyncedKey(persistedKey);
   }
 
-  // Which of the three selectors has its detail panel open. One at a time: two open panels would
-  // push the schedule and the actions off the bottom of the viewport.
-  const [openSelector, setOpenSelector] = useState(null);
   // Inline rename.
   const [showInfo, setShowInfo] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [spreadSource, setSpreadSource] = useState("organization_default");
-  const [showSpreadEditor, setShowSpreadEditor] = useState(false);
   const [message, setMessage] = useState(null);
   const [pending, setPending] = useState(null);
 
@@ -117,6 +113,8 @@ export default function CampaignCard({
   // Computed from a date the caller supplies rather than the clock, so the card renders the same
   // way in a test as it does in December.
   const suggestion = suggestedSeasonalDateLocal(todayIso);
+  // Which schedule shape this campaign uses, read from what is persisted.
+  const sched = describeSchedule(campaign, draft);
 
   // One source for the displayed name, shared by the header and the rail so they can never drift.
   const campaignLabel = campaign.name || "Untitled campaign";
@@ -282,9 +280,6 @@ export default function CampaignCard({
 
   const disabledNote = (a) => (a.enabled ? null : a.reason);
 
-  // ── SLICE F1 — the three permanent selector summaries ──────────────────────────────────────
-  const spreadLabel = (SPREAD_SOURCES.find((x) => x.value === spreadSource) || {}).label;
-  const summaries = selectorSummaries({ draft, recipientCount: draftRefs.length, spreadLabel });
   const ranked = rankActions(actions, { scheduleMode: draft.scheduleMode });
 
   // Every lifecycle action still exists in `actions`; this only decides where each one is placed.
@@ -341,19 +336,19 @@ export default function CampaignCard({
         </div>
 
         <div className="gcd-tile-meta">
-          {campaign.campaignType ? (
-            <span className="gcd-tile-type" data-testid={`card-type-${campaign.campaignId}`}>{campaign.campaignType}</span>
-          ) : null}
-          <span className={`gcd-status gcd-status--${status.tone}`} data-testid={`card-status-${campaign.campaignId}`}>{status.label}</span>
+          {/* SLICE F1C - the lifecycle ceremony is gone from the surface. No Approved chip, no
+              campaign-type label, no On/Off text beside the switch. A reader manages a campaign
+              with two things: whether it is on, and what it is set up to do. The approval and lock
+              records still exist on the server and still govern what may run; they are simply no
+              longer a set of buttons a person is asked to operate. */}
           <label className={`gcd-switch${actions.toggle.enabled ? "" : " gcd-switch--disabled"}`}
-            title={disabledNote(actions.toggle) || `${actions.toggle.nextLabel} ${campaignLabel}`}>
+            title={disabledNote(actions.toggle) || `${enabled ? "Disable" : "Enable"} ${campaignLabel} campaign`}>
             <input type="checkbox" role="switch" checked={enabled}
               data-testid={`card-toggle-${campaign.campaignId}`}
-              aria-label={`${campaignLabel} - ${actions.toggle.nextLabel}`}
+              aria-label={`${enabled ? "Disable" : "Enable"} ${campaignLabel} campaign`}
               disabled={!actions.toggle.enabled || busy || pending === "toggle"}
               onChange={(e) => setEnabled(e.target.checked)} />
             <span className="gcd-switch-track" aria-hidden="true" />
-            <span className="gcd-switch-label" data-testid={`card-toggle-label-${campaign.campaignId}`}>{actions.toggle.label}</span>
           </label>
 
           {/* The information panel is RETAINED. The three selector summaries answer who, what and
@@ -420,123 +415,138 @@ export default function CampaignCard({
             </dl>
           ) : null}
 
-          {/* THE THREE PERMANENT SELECTORS. They stay rendered whatever detail is open beneath
-              them, so choosing an audience never hides what the gift or the spread is set to. */}
-          <div className="gcd-selectors" data-testid={`card-selectors-${campaign.campaignId}`}>
-            {summaries.map((sm) => {
-              const open = openSelector === sm.key;
-              return (
-                <div key={sm.key} className={`gcd-selector${open ? " gcd-selector--open" : ""}`}
-                  data-testid={`selector-${sm.key}-${campaign.campaignId}`}>
-                  <span className="gcd-selector-icon" aria-hidden="true">{sm.icon}</span>
-                  <span className="gcd-selector-title">{sm.title}</span>
-                  <span className="gcd-selector-value" data-testid={`selector-${sm.key}-value-${campaign.campaignId}`}>{sm.value}</span>
-                  <span className="gcd-selector-hint">{sm.hint}</span>
-                  <button type="button" className="gcd-btn gcd-selector-cta"
-                    data-testid={`selector-${sm.key}-cta-${campaign.campaignId}`}
-                    aria-expanded={open} aria-controls={uid(`detail-${sm.key}`)}
-                    onClick={() => setOpenSelector(open ? null : sm.key)}>
-                    {open ? "Done" : "Change"}
-                  </button>
+          {/* ══ THE CONFIGURATION WORKSPACE ══════════════════════════════════════════════════
+              Three COMPLETE cards, side by side, every option visible at once.
+
+              There is deliberately no Change/Done step in front of these choices. A summary that
+              hides its own options makes a reader click to discover what a control even offers,
+              and only one of the three could be seen at a time — so comparing "who gets this"
+              against "what do they get" meant closing one to open the other. The bubbles ARE the
+              controls; the cards only group them.
+
+              Only genuinely SECONDARY tools still open on demand: the individual-contact roster,
+              and the saved/custom spread editors. Those reveal content that cannot fit inline,
+              and the primary bubbles stay visible the whole time. */}
+          <div className="gcd-workspace" data-testid={`card-selectors-${campaign.campaignId}`}>
+
+            {/* ── AUDIENCE ─────────────────────────────────────────────────────────────────── */}
+            <section className="gcd-wcard" data-testid={`selector-audience-${campaign.campaignId}`}
+              aria-labelledby={uid("wc-audience")}>
+              <h4 className="gcd-wcard-title" id={uid("wc-audience")}>
+                <span className="gcd-wcard-icon" aria-hidden="true">{"\u{1F465}"}</span>
+                Audience
+              </h4>
+              <BubbleGroup label="Who receives this campaign" testId={uid("audience")}>
+                {CONTACT_CATEGORIES.map((cat) => (
+                  <CategoryBubble
+                    key={cat.key} id={uid(`aud-${cat.key}`)} label={cat.label}
+                    count={counts[cat.key]}
+                    checked={draft.categories.includes(cat.key)}
+                    disabled={locked}
+                    reason={locked ? "Unlock the campaign to change its audience." : null}
+                    onChange={(on) => edit({
+                      categories: on ? [...draft.categories, cat.key] : draft.categories.filter((k) => k !== cat.key),
+                    })}
+                  />
+                ))}
+              </BubbleGroup>
+              {/* The roster itself opens in the existing picker — it is a list of people, not a
+                  choice that fits in a bubble. Its availability and count stay on the card. */}
+              <div className="gcd-wcard-foot">
+                <button type="button" className="gcd-btn" data-testid={`card-individual-${campaign.campaignId}`}
+                  disabled={locked} onClick={() => onOpenIndividualPicker && onOpenIndividualPicker(campaign)}>
+                  Select Individual Contacts
+                </button>
+                <span className="gcd-wcard-note" data-testid={`card-audience-total-${campaign.campaignId}`}>
+                  {draftRefs.length} {draftRefs.length === 1 ? "contact" : "contacts"} selected
+                  {counts.unclassified > 0 ? ` \u00b7 ${counts.unclassified} unclassified` : ""}
+                </span>
+              </div>
+            </section>
+
+            {/* ── GIFT OPTIONS ─────────────────────────────────────────────────────────────── */}
+            <section className="gcd-wcard gcd-wcard--gift" data-testid={`selector-gift-${campaign.campaignId}`}
+              aria-labelledby={uid("wc-gift")}>
+              <h4 className="gcd-wcard-title" id={uid("wc-gift")}>
+                <span className="gcd-wcard-icon" aria-hidden="true">{"\u{1F381}"}</span>
+                Gift Options
+              </h4>
+              {/* All four, always. A gift a campaign cannot run is shown DISABLED and KEPT on
+                  screen under its real name - removing it would hide part of the offer. FINAL
+                  POLISH: it no longer carries an explanatory sentence beneath it. Its state is
+                  carried by the radio's own disabled semantics, which assistive technology already
+                  announces, so nothing is communicated by colour alone. */}
+              <BubbleGroup label="What goes with the greeting" role="radiogroup" testId={uid("gift")}>
+                {CORPORATE_GIFT_OPTIONS.map((opt) => {
+                  const state = giftOptionState(opt.value);
+                  return (
+                    <ChoiceBubble
+                      key={opt.value} id={uid(`gift-${opt.value}`)} name={uid("gift-group")} value={opt.value}
+                      label={opt.label} note={state.selectable ? opt.description : null}
+                      reason={state.selectable ? null : state.reason}
+                      checked={draft.giftType === opt.value}
+                      disabled={!state.selectable || locked}
+                      onChange={(v) => edit({ giftType: v })}
+                    />
+                  );
+                })}
+              </BubbleGroup>
+              {draft.giftType === "curated" ? (
+                <div className="gcd-wcard-foot" data-testid={`card-curated-${campaign.campaignId}`}>
+                  <label className="gcd-wcard-field" htmlFor={uid("tier")}>
+                    Spend limit <span className="gcd-wcard-note">(private to you)</span>
+                  </label>
+                  <select id={uid("tier")} value={draft.tierCents} disabled={locked}
+                    onChange={(e) => edit({ tierCents: Number(e.target.value) })} data-testid={`card-tier-${campaign.campaignId}`}>
+                    {CURATED_TIERS_CENTS.map((c) => <option key={c} value={c}>{centsToDisplay(c)}</option>)}
+                  </select>
                 </div>
-              );
-            })}
+              ) : null}
+            </section>
+
+            {/* ── FEATURED SPREAD ──────────────────────────────────────────────────────────── */}
+            <section className="gcd-wcard" data-testid={`selector-spread-${campaign.campaignId}`}
+              aria-labelledby={uid("wc-spread")}>
+              <h4 className="gcd-wcard-title" id={uid("wc-spread")}>
+                <span className="gcd-wcard-icon" aria-hidden="true">{"\u{1F3A8}"}</span>
+                Featured Spread
+              </h4>
+              <BubbleGroup label="How the card looks inside" role="radiogroup" testId={uid("spread")}>
+                {SPREAD_SOURCES.map((sp) => (
+                  <ChoiceBubble key={sp.value} id={uid(`spread-${sp.value}`)} name={uid("spread-group")} value={sp.value}
+                    label={sp.label} note={sp.note} checked={spreadSource === sp.value} disabled={locked}
+                    onChange={(v) => setSpreadSource(v)} />
+                ))}
+              </BubbleGroup>
+              {/* The three choices above stay visible while these secondary tools are in use. */}
+              {spreadSource === "saved_spread" ? (
+                <div className="gcd-wcard-foot" data-testid={`card-spread-saved-${campaign.campaignId}`}>
+                  <span className="gcd-wcard-note">Choose one of your saved spreads.</span>
+                  <CampaignFeaturedSpreadEditor orgId={orgId} campaignId={campaign.campaignId} client={client} />
+                </div>
+              ) : null}
+              {spreadSource === "customize" ? (
+                <div className="gcd-wcard-foot" data-testid={`card-spread-editor-${campaign.campaignId}`}>
+                  {/* The EXISTING Team C editor and the existing featured-spread API — never a second one. */}
+                  <CampaignFeaturedSpreadEditor orgId={orgId} campaignId={campaign.campaignId} client={client} />
+                </div>
+              ) : null}
+            </section>
           </div>
 
-          {/* ONE detail panel, inline, directly beneath the row it belongs to. No modal, no
-              drawer, no route — the three summaries above remain on screen throughout. */}
-          {openSelector ? (
-            <div className={`gcd-detail gcd-detail--${openSelector}`} id={uid(`detail-${openSelector}`)} data-testid={`detail-${openSelector}-${campaign.campaignId}`}>
-
-              {openSelector === "audience" ? (
-                <>
-                  <BubbleGroup label="Audience" testId={uid("audience")}>
-                    {CONTACT_CATEGORIES.map((cat) => (
-                      <CategoryBubble
-                        key={cat.key} id={uid(`aud-${cat.key}`)} label={cat.label}
-                        count={counts[cat.key]}
-                        checked={draft.categories.includes(cat.key)}
-                        disabled={locked}
-                        reason={locked ? "Unlock the campaign to change its audience." : null}
-                        onChange={(on) => edit({
-                          categories: on ? [...draft.categories, cat.key] : draft.categories.filter((k) => k !== cat.key),
-                        })}
-                      />
-                    ))}
-                  </BubbleGroup>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
-                    <button type="button" className="gcd-btn" data-testid={`card-individual-${campaign.campaignId}`}
-                      disabled={locked} onClick={() => onOpenIndividualPicker && onOpenIndividualPicker(campaign)}>
-                      Select Individual Contacts
-                    </button>
-                    <span className="gcd-bubble-note" data-testid={`card-audience-total-${campaign.campaignId}`}>
-                      {draftRefs.length} {draftRefs.length === 1 ? "contact" : "contacts"} selected
-                      {counts.unclassified > 0 ? ` \u00b7 ${counts.unclassified} unclassified` : ""}
-                    </span>
-                  </div>
-                </>
-              ) : null}
-
-              {openSelector === "gift" ? (
-                <>
-                  <BubbleGroup label="Gift Options" role="radiogroup" testId={uid("gift")}>
-                    {CORPORATE_GIFT_OPTIONS.map((opt) => {
-                      const state = giftOptionState(opt.value);
-                      return (
-                        <ChoiceBubble
-                          key={opt.value} id={uid(`gift-${opt.value}`)} name={uid("gift-group")} value={opt.value}
-                          label={opt.label} note={state.selectable ? opt.description : null}
-                          reason={state.selectable ? null : state.reason}
-                          checked={draft.giftType === opt.value}
-                          disabled={!state.selectable || locked}
-                          onChange={(v) => edit({ giftType: v })}
-                        />
-                      );
-                    })}
-                  </BubbleGroup>
-                  {draft.giftType === "curated" ? (
-                    <div className="gcd-fields" data-testid={`card-curated-${campaign.campaignId}`} style={{ marginTop: 10 }}>
-                      <div className="gcd-field">
-                        <label htmlFor={uid("tier")}>Spend limit <span style={{ fontWeight: 400, color: "#928ea8" }}>(private to you)</span></label>
-                        <select id={uid("tier")} value={draft.tierCents} disabled={locked}
-                          onChange={(e) => edit({ tierCents: Number(e.target.value) })} data-testid={`card-tier-${campaign.campaignId}`}>
-                          {CURATED_TIERS_CENTS.map((c) => <option key={c} value={c}>{centsToDisplay(c)}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                  ) : null}
-                </>
-              ) : null}
-
-              {openSelector === "spread" ? (
-                <>
-                  <BubbleGroup label="Which featured spread style do you prefer?" role="radiogroup" testId={uid("spread")}>
-                    {SPREAD_SOURCES.map((sp) => (
-                      <ChoiceBubble key={sp.value} id={uid(`spread-${sp.value}`)} name={uid("spread-group")} value={sp.value}
-                        label={sp.label} note={sp.note} checked={spreadSource === sp.value} disabled={locked}
-                        onChange={(v) => { setSpreadSource(v); if (v === "customize") setShowSpreadEditor(true); }} />
-                    ))}
-                  </BubbleGroup>
-                  {showSpreadEditor ? (
-                    <div style={{ marginTop: 12 }} data-testid={`card-spread-editor-${campaign.campaignId}`}>
-                      <CampaignFeaturedSpreadEditor orgId={orgId} campaignId={campaign.campaignId} client={client} />
-                    </div>
-                  ) : null}
-                </>
-              ) : null}
-            </div>
-          ) : null}
-
           {/* ── SCHEDULE — unchanged modes and payload, kept beneath the selector area ───────── */}
-          <BubbleGroup label="Schedule" role="radiogroup" testId={uid("schedule")}>
-            {SCHEDULE_MODES.map((m) => (
-              <ChoiceBubble key={m.value} id={uid(`mode-${m.value}`)} name={uid("mode-group")} value={m.value}
-                label={m.label} note={m.description} checked={draft.scheduleMode === m.value} disabled={locked}
-                onChange={(v) => edit({ scheduleMode: v })} />
-            ))}
-          </BubbleGroup>
+          {/* SLICE F1C - the schedule shape follows the CAMPAIGN, not a question put to the
+              reader. A seasonal campaign sends on one date; a milestone or birthday campaign
+              sends on each contact's own saved date. Offering both invited someone to pick the
+              mode that cannot work for their campaign, then wonder why it reached nobody.
+              `deliveryConfig.scheduleMode` remains the authority - this reads it, and no backend
+              scheduling semantics changed. */}
+          <div className="gcd-section" data-testid={uid("schedule")}>
+            <p className="gcd-section-label">{sched.heading}</p>
+            <p className="gcd-sched-summary" data-testid={`card-sched-summary-${campaign.campaignId}`}>{sched.summary}</p>
+          </div>
           <div className="gcd-fields" style={{ marginTop: 10 }}>
-            {draft.scheduleMode === "campaign_date" ? (
+            {sched.showSharedDate ? (
               <div className="gcd-field">
                 <label htmlFor={uid("when")}>Send date and time</label>
                 <input id={uid("when")} type="datetime-local" value={draft.scheduledForLocal} disabled={locked}
@@ -578,24 +588,25 @@ export default function CampaignCard({
             role="group" aria-label={`Actions for ${campaignLabel} \u2014 ${status.label}`}>
             {dirty ? (
               <p className="gcd-dirty" data-testid={`card-dirty-${campaign.campaignId}`} role="status">
-                Unsaved changes \u2014 nothing is sent until you save.
+                Unsaved changes - nothing is sent until you save.
               </p>
             ) : null}
             {/* WHOSE actions these are. The banner can scroll out of view above a long expanded
                 body, and unlabelled buttons over someone else's settings is how a reader acts on
                 the wrong campaign. */}
             <span className="gcd-actions-id" data-testid={`rail-context-${campaign.campaignId}`}
-              title={`${campaignLabel} · ${status.label}`}>
+              title={campaignLabel}>
               <span className="gcd-actions-id-name">{campaignLabel}</span>
-              <span className="gcd-actions-id-sep" aria-hidden="true">·</span>
-              <span className={`gcd-actions-id-status gcd-actions-id-status--${status.tone}`}>{status.label}</span>
             </span>
             {/* The editor: always present, enabled by whether anything changed. */}
             {actionButton("save", dirty)}
-            {ranked.primary ? actionButton(ranked.primary, true) : null}
+            {/* SLICE F1C - Save and Cancel are the only actions a reader operates. Approve,
+                Lock, Unlock, Schedule and Activate are no longer buttons: the founder's contract
+                is that saving configures a campaign and the switch turns it on. Those records
+                still exist server-side and still govern what may run - `deriveActions` and
+                `rankActions` still compute all of them, and the API methods are untouched - they
+                are simply not a ceremony a person is asked to perform. */}
             {/* The blocked next step, rendered DISABLED so its reason is on screen. */}
-            {ranked.blockedNext ? actionButton(ranked.blockedNext, false) : null}
-            {ranked.secondary.map((k) => actionButton(k, false))}
             {/* Always present, disabled when there is nothing to discard. A button that appears
                 and vanishes as you type moves the row under the pointer; a steady one that is
                 simply inert is calmer and keeps the rail a fixed shape. */}

@@ -154,11 +154,45 @@ export function contactCategoryAbbr(contact) {
 // Sourced from the same vocabulary the personal selector uses. Gift Card is absent because it does
 // not exist as a type anywhere in the system — it is not "disabled", it is simply not a thing.
 //
-// QR Cash and Greet-Me Gifts stay VISIBLE and non-selectable: both are real, fully purchasable
-// gifts that a person can buy today. What does not exist is a way for a campaign to fund one
-// unattended — so the honest words are "Individual funding required", never "unavailable",
-// "unsupported", "not offered", or "coming soon", each of which would be false.
-export const GIFT_CAPABILITY_REASON = "Individual funding required";
+// QR Cash and Greet-Me Gifts stay VISIBLE and non-selectable. The capability contract is
+// unchanged and still comes from the backend: services/corporateCampaign/deliveryConfig.js holds
+// CORPORATE_AUTOMATABLE_GIFT_TYPES = ["curated"] as the only type a campaign may execute on its own.
+//
+// FINAL POLISH — the surface no longer prints an explanatory sentence beneath the two that a
+// campaign cannot run. The founder's direction is that the sentence goes and is NOT replaced by an
+// equivalent one, so this returns no reason text at all. Nothing about the contract softened: the
+// options keep their real names, keep their bubbles, and remain disabled, which the platform
+// communicates through the radio's own `disabled` state rather than through prose.
+
+// ── F1C ADDENDUM — the standing note about gifts and payment ────────────────────────
+//
+// One quiet, permanent line beneath the campaign list. It is NOT a warning: nothing here is wrong,
+// nothing is blocked, and no acknowledgement is asked for. It exists so that a reader configuring a
+// gift campaign learns the payment requirement while they are calm and have time to act, rather
+// than at the moment a send is refused.
+//
+// It stands whether or not the campaigns on screen include a gift, because the fact it states is
+// about the account, not about any one campaign, and because a note that appears and disappears as
+// cards change reads as an alert.
+//
+// THE LINK IS VERIFIED, NOT ASSUMED. Trace, checked before it was written:
+//   • src/App.jsx:170            — <Route path="settings" element={<Settings />} /> under /dashboard
+//   • src/App.jsx:131            — the app mounts a HashRouter, so the href is "#/dashboard/settings"
+//   • pages/Settings.jsx         — handleManageBilling POSTs /api/payments/portal-session and sends
+//                                   the reader to the returned Stripe portal URL
+//   • routes/paymentRoutes.js:753 — router.post("/portal-session", requireAuth, …) exists server-side
+// One nuance recorded rather than hidden: the "Manage Billing" button inside Settings renders only
+// when `hasBillingRelationship` is true. The ROUTE is real and is the right destination, but a
+// reader with no billing relationship yet will land on a Settings page without that button. That is
+// a gap in Settings, not a dead link here, and it is reported rather than papered over.
+export const GIFT_PAYMENT_DISCLOSURE = Object.freeze({
+  text:
+    "A quick note about gifts: Campaigns with gifts require a valid payment method before they can "
+    + "be enabled. We’ll remind you ahead of each scheduled send if your payment information "
+    + "needs attention.",
+  linkLabel: "Review payment information",
+  linkHref: "#/dashboard/settings",
+});
 
 export const CORPORATE_GIFT_OPTIONS = Object.freeze([
   { value: "none", label: "No gift", description: "A greeting on its own.", automatable: true },
@@ -175,8 +209,11 @@ export const centsToDisplay = (cents) => `$${Math.round(Number(cents) || 0) / 10
 
 export function giftOptionState(value) {
   const opt = CORPORATE_GIFT_OPTIONS.find((o) => o.value === value);
+  // An unknown value is a different case entirely: it names nothing a reader can see, so it stays
+  // non-selectable and keeps its own short label. It is not one of the two real gifts above.
   if (!opt) return { selectable: false, reason: "Not available for campaigns" };
-  return opt.automatable ? { selectable: true, reason: null } : { selectable: false, reason: GIFT_CAPABILITY_REASON };
+  // Selectable or not, no reason text is published for a REAL gift option.
+  return { selectable: Boolean(opt.automatable), reason: null };
 }
 
 // ── schedule modes ───────────────────────────────────────────────────────────────────────────
@@ -414,6 +451,49 @@ export function overlapLine(entry) {
   return `${entry.name} \u2014 ${joined}`;
 }
 
+// ── SLICE F1C — which schedule shape a campaign actually uses ────────────────────────────────
+//
+// A campaign's schedule shape follows from WHAT IT IS, not from a question put to the reader.
+// Season's Greetings happens on one date the organization picks; Employee Milestones and Client
+// Birthdays happen on each contact's own saved date. Asking someone to choose between the two
+// invited them to pick the mode that cannot work for their campaign, and then wonder why nobody
+// was reachable.
+//
+// The persisted `deliveryConfig.scheduleMode` remains the AUTHORITY — this reads it and does not
+// invent new backend semantics. Absent, a campaign falls to a single shared date, which is the
+// mode that needs no per-contact data and therefore can never silently reach nobody.
+export const SCHEDULE_SHAPES = Object.freeze({
+  SHARED_DATE: "campaign_date",
+  CONTACT_DATE: "contact_saved_date",
+});
+
+export function scheduleShapeOf(campaign) {
+  const mode = campaign && campaign.deliveryConfig && campaign.deliveryConfig.scheduleMode;
+  return mode === SCHEDULE_SHAPES.CONTACT_DATE ? SCHEDULE_SHAPES.CONTACT_DATE : SCHEDULE_SHAPES.SHARED_DATE;
+}
+
+/** How to describe the schedule to a reader, in the campaign's own terms. */
+export function describeSchedule(campaign, draft) {
+  const shape = scheduleShapeOf(campaign);
+  if (shape === SCHEDULE_SHAPES.CONTACT_DATE) {
+    const occasion = String((draft && draft.occasionType) || "occasion").replace(/-/g, " ");
+    return {
+      shape,
+      heading: "What should Greet-Me do, and when?",
+      summary: `Sends on each contact's ${occasion} \u2014 every year.`,
+      showSharedDate: false,
+      showOccasion: true,
+    };
+  }
+  return {
+    shape,
+    heading: "What should Greet-Me do, and when?",
+    summary: "Everyone receives it at the same moment, every year.",
+    showSharedDate: true,
+    showOccasion: false,
+  };
+}
+
 // ── status ───────────────────────────────────────────────────────────────────────────────────
 // Backend truth → concise human language. Scheduled and Active are read from the PERSISTED
 // deliveryConfig.status; they are never inferred from a click. No raw enum, no "Ready to send",
@@ -444,15 +524,15 @@ export function deriveCampaignStatus(campaign) {
   // campaign-level pause would therefore have to be a rollup the backend does not compute, and a
   // status derived from a field nothing writes is a label that can only ever be wrong or absent.
   // When a rollup exists, it belongs here; until then the surface says nothing rather than guessing.
-  if (delivery.status === "scheduled") return { key: "scheduled", label: "Scheduled", tone: "good", next: "Sends are scheduled. Nothing further is needed." };
-  if (delivery.status === "active") return { key: "active", label: "Active", tone: "good", next: "Running on each contact’s saved date." };
-  if (c.lockStatus === "locked") return { key: "locked", label: "Locked", tone: "good", next: "Ready for the organization owner to authorize." };
-  if (c.approvalStatus === "approved") return { key: "approved", label: "Approved", tone: "info", next: "Lock the campaign to freeze what will be sent." };
+  if (delivery.status === "scheduled") return { key: "scheduled", label: "Scheduled", tone: "good", next: "Switched on. Sends are scheduled." };
+  if (delivery.status === "active") return { key: "active", label: "Active", tone: "good", next: "Switched on. Running on each contact’s saved date." };
+  if (c.lockStatus === "locked") return { key: "locked", label: "Locked", tone: "good", next: "Ready to switch on." };
+  if (c.approvalStatus === "approved") return { key: "approved", label: "Approved", tone: "info", next: "Ready to switch on." };
   if (!delivery.scheduleMode || delivery.status === "not_configured") {
-    return { key: "needs_setup", label: "Needs setup", tone: "warn", next: "Choose an audience, a gift option, and when it should send." };
+    return { key: "needs_setup", label: "Needs setup", tone: "warn", next: "Choose an audience and when it should send." };
   }
-  if (c.approvalStatus === "changed") return { key: "attention", label: "Attention required", tone: "warn", next: "This campaign changed after approval. Review and approve it again." };
-  return { key: "draft", label: "Draft", tone: "info", next: "Review the details, then approve." };
+  if (c.approvalStatus === "changed") return { key: "attention", label: "Attention required", tone: "warn", next: "Changed since it was last switched on. Save to apply." };
+  return { key: "draft", label: "Draft", tone: "info", next: "Set it up, then switch it on." };
 }
 
 // ── action footer ────────────────────────────────────────────────────────────────────────────

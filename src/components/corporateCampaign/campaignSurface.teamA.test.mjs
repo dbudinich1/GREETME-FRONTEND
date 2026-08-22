@@ -160,7 +160,7 @@ test("corporate video unavailable; approved terminology only; no forbidden impor
   assert.equal(CORPORATE_VIDEO.available, false);
   // SLICE E5 - founder-approved rename. Still an EXACT assertion: the value of this lock is
   // that the surface cannot be renamed by accident, not that it can never be renamed.
-  assert.equal(TERMS.SURFACE, "Greet-Me Automated Campaigns");
+  assert.equal(TERMS.SURFACE, "Automated Greet-Me Campaigns");
   assert.equal(TERMS.CREATE, "Create Greet-Me Automated Campaign");
   const forbidden = [/Greeting Studio/i, /Gift Wizard/i, /Organization Campaigns/i, /Recipient Featured Spread/i, /Fundraising Campaign/i];
   for (const f of forbidden) assert.ok(!f.test(ALL), `forbidden term: ${f}`);
