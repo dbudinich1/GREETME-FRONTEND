@@ -190,12 +190,21 @@ test("cancel closes the form and makes no write", async () => {
   assert.equal(c.calls.createCampaign.length, 0, "no write on cancel");
 });
 
-test("existing campaign shows its type and navigates to detail (server-derived capability, no crash)", async () => {
+test("existing campaign shows its type and expands INLINE (no detail navigation)", async () => {
+  // SLICE F1 - the title is a heading now, not a link. A campaign is configured on its own tile,
+  // so routing to CampaignDetail to read the same facts was the secondary-screen sequence this
+  // redesign removes. Expansion happens in place instead.
   const c = fakeClient({ campaigns: [{ campaignId: "camp_1", name: "Existing", campaignType: "Holiday" }] });
   await mount({ client: c });
   assert.ok(txt().includes("Existing"), "campaign name shown");
   assert.ok(txt().includes("Holiday"), "entered type is displayed");
-  const row = [...document.querySelectorAll("button")].find((b) => b.textContent.includes("Existing"));
-  await click(row);
-  assert.ok(c.calls.readCampaign.length >= 1, "navigated into detail (readCampaign called)");
+  const title = tid("card-title-camp_1");
+  assert.equal(title.tagName, "H3", "a heading, not a link");
+  assert.equal(title.querySelector("a, button"), null, "nothing inside it navigates");
+  const expand = tid("card-expand-camp_1");
+  assert.equal(expand.getAttribute("aria-expanded"), "false");
+  await click(expand);
+  assert.equal(tid("card-expand-camp_1").getAttribute("aria-expanded"), "true", "it expands in place");
+  assert.ok(tid("card-selectors-camp_1"), "the three selectors appear inline");
+  assert.equal(c.calls.readCampaign.length, 0, "and nothing navigated away");
 });

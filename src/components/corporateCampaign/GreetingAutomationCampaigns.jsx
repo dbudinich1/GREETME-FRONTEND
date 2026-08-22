@@ -102,6 +102,10 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
   const [contacts, setContacts] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [pickerCampaign, setPickerCampaign] = useState(null);
+  // SLICE F1 - which campaign is expanded, by CAMPAIGN ID and never by array position. The list
+  // re-sorts and re-fetches; an index would silently expand a different campaign the moment one
+  // was created or removed. Null means all four tiles are collapsed.
+  const [expandedCampaignId, setExpandedCampaignId] = useState(null);
   // Fails closed: nobody is treated as the owner until the server says so on a successful list.
   const [isOwnerViewer, setIsOwnerViewer] = useState(false);
   // SLICE E3 — the backend's execution interlock, published on the campaign list. Fails closed for
@@ -376,7 +380,8 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
                   /* DEFENCE IN DEPTH, not the primary source. The list above is authoritative; this
                      only catches the race where the interlock closes between a load and a click. */
                   onExecutionDormant={() => setCanAuthorizeRun(false)}
-                  onOpenDetail={(cid) => setSelectedCampaignId(cid)}
+                  expanded={expandedCampaignId === r.campaign.campaignId}
+                  onToggleExpanded={(cid) => setExpandedCampaignId((cur) => (cur === cid ? null : cid))}
                   onOpenIndividualPicker={(c) => setPickerCampaign(c)}
                   onAfterMutate={async () => { await loadCampaigns(effectiveOrgId); }}
                 />

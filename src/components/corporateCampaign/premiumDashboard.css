@@ -71,10 +71,17 @@
 
 /* Fixed-height internal scroll: the page never grows with the campaign list. */
 .gcd-scroll {
-  /* Capped so the three contact tiles remain visible beneath the campaigns panel on a desktop
-     screen. The list scrolls internally instead of pushing them out of view. */
-  max-height: min(42vh, 460px);
+  /* SLICE F1 — sized for FOUR collapsed tiles.
+     A collapsed tile is ~104px plus a 12px gap, so four occupy ~464px. The cap is expressed in
+     those terms rather than as a round number, so if the tile grows the intent travels with it.
+     Beyond four the list scrolls VERTICALLY; the contact tiles below stay on screen. */
+  --gcd-tile-h: 104px;
+  --gcd-tile-gap: 12px;
+  max-height: calc((var(--gcd-tile-h) * 4) + (var(--gcd-tile-gap) * 3) + 8px);
   min-height: 200px;
+  /* The list is the ONLY thing that scrolls. Nothing inside a tile gets its own scrollbar, and
+     nothing may push the page sideways. */
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 18px 20px 22px;
@@ -356,6 +363,137 @@
 }
 .gcd-totals { margin-top: 10px; font-size: .78rem; color: var(--gcd-muted); font-variant-numeric: tabular-nums; }
 
+/* ══ SLICE F1 — COLLAPSIBLE CAMPAIGN TILES ══════════════════════════════════════════════════ */
+
+/* A collapsed tile is a fixed, scannable height so four of them fill the viewport predictably.
+   `overflow: hidden` guarantees the tile itself never scrolls — only the list above it does. */
+.gcd-card {
+  overflow: hidden;
+}
+.gcd-tile-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "headline meta" "next meta";
+  gap: 2px 14px;
+  align-items: center;
+}
+.gcd-tile-headline { grid-area: headline; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.gcd-tile-meta     { grid-area: meta;     display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.gcd-next          { grid-area: next; }
+
+/* The title is a HEADING now, not a link — bigger, and it truncates rather than wrapping a
+   collapsed tile into a taller one. */
+.gcd-card-name {
+  margin: 0; min-width: 0;
+  font-size: 1.06rem; font-weight: 700; line-height: 1.3; color: var(--gcd-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gcd-tile-type {
+  font-size: .74rem; font-weight: 600; color: var(--gcd-faint);
+  white-space: nowrap;
+}
+
+/* Expanded, the same header becomes a full-width banner: a tinted band the content sits under. */
+.gcd-tile-head--banner {
+  margin: -22px -22px 16px;
+  padding: 18px 22px 14px;
+  background: linear-gradient(180deg, var(--gcd-lav) 0%, rgba(243, 241, 254, .45) 100%);
+  border-bottom: 1px solid var(--gcd-line);
+  border-radius: var(--gcd-radius) var(--gcd-radius) 0 0;
+}
+.gcd-tile-head--banner .gcd-card-name { font-size: 1.24rem; white-space: normal; }
+
+/* Both are fixed-size icon controls, so both neutralise the global button padding INLINE in the
+   component; these rules supply everything else. */
+.gcd-pencil, .gcd-expand {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--gcd-line-strong); background: #fff; color: var(--gcd-muted);
+  font-size: .9rem; line-height: 1;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.gcd-pencil:hover:not(:disabled), .gcd-expand:hover { background: var(--gcd-lav); color: var(--gcd-purple-deep); border-color: rgba(109, 92, 240, .32); }
+.gcd-pencil:disabled { opacity: .45; cursor: not-allowed; }
+.gcd-pencil:focus-visible, .gcd-expand:focus-visible,
+.gcd-btn:focus-visible, .gcd-selector-cta:focus-visible, .gcd-info-btn:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: 0 0 0 3px rgba(109, 92, 240, .40);
+}
+
+/* The chevron IS the state: pointing down collapsed, up expanded. Rotation is the only motion,
+   and it is removed entirely under reduced-motion. */
+.gcd-chevron {
+  width: 9px; height: 9px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform .18s ease;
+}
+.gcd-card--expanded .gcd-chevron { transform: rotate(-135deg) translate(-2px, -2px); }
+
+/* ── inline rename ─────────────────────────────────────────────────────────────────────────── */
+.gcd-rename {
+  display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap;
+  margin: 10px 0 2px; padding: 12px 14px;
+  border: 1px solid var(--gcd-line-strong); border-radius: 12px; background: #fff;
+}
+.gcd-rename-label {
+  flex-basis: 100%; margin: 0 0 2px;
+  font-size: .7rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--gcd-faint); line-height: 1.4;
+}
+.gcd-rename-input {
+  flex: 1 1 220px; min-width: 0;
+  padding: 9px 11px; font: inherit; font-size: .9rem;
+  border: 1px solid var(--gcd-line-strong); border-radius: 9px; background: #fff; color: var(--gcd-ink);
+}
+.gcd-rename-input:focus-visible { outline: 2px solid transparent; box-shadow: 0 0 0 3px rgba(109, 92, 240, .34); border-color: var(--gcd-purple); }
+
+/* ══ SLICE F1 — THE THREE PERMANENT SELECTORS ═══════════════════════════════════════════════
+   Three equal columns on desktop. They stay rendered while a detail panel is open below, so
+   choosing an audience never hides what the gift or the spread is set to. */
+.gcd-selectors {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 14px;
+}
+.gcd-selector {
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  padding: 14px; border-radius: 14px;
+  border: 1px solid var(--gcd-line-strong);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfaff 100%);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.gcd-selector--open { border-color: var(--gcd-purple); box-shadow: 0 0 0 3px rgba(109, 92, 240, .14); }
+.gcd-selector-icon  { font-size: 1.05rem; line-height: 1; }
+.gcd-selector-title { font-size: .7rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--gcd-faint); }
+.gcd-selector-value {
+  font-size: .92rem; font-weight: 700; color: var(--gcd-ink); line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.gcd-selector-hint  { font-size: .74rem; color: var(--gcd-faint); line-height: 1.35; }
+.gcd-selector-cta   { margin-top: 8px; align-self: flex-start; padding: 6px 12px; font-size: .78rem; }
+
+/* Employees / Clients / Vendors sit SIDE BY SIDE and evenly, rather than flex-wrapping to
+   whatever width their counts happen to make. Scoped to the audience panel on purpose: the gift
+   and spread groups have longer, unequal labels that read better flowing inline. */
+.gcd-detail--audience .gcd-bubbles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.gcd-detail--audience .gcd-bubble { min-width: 0; }
+
+/* The one open detail panel, inline directly beneath the row. Never a modal or a drawer. */
+.gcd-detail {
+  margin: 0 0 16px; padding: 16px;
+  border: 1px solid var(--gcd-line); border-radius: 14px;
+  background: var(--gcd-lav);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gcd-chevron, .gcd-selector, .gcd-pencil, .gcd-expand { transition: none; }
+}
+
 /* ── buttons ──────────────────────────────────────────────────────────────────────────────── */
 .gcd-btn {
   font-size: .82rem; font-weight: 700; border-radius: 10px; padding: 9px 15px;
@@ -481,4 +619,21 @@
 @media (max-width: 720px) {
   .gcd-info-row { flex-direction: column; gap: 1px; }
   .gcd-info-label { flex: 0 0 auto; }
+}
+
+/* ══ SLICE F1 — RESPONSIVE. At the END of the file on purpose: several tests locate the mobile
+   rules by slicing from the FIRST "@media (max-width: 720px)", so a query introduced higher up
+   would silently redirect them to the wrong block. */
+@media (max-width: 1024px) {
+  /* Tablet: 2 + 1 wrapping, which the founder accepted. No horizontal overflow at any width. */
+  .gcd-selectors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gcd-tile-head { grid-template-columns: 1fr; grid-template-areas: "headline" "meta" "next"; }
+  .gcd-tile-meta { justify-content: flex-start; }
+}
+@media (max-width: 720px) {
+  /* Mobile: the three summaries stack. */
+  .gcd-selectors { grid-template-columns: minmax(0, 1fr); }
+  .gcd-detail--audience .gcd-bubbles { grid-template-columns: minmax(0, 1fr); }
+  .gcd-tile-head--banner { margin: -18px -18px 14px; padding: 16px 18px 12px; }
+  .gcd-rename-input { flex-basis: 100%; }
 }

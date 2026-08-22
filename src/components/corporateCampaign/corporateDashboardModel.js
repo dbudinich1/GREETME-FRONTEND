@@ -213,6 +213,98 @@ export function suggestedSeasonalDateLocal(todayIso) {
   return `${targetYear}-${SEASONAL_SUGGESTION.monthDay}T09:00`;
 }
 
+// ── SLICE F1 — the three permanent selectors ─────────────────────────────────────────────────
+//
+// Audience, Gift Options and Featured Spread are shown as three SUMMARIES that stay on screen
+// whatever is open beneath them. The summary answers "what is this set to right now" and the
+// detail panel is where it gets changed — so a reader never loses sight of the other two while
+// deciding about one. Schedule is deliberately NOT one of the three: it is a different kind of
+// question (when, not who/what) and keeps its existing place below.
+export const SELECTOR_KEYS = Object.freeze(["audience", "gift", "spread"]);
+
+/**
+ * The three summary rows, derived from the DRAFT so an unsaved edit is reflected immediately.
+ *
+ * `value` is the current selection in the reader's words; `hint` is one short supporting line.
+ * Nothing here is written as prose — every line is computed, so a summary cannot drift out of
+ * step with the control that sets it.
+ */
+export function selectorSummaries({ draft, recipientCount = 0, spreadLabel } = {}) {
+  const d = draft || {};
+  const gift = CORPORATE_GIFT_OPTIONS.find((o) => o.value === d.giftType);
+  return [
+    {
+      key: "audience",
+      title: "Audience",
+      icon: "\u{1F465}",
+      value: recipientCount === 0 ? "Nobody yet" : `${recipientCount} ${recipientCount === 1 ? "contact" : "contacts"}`,
+      hint: recipientCount === 0 ? "Choose who should receive this." : "Employees, clients, vendors or individuals.",
+      complete: recipientCount > 0,
+    },
+    {
+      key: "gift",
+      title: "Gift Options",
+      icon: "\u{1F381}",
+      value: d.giftType === "curated" ? `Greet-Me\u2122 selects, up to ${centsToDisplay(d.tierCents)}` : "No gift",
+      hint: d.giftType === "curated" ? "A thoughtful gift within your limit." : "The greeting on its own.",
+      complete: true,               // "No gift" is a complete, deliberate answer
+    },
+    {
+      key: "spread",
+      title: "Featured Spread",
+      icon: "\u{1F3A8}",
+      value: spreadLabel || "Organization Default",
+      hint: "How the card looks inside.",
+      complete: true,
+    },
+  ];
+}
+
+// ── SLICE F1 — which lifecycle action to lead with ───────────────────────────────────────────
+//
+// Every capability stays reachable; only their PROMINENCE changes. Showing Approve, Lock, Unlock,
+// Schedule and Activate as five equal buttons asks a reader to know the lifecycle before they can
+// act. So the one valid next step leads, the other currently-valid ones stay available in a
+// quieter row, and actions that are not valid yet are not rendered at all — an action that cannot
+// be taken teaches nothing by being visible, and a disabled row of five reads as a broken screen.
+//
+// NOTHING is removed: `deriveActions` still computes all seven, and every enabled one is placed.
+export function rankActions(actions, { scheduleMode } = {}) {
+  const a = actions || {};
+
+  // Schedule and Activate are MUTUALLY EXCLUSIVE by schedule mode — a campaign has one final
+  // action, never both. Rendering the other has always been noise: it can never apply, and its
+  // disabled reason ("Activation applies to each contact's saved date") explains a rule the
+  // reader is not breaking.
+  const finalKey = scheduleMode === "contact_saved_date" ? "activate" : "schedule";
+
+  // The path a campaign actually walks. Unlock is NOT in it: unlocking is a way back, not a way
+  // forward, so it can never be the thing to do next.
+  // Save and Cancel are NOT in this list. They are the editor's commit and discard — always
+  // present, enabled by whether there are unsaved changes — whereas this ranks the LIFECYCLE.
+  // Mixing them made Save disappear on a locked campaign, which reads as the button being broken
+  // rather than the campaign being frozen.
+  const PATH = ["approve", "lock", finalKey];
+  const primary = PATH.find((k) => a[k] && a[k].enabled === true) || null;
+
+  // The step the reader is waiting on, rendered DISABLED so its reason is on screen. This is not
+  // "exposing a future invalid action": a locked, owner-held campaign whose Schedule is refused by
+  // the execution interlock IS the next step, and hiding it would imply that scheduling does not
+  // exist rather than that it is not switched on yet.
+  //
+  // It is surfaced even when something else is enabled, because for a locked campaign the only
+  // enabled action is Unlock — and leading with Unlock would tell a reader waiting to send that
+  // the way forward is to undo.
+  const blocked = PATH.filter((k) => k !== primary && a[k] && a[k].enabled === false && a[k].reason);
+  const blockedNext = blocked.length ? blocked[blocked.length - 1] : null;
+
+  // Everything else that is genuinely available, in a quieter row. Nothing is dropped.
+  const secondary = ["approve", "lock", finalKey, "unlock"]
+    .filter((k) => k !== primary && a[k] && a[k].enabled === true);
+
+  return { primary, secondary, blockedNext, finalKey };
+}
+
 // ── what this campaign will actually do ──────────────────────────────────────────────────────
 /**
  * A plain-language account of a campaign, DERIVED from the draft in front of the reader.
