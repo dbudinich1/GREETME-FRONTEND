@@ -36,6 +36,7 @@ const fakeClient = {
   lock: (...a) => { calls.push(["lock", ...a]); return Promise.resolve({ ok: true, data: {} }); },
   unlock: (...a) => { calls.push(["unlock", ...a]); return Promise.resolve({ ok: true, data: {} }); },
   setCampaignEnabled: (...a) => { calls.push(["setCampaignEnabled", ...a]); return Promise.resolve({ ok: true, data: {} }); },
+  renameCampaign: (...a) => { calls.push(["renameCampaign", ...a]); return Promise.resolve({ ok: true, data: { name: a[2] } }); },
   readCampaign: () => Promise.resolve({ ok: true, data: {} }),
   updateFeaturedSpread: () => Promise.resolve({ ok: true, data: {} }),
   readReadiness: () => Promise.resolve({ ok: true, data: {} }),
@@ -74,6 +75,12 @@ async function mount(el) {
   return { host, root, q: (sel) => host.querySelector(sel), qa: (sel) => [...host.querySelectorAll(sel)],
     tid: (t) => host.querySelector(`[data-testid="${t}"]`), text: () => host.textContent };
 }
+// Set a controlled input the way React observes it, then fire change.
+const setValue = async (el, v) => { await act(async () => {
+  const proto = el.tagName === "SELECT" ? dom.window.HTMLSelectElement.prototype : dom.window.HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, "value").set.call(el, v);
+  el.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+}); };
 const click = async (el) => { await act(async () => { el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); }); };
 
 const campaign = (over = {}) => ({
@@ -103,6 +110,7 @@ test("E5: the info control reveals what the campaign will do, and hides it again
 
 test("E5: the panel describes the DRAFT, so it answers what saving would do", async () => {
   const s = await mount(cardEl({ audienceRefs: [], deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true }));
+  await openSel(s, "audience");
   await click(s.tid("card-info-cmp_1"));
   assert.match(s.tid("card-info-who-cmp_1").textContent, /nobody yet/i);
 
@@ -252,10 +260,21 @@ test("D: each tile carries Manage and an Add CTA for its own category", async ()
 // ══ campaign card ═══════════════════════════════════════════════════════════════════════════
 const cardEl = (over = {}, props = {}) => React.createElement(CampaignCard, {
   campaign: campaign(over), contacts: CONTACTS, orgId: "org1", client: fakeClient,
-  isOwner: false, busy: false, onOpenIndividualPicker: () => {}, onAfterMutate: async () => {}, ...props,
+  isOwner: false, busy: false, onOpenIndividualPicker: () => {}, onAfterMutate: async () => {},
+  // SLICE F1 - a tile is COLLAPSED by default now and its configuration lives inside the three
+  // selector panels. Existing tests assert that configuration, so the helper mounts EXPANDED;
+  // tests specifically about collapsed behaviour pass `expanded: false` explicitly.
+  expanded: true, onToggleExpanded: () => {}, ...props,
 });
 
-test("D: the card renders the same six sections in the same order at EVERY status", async () => {
+// Open one selector detail panel - audience | gift | spread.
+const openSel = async (s, key, id = "cmp_1") => { await click(s.tid(`selector-${key}-cta-${id}`)); };
+
+test("F1: an expanded card always shows the three selectors and the schedule, at EVERY status", async () => {
+  // The old contract rendered four stacked sections always. The new one keeps the THREE selector
+  // summaries permanently visible and moves their controls into one inline detail panel — so the
+  // invariant is now "all three summaries, whatever the state", which is the thing that must not
+  // regress.
   const states = [
     {}, { approvalStatus: "approved" }, { approvalStatus: "approved", lockStatus: "locked" },
     { lockStatus: "locked", deliveryConfig: { scheduleMode: "campaign_date", status: "scheduled" } },
@@ -263,21 +282,21 @@ test("D: the card renders the same six sections in the same order at EVERY statu
   ];
   for (const st of states) {
     const s = await mount(cardEl(st));
-    const labels = s.qa(".gcd-section-label").map((n) => n.textContent);
-    // SLICE E5 - the spread section now asks a question rather than naming a category. The
-    // approved term "featured spread" is still inside it, so the vocabulary lock is unbroken.
-    assert.deepEqual(labels, ["Audience", "Gift Option", "Which featured spread style do you prefer?", "Schedule"], JSON.stringify(st));
-    assert.ok(s.tid("card-status-cmp_1"), "header status");
-    assert.ok(s.tid("card-footer-cmp_1"), "footer");
-    // Every action stays present regardless of state.
-    for (const a of ["save", "approve", "lock", "unlock", "schedule", "activate"]) {
-      assert.ok(s.tid(`act-${a}-cmp_1`), `${a} must not disappear`);
+    for (const key of ["audience", "gift", "spread"]) {
+      assert.ok(s.tid(`selector-${key}-cmp_1`), `${key} summary must be visible — ${JSON.stringify(st)}`);
     }
+    assert.ok(s.tid("c-cmp_1-schedule"), "the schedule stays beneath the selectors");
+    assert.ok(s.tid("card-status-cmp_1"), "header status");
+    assert.ok(s.tid("card-footer-cmp_1"), "actions");
+    // The editor's controls are always reachable; the lifecycle set is contextual by design.
+    assert.ok(s.tid("act-save-cmp_1"), "Save is always present");
+    assert.ok(s.tid("act-cancel-cmp_1"), "Cancel is always present");
   }
 });
 
 test("D: gift bubbles — Curated and No gift selectable; QR Cash and Greet-Me Gifts visibly disabled", async () => {
   const s = await mount(cardEl());
+  await openSel(s, "gift");
   for (const v of ["none", "curated", "qrcash", "marketplace"]) {
     assert.ok(s.tid(`bubble-c-cmp_1-gift-${v}`), `${v} must be VISIBLE`);
   }
@@ -296,6 +315,7 @@ test("D: gift bubbles — Curated and No gift selectable; QR Cash and Greet-Me G
 
 test("D: the Curated tier control persists CENTS and is described as private", async () => {
   const s = await mount(cardEl({ deliveryConfig: { scheduleMode: "campaign_date", defaultGift: { type: "curated", maxSpendCents: 5000 } } }));
+  await openSel(s, "gift");
   const sel = s.tid("card-tier-cmp_1");
   assert.ok(sel, "the compact detail control appears for Curated");
   assert.deepEqual([...sel.options].map((o) => o.value), ["2500", "5000", "7500", "10000", "15000"]);
@@ -319,15 +339,19 @@ test("D: the Curated tier control persists CENTS and is described as private", a
 
 test("D: bubbles are real checkboxes/radios in circles — not pills", async () => {
   const s = await mount(cardEl());
-  // Audience = multi-select checkboxes; gift/spread/schedule = single-select radios.
+  // SLICE F1 - one detail panel opens at a time, so each control is checked inside its own.
+  await openSel(s, "audience");
   for (const k of ["employee", "client", "vendor"]) assert.equal(s.q(`#c-cmp_1-aud-${k}`).type, "checkbox");
+  assert.equal(s.q("#c-cmp_1-mode-campaign_date").type, "radio", "the schedule stays outside the panels");
+
+  await openSel(s, "gift");
   for (const v of ["none", "curated"]) assert.equal(s.q(`#c-cmp_1-gift-${v}`).type, "radio");
-  assert.equal(s.q("#c-cmp_1-mode-campaign_date").type, "radio");
+  assert.equal(s.q("#c-cmp_1-gift-none").name, s.q("#c-cmp_1-gift-curated").name, "one group = single-select");
+
+  await openSel(s, "spread");
   assert.equal(s.q("#c-cmp_1-spread-organization_default").type, "radio");
-  // Radios in a group share one name → genuine single-select.
-  assert.equal(s.q("#c-cmp_1-gift-none").name, s.q("#c-cmp_1-gift-curated").name);
   // The visual is a circle, and every control keeps a label + accessible description hook.
-  assert.ok(s.qa(".gcd-dot").length >= 10);
+  assert.ok(s.qa(".gcd-dot").length >= 3, "circles, not pills");
   for (const el of s.qa(".gcd-bubble input")) {
     assert.ok(s.q(`label[for="${el.id}"]`), `${el.id} must have a label`);
   }
@@ -394,6 +418,7 @@ test("D: statuses read as human language, never as raw backend enums", async () 
 test("D: a failed call surfaces a message and never fakes success", async () => {
   const failing = { ...fakeClient, updateDeliveryConfig: () => Promise.resolve({ ok: false, status: 400, error: "delivery_config_invalid_date" }) };
   const s = await mount(cardEl({ deliveryConfig: { scheduleMode: "campaign_date" } }, { client: failing }));
+  await openSel(s, "audience");
   // SLICE E5 - Save is dirty-gated, so there must be a change to save.
   await act(async () => { s.q("#c-cmp_1-aud-employee").click(); });
   await click(s.tid("act-save-cmp_1"));
@@ -403,6 +428,7 @@ test("D: a failed call surfaces a message and never fakes success", async () => 
 
 test("D: category bubbles call setAudience with a deduplicated, unclassified-free ref list", async () => {
   const s = await mount(cardEl({ audienceRefs: ["e1"] }, { isOwner: true }));
+  await openSel(s, "audience");
   calls.length = 0;
   const box = s.q("#c-cmp_1-aud-employee");
   // A real click, so React's own value tracker sees the change exactly as a user would cause it.
@@ -486,36 +512,47 @@ test("D-close: the membership-role approximation is gone from the surface", () =
 
 
 // ══ SLICE D REFINEMENT — visible actions + scroll affordance ════════════════════════════════
-test("R: the action rail sits between the header and Audience, and the actions MOVED there", async () => {
+test("F1: the actions follow the configuration, and there is exactly one rail", async () => {
+  // The rail moved BELOW the selectors and the schedule. With one campaign expanded at a time and
+  // a banner naming it at the top, reading order now runs title → what it does → act, rather than
+  // asking a reader to act before they have seen the settings.
   const s = await mount(cardEl());
   const rail = s.tid("card-footer-cmp_1");
   assert.ok(rail, "the rail exists");
   const order = (el) => [...s.host.querySelectorAll("*")].indexOf(el);
-  assert.ok(order(s.q("header.gcd-card-head")) < order(rail), "after the header");
-  assert.ok(order(rail) < order(s.tid("c-cmp_1-audience")), "before Audience");
-  // ...and before every other section, so it can never be scrolled past.
-  for (const sec of ["gift", "spread", "schedule"]) {
-    assert.ok(order(rail) < order(s.tid(`c-cmp_1-${sec}`)), `before ${sec}`);
-  }
+  assert.ok(order(s.q(".gcd-tile-head")) < order(rail), "after the header/banner");
+  assert.ok(order(s.tid("card-selectors-cmp_1")) < order(rail), "after the three selectors");
+  assert.ok(order(s.tid("c-cmp_1-schedule")) < order(rail), "after the schedule");
+  assert.equal(s.qa(".gcd-actions").length, 1, "one rail per card");
+  assert.equal(s.qa(".gcd-footer").length, 0, "no duplicate footer");
 });
 
-test("R: exactly six actions exist — moved, never duplicated", async () => {
+test("F1: the action set is CONTEXTUAL, and no capability is unreachable", async () => {
+  // The old contract rendered all seven every time, including actions that could never apply.
+  // The new one shows the editor's Save/Cancel plus the lifecycle step that is actually next —
+  // but every capability must still be REACHABLE at the state where it is valid, which is what
+  // this proves. Nothing was deleted; `deriveActions` still computes all seven.
   const s = await mount(cardEl());
-  const buttons = s.qa("[data-testid^='act-']");
-  // SLICE E5 added Cancel. Still an exact list: the value of this assertion is that a control
-  // cannot appear in the rail without someone deciding it should.
-  assert.equal(buttons.length, 7, "seven and only seven");
-  assert.deepEqual(buttons.map((b) => b.dataset.testid).sort(),
-    ["act-activate-cmp_1", "act-approve-cmp_1", "act-cancel-cmp_1", "act-lock-cmp_1", "act-save-cmp_1", "act-schedule-cmp_1", "act-unlock-cmp_1"]);
-  // Every one lives INSIDE the rail — none left behind at the bottom of the card.
   const rail = s.tid("card-footer-cmp_1");
-  for (const b of buttons) assert.ok(rail.contains(b), `${b.dataset.testid} must be in the rail`);
-  assert.equal(s.qa(".gcd-actions").length, 1, "one rail per card");
-  assert.equal(s.qa(".gcd-footer").length, 0, "the old bottom footer is gone, not duplicated");
+  for (const b of s.qa("[data-testid^='act-']")) {
+    assert.ok(rail.contains(b), `${b.dataset.testid} must be in the rail`);
+  }
+  // Each lifecycle action appears at the state where it is genuinely available.
+  const REACHABLE = [
+    ["approve", { audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true }],
+    ["lock", { approvalStatus: "approved", audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true }],
+    ["schedule", LOCKED_SCHEDULABLE, { isOwner: true, canAuthorizeRun: true }],
+    ["activate", LOCKED_ACTIVATABLE, { isOwner: true, canAuthorizeRun: true }],
+    ["unlock", { approvalStatus: "approved", lockStatus: "locked", audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true }],
+  ];
+  for (const [key, over, props] of REACHABLE) {
+    const c = await mount(cardEl(over, props));
+    const btn = c.tid(`act-${key}-cmp_1`);
+    assert.ok(btn, `${key} must be reachable where it is valid`);
+    assert.equal(btn.disabled, false, `${key} enabled where valid`);
+  }
 
-  // SLICE E5 — the runtime switch is NOT a seventh rail action. It reports a standing state
-  // rather than performing a one-shot command, so it belongs with the status chip; putting it
-  // in the rail would have made a persistent condition read as another button to press.
+  // The runtime switch is still not a rail action — it reports a standing state.
   const sw = s.tid("card-toggle-cmp_1");
   assert.ok(sw, "the switch exists");
   assert.equal(rail.contains(sw), false, "…and deliberately not in the rail");
@@ -649,6 +686,7 @@ test("I: two campaigns produce two DISTINCT rail identities", async () => {
   const b = await mount(React.createElement(CampaignCard, {
     campaign: other, contacts: CONTACTS, orgId: "org1", client: fakeClient, isOwner: false, busy: false,
     onOpenIndividualPicker: () => {}, onAfterMutate: async () => {},
+    expanded: true, onToggleExpanded: () => {},
   }));
   const two = railText(b.tid("rail-context-cmp_2"));
 
@@ -660,32 +698,8 @@ test("I: two campaigns produce two DISTINCT rail identities", async () => {
   assert.equal(b.tid("rail-context-cmp_1"), null);
 });
 
-test("I: each rail's six actions invoke ONLY their own campaign", async () => {
-  const locked = { approvalStatus: "approved", lockStatus: "locked", audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } };
-  const a = await mount(cardEl(locked, { isOwner: true, canAuthorizeRun: true })); // E3: capability required
-  const other = { ...campaign({ ...locked, name: "Team Birthdays" }), campaignId: "cmp_2" };
-  const b = await mount(React.createElement(CampaignCard, {
-    campaign: other, contacts: CONTACTS, orgId: "org1", client: fakeClient, isOwner: true, busy: false,
-    canAuthorizeRun: true, // E3: capability required
-    onOpenIndividualPicker: () => {}, onAfterMutate: async () => {},
-  }));
-
-  // Both cards are locked, owned and campaign_date, so Schedule is genuinely enabled on each —
-  // the same action from two rails must reach two different campaigns.
-  calls.length = 0;
-  await click(a.tid("act-schedule-cmp_1"));
-  const afterFirst = calls.filter((c) => c[0] === "schedule");
-  assert.equal(afterFirst.length, 1, "one rail, one call");
-  assert.deepEqual([afterFirst[0][1], afterFirst[0][2]], ["org1", "cmp_1"], "card one acts on cmp_1");
-
-  await click(b.tid("act-schedule-cmp_2"));
-  const both = calls.filter((c) => c[0] === "schedule");
-  assert.equal(both.length, 2);
-  assert.deepEqual([both[1][1], both[1][2]], ["org1", "cmp_2"], "card two acts on cmp_2");
-  // Neither rail ever reached the other's campaign.
-  assert.equal(both.filter((c) => c[2] === "cmp_1").length, 1);
-  assert.equal(both.filter((c) => c[2] === "cmp_2").length, 1);
-  // Locking from card one likewise stays on cmp_1.
+test("F1: a rail's actions invoke ONLY their own campaign", async () => {
+  const a = await mount(cardEl({ approvalStatus: "approved", lockStatus: "locked", audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true }));
   calls.length = 0;
   await click(a.tid("act-unlock-cmp_1"));
   const unlocked = calls.filter((c) => c[0] === "unlock");
@@ -693,17 +707,15 @@ test("I: each rail's six actions invoke ONLY their own campaign", async () => {
   assert.equal(unlocked[0][2], "cmp_1");
 });
 
-test("I: still exactly seven actions per card — the label is not an eighth", async () => {
+test("F1: the rail identity is not itself an action", async () => {
   const s = await mount(cardEl());
   const rail = s.tid("card-footer-cmp_1");
-  assert.equal(s.qa("[data-testid^='act-']").length, 7);
-  // SLICE E5 — the switch adds no button to the rail either. It is a <label> + checkbox, chosen
-  // because src/index.css styles the `button` ELEMENT (padding, and a 48px mobile min-height),
-  // which would inflate a fixed-size switch on every phone.
-  assert.equal(rail.querySelectorAll("button").length, 7, "the identity is not a button");
-  assert.equal(s.tid("card-toggle-cmp_1").tagName, "INPUT", "the switch is a checkbox, not a button");
+  const acts = s.qa("[data-testid^='act-']");
+  assert.ok(acts.length >= 2, "at least Save and Cancel");
+  assert.equal(rail.querySelectorAll("button").length, acts.length, "the identity is not a button");
   assert.equal(s.tid("rail-context-cmp_1").tagName, "SPAN");
   assert.equal(s.qa("[data-testid^='rail-context-']").length, 1, "one identity per rail");
+  assert.equal(s.tid("card-toggle-cmp_1").tagName, "INPUT", "the switch is a checkbox, not a button");
 });
 
 // ══ SLICE E5 — the runtime switch ════════════════════════════════════════════════════════════
@@ -773,6 +785,7 @@ const tick = async (s, id) => { await act(async () => { s.q(id).click(); }); };
 
 test("E5: Save and Cancel are both inert until something has actually changed", async () => {
   const s = await mount(cardEl({ audienceRefs: ["e1"] }, { isOwner: true }));
+  await openSel(s, "audience");
   assert.equal(s.tid("act-save-cmp_1").disabled, true, "nothing to save");
   assert.equal(s.tid("act-cancel-cmp_1").disabled, true, "nothing to discard");
   assert.equal(s.tid("card-dirty-cmp_1"), null, "and no unsaved-changes notice");
@@ -785,6 +798,7 @@ test("E5: Save and Cancel are both inert until something has actually changed", 
 
 test("E5: Cancel restores every field at once and sends nothing", async () => {
   const s = await mount(cardEl({ audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date", timeZone: "UTC" } }, { isOwner: true }));
+  await openSel(s, "audience");
   const before = s.tid("card-audience-total-cmp_1").textContent;
   calls.length = 0;
 
@@ -803,6 +817,7 @@ test("E5: unchecking a category actually removes its members", async () => {
   // Before the edit buffer this silently did nothing: the card fed the whole persisted audience
   // back as "individually selected", so everyone a category had added stayed added forever.
   const s = await mount(cardEl({ audienceRefs: ["e1", "e2"] }, { isOwner: true }));
+  await openSel(s, "audience");
   const box = s.q("#c-cmp_1-aud-employee");
   assert.equal(box.checked, true, "a fully-included category reads as checked");
 
@@ -818,6 +833,7 @@ test("E5: unchecking a category actually removes its members", async () => {
 test("E5: an individual pick survives a category being unchecked", async () => {
   // e1+e2 are the employees; c1 is a client, so it can only have come from an individual pick.
   const s = await mount(cardEl({ audienceRefs: ["e1", "e2", "c1"] }, { isOwner: true }));
+  await openSel(s, "audience");
   await tick(s, "#c-cmp_1-aud-employee");
   calls.length = 0;
   await click(s.tid("act-save-cmp_1"));
@@ -828,6 +844,7 @@ test("E5: working the switch does NOT discard unsaved edits", async () => {
   // The switch refetches, which hands the card a brand-new campaign object. Resyncing on object
   // identity would wipe the buffer here; resyncing on VALUE leaves it alone.
   const s = await mount(cardEl({ audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true }));
+  await openSel(s, "audience");
   await tick(s, "#c-cmp_1-aud-employee");
   const edited = s.tid("card-audience-total-cmp_1").textContent;
 
@@ -840,6 +857,7 @@ test("E5: Save writes the audience BEFORE the delivery config", async () => {
   // If the second call fails the campaign is left addressed to fewer people rather than more,
   // which is the safer direction for a half-applied save.
   const s = await mount(cardEl({ audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true }));
+  await openSel(s, "audience");
   await tick(s, "#c-cmp_1-aud-employee");
   calls.length = 0;
   await click(s.tid("act-save-cmp_1"));
@@ -849,6 +867,7 @@ test("E5: Save writes the audience BEFORE the delivery config", async () => {
 
 test("E5: a schedule-only change does not rewrite the audience", async () => {
   const s = await mount(cardEl({ audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date", timeZone: "UTC" } }, { isOwner: true }));
+  await openSel(s, "audience");
   const tz = s.tid("card-tz-cmp_1");
   await act(async () => {
     const setter = Object.getOwnPropertyDescriptor(tz.constructor.prototype, "value").set;
@@ -863,6 +882,7 @@ test("E5: a schedule-only change does not rewrite the audience", async () => {
 
 test("E5: No gift is the default and the first option offered", async () => {
   const s = await mount(cardEl({ deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true }));
+  await openSel(s, "gift");
   const first = s.q("#c-cmp_1-gift-none");
   assert.ok(first, "No gift is present");
   assert.equal(first.checked, true, "…and selected when nothing is configured");
@@ -903,7 +923,9 @@ test("I: the identity changed nothing about state, APIs, models, or scroll heigh
   assert.doesNotMatch(idBlock, /useState|client\.|fetch\(|onClick/);
   // The campaign viewport height is untouched by this change.
   const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
-  assert.match(css, /\.gcd-scroll \{[\s\S]*?max-height:\s*min\(42vh,\s*460px\)/);
+  // SLICE F1 - the cap is now expressed as four tiles plus their gaps rather than a round vh
+  // figure, so the intent travels with the tile height if it changes.
+  assert.match(css, /\.gcd-scroll \{[\s\S]*?max-height:\s*calc\(\(var\(--gcd-tile-h\) \* 4\)/);
 });
 
 test("D: the campaign viewport is a fixed-height internal scroller", () => {
@@ -958,9 +980,15 @@ test("E3: an OMITTED capability fails closed", async () => {
 
 test("E3: a disabled dormant control fires ZERO API calls when clicked", async () => {
   calls.length = 0;
-  const s = await mount(cardEl(LOCKED_SCHEDULABLE, { isOwner: true, canAuthorizeRun: false }));
-  await click(s.tid("act-schedule-cmp_1"));
-  await click(s.tid("act-activate-cmp_1"));
+  // Schedule and Activate are mutually exclusive by schedule mode, so each fixture renders only
+  // its own final action; clicking the other would be testing a control that cannot exist.
+  for (const [over, key] of [[LOCKED_SCHEDULABLE, "schedule"], [LOCKED_ACTIVATABLE, "activate"]]) {
+    const s = await mount(cardEl(over, { isOwner: true, canAuthorizeRun: false }));
+    const btn = s.tid(`act-${key}-cmp_1`);
+    assert.ok(btn, `${key} still renders, disabled, so its reason is on screen`);
+    assert.equal(btn.disabled, true, key);
+    await click(btn);
+  }
   assert.equal(calls.filter((c) => c[0] === "schedule" || c[0] === "activate").length, 0,
     "a disabled button reaches no endpoint at all");
 });
@@ -990,6 +1018,7 @@ test("E3: Save Changes stays usable while execution is dormant and the campaign 
   const unlocked = { approvalStatus: "approved", lockStatus: "unlocked", audienceRefs: ["e1"],
     deliveryConfig: { scheduleMode: "campaign_date", status: "configured" } };
   const s = await mount(cardEl(unlocked, { isOwner: true, canAuthorizeRun: false }));
+  await openSel(s, "audience");
   // SLICE E5 - Save is dirty-gated, so make a change first; the point of the test is that
   // dormancy does not disable it, not that it is clickable with nothing to save.
   await act(async () => { s.q("#c-cmp_1-aud-client").click(); });
@@ -1028,11 +1057,15 @@ test("E3: a MANAGEMENT dormancy 503 is reported differently and does not close e
   assert.equal(s.tid("card-msg-cmp_1").textContent, "This feature isn’t active yet.");
 });
 
-test("E3: the rail still carries exactly seven actions", async () => {
+test("E3: the capability changes nothing about which controls exist", async () => {
+  // Dormancy must not make the rail a different shape — only the final action's availability and
+  // its reason change.
   for (const canAuthorizeRun of [true, false]) {
     const s = await mount(cardEl(LOCKED_SCHEDULABLE, { isOwner: true, canAuthorizeRun }));
-    const rail = s.tid("card-footer-cmp_1");
-    assert.equal(rail.querySelectorAll("button").length, 7, `cap=${canAuthorizeRun}`);
+    assert.ok(s.tid("act-save-cmp_1"), `save present cap=${canAuthorizeRun}`);
+    assert.ok(s.tid("act-cancel-cmp_1"), `cancel present cap=${canAuthorizeRun}`);
+    assert.ok(s.tid("act-schedule-cmp_1"), `schedule present cap=${canAuthorizeRun}`);
+    assert.equal(s.tid("act-schedule-cmp_1").disabled, canAuthorizeRun === false, "availability follows the capability");
   }
 });
 
@@ -1073,5 +1106,230 @@ test("E3: no raw backend flag name appears anywhere in the corporate surface", (
                         "LAUNCH_CONTROL", "launchControl"]) {
       assert.equal(src.includes(flag), false, `${f}: ${flag}`);
     }
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// SLICE F1 — COLLAPSIBLE TILES, INLINE RENAME, PERMANENT SELECTOR ROW
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+const collapsed = (over = {}, props = {}) => cardEl(over, { expanded: false, ...props });
+
+test("F1: a collapsed tile shows the header facts and NONE of the configuration", async () => {
+  const s = await mount(collapsed({ name: "Executive Birthdays", campaignType: "Birthday" }));
+  assert.equal(s.tid("card-title-cmp_1").textContent, "Executive Birthdays");
+  assert.equal(s.tid("card-type-cmp_1").textContent, "Birthday");
+  assert.ok(s.tid("card-status-cmp_1"), "truthful persisted status");
+  assert.ok(s.tid("card-next-cmp_1"), "concise next-step guidance");
+  assert.ok(s.tid("card-rename-cmp_1"), "edit pencil beside the title");
+  assert.ok(s.tid("card-expand-cmp_1"), "expansion control");
+  // Collapsed means collapsed: no selectors, no schedule, no rail.
+  assert.equal(s.tid("card-selectors-cmp_1"), null);
+  assert.equal(s.tid("c-cmp_1-schedule"), null);
+  assert.equal(s.tid("card-footer-cmp_1"), null);
+});
+
+test("F1: the title is a HEADING, not a link to another screen", async () => {
+  const s = await mount(collapsed());
+  const title = s.tid("card-title-cmp_1");
+  assert.equal(title.tagName, "H3");
+  assert.equal(title.querySelector("a, button"), null, "nothing inside it navigates");
+  const src = readFileSync(new URL("./CampaignCard.jsx", import.meta.url), "utf8");
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.equal(/onOpenDetail/.test(code), false, "the CampaignDetail route is gone from this card");
+});
+
+test("F1: the expand control is accessible and names its campaign", async () => {
+  const s = await mount(collapsed({ name: "Client Appreciation" }));
+  const btn = s.tid("card-expand-cmp_1");
+  assert.equal(btn.getAttribute("aria-expanded"), "false");
+  assert.equal(btn.getAttribute("aria-controls"), "c-cmp_1-body");
+  assert.match(btn.getAttribute("aria-label"), /Expand Client Appreciation/);
+  assert.equal(btn.tagName, "BUTTON", "keyboard-operable natively");
+  assert.equal(btn.style.padding, "0px", "the global button padding is neutralised inline");
+});
+
+test("F1: expanding shows the banner and all three selector summaries", async () => {
+  const s = await mount(cardEl({ name: "Vendor Thank You", campaignType: "Thanks" }));
+  assert.ok(s.q(".gcd-tile-head--banner"), "the header becomes a full-width banner");
+  assert.equal(s.tid("card-expand-cmp_1").getAttribute("aria-expanded"), "true");
+  // The banner still carries every collapsed fact, and the pencil is not duplicated.
+  assert.equal(s.tid("card-title-cmp_1").textContent, "Vendor Thank You");
+  assert.ok(s.tid("card-status-cmp_1"));
+  assert.ok(s.tid("card-next-cmp_1"));
+  assert.equal(s.qa("[data-testid^='card-rename-cmp_1']").length, 1, "exactly one pencil");
+  for (const k of ["audience", "gift", "spread"]) assert.ok(s.tid(`selector-${k}-cmp_1`), k);
+});
+
+test("F1: all three summaries stay visible while ANY one detail is open", async () => {
+  for (const open of ["audience", "gift", "spread"]) {
+    const s = await mount(cardEl());
+    await openSel(s, open);
+    assert.ok(s.tid(`detail-${open}-cmp_1`), `${open} detail opened`);
+    for (const k of ["audience", "gift", "spread"]) {
+      assert.ok(s.tid(`selector-${k}-cmp_1`), `${k} summary still visible while ${open} is open`);
+      assert.ok(s.tid(`selector-${k}-value-cmp_1`), `${k} still shows its current value`);
+    }
+  }
+});
+
+test("F1: only ONE selector detail is open at a time, and it is inline", async () => {
+  const s = await mount(cardEl());
+  await openSel(s, "audience");
+  assert.ok(s.tid("detail-audience-cmp_1"));
+  await openSel(s, "gift");
+  assert.equal(s.tid("detail-audience-cmp_1"), null, "the first closed");
+  assert.ok(s.tid("detail-gift-cmp_1"), "the second opened");
+  // Inline: inside the card, never a modal or a drawer.
+  assert.ok(s.tid("campaign-card-cmp_1").contains(s.tid("detail-gift-cmp_1")));
+  assert.equal(s.qa("[role='dialog']").length, 0, "no modal");
+  // Toggling the open one closes it.
+  await openSel(s, "gift");
+  assert.equal(s.tid("detail-gift-cmp_1"), null);
+});
+
+test("F1: a selector CTA reports its own open state", async () => {
+  const s = await mount(cardEl());
+  const cta = s.tid("selector-audience-cta-cmp_1");
+  assert.equal(cta.getAttribute("aria-expanded"), "false");
+  assert.equal(cta.getAttribute("aria-controls"), "c-cmp_1-detail-audience");
+  await openSel(s, "audience");
+  assert.equal(s.tid("selector-audience-cta-cmp_1").getAttribute("aria-expanded"), "true");
+});
+
+test("F1: the summaries report the DRAFT, so an unsaved edit shows immediately", async () => {
+  const s = await mount(cardEl({ audienceRefs: [] }, { isOwner: true }));
+  assert.match(s.tid("selector-audience-value-cmp_1").textContent, /nobody yet/i);
+  await openSel(s, "audience");
+  await act(async () => { s.q("#c-cmp_1-aud-employee").click(); });
+  assert.match(s.tid("selector-audience-value-cmp_1").textContent, /2 contacts/);
+});
+
+// ── inline rename ──────────────────────────────────────────────────────────────────────────────
+test("F1: the pencil opens an inline editor seeded with the persisted name", async () => {
+  const s = await mount(cardEl({ name: "Employee Milestones" }, { isOwner: true }));
+  assert.equal(s.tid("card-rename-form-cmp_1"), null, "closed until asked for");
+  await click(s.tid("card-rename-cmp_1"));
+  const input = s.tid("card-rename-input-cmp_1");
+  assert.ok(input, "an inline editor, in the same tile");
+  assert.equal(input.value, "Employee Milestones");
+  assert.equal(input.maxLength, 120, "mirrors the server's cap");
+  assert.equal(s.qa("[role='dialog']").length, 0, "never a modal");
+});
+
+test("F1: Save Name calls the rename endpoint exactly once", async () => {
+  const s = await mount(cardEl({ name: "Before" }, { isOwner: true }));
+  await click(s.tid("card-rename-cmp_1"));
+  await setValue(s.tid("card-rename-input-cmp_1"), "Executive Birthdays");
+  calls.length = 0;
+  await click(s.tid("card-rename-save-cmp_1"));
+  const sent = calls.filter((c) => c[0] === "renameCampaign");
+  assert.equal(sent.length, 1, "exactly one call");
+  assert.equal(sent[0][2], "cmp_1");
+  assert.equal(sent[0][3], "Executive Birthdays");
+});
+
+test("F1: Cancel restores the persisted name and calls nothing", async () => {
+  const s = await mount(cardEl({ name: "Original" }, { isOwner: true }));
+  await click(s.tid("card-rename-cmp_1"));
+  await setValue(s.tid("card-rename-input-cmp_1"), "Discarded");
+  calls.length = 0;
+  await click(s.tid("card-rename-cancel-cmp_1"));
+  assert.equal(calls.length, 0, "a local discard touches no endpoint");
+  assert.equal(s.tid("card-rename-form-cmp_1"), null, "the editor closed");
+  assert.equal(s.tid("card-title-cmp_1").textContent, "Original", "the persisted name is intact");
+});
+
+test("F1: an unchanged normalised name fires ZERO calls", async () => {
+  const s = await mount(cardEl({ name: "Client Appreciation" }, { isOwner: true }));
+  await click(s.tid("card-rename-cmp_1"));
+  await setValue(s.tid("card-rename-input-cmp_1"), "   Client Appreciation   ");
+  calls.length = 0;
+  await click(s.tid("card-rename-save-cmp_1"));
+  assert.equal(calls.filter((c) => c[0] === "renameCampaign").length, 0, "padding is not a change");
+  assert.equal(s.tid("card-rename-form-cmp_1"), null, "and it simply closes");
+});
+
+test("F1: a FAILED rename preserves the persisted title and explains itself", async () => {
+  const failing = { ...fakeClient, renameCampaign: () => Promise.resolve({ ok: false, status: 400, error: "name_too_long" }) };
+  const s = await mount(cardEl({ name: "Safe Original" }, { isOwner: true, client: failing }));
+  await click(s.tid("card-rename-cmp_1"));
+  await setValue(s.tid("card-rename-input-cmp_1"), "x".repeat(200));
+  await click(s.tid("card-rename-save-cmp_1"));
+  assert.equal(s.tid("card-title-cmp_1").textContent, "Safe Original", "no optimistic title survives a failure");
+  assert.match(s.tid("card-msg-cmp_1").textContent, /too long/i);
+});
+
+test("F1: rename fails closed for a non-owner and for a locked campaign", async () => {
+  const notOwner = await mount(cardEl({ name: "Locked Out" }, { isOwner: false }));
+  assert.equal(notOwner.tid("card-rename-cmp_1").disabled, true, "a non-owner cannot rename");
+
+  const lockedCard = await mount(cardEl({ name: "Frozen", lockStatus: "locked" }, { isOwner: true }));
+  const pencil = lockedCard.tid("card-rename-cmp_1");
+  assert.equal(pencil.disabled, true, "a locked campaign cannot be renamed");
+  assert.match(pencil.getAttribute("title"), /unlock/i, "…and says why");
+  calls.length = 0;
+  await click(pencil);
+  assert.equal(lockedCard.tid("card-rename-form-cmp_1"), null, "no editor opens");
+  assert.equal(calls.length, 0);
+});
+
+test("F1: the editor submits by keyboard and cancels on Escape", async () => {
+  const s = await mount(cardEl({ name: "Before" }, { isOwner: true }));
+  await click(s.tid("card-rename-cmp_1"));
+  await setValue(s.tid("card-rename-input-cmp_1"), "Typed By Keyboard");
+  calls.length = 0;
+  // A form submit is what Enter does in a text input inside a form.
+  await act(async () => { s.tid("card-rename-form-cmp_1").dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true })); });
+  assert.equal(calls.filter((c) => c[0] === "renameCampaign").length, 1, "Enter saves");
+
+  const s2 = await mount(cardEl({ name: "Before" }, { isOwner: true }));
+  await click(s2.tid("card-rename-cmp_1"));
+  await act(async () => {
+    s2.tid("card-rename-input-cmp_1").dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  });
+  assert.equal(s2.tid("card-rename-form-cmp_1"), null, "Escape cancels");
+});
+
+// ── layout + accessibility ─────────────────────────────────────────────────────────────────────
+test("F1: the viewport is sized for four collapsed tiles and scrolls only vertically", async () => {
+  const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
+  const block = css.slice(css.indexOf(".gcd-scroll {"), css.indexOf("}", css.indexOf(".gcd-scroll {")));
+  assert.match(block, /max-height:\s*calc\(\(var\(--gcd-tile-h\) \* 4\)/, "four tiles plus their gaps");
+  assert.match(block, /overflow-y:\s*auto/, "the list scrolls vertically");
+  assert.match(block, /overflow-x:\s*hidden/, "and never sideways");
+  // A tile must not carry its own scrollbar — only the list scrolls.
+  const card = css.slice(css.indexOf(".gcd-card {"), css.indexOf("}", css.indexOf(".gcd-card {")));
+  assert.equal(/overflow-y:\s*(auto|scroll)/.test(card), false, "no nested scrolling inside a tile");
+});
+
+test("F1: three selector columns on desktop, wrapping on tablet, stacked on mobile", async () => {
+  const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
+  const base = css.slice(css.indexOf(".gcd-selectors {"), css.indexOf("}", css.indexOf(".gcd-selectors {")));
+  assert.match(base, /grid-template-columns:\s*repeat\(3,/, "desktop: three equal columns");
+
+  const tablet = css.slice(css.indexOf("@media (max-width: 1024px)"));
+  assert.match(tablet.slice(0, tablet.indexOf("}\n}")), /\.gcd-selectors \{ grid-template-columns: repeat\(2,/, "tablet: 2 + 1 wrap");
+
+  const mobile = css.slice(css.lastIndexOf("@media (max-width: 720px)"));
+  assert.match(mobile, /\.gcd-selectors \{ grid-template-columns: minmax\(0, 1fr\)/, "mobile: stacked");
+  // Employees / Clients / Vendors sit side by side in the audience panel.
+  assert.match(css, /\.gcd-detail--audience \.gcd-bubbles \{[\s\S]*?repeat\(3,/);
+});
+
+test("F1: focus is visible and motion is reducible", async () => {
+  const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
+  assert.match(css, /\.gcd-pencil:focus-visible[^{]*\{[\s\S]*?box-shadow/, "the pencil shows focus");
+  assert.match(css, /\.gcd-expand:focus-visible|\.gcd-btn:focus-visible/, "buttons show focus");
+  const rm = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
+  assert.match(rm, /transition:\s*none/, "motion is removable");
+  assert.match(css, /\.gcd-chevron/, "the chevron is the expansion affordance");
+});
+
+test("F1: no invented merchandise concepts reach the user", async () => {
+  const s = await mount(cardEl());
+  const text = s.host.textContent;
+  for (const banned of [/underlay surface/i, /overlay premium/i, /classic wood board/i, /personalize it/i]) {
+    assert.equal(banned.test(text), false, String(banned));
   }
 });

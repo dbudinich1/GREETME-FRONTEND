@@ -110,6 +110,12 @@ export function createCorporateCampaignsClient({
     // authorize a run, this records whether the organization wants the campaign running at all.
     // The server keeps it outside the execution interlock for one reason - turning a campaign OFF
     // must never depend on the thing being switched off - so this stays callable while dormant.
+    // SLICE F1 - the campaign title. Deliberately NARROW: it sends only `name`, and is not a
+    // general campaign-patch method. A campaign's audience, gift, spread, schedule and lifecycle
+    // each have their own endpoint with their own rules; one permissive patch would let the
+    // dashboard bypass every one of them.
+    renameCampaign: (orgId, campaignId, name) =>
+      call("PATCH", `${one(orgId, campaignId)}/name`, { body: { name } }),
     setCampaignEnabled: (orgId, campaignId, enabled) =>
       call("PATCH", `${one(orgId, campaignId)}/enabled`, { body: { enabled: enabled === true } }),
     activate: (orgId, campaignId) => call("POST", `${one(orgId, campaignId)}/activate`, { body: {} }),
