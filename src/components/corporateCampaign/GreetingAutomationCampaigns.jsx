@@ -18,6 +18,7 @@ import ContactTiles from "./ContactTiles.jsx";
 import IndividualContactPicker from "./IndividualContactPicker.jsx";
 import {
   readViewerOwnerCapability, readExecutionCapability, findAudienceOverlaps, overlapLine,
+  GIFT_PAYMENT_DISCLOSURE,
 } from "./corporateDashboardModel.js";
 
 // How many overlapping contacts to name before the list becomes wallpaper. The rest are counted,
@@ -389,6 +390,30 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
             )}
           </div>
         </section>
+
+        {/* F1C ADDENDUM — the standing gift/payment note. Deliberately OUTSIDE the scroll
+            viewport and outside every campaign card: one note for the surface, not one per tile.
+            It is presentational only — a paragraph and a link. It performs no request, holds no
+            state, and reads nothing about the account, so rendering it can never cause a payment
+            call or make a reader wait. It is styled as a quiet aside, not an alert: no role
+            "alert", no error tone, nothing to dismiss or agree to, and it never disables Save. */}
+        <aside className="gcd-paynote" data-testid="gift-payment-note">
+          <svg className="gcd-paynote-icon" viewBox="0 0 24 24" width="18" height="18"
+            fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"
+            strokeLinejoin="round" aria-hidden="true" focusable="false">
+            <rect x="3" y="8" width="18" height="4" rx="1" />
+            <path d="M12 8v13" />
+            <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+            <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" />
+          </svg>
+          <p className="gcd-paynote-text" data-testid="gift-payment-note-text">
+            {GIFT_PAYMENT_DISCLOSURE.text}{" "}
+            <a className="gcd-paynote-link" data-testid="gift-payment-note-link"
+              href={GIFT_PAYMENT_DISCLOSURE.linkHref}>
+              {GIFT_PAYMENT_DISCLOSURE.linkLabel}
+            </a>
+          </p>
+        </aside>
 
         {/* B — CONTACT TILES: Employees / Clients / Vendors, always visible beneath the viewport.
 

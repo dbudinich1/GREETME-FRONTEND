@@ -8,7 +8,9 @@ import { readinessLabel, availableActions, CORPORATE_VIDEO } from "../../corpora
 
 // Canonical, approved terminology. Guarded by a test against forbidden terms.
 export const TERMS = Object.freeze({
-  SURFACE: "Greet-Me Automated Campaigns",
+  // Founder wording, 2026-08-22. Title case, Greet-Me hyphenation retained, no qualifier
+  // appended. Both page headings read this one constant, so they cannot drift apart.
+  SURFACE: "Automated Greet-Me Campaigns",
   FEATURED_SPREAD: "Campaign Featured Spread",
   CUSTOMIZE: "Customize Featured Spread",
   INTRO_FINALE: "Intro and Finale Only",

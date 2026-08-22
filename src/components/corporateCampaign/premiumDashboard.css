@@ -10,20 +10,24 @@
  */
 
 .gcd-root {
-  --gcd-ink: #1b1830;
-  --gcd-muted: #605c78;
-  --gcd-faint: #928ea8;
-  --gcd-line: rgba(27, 24, 48, 0.10);
-  --gcd-line-strong: rgba(27, 24, 48, 0.16);
-  --gcd-purple: #6d5cf0;
-  --gcd-purple-deep: #4a3fb0;
-  --gcd-lav: #f3f1fe;
-  --gcd-lav-2: #ebe7fd;
-  --gcd-good: #1f9d6b;
-  --gcd-warn: #bd7a10;
-  --gcd-radius: 18px;
-  --gcd-shadow: 0 1px 2px rgba(27, 24, 48, .04), 0 8px 24px rgba(27, 24, 48, .06);
-  --gcd-shadow-lift: 0 2px 4px rgba(27, 24, 48, .05), 0 14px 38px rgba(74, 63, 176, .13);
+  /* FINAL POLISH - the surface read as washed out because the ink was soft, the lines were
+     nearly invisible and the purple was pastel. Each token below is strengthened; none is
+     lightened, so every contrast ratio measured earlier can only improve. */
+  --gcd-ink: #141024;               /* body text - deeper, still not pure black */
+  --gcd-muted: #4e4967;
+  --gcd-faint: #635e7d;             /* section headings and notes - was too pale to read at .79rem */
+  --gcd-line: rgba(24, 21, 44, 0.16);
+  --gcd-line-strong: rgba(24, 21, 44, 0.24);   /* card boundaries */
+  --gcd-purple: #5b48ea;            /* Greet-Me purple, saturated rather than pastel */
+  --gcd-purple-deep: #3d3199;
+  --gcd-lav: #ece8fd;
+  --gcd-lav-2: #ded6fa;
+  --gcd-good: #17835a;
+  --gcd-warn: #a1650a;
+  /* FINAL CORRECTION 1 - a rounder panel, matching the 26px underlay more closely. */
+  --gcd-radius: 22px;
+  --gcd-shadow: 0 1px 2px rgba(24, 21, 44, .07), 0 10px 28px rgba(24, 21, 44, .10);
+  --gcd-shadow-lift: 0 2px 5px rgba(24, 21, 44, .08), 0 16px 42px rgba(61, 49, 153, .18);
   max-width: 1180px;
   margin: 0 auto;
   color: var(--gcd-ink);
@@ -32,9 +36,9 @@
 /* The dimensional underlay everything sits on. */
 .gcd-underlay {
   background:
-    radial-gradient(1200px 340px at 12% -8%, rgba(109, 92, 240, .10), transparent 62%),
-    radial-gradient(900px 300px at 96% 4%, rgba(191, 155, 245, .12), transparent 60%),
-    linear-gradient(180deg, #fbfaff 0%, #f6f4fd 100%);
+    radial-gradient(1200px 340px at 12% -8%, rgba(91, 72, 234, .15), transparent 62%),
+    radial-gradient(900px 300px at 96% 4%, rgba(172, 132, 240, .17), transparent 60%),
+    linear-gradient(180deg, #f6f3fe 0%, #eee9fb 100%);   /* deeper ground - cards now read as raised */
   border: 1px solid var(--gcd-line);
   border-radius: 26px;
   padding: 22px;
@@ -46,13 +50,19 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; color: var(--gcd-purple-deep); opacity: .8;
 }
-.gcd-title { font-family: Georgia, "Times New Roman", serif; font-size: 1.65rem; margin: 6px 0 4px; font-weight: 700; }
+/* PART 1 - the page title. A touch larger with tightened tracking, so it reads as the page's
+   subject rather than as another heading among the panels. Presentation only. */
+.gcd-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.85rem; line-height: 1.18; letter-spacing: -0.015em;
+  margin: 6px 0 4px; font-weight: 700; color: var(--gcd-ink);
+}
 .gcd-sub { margin: 0; color: var(--gcd-muted); font-size: .93rem; max-width: 62ch; }
 
 /* ── panels ───────────────────────────────────────────────────────────────────────────────── */
 .gcd-panel {
   background: #fff;
-  border: 1px solid var(--gcd-line);
+  border: 1px solid var(--gcd-line-strong);
   border-radius: var(--gcd-radius);
   box-shadow: var(--gcd-shadow);
 }
@@ -86,6 +96,13 @@
   overscroll-behavior: contain;
   padding: 18px 20px 22px;
   scrollbar-gutter: stable both-edges;
+  /* FINAL CORRECTION 1 - inner radius = panel radius minus the panel's 1px border, so the curve
+     sits exactly inside the border rather than crossing it. overflow is already non-visible here,
+     so this clips the white ground, the campaign tiles AND the scrollbar to the curve. */
+  border-bottom-left-radius: calc(var(--gcd-radius) - 1px);
+  border-bottom-right-radius: calc(var(--gcd-radius) - 1px);
+  /* A visible boundary for the list itself, which previously ended in an unmarked white edge. */
+  border-top: 1px solid var(--gcd-line);
 }
 .gcd-scroll {
   background-color: #fff;
@@ -102,14 +119,16 @@
 
 /* A slim, unmistakably premium scrollbar — visible without shouting. */
 .gcd-scroll::-webkit-scrollbar { width: 8px; }
-.gcd-scroll::-webkit-scrollbar-track { background: var(--gcd-lav); border-radius: 999px; margin: 8px 0; }
+/* Margin at the foot keeps the track clear of the rounded corners - without it the track's own
+   square end paints into the curve. */
+.gcd-scroll::-webkit-scrollbar-track { background: var(--gcd-lav); border-radius: 999px; margin: 8px 0 16px; }
 .gcd-scroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #b9aff4, #9384ea);
+  background: linear-gradient(180deg, #9d8cf2, #6b57e4);
   border-radius: 999px; border: 2px solid var(--gcd-lav);
   min-height: 40px;
 }
-.gcd-scroll::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #b8adf5, #9384ea); }
-.gcd-scroll { scrollbar-width: thin; scrollbar-color: #a99df0 var(--gcd-lav); }
+.gcd-scroll::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #8d7aef, #5b48ea); }
+.gcd-scroll { scrollbar-width: thin; scrollbar-color: #7a66e8 var(--gcd-lav); }
 
 /* ── campaign cards — generous separation, identical structure ────────────────────────────── */
 .gcd-card {
@@ -182,6 +201,35 @@
 /* State is never carried by the track colour alone - the word is always present. */
 .gcd-switch-label { font-size: .82rem; font-weight: 700; color: var(--gcd-muted); }
 .gcd-switch input:checked ~ .gcd-switch-label { color: var(--gcd-good); }
+
+/* ── F1C ADDENDUM — the standing gift/payment note ──────────────────────────────────────────
+   Warm and quiet. It deliberately avoids the surface's alert vocabulary: no red, no saturated
+   amber bar, no icon badge. The ground is a soft cream a shade off the page so the note reads as
+   a printed aside rather than a system message, and the type is a step below the campaign
+   controls it sits under, so it is subordinate on sight. Contrast stays well clear of AA at this
+   size (#584936 on #fdf8f0 measures far above 4.5:1), because "subordinate" must never mean
+   "hard to read". */
+.gcd-paynote {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(146, 108, 62, .20);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fefaf4 0%, #fdf6ea 100%);
+}
+.gcd-paynote-icon { flex: 0 0 auto; margin-top: 1px; color: #9a6f3c; }
+.gcd-paynote-text {
+  margin: 0;
+  font-size: .84rem; line-height: 1.5; font-weight: 500;
+  color: #584936;
+}
+.gcd-paynote-link {
+  color: #7a4a22; font-weight: 700;
+  text-decoration: underline; text-underline-offset: 2px;
+  border-radius: 4px;
+}
+.gcd-paynote-link:hover { color: #5e3616; }
+.gcd-paynote-link:focus-visible { outline: 2px solid #7a4a22; outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   .gcd-switch-track, .gcd-switch-track::after { transition: none; }
@@ -447,51 +495,164 @@
 }
 .gcd-rename-input:focus-visible { outline: 2px solid transparent; box-shadow: 0 0 0 3px rgba(109, 92, 240, .34); border-color: var(--gcd-purple); }
 
-/* ══ SLICE F1 — THE THREE PERMANENT SELECTORS ═══════════════════════════════════════════════
-   Three equal columns on desktop. They stay rendered while a detail panel is open below, so
-   choosing an audience never hides what the gift or the spread is set to. */
-.gcd-selectors {
+/* ══ SLICE F1C — THE CONFIGURATION WORKSPACE ══════════════════════════════════════════════
+   Three complete cards, every option visible, and the options are TRUE BUBBLES: a substantial
+   circular target with its label beneath, not a radio dot followed by a sentence.
+
+   Everything below is presentation. The markup is still BubbleGroup + CategoryBubble /
+   ChoiceBubble with their native checkbox and radio inputs, their labels, their aria-describedby
+   and their disabled semantics — the input is visually hidden, never removed, so keyboard,
+   screen-reader and form behaviour are exactly what they were. */
+
+.gcd-workspace {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 18px;
+  align-items: stretch;
+  margin: 0 0 22px;
+}
+
+/* CORRECTION 2 — a card should read as a surface, not as a faint outline. */
+/* SLICE F1C - warmer, more confident surfaces. Each card carries a faint accent along its top
+   edge so the three read as distinct steps without three competing colour fields. */
+.gcd-wcard {
+  display: flex; flex-direction: column; min-width: 0; position: relative;
+  padding: 22px 20px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(24, 21, 44, .22);
+  background: linear-gradient(180deg, #ffffff 0%, #f9f6ff 58%, #f3eeff 100%);
+  box-shadow: 0 1px 2px rgba(24, 21, 44, .09), 0 14px 34px rgba(61, 49, 153, .15);
+  overflow: visible;                 /* a configuration card never scrolls */
+}
+.gcd-wcard::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 4px;
+  border-radius: 20px 20px 0 0;
+  background: linear-gradient(90deg, #6d5cf0, #8b7bf5);
+}
+.gcd-workspace > .gcd-wcard:nth-child(2)::before { background: linear-gradient(90deg, #c2711f, #e0a24a); }
+.gcd-workspace > .gcd-wcard:nth-child(3)::before { background: linear-gradient(90deg, #1f8f6b, #46b894); }
+.gcd-wcard-title {
+  display: flex; align-items: center; gap: 9px;
+  margin: 0 0 4px;
+  font-size: 1.12rem; font-weight: 800; color: #100d20; line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.gcd-wcard-icon { font-size: 1.12rem; line-height: 1; }
+
+.gcd-wcard .gcd-section { margin: 0; }
+.gcd-wcard .gcd-section-label {
   margin: 0 0 14px;
+  font-size: .79rem; font-weight: 700; letter-spacing: .012em; text-transform: none;
+  color: #443e5f; line-height: 1.4;
 }
-.gcd-selector {
-  display: flex; flex-direction: column; gap: 3px; min-width: 0;
-  padding: 14px; border-radius: 14px;
-  border: 1px solid var(--gcd-line-strong);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfaff 100%);
-  transition: border-color .15s ease, box-shadow .15s ease;
-}
-.gcd-selector--open { border-color: var(--gcd-purple); box-shadow: 0 0 0 3px rgba(109, 92, 240, .14); }
-.gcd-selector-icon  { font-size: 1.05rem; line-height: 1; }
-.gcd-selector-title { font-size: .7rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--gcd-faint); }
-.gcd-selector-value {
-  font-size: .92rem; font-weight: 700; color: var(--gcd-ink); line-height: 1.3;
-  overflow: hidden; text-overflow: ellipsis;
-}
-.gcd-selector-hint  { font-size: .74rem; color: var(--gcd-faint); line-height: 1.35; }
-.gcd-selector-cta   { margin-top: 8px; align-self: flex-start; padding: 6px 12px; font-size: .78rem; }
 
-/* Employees / Clients / Vendors sit SIDE BY SIDE and evenly, rather than flex-wrapping to
-   whatever width their counts happen to make. Scoped to the audience panel on purpose: the gift
-   and spread groups have longer, unequal labels that read better flowing inline. */
-.gcd-detail--audience .gcd-bubbles {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+/* ── CORRECTION 1 — THE BUBBLE ITSELF ──────────────────────────────────────────────────────
+   A column: circle on top, label beneath, supporting line beneath that. The whole tile is the
+   click target because the <label> wraps the hidden input. */
+/* SLICE F1C - VERTICAL. Choices read top to bottom, the way a list of options is read, and the
+   circle sits beside its label rather than above it so four rows stay compact. */
+.gcd-wcard .gcd-bubbles,
+.gcd-wcard--gift .gcd-bubbles {
+  display: flex; flex-direction: column; gap: 6px;
 }
-.gcd-detail--audience .gcd-bubble { min-width: 0; }
 
-/* The one open detail panel, inline directly beneath the row. Never a modal or a drawer. */
-.gcd-detail {
-  margin: 0 0 16px; padding: 16px;
-  border: 1px solid var(--gcd-line); border-radius: 14px;
-  background: var(--gcd-lav);
+.gcd-wcard .gcd-bubble {
+  display: flex; flex-direction: row; align-items: center; gap: 12px;
+  width: 100%; min-width: 0; min-height: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
 }
+.gcd-wcard .gcd-bubble:hover { background: rgba(91, 72, 234, .10); border-color: rgba(91, 72, 234, .30); }
+/* The chosen row is unmistakable: tinted ground, ringed circle, deeper label. */
+.gcd-wcard .gcd-bubble:has(input:checked) {
+  background: rgba(91, 72, 234, .15);
+  border-color: rgba(91, 72, 234, .48);
+}
+
+/* The circle. Substantial, obviously interactive, and it carries the selection mark. */
+.gcd-wcard .gcd-dot {
+  flex: 0 0 auto;
+  width: 44px; height: 44px; margin: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(24, 21, 44, .30);
+  background: #fff;
+  box-shadow: inset 0 1px 3px rgba(24, 21, 44, .10);
+  display: block; position: relative;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+/* The checkmark, drawn rather than typed so it needs no font support. */
+.gcd-wcard .gcd-dot::after {
+  content: ""; position: absolute;
+  top: 50%; left: 50%;
+  width: 15px; height: 9px;
+  border-left: 3px solid #fff; border-bottom: 3px solid #fff;
+  border-radius: 1px;
+  transform: translate(-50%, -68%) rotate(-45deg) scale(.5);
+  opacity: 0;
+  transition: opacity .14s ease, transform .14s ease;
+  background: none;
+}
+.gcd-wcard .gcd-bubble:hover .gcd-dot { border-color: rgba(109, 92, 240, .45); }
+
+/* SELECTED — filled, ringed, and checked. Three signals, not one. */
+.gcd-wcard .gcd-bubble input:checked + .gcd-dot {
+  background: linear-gradient(150deg, #5b48ea 0%, #3d3199 100%);
+  border-color: #3d3199;
+  box-shadow: 0 0 0 4px rgba(91, 72, 234, .30), 0 2px 7px rgba(61, 49, 153, .38);
+}
+.gcd-wcard .gcd-bubble input:checked + .gcd-dot::after { opacity: 1; transform: translate(-50%, -68%) rotate(-45deg) scale(1); }
+.gcd-wcard .gcd-bubble input:checked ~ .gcd-bubble-text .gcd-bubble-label { color: var(--gcd-purple-deep); }
+
+/* FOCUS — visible on the circle, since the input itself is visually hidden. */
+.gcd-wcard .gcd-bubble input:focus-visible + .gcd-dot {
+  outline: 2px solid transparent;
+  box-shadow: 0 0 0 4px rgba(109, 92, 240, .42);
+}
+
+/* DISABLED — fully visible, plainly unavailable. Its reason stays on the card. */
+.gcd-wcard .gcd-bubble--disabled { cursor: not-allowed; }
+.gcd-wcard .gcd-bubble--disabled:hover { background: transparent; border-color: transparent; }
+.gcd-wcard .gcd-bubble input:disabled + .gcd-dot {
+  border-style: dashed; border-color: rgba(27, 24, 48, .22);
+  background: #f5f4f9; box-shadow: none;
+}
+.gcd-wcard .gcd-bubble input:disabled ~ .gcd-bubble-text .gcd-bubble-label { color: var(--gcd-faint); }
+
+/* The label and its supporting line sit under the circle, always visible — never a tooltip. */
+.gcd-wcard .gcd-bubble-text { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
+.gcd-wcard .gcd-bubble-label { font-size: .92rem; font-weight: 700; line-height: 1.3; color: #100d20; }
+.gcd-wcard .gcd-bubble-note { font-size: .78rem; color: #4b4665; line-height: 1.4; }
+.gcd-wcard .gcd-bubble-reason { font-size: .74rem; font-weight: 700; color: var(--gcd-warn); line-height: 1.35; }
+.gcd-wcard .gcd-bubble-count { font-size: .76rem; font-weight: 700; color: var(--gcd-purple-deep); }
+
+/* Secondary tools sit at the foot, so the three cards keep a common baseline. */
+.gcd-wcard-foot {
+  margin-top: auto; padding-top: 14px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 9px;
+  border-top: 1px solid var(--gcd-line);
+}
+.gcd-sched-summary { margin: 2px 0 0; font-size: .92rem; font-weight: 600; color: #100d20; line-height: 1.4; }
+.gcd-wcard-note { font-size: .8rem; color: var(--gcd-faint); line-height: 1.4; }
+.gcd-wcard-field { font-size: .82rem; font-weight: 600; color: var(--gcd-muted); }
+.gcd-wcard-foot select {
+  padding: 8px 10px; font: inherit; font-size: .86rem;
+  border: 1px solid var(--gcd-line-strong); border-radius: 10px; background: #fff; color: var(--gcd-ink);
+}
+
+/* CORRECTION 4 — desktop scale. The expanded body gets the page's width rather than sitting in a
+   narrow column, and the type steps up with it. */
+.gcd-card--expanded { padding-left: 26px; padding-right: 26px; }
+.gcd-tile-body .gcd-section-label { font-size: .82rem; }
+.gcd-tile-body .gcd-bubble-label { font-size: .9rem; }
+.gcd-tile-body .gcd-field label { font-size: .86rem; }
 
 @media (prefers-reduced-motion: reduce) {
-  .gcd-chevron, .gcd-selector, .gcd-pencil, .gcd-expand { transition: none; }
+  .gcd-wcard .gcd-bubble, .gcd-wcard .gcd-dot, .gcd-wcard .gcd-dot::after { transition: none; }
 }
 
 /* ── buttons ──────────────────────────────────────────────────────────────────────────────── */
@@ -626,13 +787,28 @@
    would silently redirect them to the wrong block. */
 @media (max-width: 1024px) {
   /* Tablet: 2 + 1 wrapping, which the founder accepted. No horizontal overflow at any width. */
-  .gcd-selectors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Tablet: Audience + Gift side by side, Featured Spread full width beneath. Every bubble
+     stays visible; nothing is hidden to make room. */
+  .gcd-workspace { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gcd-workspace > .gcd-wcard:nth-child(3) { grid-column: 1 / -1; }
+  /* Featured Spread is full width on tablet, so its three bubbles spread across it. */
+  .gcd-workspace > .gcd-wcard:nth-child(3) .gcd-bubbles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .gcd-tile-head { grid-template-columns: 1fr; grid-template-areas: "headline" "meta" "next"; }
   .gcd-tile-meta { justify-content: flex-start; }
 }
 @media (max-width: 720px) {
   /* Mobile: the three summaries stack. */
-  .gcd-selectors { grid-template-columns: minmax(0, 1fr); }
+  /* Mobile: three complete cards stacked, all bubbles still visible. */
+  .gcd-workspace { grid-template-columns: minmax(0, 1fr); }
+  .gcd-workspace > .gcd-wcard:nth-child(3) { grid-column: auto; }
+  /* Mobile: a compact row that still shows every option. The circle shrinks; nothing hides. */
+  .gcd-wcard .gcd-bubbles,
+  .gcd-wcard--gift .gcd-bubbles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .gcd-wcard--gift .gcd-bubbles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gcd-wcard .gcd-dot { width: 46px; height: 46px; }
+  .gcd-wcard .gcd-bubble { padding: 10px 4px; }
+  .gcd-wcard .gcd-bubble-label { font-size: .82rem; }
+  .gcd-card--expanded { padding-left: 18px; padding-right: 18px; }
   .gcd-detail--audience .gcd-bubbles { grid-template-columns: minmax(0, 1fr); }
   .gcd-tile-head--banner { margin: -18px -18px 14px; padding: 16px 18px 12px; }
   .gcd-rename-input { flex-basis: 100%; }

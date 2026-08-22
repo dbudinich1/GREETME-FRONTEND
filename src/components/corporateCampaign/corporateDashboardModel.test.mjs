@@ -10,7 +10,6 @@ import {
   CORPORATE_GIFT_OPTIONS,
   CURATED_TIERS_CENTS,
   SCHEDULE_MODES,
-  GIFT_CAPABILITY_REASON,
   OWNER_ONLY_MESSAGE,
   bucketContactsByCategory,
   contactTotalsLabel,
@@ -213,14 +212,25 @@ test("No gift and Let Greet-Me Select are selectable; QR Cash and Greet-Me Gifts
   for (const v of ["qrcash", "marketplace"]) {
     const s = giftOptionState(v);
     assert.equal(s.selectable, false, v);
-    assert.equal(s.reason, "Individual funding required", v);
-    assert.equal(s.reason, GIFT_CAPABILITY_REASON);
+    // FINAL POLISH - non-selectable, and NO reason text published for it. The founder's direction
+    // was to remove the purchase-completion sentence and not substitute an equivalent, so the model
+    // now returns nothing for the surface to print. The capability itself is unchanged.
+    assert.equal(s.reason, null, v);
+  }
+});
+
+test("FINAL POLISH: the model publishes no purchase-completion wording, in any permutation", () => {
+  const banned = /needs a person|complete the purchase|person required|individual purchase|manual purchase|interactive funding|individual funding|requires someone|purchase separately|completed by a person/i;
+  // Every string this module could put on screen for a real gift option.
+  for (const o of CORPORATE_GIFT_OPTIONS) {
+    const st = giftOptionState(o.value);
+    const shown = [o.label, o.description, st.reason].filter(Boolean).join(" ");
+    assert.equal(banned.test(shown), false, o.value);
   }
 });
 
 test("the disabled wording is truthful — never unavailable, unsupported, not offered, or coming soon", () => {
   const words = /unavailable|unsupported|not offered|not supported|coming soon/i;
-  assert.equal(words.test(GIFT_CAPABILITY_REASON), false);
   for (const o of CORPORATE_GIFT_OPTIONS) {
     assert.equal(words.test(o.label + " " + o.description), false, o.value);
   }

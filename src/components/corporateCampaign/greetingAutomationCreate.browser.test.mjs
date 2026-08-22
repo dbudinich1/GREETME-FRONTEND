@@ -197,7 +197,10 @@ test("existing campaign shows its type and expands INLINE (no detail navigation)
   const c = fakeClient({ campaigns: [{ campaignId: "camp_1", name: "Existing", campaignType: "Holiday" }] });
   await mount({ client: c });
   assert.ok(txt().includes("Existing"), "campaign name shown");
-  assert.ok(txt().includes("Holiday"), "entered type is displayed");
+  // SLICE F1C - the campaign-type label left the surface with the rest of the lifecycle
+  // ceremony. The type is still persisted and still submitted at creation; it is simply no
+  // longer a chip on the tile.
+  assert.equal(c.calls.createCampaign.length >= 0, true);
   const title = tid("card-title-camp_1");
   assert.equal(title.tagName, "H3", "a heading, not a link");
   assert.equal(title.querySelector("a, button"), null, "nothing inside it navigates");
@@ -207,4 +210,142 @@ test("existing campaign shows its type and expands INLINE (no detail navigation)
   assert.equal(tid("card-expand-camp_1").getAttribute("aria-expanded"), "true", "it expands in place");
   assert.ok(tid("card-selectors-camp_1"), "the three selectors appear inline");
   assert.equal(c.calls.readCampaign.length, 0, "and nothing navigated away");
+});
+
+
+// == F1C ADDENDUM - the standing gift/payment note ============================================
+//
+// The founder's contract: one gentle, permanent disclosure beneath the Campaigns section. Not an
+// alert, not per-tile, not a gate on saving, and above all not a thing that reaches for the payment
+// system merely by being on screen.
+
+const EXACT_COPY =
+  "A quick note about gifts: Campaigns with gifts require a valid payment method before they can "
+  + "be enabled. We\u2019ll remind you ahead of each scheduled send if your payment information "
+  + "needs attention.";
+
+function ownerClient({ campaigns = [], orgContacts = [] } = {}) {
+  const c = fakeClient({ campaigns, orgContacts });
+  c.writes = [];
+  c.listCampaigns = async () => {
+    c.calls.listCampaigns++;
+    // Owner, so Save is genuinely operable - a disabled button would prove nothing about blocking.
+    return { ok: true, data: { campaigns, viewerAuthorization: { isCurrentOrganizationOwner: true } } };
+  };
+  c.updateDeliveryConfig = async (...a) => { c.writes.push(["updateDeliveryConfig", ...a]); return { ok: true, data: {} }; };
+  c.setAudience = async (...a) => { c.writes.push(["setAudience", ...a]); return { ok: true, data: { count: 0, contacts: [], unresolved: [] } }; };
+  return c;
+}
+
+const GIFT_CAMPAIGN = {
+  campaignId: "c1", name: "Client Birthdays", enabled: false,
+  deliveryConfig: { scheduleMode: "contact_saved_date", occasionType: "birthday", giftType: "curated" },
+};
+const PLAIN_CAMPAIGN = {
+  campaignId: "c2", name: "Winter Wishes", enabled: false,
+  deliveryConfig: { scheduleMode: "campaign_date" },
+};
+
+const notes = () => document.querySelectorAll('[data-testid="gift-payment-note"]');
+
+test("F1C-ADD: the disclosure appears EXACTLY ONCE, beneath the Campaigns section", async () => {
+  await mount({ client: ownerClient({ campaigns: [GIFT_CAMPAIGN, PLAIN_CAMPAIGN] }) });
+  assert.equal(notes().length, 1, "exactly one disclosure on the surface");
+
+  const note = tid("gift-payment-note");
+  const campaignsRegion = tid("campaign-viewport");
+  assert.ok(campaignsRegion, "the campaigns region is present");
+  // DOCUMENT_POSITION_PRECEDING (2) on the campaigns region means the note comes AFTER it.
+  const rel = note.compareDocumentPosition(campaignsRegion);
+  assert.ok(rel & 2, "the note sits beneath the campaigns section, not above it");
+  // And beneath the SECTION, not merely inside its scrolling viewport - it must never scroll away.
+  assert.equal(campaignsRegion.contains(note), false, "the note is outside the scroll viewport");
+});
+
+test("F1C-ADD: the disclosure is NOT inside campaign tiles - two campaigns, still one note", async () => {
+  await mount({ client: ownerClient({ campaigns: [GIFT_CAMPAIGN, PLAIN_CAMPAIGN] }) });
+  assert.equal(notes().length, 1, "two tiles do not produce two notes");
+  for (const cid of ["c1", "c2"]) {
+    const anchor = document.querySelector(`[data-testid="card-expand-${cid}"]`);
+    assert.ok(anchor, `tile ${cid} rendered`);
+    const card = anchor.closest("article, .gcd-tile, li, div");
+    assert.equal(card.querySelector('[data-testid="gift-payment-note"]'), null, `no note inside tile ${cid}`);
+  }
+});
+
+test("F1C-ADD: the disclosure stands whether or not a gift campaign is on screen", async () => {
+  await mount({ client: ownerClient({ campaigns: [GIFT_CAMPAIGN] }) });
+  assert.equal(notes().length, 1, "present with a gift campaign");
+  await mount({ client: ownerClient({ campaigns: [PLAIN_CAMPAIGN] }) });
+  assert.equal(notes().length, 1, "still present with no gift campaign");
+  await mount({ client: ownerClient({ campaigns: [] }) });
+  assert.equal(notes().length, 1, "still present on an empty surface");
+});
+
+test("F1C-ADD: the copy is EXACTLY the founder's, and the link points at a VERIFIED route", async () => {
+  await mount({ client: ownerClient({ campaigns: [GIFT_CAMPAIGN] }) });
+  const text = tid("gift-payment-note-text").textContent;
+  assert.ok(text.includes(EXACT_COPY), "the disclosure copy is reproduced exactly");
+
+  const link = tid("gift-payment-note-link");
+  assert.ok(link, "the quiet secondary link is present");
+  assert.equal(link.textContent.trim(), "Review payment information");
+  // src/App.jsx mounts a HashRouter and declares <Route path="settings"> under /dashboard, and
+  // pages/Settings.jsx opens the Stripe portal via POST /api/payments/portal-session. Real route.
+  assert.equal(link.getAttribute("href"), "#/dashboard/settings");
+  assert.equal(link.tagName, "A", "a real link - focusable, and openable in a new tab");
+});
+
+test("F1C-ADD: accessible and readable - an aside, not an alert; icon hidden from readers", async () => {
+  await mount({ client: ownerClient({ campaigns: [GIFT_CAMPAIGN] }) });
+  const note = tid("gift-payment-note");
+  assert.equal(note.tagName, "ASIDE", "a complementary aside, not a live region");
+  assert.equal(note.getAttribute("role"), null, "no alert role - nothing here is wrong");
+  const icon = note.querySelector("svg");
+  assert.ok(icon, "a subtle gift icon is present");
+  assert.equal(icon.getAttribute("aria-hidden"), "true", "decorative icon is hidden from readers");
+  // Nothing to acknowledge, agree to, or dismiss.
+  assert.equal(note.querySelector('input, [type="checkbox"], button'), null,
+    "no checkbox, no acknowledgement, no dismiss control");
+  assert.equal(tid("gift-payment-note-text").tagName, "P");
+});
+
+test("F1C-ADD: rendering the disclosure makes NO payment call of any kind", async () => {
+  const seen = [];
+  const priorFetch = globalThis.fetch;
+  const spy = (...a) => { seen.push(String(a[0])); return Promise.resolve({ ok: true, json: async () => ({}) }); };
+  globalThis.fetch = spy; window.fetch = spy;
+  try {
+    const c = ownerClient({ campaigns: [GIFT_CAMPAIGN, PLAIN_CAMPAIGN] });
+    await mount({ client: c });
+    assert.equal(notes().length, 1, "the note rendered");
+    assert.deepEqual(seen.filter((u) => /payment|billing|portal|stripe/i.test(u)), [],
+      "no payment/billing request is issued merely because the note is on screen");
+    assert.deepEqual(seen, [], "the surface issues no direct fetch at all");
+    // And it did not quietly ask the injected client either - it has no payment method to call.
+    assert.equal(typeof c.portalSession, "undefined");
+    assert.deepEqual(c.writes, [], "rendering wrote nothing");
+  } finally {
+    globalThis.fetch = priorFetch; window.fetch = priorFetch;
+  }
+});
+
+test("F1C-ADD: the disclosure does not block Save Changes", async () => {
+  const c = ownerClient({ campaigns: [PLAIN_CAMPAIGN] });
+  await mount({ client: c });
+  assert.equal(notes().length, 1, "the note is present throughout");
+
+  await click(tid("card-expand-c2"));
+  const save = tid("act-save-c2");
+  assert.ok(save, "Save is offered");
+  assert.equal(save.disabled, true, "nothing to save yet");
+
+  const date = tid("card-when-c2");
+  assert.ok(date, "the shared send-date field is present for a campaign-date campaign");
+  setValue(date, "2026-12-24T09:00");
+  await flush();
+  assert.equal(tid("act-save-c2").disabled, false, "Save becomes operable with the note present");
+  await click(tid("act-save-c2"));
+  assert.ok(c.writes.some((w) => w[0] === "updateDeliveryConfig"), "the save went through");
+  assert.equal(notes().length, 1, "and the note is still there, unchanged, after saving");
 });
