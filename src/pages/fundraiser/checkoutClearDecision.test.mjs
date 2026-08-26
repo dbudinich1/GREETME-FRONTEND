@@ -19,7 +19,7 @@ let checkoutSessionCreated;
 before(async () => {
   // Bundle ONLY Checkout.jsx (real); stub every one of its imports to a permissive proxy module so the
   // top-level runs (the component is never invoked) and the pure predicate is exposed without real deps.
-  const STUB = "const p = new Proxy(function(){}, { get: () => p, apply: () => p, construct: () => ({}) });\nexport default p;\nexport const jsx=p,jsxs=p,jsxDEV=p,Fragment=p,useState=p,useEffect=p,useRef=p,useNavigate=p,useLocation=p,loadStripe=p,useAuth=p,getErrorMessage=p,getCurrentPriceMap=p,personalPlans=p,fundraiserCheckoutField=p,clearToken=p,isFundraiserUiEnabled=p,CreditCard=p,Lock=p,ArrowLeft=p,CheckCircle=p,ShoppingBag=p,Truck=p,Shield=p;";
+  const STUB = "const p = new Proxy(function(){}, { get: () => p, apply: () => p, construct: () => ({}) });\nexport default p;\nexport const jsx=p,jsxs=p,jsxDEV=p,Fragment=p,useState=p,useEffect=p,useRef=p,useNavigate=p,useLocation=p,loadStripe=p,useAuth=p,getErrorMessage=p,getCurrentPriceMap=p,personalPlans=p,fundraiserCheckoutField=p,salesCheckoutField=p,clearToken=p,isFundraiserUiEnabled=p,CreditCard=p,Lock=p,ArrowLeft=p,CheckCircle=p,ShoppingBag=p,Truck=p,Shield=p;";
   const stub = { name: "stub", setup(b) {
     b.onResolve({ filter: /.*/ }, (a) => {
       if (a.kind === "entry-point") return undefined;          // the entry file

@@ -13,6 +13,9 @@ import { getCurrentPriceMap, personalPlans } from '../config/plans';
 // ONLY while the Fundraiser UI flag is enabled (false by default). Never for gifts/QR Cash/G1G1/
 // onboarding/other one-time checkouts.
 import { fundraiserCheckoutField, clearToken as clearFundraiserToken } from './fundraiser/attributionCarrier.js';
+// TEAM B (SALES S1) — salesperson attribution carrier. Attaches ONLY the opaque token, and
+// ONLY to a personal subscription; the backend resolves it and is the sole identity authority.
+import { salesCheckoutField, clearToken as clearSalesToken } from './sales/salesAttributionCarrier.js';
 import { isFundraiserUiEnabled } from '../config/fundraiserGate.js';
 
 // TEAM B — a checkout response counts as a SUCCESSFULLY CREATED Stripe Checkout Session only when it
@@ -328,6 +331,9 @@ export default function Checkout() {
         quantity: item.quantity || 1,
         planTier: item.planTier,
         billingPeriod: item.billingPeriod || item.period,
+        // SALES S1 — opaque salesperson token when a sales link began this journey.
+        // Omitted entirely otherwise, so ordinary checkout is byte-identical.
+        ...salesCheckoutField({ purchaseType: item.purchaseType || 'subscription' }),
         ...(referralCode && { referralCode }),
         ...(courtesyCreditCode && !referralCode && { courtesyCreditCode }),
         // G1G1 recipient data for fulfillment — PERSONAL tiers only (business uses annual credits)
@@ -350,6 +356,12 @@ export default function Checkout() {
       }
       // Clear the transient fundraiser token ONLY on a successfully created session (valid redirect url),
       // so it survives network errors / non-2xx / malformed responses and remains available on retry.
+      // SALES S1 — the checkout session now carries the server-resolved salesperson, so the
+      // browser carrier has done its job. Cleared only on a definitively created session: a
+      // failed or retried checkout preserves it, and renewals need no carrier at all.
+      // Placed BEFORE the fundraiser clear so that clear stays immediately adjacent to the
+      // redirect below — a locked invariant of the fundraiser viral-loop wiring.
+      if (checkoutSessionCreated(data)) clearSalesToken();
       if (checkoutSessionCreated(data)) clearFundraiserToken();
       window.location.href = data.url;
     } catch (error) {
