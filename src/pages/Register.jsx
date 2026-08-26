@@ -6,6 +6,7 @@ import { getErrorMessage } from '../utils/errorMessages';
 // lucide icons removed — QR/Smartphone section removed
 import GreetMeLogo from '../components/GreetMeLogo';
 import { useAccountState } from '../hooks/useAccountState';
+import { claimSalesAttribution } from "../api/api";
 
 // Fast mode: skip name fields when entering from a viral loop
 function isFastMode() {
@@ -63,6 +64,10 @@ export default function Register() {
     const result = await register(fullName, email, password);
 
     if (result.success) {
+      // SALES S1 — promote the anonymous referral hand-off into a durable, server-side
+      // pending attribution now that a user identity exists. Fire-and-forget: it must never
+      // delay or block registration, and a failure simply leaves the visitor unattributed.
+      claimSalesAttribution();
       const wasRecipientMode = sessionStorage.getItem('greetme_session_mode') === 'recipient';
       sessionStorage.removeItem('greetme_session_mode');
       if (wasRecipientMode) {

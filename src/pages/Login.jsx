@@ -6,6 +6,7 @@ import { getErrorMessage } from "../utils/errorMessages";
 import { Mail, Lock, QrCode, Smartphone } from "lucide-react";
 import QRCode from 'qrcode';
 import GreetMeLogo from "../components/GreetMeLogo";
+import { claimSalesAttribution } from "../api/api";
 
 export const Login = () => {
   const [email, setEmail] = useState("");
@@ -38,6 +39,9 @@ export const Login = () => {
     setLoading(true);
 
     const result = await login(email, password);
+    // SALES S1 — a visitor may have followed a referral and then signed in to an existing
+    // account rather than registering. Same fire-and-forget promotion; never blocks sign-in.
+    if (result?.success) claimSalesAttribution();
 
     if (result?.success) {
       sessionStorage.removeItem('greetme_session_mode');

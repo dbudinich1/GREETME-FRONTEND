@@ -20,12 +20,40 @@
     <meta name="twitter:description" content="Personalized animated greetings delivered automatically for the people you love." />
 
     <!-- Google Analytics (GA4) -->
+    <!--
+      SALES S1 — THE REFERRAL TOKEN MUST NEVER REACH ANALYTICS.
+
+      A salesperson referral link is /#/s/<TOKEN>, and that token is a BEARER COMPENSATION
+      INSTRUMENT: whoever holds it can attribute purchases. GA4's automatic page_view sends
+      page_location = document.location.href, and for a hash-routed SPA that URL includes the
+      fragment — so the default configuration would transmit the raw token to a third party on
+      every single referral landing.
+
+      Two independent defences, because one is not enough:
+        1. send_page_view:false — GA4 sends NO automatic page_view, so it cannot capture the
+           landing URL before the app has had any chance to clean it.
+        2. every page_location we do send is sanitised by the stripper below, so any future
+           page_view inherits the rule instead of having to remember it.
+      The landing component additionally rewrites the address bar (history.replaceState) the
+      instant the token is captured, so it does not linger in history or in a later referrer.
+    -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-SNPWGHVBL1"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
+
+      // Replace the opaque token in a /#/s/<token> fragment with a placeholder. Pure string work,
+      // no dependencies, safe to run before the bundle loads.
+      window.__gmStripSensitiveFragment = function (href) {
+        try { return String(href).replace(/#\/s\/[^/?&#]+/g, '#/s/redacted'); }
+        catch (e) { return String(href); }
+      };
+
       gtag('js', new Date());
-      gtag('config', 'G-SNPWGHVBL1');
+      gtag('config', 'G-SNPWGHVBL1', {
+        send_page_view: false,
+        page_location: window.__gmStripSensitiveFragment(window.location.href)
+      });
     </script>
 
     <!-- Google Fonts - Preconnect for faster loading -->

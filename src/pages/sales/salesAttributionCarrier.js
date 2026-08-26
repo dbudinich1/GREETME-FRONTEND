@@ -77,3 +77,37 @@ export function salesCheckoutField({ purchaseType } = {}) {
   const token = readToken();
   return token ? { salesAttributionToken: token } : {};
 }
+
+// NOTE — THIS MODULE MAKES NO NETWORK REQUEST, AND MUST NOT.
+// Binding is server-side, on a proven-paid webhook, and the promotion call that turns the
+// anonymous hand-off into a durable pending attribution lives in src/api/api.js
+// (claimSalesAttribution). Keeping the carrier request-free is a governed invariant asserted by
+// salesAttributionCarrier.test.mjs — a fetch here would let the browser start looking like an
+// authority on attribution, which it never is.
+
+/**
+ * Remove the token from the browser's address bar, in place.
+ *
+ * Called the instant the token is captured. Three reasons this matters even though the fragment
+ * is never sent to the server:
+ *   • it stops the token sitting in browser history, where a shared or shoulder-surfed device
+ *     exposes a working compensation link;
+ *   • it stops any later analytics call, error reporter or third-party script reading a
+ *     location that still contains it;
+ *   • it makes an accidental copy-paste of the address bar harmless.
+ *
+ * `history.replaceState` does not add a history entry and does not re-render the router, so the
+ * page the visitor is looking at is unaffected. Fail-safe: any error is swallowed — losing the
+ * scrub must never break the landing page.
+ */
+export function scrubTokenFromAddressBar() {
+  try {
+    if (typeof window === "undefined" || !window.history?.replaceState) return false;
+    const { pathname, search, hash } = window.location;
+    if (typeof hash !== "string" || !hash.startsWith("#/s/")) return false;
+    const cleaned = "#/s/redacted";
+    if (hash === cleaned) return false;
+    window.history.replaceState(null, "", `${pathname}${search}${cleaned}`);
+    return true;
+  } catch { return false; }
+}

@@ -921,3 +921,68 @@ class ApiService {
 
 const api = new ApiService();
 export default api;
+
+/**
+ * SALES S1 — validate a referral token, server-side, and establish the anonymous hand-off.
+ *
+ * THE TOKEN TRAVELS IN THE REQUEST BODY, NEVER IN THE URL. A token in a path or query string is
+ * recorded by surfaces this application does not control: Azure App Service access logs, reverse
+ * proxies, Azure Monitor HTTP spans, and our own error logger (which records `req.originalUrl`).
+ * A body is none of those, and the error logger deletes it before writing.
+ *
+ * The browser is only a carrier: it learns nothing but `valid: true|false`. No salesperson
+ * identity, rate, earnings, token hash or internal id is returned, and the token is never echoed.
+ * If the server chooses to issue the sealed HttpOnly attribution cookie, it does so on this
+ * response — and this code can neither read nor influence it.
+ *
+ * `credentials: "include"` is what lets the browser STORE that Set-Cookie for a same-site API.
+ *
+ * @returns {Promise<{valid:boolean, unavailable?:boolean}>} never throws
+ */
+export async function resolveSalesReferral(token) {
+  try {
+    const res = await fetch(`${API_BASE}/api/sales/attribution/resolve`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    if (!res) return { valid: false, unavailable: true };
+    // 503 = the referral surface is switched off. Truthfully distinct from "your link is bad".
+    if (res.status === 503) return { valid: false, unavailable: true };
+    if (!res.ok) return { valid: false, unavailable: true };
+    const data = await res.json().catch(() => null);
+    return { valid: data?.valid === true };
+  } catch {
+    return { valid: false, unavailable: true };
+  }
+}
+
+/**
+ * SALES S1 — promote an anonymous referral hand-off into a durable pending attribution.
+ *
+ * Called once immediately after authentication. It deliberately sends NO body: the only input is
+ * the server's own sealed, HttpOnly carrier cookie, which this code cannot read — so the browser
+ * can neither name a salesperson nor influence the attribution clock. `credentials: "include"`
+ * is what carries that cookie to a same-site API origin.
+ *
+ * Entirely best-effort and silent. A failure leaves the visitor with ordinary, unattributed
+ * checkout; attribution is our accounting concern, never the customer's problem, so nothing here
+ * surfaces an error or delays a redirect.
+ */
+export async function claimSalesAttribution() {
+  try {
+    let token = null;
+    try { token = localStorage.getItem("token"); } catch { /* storage may be blocked */ }
+    const res = await fetch(`${API_BASE}/api/sales/attribution/claim`, {
+      method: "POST",
+      credentials: "include",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res || !res.ok) return false;
+    const data = await res.json().catch(() => null);
+    return data?.claimed === true;
+  } catch {
+    return false;
+  }
+}
