@@ -711,3 +711,63 @@ export function buildDeliveryConfigBody({ scheduleMode, scheduledForUtc, occasio
     .filter((o) => typeof o.contactId === "string" && o.contactId.length > 0);
   return body;
 }
+
+
+// ── TEAM C — CAMPAIGN ORDERING ───────────────────────────────────────────────────────────────
+//
+// Ordering is DISPLAY ONLY. Nothing here touches an audience, gift, spread, schedule, title,
+// toggle or lifecycle record, and nothing here can cause an execution, charge or send.
+//
+// The list the backend returns has no ORDER BY today, so its order is incidental. Until Team A's
+// organization-scoped ordering contract lands, the canonical order is whatever the adapter last
+// confirmed; before any confirmation it is simply the order the campaigns arrived in.
+
+/** Move one id to a new index, returning a NEW array. Out-of-range indices are no-ops. */
+export function moveCampaignId(ids, fromIndex, toIndex) {
+  const list = Array.isArray(ids) ? [...ids] : [];
+  if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex)) return list;
+  if (fromIndex < 0 || fromIndex >= list.length) return list;
+  const target = Math.max(0, Math.min(list.length - 1, toIndex));
+  if (target === fromIndex) return list;
+  const [moved] = list.splice(fromIndex, 1);
+  list.splice(target, 0, moved);
+  return list;
+}
+
+/**
+ * Apply an id order to campaign rows.
+ *
+ * TOTAL and LOSSLESS: ids that no longer exist are ignored, and rows the order does not mention
+ * keep their arrival order at the end. A stale or partial order can therefore never make a
+ * campaign disappear from the dashboard.
+ */
+export function applyCampaignOrder(rows, orderedIds) {
+  const list = Array.isArray(rows) ? rows : [];
+  const ids = Array.isArray(orderedIds) ? orderedIds : [];
+  const byId = new Map(list.map((r) => [r && r.campaign && r.campaign.campaignId, r]));
+  const out = [];
+  for (const id of ids) {
+    if (byId.has(id)) { out.push(byId.get(id)); byId.delete(id); }
+  }
+  for (const r of list) {
+    const id = r && r.campaign && r.campaign.campaignId;
+    if (byId.has(id)) { out.push(r); byId.delete(id); }
+  }
+  return out;
+}
+
+export const campaignIdsOf = (rows) =>
+  (Array.isArray(rows) ? rows : []).map((r) => r && r.campaign && r.campaign.campaignId).filter(Boolean);
+
+/** What assistive technology is told. One vocabulary, used by pointer, touch and keyboard alike. */
+export function reorderAnnouncement(kind, { name, position, total } = {}) {
+  const where = `position ${position} of ${total}`;
+  switch (kind) {
+    case "grabbed":   return `${name} grabbed. ${where}. Use arrow up and arrow down to move, space to drop, escape to cancel.`;
+    case "moved":     return `${name} moved to ${where}.`;
+    case "dropped":   return `${name} dropped at ${where}.`;
+    case "cancelled": return `Reorder cancelled. ${name} returned to ${where}.`;
+    case "failed":    return `${name} could not be reordered. The previous order has been restored.`;
+    default:          return "";
+  }
+}

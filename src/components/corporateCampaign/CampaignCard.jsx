@@ -10,7 +10,7 @@
 // Nothing here decides anything. Status, capability, and enablement all come from
 // corporateDashboardModel.js, which reads persisted backend state only.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CONTACT_CATEGORIES,
   CORPORATE_GIFT_OPTIONS,
@@ -59,6 +59,15 @@ export default function CampaignCard({
   // handed down. Defaults to false so a card rendered without it (an older caller, a test, a
   // partially wired parent) refuses rather than offers. Never derived here.
   canAuthorizeRun = false,
+  // TEAM C - reorder. The card OWNS no order state; it only reports intent upward, exactly as it
+  // does for expansion. `grabbed` is presentation for the keyboard mode the dashboard is in.
+  reorderIndex = 0,
+  reorderTotal = 0,
+  reorderAvailable = false,
+  grabbed = false,
+  dragging = false,
+  onReorderPointerDown = null,
+  onReorderKeyDown = null,
   // SLICE F1 — expansion is owned by the DASHBOARD, not the card, because only one campaign may
   // be open at a time. Keyed by campaign id upstream; the card only reports which id was clicked.
   expanded = false,
@@ -101,6 +110,49 @@ export default function CampaignCard({
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [spreadSource, setSpreadSource] = useState("organization_default");
+
+  // TEAM C - the Featured Spread editor's server-derived contract.
+  //
+  // CAPABILITY IS NOT ASSUMED AND NOT A CLIENT CONSTANT. It is read from the SAME readiness
+  // endpoint the rest of the surface already uses: a successful read means the capability is
+  // live, and a dormant 503 means it is not. That keeps the editor's own rule intact - capability
+  // comes from the server - without inventing a second capability source or a new endpoint.
+  const [spread, setSpread] = useState({ capabilityEnabled: false, readiness: null, message: null });
+
+  useEffect(() => {
+    // Only when the reader is actually looking at this campaign's spread choices.
+    if (!expanded || spreadSource !== "customize") return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await client.readReadiness(orgId, campaign.campaignId);
+        if (!alive) return;
+        if (res && res.ok === true) {
+          setSpread({ capabilityEnabled: true, readiness: (res.data && res.data.readiness) || res.data || {}, message: null });
+        } else {
+          // Truthful, and distinguishes dormancy from a plain failure.
+          setSpread({
+            capabilityEnabled: false, readiness: null,
+            message: res && res.dormant
+              ? "Featured Spread editing isn't active yet."
+              : "The Featured Spread settings couldn't be loaded.",
+          });
+        }
+      } catch {
+        if (alive) setSpread({ capabilityEnabled: false, readiness: null, message: "The Featured Spread settings couldn't be loaded." });
+      }
+    })();
+    return () => { alive = false; };
+  }, [expanded, spreadSource, orgId, campaign.campaignId, client]);
+
+  // Saves through the EXISTING featured-spread API. The canonical response replaces local state;
+  // a refusal is reported and nothing is optimistically kept.
+  const saveSpreadDraft = async (config) => {
+    await run("spread", async () => {
+      const res = await client.updateFeaturedSpread(orgId, campaign.campaignId, config);
+      return res;
+    });
+  };
   const [message, setMessage] = useState(null);
   const [pending, setPending] = useState(null);
 
@@ -128,7 +180,10 @@ export default function CampaignCard({
     if (code === "name_required" || code === "name_must_be_a_string") return "A campaign name cannot be empty.";
     if (code === "campaign_locked") return "Unlock the campaign to rename it.";
     if (code === "owner_only" || (res && res.unauthorized)) return OWNER_ONLY_MESSAGE;
-    if (res && res.notFound) return "That campaign no longer exists.";
+    // The client reports a 404 as `error: "campaign_not_found"` (its generic non-ok branch
+    // forwards the server code); it never sets a `notFound` flag, so keying on one meant this
+    // sentence could never be reached and a deleted campaign read as a transient failure.
+    if (code === "campaign_not_found") return "That campaign no longer exists.";
     if (res && res.dormant) return "This feature isn’t active yet.";
     return "That didn’t go through. Please try again.";
   };
@@ -308,7 +363,7 @@ export default function CampaignCard({
   };
 
   return (
-    <article className={`gcd-card${expanded ? " gcd-card--expanded" : ""}`}
+    <article className={`gcd-card${expanded ? " gcd-card--expanded" : ""}${dragging ? " gcd-card--dragging" : ""}`}
       data-testid={`campaign-card-${campaign.campaignId}`} aria-labelledby={uid("name")}>
 
       {/* ── HEADER / BANNER ────────────────────────────────────────────────────────────────────
@@ -318,6 +373,32 @@ export default function CampaignCard({
           reader ends up editing the one that is not wired. */}
       <div className={`gcd-tile-head${expanded ? " gcd-tile-head--banner" : ""}`}>
         <div className="gcd-tile-headline">
+          {/* TEAM C - THE DRAG HANDLE. A dedicated control, never the whole tile: making the tile
+              itself draggable would fight the pencil, the switch and the expander, and would make
+              every attempt to press one of them ambiguous.
+
+              It is a real <button>, so it is tabbable, keyboard-operable and announced. Pointer
+              events cover mouse AND touch through one code path. `touch-action: none` is set in
+              CSS so a drag does not also scroll the list under the finger. Every handler stops
+              propagation, so a drag can never expand a campaign, open the rename field, flip the
+              switch, or reach any lifecycle call. */}
+          {/* TEAM C - the handle appears ONLY when the server gave this exact list a usable
+              ordering version. Without one there is nothing valid to send as `expectedVersion`, so
+              offering a drag would promise a save that cannot happen. Everything else on the tile -
+              expansion, rename, the switch, configuration - stays fully usable. */}
+          {reorderAvailable ? (
+          <button type="button" className={`gcd-drag${grabbed ? " gcd-drag--grabbed" : ""}`}
+            data-testid={`card-drag-${campaign.campaignId}`}
+            style={{ padding: 0 }}
+            aria-label={`Reorder ${campaignLabel}. Position ${reorderIndex + 1} of ${reorderTotal}. Press space to pick up, then arrow up or arrow down to move.`}
+            aria-pressed={grabbed}
+            title="Drag to reorder, or press space to pick up"
+            onPointerDown={(e) => { e.stopPropagation(); if (onReorderPointerDown) onReorderPointerDown(e, campaign.campaignId); }}
+            onKeyDown={(e) => { e.stopPropagation(); if (onReorderKeyDown) onReorderKeyDown(e, campaign.campaignId); }}
+            onClick={(e) => e.stopPropagation()}>
+            <span className="gcd-drag-grip" aria-hidden="true" />
+          </button>
+          ) : null}
           {/* A HEADING, not a link. It no longer navigates to CampaignDetail — the campaign is
               configured here, so sending someone to another screen to read the same thing was the
               sub-screen sequence this redesign removes. */}
@@ -522,13 +603,28 @@ export default function CampaignCard({
               {spreadSource === "saved_spread" ? (
                 <div className="gcd-wcard-foot" data-testid={`card-spread-saved-${campaign.campaignId}`}>
                   <span className="gcd-wcard-note">Choose one of your saved spreads.</span>
-                  <CampaignFeaturedSpreadEditor orgId={orgId} campaignId={campaign.campaignId} client={client} />
                 </div>
               ) : null}
               {spreadSource === "customize" ? (
                 <div className="gcd-wcard-foot" data-testid={`card-spread-editor-${campaign.campaignId}`}>
-                  {/* The EXISTING Team C editor and the existing featured-spread API — never a second one. */}
-                  <CampaignFeaturedSpreadEditor orgId={orgId} campaignId={campaign.campaignId} client={client} />
+                  {/* TEAM C - the pre-existing INERT editor, corrected.
+                      It was mounted with orgId/campaignId/client, none of which it accepts, so its
+                      first line - `if (!capabilityEnabled) return null` - fired every single time
+                      and the editor rendered nothing at all. It now receives the real contract:
+                      server-derived capability and readiness, the campaign's persisted config, and
+                      a save that goes through the EXISTING updateFeaturedSpread API. No second
+                      editor, no second spread model, no modal, no route. */}
+                  <CampaignFeaturedSpreadEditor
+                    capabilityEnabled={spread.capabilityEnabled}
+                    campaignName={campaign.name || ""}
+                    initialConfig={campaign.featuredSpreadConfig}
+                    readiness={spread.readiness}
+                    onSaveDraft={saveSpreadDraft}
+                    showLifecycleActions={false}
+                  />
+                  {spread.message ? (
+                    <p className="gcd-reason" data-testid={`card-spread-msg-${campaign.campaignId}`}>{spread.message}</p>
+                  ) : null}
                 </div>
               ) : null}
             </section>

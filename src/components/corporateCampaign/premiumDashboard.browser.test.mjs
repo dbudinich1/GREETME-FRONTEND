@@ -65,7 +65,7 @@ before(async () => {
   const m = await import(pathToFileURL(BUNDLE).href);
   ContactTiles = m.ContactTiles; CampaignCard = m.CampaignCard; IndividualContactPicker = m.IndividualContactPicker;
 });
-after(() => { for (const f of [ENTRY, BUNDLE]) { try { rmSync(f); } catch { /* already gone */ } } });
+after(() => { for (const f of [ENTRY, BUNDLE, BUNDLE.replace(/\.mjs$/, ".css")]) { try { rmSync(f); } catch { /* already gone */ } } });
 
 async function mount(el) {
   const host = document.createElement("div");
@@ -160,13 +160,60 @@ test("E5: an unconfigured campaign does not look edited just because a date was 
 });
 
 // ══ SLICE E5 — three CTAs and the inline roster ═══════════════════════════════════════════════════════════════════════════════════════════
-test("E5: every tile offers Manage, Import and Add", async () => {
+test("E5: every tile offers Manage and Add - and NO separate Import", async () => {
+  // Import ran the SAME handler to the SAME route with the same mode and category as Add. Two
+  // controls for one capability is not a choice, it is a question the reader cannot answer, so
+  // the duplicate is gone and Add is the single route into the wizard.
   const s = await mount(React.createElement(ContactTiles, { contacts: CONTACTS }));
   for (const k of ["employee", "client", "vendor"]) {
     assert.ok(s.tid(`tile-${k}-manage`), `${k} manage`);
-    assert.ok(s.tid(`tile-${k}-import`), `${k} import`);
     assert.ok(s.tid(`tile-${k}-add`), `${k} add`);
+    assert.equal(s.tid(`tile-${k}-import`), null, `${k} has no separate Import button`);
   }
+  // Belt and braces: no tile anywhere renders a control labelled exactly "Import".
+  const labels = [...document.querySelectorAll(".gcd-tile-actions button")].map((b) => b.textContent.trim());
+  assert.equal(labels.includes("Import"), false, `no Import label remains: ${JSON.stringify(labels)}`);
+  assert.deepEqual(labels, ["Manage", "Add Employee", "Manage", "Add Client", "Manage", "Add Vendor"]);
+});
+
+test("E5: Manage reads Manage when closed and Hide when expanded, and says so to assistive tech", async () => {
+  const s = await mount(React.createElement(ContactTiles, { contacts: CONTACTS }));
+  const btn = () => s.tid("tile-employee-manage");
+  assert.equal(btn().textContent.trim(), "Manage");
+  assert.equal(btn().getAttribute("aria-expanded"), "false");
+  assert.equal(btn().getAttribute("aria-controls"), "tile-employee-roster");
+
+  await click(btn());
+  assert.equal(btn().textContent.trim(), "Hide", "the label flips while the roster is open");
+  assert.equal(btn().getAttribute("aria-expanded"), "true");
+  assert.equal(btn().getAttribute("aria-controls"), "tile-employee-roster", "still points at its roster");
+
+  await click(btn());
+  assert.equal(btn().textContent.trim(), "Manage", "and back again");
+  assert.equal(btn().getAttribute("aria-expanded"), "false");
+});
+
+test("E5: each Add routes to the import wizard with its OWN category, and nothing else fires", async () => {
+  // The exact contract the surface supplies: mode=corporate plus this tile's category key.
+  const routed = [];
+  const s = await mount(React.createElement(ContactTiles, {
+    contacts: CONTACTS,
+    onAddCategory: (key) => routed.push(`/dashboard/import-wizard?mode=corporate&category=${encodeURIComponent(key)}`),
+  }));
+  for (const k of ["employee", "client", "vendor"]) await click(s.tid(`tile-${k}-add`));
+  assert.deepEqual(routed, [
+    "/dashboard/import-wizard?mode=corporate&category=employee",
+    "/dashboard/import-wizard?mode=corporate&category=client",
+    "/dashboard/import-wizard?mode=corporate&category=vendor",
+  ]);
+  // Removing Import must not have quietly turned Manage into a second router.
+  const manageRouted = [];
+  const s2 = await mount(React.createElement(ContactTiles, {
+    contacts: CONTACTS, onAddCategory: (k) => manageRouted.push(k),
+  }));
+  await click(s2.tid("tile-employee-manage"));
+  assert.deepEqual(manageRouted, [], "Manage routes nowhere - it opens the inline roster");
+  assert.ok(s2.tid("tile-employee-roster"), "and the roster is what it opened");
 });
 
 test("E5: Manage opens that category's roster, and only that one", async () => {

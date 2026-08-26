@@ -44,7 +44,7 @@ before(async () => {
   ({ createRoot } = await import("react-dom/client"));
   ({ Surface } = await import(pathToFileURL(BUNDLE).href));
 });
-after(() => { try { rmSync(BUNDLE, { force: true }); rmSync(join(__dirname, ".__gacc.jsx"), { force: true }); } catch { /* ignore */ } });
+after(() => { try { rmSync(BUNDLE, { force: true }); rmSync(BUNDLE.replace(/\.mjs$/, ".css"), { force: true }); rmSync(join(__dirname, ".__gacc.jsx"), { force: true }); } catch { /* ignore */ } });
 
 const flush = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 0)); }); };
 const tid = (t) => document.querySelector(`[data-testid="${t}"]`);

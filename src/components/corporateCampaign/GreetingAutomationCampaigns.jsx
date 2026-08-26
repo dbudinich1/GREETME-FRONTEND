@@ -6,8 +6,8 @@
 // Capability is SERVER-derived: while the feature is dormant the endpoints return 503 and the
 // entire surface stays hidden with zero campaign writes. No client self-enabling flag.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { createCorporateCampaignsClient } from "../../api/corporateCampaigns.js";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createCorporateCampaignsClient, isOrderVersion, ORDERING_UNAVAILABLE } from "../../api/corporateCampaigns.js";
 import {
   activeMemberships, resolveOrganizationContext, deriveCampaignSummary, interpretCapability, TERMS,
 } from "./campaignSurfaceModel.js";
@@ -19,6 +19,7 @@ import IndividualContactPicker from "./IndividualContactPicker.jsx";
 import {
   readViewerOwnerCapability, readExecutionCapability, findAudienceOverlaps, overlapLine,
   GIFT_PAYMENT_DISCLOSURE,
+  moveCampaignId, applyCampaignOrder, campaignIdsOf, reorderAnnouncement,
 } from "./corporateDashboardModel.js";
 
 // How many overlapping contacts to name before the list becomes wallpaper. The rest are counted,
@@ -124,12 +125,346 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
     [rows, contacts],
   );
 
+
+
   const goTo = injectedNavigate || ((path) => { try { window.location.hash = `#${path}`; } catch { /* non-browser host */ } });
 
   // Organization context is derived purely from the membership response + any explicit
   // selection. Never guesses; clears a selection that is no longer active.
   const ctx = useMemo(() => resolveOrganizationContext(membershipResult, selectedOrgId), [membershipResult, selectedOrgId]);
   const effectiveOrgId = ctx.selectedOrgId;
+
+  // ══ TEAM C — CAMPAIGN REORDER ══════════════════════════════════════════════════════════════
+  //
+  // DISPLAY ORDER ONLY. Nothing below can change an audience, gift, spread, schedule, title or
+  // switch, and nothing below can reach an execution, charge or send. The only write it performs
+  // is the ordering adapter, which is UNBOUND in production until Team A ships the contract.
+  //
+  // Three things make this safe rather than merely pretty:
+  //   • the LAST CONFIRMED order is kept separately, so a refusal restores exactly what the
+  //     server last agreed to rather than "whatever it looked like a moment ago";
+  //   • every commit carries a sequence number and a late reply for an older sequence is DROPPED,
+  //     so a slow first request cannot overwrite a faster second one;
+  //   • expansion is keyed by campaign id throughout, so moving rows never expands the wrong one.
+  const [orderIds, setOrderIds] = useState([]);          // what is on screen right now
+  // ── TWO SEPARATE CHANNELS, because they answer two different questions ──
+  //
+  // My earlier description was self-contradictory: it claimed every older response was "discarded
+  // outright" while also letting an older success advance the confirmed state. Both cannot be
+  // true, and the difference matters precisely in the case the founder ruled on.
+  //
+  //   VISIBLE INTENT   — what the reader is looking at. Only the NEWEST commit may paint it. An
+  //                      older reply, success or failure, may never repaint over a newer one.
+  //   CONFIRMED STATE  — what the server has actually accepted. Any success may advance this, as
+  //                      long as it is newer than the last success we recorded. It is what a
+  //                      failure falls back to.
+  //
+  // Ordered by REQUEST SEQUENCE, never by arrival order: arrival order is evidence about the
+  // network, not about what the server persisted.
+  const confirmedRef = useRef({ ids: [], version: null });// what the server last confirmed
+  const mountedRef = useRef(true);                        // no setState after unmount
+  // loadCampaigns is declared further down; referencing it here directly would sit in the temporal
+  // dead zone and throw on first render. The ref is filled in immediately after its declaration.
+  // NAMED to avoid a prefix collision with the list-loader declaration, which the source-slicing
+  // tests in premiumDashboard.browser.test.mjs use as a text anchor.
+  const reloadListRef = useRef(null);
+  const inFlightRef = useRef(null);                       // the order currently being written
+  const queuedRef = useRef(null);                         // newest intent formed while a write is out
+  const rowsRef = useRef([]);                             // latest rows, readable from async code
+  // NOTE: an `unsynced` state used to be tracked alongside this. It was written in all three
+  // failure paths and READ in none of them - the reader's signal is the announcement below, which
+  // every one of those paths already sets. A state nobody renders is a promise nobody keeps.
+  // Reordering is offered ONLY when the server gave us a usable version for this exact list.
+  const [orderingAvailable, setOrderingAvailable] = useState(false);
+
+  useEffect(() => () => { mountedRef.current = false; }, []);
+  const [grabbedId, setGrabbedId] = useState(null);       // keyboard pick-up
+  const [draggingId, setDraggingId] = useState(null);     // pointer drag
+  const [announcement, setAnnouncement] = useState("");
+
+  // The rows the dashboard actually renders, in the current display order.
+  const orderedRows = useMemo(() => applyCampaignOrder(rows, orderIds), [rows, orderIds]);
+
+
+  // Adopt the arrival order whenever the campaign SET changes (load, create, delete). Compared as
+  // a set, so a reorder we just performed is not undone by the next list refresh.
+  useEffect(() => {
+    const incoming = campaignIdsOf(rows);
+    const known = new Set(orderIds);
+    const same = incoming.length === orderIds.length && incoming.every((id) => known.has(id));
+    if (!same) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOrderIds(incoming);
+      if (confirmedRef.current.ids.length === 0) confirmedRef.current = { ids: incoming, version: null };
+    }
+  }, [rows]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const nameOf = useCallback(
+    (id) => {
+      const hit = rows.find((r) => r.campaign && r.campaign.campaignId === id);
+      return (hit && hit.campaign && hit.campaign.name) || "Campaign";
+    },
+    [rows],
+  );
+
+  // ── SINGLE-FLIGHT, VERSION-AUTHORITATIVE REORDER ───────────────────────────────────────────
+  //
+  // WHY THE PREVIOUS MODEL WAS WRONG. It ordered outcomes by CLIENT REQUEST SEQUENCE. A sequence
+  // number records the order requests were *issued*, which is not evidence of the order the server
+  // *persisted*: A can be submitted first, B second, B can reply first, and the server can still
+  // have written A last. Preferring B because B held the higher counter could therefore leave the
+  // dashboard showing an order the server does not hold.
+  //
+  // The fix is to stop inferring and start serialising. AT MOST ONE reorder write is ever in
+  // flight, so there is never a pair of outcomes whose relative order has to be guessed. Newer
+  // intent formed while a write is out does not race it - it waits, and only the NEWEST such
+  // intent is kept, because intermediate drag positions are not worth a write each.
+  //
+  // Authority comes from the server's own `orderVersion`, echoed back as `expectedVersion` on the
+  // next write. Client counters survive only to suppress obsolete UI callbacks; they never decide
+  // what the server holds.
+  const sameOrder = (a, b) =>
+    Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i]);
+
+  /** Re-read the authoritative list and adopt it as confirmed. Used whenever an outcome is unclear. */
+  const resyncFromServer = useCallback(async () => {
+    // The list is re-read DIRECTLY so its outcome is observable here. Delegating to loadCampaigns
+    // alone was a real gap: it swallows its own failure, so a reload that never happened looked
+    // exactly like one that succeeded, and case 14 could never report an unsynchronised state.
+    let res = null;
+    try { res = await client.listCampaigns(effectiveOrgId); } catch { res = null; }
+    if (!mountedRef.current) return false;
+    if (!res || res.ok !== true || !res.data || !Array.isArray(res.data.campaigns)) return false;
+
+    const ids = res.data.campaigns.map((c) => c && c.campaignId).filter(Boolean);
+    confirmedRef.current = { ids, version: confirmedRef.current.version };
+    setOrderIds(ids);
+    // Refresh the rest of the surface from the same authority.
+    if (reloadListRef.current) await reloadListRef.current(effectiveOrgId);
+    return mountedRef.current;
+  }, [client, effectiveOrgId]);
+
+  const submitRef = useRef(null);
+
+  const submitOrder = useCallback(async (intent, movedId) => {
+    // A write is already out: keep only the NEWEST intent and let the in-flight one finish.
+    if (inFlightRef.current) { queuedRef.current = intent; return; }
+
+    // ── COMPLETE-SET PRECONDITION ──
+    // The request represents the ORGANISATION's canonical order, so a partial, filtered or
+    // duplicated set must never be sent — the server would faithfully persist a wrong answer.
+    const authoritative = campaignIdsOf(rowsRef.current);
+    const wellFormed = Array.isArray(intent)
+      && intent.length === authoritative.length
+      && intent.every((id) => typeof id === "string" && id.length > 0)
+      && new Set(intent).size === intent.length
+      && authoritative.every((id) => intent.includes(id))
+      && intent.every((id) => authoritative.includes(id));
+    if (!wellFormed || !confirmedRef.current.version) {
+      // Zero writes. Ask the server what is true instead of guessing.
+      const recovered = await resyncFromServer();
+      if (!mountedRef.current) return;
+      if (!recovered) setAnnouncement("The campaign order could not be confirmed. Reload to see the saved order.");
+      queuedRef.current = null;
+      return;
+    }
+
+    inFlightRef.current = intent;
+
+    let res = null;
+    try {
+      res = await client.reorderCampaigns({
+        orgId: effectiveOrgId,
+        orderedCampaignIds: intent,
+        expectedVersion: confirmedRef.current.version,   // the server's own token, never a counter
+      });
+    } catch { res = null; }
+
+    if (!mountedRef.current) { inFlightRef.current = null; queuedRef.current = null; return; }
+    inFlightRef.current = null;
+
+    let unresolved = false;
+    if (res && res.ok === true && res.data) {
+      const listed = Array.isArray(res.data.campaigns)
+        ? res.data.campaigns.map((c) => c && c.campaignId).filter(Boolean)
+        : null;
+      const version = res.data.orderVersion;
+      if (!listed || listed.length === 0 || !version) {
+        // Accepted, but we cannot tell WHAT was accepted - or it came back without a usable
+        // version to build the next write on. Ambiguous, so we ask the server rather than guess.
+        unresolved = true;
+      } else {
+        confirmedRef.current = { ids: listed, version };
+        // Never repaint an older canonical result over newer queued intent.
+        if (!queuedRef.current) setOrderIds(listed);
+      }
+    } else if (res && res.unavailable) {
+      // The route does not exist on this server yet. Ordering is retired for this loaded surface -
+      // calmly, with no retry loop and no local persistence.
+      setOrderingAvailable(false);
+      setOrderIds(confirmedRef.current.ids.length ? confirmedRef.current.ids : campaignIdsOf(rowsRef.current));
+      setAnnouncement("Saved campaign order isn't available yet. Your other changes are unaffected.");
+      queuedRef.current = null;
+      return;
+    } else if (res && res.versionConflict && res.data) {
+      // A COMPLETE, VALID conflict already carries the server's current truth, so it is adopted
+      // directly - a second GET would only ask a question we have just been answered.
+      const canonical = res.data.campaigns.map((c) => c && c.campaignId).filter(Boolean);
+      confirmedRef.current = { ids: canonical, version: res.data.orderVersion };
+      if (!queuedRef.current) {
+        setOrderIds(canonical);
+        setAnnouncement("The campaign order was refreshed from the server.");
+      }
+    } else if (res && (res.conflict || res.versionConflict || res.ambiguous)) {
+      // Any conflict we could NOT fully validate - including an ordering 409 whose payload was
+      // incomplete - is ambiguous. The branch above already handled the complete, valid case, so
+      // reaching here means we do not know the server's truth and must ask rather than roll back.
+      // A version conflict means our expectedVersion was stale: someone else moved first. The only
+      // truthful answer is the server's current list.
+      unresolved = true;
+    } else {
+      // A plain refusal that proves nothing was written - roll back to confirmed state.
+      if (!queuedRef.current) {
+        setOrderIds(confirmedRef.current.ids.length ? confirmedRef.current.ids : campaignIdsOf(rowsRef.current));
+        setAnnouncement(reorderAnnouncement("failed", { name: nameOf(movedId) }));
+      }
+    }
+
+    if (unresolved) {
+      const ok = await resyncFromServer();
+      if (!mountedRef.current) return;
+      if (!ok) {
+        // Even the refresh failed. Say so plainly rather than presenting an optimistic order as
+        // saved; the reader can retry, which re-enters this same path.
+        setAnnouncement("The campaign order could not be confirmed. Reload to see the saved order.");
+        queuedRef.current = null;
+        return;
+      }
+      if (!queuedRef.current) setOrderIds(confirmedRef.current.ids);
+    }
+
+    // ── drain exactly one queued intent ──
+    const queued = queuedRef.current;
+    queuedRef.current = null;
+    if (!queued || !mountedRef.current) return;
+    if (sameOrder(queued, confirmedRef.current.ids)) {
+      // The queue already matches what the server holds - a write would say nothing.
+      setOrderIds(confirmedRef.current.ids);
+      return;
+    }
+    if (submitRef.current) await submitRef.current(queued, movedId);
+  }, [client, effectiveOrgId, nameOf, resyncFromServer]);
+
+  /** Optimistically show an order, then serialise the write behind the single-flight queue. */
+  const commitOrder = useCallback(async (nextIds, movedId) => {
+    setOrderIds(nextIds);
+    await submitOrder(nextIds, movedId);
+  }, [submitOrder]);
+
+  // ── keyboard: space picks up, arrows move, space drops, escape cancels ──
+  const onReorderKeyDown = useCallback((e, id) => {
+    const ids = orderIds.length ? orderIds : campaignIdsOf(rows);
+    const from = ids.indexOf(id);
+    if (from < 0) return;
+    const total = ids.length;
+
+    if (e.key === " " || e.key === "Enter" || e.key === "Spacebar") {
+      e.preventDefault();
+      if (grabbedId === id) {
+        setGrabbedId(null);
+        setAnnouncement(reorderAnnouncement("dropped", { name: nameOf(id), position: from + 1, total }));
+        commitOrder(ids, id);
+      } else {
+        setGrabbedId(id);
+        setAnnouncement(reorderAnnouncement("grabbed", { name: nameOf(id), position: from + 1, total }));
+      }
+      return;
+    }
+    if (e.key === "Escape" && grabbedId === id) {
+      e.preventDefault();
+      const restore = confirmedRef.current.ids.length ? confirmedRef.current.ids : campaignIdsOf(rows);
+      setOrderIds(restore);
+      setGrabbedId(null);
+      setAnnouncement(reorderAnnouncement("cancelled", { name: nameOf(id), position: restore.indexOf(id) + 1, total }));
+      return;
+    }
+    if (grabbedId !== id) return;
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    const to = e.key === "ArrowUp" ? from - 1 : from + 1;
+    if (to < 0 || to >= total) return;
+    const next = moveCampaignId(ids, from, to);
+    setOrderIds(next);                                    // moves while held; committed on drop
+    setAnnouncement(reorderAnnouncement("moved", { name: nameOf(id), position: to + 1, total }));
+  }, [orderIds, rows, grabbedId, nameOf, commitOrder]);
+
+  // ── pointer: one path for mouse AND touch ──
+  const onReorderPointerDown = useCallback((e, id) => {
+    const ids = orderIds.length ? orderIds : campaignIdsOf(rows);
+    if (ids.indexOf(id) < 0) return;
+    setDraggingId(id);
+    setAnnouncement(reorderAnnouncement("grabbed", { name: nameOf(id), position: ids.indexOf(id) + 1, total: ids.length }));
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* not supported in jsdom */ }
+
+    const tileOf = (cid) => document.querySelector(`[data-testid="campaign-card-${cid}"]`);
+    let working = ids;
+
+    const onMove = (ev) => {
+      const y = ev.clientY;
+      const current = working.indexOf(id);
+      if (current < 0) return;
+
+      // TARGET IS COMPUTED, NOT STEPPED.
+      //
+      // The first version swapped with one neighbour per pointer event and stopped. A fast drag -
+      // a flick from the first tile past the fourth tile's midpoint - delivers few events, so the
+      // row crawled one place per event and landed short of where the reader aimed. Worse, the
+      // one-step rule is what MAKES oscillation possible: each event re-evaluates from a position
+      // it only just moved to.
+      //
+      // So the destination is derived directly from the pointer: find the furthest tile whose
+      // midpoint the pointer has crossed in the direction of travel, and move there in a single
+      // step. One event can now cross every relevant midpoint, in either direction, and because
+      // the answer is a function of the pointer position rather than of the previous move, the
+      // same y always yields the same index - which is precisely what removes the oscillation.
+      let target = current;
+      for (let i = 0; i < working.length; i++) {
+        if (i === current) continue;
+        const el = tileOf(working[i]);
+        if (!el || !el.getBoundingClientRect) continue;
+        const r = el.getBoundingClientRect();
+        const mid = r.top + r.height / 2;
+        if (i > current && y > mid) target = Math.max(target, i);        // travelling down
+        if (i < current && y < mid) target = target === current ? i : Math.min(target, i); // up
+      }
+      if (target === current) return;
+
+      working = moveCampaignId(working, current, target);
+      setOrderIds(working);
+      setAnnouncement(reorderAnnouncement("moved", { name: nameOf(id), position: target + 1, total: working.length }));
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      setDraggingId(null);
+      setAnnouncement(reorderAnnouncement("dropped", { name: nameOf(id), position: working.indexOf(id) + 1, total: working.length }));
+      commitOrder(working, id);
+    };
+    const onCancel = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      setDraggingId(null);
+      const restore = confirmedRef.current.ids.length ? confirmedRef.current.ids : campaignIdsOf(rows);
+      setOrderIds(restore);
+      setAnnouncement(reorderAnnouncement("cancelled", { name: nameOf(id), position: restore.indexOf(id) + 1, total: restore.length }));
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+  }, [orderIds, rows, nameOf, commitOrder]);
+
 
   // SLICE D — the organisation's contact pool. Categories come from the PERSISTED
   // corporateContactType the backend now returns; the frontend never infers or stores one.
@@ -175,6 +510,21 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
       if (!listRes.ok) { setRows([]); setLoadingCampaigns(false); return; }
       // Only a SUCCESSFUL list can confer ownership, and only if it says so exactly.
       setIsOwnerViewer(readViewerOwnerCapability(listRes));
+
+      // TEAM C — the authoritative ordering token, taken ONLY from this successful list response.
+      //
+      // A version belonging to an earlier list must never survive into a newer one, so it is
+      // replaced (or cleared) on every successful load rather than merged. Strictly validated:
+      // anything that is not `cord_` + 32 lowercase hex makes ordering unavailable, because a
+      // token we cannot trust is worse than no token — it would be sent as `expectedVersion` and
+      // rejected by the server on every attempt.
+      const listVersion = listRes.data && listRes.data.orderVersion;
+      const usableVersion = isOrderVersion(listVersion) ? listVersion : null;
+      confirmedRef.current = {
+        ids: (listRes.data.campaigns || []).map((c) => c && c.campaignId).filter(Boolean),
+        version: usableVersion,
+      };
+      setOrderingAvailable(Boolean(usableVersion));
       setCanAuthorizeRun(readExecutionCapability(listRes));
       const list = (listRes.data && (listRes.data.campaigns || listRes.data.items || listRes.data)) || [];
       const arr = Array.isArray(list) ? list : [];
@@ -196,6 +546,33 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadMemberships();
   }, [loadMemberships]);
+
+  // ── LATEST-REF SYNCHRONISATION ────────────────────────────────────────────────────────────
+  //
+  // These three refs hold the newest `rows`, the newest `submitOrder` and the newest
+  // `loadCampaigns` so that ASYNC ordering code - a settled reorder response, the single-flight
+  // drain, a resync - reads what is true now rather than what was true when its closure was
+  // created. They used to be assigned during render, which react-hooks/refs flags for a real
+  // reason: under concurrent React a render can be started and thrown away, and a discarded
+  // render would still have overwritten the ref, leaving async code reading a value the user
+  // never saw committed.
+  //
+  // useLayoutEffect, NOT useEffect, and not because of layout. It is the narrowest React-supported
+  // point that still closes the timing question the render-phase assignment was answering:
+  //   • it flushes SYNCHRONOUSLY inside the commit, before the browser paints - so the refs are
+  //     current before any pointer, touch or keyboard interaction can possibly reach a handler;
+  //   • ALL layout effects run before ANY passive effect, so `reloadListRef` is populated before
+  //     the `loadCampaigns` effect below can fire, even though that effect is declared first;
+  //   • every consumer of these refs is an async continuation or an event handler - none reads
+  //     them during render - so there is no window in which a ref is consumed while still stale.
+  //
+  // Declared AFTER the effect above deliberately: two source-slicing tests in
+  // premiumDashboard.browser.test.mjs bound the `loadCampaigns` region at the first
+  // "useEffect(() => {" that follows it, and a hook introduced between the two would move that
+  // boundary. Hook ORDER is irrelevant here - layout effects run before passive ones regardless.
+  useLayoutEffect(() => { rowsRef.current = rows; }, [rows]);
+  useLayoutEffect(() => { submitRef.current = submitOrder; }, [submitOrder]);
+  useLayoutEffect(() => { reloadListRef.current = loadCampaigns; }, [loadCampaigns]);
 
   // Load campaigns ONLY once an organization is resolved (single auto or explicit multi).
   useEffect(() => {
@@ -359,6 +736,13 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
               </p>
             </div>
           ) : null}
+          {/* TEAM C - reorder announcements. A polite live region, so pickup, movement, drop,
+              cancellation and failure are all spoken without a visible banner competing with the
+              campaign list. The instructions are ALSO on each handle's accessible name, so the
+              keyboard affordance is discoverable from the control itself, not only from here. */}
+          <p className="gcd-sr-only" aria-live="polite" role="status" data-testid="reorder-live">
+            {announcement}
+          </p>
           <div className="gcd-scroll" data-testid="campaign-viewport" tabIndex={0} role="region" aria-label="Campaigns list">
             {loadingCampaigns ? (
               <p className="gcd-empty">Loading campaigns…</p>
@@ -368,9 +752,16 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
                 <p style={{ margin: "8px 0 0" }}>No campaigns yet. Create your first — a name is enough to start.</p>
               </div>
             ) : (
-              rows.map((r) => (
+              orderedRows.map((r, i) => (
                 <CampaignCard
                   key={r.campaign.campaignId}
+                  reorderIndex={i}
+                  reorderTotal={orderedRows.length}
+                  reorderAvailable={orderingAvailable}
+                  grabbed={grabbedId === r.campaign.campaignId}
+                  dragging={draggingId === r.campaign.campaignId}
+                  onReorderPointerDown={onReorderPointerDown}
+                  onReorderKeyDown={onReorderKeyDown}
                   campaign={r.campaign}
                   contacts={contacts}
                   orgId={effectiveOrgId}
@@ -428,9 +819,6 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
           loading={loadingContacts}
           onAddCategory={(key) => {
             // The EXISTING import wizard route, with this category carried in the URL.
-            goTo(`/dashboard/import-wizard?mode=corporate&category=${encodeURIComponent(key)}`);
-          }}
-          onImportCategory={(key) => {
             goTo(`/dashboard/import-wizard?mode=corporate&category=${encodeURIComponent(key)}`);
           }}
           onSelectIndividual={() => setPickerCampaign(rows.length ? rows[0].campaign : null)}

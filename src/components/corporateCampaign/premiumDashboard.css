@@ -82,12 +82,22 @@
 /* Fixed-height internal scroll: the page never grows with the campaign list. */
 .gcd-scroll {
   /* SLICE F1 — sized for FOUR collapsed tiles.
-     A collapsed tile is ~104px plus a 12px gap, so four occupy ~464px. The cap is expressed in
-     those terms rather than as a round number, so if the tile grows the intent travels with it.
-     Beyond four the list scrolls VERTICALLY; the contact tiles below stay on screen. */
-  --gcd-tile-h: 104px;
-  --gcd-tile-gap: 12px;
-  max-height: calc((var(--gcd-tile-h) * 4) + (var(--gcd-tile-gap) * 3) + 8px);
+     The cap is expressed in tile terms rather than as a round number, so if the tile grows the
+     intent travels with it. Beyond four the list scrolls VERTICALLY; the contact tiles below stay
+     on screen.
+
+     TEAM C — the two variables were CORRECTED against the rendered surface. They said 104px and
+     12px; a collapsed tile actually measures 95px and the separation is the 28px `.gcd-card +
+     .gcd-card` margin above, not a flex gap. The old numbers happened to sum to a plausible-
+     looking 460px while the four tiles genuinely need 464px, so the fourth tile was clipped by
+     ~45px once the padding is counted — the one thing this cap exists to prevent.
+
+     `box-sizing: border-box` applies here, so the cap must also carry the 18px/22px padding and
+     the 1px top border; the trailing term is those 41px plus 3px of slack, which is why it is not
+     a round number either. */
+  --gcd-tile-h: 95px;
+  --gcd-tile-gap: 28px;
+  max-height: calc((var(--gcd-tile-h) * 4) + (var(--gcd-tile-gap) * 3) + 44px);
   min-height: 200px;
   /* The list is the ONLY thing that scrolls. Nothing inside a tile gets its own scrollbar, and
      nothing may push the page sideways. */
@@ -230,6 +240,39 @@
 }
 .gcd-paynote-link:hover { color: #5e3616; }
 .gcd-paynote-link:focus-visible { outline: 2px solid #7a4a22; outline-offset: 2px; }
+
+/* ── TEAM C — the reorder handle ────────────────────────────────────────────────────────────
+   Same fixed-size icon-control treatment as the pencil and the expander, so the three read as one
+   family. `touch-action: none` is what makes a touch drag a DRAG rather than a page scroll, and
+   `padding: 0` is set inline in the component because the global `button` rule in index.css would
+   otherwise inflate it (and force 48px on mobile). */
+.gcd-drag {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 9px;
+  border: 1px solid var(--gcd-line-strong); background: #fff; color: var(--gcd-muted);
+  cursor: grab; touch-action: none;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.gcd-drag:hover { background: var(--gcd-lav); color: var(--gcd-purple-deep); border-color: rgba(109, 92, 240, .32); }
+.gcd-drag:focus-visible { outline: 2px solid transparent; box-shadow: 0 0 0 3px rgba(109, 92, 240, .40); }
+.gcd-drag--grabbed { cursor: grabbing; background: var(--gcd-lav-2); border-color: var(--gcd-purple); color: var(--gcd-purple-deep); }
+/* Six dots, drawn rather than shipped as an asset. */
+.gcd-drag-grip {
+  width: 10px; height: 14px;
+  background-image: radial-gradient(currentColor 1.1px, transparent 1.2px);
+  background-size: 5px 5px; background-position: 0 0;
+  opacity: .75;
+}
+/* The row being carried. Lifted, never hidden, so the reader keeps track of what they hold. */
+.gcd-card--dragging { box-shadow: var(--gcd-shadow-lift); border-color: var(--gcd-purple); opacity: .96; }
+/* Visually-hidden live region: announcements without a visible banner. */
+.gcd-sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gcd-card--dragging { transition: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .gcd-switch-track, .gcd-switch-track::after { transition: none; }

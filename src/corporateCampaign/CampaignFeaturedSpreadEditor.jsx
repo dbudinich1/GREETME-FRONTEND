@@ -21,6 +21,15 @@ export default function CampaignFeaturedSpreadEditor({
   onLock,
   onUnlock,
   onReturn,
+  // TEAM C - LAUNCH READINESS. The dashboard retired Approve / Lock / Unlock as user-facing
+  // controls, but this editor has always rendered them in its footer. Embedding it inline would
+  // therefore put exactly the CTAs the founder removed back onto the campaign surface.
+  //
+  // DEFAULT TRUE, so CampaignDetail - the only existing caller - is completely unaffected. The
+  // dashboard passes false. Nothing is renamed, nothing is hidden behind another CTA, and no
+  // backend permission, lifecycle guard or readiness rule changes: `availableActions` still
+  // computes every capability exactly as before, and the server still enforces all of them.
+  showLifecycleActions = true,
 }) {
   const [config, dispatch] = useReducer(featuredSpreadReducer, initialConfig || defaultFeaturedSpreadConfig());
 
@@ -87,10 +96,14 @@ export default function CampaignFeaturedSpreadEditor({
 
       <footer className="cfs-editor__actions">
         <button type="button" disabled={!actions.canSaveDraft} onClick={() => onSaveDraft && onSaveDraft(config)}>Save Draft</button>
-        <button type="button" disabled={!actions.canApprove} onClick={() => onApprove && onApprove(config)}>Approve</button>
-        <button type="button" disabled={!actions.canLock} onClick={() => onLock && onLock(config)}>Lock</button>
-        <button type="button" disabled={!actions.canUnlock} onClick={() => onUnlock && onUnlock()}>Unlock / Edit</button>
-        <button type="button" onClick={() => onReturn && onReturn()}>Return to Campaign</button>
+        {showLifecycleActions ? (
+          <>
+            <button type="button" disabled={!actions.canApprove} onClick={() => onApprove && onApprove(config)}>Approve</button>
+            <button type="button" disabled={!actions.canLock} onClick={() => onLock && onLock(config)}>Lock</button>
+            <button type="button" disabled={!actions.canUnlock} onClick={() => onUnlock && onUnlock()}>Unlock / Edit</button>
+            <button type="button" onClick={() => onReturn && onReturn()}>Return to Campaign</button>
+          </>
+        ) : null}
       </footer>
     </section>
   );

@@ -23,7 +23,7 @@ import {
 } from "./corporateDashboardModel.js";
 import "./premiumDashboard.css";
 
-export default function ContactTiles({ contacts, loading = false, onManage, onAddCategory, onImportCategory, onSelectIndividual }) {
+export default function ContactTiles({ contacts, loading = false, onManage, onAddCategory, onSelectIndividual }) {
   const bucket = bucketContactsByCategory(contacts);
   const notice = unclassifiedNotice(bucket);
 
@@ -70,11 +70,10 @@ export default function ContactTiles({ contacts, loading = false, onManage, onAd
                     onClick={() => { setOpenCategory(open ? null : cat.key); if (onManage) onManage(cat.key); }}>
                     {open ? "Hide" : "Manage"}
                   </button>
-                  <button type="button" className="gcd-btn" data-testid={`tile-${cat.key}-import`}
-                    onClick={() => (onImportCategory || onAddCategory) && (onImportCategory || onAddCategory)(cat.key)}>
-                    Import
-                  </button>
-                  {/* Opens the EXISTING import wizard with this category preselected — never a second form. */}
+                  {/* Opens the EXISTING import wizard with this category preselected — never a second form.
+                      A second "Import" button used to sit here running the SAME handler to the SAME
+                      route with the same mode and category: two controls, one capability, and a
+                      reader left to guess at a difference that did not exist. */}
                   <button type="button" className="gcd-btn gcd-btn--primary" data-testid={`tile-${cat.key}-add`}
                     onClick={() => onAddCategory && onAddCategory(cat.key)}>
                     {`Add ${cat.label.replace(/s$/, "")}`}
