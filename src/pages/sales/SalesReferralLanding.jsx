@@ -14,7 +14,8 @@
 
 import React, { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { captureToken, isValidTokenSyntax } from "./salesAttributionCarrier.js";
+import { captureToken, isValidTokenSyntax, readToken, replaceRetiredIncumbent } from "./salesAttributionCarrier.js";
+import { isTokenStillValid } from "./salesAttributionResolve.js";
 
 const wrap = { minHeight: "70vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
 const card = { maxWidth: 460, width: "100%", background: "#fffdf8", border: "1px solid #e7e0d4", borderRadius: 14, padding: "28px 26px", textAlign: "center", fontFamily: "Georgia, serif" };
@@ -27,8 +28,22 @@ export default function SalesReferralLanding() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Fail-safe: only a syntactically valid opaque token is preserved.
-    captureToken(token);
+    // FIRST TOUCH. Fail-safe: only a syntactically valid opaque token is preserved, and an
+    // existing referral is never destroyed by a later visit.
+    const adopted = captureToken(token);
+    if (adopted || !isValidTokenSyntax(token)) return undefined;
+
+    // Someone else's referral is already carried. It keeps the credit — UNLESS the server says
+    // that first token is no longer live, which is the only condition that lets this one take
+    // over. Entirely non-blocking: the page has already rendered, and any indeterminate answer
+    // (dormant, offline, unreadable) leaves the first referral untouched.
+    const incumbent = readToken();
+    let alive = true;
+    (async () => {
+      const stillValid = await isTokenStillValid(incumbent);
+      if (alive && stillValid === false) replaceRetiredIncumbent(token, { incumbentValid: false });
+    })();
+    return () => { alive = false; };
   }, [token]);
 
   const valid = isValidTokenSyntax(token);
