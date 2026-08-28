@@ -138,11 +138,25 @@ test("C4 · a consumed carrier lets the next valid referral begin a new journey"
 
 // ── RENDERING AND URL ───────────────────────────────────────────────────────
 
-test("R1 · App reads the pathname BEFORE the router and never rewrites the URL", () => {
-  const head = APP.slice(APP.indexOf("export default function App()"), APP.indexOf("<HashRouter>"));
-  assert.match(head, /currentVanityAlias\(\)/, "the alias is read first");
-  assert.match(head, /<SalesReferralLanding code=\{vanityAlias\}/, "and renders the existing landing");
-  // Nothing in that path touches the address bar.
+test("R1 · the alias is read BEFORE the router but RENDERED INSIDE it", () => {
+  // This test previously asserted the landing was rendered ABOVE <HashRouter> — which was the
+  // production defect: useNavigate() throws outside a Router and the page went blank. It now
+  // asserts the corrected shape, and the render-level proof lives in
+  // vanityLandingRender.browser.test.mjs, which mounts the real App and would catch a regression
+  // that no source-string assertion can.
+  // Strip comments before slicing: the code COMMENT explaining this fix contains the literal
+  // "<HashRouter>", which would truncate the slice before the line under test.
+  const src = APP.replace(/\/\*[\s\S]*?\*\//g, "")
+    .split(String.fromCharCode(10)).filter((l) => !l.trim().startsWith("//")).join(String.fromCharCode(10));
+  const head = src.slice(src.indexOf("export default function App()"), src.indexOf("<HashRouter>"));
+  assert.match(head, /currentVanityAlias\(\)/, "the alias is read before the route table");
+  assert.equal(/<SalesReferralLanding/.test(head), false,
+    "the landing must NOT be rendered above the router");
+
+  const routed = src.slice(src.indexOf("<HashRouter>"), src.indexOf("</HashRouter>"));
+  assert.match(routed, /<SalesReferralLanding code=\{vanityAlias\}/, "it renders inside the router");
+
+  // Nothing on the vanity path touches the address bar.
   assert.equal(/history\.(push|replace)|location\.(replace|assign)|window\.location\s*=/.test(head), false,
     "the clean URL must be left exactly as the visitor received it");
 });

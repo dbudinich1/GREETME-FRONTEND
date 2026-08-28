@@ -27,7 +27,9 @@ const link = { display: "inline-block", marginTop: 14, color: "#6b3a2a", fontSiz
  * `code` is supplied when this page is reached by a CLEAN vanity path (https://greet-me.com/alex),
  * where there is no route parameter to read because the alias lives in the pathname rather than
  * the hash. Everything downstream is identical: the same carrier, the same first-touch rule, the
- * same welcome. The visitor cannot tell which form of link they followed, which is the point.
+ * same welcome, and the SAME router — this component is always mounted inside the application's
+ * HashRouter, because its hooks require one. The visitor cannot tell which form of link they
+ * followed, which is the point.
  */
 export default function SalesReferralLanding({ code = null }) {
   const params = useParams();
@@ -55,13 +57,6 @@ export default function SalesReferralLanding({ code = null }) {
 
   const valid = isValidTokenSyntax(token);
 
-  // On a clean vanity path the app is rendered outside the HashRouter, so `navigate` would move a
-  // history the browser cannot see. Assigning the hash URL keeps one code path for both forms.
-  const goRegister = () => {
-    if (code) window.location.assign("/#/register");
-    else navigate("/register");
-  };
-
   return (
     <div style={wrap} data-testid="sales-referral-landing">
       <div style={card}>
@@ -71,7 +66,7 @@ export default function SalesReferralLanding({ code = null }) {
             <p style={muted} data-testid="sales-referral-welcome">
               Thanks for stopping by. Continue to get started with Greet-Me.
             </p>
-            <button style={btn} data-testid="sales-referral-continue" onClick={goRegister}>
+            <button style={btn} data-testid="sales-referral-continue" onClick={() => navigate("/register")}>
               Continue
             </button>
             <a href="/#/pricing" style={link} data-testid="sales-referral-pricing">See plans</a>

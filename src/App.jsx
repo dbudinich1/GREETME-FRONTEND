@@ -129,18 +129,17 @@ import AppInstall from "./pages/AppInstall";
 export default function App() {
   // TEAM B (SALES S1) — CLEAN SALESPERSON LINK (https://greet-me.com/<alias>).
   //
-  // Read BEFORE the router. The app uses HashRouter, so the empty hash on `/alex` would otherwise
-  // route to the landing page and discard the alias entirely. Rendered without a Router and
-  // without touching history, so the address bar keeps the clean URL the salesperson handed out.
-  // A reserved or malformed segment yields null and ordinary routing proceeds untouched.
+  // The alias lives in the PATHNAME, and this app routes on the HASH — so `/alex` arrives with an
+  // empty hash and ordinary routing would render the home page and discard it. The pathname is
+  // therefore read here, before the route table, and used to choose what "/" renders.
+  //
+  // It is used INSIDE the existing HashRouter, never around it. An earlier version returned this
+  // landing above <HashRouter> and shipped a blank page: SalesReferralLanding calls useNavigate(),
+  // which throws the moment it runs outside a Router, killing the whole render. Serving HTTP 200
+  // proved nothing — the document shell loads and React dies immediately after.
+  //
+  // Nothing here touches history or the address bar, so the visitor keeps the clean URL.
   const vanityAlias = currentVanityAlias();
-  if (vanityAlias) {
-    return (
-      <AuthProvider>
-        <Suspense fallback={null}><SalesReferralLanding code={vanityAlias} /></Suspense>
-      </AuthProvider>
-    );
-  }
 
   return (
     <AuthProvider>
@@ -150,8 +149,12 @@ export default function App() {
       <HashRouter>
         <ErrorBoundary>
         <Routes>
-          {/* Default route: landing page for guests, redirects auth users to dashboard */}
-          <Route path="/" element={<Landing />} />
+          {/* Default route: landing page for guests, redirects auth users to dashboard.
+              On a clean vanity path the hash is empty, so "/" is where that visit lands — and the
+              salesperson referral welcome takes its place for that one visit only. */}
+          <Route path="/" element={vanityAlias
+            ? <Suspense fallback={null}><SalesReferralLanding code={vanityAlias} /></Suspense>
+            : <Landing />} />
 
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
