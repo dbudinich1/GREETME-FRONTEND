@@ -121,11 +121,27 @@ const FundraiserReferralLanding = lazy(() => import("./pages/fundraiser/Fundrais
 // opaque token into the transient carrier; no auth, no salesperson identity, no private data.
 const SalesReferralLanding = lazy(() => import("./pages/sales/SalesReferralLanding"));
 import Support from "./pages/Support";
+import { currentVanityAlias } from "./pages/sales/vanityAlias.js";
 import Legal from "./Legal";
 import VerifyEmail from "./pages/VerifyEmail";
 import AppInstall from "./pages/AppInstall";
 
 export default function App() {
+  // TEAM B (SALES S1) — CLEAN SALESPERSON LINK (https://greet-me.com/<alias>).
+  //
+  // Read BEFORE the router. The app uses HashRouter, so the empty hash on `/alex` would otherwise
+  // route to the landing page and discard the alias entirely. Rendered without a Router and
+  // without touching history, so the address bar keeps the clean URL the salesperson handed out.
+  // A reserved or malformed segment yields null and ordinary routing proceeds untouched.
+  const vanityAlias = currentVanityAlias();
+  if (vanityAlias) {
+    return (
+      <AuthProvider>
+        <Suspense fallback={null}><SalesReferralLanding code={vanityAlias} /></Suspense>
+      </AuthProvider>
+    );
+  }
+
   return (
     <AuthProvider>
       <NetworkBanner />

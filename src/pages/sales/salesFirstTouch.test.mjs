@@ -68,7 +68,8 @@ test("3 · re-following the SAME link is a safe no-op that still reports success
 
 test("4 · a later invalid or malformed link does not clear the first valid attribution", () => {
   captureToken(NORTH);
-  for (const bad of ["", "   ", "short", null, undefined, 42, {}, [], "!".repeat(43), "x".repeat(200)]) {
+  // Malformed under BOTH grammars (opaque token and vanity alias).
+  for (const bad of ["", "   ", "a", "-lead", "UPPER", null, undefined, 42, {}, [], "!".repeat(43), "x".repeat(200)]) {
     assert.equal(captureToken(bad), false, `must refuse ${String(bad)}`);
     assert.equal(readToken(), NORTH, `must not disturb the incumbent for ${String(bad)}`);
   }
@@ -97,7 +98,7 @@ test("6 · a first token the SERVER declares dead is replaced by the next valid 
 
 test("6b · replacement still refuses a malformed replacement, and refuses on an empty carrier", () => {
   captureToken(NORTH);
-  assert.equal(replaceRetiredIncumbent("nope", { incumbentValid: false }), false);
+  assert.equal(replaceRetiredIncumbent("dou--ble", { incumbentValid: false }), false);
   assert.equal(readToken(), NORTH, "a bad replacement never erases a good incumbent");
 
   clearToken();
@@ -183,7 +184,7 @@ test("10/11 · separate visitors are isolated, and consuming one carrier leaves 
 // ── 12 · NO DEFAULT, EVER ───────────────────────────────────────────────────
 
 test("12 · with no valid token the carrier stays empty — it never falls back to anyone", () => {
-  for (const bad of ["", "nope", null, undefined, 42, {}, []]) captureToken(bad);
+  for (const bad of ["", "a", "UPPER", "-lead", null, undefined, 42, {}, []]) captureToken(bad);
   assert.equal(readToken(), null, "no default salesperson materialises");
   assert.deepEqual(salesCheckoutField({ purchaseType: "subscription" }), {},
     "and checkout sends no attribution field at all");

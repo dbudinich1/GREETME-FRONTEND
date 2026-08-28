@@ -34,7 +34,14 @@ export const SALES_ATTRIBUTION_KEY = "greetme_sales_attribution";
 // (services/sales/salesModel.js#generateAttributionToken), so 43 characters is
 // the expected length; the range stays deliberately generous. No decoding.
 const TOKEN_RE = /^[A-Za-z0-9_-]{32,128}$/;
-export function isValidTokenSyntax(t) { return typeof t === "string" && TOKEN_RE.test(t); }
+// The vanity alias is the OTHER public referral form: lowercase, 2-40, internal single hyphens.
+// Two shapes, ONE carrier slot and one checkout field — the server decides which (if either) names
+// a salesperson. Widening the syntax check here grants nothing: it only decides what is worth
+// carrying as far as the server.
+const ALIAS_RE = /^[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9])){0,38}[a-z0-9]$/;
+export function isValidTokenSyntax(t) {
+  return typeof t === "string" && (TOKEN_RE.test(t) || ALIAS_RE.test(t));
+}
 
 function store() {
   try {

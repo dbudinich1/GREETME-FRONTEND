@@ -23,8 +23,15 @@ const btn = { display: "inline-block", marginTop: 18, padding: "12px 22px", bord
 const muted = { color: "#6a5f86", fontSize: ".92rem", lineHeight: 1.6 };
 const link = { display: "inline-block", marginTop: 14, color: "#6b3a2a", fontSize: ".9rem" };
 
-export default function SalesReferralLanding() {
-  const { token } = useParams();
+/**
+ * `code` is supplied when this page is reached by a CLEAN vanity path (https://greet-me.com/alex),
+ * where there is no route parameter to read because the alias lives in the pathname rather than
+ * the hash. Everything downstream is identical: the same carrier, the same first-touch rule, the
+ * same welcome. The visitor cannot tell which form of link they followed, which is the point.
+ */
+export default function SalesReferralLanding({ code = null }) {
+  const params = useParams();
+  const token = code ?? params.token;
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -48,6 +55,13 @@ export default function SalesReferralLanding() {
 
   const valid = isValidTokenSyntax(token);
 
+  // On a clean vanity path the app is rendered outside the HashRouter, so `navigate` would move a
+  // history the browser cannot see. Assigning the hash URL keeps one code path for both forms.
+  const goRegister = () => {
+    if (code) window.location.assign("/#/register");
+    else navigate("/register");
+  };
+
   return (
     <div style={wrap} data-testid="sales-referral-landing">
       <div style={card}>
@@ -57,7 +71,7 @@ export default function SalesReferralLanding() {
             <p style={muted} data-testid="sales-referral-welcome">
               Thanks for stopping by. Continue to get started with Greet-Me.
             </p>
-            <button style={btn} data-testid="sales-referral-continue" onClick={() => navigate("/register")}>
+            <button style={btn} data-testid="sales-referral-continue" onClick={goRegister}>
               Continue
             </button>
             <a href="/#/pricing" style={link} data-testid="sales-referral-pricing">See plans</a>

@@ -91,7 +91,10 @@ test("2b · the carrier holds ONLY an opaque token — never a salespersonId", (
 
 test("2c · malformed or absent tokens are never captured", () => {
   mem.clear();
-  for (const bad of [undefined, null, "", "short", "has spaces in it", "x".repeat(200), 12345, {}]) {
+  // NOTE: values must be malformed under BOTH public grammars — the opaque token AND the vanity
+  // alias. "short"/"nope" are now legitimate ALIAS shapes, so they are no longer refusals here.
+  for (const bad of [undefined, null, "", "a", "-lead", "trail-", "dou--ble", "UPPER",
+    "has spaces in it", "x".repeat(200), 12345, {}]) {
     assert.equal(captureToken(bad), false, `must refuse ${String(bad)}`);
   }
   assert.equal(mem.size, 0);
