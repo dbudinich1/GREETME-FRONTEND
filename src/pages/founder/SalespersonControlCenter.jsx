@@ -29,6 +29,20 @@ const label = {
 };
 const mono = { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: ".82rem" };
 
+/**
+ * Money, stated honestly.
+ *
+ * The API returns MINOR UNITS and the summary carries no currency at all, so nothing here divides
+ * by 100 or attaches a symbol - a guessed currency on a commission figure is worse than an ugly
+ * one. The raw integer is shown with its unit named, and the currency is printed only when the
+ * server actually supplied one.
+ */
+function minorUnits(value, currency) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "\u2014";
+  const n = value.toLocaleString("en-US");
+  return currency ? `${n} ${currency} (minor units)` : `${n} (minor units)`;
+}
+
 function readUser() {
   try { return JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; }
 }
@@ -57,6 +71,14 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
   const [publicLink, setPublicLink] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [busy, setBusy] = useState(null);
+
+  // ── B3 read-only reporting ──
+  // `null` means "not requested"; an object with `error` means the request FAILED; an object with
+  // data and zero rows means genuinely empty. Those three are never collapsed into one another.
+  const [report, setReport] = useState(null);
+  const [controls, setControls] = useState(null);
+  const [pendingId, setPendingId] = useState("");
+  const [pending, setPending] = useState(null);
 
   // AWAITS BEFORE IT TOUCHES STATE. Calling setState synchronously from an effect body triggers a
   // cascading render, which `react-hooks/set-state-in-effect` rightly flags; `loading` therefore
@@ -104,6 +126,47 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     setDetail(sp);
     setSlugDraft((sp && sp.referralSlug) || "");
     setPublicLink((res.data && res.data.publicReferralLink) || null);
+    setReport(null); setPending(null); setPendingId("");
+    if (sp) loadReport(sp.salespersonId);
+  }
+
+  /** Read-only. Three GETs, each reported on its own terms — a failure is never shown as empty. */
+  async function loadReport(salespersonId) {
+    // Reporting is an OPTIONAL capability of the injected client. A client that predates B3 - or a
+    // narrower one supplied by a caller - simply has no reporting surface, and the page must stay
+    // fully usable rather than throwing on a missing method. Guarded per call, not assumed.
+    const can = (fn) => typeof api[fn] === "function";
+    if (!can("summary") && !can("attributionHealth") && !can("ledger")) return;
+    const [sum, health, led] = await Promise.all([
+      can("summary") ? api.summary(salespersonId) : Promise.resolve({ ok: true, data: {} }),
+      can("attributionHealth") ? api.attributionHealth(salespersonId) : Promise.resolve({ ok: true, data: {} }),
+      can("ledger") ? api.ledger(salespersonId) : Promise.resolve({ ok: true, data: {} }),
+    ]);
+    setReport({
+      summary: sum.ok ? (sum.data && sum.data.summary) || null : null,
+      summaryError: sum.ok ? null : salesAdminErrorMessage(sum, { context: "read" }),
+      health: health.ok ? (health.data && health.data.attributionHealth) || null : null,
+      healthError: health.ok ? null : salesAdminErrorMessage(health, { context: "read" }),
+      entries: led.ok && Array.isArray(led.data && led.data.entries) ? led.data.entries : null,
+      ledgerError: led.ok ? null : salesAdminErrorMessage(led, { context: "read" }),
+    });
+    // Controls ride along with attribution-health, and are also readable on their own.
+    if (health.ok && health.data && health.data.controls) setControls(health.data.controls);
+    else if (typeof api.controls === "function") {
+      const c = await api.controls();
+      if (c.ok) setControls((c.data && c.data.controls) || null);
+    }
+  }
+
+  /** Pending attribution for ONE deliberately entered user id. Never enumerated. */
+  async function lookupPending() {
+    const id = pendingId.trim();
+    if (!id || busy) return;
+    setBusy("pending"); setPending(null);
+    const res = await api.pendingForUser(id);
+    setBusy(null);
+    if (!res.ok) { setPending({ error: salesAdminErrorMessage(res, { context: "read" }) }); return; }
+    setPending({ value: (res.data && res.data.pending) ?? null });
   }
 
   /** Apply the detail payload every B2 mutation returns, so the surface never guesses. */
@@ -391,6 +454,97 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                   </button>
                 )}
               </div>
+            </div>
+          ) : null}
+
+          {/* B3 - READ-ONLY REPORTING. Nothing below mutates anything, and every figure is
+              printed exactly as the server stated it. */}
+          {detail && report ? (
+            <div style={{ marginTop: "1.2rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }} data-testid="fcc-report">
+              <h3 style={{ fontSize: ".92rem", margin: "0 0 .6rem" }}>Attribution and commission</h3>
+
+              {report.summaryError ? (
+                <p data-testid="fcc-summary-error" style={{ color: "var(--warning)", fontSize: ".84rem", margin: "0 0 .6rem" }}>{report.summaryError}</p>
+              ) : report.summary ? (
+                <dl data-testid="fcc-summary" style={{ display: "grid", gridTemplateColumns: "auto minmax(0,1fr)", gap: ".3rem 1rem", margin: "0 0 .9rem" }}>
+                  {[
+                    ["Direct customers", report.summary.originatedDirectCustomers],
+                    ["Fundraiser partners", report.summary.originatedFundraiserPartners],
+                    ["Initial conversions", report.summary.originalPaidConversions],
+                    ["Recurring payments", report.summary.recurringPaidTransactions],
+                    ["Ledger entries", report.summary.entryCount],
+                    ["Eligible revenue", minorUnits(report.summary.eligibleRevenueMinor)],
+                    ["Commission pending", minorUnits(report.summary.pendingCommissionMinor)],
+                    ["Commission approved", minorUnits(report.summary.approvedCommissionMinor)],
+                    ["Commission paid", minorUnits(report.summary.paidCommissionMinor)],
+                    ["Commission reversed", minorUnits(report.summary.reversedCommissionMinor)],
+                  ].map(([k, v]) => (
+                    <div key={k} style={{ display: "contents" }}>
+                      <dt style={{ ...label, margin: 0 }}>{k}</dt>
+                      <dd style={{ margin: 0, fontSize: ".85rem" }}>{v === null || v === undefined ? "\u2014" : String(v)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+
+              {report.healthError ? (
+                <p data-testid="fcc-health-error" style={{ color: "var(--warning)", fontSize: ".84rem", margin: "0 0 .6rem" }}>{report.healthError}</p>
+              ) : report.health ? (
+                <p data-testid="fcc-health" style={{ fontSize: ".84rem", margin: "0 0 .9rem", color: "var(--text-secondary)" }}>
+                  {Object.entries(report.health).map(([k, v]) => `${k}: ${String(v)}`).join(" \u00b7 ")}
+                </p>
+              ) : null}
+
+              <h4 style={{ ...label, margin: "0 0 .4rem" }}>Commission ledger</h4>
+              {report.ledgerError ? (
+                <p data-testid="fcc-ledger-error" style={{ color: "var(--warning)", fontSize: ".84rem" }}>{report.ledgerError}</p>
+              ) : report.entries && report.entries.length === 0 ? (
+                <p data-testid="fcc-ledger-empty" style={{ color: "var(--text-secondary)", fontSize: ".84rem" }}>
+                  No commission entries yet.
+                </p>
+              ) : report.entries ? (
+                <ul data-testid="fcc-ledger" style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: ".4rem" }}>
+                  {report.entries.map((e, i) => (
+                    <li key={e.id || e.entryId || i} data-testid={`fcc-ledger-row-${i}`}
+                      style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: ".5rem .65rem" }}>
+                      <span style={{ ...mono, display: "block", color: "var(--text-tertiary)" }}>{e.id || e.entryId || "\u2014"}</span>
+                      <span style={{ fontSize: ".84rem" }}>
+                        {(e.status || "\u2014")} {"\u00b7"} {minorUnits(e.salespersonCommissionMinor, e.currency)}
+                        {e.effectiveAt || e.at ? ` \u00b7 ${e.effectiveAt || e.at}` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              <h4 style={{ ...label, margin: "1rem 0 .4rem" }}>Pending attribution lookup</h4>
+              <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
+                <input data-testid="fcc-pending-input" aria-label="User ID" value={pendingId}
+                  onChange={(ev) => setPendingId(ev.target.value)} style={{ maxWidth: 260 }} />
+                <button type="button" className="btn-secondary" data-testid="fcc-pending-go"
+                  disabled={busy !== null || pendingId.trim() === ""} onClick={lookupPending}>Look up</button>
+              </div>
+              {pending && pending.error ? (
+                <p data-testid="fcc-pending-error" style={{ color: "var(--warning)", fontSize: ".84rem", marginTop: ".5rem" }}>{pending.error}</p>
+              ) : pending && pending.value ? (
+                <p data-testid="fcc-pending-value" style={{ ...mono, marginTop: ".5rem" }}>
+                  {Object.entries(pending.value).map(([k, v]) => `${k}: ${String(v)}`).join(" \u00b7 ")}
+                </p>
+              ) : pending ? (
+                <p data-testid="fcc-pending-none" style={{ color: "var(--text-secondary)", fontSize: ".84rem", marginTop: ".5rem" }}>
+                  No pending attribution for that user.
+                </p>
+              ) : null}
+
+              {controls ? (
+                <div style={{ marginTop: "1rem" }} data-testid="fcc-controls">
+                  <h4 style={{ ...label, margin: "0 0 .3rem" }}>Sales controls (read-only)</h4>
+                  <p style={{ fontSize: ".84rem", margin: 0, color: "var(--text-secondary)" }}>
+                    Referral link live: <strong>{String(controls.referralPublicLive)}</strong>
+                    {" \u00b7 "}Attribution live: <strong>{String(controls.attributionLive)}</strong>
+                  </p>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </section>
