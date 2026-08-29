@@ -50,6 +50,14 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
   const [issued, setIssued] = useState(null);
   const [copied, setCopied] = useState(false);
 
+  // ── B2 state ──
+  // `confirm` holds the pending destructive intent: { kind, salespersonId, name }. Nothing acts
+  // until it is confirmed, and dismissing it performs no request at all.
+  const [slugDraft, setSlugDraft] = useState("");
+  const [publicLink, setPublicLink] = useState(null);
+  const [confirm, setConfirm] = useState(null);
+  const [busy, setBusy] = useState(null);
+
   // AWAITS BEFORE IT TOUCHES STATE. Calling setState synchronously from an effect body triggers a
   // cascading render, which `react-hooks/set-state-in-effect` rightly flags; `loading` therefore
   // starts true and is only ever resolved after the request settles.
@@ -92,7 +100,66 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     const res = await api.read(id);
     setDetailBusy(false);
     if (!res.ok) { setMessage(salesAdminErrorMessage(res, { context: "read" })); return; }
-    setDetail((res.data && res.data.salesperson) || null);
+    const sp = (res.data && res.data.salesperson) || null;
+    setDetail(sp);
+    setSlugDraft((sp && sp.referralSlug) || "");
+    setPublicLink((res.data && res.data.publicReferralLink) || null);
+  }
+
+  /** Apply the detail payload every B2 mutation returns, so the surface never guesses. */
+  function adoptDetail(res) {
+    const sp = (res.data && res.data.salesperson) || null;
+    if (sp) setDetail(sp);
+    setSlugDraft((sp && sp.referralSlug) || "");
+    if (Object.prototype.hasOwnProperty.call(res.data || {}, "publicReferralLink")) {
+      setPublicLink(res.data.publicReferralLink || null);
+    }
+  }
+
+  async function saveSlug(remove) {
+    if (!detail || busy) return;
+    setBusy(remove ? "slug-remove" : "slug-save"); setMessage(null);
+    const res = remove
+      ? await api.removeReferralSlug(detail.salespersonId)
+      : await api.setReferralSlug(detail.salespersonId, slugDraft);
+    setBusy(null);
+    if (!res.ok) { setMessage(salesAdminErrorMessage(res, { context: "slug" })); return; }
+    adoptDetail(res);
+    await refresh();
+  }
+
+  /** Every destructive action funnels through here — nothing runs without an explicit confirm. */
+  async function runConfirmed() {
+    if (!confirm || busy) return;
+    const { kind, salespersonId } = confirm;
+    setBusy(kind); setMessage(null);
+    let res;
+    if (kind === "rotate") res = await api.rotateToken(salespersonId);
+    else if (kind === "disable") res = await api.setStatus(salespersonId, "inactive");
+    else if (kind === "reactivate") res = await api.setStatus(salespersonId, "active");
+    setBusy(null);
+    setConfirm(null);
+    if (!res || !res.ok) { setMessage(salesAdminErrorMessage(res, { context: kind })); return; }
+    if (kind === "rotate") {
+      // The replacement link, held in state for this render only — exactly like creation.
+      setIssued({
+        salespersonId,
+        displayName: (detail && detail.displayName) || salespersonId,
+        attributionLink: (res.data && res.data.attributionLink) || "",
+        rotated: true,
+      });
+      setCopied(false);
+    }
+    // Status changes are adopted from the SERVER response, never applied optimistically.
+    adoptDetail(res);
+    await refresh();
+  }
+
+  /** Re-read the list so the surface reflects the server after any mutation. */
+  async function refresh() {
+    const res = await api.list();
+    if (!res.ok) return;
+    setRows(Array.isArray(res.data && res.data.salespeople) ? res.data.salespeople : []);
   }
 
   const canCreate = useMemo(
@@ -174,8 +241,9 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
             Attribution link for {issued.displayName}
           </h2>
           <p style={{ margin: "0 0 .75rem", color: "var(--text-secondary)", fontSize: ".85rem" }}>
-            This link is shown once. Copy it now — you won’t be able to see it again, and refreshing
-            this page will clear it.
+            {issued.rotated
+              ? "The previous link is now invalid and will no longer attribute anyone. This replacement is shown once — copy it now; refreshing this page will clear it."
+              : "This link is shown once. Copy it now — you won’t be able to see it again, and refreshing this page will clear it."}
           </p>
           <p data-testid="fcc-issued-link-value" style={{ ...mono, wordBreak: "break-all", margin: "0 0 .75rem" }}>
             {issued.attributionLink}
@@ -275,7 +343,90 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
           ) : (
             <p style={{ color: "var(--text-secondary)", fontSize: ".88rem" }}>Nothing to show.</p>
           )}
+
+          {detail ? (
+            <div style={{ marginTop: "1.1rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+              {/* ── VANITY ALIAS ──
+                  Separate from the opaque link by design, and the copy says so: changing or
+                  removing an alias never touches the attribution token. */}
+              <h3 style={{ fontSize: ".92rem", margin: "0 0 .5rem" }}>Vanity URL</h3>
+              <p style={{ margin: "0 0 .6rem", color: "var(--text-secondary)", fontSize: ".82rem" }}>
+                A readable alias. The opaque attribution link is separate and is not changed by
+                editing or removing this.
+              </p>
+              {publicLink ? (
+                <p data-testid="fcc-public-link" style={{ ...mono, margin: "0 0 .6rem", wordBreak: "break-all" }}>{publicLink}</p>
+              ) : null}
+              <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
+                <input data-testid="fcc-slug-input" aria-label="Vanity URL" value={slugDraft}
+                  onChange={(e) => setSlugDraft(e.target.value)} style={{ maxWidth: 260 }} />
+                <button type="button" className="btn-primary" data-testid="fcc-slug-save"
+                  disabled={busy !== null || slugDraft.trim() === ""} onClick={() => saveSlug(false)}>
+                  {detail.referralSlug ? "Replace" : "Assign"}
+                </button>
+                {detail.referralSlug ? (
+                  <button type="button" className="btn-secondary" data-testid="fcc-slug-remove"
+                    disabled={busy !== null} onClick={() => saveSlug(true)}>Remove</button>
+                ) : null}
+              </div>
+
+              {/* ── DESTRUCTIVE ACTIONS, deliberately set apart ── */}
+              <div style={{ marginTop: "1.1rem", display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
+                <button type="button" className="btn-secondary" data-testid="fcc-rotate"
+                  disabled={busy !== null}
+                  onClick={() => setConfirm({ kind: "rotate", salespersonId: detail.salespersonId, name: detail.displayName })}>
+                  Rotate attribution link
+                </button>
+                {String(detail.status) === "inactive" ? (
+                  <button type="button" className="btn-secondary" data-testid="fcc-reactivate"
+                    disabled={busy !== null}
+                    onClick={() => setConfirm({ kind: "reactivate", salespersonId: detail.salespersonId, name: detail.displayName })}>
+                    Reactivate
+                  </button>
+                ) : (
+                  <button type="button" className="btn-secondary" data-testid="fcc-disable"
+                    disabled={busy !== null}
+                    onClick={() => setConfirm({ kind: "disable", salespersonId: detail.salespersonId, name: detail.displayName })}>
+                    Disable
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : null}
         </section>
+      ) : null}
+
+      {/* ── DESTRUCTIVE CONFIRMATION ──
+          One dialog for all three actions. Cancel is the safe default, Escape dismisses, and
+          NOTHING is requested until the explicit confirm button is pressed. */}
+      {confirm ? (
+        <div role="dialog" aria-modal="true" aria-labelledby="fcc-confirm-title"
+          data-testid="fcc-confirm"
+          onKeyDown={(e) => { if (e.key === "Escape") setConfirm(null); }}
+          style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 50 }}>
+          <div style={{ ...card, maxWidth: 460, width: "100%" }}>
+            <h2 id="fcc-confirm-title" style={{ fontSize: "1.05rem", margin: "0 0 .5rem" }}>
+              {confirm.kind === "rotate" ? `Rotate the attribution link for “${confirm.name}”?`
+                : confirm.kind === "disable" ? `Disable “${confirm.name}”?`
+                : `Reactivate “${confirm.name}”?`}
+            </h2>
+            <p data-testid="fcc-confirm-body" style={{ margin: "0 0 1rem", color: "var(--text-secondary)", fontSize: ".88rem" }}>
+              {confirm.kind === "rotate"
+                ? "The current attribution link stops working immediately and cannot be recovered. Anyone using it will no longer be attributed. The replacement is shown once."
+                : confirm.kind === "disable"
+                  ? "New attribution stops. Existing attribution history and commission records are kept."
+                  : "New attribution resumes for this salesperson."}
+            </p>
+            <div style={{ display: "flex", gap: ".5rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
+              <button type="button" className="btn-secondary" data-testid="fcc-confirm-cancel"
+                onClick={() => setConfirm(null)} autoFocus>Cancel</button>
+              <button type="button" className="btn-primary" data-testid="fcc-confirm-go"
+                disabled={busy !== null} onClick={runConfirmed}>
+                {confirm.kind === "rotate" ? "Rotate link" : confirm.kind === "disable" ? "Disable" : "Reactivate"}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );

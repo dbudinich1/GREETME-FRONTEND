@@ -72,6 +72,35 @@ export const salesAdminApi = {
     if (mail) body.email = mail;
     return post(BASE, body);
   },
+
+  /**
+   * PUT …/referral-slug — assign, replace, or REMOVE the vanity alias.
+   *
+   * The backend treats `null` and `""` as removal, and touches `referralSlug` and nothing else:
+   * no token rotation, no status change, no attribution history. Passing null here is therefore a
+   * removal, not an accidental blank assignment.
+   *
+   * 200 → { ok, salesperson, publicReferralLink }   (publicReferralLink is null once removed)
+   * 400 → slug_* validation reason · 409 → SLUG_TAKEN / slug_reserved · 404 → unknown salesperson
+   */
+  setReferralSlug: (salespersonId, referralSlug) =>
+    req("PUT", `${one(salespersonId)}/referral-slug`, {
+      referralSlug: typeof referralSlug === "string" ? referralSlug.trim() : null,
+    }),
+
+  removeReferralSlug: (salespersonId) =>
+    req("PUT", `${one(salespersonId)}/referral-slug`, { referralSlug: null }),
+
+  /**
+   * POST …/rotate-token — mints a NEW opaque token and invalidates the previous one.
+   *
+   * DESTRUCTIVE. The response carries the replacement link exactly once; there is no route that
+   * returns an existing token, by design, so a rotation that is not captured is not recoverable.
+   */
+  rotateToken: (salespersonId) => post(`${one(salespersonId)}/rotate-token`, {}),
+
+  /** POST …/status — "active" | "inactive". Deactivation stops NEW attribution only. */
+  setStatus: (salespersonId, status) => post(`${one(salespersonId)}/status`, { status }),
 };
 
 /**
@@ -88,8 +117,20 @@ export function salesAdminErrorMessage(res, { context = "load" } = {}) {
     case 401: return "Your session has expired. Sign in again to continue.";
     case 403: return "This area is limited to the founder account.";
     case 404: return context === "read" ? "That salesperson no longer exists." : "Not found.";
-    case 409: return "A salesperson with that ID already exists. Choose a different ID.";
-    case 400: return "Check the details and try again.";
+    case 409: {
+      // The slug conflict and the duplicate-id conflict share a status but mean different things,
+      // and the server distinguishes them with `reason`. Reported truthfully rather than merged.
+      const reason = res.data && res.data.reason;
+      if (reason === "SLUG_TAKEN") return "That vanity URL is already taken. Try another.";
+      if (reason === "slug_reserved") return "That vanity URL is reserved. Try another.";
+      if (context === "slug") return "That vanity URL isn’t available. Try another.";
+      return "A salesperson with that ID already exists. Choose a different ID.";
+    }
+    case 400:
+      // slug_* reasons are machine codes, never shown raw.
+      return context === "slug"
+        ? "That vanity URL isn’t valid. Use letters, numbers and hyphens."
+        : "Check the details and try again.";
     default:  return "That didn’t go through. Please try again.";
   }
 }
