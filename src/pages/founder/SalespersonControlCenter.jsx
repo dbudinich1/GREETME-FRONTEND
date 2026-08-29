@@ -43,11 +43,34 @@ function minorUnits(value, currency) {
   return currency ? `${n} ${currency} (minor units)` : `${n} (minor units)`;
 }
 
+/**
+ * The complete shareable link for a stored vanity slug.
+ *
+ * RECONSTRUCTED, never remembered. The slug is the only thing the server persists, so the link is
+ * derived from it plus the CURRENT origin every time it is rendered. That is what makes it survive
+ * a refresh: there is nothing to lose. It also means the surface no longer depends on the API
+ * returning `publicReferralLink` — that field is a convenience on two mutation responses, not
+ * something a page load ever receives.
+ *
+ * The origin is read from the browser, so production yields https://greet-me.com/<slug> while a
+ * local or test environment yields its own origin and stays testable.
+ */
+function shareableLink(slug, origin) {
+  const clean = typeof slug === "string" ? slug.trim() : "";
+  if (!clean) return null;
+  let base = origin;
+  if (!base) {
+    try { base = window.location.origin; } catch { base = ""; }
+  }
+  if (!base) return null;
+  return `${String(base).replace(/\/+$/, "")}/${clean}`;
+}
+
 function readUser() {
   try { return JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; }
 }
 
-export default function SalespersonControlCenter({ api = salesAdminApi, user: injectedUser } = {}) {
+export default function SalespersonControlCenter({ api = salesAdminApi, user: injectedUser, origin: originOverride } = {}) {
   const user = injectedUser !== undefined ? injectedUser : readUser();
   const founder = isFounder(user);
 
@@ -68,7 +91,10 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
   // `confirm` holds the pending destructive intent: { kind, salespersonId, name }. Nothing acts
   // until it is confirmed, and dismissing it performs no request at all.
   const [slugDraft, setSlugDraft] = useState("");
-  const [publicLink, setPublicLink] = useState(null);
+  // No `publicLink` state any more. The link is DERIVED from the server-confirmed slug below, so
+  // it updates when a replacement succeeds, disappears when a removal succeeds, and is preserved
+  // untouched when either fails — because in each case `detail` is only ever replaced by a real
+  // server response.
   const [confirm, setConfirm] = useState(null);
   const [busy, setBusy] = useState(null);
 
@@ -79,6 +105,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
   const [controls, setControls] = useState(null);
   const [pendingId, setPendingId] = useState("");
   const [pending, setPending] = useState(null);
+  const [shareCopied, setShareCopied] = useState(false);
 
   // AWAITS BEFORE IT TOUCHES STATE. Calling setState synchronously from an effect body triggers a
   // cascading render, which `react-hooks/set-state-in-effect` rightly flags; `loading` therefore
@@ -125,8 +152,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     const sp = (res.data && res.data.salesperson) || null;
     setDetail(sp);
     setSlugDraft((sp && sp.referralSlug) || "");
-    setPublicLink((res.data && res.data.publicReferralLink) || null);
-    setReport(null); setPending(null); setPendingId("");
+    setReport(null); setPending(null); setPendingId(""); setShareCopied(false);
     if (sp) loadReport(sp.salespersonId);
   }
 
@@ -174,8 +200,22 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     const sp = (res.data && res.data.salesperson) || null;
     if (sp) setDetail(sp);
     setSlugDraft((sp && sp.referralSlug) || "");
-    if (Object.prototype.hasOwnProperty.call(res.data || {}, "publicReferralLink")) {
-      setPublicLink(res.data.publicReferralLink || null);
+    // publicReferralLink is deliberately ignored: the link is reconstructed from the slug the
+    // server just confirmed, so there is one source of truth rather than two that can disagree.
+  }
+
+  // Derived, not stored. Recomputed on every render from the slug the server confirmed.
+  const shareLink = shareableLink(detail && detail.referralSlug, originOverride);
+
+  async function copyShareLink() {
+    if (!shareLink) return;
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setShareCopied(true);
+    } catch {
+      // The URL stays on screen and selectable, so a denied clipboard costs nothing.
+      setShareCopied(false);
+      setMessage("Couldn’t copy automatically — select the link above and copy it manually.");
     }
   }
 
@@ -417,8 +457,18 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                 A readable alias. The opaque attribution link is separate and is not changed by
                 editing or removing this.
               </p>
-              {publicLink ? (
-                <p data-testid="fcc-public-link" style={{ ...mono, margin: "0 0 .6rem", wordBreak: "break-all" }}>{publicLink}</p>
+              {shareLink ? (
+                <div style={{ margin: "0 0 .7rem" }}>
+                  <p style={{ ...label, margin: "0 0 .25rem" }}>Shareable salesperson link</p>
+                  <p data-testid="fcc-public-link" style={{ ...mono, margin: "0 0 .45rem", wordBreak: "break-all", userSelect: "all" }}>
+                    {shareLink}
+                  </p>
+                  <button type="button" className="btn-secondary" data-testid="fcc-copy-share"
+                    style={{ padding: ".3rem .7rem", fontSize: ".78rem" }}
+                    onClick={copyShareLink}>
+                    {shareCopied ? "Copied" : "Copy link"}
+                  </button>
+                </div>
               ) : null}
               <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
                 <input data-testid="fcc-slug-input" aria-label="Vanity URL" value={slugDraft}

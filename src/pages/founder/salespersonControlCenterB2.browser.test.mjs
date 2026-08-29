@@ -86,8 +86,11 @@ test("assigning a vanity URL sends the trimmed slug and shows the public link", 
   await click(tid("fcc-slug-save"));
   assert.deepEqual(a.calls.find((c) => c[0] === "setReferralSlug"), ["setReferralSlug", "sp1", "  rep-north  "],
     "the page passes the raw value; the client trims it");
-  assert.equal(tid("fcc-public-link").textContent, "https://greet-me.com/r/  rep-north  ".replace("  rep-north  ", "  rep-north  "),
-    "the server's public link is displayed verbatim");
+  // CONTRACT CORRECTION: the displayed link is reconstructed from the CURRENT ORIGIN plus the
+  // NORMALIZED stored slug — one source of truth. The old expectation echoed the API's
+  // publicReferralLink verbatim, which is why it carried literal spaces from the untrimmed input.
+  assert.equal(tid("fcc-public-link").textContent, "http://localhost/rep-north",
+    "origin + normalized slug, not the API echo");
 });
 
 test("replacing an existing slug offers Replace, and removal is a separate explicit action", async () => {
