@@ -187,6 +187,9 @@ export default function DashboardLayout({ children }) {
     // TEAM B — Founder Admin fundraising access stays separate + hidden while the dark gate is false.
     // TEAM D FE-GATE-1 — same founder gate as above.
     ...(isFundraiserUiEnabled() && isFounder(user) ? [{ name: 'Fundraising', path: '/dashboard/fundraiser/admin', icon: null }] : []),
+    // TEAM B — SALES S1 founder control center. Same founder gate as the line above, so an
+    // ordinary user never sees the entry; the route and every endpoint behind it are gated too.
+    ...(isFounder(user) ? [{ name: 'Salespeople', path: '/dashboard/founder/salespeople', icon: null }] : []),
   ];
 
   return (
