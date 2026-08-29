@@ -108,6 +108,12 @@ export default function CampaignCard({
   // Inline rename.
   const [showInfo, setShowInfo] = useState(false);
   const [renaming, setRenaming] = useState(false);
+  // TEAM A — removal is a TWO-STEP affordance. The first press only arms it; the second confirms.
+  // A destructive action on a card sitting under the pointer during a drag-reorder must never be
+  // one stray click away, and an inline confirm keeps the decision on the card being removed
+  // rather than in a modal that could name the wrong campaign.
+  const [removeArmed, setRemoveArmed] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [spreadSource, setSpreadSource] = useState("organization_default");
 
@@ -238,6 +244,23 @@ export default function CampaignCard({
   const renameBlockedReason = !isOwner
     ? OWNER_ONLY_MESSAGE
     : "Unlock the campaign to rename it.";
+
+  // The SERVER decides delete-vs-archive. This asks for removal and reports what happened; it
+  // never claims an outcome the API has not confirmed, and it never sends a mode.
+  async function confirmRemove() {
+    if (removing) return;
+    setRemoving(true);
+    try {
+      const res = await client.removeCampaign(orgId, campaign.campaignId);
+      if (res && res.ok) {
+        setRemoveArmed(false);
+        if (typeof onAfterMutate === "function") onAfterMutate();
+      }
+      // A failure leaves the card in place, still armed, with nothing claimed.
+    } finally {
+      setRemoving(false);
+    }
+  }
 
   function beginRename() {
     if (!renameAllowed) return;
@@ -414,6 +437,38 @@ export default function CampaignCard({
             onClick={beginRename}>
             ✎
           </button>
+            {/* TEAM A - removal. TRUTHFUL LABELLING: a locked or used campaign is archived, not
+                destroyed, so it must not offer to "delete" it. `padding: 0` inline for the same
+                reason as the pencil above - the global button rule would inflate a fixed-size
+                icon control. */}
+            {!removeArmed ? (
+              <button type="button" className="gcd-pencil" data-testid={`card-remove-${campaign.campaignId}`}
+                style={{ padding: 0 }} disabled={busy || removing}
+                title={locked ? `Remove ${campaignLabel} from the active list` : `Delete ${campaignLabel}`}
+                aria-label={locked ? `Remove ${campaignLabel} from the active list` : `Delete ${campaignLabel}`}
+                onClick={() => setRemoveArmed(true)}>
+                &#128465;
+              </button>
+            ) : (
+              <span className="gcd-remove-confirm" data-testid={`card-remove-confirm-${campaign.campaignId}`}
+                role="group" aria-label={`Confirm removal of ${campaignLabel}`}>
+                <span style={{ fontSize: ".82rem" }}>
+                  {locked ? "Remove from list?" : "Delete permanently?"}
+                </span>
+                <button type="button" data-testid={`card-remove-yes-${campaign.campaignId}`}
+                  style={{ padding: 0 }} disabled={removing}
+                  aria-label={locked ? `Confirm removing ${campaignLabel}` : `Confirm deleting ${campaignLabel}`}
+                  onClick={confirmRemove}>
+                  {removing ? "..." : "Yes"}
+                </button>
+                <button type="button" data-testid={`card-remove-no-${campaign.campaignId}`}
+                  style={{ padding: 0 }} disabled={removing}
+                  aria-label={`Keep ${campaignLabel}`}
+                  onClick={() => setRemoveArmed(false)}>
+                  No
+                </button>
+              </span>
+            )}
         </div>
 
         <div className="gcd-tile-meta">

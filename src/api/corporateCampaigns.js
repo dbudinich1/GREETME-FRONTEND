@@ -218,6 +218,11 @@ export function createCorporateCampaignsClient({
     // dashboard bypass every one of them.
     renameCampaign: (orgId, campaignId, name) =>
       call("PATCH", `${one(orgId, campaignId)}/name`, { body: { name } }),
+    // TEAM A — safe removal. Deliberately has NO mode parameter: the SERVER decides whether a
+    // campaign is permanently deleted or archived, from the campaign's own evidence. A client
+    // that could ask for destruction would eventually destroy something material.
+    // The response reports which happened (`mode`), so the surface can be truthful afterwards.
+    removeCampaign: (orgId, campaignId) => call("DELETE", one(orgId, campaignId)),
     setCampaignEnabled: (orgId, campaignId, enabled) =>
       call("PATCH", `${one(orgId, campaignId)}/enabled`, { body: { enabled: enabled === true } }),
     activate: (orgId, campaignId) => call("POST", `${one(orgId, campaignId)}/activate`, { body: {} }),
