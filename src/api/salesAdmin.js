@@ -101,6 +101,32 @@ export const salesAdminApi = {
 
   /** POST …/status — "active" | "inactive". Deactivation stops NEW attribution only. */
   setStatus: (salespersonId, status) => post(`${one(salespersonId)}/status`, { status }),
+
+  // ── B3 · READ-ONLY REPORTING ────────────────────────────────────────────────────────────
+  // Every one of these is a GET. There is no founder endpoint that mutates reporting data, and
+  // none is invented here. Money arrives in MINOR UNITS (`*Minor`); the summary carries no
+  // currency of its own, so this client never attaches one — the ledger's per-entry `currency`
+  // is the only currency the server states, and it is passed through untouched.
+
+  /** GET …/summary → { ok, summary } — aggregated from the ledger, never from customer docs. */
+  summary: (salespersonId) => get(`${one(salespersonId)}/summary`),
+
+  /** GET …/attribution-health → { ok, attributionHealth, controls } — counts only, no PII. */
+  attributionHealth: (salespersonId) => get(`${one(salespersonId)}/attribution-health`),
+
+  /** GET …/ledger → { ok, entries } — the raw commission entries. No payout action exists. */
+  ledger: (salespersonId) => get(`${one(salespersonId)}/ledger`),
+
+  /**
+   * GET /admin/pending/:userId → { ok, pending }
+   *
+   * Takes ONE deliberately supplied user id. There is no list form and none is added: pending
+   * attribution is looked up for a person the founder already has in hand, never enumerated.
+   */
+  pendingForUser: (userId) => get(`/api/sales/admin/pending/${encodeURIComponent(userId)}`),
+
+  /** GET /admin/controls → { ok, controls } — read-only. No endpoint can flip a flag. */
+  controls: () => get("/api/sales/admin/controls"),
 };
 
 /**
