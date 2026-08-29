@@ -225,6 +225,9 @@ test("B3: existing personal navigation entries are unchanged in label and order"
     "Corporate Campaign Dashboard", // nested child of For Business
     "Greet-Me Fundraise",
     "Fundraising",
+    // TEAM B — SALES S1: the founder-gated Salesperson Control Center entry. Appended, so
+    // every personal entry above keeps its exact label and position. Still an exact deepEqual.
+    "Salespeople",
   ], "personal navigation entries, order, and the nested child are untouched");
 });
 

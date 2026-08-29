@@ -111,6 +111,9 @@ const QAInspector = import.meta.env.DEV
 // VITE_FUNDRAISER_ENABLED (default false ⇒ truthful "not available"), and all data comes from the
 // backend, which enforces auth + role server-side. Navigation is hidden while the gate is false.
 const FounderFundraisingDashboard = lazy(() => import("./pages/fundraiser/FounderFundraisingDashboard"));
+// TEAM B — SALES S1 founder control center. Lazy, exactly like the other founder surface, so it
+// never enters the main bundle for an ordinary user.
+const SalespersonControlCenter = lazy(() => import("./pages/founder/SalespersonControlCenter"));
 const PartnerFundraisingDashboard = lazy(() => import("./pages/fundraiser/PartnerFundraisingDashboard"));
 // NAV-02 — param-less Partner Admin home; the "Greet-Me Fundraise" primary-nav header points here.
 const PartnerFundraisingHome = lazy(() => import("./pages/fundraiser/PartnerFundraisingHome"));
@@ -208,6 +211,9 @@ export default function App() {
             {/* NAV-02 — Partner Admin home for the "Greet-Me Fundraise" primary-nav header (param-less). */}
             <Route path="fundraiser" element={<Suspense fallback={null}><PartnerFundraisingHome /></Suspense>} />
             <Route path="fundraiser/admin" element={<Suspense fallback={null}><FounderFundraisingDashboard /></Suspense>} />
+            {/* TEAM B — founder-only. The page itself re-checks isFounder and renders nothing
+                actionable otherwise, and every endpoint behind it is requireFounder server-side. */}
+            <Route path="founder/salespeople" element={<Suspense fallback={null}><SalespersonControlCenter /></Suspense>} />
             <Route path="fundraiser/partner/:organizationId" element={<Suspense fallback={null}><PartnerFundraisingDashboard /></Suspense>} />
           </Route>
 
