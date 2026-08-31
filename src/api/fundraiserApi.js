@@ -48,6 +48,20 @@ export const fundraiserApi = {
     campaigns: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/campaigns`),
     createCampaign: (b) => post("/api/fundraiser/admin/campaigns", b),
     economicsHistory: (campaignId) => get(`/api/fundraiser/admin/campaigns/${campaignId}/economics/history`),
+
+    /**
+     * F1 — create a DRAFT economics version. Founder-gated server-side (founderApi `F(actor)`).
+     *
+     * Sends ONLY what the founder actually specified: organizationId, campaignId, rules and
+     * treatments. The service signature also accepts mechanics / lifecycleRules / customTerms, but
+     * padding the payload with explicit nulls would assert "no custom terms" on the founder's
+     * behalf — a commercial statement nobody made. Omitted means unspecified; the service already
+     * defaults them to null itself.
+     *
+     * Creating a draft NEVER approves, activates, or changes a campaign's status.
+     */
+    draftEconomics: ({ organizationId, campaignId, rules, treatments }) =>
+      post("/api/fundraiser/admin/economics/draft", { organizationId, campaignId, rules, treatments }),
     participantTotals: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/totals/participants`),
     ledgerTotals: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/totals/ledger`),
     reconciliation: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/reconciliation`),
