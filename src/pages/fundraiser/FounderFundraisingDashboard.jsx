@@ -200,15 +200,6 @@ function f3PickActivatable(version) {
 }
 
 /**
- * A `datetime-local` value is wall-clock with NO zone, so it is ambiguous until anchored. This
- * anchors it in the BROWSER's zone - the zone the founder was reading when they typed it - and
- * returns the resulting absolute instant.
- *
- * The founder's chosen instant is never adjusted: the UTC string produced here is displayed before
- * confirmation and is the exact string transmitted. Invalid or unparseable input is REFUSED rather
- * than coerced into some nearby time.
- */
-/**
  * Parse an explicitly-UTC effective time.
  *
  * The field is labelled UTC and takes YYYY-MM-DDTHH:MM. It is deliberately NOT a `datetime-local`
@@ -338,7 +329,7 @@ function FounderEconomicsActivationPanel({ organizationId, organizationName, cam
 
   return (
     <div data-testid="f3-panel" style={{ border: "1px solid #c9d8bb", borderRadius: 8, padding: ".7rem", margin: "0 0 .8rem" }}>
-      <h3 style={{ fontSize: ".9rem", margin: "0 0 .5rem" }}>Approved economics \u2014 review and activate</h3>
+      <h3 style={{ fontSize: ".9rem", margin: "0 0 .5rem" }}>Approved economics — review and activate</h3>
 
       <div data-testid="f3-review" style={{ fontSize: ".82rem", background: "#f7faf2", borderRadius: 8, padding: ".55rem" }}>
         <div>Organization: <span data-testid="f3-review-org">{organizationName}</span></div>
@@ -366,14 +357,14 @@ function FounderEconomicsActivationPanel({ organizationId, organizationName, cam
 
       <ul data-testid="f3-notice" style={{ fontSize: ".8rem", color: "#555", margin: ".55rem 0", paddingLeft: "1.1rem" }}>
         <li>Activating makes these economics effective from the instant you choose.</li>
-        <li>This may supersede the campaign\u2019s currently active economics version.</li>
-        <li>These sealed terms cannot be edited \u2014 changing them later needs a new version.</li>
+        <li>This may supersede the campaign’s currently active economics version.</li>
+        <li>These sealed terms cannot be edited — changing them later needs a new version.</li>
         <li>This does <strong>not</strong> activate the campaign.</li>
         <li>Payouts remain held.</li>
       </ul>
 
       <label style={{ display: "block", fontSize: ".8rem", margin: ".4rem 0" }}>
-        Effective from (UTC) \u2014 YYYY-MM-DDTHH:MM
+        Effective from (UTC) — YYYY-MM-DDTHH:MM
         <input data-testid="f3-when" value={whenUtc} placeholder="2026-09-01T00:00"
           onChange={(ev) => { setWhenUtc(ev.target.value); setError(null); }} />
       </label>
@@ -390,7 +381,7 @@ function FounderEconomicsActivationPanel({ organizationId, organizationName, cam
 
       {!confirming ? (
         <button type="button" data-testid="f3-activate" disabled={busy} onClick={openConfirm}>
-          Activate these economics\u2026
+          Activate these economics…
         </button>
       ) : (
         <div data-testid="f3-confirm" role="group" aria-label="Confirm activation"
@@ -410,9 +401,9 @@ function FounderEconomicsActivationPanel({ organizationId, organizationName, cam
       {activated ? (
         <p data-testid="f3-activated" style={{ fontSize: ".82rem" }}>
           Activated version <strong data-testid="f3-activated-version">{activated.id}</strong>
-          {activated.status ? <> \u00b7 status <strong data-testid="f3-activated-status">{activated.status}</strong></> : null}
+          {activated.status ? <> · status <strong data-testid="f3-activated-status">{activated.status}</strong></> : null}
           {" "}effective <strong data-testid="f3-activated-from">{activated.effectiveFrom}</strong>.
-          {" "}The campaign\u2019s own status is unchanged and payouts remain held.
+          {" "}The campaign’s own status is unchanged and payouts remain held.
         </p>
       ) : null}
     </div>

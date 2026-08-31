@@ -38,10 +38,17 @@ let storageWrites = [];
 let consoleLines = [];
 
 before(async () => {
-  // The zone must really be non-UTC, or the round-trip assertions below prove nothing.
+  // The zone must really be non-UTC, or the round-trip assertions below prove nothing. Asserted
+  // against the RUNTIME's own offset, not against the process.env.TZ assignment above: a runner
+  // that pins TZ itself, or a platform that ignores the assignment, would otherwise leave these
+  // tests silently passing in UTC while claiming to prove the local zone cannot shift the instant.
+  assert.notEqual(new Date("2026-09-01T00:00").getTimezoneOffset(), 0,
+    "this suite is only meaningful under a non-UTC runtime timezone; got UTC");
+  assert.notEqual(new Date("2026-11-01T01:30").getTimezoneOffset(), 0,
+    "the ambiguous-instant case also requires a non-UTC runtime timezone");
   assert.notEqual(
     new Date("2026-09-01T00:00").toISOString(), "2026-09-01T00:00:00.000Z",
-    "this suite requires a non-UTC process timezone to be meaningful",
+    "a local-zone parse must differ from the UTC instant for these assertions to bite",
   );
 
   const stub = { name: "stub", setup(b) {
@@ -303,6 +310,71 @@ test("F3 review: the consequences are stated, including what activation does NOT
   assert.match(notice, /supersede/i, "it warns this may supersede what is in force");
   assert.match(notice, /not[\s\S]{0,20}activate the campaign/i, "it states this is not campaign activation");
   assert.match(notice, /payouts remain held/i, "it states payouts remain held");
+});
+
+// ── 2b · the punctuation actually reaches the page ────────────────────────────────────────────
+//
+// In JSX TEXT content a backslash-u sequence is NOT an escape — it renders as six literal
+// characters. The same sequence inside a JS string literal is a real escape and renders correctly,
+// so the two look identical in source review and differ only on screen. Regex assertions elsewhere
+// in this file match on words and never touched the punctuation, which is how seven of these
+// reached a frozen commit. These tests read the rendered DOM.
+
+test("F3 rendering: no literal escape sequence survives anywhere in the panel", async () => {
+  await openApproved();
+  const rendered = $("f3-panel").textContent;
+  assert.ok(!/\\u[0-9a-fA-F]{4}/.test(rendered),
+    `the panel renders a literal escape sequence: ${(rendered.match(/\\u[0-9a-fA-F]{4}/g) || []).join(", ")}`);
+  assert.ok(!rendered.includes("\\"), "no stray backslash may reach the page");
+});
+
+test("F3 rendering: no literal escape sequence survives in the confirmation or the result", async () => {
+  await openApproved();
+  await readyToConfirm();
+  assert.ok(!/\\u[0-9a-fA-F]{4}/.test($("f3-confirm").textContent), "the confirmation is clean");
+  await click($("f3-confirm-go"));
+  assert.ok(!/\\u[0-9a-fA-F]{4}/.test($("f3-activated").textContent), "the result is clean");
+  assert.ok(!/\\u[0-9a-fA-F]{4}/.test(document.body.textContent), "and so is the page as a whole");
+});
+
+test("F3 rendering: the heading shows a real em dash", async () => {
+  await openApproved();
+  const heading = $("f3-panel").querySelector("h3").textContent;
+  assert.equal(heading, "Approved economics — review and activate");
+  assert.ok(heading.includes("—"), "an em dash, not the six characters that spell one");
+});
+
+test("F3 rendering: the UTC field label shows a real em dash", async () => {
+  await openApproved();
+  const label = $("f3-when").closest("label").textContent;
+  assert.match(label, /^\s*Effective from \(UTC\) — YYYY-MM-DDTHH:MM\s*$/);
+});
+
+test("F3 rendering: the activation button shows a real ellipsis", async () => {
+  await openApproved();
+  assert.equal($("f3-activate").textContent.trim(), "Activate these economics…");
+});
+
+test("F3 rendering: the notice shows real apostrophes and em dashes", async () => {
+  await openApproved();
+  const notice = $("f3-notice").textContent;
+  assert.match(notice, /campaign’s currently active/, "a typographic apostrophe");
+  assert.match(notice, /cannot be edited — changing them later/, "an em dash");
+});
+
+test("F3 rendering: the result line shows a real middle dot and apostrophe", async () => {
+  await openApproved();
+  await readyToConfirm();
+  await click($("f3-confirm-go"));
+  const result = $("f3-activated").textContent;
+  assert.match(result, /· status/, "a middle dot separates the version from its status");
+  assert.match(result, /campaign’s own status is unchanged/, "a typographic apostrophe");
+});
+
+test("F3 rendering: the em-dash placeholder for an unusable instant is a real em dash", async () => {
+  await openApproved();
+  await typeWhen("not a time");
+  assert.equal($("f3-utc-value").textContent, "—");
 });
 
 // ── 3 · the UTC contract ──────────────────────────────────────────────────────────────────────
