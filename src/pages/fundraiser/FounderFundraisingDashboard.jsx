@@ -110,6 +110,79 @@ function f1DescribeShare(rule) {
   return String(rule.type || "\u2014");
 }
 
+// -- F2 . APPROVE ECONOMICS -------------------------------------------------------------------
+//
+// Approval SEALS terms server-side and cannot be undone by editing. The client therefore approves
+// nothing it assembled itself: the version, its id and its terms all come from the economics
+// history, and the request carries only the founder's reason.
+//
+// The two predicates below mirror the BACKEND guard (economicsState.js validateComplete /
+// isResolvableShare) so an incomplete draft is never offered for approval in the first place.
+// They are deliberately a COPY, not a relaxation: a share with a null percent is not resolvable,
+// and no value here is ever defaulted or inferred.
+const F2_SHARE_TYPES_ANY = ["none", "percent_of_base", "tiered", "custom"];
+
+function f2IsResolvableShare(rule) {
+  if (!rule || typeof rule !== "object") return false;
+  if (!F2_SHARE_TYPES_ANY.includes(rule.type)) return false;
+  if (rule.type === "none") return true;
+  if (rule.type === "custom") return typeof rule.notes === "string" && rule.notes.trim() !== "";
+  if (!F1_BASES.includes(rule.basis)) return false;
+  if (rule.type === "percent_of_base") {
+    return typeof rule.percent === "number" && Number.isFinite(rule.percent) && rule.percent >= 0;
+  }
+  return Array.isArray(rule.tiers) && rule.tiers.length > 0 &&
+    rule.tiers.every((t) => t && typeof t.percent === "number" && Number.isFinite(t.percent) &&
+      t.percent >= 0 && typeof t.thresholdCents === "number");
+}
+
+/** A version is approvable only if every treatment is valid and every ENABLED share resolves. */
+function f2IsComplete(version) {
+  if (!version || typeof version !== "object") return false;
+  const t = version.treatments;
+  if (!t || typeof t !== "object") return false;
+  for (const [key, allowed] of Object.entries(F1_TREATMENTS)) {
+    if (!allowed.includes(t[key])) return false;
+  }
+  const rules = version.rules || {};
+  if (!f2IsResolvableShare(rules.initialSubscriptionShare)) return false;
+  if (!f2IsResolvableShare(rules.renewalShare)) return false;
+  if (rules.giftParticipationEnabled === true && !f2IsResolvableShare(rules.giftShare)) return false;
+  return true;
+}
+
+/** Pick the draft awaiting approval: the highest-numbered version whose status is exactly draft. */
+function f2PickDraft(versions) {
+  return versions
+    .filter((v) => v && v.status === "draft")
+    .sort((a, b) => (b.economicsVersion || 0) - (a.economicsVersion || 0))[0] || null;
+}
+
+/**
+ * A failed approval must say what happened without handing the founder an internal code. The
+ * backend maps ETAG_MISMATCH / BAD_TRANSITION / INCOMPLETE onto a bare 400, so the code in the
+ * body is what distinguishes "someone else changed this" from "these terms were rejected" -- it is
+ * read to CHOOSE a sentence and is never rendered, and neither is the server's raw message.
+ */
+function f2ApprovalMessage(res) {
+  if (!res || res.networkError || res.status === 0) {
+    return "Couldn't reach the server. Nothing was approved.";
+  }
+  const code = res.data && typeof res.data.code === "string" ? res.data.code : "";
+  if (code === "ETAG_MISMATCH") return "This draft changed while you were reviewing it. Reload the campaign and review it again.";
+  if (code === "BAD_TRANSITION") return "This version is no longer a draft, so it cannot be approved.";
+  if (code === "INCOMPLETE") return "These terms are incomplete, so they cannot be approved.";
+  const byStatus = {
+    400: "The approval was rejected. Reload the campaign and review the draft again.",
+    401: "Your session has expired. Sign in again to continue.",
+    403: "Approving economics is limited to the founder account.",
+    404: "That draft no longer exists.",
+    409: "This draft changed while you were reviewing it. Reload the campaign and review it again.",
+    423: "Approvals are on hold right now. Nothing was approved.",
+  };
+  return byStatus[res.status] || "That didn't go through. Nothing was approved.";
+}
+
 export default function FounderFundraisingDashboard() {
   const [state, setState] = useState("loading");
   const [overview, setOverview] = useState(null);
@@ -135,41 +208,21 @@ export default function FounderFundraisingDashboard() {
   const [ecoResult, setEcoResult] = useState(null);
   const [ecoMessage, setEcoMessage] = useState(null);
 
-  async function submitDraftEconomics(e) {
-    if (e && e.preventDefault) e.preventDefault();
-    if (ecoBusy) return;
-    setEcoMessage(null); setEcoResult(null);
-    const built = f1BuildPayload({
-      organizationId: selected && selected.organizationId,
-      // Forwarded exactly as the server gave it — never trimmed, rewritten or invented.
-      campaignId: ecoCampaignId,
-      initial: ecoInitial, renewal: ecoRenewal,
-      giftEnabled: ecoGiftEnabled, gift: ecoGift,
-      treatments: ecoTreatments,
-    });
-    if (!built.ok) { setEcoErrors(built.errors); return; }   // zero requests while incomplete
-    setEcoErrors({});
-    setEcoBusy(true);
-    const res = await fundraiserApi.founder.draftEconomics(built.payload);
-    setEcoBusy(false);
-    if (!res || res.ok !== true) {
-      // No optimistic success, and no internal code shown.
-      const byStatus = {
-        400: "Some terms were rejected. Check the values and try again.",
-        401: "Your session has expired. Sign in again to continue.",
-        403: "This action is limited to the founder account.",
-        404: "That organization or campaign no longer exists.",
-        409: "This changed while you were editing. Reload and try again.",
-      };
-      setEcoMessage(res && res.networkError
-        ? "Couldn't reach the server. Check your connection and try again."
-        : (byStatus[res && res.status] || "That didn't go through. Please try again."));
-      return;
-    }
-    // State is adopted ONLY from the server's response.
-    const v = res.data || {};
-    setEcoResult({ versionId: v.versionId || v.id || null, status: v.status || null });
-  }
+  // -- F2 approval state --
+  // `apvApproved` is written ONLY from a successful server response; there is no optimistic
+  // status anywhere. The reason is never defaulted and never remembered across campaigns.
+  const [apvReason, setApvReason] = useState("");
+  const [apvConfirming, setApvConfirming] = useState(false);
+  const [apvBusy, setApvBusy] = useState(false);
+  const [apvReasonError, setApvReasonError] = useState(null);
+  const [apvMessage, setApvMessage] = useState(null);
+  const [apvApproved, setApvApproved] = useState(null);
+
+  const resetApproval = useCallback(() => {
+    setApvReason(""); setApvConfirming(false); setApvBusy(false);
+    setApvReasonError(null); setApvMessage(null); setApvApproved(null);
+  }, []);
+
   const [detail, setDetail] = useState(null);
   const [form, setForm] = useState({ legalName: "", orgType: "school" });
   // P2 — partner-administrator panel. `admin.state` is one of STATES; `admin.account` holds ONLY
@@ -229,6 +282,7 @@ export default function FounderFundraisingDashboard() {
     // F1 — the draft form is emptied too, so no term or campaign choice leaks between organizations.
     ecoCampaignRef.current = "";
     setEcoCampaignId(""); setEcoErrors({}); setEcoResult(null); setEcoMessage(null);
+    resetApproval();
     setEcoInitial({ type: "", basis: "", percent: "", notes: "" });
     setEcoRenewal({ type: "", basis: "", percent: "", notes: "" });
     setEcoGiftEnabled(false); setEcoGift({ type: "", basis: "", percent: "", notes: "" });
@@ -252,18 +306,17 @@ export default function FounderFundraisingDashboard() {
       audit: stateFor(aud) === "ok" ? aud.data : [],
       campaigns: stateFor(cmp) === "ok" && Array.isArray(cmp.data) ? cmp.data : [],
       economics: null,
+      economicsDraft: null,
     });
-  }, []);
+  }, [resetApproval]);
 
   // F1 — when a campaign is chosen, read its economics history and surface the version that is
   // actually in force. Nothing here is editable: approved/active terms are immutable server-side,
   // and the only legitimate way to change them is a NEW draft version.
-  const selectEcoCampaign = useCallback(async (campaignId) => {
-    ecoCampaignRef.current = campaignId;
-    setEcoCampaignId(campaignId);
-    setEcoResult(null); setEcoMessage(null);
-    setDetail((d) => (d ? { ...d, economics: null } : d));
-    if (!campaignId) return;
+  // Read a campaign's economics history and derive BOTH panels from the one response: the version
+  // in force (read-only) and the draft awaiting approval. Every id the approval path later uses
+  // originates here, in a server response — never in anything the client built.
+  const readEconomicsHistory = useCallback(async (campaignId) => {
     const hist = await fundraiserApi.founder.economicsHistory(campaignId);
     const versions = stateFor(hist) === "ok" && Array.isArray(hist.data) ? hist.data : [];
     // Prefer the version in force, then one merely approved, then the highest version number.
@@ -274,8 +327,127 @@ export default function FounderFundraisingDashboard() {
       null;
     // Ignore a late response for a campaign the founder has since moved away from.
     if (ecoCampaignRef.current !== campaignId) return;
-    setDetail((d) => (d ? { ...d, economics: current } : d));
+    setDetail((d) => (d ? { ...d, economics: current, economicsDraft: f2PickDraft(versions) } : d));
   }, []);
+
+  const selectEcoCampaign = useCallback(async (campaignId) => {
+    ecoCampaignRef.current = campaignId;
+    setEcoCampaignId(campaignId);
+    setEcoResult(null); setEcoMessage(null);
+    // Nothing about a previous campaign's approval survives the switch.
+    resetApproval();
+    setDetail((d) => (d ? { ...d, economics: null, economicsDraft: null } : d));
+    if (!campaignId) return;
+    await readEconomicsHistory(campaignId);
+  }, [readEconomicsHistory, resetApproval]);
+
+  async function submitDraftEconomics(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (ecoBusy) return;
+    setEcoMessage(null); setEcoResult(null);
+    const built = f1BuildPayload({
+      organizationId: selected && selected.organizationId,
+      // Forwarded exactly as the server gave it — never trimmed, rewritten or invented.
+      campaignId: ecoCampaignId,
+      initial: ecoInitial, renewal: ecoRenewal,
+      giftEnabled: ecoGiftEnabled, gift: ecoGift,
+      treatments: ecoTreatments,
+    });
+    if (!built.ok) { setEcoErrors(built.errors); return; }   // zero requests while incomplete
+    setEcoErrors({});
+    setEcoBusy(true);
+    const res = await fundraiserApi.founder.draftEconomics(built.payload);
+    setEcoBusy(false);
+    if (!res || res.ok !== true) {
+      // No optimistic success, and no internal code shown.
+      const byStatus = {
+        400: "Some terms were rejected. Check the values and try again.",
+        401: "Your session has expired. Sign in again to continue.",
+        403: "This action is limited to the founder account.",
+        404: "That organization or campaign no longer exists.",
+        409: "This changed while you were editing. Reload and try again.",
+      };
+      setEcoMessage(res && res.networkError
+        ? "Couldn't reach the server. Check your connection and try again."
+        : (byStatus[res && res.status] || "That didn't go through. Please try again."));
+      return;
+    }
+    // State is adopted ONLY from the server's response.
+    const v = res.data || {};
+    setEcoResult({ versionId: v.versionId || v.id || null, status: v.status || null });
+    // Reconcile the history so the new draft is reviewable from a SERVER record. The approval path
+    // deliberately reads the draft from history rather than from this response, so that what the
+    // founder reviews and what the server holds are the same object.
+    if (ecoCampaignId) await readEconomicsHistory(ecoCampaignId);
+  }
+
+  // -- F2 approval ------------------------------------------------------------------------------
+  //
+  // Two deliberate gates stand between reviewing and approving: a non-empty reason, and an explicit
+  // confirmation. Neither the reason check nor Cancel/Escape issues any request.
+
+  const approvableDraft = detail && detail.economicsDraft && detail.economicsDraft.status === "draft"
+    ? detail.economicsDraft : null;
+  const draftIsComplete = approvableDraft ? f2IsComplete(approvableDraft) : false;
+  const f2Rules = (approvableDraft && approvableDraft.rules) || {};
+  // The campaign is named from the server's own record, so the review never labels a draft with a
+  // title the client made up.
+  const f2CampaignRecord = approvableDraft && detail && Array.isArray(detail.campaigns)
+    ? detail.campaigns.find((c) => c.campaignId === approvableDraft.campaignId) : null;
+  const f2CampaignLabel = f2CampaignRecord
+    ? `${f2CampaignRecord.title || f2CampaignRecord.campaignId} (${f2CampaignRecord.campaignId})`
+    : (approvableDraft ? approvableDraft.campaignId : "");
+
+  function openApprovalConfirm() {
+    setApvMessage(null);
+    if (apvReason.trim() === "") {
+      // Zero requests: an approval with no stated reason is not an approval.
+      setApvReasonError("Say why these terms are being approved.");
+      setApvConfirming(false);
+      return;
+    }
+    setApvReasonError(null);
+    setApvConfirming(true);
+  }
+
+  const cancelApprovalConfirm = useCallback(() => {
+    // Closing the confirmation is purely local. Nothing is sent, and the reviewed draft is kept.
+    setApvConfirming(false);
+  }, []);
+
+  async function confirmApproval() {
+    if (apvBusy) return;
+    // Re-checked at the moment of sending: the id and the terms must still be the server's draft.
+    if (!approvableDraft || !draftIsComplete || !selected) { setApvConfirming(false); return; }
+    const reason = apvReason.trim();
+    if (reason === "") { setApvConfirming(false); setApvReasonError("Say why these terms are being approved."); return; }
+
+    setApvBusy(true); setApvMessage(null);
+    const res = await fundraiserApi.founder.approveEconomics(
+      selected.organizationId, approvableDraft.id, reason,
+    );
+    setApvBusy(false);
+    setApvConfirming(false);
+    if (!res || res.ok !== true) {
+      // The reviewed draft is left exactly as it was; nothing is marked approved.
+      setApvMessage(f2ApprovalMessage(res));
+      return;
+    }
+    // Adopted ONLY from the server response -- no locally assumed "approved".
+    const v = res.data || {};
+    setApvApproved({ versionId: v.versionId || v.id || null, status: v.status || null });
+    setApvReason("");
+    // Reconcile against the server so the panel reflects stored state, not this one response.
+    if (ecoCampaignId) await readEconomicsHistory(ecoCampaignId);
+  }
+
+  // Escape closes the confirmation without sending anything.
+  useEffect(() => {
+    if (!apvConfirming) return undefined;
+    const onKey = (ev) => { if (ev.key === "Escape") cancelApprovalConfirm(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [apvConfirming, cancelApprovalConfirm]);
 
   async function createOrg(e) {
     e.preventDefault();
@@ -343,6 +515,87 @@ export default function FounderFundraisingDashboard() {
               ) : null}
             </div>
           ) : null}
+          {/* ── F2 · REVIEW AND APPROVE ────────────────────────────────────────────────────
+              Rendered only for a SERVER-returned version whose status is exactly "draft". The
+              whole draft is shown read-only first: approval seals these terms, so the founder
+              approves what is displayed, not what they remember typing. */}
+          {approvableDraft ? (
+            <div data-testid="f2-panel" style={{ border: "1px solid #d8cdbb", borderRadius: 8, padding: ".7rem", margin: "0 0 .8rem" }}>
+              <h3 style={{ fontSize: ".9rem", margin: "0 0 .5rem" }}>Draft awaiting approval — review</h3>
+
+              <div data-testid="f2-review" style={{ fontSize: ".82rem", background: "#faf7f2", borderRadius: 8, padding: ".55rem" }}>
+                <div>Organization: <span data-testid="f2-review-org">{selected.legalName}</span></div>
+                <div>Campaign: <span data-testid="f2-review-campaign">{f2CampaignLabel}</span></div>
+                <div>Initial subscription share: <span data-testid="f2-review-initial">{f1DescribeShare(f2Rules.initialSubscriptionShare)}</span></div>
+                <div>Renewal share: <span data-testid="f2-review-renewal">{f1DescribeShare(f2Rules.renewalShare)}</span></div>
+                <div>Gift participation: <span data-testid="f2-review-gift-position">{f2Rules.giftParticipationEnabled === true ? "on" : "off"}</span></div>
+                {f2Rules.giftParticipationEnabled === true ? (
+                  <div>Gift share: <span data-testid="f2-review-gift">{f1DescribeShare(f2Rules.giftShare)}</span></div>
+                ) : null}
+                {Object.keys(F1_TREATMENTS).map((k) => (
+                  <div key={k}>{k}: <span data-testid={`f2-review-${k}`}>{(approvableDraft.treatments || {})[k] || "—"}</span></div>
+                ))}
+                <div>Version: <span data-testid="f2-review-version">{approvableDraft.id}</span></div>
+                <div>Status: <span data-testid="f2-review-status">{approvableDraft.status}</span></div>
+              </div>
+
+              {/* Said before approving, not after: sealing is the part that cannot be undone. */}
+              <ul data-testid="f2-notice" style={{ fontSize: ".8rem", color: "#555", margin: ".55rem 0", paddingLeft: "1.1rem" }}>
+                <li>Approving seals these terms.</li>
+                <li>Approved terms cannot be edited &mdash; changing them means a new version.</li>
+                <li>Approving does not activate economics.</li>
+                <li>Approving does not activate the campaign.</li>
+                <li>Payouts remain held.</li>
+              </ul>
+
+              {draftIsComplete ? (
+                <>
+                  <label style={{ display: "block", fontSize: ".8rem" }}>
+                    <span style={{ fontWeight: 700 }}>Reason for approval</span>
+                    <textarea data-testid="f2-reason" value={apvReason} rows={2}
+                      onChange={(ev) => { setApvReason(ev.target.value); setApvReasonError(null); }}
+                      style={{ display: "block", width: "100%", maxWidth: 460 }} />
+                  </label>
+                  {apvReasonError ? <p data-testid="f2-err-reason" style={{ color: "#b00", fontSize: ".8rem", margin: ".3rem 0 0" }}>{apvReasonError}</p> : null}
+                  <button type="button" data-testid="f2-open" disabled={apvBusy}
+                    onClick={openApprovalConfirm} style={{ marginTop: ".45rem" }}>
+                    Review and approve these terms
+                  </button>
+                </>
+              ) : (
+                <p data-testid="f2-incomplete" style={{ fontSize: ".8rem", color: "#b00", margin: 0 }}>
+                  These terms are incomplete, so they cannot be approved yet.
+                </p>
+              )}
+
+              {apvConfirming ? (
+                <div data-testid="f2-confirm" role="dialog" aria-modal="true" aria-label="Confirm approval"
+                  style={{ border: "1px solid #b00", borderRadius: 8, padding: ".6rem", marginTop: ".5rem" }}>
+                  <p style={{ fontSize: ".85rem", margin: "0 0 .5rem" }}>
+                    Seal version <strong data-testid="f2-confirm-version">{approvableDraft.id}</strong> for {f2CampaignLabel}?
+                    This cannot be undone by editing. It does not activate economics, does not
+                    activate the campaign, and payouts remain held.
+                  </p>
+                  <button type="button" data-testid="f2-confirm-yes" disabled={apvBusy} onClick={confirmApproval}>
+                    {apvBusy ? "Approving…" : "Yes, approve and seal"}
+                  </button>
+                  {" "}
+                  <button type="button" data-testid="f2-confirm-cancel" onClick={cancelApprovalConfirm}>Cancel</button>
+                </div>
+              ) : null}
+
+              {apvMessage ? <p data-testid="f2-message" role="status" style={{ color: "#b00", fontSize: ".85rem" }}>{apvMessage}</p> : null}
+            </div>
+          ) : null}
+
+          {apvApproved ? (
+            <p data-testid="f2-approved" style={{ fontSize: ".85rem" }}>
+              Terms sealed. Version <strong data-testid="f2-approved-version">{apvApproved.versionId || "—"}</strong>
+              {apvApproved.status ? <> &middot; status <strong data-testid="f2-approved-status">{apvApproved.status}</strong></> : null}
+              {" "}&mdash; economics are not active, the campaign is unchanged, and payouts remain held.
+            </p>
+          ) : null}
+
           <p style={{ fontSize: ".85rem", color: "#555", margin: "0 0 .75rem" }}>
             Creates a DRAFT only. It does not approve terms, activate economics, or change the
             campaign's status. Percentages are percentage points &mdash; 10 means 10%.

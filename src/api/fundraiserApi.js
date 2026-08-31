@@ -62,6 +62,19 @@ export const fundraiserApi = {
      */
     draftEconomics: ({ organizationId, campaignId, rules, treatments }) =>
       post("/api/fundraiser/admin/economics/draft", { organizationId, campaignId, rules, treatments }),
+
+    /**
+     * F2 — approve a DRAFT economics version. Founder-gated server-side.
+     *
+     * organizationId and versionId are PATH params and must come from a server record (the
+     * economics history), never from anything the client assembled. The body carries exactly one
+     * field: the founder's reason. No terms travel with an approval — the server approves what it
+     * already holds, so the client cannot smuggle a different set of terms past the review.
+     *
+     * Approving SEALS the terms. It does not activate economics and does not touch the campaign.
+     */
+    approveEconomics: (organizationId, versionId, reason) =>
+      post(`/api/fundraiser/admin/organizations/${organizationId}/economics/${versionId}/approve`, { reason }),
     participantTotals: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/totals/participants`),
     ledgerTotals: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/totals/ledger`),
     reconciliation: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/reconciliation`),
