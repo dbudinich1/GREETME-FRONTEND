@@ -183,6 +183,242 @@ function f2ApprovalMessage(res) {
   return byStatus[res.status] || "That didn't go through. Nothing was approved.";
 }
 
+// ── F3 · ACTIVATE ECONOMICS ───────────────────────────────────────────────────────────────────
+//
+// Activation is offered ONLY for a version the SERVER says is exactly "approved". A local draft
+// result, a draft, an already-active version, or anything suspended/superseded/archived is not
+// activatable, and the control does not appear for them.
+const F3_ACTIVATABLE_STATUS = "approved";
+
+/** The one version eligible for activation, taken from a server response or nothing at all. */
+function f3PickActivatable(version) {
+  if (!version || typeof version !== "object") return null;
+  if (version.status !== F3_ACTIVATABLE_STATUS) return null;
+  const id = version.id || version.versionId;
+  if (typeof id !== "string" || id === "") return null;
+  return version;
+}
+
+/**
+ * A `datetime-local` value is wall-clock with NO zone, so it is ambiguous until anchored. This
+ * anchors it in the BROWSER's zone - the zone the founder was reading when they typed it - and
+ * returns the resulting absolute instant.
+ *
+ * The founder's chosen instant is never adjusted: the UTC string produced here is displayed before
+ * confirmation and is the exact string transmitted. Invalid or unparseable input is REFUSED rather
+ * than coerced into some nearby time.
+ */
+/**
+ * Parse an explicitly-UTC effective time.
+ *
+ * The field is labelled UTC and takes YYYY-MM-DDTHH:MM. It is deliberately NOT a `datetime-local`
+ * input: that control yields a wall-clock value with no zone, which is genuinely ambiguous across
+ * a daylight-saving transition (01:30 on a fall-back date occurs twice), and no amount of client
+ * code can resolve which instant the founder meant. An explicit UTC field has exactly one meaning.
+ *
+ * Validation is strict on all three axes:
+ *   - FORMAT: the shape must match exactly, so a partial value mid-edit is refused, not guessed.
+ *   - CALENDAR: the date must really exist. `new Date("2026-02-30T00:00:00.000Z")` silently rolls
+ *     forward to March 2, so the parsed instant is round-tripped and compared field by field;
+ *     anything that moved is rejected.
+ *   - ROUND TRIP: the ISO string produced here is what is previewed AND what is submitted, byte
+ *     for byte. Nothing re-derives it later.
+ */
+function f3ToInstant(utcValue) {
+  const text = String(utcValue ?? "").trim();
+  if (text === "") return { ok: false, error: "Enter the UTC date and time these economics take effect." };
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(text);
+  if (!m) return { ok: false, error: "Use the format YYYY-MM-DDTHH:MM, in UTC." };
+  const [, y, mo, d, h, mi] = m;
+  const iso = `${y}-${mo}-${d}T${h}:${mi}:00.000Z`;
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return { ok: false, error: "That date and time is not valid." };
+  // A real calendar date survives the round trip unchanged; February 30 does not.
+  if (
+    parsed.getUTCFullYear() !== Number(y) || parsed.getUTCMonth() + 1 !== Number(mo) ||
+    parsed.getUTCDate() !== Number(d) || parsed.getUTCHours() !== Number(h) ||
+    parsed.getUTCMinutes() !== Number(mi)
+  ) {
+    return { ok: false, error: "That date does not exist. Check the day and month." };
+  }
+  if (parsed.toISOString() !== iso) return { ok: false, error: "That date and time could not be read." };
+  return { ok: true, iso };
+}
+
+/** Failure text for activation. Machine codes may SELECT a sentence; they never reach the DOM. */
+function f3FailureMessage(res) {
+  if (!res) return "That didn\u2019t go through. Nothing was activated.";
+  if (res.networkError) return "Couldn\u2019t reach the server. Nothing was activated.";
+  const code = res.data && typeof res.data.code === "string" ? res.data.code : "";
+  if (code === "BAD_TRANSITION") return "This version can no longer be activated. Reload to see its current status.";
+  if (code === "NOT_FOUND") return "That version no longer exists. Nothing was activated.";
+  if (code === "TAMPERED") return "These sealed terms failed their integrity check, so they were not activated.";
+  if (code === "ETAG_MISMATCH") return "This changed while you were reviewing it. Reload and try again.";
+  if (code === "OVERLAP" || code === "EFFECTIVE_FROM_INVALID") {
+    return "That effective time overlaps or precedes the economics already in force. Choose a later instant.";
+  }
+  const byStatus = {
+    400: "That effective time or reason was rejected. Nothing was activated.",
+    401: "Your session has expired. Sign in again. Nothing was activated.",
+    403: "This action is limited to the founder account. Nothing was activated.",
+    404: "That organization or version no longer exists. Nothing was activated.",
+    409: "This changed while you were reviewing it. Reload and try again.",
+    423: "Activation is on hold right now. Nothing was activated.",
+  };
+  return byStatus[res.status] || "That didn\u2019t go through. Nothing was activated.";
+}
+
+
+/**
+ * F3 — review and activate an APPROVED economics version.
+ *
+ * A SEPARATE top-level component on purpose. With this state and markup inline, the parent grew
+ * past the React Compiler's budget and every pre-existing memoization in the file was dropped
+ * ("Existing memoization could not be preserved"). Bisection showed no single construct at fault —
+ * the parent was simply too large. Extraction restores compiler compatibility and leaves F1/F2
+ * behaviour untouched.
+ *
+ * It receives eligibility; it never decides it. `version` and `currentActive` come from server
+ * history via the parent, so nothing local is ever promoted into an approved or active version.
+ */
+function FounderEconomicsActivationPanel({ organizationId, organizationName, campaignLabel, version, currentActive, onRefreshHistory }) {
+  const [whenUtc, setWhenUtc] = useState("");
+  const [reason, setReason] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [activated, setActivated] = useState(null);
+
+  // Escape closes the confirmation without sending anything, whether or not the box holds focus.
+  useEffect(() => {
+    if (!confirming) return undefined;
+    const onKey = (ev) => { if (ev.key === "Escape") setConfirming(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [confirming]);
+
+  const when = f3ToInstant(whenUtc);
+  const rules = (version && version.rules) || {};
+  const versionId = version ? (version.id || version.versionId) : null;
+
+  function openConfirm() {
+    if (!when.ok) { setError(when.error); return; }
+    if (reason.trim() === "") { setError("Say why these economics are being activated."); return; }
+    setError(null); setConfirming(true);
+  }
+
+  async function activate() {
+    if (busy) return;
+    // Revalidated AT SEND TIME. The version may have moved on while this was being read, and a
+    // control that was legitimate a moment ago is not a licence to send.
+    const eligible = f3PickActivatable(version);
+    if (!eligible) { setConfirming(false); setMessage("This version is no longer approved, so it cannot be activated."); return; }
+    const at = f3ToInstant(whenUtc);
+    const why = reason.trim();
+    if (!at.ok) { setConfirming(false); setError(at.error); return; }
+    if (why === "") { setConfirming(false); setError("Say why these economics are being activated."); return; }
+
+    setError(null); setMessage(null); setBusy(true);
+    const res = await fundraiserApi.founder.activateEconomics(
+      organizationId, eligible.id || eligible.versionId,
+      { effectiveFrom: at.iso, activationReason: why },
+    );
+    setBusy(false); setConfirming(false);
+    if (!res || stateFor(res) !== "ok") { setMessage(f3FailureMessage(res)); return; }
+    const v = res.data || {};
+    setActivated({
+      id: v.id || v.versionId || (eligible.id || eligible.versionId),
+      status: v.status || null,
+      effectiveFrom: v.effectiveFrom || at.iso,
+    });
+    setReason("");
+    if (onRefreshHistory) await onRefreshHistory();
+  }
+
+  return (
+    <div data-testid="f3-panel" style={{ border: "1px solid #c9d8bb", borderRadius: 8, padding: ".7rem", margin: "0 0 .8rem" }}>
+      <h3 style={{ fontSize: ".9rem", margin: "0 0 .5rem" }}>Approved economics \u2014 review and activate</h3>
+
+      <div data-testid="f3-review" style={{ fontSize: ".82rem", background: "#f7faf2", borderRadius: 8, padding: ".55rem" }}>
+        <div>Organization: <span data-testid="f3-review-org">{organizationName}</span></div>
+        <div>Campaign: <span data-testid="f3-review-campaign">{campaignLabel}</span></div>
+        <div>Version: <span data-testid="f3-review-version">{versionId}</span></div>
+        <div>Status: <span data-testid="f3-review-status">{version.status}</span></div>
+        <div>Initial subscription share: <span data-testid="f3-review-initial">{f1DescribeShare(rules.initialSubscriptionShare)}</span></div>
+        <div>Renewal share: <span data-testid="f3-review-renewal">{f1DescribeShare(rules.renewalShare)}</span></div>
+        <div>Gift participation: <span data-testid="f3-review-gift-position">{rules.giftParticipationEnabled === true ? "on" : "off"}</span></div>
+        {rules.giftParticipationEnabled === true ? (
+          <div>Gift share: <span data-testid="f3-review-gift">{f1DescribeShare(rules.giftShare)}</span></div>
+        ) : null}
+        {version.treatments ? Object.entries(version.treatments).map(([k, v]) => (
+          <div key={k}>{k}: <span data-testid={`f3-review-${k}`}>{String(v)}</span></div>
+        )) : null}
+        <div>
+          Currently active version:{" "}
+          <span data-testid="f3-review-current">
+            {currentActive
+              ? `${currentActive.id || currentActive.versionId} (effective ${currentActive.effectiveFrom || "unknown"})`
+              : "none"}
+          </span>
+        </div>
+      </div>
+
+      <ul data-testid="f3-notice" style={{ fontSize: ".8rem", color: "#555", margin: ".55rem 0", paddingLeft: "1.1rem" }}>
+        <li>Activating makes these economics effective from the instant you choose.</li>
+        <li>This may supersede the campaign\u2019s currently active economics version.</li>
+        <li>These sealed terms cannot be edited \u2014 changing them later needs a new version.</li>
+        <li>This does <strong>not</strong> activate the campaign.</li>
+        <li>Payouts remain held.</li>
+      </ul>
+
+      <label style={{ display: "block", fontSize: ".8rem", margin: ".4rem 0" }}>
+        Effective from (UTC) \u2014 YYYY-MM-DDTHH:MM
+        <input data-testid="f3-when" value={whenUtc} placeholder="2026-09-01T00:00"
+          onChange={(ev) => { setWhenUtc(ev.target.value); setError(null); }} />
+      </label>
+      <p data-testid="f3-utc" style={{ fontSize: ".8rem", margin: ".2rem 0" }}>
+        Will be sent as: <strong data-testid="f3-utc-value">{when.ok ? when.iso : "\u2014"}</strong>
+      </p>
+
+      <label style={{ display: "block", fontSize: ".8rem" }}>
+        Activation reason
+        <textarea data-testid="f3-reason" value={reason} rows={2}
+          onChange={(ev) => { setReason(ev.target.value); setError(null); }} />
+      </label>
+      {error ? <p data-testid="f3-error" style={{ color: "#b00", fontSize: ".8rem" }}>{error}</p> : null}
+
+      {!confirming ? (
+        <button type="button" data-testid="f3-activate" disabled={busy} onClick={openConfirm}>
+          Activate these economics\u2026
+        </button>
+      ) : (
+        <div data-testid="f3-confirm" role="group" aria-label="Confirm activation"
+          style={{ border: "1px solid #b00", borderRadius: 8, padding: ".55rem", marginTop: ".4rem" }}>
+          <p data-testid="f3-confirm-text" style={{ fontSize: ".82rem", margin: "0 0 .5rem" }}>
+            Activate version {versionId} from <strong>{when.ok ? when.iso : "\u2014"}</strong>? This may
+            supersede the version currently in force. It does not activate the campaign, and payouts remain held.
+          </p>
+          <button type="button" data-testid="f3-cancel" onClick={() => setConfirming(false)}>Cancel</button>
+          <button type="button" data-testid="f3-confirm-go" disabled={busy} onClick={activate}>
+            {busy ? "Activating\u2026" : "Activate economics"}
+          </button>
+        </div>
+      )}
+
+      {message ? <p data-testid="f3-message" role="status" style={{ color: "#b00", fontSize: ".82rem" }}>{message}</p> : null}
+      {activated ? (
+        <p data-testid="f3-activated" style={{ fontSize: ".82rem" }}>
+          Activated version <strong data-testid="f3-activated-version">{activated.id}</strong>
+          {activated.status ? <> \u00b7 status <strong data-testid="f3-activated-status">{activated.status}</strong></> : null}
+          {" "}effective <strong data-testid="f3-activated-from">{activated.effectiveFrom}</strong>.
+          {" "}The campaign\u2019s own status is unchanged and payouts remain held.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export default function FounderFundraisingDashboard() {
   const [state, setState] = useState("loading");
   const [overview, setOverview] = useState(null);
@@ -318,16 +554,31 @@ export default function FounderFundraisingDashboard() {
   // originates here, in a server response — never in anything the client built.
   const readEconomicsHistory = useCallback(async (campaignId) => {
     const hist = await fundraiserApi.founder.economicsHistory(campaignId);
-    const versions = stateFor(hist) === "ok" && Array.isArray(hist.data) ? hist.data : [];
-    // Prefer the version in force, then one merely approved, then the highest version number.
-    const current =
-      versions.find((v) => v && v.status === "active") ||
-      versions.find((v) => v && v.status === "approved") ||
-      versions.slice().sort((a, b) => (b.economicsVersion || 0) - (a.economicsVersion || 0))[0] ||
-      null;
+    const ok = stateFor(hist) === "ok" && Array.isArray(hist.data);
+    // COPIED before any ordering. The response array is never sorted in place: it is shared with
+    // whatever else reads this history, and an in-place sort would silently reorder it for them.
+    const versions = ok ? hist.data.slice() : [];
+    // Deterministic newest-first ordering, used for every "which one" question below, so two
+    // versions with the same status can never resolve differently between reads.
+    const ranked = versions.slice().sort((a, b) => (b?.economicsVersion || 0) - (a?.economicsVersion || 0));
+    const newestWith = (status) => ranked.find((v) => v && v.status === status) || null;
+
+    const active = newestWith("active");
+    const approved = newestWith("approved");
+    // The general read-only view: what is in force, else what is sealed, else the newest of any kind.
+    const current = active || approved || ranked[0] || null;
+
     // Ignore a late response for a campaign the founder has since moved away from.
     if (ecoCampaignRef.current !== campaignId) return;
-    setDetail((d) => (d ? { ...d, economics: current, economicsDraft: f2PickDraft(versions) } : d));
+    setDetail((d) => (d ? {
+      ...d,
+      economics: current,
+      economicsDraft: f2PickDraft(versions),
+      // A FAILED read clears activation eligibility rather than leaving a stale approved version
+      // on screen that the server may no longer agree with.
+      economicsApproved: ok ? approved : null,
+      economicsActive: ok ? active : null,
+    } : d));
   }, []);
 
   const selectEcoCampaign = useCallback(async (campaignId) => {
@@ -385,6 +636,19 @@ export default function FounderFundraisingDashboard() {
   //
   // Two deliberate gates stand between reviewing and approving: a non-empty reason, and an explicit
   // confirmation. Neither the reason check nor Cancel/Escape issues any request.
+
+  // F3 — the parent decides only WHETHER activation is warranted; the panel owns everything else.
+  // Both values come from server-returned history, never from a locally-built response.
+  const activatableVersion = f3PickActivatable((detail && detail.economicsApproved) || null);
+  const currentActiveVersion = (detail && detail.economicsActive) || null;
+  // Named from the server's own campaign record, so the review never labels a version with a title
+  // the client made up. f2CampaignLabel cannot serve here: it is keyed to a DRAFT, and an approved
+  // version generally has none.
+  const f3CampaignRecord = activatableVersion && detail && Array.isArray(detail.campaigns)
+    ? detail.campaigns.find((c) => c.campaignId === activatableVersion.campaignId) : null;
+  const f3CampaignLabel = f3CampaignRecord
+    ? `${f3CampaignRecord.title || f3CampaignRecord.campaignId} (${f3CampaignRecord.campaignId})`
+    : (activatableVersion ? activatableVersion.campaignId || "" : "");
 
   const approvableDraft = detail && detail.economicsDraft && detail.economicsDraft.status === "draft"
     ? detail.economicsDraft : null;
@@ -519,6 +783,21 @@ export default function FounderFundraisingDashboard() {
               Rendered only for a SERVER-returned version whose status is exactly "draft". The
               whole draft is shown read-only first: approval seals these terms, so the founder
               approves what is displayed, not what they remember typing. */}
+          {/* F3 — the panel owns its own state. Keyed by organization, campaign and approved
+              version so moving to a different context REMOUNTS it with a clean effective time,
+              reason and result rather than carrying one campaign's inputs into another. */}
+          {activatableVersion ? (
+            <FounderEconomicsActivationPanel
+              key={`${selected.organizationId}:${ecoCampaignId}:${activatableVersion.id || activatableVersion.versionId}`}
+              organizationId={selected.organizationId}
+              organizationName={selected.legalName}
+              campaignLabel={f3CampaignLabel}
+              version={activatableVersion}
+              currentActive={currentActiveVersion}
+              onRefreshHistory={() => readEconomicsHistory(ecoCampaignId)}
+            />
+          ) : null}
+
           {approvableDraft ? (
             <div data-testid="f2-panel" style={{ border: "1px solid #d8cdbb", borderRadius: 8, padding: ".7rem", margin: "0 0 .8rem" }}>
               <h3 style={{ fontSize: ".9rem", margin: "0 0 .5rem" }}>Draft awaiting approval — review</h3>

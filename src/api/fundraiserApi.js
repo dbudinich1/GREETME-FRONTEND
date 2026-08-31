@@ -75,6 +75,27 @@ export const fundraiserApi = {
      */
     approveEconomics: (organizationId, versionId, reason) =>
       post(`/api/fundraiser/admin/organizations/${organizationId}/economics/${versionId}/approve`, { reason }),
+
+    /**
+     * F3 — activate an APPROVED economics version from a given instant.
+     *
+     * Body carries EXACTLY the two fields the server reads (`activateEconomics`: `effectiveFrom`,
+     * `activationReason`) and nothing else. As with approve, no terms travel: the server activates
+     * the sealed version it already holds, so the client cannot substitute different economics
+     * between review and activation.
+     *
+     * `effectiveFrom` must already be an ISO-8601 instant. This method performs NO date parsing or
+     * timezone adjustment — the exact instant shown to the founder at confirmation is the exact
+     * string sent.
+     *
+     * Activation may supersede the campaign's currently active version. It does NOT activate the
+     * campaign and does not release payouts.
+     */
+    activateEconomics: (organizationId, versionId, { effectiveFrom, activationReason }) =>
+      post(
+        `/api/fundraiser/admin/organizations/${organizationId}/economics/${versionId}/activate`,
+        { effectiveFrom, activationReason },
+      ),
     participantTotals: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/totals/participants`),
     ledgerTotals: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/totals/ledger`),
     reconciliation: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/reconciliation`),
