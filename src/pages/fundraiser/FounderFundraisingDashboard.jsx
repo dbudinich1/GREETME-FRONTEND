@@ -410,6 +410,246 @@ function FounderEconomicsActivationPanel({ organizationId, organizationName, cam
   );
 }
 
+// ── F4 · CAMPAIGN STATUS ──────────────────────────────────────────────────────────────────────
+//
+// The campaign lifecycle is the BACKEND's state machine (lifecycle/campaignService.js ALLOWED),
+// copied here so the panel can only ever offer a move the server would accept. Nothing is added:
+// there is no "reopen", no "archive", no path out of closed.
+const F4_TRANSITIONS = Object.freeze({
+  draft: ["active", "closed"],
+  active: ["paused", "closed"],
+  paused: ["active", "closed"],
+  closed: [],
+});
+
+/** Targets the server would accept from this status. An unknown status offers nothing. */
+function f4AllowedTargets(status) {
+  return Object.prototype.hasOwnProperty.call(F4_TRANSITIONS, status) ? F4_TRANSITIONS[status] : [];
+}
+
+/**
+ * Making a campaign live is the only move that needs economics already in force.
+ *
+ * This is a FRONTEND safety gate, not a backend guarantee. `setCampaignStatus` does not consult
+ * economics at all, so a campaign can be made active server-side with no active economics — the
+ * panel simply refuses to be the thing that does it, because an active campaign with no economics
+ * accrues attribution against terms nobody agreed. The wording below says "first", not "required",
+ * for exactly that reason.
+ */
+const f4NeedsActiveEconomics = (target) => target === "active";
+
+/** The one sentence each target owes the founder before it is chosen. */
+const F4_WARNINGS = Object.freeze({
+  active: "Makes this campaign eligible for new fundraiser attribution. Its economics must already be active. Payouts remain held.",
+  paused: "Stops new attribution eligibility until the campaign is made active again. Payouts remain held.",
+  closed: "Closing is terminal under the current backend contract: a closed campaign cannot be reopened through this state machine.",
+});
+
+/** Failure text for a status change. Machine codes may SELECT a sentence; they never reach the DOM. */
+function f4FailureMessage(res) {
+  if (!res) return "That didn't go through. The campaign status is unchanged.";
+  if (res.networkError) return "Couldn't reach the server. The campaign status is unchanged.";
+  const code = res.data && typeof res.data.code === "string" ? res.data.code : "";
+  if (code === "BAD_TRANSITION") return "That move is no longer possible from this campaign's current status. Reload to see where it stands.";
+  if (code === "NOT_FOUND") return "That campaign no longer exists. Nothing was changed.";
+  if (code === "ETAG_MISMATCH") return "This campaign changed while you were reviewing it. Reload and try again.";
+  const byStatus = {
+    400: "That status change was rejected. The campaign status is unchanged.",
+    401: "Your session has expired. Sign in again. The campaign status is unchanged.",
+    403: "This action is limited to the founder account. The campaign status is unchanged.",
+    404: "That organization or campaign no longer exists. Nothing was changed.",
+    409: "This campaign changed while you were reviewing it. Reload and try again.",
+    423: "Campaign status changes are on hold right now. Nothing was changed.",
+  };
+  return byStatus[res.status] || "That didn't go through. The campaign status is unchanged.";
+}
+
+/**
+ * F4 — review and change a campaign's lifecycle status.
+ *
+ * A SEPARATE top-level component, for the reason F3 records: with this state and markup inline,
+ * the parent passes the React Compiler's budget and every pre-existing memoization in the file is
+ * dropped. It is also the honest shape — this panel owns a reason, a target and a confirmation,
+ * and none of that belongs to the dashboard.
+ *
+ * It receives facts, never decides them. `campaign` is the server's own record (its id AND its
+ * current status), and `activeEconomicsVersion` is whatever the economics history confirmed as
+ * active — so no local optimism can promote a campaign or its economics.
+ */
+function FounderCampaignStatusPanel({ organizationId, organizationName, campaign, activeEconomicsVersion, onRefreshCampaigns }) {
+  const [target, setTarget] = useState("");
+  const [reason, setReason] = useState("");
+  const [closeAck, setCloseAck] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [changed, setChanged] = useState(null);
+  const [staleList, setStaleList] = useState(false);
+
+  // Escape closes the confirmation without sending anything, whether or not the box holds focus.
+  useEffect(() => {
+    if (!confirming) return undefined;
+    const onKey = (ev) => { if (ev.key === "Escape") setConfirming(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [confirming]);
+
+  const currentStatus = campaign.status;
+  const targets = f4AllowedTargets(currentStatus);
+  const hasActiveEconomics = Boolean(activeEconomicsVersion);
+  const activeEconomicsId = activeEconomicsVersion
+    ? (activeEconomicsVersion.id || activeEconomicsVersion.versionId || null) : null;
+  // A target is blocked when it is the one move that needs economics already in force.
+  const blockedByEconomics = f4NeedsActiveEconomics(target) && !hasActiveEconomics;
+  const closeConfirmed = target !== "closed" || closeAck.trim() === campaign.campaignId;
+
+  function openConfirm() {
+    setMessage(null);
+    if (!targets.includes(target)) { setError("Choose what this campaign should become."); return; }
+    if (blockedByEconomics) { setError("Activate campaign economics first."); return; }
+    if (reason.trim() === "") { setError("Say why this campaign is changing status."); return; }
+    setError(null); setConfirming(true);
+  }
+
+  async function commit() {
+    if (busy) return;
+    // Revalidated AT SEND TIME against the record as it stands now. A control that was legitimate
+    // a moment ago is not a licence to send: the campaign, its status, or the economics in force
+    // may all have moved while this was being read.
+    if (!f4AllowedTargets(campaign.status).includes(target)) {
+      setConfirming(false);
+      setMessage("That move is no longer possible from this campaign's current status. Reload to see where it stands.");
+      return;
+    }
+    if (f4NeedsActiveEconomics(target) && !hasActiveEconomics) {
+      setConfirming(false); setError("Activate campaign economics first."); return;
+    }
+    const why = reason.trim();
+    if (why === "") { setConfirming(false); setError("Say why this campaign is changing status."); return; }
+    if (!closeConfirmed) { setConfirming(false); setError("Type the campaign ID to confirm closing."); return; }
+
+    setError(null); setMessage(null); setStaleList(false); setBusy(true);
+    const res = await fundraiserApi.founder.setCampaignStatus(
+      organizationId, campaign.campaignId, target, why,
+    );
+    setBusy(false); setConfirming(false);
+    if (!res || stateFor(res) !== "ok") { setMessage(f4FailureMessage(res)); return; }
+    // Adopted ONLY from the server's answer. If it declined to say, nothing is claimed.
+    const c = res.data || {};
+    setChanged({ campaignId: c.campaignId || campaign.campaignId, status: c.status || null });
+    setReason(""); setCloseAck("");
+    // Reconcile the list. A FAILED refresh is reported as stale — it never invents a new status.
+    if (onRefreshCampaigns) {
+      const ok = await onRefreshCampaigns();
+      setStaleList(ok !== true);
+    }
+  }
+
+  return (
+    <section data-testid="f4-panel" style={box}>
+      <h2 style={h}>Campaign status</h2>
+
+      <div data-testid="f4-review" style={{ fontSize: ".82rem", background: "#f6f6f6", borderRadius: 8, padding: ".55rem" }}>
+        <div>Organization: <span data-testid="f4-review-org">{organizationName}</span></div>
+        <div>Campaign: <span data-testid="f4-review-campaign">{campaign.title || campaign.campaignId}</span></div>
+        <div>Campaign ID: <span data-testid="f4-review-campaign-id">{campaign.campaignId}</span></div>
+        <div>Current status: <span data-testid="f4-review-current">{currentStatus}</span></div>
+        <div>Target status: <span data-testid="f4-review-target">{target || "—"}</span></div>
+        {f4NeedsActiveEconomics(target) ? (
+          <div>Active economics version: <span data-testid="f4-review-economics">{activeEconomicsId || "none"}</span></div>
+        ) : null}
+        <div>Reason: <span data-testid="f4-review-reason">{reason.trim() || "—"}</span></div>
+      </div>
+
+      {targets.length === 0 ? (
+        <p data-testid="f4-terminal" style={{ fontSize: ".82rem", color: "#555", margin: ".5rem 0 0" }}>
+          This campaign is closed. Closing is terminal under the current backend contract, so there
+          is no status change to make.
+        </p>
+      ) : (
+        <>
+          <label style={{ display: "block", fontSize: ".8rem", margin: ".5rem 0" }}>
+            <span style={{ fontWeight: 700 }}>Change status to</span>
+            <select data-testid="f4-target" value={target}
+              onChange={(ev) => { setTarget(ev.target.value); setError(null); setCloseAck(""); }}>
+              <option value="">Choose a status…</option>
+              {targets.map((t) => (
+                // The one move that needs economics in force is offered, but not enabled, without
+                // them — hiding it would leave the founder guessing why the campaign cannot go live.
+                <option key={t} value={t} disabled={f4NeedsActiveEconomics(t) && !hasActiveEconomics}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {targets.includes("active") && !hasActiveEconomics ? (
+            <p data-testid="f4-economics-gate" style={{ fontSize: ".8rem", color: "#b00", margin: ".2rem 0" }}>
+              Activate campaign economics first.
+            </p>
+          ) : null}
+
+          {target && F4_WARNINGS[target] ? (
+            <p data-testid="f4-warning" style={{ fontSize: ".8rem", color: "#555", margin: ".2rem 0" }}>
+              {F4_WARNINGS[target]}
+            </p>
+          ) : null}
+
+          <label style={{ display: "block", fontSize: ".8rem" }}>
+            Reason for this change
+            <textarea data-testid="f4-reason" value={reason} rows={2}
+              onChange={(ev) => { setReason(ev.target.value); setError(null); }} />
+          </label>
+
+          {target === "closed" ? (
+            <label style={{ display: "block", fontSize: ".8rem" }}>
+              Closing cannot be undone. Type the campaign ID <strong>{campaign.campaignId}</strong> to confirm.
+              <input data-testid="f4-close-ack" value={closeAck}
+                onChange={(ev) => { setCloseAck(ev.target.value); setError(null); }} />
+            </label>
+          ) : null}
+
+          {error ? <p data-testid="f4-error" style={{ color: "#b00", fontSize: ".8rem" }}>{error}</p> : null}
+
+          {!confirming ? (
+            <button type="button" data-testid="f4-open" disabled={busy} onClick={openConfirm}>
+              Review this status change…
+            </button>
+          ) : (
+            <div data-testid="f4-confirm" role="group" aria-label="Confirm campaign status change"
+              style={{ border: "1px solid #b00", borderRadius: 8, padding: ".55rem", marginTop: ".4rem" }}>
+              <p data-testid="f4-confirm-text" style={{ fontSize: ".82rem", margin: "0 0 .5rem" }}>
+                Move {campaign.title || campaign.campaignId} ({campaign.campaignId}) from{" "}
+                <strong>{currentStatus}</strong> to <strong data-testid="f4-confirm-target">{target}</strong>?
+                {" "}{F4_WARNINGS[target]}
+              </p>
+              <button type="button" data-testid="f4-cancel" onClick={() => setConfirming(false)}>Cancel</button>
+              <button type="button" data-testid="f4-confirm-go" disabled={busy || !closeConfirmed} onClick={commit}>
+                {busy ? "Changing…" : `Change status to ${target}`}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {message ? <p data-testid="f4-message" role="status" style={{ color: "#b00", fontSize: ".82rem" }}>{message}</p> : null}
+      {changed ? (
+        <p data-testid="f4-changed" style={{ fontSize: ".82rem" }}>
+          Campaign <strong data-testid="f4-changed-campaign">{changed.campaignId}</strong> is now{" "}
+          <strong data-testid="f4-changed-status">{changed.status || "—"}</strong>. Economics terms are
+          unchanged and payouts remain held.
+        </p>
+      ) : null}
+      {staleList ? (
+        <p data-testid="f4-stale" style={{ fontSize: ".8rem", color: "#b00" }}>
+          The campaign list could not be refreshed, so what is shown above may be out of date.
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 export default function FounderFundraisingDashboard() {
   const [state, setState] = useState("loading");
   const [overview, setOverview] = useState(null);
@@ -543,6 +783,16 @@ export default function FounderFundraisingDashboard() {
   // Read a campaign's economics history and derive BOTH panels from the one response: the version
   // in force (read-only) and the draft awaiting approval. Every id the approval path later uses
   // originates here, in a server response — never in anything the client built.
+  // F4 -- re-read the organization's campaigns after a status change. It reports whether the read
+  // actually succeeded, and updates the list ONLY when it did: a failed refresh must leave the last
+  // server-confirmed campaigns standing rather than inventing what they became.
+  const refreshCampaigns = useCallback(async (organizationId) => {
+    const res = await fundraiserApi.founder.campaigns(organizationId);
+    if (stateFor(res) !== "ok" || !Array.isArray(res.data)) return false;
+    setDetail((d) => (d ? { ...d, campaigns: res.data } : d));
+    return true;
+  }, []);
+
   const readEconomicsHistory = useCallback(async (campaignId) => {
     const hist = await fundraiserApi.founder.economicsHistory(campaignId);
     const ok = stateFor(hist) === "ok" && Array.isArray(hist.data);
@@ -630,6 +880,11 @@ export default function FounderFundraisingDashboard() {
 
   // F3 — the parent decides only WHETHER activation is warranted; the panel owns everything else.
   // Both values come from server-returned history, never from a locally-built response.
+  // F4 -- the campaign record for the chosen campaign, straight out of the server's list. Its
+  // status is the server's, never one this session assumed after a write.
+  const f4Campaign = detail && Array.isArray(detail.campaigns) && ecoCampaignId
+    ? detail.campaigns.find((c) => c.campaignId === ecoCampaignId) || null : null;
+
   const activatableVersion = f3PickActivatable((detail && detail.economicsApproved) || null);
   const currentActiveVersion = (detail && detail.economicsActive) || null;
   // Named from the server's own campaign record, so the review never labels a version with a title
@@ -989,6 +1244,21 @@ export default function FounderFundraisingDashboard() {
             </p>
           ) : null}
         </section>
+      ) : null}
+
+      {/* F4 -- campaign status is its own section, deliberately OUTSIDE the economics panel: it
+          changes the campaign, not its terms, and the two must not read as one action. Keyed by
+          organization, campaign and CURRENT STATUS, so any context change -- including the status
+          moving underneath -- remounts it with a clean target, reason and confirmation. */}
+      {selected && detail && !detail.loading && f4Campaign ? (
+        <FounderCampaignStatusPanel
+          key={`${selected.organizationId}:${f4Campaign.campaignId}:${f4Campaign.status}`}
+          organizationId={selected.organizationId}
+          organizationName={selected.legalName}
+          campaign={f4Campaign}
+          activeEconomicsVersion={(detail && detail.economicsActive) || null}
+          onRefreshCampaigns={() => refreshCampaigns(selected.organizationId)}
+        />
       ) : null}
 
       {selected && detail && !detail.loading && (

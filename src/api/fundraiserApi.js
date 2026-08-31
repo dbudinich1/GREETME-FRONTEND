@@ -96,6 +96,22 @@ export const fundraiserApi = {
         `/api/fundraiser/admin/organizations/${organizationId}/economics/${versionId}/activate`,
         { effectiveFrom, activationReason },
       ),
+
+    /**
+     * F4 -- move a campaign between lifecycle states. Founder-gated server-side.
+     *
+     * organizationId and campaignId are PATH params and must come from a server record (the
+     * organization's campaign list), never from anything the client assembled. The body carries
+     * exactly the two fields the server reads: the target status and the founder's reason.
+     *
+     * This changes the CAMPAIGN only. It does not activate economics, alter economics terms, or
+     * release payouts -- those are separate, separately-gated actions.
+     */
+    setCampaignStatus: (organizationId, campaignId, status, reason) =>
+      post(
+        `/api/fundraiser/admin/organizations/${organizationId}/campaigns/${campaignId}/status`,
+        { status, reason },
+      ),
     participantTotals: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/totals/participants`),
     ledgerTotals: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/totals/ledger`),
     reconciliation: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/reconciliation`),
