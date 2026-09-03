@@ -12,6 +12,14 @@ import {
   activeMemberships, resolveOrganizationContext, deriveCampaignSummary, interpretCapability, TERMS,
 } from "./campaignSurfaceModel.js";
 import CampaignDetail from "./CampaignDetail.jsx";
+// TEAM I (CONNECTION D) — the corporate saved-card panel. One more section in this dashboard; the
+// dashboard itself is unchanged.
+//
+// The panel OWNS its own client. That is deliberate rather than incidental: this surface is under a
+// conformity lock (campaignSurface.teamA.test.mjs) that forbids it from importing anything
+// payment-, gift- or fundraising-shaped, and that lock is worth keeping. So the dashboard knows
+// only that there is a panel; everything about how a card is collected lives behind it.
+import SavedCardPanel from "./SavedCardPanel.jsx";
 // SLICE D — the consolidated premium surface.
 import CampaignCard from "./CampaignCard.jsx";
 import ContactTiles from "./ContactTiles.jsx";
@@ -86,7 +94,12 @@ function CreateCampaignForm({ name, type, onName, onType, onSubmit, onCancel, cr
 
 // `client` is an optional injection seam used ONLY by tests (default = the real server-derived
 // client). App usage renders <GreetingAutomationCampaigns /> with no props → identical behavior.
-export default function GreetingAutomationCampaigns({ client: injectedClient, navigate: injectedNavigate } = {}) {
+export default function GreetingAutomationCampaigns({
+  client: injectedClient, navigate: injectedNavigate,
+  // TEAM I — the same injection seam, for the saved-card surface. Both unset in the app: the panel
+  // builds its own client and resolves the shared Stripe instance itself.
+  cardClient, stripeOverride,
+} = {}) {
   const client = useMemo(() => injectedClient || createCorporateCampaignsClient(), [injectedClient]);
   const [membershipResult, setMembershipResult] = useState(null);
   const [selectedOrgId, setSelectedOrgId] = useState(null); // explicit multi-org selection only
@@ -697,6 +710,15 @@ export default function GreetingAutomationCampaigns({ client: injectedClient, na
             />
           </div>
         ) : null}
+
+        {/* TEAM I (CONNECTION D) — PAYMENT METHOD. Placed above Campaigns because a gift campaign
+            cannot be locked, scheduled or activated without a usable card: the reader should meet
+            that requirement before configuring something it would block. */}
+        <SavedCardPanel
+          orgId={effectiveOrgId}
+          client={cardClient}
+          stripeOverride={stripeOverride}
+        />
 
         {/* A — CAMPAIGNS: fixed-height internal scroll, sticky header + Add CTA. */}
         <section className="gcd-panel" data-testid="campaigns-panel" aria-labelledby="gcd-campaigns-head">
