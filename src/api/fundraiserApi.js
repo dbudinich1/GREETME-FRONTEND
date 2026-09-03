@@ -38,6 +38,11 @@ export const fundraiserApi = {
     organizations: () => get("/api/fundraiser/admin/organizations"),
     createOrganization: (b) => post("/api/fundraiser/admin/organizations", b),
     suspendOrganization: (id, reason) => post(`/api/fundraiser/admin/organizations/${id}/suspend`, { reason }),
+    // The route that was missing: orgService.reinstateOrganization transitions the organization back
+    // to `approved`. Same founder-only chain, same { reason } body and same required-reason rule as
+    // its two siblings (orgService.transition rejects an empty reason with 400 for all three), so it
+    // is expressed identically here rather than as a special case.
+    reinstateOrganization: (id, reason) => post(`/api/fundraiser/admin/organizations/${id}/reinstate`, { reason }),
     closeOrganization: (id, reason) => post(`/api/fundraiser/admin/organizations/${id}/close`, { reason }),
     assignPartnerAdmin: (id, userId) => post(`/api/fundraiser/admin/organizations/${id}/partner-admins`, { userId }),
     // P1 — founder-only exact-email resolution. POST so the email is carried in the BODY, never in

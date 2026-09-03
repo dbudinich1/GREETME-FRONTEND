@@ -412,6 +412,247 @@ function FounderEconomicsActivationPanel({ organizationId, organizationName, cam
 
 // ── F4 · CAMPAIGN STATUS ──────────────────────────────────────────────────────────────────────
 //
+// ── ORGANIZATION LIFECYCLE (founder-only) ─────────────────────────────────────────────────────
+//
+// The three organization transitions have existed on the backend since the fundraiser lane was
+// built (lifecycle/orgService.js suspend/reinstate/close, all routed under the founder router) and
+// the client already carried two of the three calls — but NOTHING in the app ever invoked them, and
+// `reinstate` was absent entirely. So suspension was a one-way door that could only be opened by
+// hand. This panel is the missing control, and nothing more: it adds no status, no route, no
+// permission and no rule the server does not already enforce.
+//
+// WHAT THE SERVER ACTUALLY ALLOWS: orgService.transition sets `status` unconditionally — it does not
+// consult the current status at all, so every transition is technically accepted from every state.
+// The one thing it does require is a non-empty `reason` (an empty one is a 400), for all three.
+const ORG_LIFECYCLE_ACTIONS = Object.freeze({
+  suspend: {
+    target: "suspended",
+    label: "Suspend",
+    call: (id, why) => fundraiserApi.founder.suspendOrganization(id, why),
+    // Destructive: it takes a live organization off the air.
+    confirm: true,
+    warning:
+      "Suspending stops this organization fundraising immediately: its public referral links stop resolving, " +
+      "new checkout attribution is refused, and its partner administrators lose access. Existing records are " +
+      "kept and payouts remain held. Reinstating undoes it.",
+  },
+  reinstate: {
+    target: "approved",
+    label: "Reinstate",
+    call: (id, why) => fundraiserApi.founder.reinstateOrganization(id, why),
+    // Restorative — it returns the organization to the ordinary approved state, so no confirmation.
+    confirm: false,
+    warning:
+      "Reinstating returns this organization to approved: referral links resolve again, checkout attribution " +
+      "is accepted again, and partner administrators regain access. Payouts remain held.",
+  },
+  close: {
+    target: "closed",
+    label: "Close",
+    call: (id, why) => fundraiserApi.founder.closeOrganization(id, why),
+    confirm: true,
+    warning:
+      "Closing stops this organization fundraising in the same way suspension does, and is intended as the " +
+      "permanent end of the relationship rather than a pause. Existing records are kept and payouts remain held.",
+  },
+});
+
+// Which actions the panel OFFERS from each status. This is presentation, not a backend rule — the
+// server would accept any of the three from any state. Two deliberate omissions, both to avoid
+// offering a control whose only outcome is confusion:
+//   · the action that would move the organization to the status it is already in (a no-op write), and
+//   · suspend-from-closed, which would move a closed organization to the LESS restrictive of the two
+//     stopped states.
+// Reinstate is deliberately offered from `closed`: the backend genuinely permits recovery, and
+// hiding it would invent a terminality the server does not have — and would strand a founder who
+// closed the wrong organization.
+const ORG_LIFECYCLE_OFFERED = Object.freeze({
+  approved: ["suspend", "close"],
+  suspended: ["reinstate", "close"],
+  closed: ["reinstate"],
+  // Organizations are created `approved` (orgService.createOrganization), so `applied` is a legacy
+  // shape rather than a state this dashboard produces. Offered truthfully if one ever appears.
+  applied: ["reinstate", "close"],
+});
+
+/** Actions offered from this status. An unknown/absent status offers nothing. */
+function orgLifecycleActions(status) {
+  return Object.prototype.hasOwnProperty.call(ORG_LIFECYCLE_OFFERED, status) ? ORG_LIFECYCLE_OFFERED[status] : [];
+}
+
+/** Failure text for a lifecycle change. Machine codes may SELECT a sentence; they never reach the DOM. */
+function orgLifecycleFailureMessage(res) {
+  if (!res) return "That didn't go through. The organization is unchanged.";
+  if (res.networkError) return "Couldn't reach the server. The organization is unchanged.";
+  const code = res.data && typeof res.data.code === "string" ? res.data.code : "";
+  if (code === "NOT_FOUND") return "That organization no longer exists. Nothing was changed.";
+  if (code === "ETAG_MISMATCH") return "This organization changed while you were reviewing it. Reload and try again.";
+  const byStatus = {
+    400: "That change was rejected. The organization is unchanged.",
+    401: "Your session has expired. Sign in again. The organization is unchanged.",
+    403: "This action is limited to the founder account. The organization is unchanged.",
+    404: "That organization no longer exists. Nothing was changed.",
+    409: "This organization changed while you were reviewing it. Reload and try again.",
+    423: "Organization changes are on hold right now. Nothing was changed.",
+  };
+  return byStatus[res.status] || "That didn't go through. The organization is unchanged.";
+}
+
+/**
+ * Suspend / reinstate / close an organization.
+ *
+ * A SEPARATE top-level component for the reason F3 and F4 record: with this state and markup inline,
+ * the parent passes the React Compiler's budget and every pre-existing memoization in the file is
+ * dropped.
+ *
+ * It receives facts and never decides them: `organization` is the server's own record, including the
+ * status every offer below is derived from. The displayed status is only ever what the server last
+ * confirmed — a failed call leaves it exactly as it was, and a successful one is reconciled by
+ * re-reading the list rather than by assuming what the change produced.
+ */
+function FounderOrganizationLifecyclePanel({ organization, onRefreshOrganizations }) {
+  const [action, setAction] = useState("");
+  const [reason, setReason] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [changed, setChanged] = useState(null);
+  const [staleList, setStaleList] = useState(false);
+
+  const currentStatus = organization.status || "unknown";
+  const offered = orgLifecycleActions(currentStatus);
+  const chosen = action ? ORG_LIFECYCLE_ACTIONS[action] : null;
+
+  // Escape closes the confirmation without sending anything, whether or not the box holds focus.
+  useEffect(() => {
+    if (!confirming) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setConfirming(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [confirming]);
+
+  async function commit(which) {
+    const key = which || action;
+    const spec = ORG_LIFECYCLE_ACTIONS[key];
+    if (busy || !spec) return;
+    // Revalidated AT SEND TIME against the record as it stands now: a control that was legitimate a
+    // moment ago is not a licence to send, because the organization may have moved while it was read.
+    if (!orgLifecycleActions(organization.status || "unknown").includes(key)) {
+      setConfirming(false);
+      setMessage("That move is no longer possible from this organization's current status. Reload to see where it stands.");
+      return;
+    }
+    const why = reason.trim();
+    // The backend requires a reason for all three (orgService.transition), so an empty one is
+    // refused here rather than sent to be rejected.
+    if (why === "") { setConfirming(false); setError("Say why this organization is changing status."); return; }
+
+    setError(null); setMessage(null); setStaleList(false); setBusy(true);
+    const res = await spec.call(organization.organizationId, why);
+    setBusy(false); setConfirming(false);
+    if (!res || stateFor(res) !== "ok") { setMessage(orgLifecycleFailureMessage(res)); return; }
+    // Adopted ONLY from the server's answer. If it declined to say, nothing is claimed.
+    const o = res.data || {};
+    setChanged({ label: spec.label, status: o.status || null });
+    setReason(""); setAction("");
+    // Reconcile the list. A FAILED refresh is reported as stale — it never invents a new status.
+    if (onRefreshOrganizations) {
+      const ok = await onRefreshOrganizations();
+      setStaleList(ok !== true);
+    }
+  }
+
+  function begin(next) {
+    setError(null); setMessage(null); setChanged(null); setStaleList(false);
+    if (!offered.includes(next)) { setError("That move isn't available from this organization's current status."); return; }
+    if (reason.trim() === "") { setError("Say why this organization is changing status."); return; }
+    setAction(next);
+    // Reinstating is restorative, so it commits directly; the two stopping moves ask first.
+    if (ORG_LIFECYCLE_ACTIONS[next].confirm) setConfirming(true);
+    else commit(next);
+  }
+
+  return (
+    <section data-testid="orglife-panel" style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #e7e0d4" }}>
+      <h3 style={{ ...h, fontSize: 16 }}>Organization status</h3>
+
+      <p style={{ margin: "0 0 8px", color: "#5b4f42", fontSize: ".9rem" }}>
+        Current status: <strong data-testid="orglife-current">{currentStatus}</strong>
+      </p>
+
+      {offered.length === 0 ? (
+        <p style={{ color: "#5b4f42", fontSize: ".9rem" }} data-testid="orglife-none">
+          No status change is available for this organization.
+        </p>
+      ) : (
+        <>
+          <label htmlFor="orglife-reason-input" style={{ display: "block", fontSize: ".85rem", color: "#5b4f42", marginBottom: 4 }}>
+            Reason (required &mdash; it is recorded in the organization&rsquo;s audit history)
+          </label>
+          <input
+            id="orglife-reason-input"
+            value={reason}
+            onChange={(e) => { setReason(e.target.value); setError(null); }}
+            placeholder="Why is this changing?"
+            style={{ padding: 8, borderRadius: 6, border: "1px solid #d8cdbb", width: "100%", maxWidth: 420, marginBottom: 8 }}
+            data-testid="orglife-reason"
+          />
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {offered.map((key) => (
+              <button
+                key={key}
+                type="button"
+                style={key === "reinstate" ? btn : btnGhost}
+                disabled={busy}
+                onClick={() => begin(key)}
+                data-testid={`orglife-${key}`}
+              >
+                {ORG_LIFECYCLE_ACTIONS[key].label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {confirming && chosen && (
+        <div
+          style={{ marginTop: 10, border: "1px solid #d8cdbb", borderRadius: 8, padding: 10, background: "#fffdf8" }}
+          data-testid="orglife-confirm"
+        >
+          <p style={{ margin: "0 0 6px", fontWeight: 700 }}>
+            {chosen.label} {organization.legalName || organization.organizationId}?
+          </p>
+          <p style={{ margin: "0 0 10px", fontSize: ".88rem", color: "#5b4f42" }} data-testid="orglife-warning">
+            {chosen.warning}
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" style={btn} disabled={busy} onClick={() => commit()} data-testid="orglife-confirm-go">
+              {busy ? "Working…" : `Yes, ${chosen.label.toLowerCase()}`}
+            </button>
+            <button type="button" style={btnGhost} disabled={busy} onClick={() => { setConfirming(false); setAction(""); }} data-testid="orglife-confirm-cancel">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && <p style={{ color: "#8a3b2a", marginBottom: 0 }} data-testid="orglife-error">{error}</p>}
+      {message && <p style={{ color: "#8a3b2a", marginBottom: 0 }} data-testid="orglife-failure">{message}</p>}
+      {changed && (
+        <p style={{ color: "#2f6f4f", marginBottom: 0 }} data-testid="orglife-success">
+          {changed.label} applied.{changed.status ? ` This organization is now ${changed.status}.` : ""}
+        </p>
+      )}
+      {staleList && (
+        <p style={{ color: "#8a3b2a", marginBottom: 0 }} data-testid="orglife-stale">
+          The change was applied, but the organization list could not be re-read. Reload to see current state.
+        </p>
+      )}
+    </section>
+  );
+}
+
 // The campaign lifecycle is the BACKEND's state machine (lifecycle/campaignService.js ALLOWED),
 // copied here so the panel can only ever offer a move the server would accept. Nothing is added:
 // there is no "reopen", no "archive", no path out of closed.
@@ -790,6 +1031,22 @@ export default function FounderFundraisingDashboard() {
     const res = await fundraiserApi.founder.campaigns(organizationId);
     if (stateFor(res) !== "ok" || !Array.isArray(res.data)) return false;
     setDetail((d) => (d ? { ...d, campaigns: res.data } : d));
+    return true;
+  }, []);
+
+  // Re-read the organizations after a lifecycle change, using the SAME read-back shape the partner-
+  // administrator assignment already uses. It reports whether the read actually succeeded and updates
+  // state ONLY when it did: a failed refresh must leave the last server-confirmed organization
+  // standing rather than inventing what it became.
+  const refreshOrganizations = useCallback(async () => {
+    const res = await fundraiserApi.founder.organizations();
+    if (stateFor(res) !== "ok" || !Array.isArray(res.data)) return false;
+    setOrgs(res.data);
+    setSelected((cur) => {
+      if (!cur) return cur;
+      const fresh = res.data.find((o) => o.organizationId === cur.organizationId);
+      return fresh || cur;
+    });
     return true;
   }, []);
 
@@ -1273,6 +1530,19 @@ export default function FounderFundraisingDashboard() {
           </div>
           <p>Reconciliation: {detail.reconciliation?.reconciled ? "✓ reconciled" : `drift ${detail.reconciliation?.driftCount ?? 0}`}</p>
           <p>Payout review: <strong>{detail.payout?.posture || "manual_review_only"}</strong> <HeldBadge /></p>
+          {/* Organization lifecycle. Inside the founder detail block, so it renders only where the
+              founder overview already succeeded — a non-founder never reaches this markup at all
+              (the dashboard short-circuits to StateView on the 403), and every call it makes is
+              independently founder-gated server-side. */}
+          <FounderOrganizationLifecyclePanel
+            // Keyed on the organization ALONE, deliberately unlike the campaign panel above. Adding
+            // the status would remount on every successful change and so destroy the very feedback
+            // the change just produced. Switching organization still resets the panel; a status
+            // change within one organization simply re-derives the offered actions from the prop.
+            key={selected.organizationId}
+            organization={selected}
+            onRefreshOrganizations={refreshOrganizations}
+          />
           {/* P2 — PARTNER ADMINISTRATOR. Resolve an exact email to an account, review it, assign.
               Authorization is entirely server-side (founder-only for both calls); this panel only
               displays the server's answers and never fabricates or caches an identity. */}
