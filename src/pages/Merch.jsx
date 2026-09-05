@@ -1,7 +1,7 @@
 // src/pages/Merch.jsx
 import { Fragment, useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ShoppingCart, Briefcase, Users, Check, ArrowLeft } from 'lucide-react';
+import { ShoppingCart, Briefcase, Users, Check, ArrowLeft, Settings } from 'lucide-react';
 import cartService from '../services/cartService';
 import AddToCartModal from '../components/AddToCartModal';
 import QRCashGiftModal from '../components/QRCashGiftModal';
@@ -20,10 +20,19 @@ import {
   selectionLabel,
 } from './merchSelection';
 import PriceRangeFilter from '../components/PriceRangeFilter';
+// CHECKPOINT 2 — founder-only catalog management. The drawer opens OVER this page; the customer
+// marketplace below is untouched. Visibility is cosmetic — the backend 403s a non-founder.
+import { useAuth } from '../context/AuthContext';
+import { isFounder } from '../utils/accountState';
+import ManageCatalogDrawer from '../components/founderCatalog/ManageCatalogDrawer';
 
 export default function Merch() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  // CHECKPOINT 2 — founder drawer state. Nothing about the customer surface depends on this.
+  const { user } = useAuth();
+  const founder = isFounder(user);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [showQRCashModal, setShowQRCashModal] = useState(false); // AGP-02
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
   const [addedItems, setAddedItems] = useState(new Set());
@@ -285,6 +294,28 @@ export default function Merch() {
           >
             <ArrowLeft size={14} />
             Return to Greeting
+          </button>
+        </div>
+      )}
+
+      {/* CHECKPOINT 2 — founder-only entry point. A non-founder never renders this control, and
+          the backend refuses them regardless. */}
+      {founder && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
+          <button
+            type="button"
+            data-testid="manage-catalog-button"
+            onClick={() => setCatalogOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.5rem 1rem', borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border)', background: 'var(--bg-primary)',
+              color: 'var(--text-secondary)', fontSize: '0.8125rem', fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <Settings size={14} />
+            Manage Catalog
           </button>
         </div>
       )}
@@ -811,6 +842,11 @@ export default function Merch() {
         // gift chooser, but this guards stale links / deep links.
         showGoToCheckout={!cameFromSendGreeting}
       />
+
+      {/* CHECKPOINT 2 — the drawer renders OVER this page. No route change, no second page. */}
+      {founder && (
+        <ManageCatalogDrawer open={catalogOpen} onClose={() => setCatalogOpen(false)} />
+      )}
     </div>
   );
 }
