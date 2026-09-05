@@ -81,3 +81,92 @@ export function selectionLabel(selection) {
   const found = SELECTOR_ROW.find((s) => s.id === selection);
   return found ? found.label : '';
 }
+
+// ── PRICE RANGE ────────────────────────────────────────────────────────────────────────────
+//
+// The price filter is PRESENTATION ONLY. It decides what is shown; it never changes a price.
+// Every number below is read straight from what the server sent and is passed through untouched —
+// nothing is rounded, recalculated or persisted, and checkout keeps getting its authoritative
+// price through the existing path.
+
+const finite = (n) => (typeof n === 'number' && Number.isFinite(n) ? n : null);
+
+/**
+ * The prices a product can actually be bought at.
+ *
+ * Variants are the real purchase points, so when they exist they ARE the price set: a laptop
+ * sleeve at $39 and $44 is two prices, not a $39–$44 continuum. Returns [] when the product
+ * carries no usable variant prices, and the interval fallback takes over.
+ */
+export function variantPrices(product) {
+  const variants = Array.isArray(product?.variants) ? product.variants : [];
+  return variants.map((v) => finite(v?.priceCents)).filter((c) => c !== null);
+}
+
+/**
+ * The [low, high] a product spans, used only to compute the overall bounds of the control.
+ * Prefers real variant prices and falls back to the server's own min/max interval.
+ */
+function productSpan(product) {
+  const prices = variantPrices(product);
+  if (prices.length) return [Math.min(...prices), Math.max(...prices)];
+  const lo = finite(product?.priceCentsMin);
+  const hi = finite(product?.priceCentsMax);
+  if (lo === null && hi === null) return null;
+  const low = lo === null ? hi : lo;
+  const high = hi === null ? lo : hi;
+  return [Math.min(low, high), Math.max(low, high)];
+}
+
+/**
+ * The floor and ceiling of the whole loaded catalog.
+ *
+ * Deliberately computed from EVERY loaded product rather than from the current selection, so the
+ * control keeps the same scale when the shopper switches category — the handles do not jump, and
+ * a range chosen under one selector still means the same thing under the next.
+ *
+ * Returns null when nothing can be priced, which is the caller's signal to render no control at
+ * all rather than an empty one.
+ */
+export function priceBounds(products) {
+  const all = Array.isArray(products) ? products : [];
+  let floor = null;
+  let ceiling = null;
+  for (const p of all) {
+    const span = productSpan(p);
+    if (!span) continue;
+    floor = floor === null ? span[0] : Math.min(floor, span[0]);
+    ceiling = ceiling === null ? span[1] : Math.max(ceiling, span[1]);
+  }
+  return floor === null ? null : { floor, ceiling };
+}
+
+/**
+ * Does this product belong in the chosen range? Inclusive at both ends.
+ *
+ *  - With variants: true when AT LEAST ONE purchasable variant price is inside the range. A
+ *    product is therefore shown once because one of its options qualifies, never once per option.
+ *  - Without variants: the server's priceCentsMin/priceCentsMax interval is used, and the product
+ *    is shown when that interval OVERLAPS the range — an item spanning $24–$44 is a real candidate
+ *    for a $30–$35 search even though neither endpoint sits inside it.
+ *  - With no price information at all: shown. The filter must never hide a product it cannot
+ *    price, least of all at the default full range.
+ */
+export function matchesPriceRange(product, minCents, maxCents) {
+  const lo = finite(minCents);
+  const hi = finite(maxCents);
+  if (lo === null || hi === null) return true;
+
+  const prices = variantPrices(product);
+  if (prices.length) return prices.some((c) => c >= lo && c <= hi);
+
+  const span = productSpan(product);
+  if (!span) return true;
+  return span[0] <= hi && span[1] >= lo;
+}
+
+/** Apply the range to an already-selected set. Order and identity are preserved. */
+export function filterByPrice(products, minCents, maxCents) {
+  const all = Array.isArray(products) ? products : [];
+  return all.filter((p) => matchesPriceRange(p, minCents, maxCents));
+}
