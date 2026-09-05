@@ -241,6 +241,11 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
   // Derived, not stored. Recomputed on every render from the slug the server confirmed.
   const shareLink = shareableLink(detail && detail.referralSlug, originOverride);
 
+  // Derived the same way: an override is only real when a referrer is selected. Everything the
+  // override controls show hangs off this one value, so the display cannot disagree with what a
+  // save would actually send.
+  const hasReferrer = compDraft.referrerSalespersonId !== "";
+
   async function copyShareLink() {
     if (!shareLink) return;
     try {
@@ -608,25 +613,32 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                         ))}
                     </select>
                   </div>
+                  {/* An override only exists when a referrer does. Showing "5" and "Active" beside
+                      a referrer of None described an override that is not configured and would not
+                      be saved — the reader cannot tell an inert default from a live arrangement.
+                      Both are DERIVED from the selected referrer rather than mirrored into state,
+                      so nothing has to be cleared to make the display honest and re-selecting a
+                      referrer restores the draft the founder was working with. */}
                   <div>
                     <p style={{ ...label, margin: "0 0 .25rem" }}>Override %</p>
                     <input data-testid="fcc-override-rate" aria-label="Override %" inputMode="decimal"
-                      value={compDraft.overrideRateBps}
+                      value={hasReferrer ? compDraft.overrideRateBps : ""}
                       onChange={(e) => setCompDraft((d) => ({ ...d, overrideRateBps: e.target.value }))}
-                      disabled={compDraft.referrerSalespersonId === ""}
+                      disabled={!hasReferrer}
                       style={{ maxWidth: 92 }} />
                   </div>
-                  <div>
-                    <p style={{ ...label, margin: "0 0 .25rem" }}>Override status</p>
-                    <select data-testid="fcc-override-status" aria-label="Override status"
-                      value={compDraft.referralStatus}
-                      onChange={(e) => setCompDraft((d) => ({ ...d, referralStatus: e.target.value }))}
-                      disabled={compDraft.referrerSalespersonId === ""}
-                      style={{ maxWidth: 140 }}>
-                      <option value="active">Active</option>
-                      <option value="ended">Ended</option>
-                    </select>
-                  </div>
+                  {hasReferrer ? (
+                    <div>
+                      <p style={{ ...label, margin: "0 0 .25rem" }}>Override status</p>
+                      <select data-testid="fcc-override-status" aria-label="Override status"
+                        value={compDraft.referralStatus}
+                        onChange={(e) => setCompDraft((d) => ({ ...d, referralStatus: e.target.value }))}
+                        style={{ maxWidth: 140 }}>
+                        <option value="active">Active</option>
+                        <option value="ended">Ended</option>
+                      </select>
+                    </div>
+                  ) : null}
                 </div>
 
                 <p style={{ margin: ".55rem 0 .6rem", color: "var(--text-secondary)", fontSize: ".8rem" }}>
