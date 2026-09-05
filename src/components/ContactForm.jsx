@@ -21,9 +21,23 @@ const FORM_DRAFT_KEY = 'greetme_contact_form_draft';
 // Session storage key for scroll position
 const FORM_SCROLL_KEY = 'greetme_contact_form_scroll';
 
+// TEAM I — gift types that ship a PHYSICAL parcel and therefore need a delivery address.
+// Provider-backed types (Flowers, Gift Boxes) are fulfilled by an external provider via Direct
+// Send; the recipient never leaves the Greet-Me experience. Listing them here does NOT make them
+// selectable — the gift selector's own option list governs that — it only ensures that WHEN one is
+// selected the delivery interface is the existing one, already correct.
+export const DELIVERY_REQUIRED_GIFT_TYPES = ['curated', 'flowers', 'gift_boxes'];
+export const requiresDeliveryAddress = (giftType) =>
+  DELIVERY_REQUIRED_GIFT_TYPES.includes(giftType);
+
 const getInitialFormData = () => ({
   name: '',
   email: '',
+  // CONFIRMED delivery names. Never derived from `name`: a shipping label printed from a split of
+  // "Dr. Maria de la Cruz" or "The Alvarez Family" is not recoverable. Empty means "not confirmed",
+  // and the backend refuses a physical order rather than guessing.
+  firstName: '',
+  lastName: '',
   gender: '',
   relationshipCategory: '',
   relationship: '',
@@ -223,6 +237,10 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
       setFormData({
         name: contact.name || '',
         email: contact.email || '',
+        // A previously CONFIRMED delivery name is loaded back so the sender confirms once, not
+        // every time. Absent stays empty — it is never back-filled from `name`.
+        firstName: contact.firstName || '',
+        lastName: contact.lastName || '',
         gender: contact.gender || '',
         relationshipCategory: contact.relationshipCategory || (_det ? _det.relationshipCategory : ''),
         relationship: _det ? _det.relationship : (contact.relationship || ''),
@@ -1736,8 +1754,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                         </div>
                       )}
 
-                      {/* Shipping Address - only for curated gift option */}
-                      {giftSetting.type === 'curated' && (
+                      {/* Delivery details - for every gift type that ships a physical parcel */}
+                      {requiresDeliveryAddress(giftSetting.type) && (
                         <div style={{
                           marginTop: '1rem',
                           padding: '1rem',
@@ -1751,9 +1769,44 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                             color: '#667eea',
                             marginBottom: '0.75rem'
                           }}>
-                            Shipping Address
+                            Delivery Details
                           </h4>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                            A shipping label needs a first name. We never guess it from
+                            {formData.name ? ` “${formData.name}”` : ' the contact name'}, so please confirm it.
+                            A last name is optional.
+                          </p>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <input
+                              type="text"
+                              placeholder="Recipient First Name *"
+                              value={formData.firstName || ''}
+                              onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                              autoComplete="off"
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit'
+                              }}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Recipient Last Name (optional)"
+                              value={formData.lastName || ''}
+                              onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                              autoComplete="off"
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit'
+                              }}
+                            />
                             <input
                               type="text"
                               placeholder="Address Line 1 *"
@@ -2226,8 +2279,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                         </div>
                       )}
 
-                      {/* Shipping Address - only for curated gift option */}
-                      {giftSetting.type === 'curated' && (
+                      {/* Delivery details - for every gift type that ships a physical parcel */}
+                      {requiresDeliveryAddress(giftSetting.type) && (
                         <div style={{
                           marginTop: '1rem',
                           padding: '1rem',
@@ -2241,9 +2294,44 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                             color: '#667eea',
                             marginBottom: '0.75rem'
                           }}>
-                            Shipping Address
+                            Delivery Details
                           </h4>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                            A shipping label needs a first name. We never guess it from
+                            {formData.name ? ` “${formData.name}”` : ' the contact name'}, so please confirm it.
+                            A last name is optional.
+                          </p>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <input
+                              type="text"
+                              placeholder="Recipient First Name *"
+                              value={formData.firstName || ''}
+                              onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                              autoComplete="off"
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit'
+                              }}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Recipient Last Name (optional)"
+                              value={formData.lastName || ''}
+                              onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                              autoComplete="off"
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit'
+                              }}
+                            />
                             <input
                               type="text"
                               placeholder="Address Line 1 *"
