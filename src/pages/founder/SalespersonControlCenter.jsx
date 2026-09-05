@@ -70,6 +70,34 @@ function readUser() {
   try { return JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; }
 }
 
+/**
+ * The platform default schedule, as percentages. A salesperson with no stored terms earns exactly
+ * this, so the form shows it rather than blanks — the founder edits what is true today instead of
+ * guessing what the empty state means.
+ */
+function defaultCompDraft() {
+  return {
+    year_1: "25", year_2: "15", year_3_plus: "10",
+    referrerSalespersonId: "", overrideRateBps: "5", referralStatus: "active",
+  };
+}
+
+/** Stored basis points → the percentages shown in the form. */
+function compDraftFrom(sp) {
+  const pct = (bps) => (Number.isFinite(bps) ? String(bps / 100) : null);
+  const c = sp && sp.compensation;
+  const r = sp && sp.referral;
+  const base = defaultCompDraft();
+  return {
+    year_1: (c && pct(c.year_1)) ?? base.year_1,
+    year_2: (c && pct(c.year_2)) ?? base.year_2,
+    year_3_plus: (c && pct(c.year_3_plus)) ?? base.year_3_plus,
+    referrerSalespersonId: (r && r.referrerSalespersonId) || "",
+    overrideRateBps: (r && pct(r.overrideRateBps)) ?? base.overrideRateBps,
+    referralStatus: (r && r.status) || "active",
+  };
+}
+
 export default function SalespersonControlCenter({ api = salesAdminApi, user: injectedUser, origin: originOverride } = {}) {
   const user = injectedUser !== undefined ? injectedUser : readUser();
   const founder = isFounder(user);
@@ -91,6 +119,10 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
   // `confirm` holds the pending destructive intent: { kind, salespersonId, name }. Nothing acts
   // until it is confirmed, and dismissing it performs no request at all.
   const [slugDraft, setSlugDraft] = useState("");
+  // Percentages as the founder types them. Prefilled from the salesperson's stored terms, or from
+  // the platform default (25 / 15 / 10) when they have none — a legacy salesperson is shown what
+  // they actually earn, not three empty boxes.
+  const [compDraft, setCompDraft] = useState(defaultCompDraft());
   // No `publicLink` state any more. The link is DERIVED from the server-confirmed slug below, so
   // it updates when a replacement succeeds, disappears when a removal succeeds, and is preserved
   // untouched when either fails — because in each case `detail` is only ever replaced by a real
@@ -152,6 +184,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     const sp = (res.data && res.data.salesperson) || null;
     setDetail(sp);
     setSlugDraft((sp && sp.referralSlug) || "");
+    setCompDraft(compDraftFrom(sp));
     setReport(null); setPending(null); setPendingId(""); setShareCopied(false);
     if (sp) loadReport(sp.salespersonId);
   }
@@ -200,6 +233,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     const sp = (res.data && res.data.salesperson) || null;
     if (sp) setDetail(sp);
     setSlugDraft((sp && sp.referralSlug) || "");
+    setCompDraft(compDraftFrom(sp));
     // publicReferralLink is deliberately ignored: the link is reconstructed from the slug the
     // server just confirmed, so there is one source of truth rather than two that can disagree.
   }
@@ -217,6 +251,50 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
       setShareCopied(false);
       setMessage("Couldn’t copy automatically — select the link above and copy it manually.");
     }
+  }
+
+  /**
+   * Save the terms that will apply to the NEXT originated customer.
+   *
+   * Percentages are entered as percentages and stored as BASIS POINTS, converted here in the one
+   * place that sees both, so a founder never has to think in bps and the wire always carries an
+   * exact integer. `12.5` becomes 1250; a value that is not a finite number in 0..100 is refused
+   * before any request is made.
+   */
+  async function saveCompensation() {
+    if (!detail || busy) return;
+    const toBps = (v) => {
+      const n = Number(String(v).trim());
+      if (!Number.isFinite(n) || n < 0 || n > 100) return null;
+      return Math.round(n * 100);
+    };
+    const y1 = toBps(compDraft.year_1);
+    const y2 = toBps(compDraft.year_2);
+    const y3 = toBps(compDraft.year_3_plus);
+    if (y1 === null || y2 === null || y3 === null) {
+      setMessage("Each rate must be a percentage between 0 and 100.");
+      return;
+    }
+    let referral = null;
+    if (compDraft.referrerSalespersonId) {
+      const ovr = toBps(compDraft.overrideRateBps);
+      if (ovr === null) { setMessage("The override must be a percentage between 0 and 100."); return; }
+      referral = {
+        referrerSalespersonId: compDraft.referrerSalespersonId,
+        overrideRateBps: ovr,
+        status: compDraft.referralStatus === "ended" ? "ended" : "active",
+      };
+    }
+    setBusy("comp-save"); setMessage(null);
+    const res = await api.setCompensation(detail.salespersonId, {
+      compensation: { year_1: y1, year_2: y2, year_3_plus: y3 },
+      referral,
+    });
+    setBusy(null);
+    if (!res.ok) { setMessage(salesAdminErrorMessage(res, { context: "compensation" })); return; }
+    adoptDetail(res);
+    await refresh();
+    setMessage("Terms saved. They apply to customers originated from now on.");
   }
 
   async function saveSlug(remove) {
@@ -481,6 +559,89 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                   <button type="button" className="btn-secondary" data-testid="fcc-slug-remove"
                     disabled={busy !== null} onClick={() => saveSlug(true)}>Remove</button>
                 ) : null}
+              </div>
+
+              {/* ── COMPENSATION ──
+                  FORWARD-ONLY, and the copy says so plainly. Terms are frozen onto each customer
+                  when that customer is first originated, so saving here changes what the NEXT
+                  originated customer will generate and nothing that already exists. */}
+              <div style={{ marginTop: "1.1rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+                <h3 style={{ fontSize: ".92rem", margin: "0 0 .5rem" }}>Commission terms</h3>
+                <p style={{ margin: "0 0 .6rem", color: "var(--text-secondary)", fontSize: ".82rem" }}>
+                  Applies to customers originated from now on. Customers who already exist keep the
+                  terms frozen when they were originated, and no past commission is recalculated.
+                  Each customer&rsquo;s year clock runs from their own start date.
+                </p>
+
+                <div style={{ display: "flex", gap: ".6rem", flexWrap: "wrap", alignItems: "flex-end" }}>
+                  {[
+                    ["year_1", "Year 1 %", "fcc-rate-y1"],
+                    ["year_2", "Year 2 %", "fcc-rate-y2"],
+                    ["year_3_plus", "Year 3+ %", "fcc-rate-y3"],
+                  ].map(([key, labelText, tid]) => (
+                    <div key={key}>
+                      <p style={{ ...label, margin: "0 0 .25rem" }}>{labelText}</p>
+                      <input data-testid={tid} aria-label={labelText} inputMode="decimal"
+                        value={compDraft[key]}
+                        onChange={(e) => setCompDraft((d) => ({ ...d, [key]: e.target.value }))}
+                        style={{ maxWidth: 92 }} />
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: "flex", gap: ".6rem", flexWrap: "wrap", alignItems: "flex-end", marginTop: ".7rem" }}>
+                  <div>
+                    <p style={{ ...label, margin: "0 0 .25rem" }}>Referring salesperson</p>
+                    {/* Chosen from the existing directory, so the stored value is always a
+                        PERMANENT salesperson id. A vanity URL is never an option here. */}
+                    <select data-testid="fcc-referrer" aria-label="Referring salesperson"
+                      value={compDraft.referrerSalespersonId}
+                      onChange={(e) => setCompDraft((d) => ({ ...d, referrerSalespersonId: e.target.value }))}
+                      style={{ maxWidth: 240 }}>
+                      <option value="">None</option>
+                      {rows
+                        .filter((r) => r.salespersonId !== detail.salespersonId)
+                        .map((r) => (
+                          <option key={r.salespersonId} value={r.salespersonId}>
+                            {r.displayName} ({r.salespersonId})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div>
+                    <p style={{ ...label, margin: "0 0 .25rem" }}>Override %</p>
+                    <input data-testid="fcc-override-rate" aria-label="Override %" inputMode="decimal"
+                      value={compDraft.overrideRateBps}
+                      onChange={(e) => setCompDraft((d) => ({ ...d, overrideRateBps: e.target.value }))}
+                      disabled={compDraft.referrerSalespersonId === ""}
+                      style={{ maxWidth: 92 }} />
+                  </div>
+                  <div>
+                    <p style={{ ...label, margin: "0 0 .25rem" }}>Override status</p>
+                    <select data-testid="fcc-override-status" aria-label="Override status"
+                      value={compDraft.referralStatus}
+                      onChange={(e) => setCompDraft((d) => ({ ...d, referralStatus: e.target.value }))}
+                      disabled={compDraft.referrerSalespersonId === ""}
+                      style={{ maxWidth: 140 }}>
+                      <option value="active">Active</option>
+                      <option value="ended">Ended</option>
+                    </select>
+                  </div>
+                </div>
+
+                <p style={{ margin: ".55rem 0 .6rem", color: "var(--text-secondary)", fontSize: ".8rem" }}>
+                  The override is additive: it is paid on the same base as the direct commission and
+                  comes out of Greet-Me&rsquo;s share, not the salesperson&rsquo;s.
+                </p>
+
+                <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
+                  <button type="button" className="btn-primary" data-testid="fcc-comp-save"
+                    disabled={busy !== null} onClick={saveCompensation}>Save terms</button>
+                  <button type="button" className="btn-secondary" data-testid="fcc-comp-default"
+                    disabled={busy !== null} onClick={() => setCompDraft(defaultCompDraft())}>
+                    Reset to default (25 / 15 / 10)
+                  </button>
+                </div>
               </div>
 
               {/* ── DESTRUCTIVE ACTIONS, deliberately set apart ── */}
