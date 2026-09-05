@@ -14,9 +14,12 @@ import {
   BRANDABLE_TAGLINE,
   DEFAULT_SELECTION,
   SELECTOR_ROW,
+  filterByPrice,
+  priceBounds,
   selectProducts,
   selectionLabel,
 } from './merchSelection';
+import PriceRangeFilter from '../components/PriceRangeFilter';
 
 export default function Merch() {
   const navigate = useNavigate();
@@ -60,10 +63,34 @@ export default function Merch() {
   // GIFTS — the ONE selection behind the ONE shared product area. Every selector, including
   // Brandable Goods, resolves through the same rule, so no two surfaces can disagree about what
   // is on screen and no product can render twice.
-  const visibleProducts = useMemo(
+  const selectedProducts = useMemo(
     () => selectProducts(products, selectedCategory),
     [products, selectedCategory]
   );
+
+  // GIFTS — price range. Bounds come from the WHOLE loaded catalog, never from the current
+  // selection, so the control keeps one scale and the handles do not jump when the category
+  // changes.
+  const bounds = useMemo(() => priceBounds(products), [products]);
+
+  // `null` means "the shopper has not chosen a range", which resolves to the full bounds below.
+  // Holding it this way rather than seeding state from an effect means the default is always the
+  // complete range even before products arrive, a deliberate choice SURVIVES every category
+  // switch, and Reset is simply a return to null.
+  const [priceRange, setPriceRange] = useState(null);
+  const minCents = priceRange ? priceRange.min : bounds?.floor;
+  const maxCents = priceRange ? priceRange.max : bounds?.ceiling;
+
+  // The pipeline, in order: selection, then price, then the one shared card map.
+  const visibleProducts = useMemo(
+    () => filterByPrice(selectedProducts, minCents, maxCents),
+    [selectedProducts, minCents, maxCents]
+  );
+
+  // Distinguishes the two empty states: a category nothing has been curated into yet is
+  // "Coming Soon", while a category that HAS products none of which match the range is a price
+  // result. Conflating them would tell a shopper a collection does not exist when it does.
+  const hiddenByPrice = selectedProducts.length > 0 && visibleProducts.length === 0;
 
   const selectedCategoryLabel = selectionLabel(selectedCategory);
 
@@ -440,6 +467,22 @@ export default function Merch() {
         })}
       </div>
 
+      {/* GIFTS — PRICE RANGE, directly beneath the selector row and above everything it filters.
+          One compact control, not a panel and not a second surface. It is hidden for Gift Cards,
+          whose panel is deliberately non-purchasable — offering to price-filter a paused card
+          would imply it can be bought. */}
+      {selectedCategory !== 'gift_cards' && bounds && (
+        <PriceRangeFilter
+          floor={bounds.floor}
+          ceiling={bounds.ceiling}
+          minCents={minCents}
+          maxCents={maxCents}
+          onChange={(min, max) => setPriceRange({ min, max })}
+          onReset={() => setPriceRange(null)}
+          isNarrow={isNarrow}
+        />
+      )}
+
       {/* GIFTS — Brandable Goods header: the approved copy and the Brand for My Company action,
           and nothing else. The products themselves render in the ONE shared area below, through
           the same grid and the same cart as every other selection. This is a header, not a
@@ -523,6 +566,39 @@ export default function Merch() {
           }}>
             Coming later — not yet available
           </span>
+        </div>
+      ) : hiddenByPrice && !loading && !error ? (
+        /* The collection EXISTS — the chosen price range simply excludes all of it. Distinct from
+           Coming Soon, and recoverable without hunting for the control that caused it. */
+        <div style={{
+          padding: '4rem 2rem',
+          textAlign: 'center',
+          color: 'var(--text-secondary)',
+          border: '1px dashed var(--border)',
+          borderRadius: 'var(--radius-xl)'
+        }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>&#128181;</div>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
+            No products in this price range.
+          </h3>
+          <button
+            type="button"
+            onClick={() => setPriceRange(null)}
+            style={{
+              marginTop: '0.5rem',
+              padding: '0.5rem 1.25rem',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--primary)',
+              background: 'transparent',
+              color: 'var(--primary)',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              fontFamily: 'inherit',
+              cursor: 'pointer'
+            }}
+          >
+            Clear price filter
+          </button>
         </div>
       ) : visibleProducts.length === 0 && !loading && !error ? (
         /* A category with nothing curated into it yet. Non-purchasable placeholder. */
