@@ -1,27 +1,39 @@
 // src/pages/Merch.jsx
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, Briefcase, Users, Check, ArrowLeft } from 'lucide-react';
 import cartService from '../services/cartService';
 import AddToCartModal from '../components/AddToCartModal';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 import api from '../api/api';
-import GiftMarketFilters from '../components/GiftMarketFilters'; // I-GIFT-1
 import greetmeFlags from '../assets/greetme-flags.jpg';
 
-// AGP-01 — American Gift Place category layer. Only 'merch' is live/purchasable.
-const AGP_CATEGORIES = [
-  { key: 'merch', label: 'Greet-Me Merch', live: true },
-  { key: 'maker_gifts', label: 'Maker Gifts', live: true }, // VENDOR-GIFTS-B1 (display-only)
-  { key: 'americana', label: 'Americana', live: false },
-  { key: 'gift_cards', label: 'Gift Cards', live: false },
-  { key: 'gift_baskets', label: 'Gift Baskets', live: false },
-  { key: 'flowers', label: 'Flowers', live: false },
-  { key: 'faith', label: 'Faith & Inspiration', live: false },
+// GIFTS-CP1 — the launch merchandise categories.
+//
+// `id` is a MACHINE IDENTIFIER and is the only thing that routes or is ever stored on a product;
+// `label` is display copy. They are deliberately different in form (snake_case vs Title Case) so
+// a copy edit can never change what a control selects.
+const GREET_ME_CATEGORIES = [
+  { id: 'gift_cards', label: 'Gift Cards' },
+  { id: 'gift_baskets', label: 'Gift Baskets' },
+  { id: 'flowers', label: 'Flowers' },
+  { id: 'americana', label: 'Americana' },
+  { id: 'faith_and_inspiration', label: 'Faith & Inspiration' },
+  { id: 'tech', label: 'Tech' },
 ];
 
-// VENDOR-GIFTS-B1 — show "Made by <vendor>" maker attribution on catalog cards (configurable).
-const SHOW_MAKER_ATTRIBUTION = true;
+// `apparel` is a VALID category a product may carry, but it renders NO top-level control at
+// launch. Listing it here documents that the omission is a deliberate launch decision rather
+// than an oversight, and keeps the post-launch exposure to a one-line change.
+const POST_LAUNCH_CATEGORY_IDS = ['apparel'];
+
+// VIEW ALL is a UTILITY CONTROL, not a category. It is never stored on a product and is never a
+// member of GREET_ME_CATEGORIES; it is rendered separately and styled distinctly below.
+const VIEW_ALL = 'view_all';
+
+// BRANDABLE GOODS is a COLLECTION, not a category — it has no category id and no chip in the
+// category bar. Membership is the `brandable` boolean the server sends on each merch product.
+const BRANDABLE_TAGLINE = 'See it with our brand. Make it yours.';
 
 export default function Merch() {
   const navigate = useNavigate();
@@ -35,43 +47,9 @@ export default function Merch() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  // VENDOR-GIFTS-B1 — read-only Collective catalog (display-only). Empty while dormant.
-  const [catalogProducts, setCatalogProducts] = useState([]);
-  const [catalogLoading, setCatalogLoading] = useState(true);
-  // I-GIFT-1 - client-side filters for the Maker Gifts grid. No fetch, no query params, no storage.
-  // priceRange null means "full range"; that keeps the bounds derivable from the payload without an
-  // effect that would re-sync state after load.
-  const [giftSearch, setGiftSearch] = useState('');
-  const [giftPriceRange, setGiftPriceRange] = useState(null);
-  // Bumped on reset so GiftMarketFilters remounts with a cleared search box - avoids syncing
-  // child state from a parent prop inside an effect.
-  const [giftFilterNonce, setGiftFilterNonce] = useState(0);
-  const [checkoutBusyId, setCheckoutBusyId] = useState(null); // SHOPIFY THIN CONNECTION
-
-  // SHOPIFY THIN CONNECTION - hand off to the EXISTING Shopify-hosted checkout. Greet-Me builds no
-  // cart and hosts no checkout of its own; Shopify hosts, prices, taxes, ships and completes the
-  // purchase. The ordinary request carries no fundraiser token property at all.
-  const handleGiftCheckout = async (item) => {
-    const variant = Array.isArray(item?.variants) ? item.variants[0] : null;
-    if (!variant?.id || checkoutBusyId) return;
-    setCheckoutBusyId(item.id);
-    setError(null);
-    try {
-      const res = await api.startGiftCheckout(variant.id, 1);
-      if (res?.ok && res.checkoutUrl) {
-        window.location.href = res.checkoutUrl; // Shopify-hosted checkout
-        return;
-      }
-      // A 401 already dispatches the app-wide auth:session-expired handler; just release the button.
-      if (res?.status !== 401) {
-        setError('Sorry, we could not start checkout. Please try again.');
-      }
-    } catch {
-      setError('Sorry, we could not start checkout. Please try again.');
-    }
-    setCheckoutBusyId(null);
-  };
-  const [selectedCategory, setSelectedCategory] = useState('merch'); // AGP-01: default live category
+  // GIFTS-CP1 — the marketplace opens on View All, the utility control, so every purchasable
+  // product is visible on arrival rather than only one category's worth.
+  const [selectedCategory, setSelectedCategory] = useState(VIEW_ALL);
 
   // Session context: recipient gift flow vs SendGreeting Just-Because flow
   const returnRecipientId = searchParams.get('returnRecipientId');
@@ -97,47 +75,22 @@ export default function Merch() {
     return () => { cancelled = true; };
   }, []);
 
-  // VENDOR-GIFTS-B1 — fetch the read-only Collective catalog on mount (returns empty while
-  // the vendorGiftsEnabled flag is off). Display-only; no cart/checkout.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await api.getGiftCatalog();
-        if (!cancelled) setCatalogProducts(Array.isArray(res?.products) ? res.products : []);
-      } catch {
-        if (!cancelled) setCatalogProducts([]);
-      } finally {
-        if (!cancelled) setCatalogLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  // GIFTS-CP1 — Brandable Goods: the Greet-Me-branded products, shown with our own branding on
+  // them. Membership is the server's `brandable` boolean; it is never inferred from a category.
+  const brandableProducts = useMemo(
+    () => products.filter((p) => p.brandable === true),
+    [products]
+  );
 
-  // I-GIFT-1 - bounds derived from the payload, never hardcoded. Ceiling rounds UP to the nearest
-  // $25 (2500c) above the dearest gift; step is $5 up to $200, $25 beyond.
-  const giftPriceBounds = useMemo(() => {
-    const priced = catalogProducts.map((p) => p.priceCents).filter((c) => typeof c === 'number' && Number.isFinite(c));
-    const ceiling = priced.length ? Math.ceil(Math.max(...priced) / 2500) * 2500 : 2500;
-    return { floor: 0, ceiling, step: ceiling <= 20000 ? 500 : 2500 };
-  }, [catalogProducts]);
+  // GIFTS-CP1 — category filtering. View All shows everything purchasable. A product with an
+  // empty greetMeCategories array is not yet assigned to a launch category; it stays reachable
+  // through View All and Brandable Goods rather than being silently unreachable.
+  const visibleProducts = useMemo(() => {
+    if (selectedCategory === VIEW_ALL) return products;
+    return products.filter((p) => Array.isArray(p.greetMeCategories) && p.greetMeCategories.includes(selectedCategory));
+  }, [products, selectedCategory]);
 
-  const giftPriceMin = giftPriceRange ? giftPriceRange.min : giftPriceBounds.floor;
-  const giftPriceMax = giftPriceRange ? giftPriceRange.max : giftPriceBounds.ceiling;
-
-  // AND logic across both filters. An item with priceCents === null ALWAYS passes the price test —
-  // a gift with no price must never vanish silently because of a control the shopper did not aim at it.
-  const visibleCatalogProducts = useMemo(() => {
-    const q = giftSearch.trim().toLowerCase();
-    return catalogProducts.filter((item) => {
-      const priceOk = item.priceCents == null || (item.priceCents >= giftPriceMin && item.priceCents <= giftPriceMax);
-      const titleOk = !q || String(item.title || '').toLowerCase().includes(q);
-      return priceOk && titleOk;
-    });
-  }, [catalogProducts, giftSearch, giftPriceMin, giftPriceMax]);
-
-  const resetGiftFilters = useCallback(() => { setGiftSearch(''); setGiftPriceRange(null); setGiftFilterNonce((n) => n + 1); }, []);
-  const handleGiftPriceChange = useCallback((min, max) => setGiftPriceRange({ min, max }), []);
+  const selectedCategoryLabel = GREET_ME_CATEGORIES.find((c) => c.id === selectedCategory)?.label || '';
 
   // Handle resize for mobile detection
   useEffect(() => {
@@ -431,26 +384,171 @@ export default function Merch() {
         </button>
       </div>
 
-      {/* AGP-01 — Category selector (American Gift Place) */}
+      {/* GIFTS-CP1 — BRANDABLE GOODS: the prominent collection, ABOVE the category controls.
+          It is a collection, not a category: it has no id in GREET_ME_CATEGORIES and no chip in
+          the bar below. Its products are the existing curated Printful merchandise, rendered by
+          the SAME card and added through the SAME cart as every other product on this page. */}
+      {brandableProducts.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #1e3a8a 0%, #312e81 100%)',
+          borderRadius: 'var(--radius-lg)',
+          padding: isNarrow ? '1.25rem 1rem' : '1.75rem 1.5rem',
+          marginBottom: '1rem',
+          color: 'white',
+          boxShadow: '0 4px 12px rgba(30, 58, 138, 0.25)'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: isNarrow ? 'flex-start' : 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            flexDirection: isNarrow ? 'column' : 'row',
+            marginBottom: '1rem'
+          }}>
+            <div>
+              <h2 style={{ fontSize: isNarrow ? '1.125rem' : '1.375rem', fontWeight: 700, margin: 0 }}>
+                Brandable Goods
+              </h2>
+              <p style={{
+                fontSize: isNarrow ? '0.875rem' : '0.9375rem',
+                margin: '0.25rem 0 0',
+                opacity: 0.92,
+                fontWeight: 500
+              }}>
+                {BRANDABLE_TAGLINE}
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/business?contact=sales')}
+              style={{
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.5rem 1rem',
+                background: 'white',
+                color: '#1e3a8a',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.8125rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontFamily: 'inherit'
+              }}
+            >
+              <Briefcase size={14} />
+              Brand for My Company
+            </button>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(auto-fill, minmax(220px, 1fr))',
+            gap: isNarrow ? '0.75rem' : '1rem'
+          }}>
+            {brandableProducts.map((item) => {
+              const minDollars = (item.priceCentsMin / 100).toFixed(item.priceCentsMin % 100 === 0 ? 0 : 2);
+              const maxDollars = (item.priceCentsMax / 100).toFixed(item.priceCentsMax % 100 === 0 ? 0 : 2);
+              const displayPrice = item.priceCentsMin === item.priceCentsMax
+                ? `$${minDollars}`
+                : `$${minDollars} – $${maxDollars}`;
+              return (
+                <div
+                  key={`brandable-${item.syncProductId}`}
+                  style={{
+                    background: 'var(--bg-primary)',
+                    borderRadius: 'var(--radius-lg)',
+                    overflow: 'hidden',
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  <div style={{
+                    width: '100%',
+                    height: isNarrow ? '96px' : '140px',
+                    background: item.imageUrl
+                      ? `url(${item.imageUrl}) center/cover no-repeat`
+                      : 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: isNarrow ? '2rem' : '2.5rem'
+                  }}>
+                    {!item.imageUrl && '🛍️'}
+                  </div>
+                  <div style={{ padding: isNarrow ? '0.625rem' : '0.875rem' }}>
+                    <h3 style={{
+                      fontSize: isNarrow ? '0.8125rem' : '0.9375rem',
+                      fontWeight: 600,
+                      margin: '0 0 0.5rem',
+                      lineHeight: 1.3
+                    }}>
+                      {item.name}
+                    </h3>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.5rem',
+                      flexWrap: 'wrap'
+                    }}>
+                      <span style={{ fontSize: isNarrow ? '0.875rem' : '1rem', fontWeight: 700, color: 'var(--primary)' }}>
+                        {displayPrice}
+                      </span>
+                      {/* SAME handler, SAME cart, SAME checkout as the category grid below. */}
+                      <button
+                        onClick={(e) => handleAddToCart(item, e)}
+                        style={{
+                          padding: '0.375rem 0.75rem',
+                          background: addedItems.has(item.syncProductId) ? '#22c55e' : 'var(--primary)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 'var(--radius-md)',
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          fontWeight: 600,
+                          fontSize: '0.75rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.375rem'
+                        }}
+                      >
+                        {addedItems.has(item.syncProductId) ? (
+                          <><Check size={14} />{isNarrow ? '✓' : 'Added!'}</>
+                        ) : (
+                          <><ShoppingCart size={14} />{isNarrow ? 'Add' : 'Add to Cart'}</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* GIFTS-CP1 — Category controls. Six merchandise categories, then View All rendered
+          separately and styled distinctly because it is a UTILITY control, not a category. */}
       <div style={{
         display: 'flex',
         gap: '0.5rem',
+        alignItems: 'center',
         overflowX: 'auto',
         WebkitOverflowScrolling: 'touch',
         padding: '0 0 0.75rem',
         marginBottom: '1rem'
       }}>
-        {AGP_CATEGORIES.map((cat) => (
+        {GREET_ME_CATEGORIES.map((cat) => (
           <button
-            key={cat.key}
-            onClick={() => setSelectedCategory(cat.key)}
+            key={cat.id}
+            onClick={() => setSelectedCategory(cat.id)}
             style={{
               flexShrink: 0,
               padding: '0.5rem 1rem',
               borderRadius: '9999px',
               border: '1px solid var(--border)',
-              background: selectedCategory === cat.key ? 'var(--primary)' : 'var(--bg-primary)',
-              color: selectedCategory === cat.key ? 'white' : 'var(--text-secondary)',
+              background: selectedCategory === cat.id ? 'var(--primary)' : 'var(--bg-primary)',
+              color: selectedCategory === cat.id ? 'white' : 'var(--text-secondary)',
               fontSize: '0.8125rem',
               fontWeight: 600,
               cursor: 'pointer',
@@ -461,186 +559,73 @@ export default function Merch() {
             {cat.label}
           </button>
         ))}
+
+        {/* Visual separation so View All never reads as a seventh merchandise category. */}
+        <span aria-hidden="true" style={{
+          flexShrink: 0,
+          width: '1px',
+          alignSelf: 'stretch',
+          background: 'var(--border)',
+          margin: '0 0.25rem'
+        }} />
+        <button
+          onClick={() => setSelectedCategory(VIEW_ALL)}
+          style={{
+            flexShrink: 0,
+            padding: '0.5rem 1rem',
+            borderRadius: 'var(--radius-md)',
+            border: selectedCategory === VIEW_ALL ? '1px solid var(--primary)' : '1px dashed var(--border)',
+            background: 'transparent',
+            color: selectedCategory === VIEW_ALL ? 'var(--primary)' : 'var(--text-tertiary)',
+            fontSize: '0.8125rem',
+            fontWeight: 700,
+            letterSpacing: '0.02em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          View All
+        </button>
       </div>
 
-      {selectedCategory === 'maker_gifts' ? (
-        /* VENDOR-GIFTS-B1 — Collective gifts: DISPLAY-ONLY (no cart/checkout/CTA), Greet-Me-native. */
-        catalogLoading ? (
-          <div style={{
-            padding: '4rem 2rem',
-            textAlign: 'center',
-            color: 'var(--text-secondary)',
-            fontSize: '0.9375rem',
-            fontStyle: 'italic'
+      {selectedCategory === 'gift_cards' ? (
+        /* GIFTS-CP1 — GIFT CARDS, DORMANT PRESENTATION.
+           The control renders so the category is discoverable, but the Greet-Me Smart eGift Card
+           is presented as unavailable: no denomination selector, no Add to Cart, no checkout
+           action, nothing that could begin a purchase. Prezzee is NOT activated and this is NOT
+           a Prezzee browser — there is exactly one card described here and no product list. */
+        <div style={{
+          padding: '3rem 2rem',
+          textAlign: 'center',
+          color: 'var(--text-secondary)',
+          border: '1px dashed var(--border)',
+          borderRadius: 'var(--radius-xl)'
+        }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>&#127873;</div>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
+            Greet-Me Smart eGift Card
+          </h3>
+          <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: '0 0 1rem', maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
+            One smart card the recipient can spend at the retailer they choose.
+          </p>
+          <span style={{
+            display: 'inline-block',
+            padding: '0.375rem 0.875rem',
+            borderRadius: '9999px',
+            background: 'var(--bg-secondary, #f1f5f9)',
+            color: 'var(--text-tertiary)',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em'
           }}>
-            Loading…
-          </div>
-        ) : catalogProducts.length === 0 ? (
-          <div style={{
-            padding: '4rem 2rem',
-            textAlign: 'center',
-            color: 'var(--text-secondary)',
-            border: '1px dashed var(--border)',
-            borderRadius: 'var(--radius-xl)'
-          }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>&#127873;</div>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
-              Maker Gifts &mdash; Coming Soon
-            </h3>
-            <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: 0 }}>
-              We&rsquo;re curating this collection. Check back soon.
-            </p>
-          </div>
-        ) : (
-          /* I-GIFT-1 - filters sit ABOVE the existing grid; the grid itself is unchanged apart from
-             the array it maps. A filtered-to-nothing result gets its own explained empty state. */
-          <>
-          <GiftMarketFilters
-            key={giftFilterNonce}
-            searchCommitted={giftSearch}
-            onSearchCommit={setGiftSearch}
-            priceFloor={giftPriceBounds.floor}
-            priceCeiling={giftPriceBounds.ceiling}
-            priceStep={giftPriceBounds.step}
-            priceMin={giftPriceMin}
-            priceMax={giftPriceMax}
-            onPriceChange={handleGiftPriceChange}
-            shownCount={visibleCatalogProducts.length}
-            totalCount={catalogProducts.length}
-            onReset={resetGiftFilters}
-            isNarrow={isNarrow}
-          />
-          {visibleCatalogProducts.length === 0 ? (
-            <div style={{
-              padding: '3rem 2rem',
-              textAlign: 'center',
-              color: 'var(--text-secondary)',
-              border: '1px dashed var(--border)',
-              borderRadius: 'var(--radius-xl)'
-            }}>
-              <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>&#128269;</div>
-              <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
-                No gifts match these filters
-              </h3>
-              <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: '0 0 1.25rem' }}>
-                Try a wider price range or a different search term.
-              </p>
-              <button
-                type="button"
-                onClick={resetGiftFilters}
-                style={{
-                  padding: '0.5rem 1.25rem', borderRadius: 'var(--radius-md)', border: 'none',
-                  background: 'var(--primary)', color: 'white', fontSize: '0.875rem',
-                  fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer'
-                }}
-              >
-                Clear filters
-              </button>
-            </div>
-          ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(auto-fill, minmax(300px, 1fr))',
-            gap: isNarrow ? '0.75rem' : '1.5rem',
-            maxWidth: '100%',
-            overflowX: 'hidden'
-          }}>
-            {visibleCatalogProducts.map((item) => {
-              const img = (Array.isArray(item.images) && item.images[0]?.url) ? item.images[0].url : null;
-              const dollars = item.priceCents != null
-                ? `$${(item.priceCents / 100).toFixed(item.priceCents % 100 === 0 ? 0 : 2)}`
-                : '';
-              // SHOPIFY THIN CONNECTION - purchasable exactly when the existing catalog says so.
-              const firstVariant = Array.isArray(item.variants) ? item.variants[0] : null;
-              const buyable = Boolean(firstVariant?.id) && firstVariant.available !== false;
-              return (
-                <div
-                  key={item.id}
-                  style={{
-                    background: 'var(--bg-primary)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-xl)',
-                    overflow: 'hidden',
-                    position: 'relative'
-                  }}
-                >
-                  {/* Product image — Greet-Me blob (re-hosted) URL with gradient fallback. No Shopify domain. */}
-                  <div style={{
-                    width: '100%',
-                    height: isNarrow ? '120px' : '200px',
-                    background: img ? `url(${img}) center/cover no-repeat` : 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: isNarrow ? '2.5rem' : '4rem'
-                  }}>
-                    {!img && '🎁'}
-                  </div>
-                  <div style={{ padding: isNarrow ? '0.75rem' : '1.5rem' }}>
-                    <h3 style={{
-                      fontSize: isNarrow ? '0.875rem' : '1.125rem',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      marginBottom: '0.25rem'
-                    }}>
-                      {item.title}
-                    </h3>
-                    {SHOW_MAKER_ATTRIBUTION && item.vendor ? (
-                      <p style={{
-                        fontSize: '0.75rem',
-                        color: 'var(--text-tertiary)',
-                        fontStyle: 'italic',
-                        marginBottom: '0.5rem'
-                      }}>
-                        Made by {item.vendor}
-                      </p>
-                    ) : null}
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      paddingTop: isNarrow ? '0.5rem' : '1rem',
-                      borderTop: isNarrow ? 'none' : '1px solid var(--border)',
-                      gap: '0.5rem'
-                    }}>
-                      <span style={{
-                        fontSize: isNarrow ? '1rem' : '1.5rem',
-                        fontWeight: 700,
-                        color: 'var(--primary)'
-                      }}>
-                        {dollars}
-                      </span>
-                      {/* DISPLAY-ONLY — no buy/checkout CTA (Batch 1). */}
-                      <button
-                        type="button"
-                        onClick={() => handleGiftCheckout(item)}
-                        disabled={!buyable || checkoutBusyId === item.id}
-                        style={{
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          color: buyable ? '#fff' : 'var(--text-secondary)',
-                          background: buyable ? 'var(--primary)' : 'var(--gray-100)',
-                          /* explicit padding: the global button rule would otherwise apply */
-                          padding: '0.375rem 0.875rem',
-                          border: 'none',
-                          borderRadius: 'var(--radius-md)',
-                          whiteSpace: 'nowrap',
-                          cursor: buyable && checkoutBusyId !== item.id ? 'pointer' : 'default',
-                          opacity: checkoutBusyId === item.id ? 0.7 : 1
-                        }}>
-                        {checkoutBusyId === item.id ? 'Starting...' : (buyable ? 'Buy' : 'Available soon')}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          )}
-          </>
-        )
-      ) : selectedCategory !== 'merch' ? (
-        /* AGP-01 — Coming Soon: non-purchasable placeholder (no products, no add-to-cart) */
+            Coming later — not yet available
+          </span>
+        </div>
+      ) : visibleProducts.length === 0 && !loading && !error ? (
+        /* A category with nothing curated into it yet. Non-purchasable placeholder. */
         <div style={{
           padding: '4rem 2rem',
           textAlign: 'center',
@@ -650,7 +635,7 @@ export default function Merch() {
         }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>&#10024;</div>
           <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
-            {AGP_CATEGORIES.find((c) => c.key === selectedCategory)?.label} &mdash; Coming Soon
+            {selectedCategoryLabel} &mdash; Coming Soon
           </h3>
           <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: 0 }}>
             We&rsquo;re curating this collection. Check back soon.
@@ -699,7 +684,7 @@ export default function Merch() {
           maxWidth: '100%',
           overflowX: 'hidden'
         }}>
-          {products.map((item) => {
+          {visibleProducts.map((item) => {
             const minDollars = (item.priceCentsMin / 100).toFixed(item.priceCentsMin % 100 === 0 ? 0 : 2);
             const maxDollars = (item.priceCentsMax / 100).toFixed(item.priceCentsMax % 100 === 0 ? 0 : 2);
             const displayPrice = item.priceCentsMin === item.priceCentsMax
