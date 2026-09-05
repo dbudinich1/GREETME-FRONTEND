@@ -92,6 +92,27 @@ export const salesAdminApi = {
     req("PUT", `${one(salespersonId)}/referral-slug`, { referralSlug: null }),
 
   /**
+   * PUT …/compensation — set the terms that will apply to this salesperson's NEXT originated
+   * customer.
+   *
+   * This is deliberately FORWARD-ONLY. Terms are frozen onto each customer's origination record
+   * when that customer is first originated, so saving here cannot change what an existing customer
+   * has generated or will generate, and cannot alter a single ledger entry.
+   *
+   * Both fields accept null: `compensation: null` restores the platform default schedule
+   * (25% / 15% / 10%), and `referral: null` removes the override entirely.
+   *
+   * `referrerSalespersonId` is a PERMANENT salesperson id chosen from the existing directory —
+   * never a vanity slug, which is a re-assignable display string and must never carry financial
+   * identity.
+   *
+   * 200 → { ok, salesperson } · 400 → INVALID_COMPENSATION / INVALID_REFERRAL / SELF_REFERRAL /
+   * REFERRER_NOT_FOUND / REFERRAL_CHAIN_TOO_DEEP · 404 → unknown salesperson
+   */
+  setCompensation: (salespersonId, { compensation = null, referral = null } = {}) =>
+    req("PUT", `${one(salespersonId)}/compensation`, { compensation, referral }),
+
+  /**
    * POST …/rotate-token — mints a NEW opaque token and invalidates the previous one.
    *
    * DESTRUCTIVE. The response carries the replacement link exactly once; there is no route that
