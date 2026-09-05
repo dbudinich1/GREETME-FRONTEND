@@ -65,15 +65,20 @@ const GIFT_CARDS_BRANCH = (() => {
   return CODE.slice(start, end);
 })();
 
-// A fixture mirroring the SHAPE of the launch set: five Greet-Me-branded Printful products, of
-// which the phone case and the laptop sleeve carry `tech`. It proves the PARTITION the selectors
-// produce. Which products the server actually flags is server data and is not asserted here.
+// The launch set as GET /api/merch/products actually returns it (read 2026-09-05): five
+// Greet-Me-branded Printful products, all `brandable`, of which exactly the iPhone case and the
+// laptop sleeve carry `tech`. Only the fields the selection rule reads are kept — prices and
+// variants are irrelevant to the partition and are deliberately not restated here.
+//
+// This is a fixture, so it proves the PARTITION rather than the server's current data. It is
+// written from the real response so the two cannot quietly drift apart: if the catalog changes
+// shape, the counts asserted below are the thing that should be revisited.
 const FIXTURE = [
-  { syncProductId: "p1", name: "Phone Case", brandable: true, greetMeCategories: ["tech"] },
-  { syncProductId: "p2", name: "Laptop Sleeve", brandable: true, greetMeCategories: ["tech"] },
-  { syncProductId: "p3", name: "Tumbler", brandable: true, greetMeCategories: [] },
-  { syncProductId: "p4", name: "Tote", brandable: true, greetMeCategories: [] },
-  { syncProductId: "p5", name: "Cap", brandable: true, greetMeCategories: [] },
+  { syncProductId: 431624815, name: "Hardcover bound notebook", brandable: true, greetMeCategories: [] },
+  { syncProductId: 431624305, name: "MagSafe® tough case for iPhone®", brandable: true, greetMeCategories: ["tech"] },
+  { syncProductId: 431623973, name: "Laptop Sleeve", brandable: true, greetMeCategories: ["tech"] },
+  { syncProductId: 431622804, name: "White glossy mug", brandable: true, greetMeCategories: [] },
+  { syncProductId: 431621330, name: "Canvas", brandable: true, greetMeCategories: [] },
 ];
 const idsOf = (list) => list.map((p) => p.syncProductId);
 
@@ -243,13 +248,13 @@ test("QR Cash renders above the selector row, with its wording and behaviour int
 test("Brandable Goods resolves to the five branded products", () => {
   const got = selectProducts(FIXTURE, BRANDABLE);
   assert.equal(got.length, 5);
-  assert.deepEqual(idsOf(got), ["p1", "p2", "p3", "p4", "p5"]);
+  assert.deepEqual(idsOf(got), FIXTURE.map((p) => p.syncProductId));
 });
 
 test("Tech resolves to exactly the phone case and the laptop sleeve", () => {
   const got = selectProducts(FIXTURE, "tech");
   assert.equal(got.length, 2);
-  assert.deepEqual(got.map((p) => p.name), ["Phone Case", "Laptop Sleeve"]);
+  assert.deepEqual(got.map((p) => p.name), ["MagSafe® tough case for iPhone®", "Laptop Sleeve"]);
 });
 
 test("View All resolves to all five products, once each", () => {
