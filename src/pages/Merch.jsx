@@ -1,5 +1,5 @@
 // src/pages/Merch.jsx
-import { useState, useEffect, useMemo } from 'react';
+import { Fragment, useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, Briefcase, Users, Check, ArrowLeft } from 'lucide-react';
 import cartService from '../services/cartService';
@@ -7,33 +7,16 @@ import AddToCartModal from '../components/AddToCartModal';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 import api from '../api/api';
 import greetmeFlags from '../assets/greetme-flags.jpg';
-
-// GIFTS-CP1 — the launch merchandise categories.
-//
-// `id` is a MACHINE IDENTIFIER and is the only thing that routes or is ever stored on a product;
-// `label` is display copy. They are deliberately different in form (snake_case vs Title Case) so
-// a copy edit can never change what a control selects.
-const GREET_ME_CATEGORIES = [
-  { id: 'gift_cards', label: 'Gift Cards' },
-  { id: 'gift_baskets', label: 'Gift Baskets' },
-  { id: 'flowers', label: 'Flowers' },
-  { id: 'americana', label: 'Americana' },
-  { id: 'faith_and_inspiration', label: 'Faith & Inspiration' },
-  { id: 'tech', label: 'Tech' },
-];
-
-// `apparel` is a VALID category a product may carry, but it renders NO top-level control at
-// launch. Listing it here documents that the omission is a deliberate launch decision rather
-// than an oversight, and keeps the post-launch exposure to a one-line change.
-const POST_LAUNCH_CATEGORY_IDS = ['apparel'];
-
-// VIEW ALL is a UTILITY CONTROL, not a category. It is never stored on a product and is never a
-// member of GREET_ME_CATEGORIES; it is rendered separately and styled distinctly below.
-const VIEW_ALL = 'view_all';
-
-// BRANDABLE GOODS is a COLLECTION, not a category — it has no category id and no chip in the
-// category bar. Membership is the `brandable` boolean the server sends on each merch product.
-const BRANDABLE_TAGLINE = 'See it with our brand. Make it yours.';
+// GIFTS — the selector vocabulary and the ONE selection rule live in a plain module so the
+// partition they produce is executable and testable. See src/pages/merchSelection.js.
+import {
+  BRANDABLE,
+  BRANDABLE_TAGLINE,
+  DEFAULT_SELECTION,
+  SELECTOR_ROW,
+  selectProducts,
+  selectionLabel,
+} from './merchSelection';
 
 export default function Merch() {
   const navigate = useNavigate();
@@ -47,9 +30,8 @@ export default function Merch() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  // GIFTS-CP1 — the marketplace opens on View All, the utility control, so every purchasable
-  // product is visible on arrival rather than only one category's worth.
-  const [selectedCategory, setSelectedCategory] = useState(VIEW_ALL);
+  // GIFTS — the marketplace opens on Brandable Goods, the leading selector.
+  const [selectedCategory, setSelectedCategory] = useState(DEFAULT_SELECTION);
 
   // Session context: recipient gift flow vs SendGreeting Just-Because flow
   const returnRecipientId = searchParams.get('returnRecipientId');
@@ -75,22 +57,15 @@ export default function Merch() {
     return () => { cancelled = true; };
   }, []);
 
-  // GIFTS-CP1 — Brandable Goods: the Greet-Me-branded products, shown with our own branding on
-  // them. Membership is the server's `brandable` boolean; it is never inferred from a category.
-  const brandableProducts = useMemo(
-    () => products.filter((p) => p.brandable === true),
-    [products]
+  // GIFTS — the ONE selection behind the ONE shared product area. Every selector, including
+  // Brandable Goods, resolves through the same rule, so no two surfaces can disagree about what
+  // is on screen and no product can render twice.
+  const visibleProducts = useMemo(
+    () => selectProducts(products, selectedCategory),
+    [products, selectedCategory]
   );
 
-  // GIFTS-CP1 — category filtering. View All shows everything purchasable. A product with an
-  // empty greetMeCategories array is not yet assigned to a launch category; it stays reachable
-  // through View All and Brandable Goods rather than being silently unreachable.
-  const visibleProducts = useMemo(() => {
-    if (selectedCategory === VIEW_ALL) return products;
-    return products.filter((p) => Array.isArray(p.greetMeCategories) && p.greetMeCategories.includes(selectedCategory));
-  }, [products, selectedCategory]);
-
-  const selectedCategoryLabel = GREET_ME_CATEGORIES.find((c) => c.id === selectedCategory)?.label || '';
+  const selectedCategoryLabel = selectionLabel(selectedCategory);
 
   // Handle resize for mobile detection
   useEffect(() => {
@@ -384,211 +359,136 @@ export default function Merch() {
         </button>
       </div>
 
-      {/* GIFTS-CP1 — BRANDABLE GOODS: the prominent collection, ABOVE the category controls.
-          It is a collection, not a category: it has no id in GREET_ME_CATEGORIES and no chip in
-          the bar below. Its products are the existing curated Printful merchandise, rendered by
-          the SAME card and added through the SAME cart as every other product on this page. */}
-      {brandableProducts.length > 0 && (
-        <div style={{
-          background: 'linear-gradient(135deg, #1e3a8a 0%, #312e81 100%)',
-          borderRadius: 'var(--radius-lg)',
-          padding: isNarrow ? '1.25rem 1rem' : '1.75rem 1.5rem',
-          marginBottom: '1rem',
-          color: 'white',
-          boxShadow: '0 4px 12px rgba(30, 58, 138, 0.25)'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: isNarrow ? 'flex-start' : 'center',
-            justifyContent: 'space-between',
-            gap: '0.75rem',
-            flexDirection: isNarrow ? 'column' : 'row',
-            marginBottom: '1rem'
-          }}>
-            <div>
-              <h2 style={{ fontSize: isNarrow ? '1.125rem' : '1.375rem', fontWeight: 700, margin: 0 }}>
-                Brandable Goods
-              </h2>
-              <p style={{
-                fontSize: isNarrow ? '0.875rem' : '0.9375rem',
-                margin: '0.25rem 0 0',
-                opacity: 0.92,
-                fontWeight: 500
-              }}>
-                {BRANDABLE_TAGLINE}
-              </p>
-            </div>
-            <button
-              onClick={() => navigate('/business?contact=sales')}
-              style={{
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.5rem 1rem',
-                background: 'white',
-                color: '#1e3a8a',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.8125rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                fontFamily: 'inherit'
-              }}
-            >
-              <Briefcase size={14} />
-              Brand for My Company
-            </button>
-          </div>
+      {/* GIFTS — UNIFIED SELECTOR ROW, directly beneath QR Cash.
+          ONE row, EIGHT controls, Brandable Goods first and selected by default.
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(auto-fill, minmax(220px, 1fr))',
-            gap: isNarrow ? '0.75rem' : '1rem'
-          }}>
-            {brandableProducts.map((item) => {
-              const minDollars = (item.priceCentsMin / 100).toFixed(item.priceCentsMin % 100 === 0 ? 0 : 2);
-              const maxDollars = (item.priceCentsMax / 100).toFixed(item.priceCentsMax % 100 === 0 ? 0 : 2);
-              const displayPrice = item.priceCentsMin === item.priceCentsMax
-                ? `$${minDollars}`
-                : `$${minDollars} – $${maxDollars}`;
-              return (
-                <div
-                  key={`brandable-${item.syncProductId}`}
-                  style={{
-                    background: 'var(--bg-primary)',
-                    borderRadius: 'var(--radius-lg)',
-                    overflow: 'hidden',
-                    color: 'var(--text-primary)'
-                  }}
-                >
-                  <div style={{
-                    width: '100%',
-                    height: isNarrow ? '96px' : '140px',
-                    background: item.imageUrl
-                      ? `url(${item.imageUrl}) center/cover no-repeat`
-                      : 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: isNarrow ? '2rem' : '2.5rem'
-                  }}>
-                    {!item.imageUrl && '🛍️'}
-                  </div>
-                  <div style={{ padding: isNarrow ? '0.625rem' : '0.875rem' }}>
-                    <h3 style={{
-                      fontSize: isNarrow ? '0.8125rem' : '0.9375rem',
-                      fontWeight: 600,
-                      margin: '0 0 0.5rem',
-                      lineHeight: 1.3
-                    }}>
-                      {item.name}
-                    </h3>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '0.5rem',
-                      flexWrap: 'wrap'
-                    }}>
-                      <span style={{ fontSize: isNarrow ? '0.875rem' : '1rem', fontWeight: 700, color: 'var(--primary)' }}>
-                        {displayPrice}
-                      </span>
-                      {/* SAME handler, SAME cart, SAME checkout as the category grid below. */}
-                      <button
-                        onClick={(e) => handleAddToCart(item, e)}
-                        style={{
-                          padding: '0.375rem 0.75rem',
-                          background: addedItems.has(item.syncProductId) ? '#22c55e' : 'var(--primary)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: 'var(--radius-md)',
-                          cursor: 'pointer',
-                          fontFamily: 'inherit',
-                          fontWeight: 600,
-                          fontSize: '0.75rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.375rem'
-                        }}
-                      >
-                        {addedItems.has(item.syncProductId) ? (
-                          <><Check size={14} />{isNarrow ? '✓' : 'Added!'}</>
-                        ) : (
-                          <><ShoppingCart size={14} />{isNarrow ? 'Add' : 'Add to Cart'}</>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+          Brandable Goods is a COLLECTION rather than a stored category (see merchSelection.js):
+          membership is the server's `brandable` boolean and no product ever carries this id. It
+          is emphasised more strongly than the six categories, but it is a control in THIS SAME
+          ROW — it opens no second surface and renders no second grid. Everything it shows comes
+          from the one shared product area below.
 
-      {/* GIFTS-CP1 — Category controls. Six merchandise categories, then View All rendered
-          separately and styled distinctly because it is a UTILITY control, not a category. */}
+          View All follows a separator because it is a UTILITY control and never a stored
+          category, exactly as before.
+
+          Responsive: one clear horizontal row wherever the width allows, and the same single row
+          becomes horizontally scrollable below that. No selector is stacked into its own panel,
+          none is hidden, and the row cannot widen the page. */}
       <div style={{
         display: 'flex',
         gap: '0.5rem',
         alignItems: 'center',
         overflowX: 'auto',
         WebkitOverflowScrolling: 'touch',
+        maxWidth: '100%',
         padding: '0 0 0.75rem',
         marginBottom: '1rem'
       }}>
-        {GREET_ME_CATEGORIES.map((cat) => (
+        {SELECTOR_ROW.map((sel) => {
+          const isSelected = selectedCategory === sel.id;
+          const isCollection = sel.kind === 'collection';
+          const isUtility = sel.kind === 'utility';
+          return (
+            <Fragment key={sel.id}>
+              {/* Visual separation so View All never reads as a merchandise category. */}
+              {isUtility && (
+                <span aria-hidden="true" style={{
+                  flexShrink: 0,
+                  width: '1px',
+                  alignSelf: 'stretch',
+                  background: 'var(--border)',
+                  margin: '0 0.25rem'
+                }} />
+              )}
+              <button
+                onClick={() => setSelectedCategory(sel.id)}
+                aria-pressed={isSelected}
+                style={{
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.375rem',
+                  padding: '0.5rem 1rem',
+                  borderRadius: isUtility ? 'var(--radius-md)' : '9999px',
+                  border: isUtility
+                    ? (isSelected ? '1px solid var(--primary)' : '1px dashed var(--border)')
+                    : (isCollection ? '1px solid var(--primary)' : '1px solid var(--border)'),
+                  background: isSelected
+                    ? (isCollection
+                        ? 'linear-gradient(135deg, #1e3a8a 0%, #312e81 100%)'
+                        : (isUtility ? 'transparent' : 'var(--primary)'))
+                    : (isUtility ? 'transparent' : 'var(--bg-primary)'),
+                  color: isSelected
+                    ? (isUtility ? 'var(--primary)' : 'white')
+                    : (isCollection
+                        ? 'var(--primary)'
+                        : (isUtility ? 'var(--text-tertiary)' : 'var(--text-secondary)')),
+                  fontSize: '0.8125rem',
+                  fontWeight: (isCollection || isUtility) ? 700 : 600,
+                  letterSpacing: isUtility ? '0.02em' : 'normal',
+                  textTransform: isUtility ? 'uppercase' : 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {isCollection && <Briefcase size={14} />}
+                {sel.label}
+              </button>
+            </Fragment>
+          );
+        })}
+      </div>
+
+      {/* GIFTS — Brandable Goods header: the approved copy and the Brand for My Company action,
+          and nothing else. The products themselves render in the ONE shared area below, through
+          the same grid and the same cart as every other selection. This is a header, not a
+          product surface. */}
+      {selectedCategory === BRANDABLE && (
+        <div style={{
+          display: 'flex',
+          alignItems: isNarrow ? 'flex-start' : 'center',
+          justifyContent: 'space-between',
+          flexDirection: isNarrow ? 'column' : 'row',
+          gap: '0.75rem',
+          padding: isNarrow ? '0.875rem 1rem' : '1rem 1.25rem',
+          marginBottom: '1rem',
+          borderRadius: 'var(--radius-lg)',
+          background: 'linear-gradient(135deg, #1e3a8a 0%, #312e81 100%)',
+          color: 'white',
+          boxShadow: '0 4px 12px rgba(30, 58, 138, 0.25)'
+        }}>
+          <p style={{
+            fontSize: isNarrow ? '0.875rem' : '0.9375rem',
+            fontWeight: 600,
+            margin: 0,
+            lineHeight: 1.4
+          }}>
+            {BRANDABLE_TAGLINE}
+          </p>
           <button
-            key={cat.id}
-            onClick={() => setSelectedCategory(cat.id)}
+            onClick={() => navigate('/business?contact=sales')}
             style={{
               flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
               padding: '0.5rem 1rem',
-              borderRadius: '9999px',
-              border: '1px solid var(--border)',
-              background: selectedCategory === cat.id ? 'var(--primary)' : 'var(--bg-primary)',
-              color: selectedCategory === cat.id ? 'white' : 'var(--text-secondary)',
+              background: 'white',
+              color: '#1e3a8a',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
               fontSize: '0.8125rem',
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: 'pointer',
-              fontFamily: 'inherit',
-              whiteSpace: 'nowrap'
+              fontFamily: 'inherit'
             }}
           >
-            {cat.label}
+            <Briefcase size={14} />
+            Brand for My Company
           </button>
-        ))}
-
-        {/* Visual separation so View All never reads as a seventh merchandise category. */}
-        <span aria-hidden="true" style={{
-          flexShrink: 0,
-          width: '1px',
-          alignSelf: 'stretch',
-          background: 'var(--border)',
-          margin: '0 0.25rem'
-        }} />
-        <button
-          onClick={() => setSelectedCategory(VIEW_ALL)}
-          style={{
-            flexShrink: 0,
-            padding: '0.5rem 1rem',
-            borderRadius: 'var(--radius-md)',
-            border: selectedCategory === VIEW_ALL ? '1px solid var(--primary)' : '1px dashed var(--border)',
-            background: 'transparent',
-            color: selectedCategory === VIEW_ALL ? 'var(--primary)' : 'var(--text-tertiary)',
-            fontSize: '0.8125rem',
-            fontWeight: 700,
-            letterSpacing: '0.02em',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          View All
-        </button>
-      </div>
+        </div>
+      )}
 
       {selectedCategory === 'gift_cards' ? (
         /* GIFTS-CP1 — GIFT CARDS, DORMANT PRESENTATION.
