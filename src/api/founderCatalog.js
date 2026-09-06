@@ -66,6 +66,36 @@ export const founderCatalogApi = {
       headers: etag ? { 'If-Match': etag } : undefined,
       body: JSON.stringify({}),
     }),
+
+  // ── MERCH (PRINTFUL) ────────────────────────────────────────────────────────────────────────
+  // Printful is a LIVE supplier with its own cart, Stripe checkout and fulfilment. These calls
+  // curate PRESENTATION only — there is deliberately no create, no browse, no import and no
+  // delete, because Phase 1 manages the five products that already exist and nothing else.
+
+  /** The five curated products with their overlay applied, plus the overlay's health state. */
+  listMerch: () => api.request(`${BASE}/merch`),
+
+  /** Read-only. Reports whether the curation store is reachable and whether writes are enabled. */
+  merchHealth: () => api.request(`${BASE}/merch/health`),
+
+  /**
+   * Presentation-only patch on ONE product. `etag` travels as If-Match, so a stale edit is
+   * refused with 409 rather than overwriting a newer decision.
+   */
+  patchMerch: (syncProductId, patch, etag) =>
+    api.request(`${BASE}/merch/${encodeURIComponent(syncProductId)}`, {
+      method: 'PATCH',
+      headers: etag ? { 'If-Match': etag } : undefined,
+      body: JSON.stringify(patch),
+    }),
+
+  /** retire | restore. Restore returns the product HIDDEN, never straight to the storefront. */
+  merchLifecycle: (syncProductId, action, etag) =>
+    api.request(`${BASE}/merch/${encodeURIComponent(syncProductId)}/${action}`, {
+      method: 'POST',
+      headers: etag ? { 'If-Match': etag } : undefined,
+      body: JSON.stringify({}),
+    }),
 };
 
 export default founderCatalogApi;
