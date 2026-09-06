@@ -105,6 +105,103 @@ export const REFUSAL_COPY = Object.freeze({
     'The curation store is unavailable, so terms cannot be changed right now. The storefront is unaffected.',
 });
 
+// ── PHASE 2 · STAGING ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * The staged lifecycle, as short labels.
+ *
+ * "Ready for code review" is deliberately not called "ready to publish": the record is waiting on
+ * a human to add a config entry and deploy it, and nothing about it is live until they do.
+ */
+export const STAGED_STATUS_LABEL = Object.freeze({
+  pending_pricing: 'Needs pricing',
+  pending_fulfillment_approval: 'Needs fulfilment approval',
+  ready_for_code_review: 'Ready for code review',
+  published: 'Published',
+  abandoned: 'Abandoned',
+});
+
+export function stagedStatusLabel(item) {
+  return STAGED_STATUS_LABEL[item?.state] || 'Unknown';
+}
+
+/**
+ * What the founder must do next, in order. One sentence, never a list of everything outstanding —
+ * the point is the next action, not an audit.
+ */
+export function stagedNextAction(item) {
+  if (!item) return null;
+  if (item.state === 'abandoned') return 'Abandoned. Stage the product again to start over.';
+  if (item.state === 'published') return 'Live. Presentation is now managed in the Merch section.';
+  if (!item.pricingComplete) return 'Set a retail price for every variant.';
+  if (!item.presentation?.chosen) return 'Choose categories, Brandable and visibility.';
+  if (!item.fulfillmentApproved) return 'Approve the current Printful mapping.';
+  if (item.state !== 'ready_for_code_review') return 'Prepare the reviewed release.';
+  return 'Send the release manifest to a developer to add to the catalog config and deploy.';
+}
+
+/** A staged product is never visible or purchasable, whatever its state. */
+export function stagedIsPurchasable() {
+  return false;
+}
+
+/**
+ * May a reviewed release be prepared yet?
+ *
+ * Mirrors the server so the button is disabled rather than the refusal arriving after a click.
+ * The server decides; this only makes the answer legible early.
+ */
+export function canPrepareRelease(item) {
+  return Boolean(item)
+    && item.pricingComplete === true
+    && item.fulfillmentApproved === true
+    && item.presentation?.chosen === true
+    && item.state !== 'published'
+    && item.state !== 'abandoned';
+}
+
+/** A price the founder has typed, as integer cents, or null when it is not a usable price. */
+export function parseRetailCents(input) {
+  if (input === null || input === undefined) return null;
+  const text = String(input).trim();
+  if (text === '') return null;
+  if (!/^\d+(?:\.\d{1,2})?$/.test(text)) return NaN;
+  const [whole, frac = ''] = text.split('.');
+  const cents = Number(whole) * 100 + Number(frac.padEnd(2, '0'));
+  return Number.isSafeInteger(cents) && cents > 0 ? cents : NaN;
+}
+
+/**
+ * Staging refusals, in founder language.
+ *
+ * MANIFEST_MISMATCH is the one that matters most: it means the deployed catalog is not what was
+ * approved, and the honest response is to stop rather than to mark the product live anyway.
+ */
+export const STAGED_REFUSAL_COPY = Object.freeze({
+  ALREADY_CURATED: 'That product is already in the live catalog. Manage it in the Merch section.',
+  already_staged: 'That product is already staged.',
+  single_product_only: 'Products are added one at a time.',
+  PRICING_INCOMPLETE: 'Every variant needs a retail price first.',
+  APPROVAL_MISSING: 'Approve the current Printful mapping first.',
+  PRESENTATION_MISSING: 'Choose categories, Brandable and visibility first.',
+  FINGERPRINT_STALE:
+    'The Printful mapping changed since it was approved. Re-approve it, then prepare the release again.',
+  VARIANT_UNAVAILABLE: 'Printful reports a variant as unavailable, so this cannot be released yet.',
+  PRODUCT_GONE: 'This product is no longer in the Printful store.',
+  NOT_DEPLOYED:
+    'The catalog entry is not in the running backend yet. It has to be added in code and deployed first.',
+  MANIFEST_MISMATCH:
+    'The deployed catalog entry does not match what was approved. Do not mark this live — have the difference checked first.',
+  INVALID_PRICE: 'Enter a price in dollars and cents, above zero.',
+  VARIANT_SET_MISMATCH: 'The variant list changed at Printful. Reopen this product and price it again.',
+  etag_conflict:
+    'This record changed since you opened it. Reload it and re-apply your edit — nothing was overwritten.',
+  staging_unavailable:
+    'The staging store is unavailable. The live marketplace is unaffected.',
+  printful_unavailable: 'Printful is not responding right now. Nothing was changed.',
+  printful_unconfigured: 'Printful is not configured in this environment.',
+});
+
 /**
  * Toggle a category on or off.
  *
