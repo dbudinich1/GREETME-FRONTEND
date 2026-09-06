@@ -109,9 +109,35 @@ export default function MerchStagingSection({ client, onDirtyChange }) {
   const prepare = async (item) => {
     const res = await run(item.syncProductId,
       () => client.prepareStagedRelease(item.syncProductId, item.etag),
-      'Release manifest prepared. Nothing is live yet.');
+      'Release manifest prepared. The product stays hidden when the catalog change is deployed — '
+      + 'your visibility choice is applied only after you confirm the deployed entry matches.');
     if (res?.releaseManifest) {
       setManifests((m) => ({ ...m, [item.syncProductId]: res.releaseManifest }));
+    }
+  };
+
+  /**
+   * Confirmation is not the same as "it is now live".
+   *
+   * A founder who chose to keep the product hidden gets a truthful message saying so, rather than
+   * a success line implying a storefront change that did not happen. The server reports which it
+   * was; this only repeats it.
+   */
+  const confirm = async (item) => {
+    setBusyId(item.syncProductId);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await client.confirmStagedPublished(item.syncProductId, item.etag);
+      setNotice(res?.customerVisible
+        ? 'Verified against the deployed catalog. The product is now visible to customers.'
+        : 'Verified against the deployed catalog. The product stays hidden, as you chose — '
+          + 'unhide it in the Merch section whenever you are ready.');
+      await load();
+    } catch (e) {
+      setError(copyFor(e, 'That change was refused.'));
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -169,6 +195,13 @@ export default function MerchStagingSection({ client, onDirtyChange }) {
             <p data-testid={`merch-staged-next-${item.syncProductId}`} style={{ fontSize: '0.75rem', margin: '0.25rem 0' }}>
               {stagedNextAction(item)}
             </p>
+            {item.state === 'ready_for_code_review' ? (
+              <p data-testid={`merch-staged-hiddenondeploy-${item.syncProductId}`}
+                style={{ fontSize: '0.75rem', margin: '0.25rem 0' }}>
+                Deploying the catalog change will not reveal this product. It stays hidden until you
+                confirm the deployed entry matches what you approved.
+              </p>
+            ) : null}
 
             <table style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
               <thead>
@@ -260,9 +293,7 @@ export default function MerchStagingSection({ client, onDirtyChange }) {
 
             <button type="button" style={btn} disabled={busy || item.state !== 'ready_for_code_review'}
               data-testid={`merch-staged-confirm-${item.syncProductId}`}
-              onClick={() => run(item.syncProductId,
-                () => client.confirmStagedPublished(item.syncProductId, item.etag),
-                'Verified against the deployed catalog and marked live.')}>
+              onClick={() => confirm(item)}>
               Confirm the deployed catalog matches
             </button>
 

@@ -247,7 +247,9 @@ test("10 · preparing shows the manifest and says nothing is live", async () => 
   assert.ok(block, "the manifest is shown for review");
   assert.match(block.textContent, /999000111/);
   assert.match(block.textContent, /not applied by this screen/i);
-  assert.match(byId(host, "merch-staging-notice").textContent, /nothing is live yet/i);
+  const notice = byId(host, "merch-staging-notice").textContent;
+  assert.match(notice, /stays hidden when the catalog change is deployed/i);
+  assert.match(notice, /only after you confirm/i);
 });
 
 test("11 · a manifest mismatch on confirmation is reported, not glossed over", async () => {
@@ -293,4 +295,48 @@ test("13 · each card states the single next action, in order", async () => {
     const { host } = await mount(client);
     assert.match(byId(host, `merch-staged-next-${NEW_ID}`).textContent, re, JSON.stringify(over));
   }
+});
+
+// ── 14-15 · the deployment window is described truthfully ───────────────────────────────────────
+
+test("14 · a prepared release says the deploy will NOT reveal the product", async () => {
+  const client = makeClient({
+    listStaged: async () => ({ ok: true, state: "present", items: [stagedItem({
+      state: "ready_for_code_review", pricingComplete: true, fulfillmentApproved: true,
+      presentation: { greetMeCategories: ["tech"], brandable: true, featuredRank: 2, displayEnabled: true, chosen: true },
+    })] }),
+  });
+  const { host } = await mount(client);
+  const note = byId(host, `merch-staged-hiddenondeploy-${NEW_ID}`);
+  assert.ok(note, "the deployment-window note is shown");
+  assert.match(note.textContent, /will not reveal this product/i);
+  assert.match(note.textContent, /stays hidden until you confirm/i);
+});
+
+test("15 · confirmation reports hidden vs visible truthfully, never a blanket 'live'", async () => {
+  const ready = () => stagedItem({
+    state: "ready_for_code_review", pricingComplete: true, fulfillmentApproved: true,
+    presentation: { greetMeCategories: ["tech"], brandable: true, featuredRank: null, displayEnabled: false, chosen: true },
+  });
+
+  // The founder chose HIDDEN.
+  const hidden = makeClient({
+    listStaged: async () => ({ ok: true, state: "present", items: [ready()] }),
+    confirmStagedPublished: async () => ({ ok: true, item: ready(), customerVisible: false, presentationApplied: true }),
+  });
+  let host = (await mount(hidden)).host;
+  await act(async () => { byId(host, `merch-staged-confirm-${NEW_ID}`).click(); });
+  let notice = byId(host, "merch-staging-notice").textContent;
+  assert.match(notice, /stays hidden, as you chose/i);
+  assert.equal(/now visible to customers/i.test(notice), false, "must not claim it went live");
+
+  // The founder chose VISIBLE.
+  const visible = makeClient({
+    listStaged: async () => ({ ok: true, state: "present", items: [ready()] }),
+    confirmStagedPublished: async () => ({ ok: true, item: ready(), customerVisible: true, presentationApplied: true }),
+  });
+  host = (await mount(visible)).host;
+  await act(async () => { byId(host, `merch-staged-confirm-${NEW_ID}`).click(); });
+  notice = byId(host, "merch-staging-notice").textContent;
+  assert.match(notice, /now visible to customers/i);
 });
