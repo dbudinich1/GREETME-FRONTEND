@@ -109,11 +109,14 @@ test("the drawer is closed until asked, then opens over the page as a dialog", a
 
 // ── 26 — the four sections ─────────────────────────────────────────────────────────────────
 
-test("Draft, Published, Retired and Providers are all reachable", async () => {
+test("Draft, Published, Retired, Providers and Merch are all reachable", async () => {
   const client = clientStub();
   await mount({ open: true, onClose() {}, client });
   const labels = [...root.querySelectorAll("nav button")].map((b) => b.textContent.trim());
-  assert.deepEqual(labels, ["Draft", "Published", "Retired", "Providers"]);
+  // "Merch (Printful)" is a LIVE SUPPLIER section, deliberately separate from Providers — that
+  // list is the two-provider Florist One / Goody registry. The closed-world assertion is kept:
+  // any OTHER new section still fails here, which is what this test is for.
+  assert.deepEqual(labels, ["Draft", "Published", "Retired", "Providers", "Merch (Printful)"]);
   const pressed = [...root.querySelectorAll("nav button")].filter((b) => b.getAttribute("aria-pressed") === "true");
   assert.equal(pressed.length, 1);
   assert.equal(pressed[0].textContent.trim(), "Draft", "the drawer opens on Draft");

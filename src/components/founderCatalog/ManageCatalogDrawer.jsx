@@ -18,6 +18,7 @@ import founderCatalogApi from '../../api/founderCatalog';
 import {
   CATEGORY_LABELS, REFUSAL_COPY, SECTIONS, STORABLE_CATEGORY_IDS, toggleCategoryId,
 } from './catalogDrawerModel';
+import MerchCurationSection from './MerchCurationSection.jsx';
 
 // Re-exported so the component remains the single import site for callers that already have it.
 export { STORABLE_CATEGORY_IDS, CATEGORY_LABELS, SECTIONS };
@@ -39,11 +40,23 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
   const [query, setQuery] = useState('');
 
   const isProviders = section === 'providers';
+  const isMerch = section === 'merch';
+  const [merchDirty, setMerchDirty] = useState(false);
+
+
+  // Unsaved merch edits must not vanish silently on close or a section switch. The guard is a
+  // confirm rather than a block: the founder stays in control, but is never surprised.
+  const confirmDiscard = () => !merchDirty
+    || (typeof window !== 'undefined' && typeof window.confirm === 'function'
+      ? window.confirm('You have unsaved merch changes. Discard them?') : true);
+  const guardedClose = () => { if (confirmDiscard()) { setMerchDirty(false); onClose(); } };
+  const guardedSection = (id) => { if (id === section || confirmDiscard()) { setMerchDirty(false); setSection(id); } };
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      if (isMerch) { return; }
       if (isProviders) {
         const res = await client.listProviders();
         setProviders(res?.providers || []);
@@ -56,7 +69,7 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
     } finally {
       setLoading(false);
     }
-  }, [client, section, query, isProviders]);
+  }, [client, section, query, isProviders, isMerch]);
 
   useEffect(() => { if (open) load(); }, [open, load]);
 
@@ -100,7 +113,7 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
         padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)',
       }}>
         <h2 style={{ margin: 0, fontSize: '1.0625rem', fontWeight: 700 }}>Manage Catalog</h2>
-        <button type="button" onClick={onClose} aria-label="Close Manage Catalog"
+        <button type="button" onClick={guardedClose} aria-label="Close Manage Catalog"
           style={{ padding: 0, width: 32, height: 32, border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'transparent', cursor: 'pointer' }}>
           <X size={16} />
         </button>
@@ -111,7 +124,7 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
           <button
             key={s.id}
             type="button"
-            onClick={() => setSection(s.id)}
+            onClick={() => guardedSection(s.id)}
             aria-pressed={section === s.id}
             style={{
               flexShrink: 0, padding: '0.375rem 0.875rem', borderRadius: '9999px',
@@ -149,7 +162,11 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
         {loading && <p style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>Loading…</p>}
         {error && <p style={{ color: '#b91c1c' }}>{error}</p>}
 
-        {!loading && !error && isProviders && (
+        {isMerch && (
+          <MerchCurationSection client={client} onDirtyChange={setMerchDirty} />
+        )}
+
+        {!loading && !error && !isMerch && isProviders && (
           <ul data-testid="provider-list" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '0.75rem' }}>
             {providers.map((p) => (
               <li key={p.providerId} data-testid={`provider-${p.providerId}`}
@@ -191,7 +208,7 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
           </ul>
         )}
 
-        {!loading && !error && !isProviders && (
+        {!loading && !error && !isProviders && !isMerch && (
           <ul data-testid="catalog-item-list" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '1rem' }}>
             {sectionItems.length === 0 && <li style={{ color: 'var(--text-secondary)' }}>No records in this section.</li>}
             {sectionItems.map((item) => (

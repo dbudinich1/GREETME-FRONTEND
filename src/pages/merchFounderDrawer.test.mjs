@@ -54,8 +54,13 @@ test("the drawer introduces no route and no second page", () => {
 
 // ── 26 — sections ──────────────────────────────────────────────────────────────────────────
 
-test("the drawer offers exactly Draft, Published, Retired and Providers", () => {
-  assert.deepEqual(SECTIONS.map((s) => s.label), ["Draft", "Published", "Retired", "Providers"]);
+test("the drawer offers exactly Draft, Published, Retired, Providers and Merch", () => {
+  // Merch (Printful) is a live supplier with its own cart, checkout and fulfilment, so it is its
+  // own section rather than a third entry in Providers — that list is the two-provider registry,
+  // and listing a shipping supplier there would both break its boot invariant and describe it as
+  // dormant. The list stays closed: any other new section still fails this assertion.
+  assert.deepEqual(SECTIONS.map((s) => s.label),
+    ["Draft", "Published", "Retired", "Providers", "Merch (Printful)"]);
 });
 
 // ── 30/31/32 — category vocabulary in the drawer ───────────────────────────────────────────
