@@ -21,7 +21,9 @@ import {
   toPrepareRequest, validateCheckoutForm,
 } from './providerCheckoutModel';
 import { clearCardFields, tokenizeCard } from './acceptJsLoader';
-import { fetchTokenizationConfig, prepareCheckout, submitCheckout } from '../../api/providerCheckout';
+import {
+  fetchProviderProducts, fetchTokenizationConfig, prepareCheckout, submitCheckout,
+} from '../../api/providerCheckout';
 
 const EMPTY_CARD = { cardNumber: '', expMonth: '', expYear: '', cvv: '', postalCode: '' };
 
@@ -33,7 +35,12 @@ const input = {
 const row = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' };
 
 export default function ProviderCheckoutModal({ isOpen, onClose, giftType, product, customer }) {
-  const [step, setStep] = useState('details');
+  // A caller that already knows the product (the marketplace, later) starts at the details step.
+  // With no product in hand the customer picks one first, from the PROVIDER's live list.
+  const [chosen, setChosen] = useState(product ?? null);
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [step, setStep] = useState(product ? 'details' : 'product');
   const [form, setForm] = useState({
     deliveryDate: '', recipientFirstName: '', recipientLastName: '',
     address1: '', address2: '', city: '', state: '', postalCode: '',
@@ -61,6 +68,25 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
   // Card fields never outlive the modal.
   useEffect(() => { if (!isOpen) { setCard({ ...EMPTY_CARD }); } }, [isOpen]);
 
+  // The live product list, loaded once the customer has deliberately opened the checkout. The
+  // backend is founder-gated, so for anyone else this resolves empty and the picker offers nothing.
+  useEffect(() => {
+    if (!isOpen || step !== 'product' || !giftType) return undefined;
+    let cancelled = false;
+    setLoadingProducts(true);
+    (async () => {
+      try {
+        const live = await fetchProviderProducts(giftType);
+        if (!cancelled) setProducts(live);
+      } catch {
+        if (!cancelled) setProducts([]);
+      } finally {
+        if (!cancelled) setLoadingProducts(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, step, giftType]);
+
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const onPrepare = useCallback(async () => {
@@ -70,7 +96,7 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
     setBusy(true);
     setFailure(null);
     try {
-      const res = await prepareCheckout(toPrepareRequest(form, { giftType, product }));
+      const res = await prepareCheckout(toPrepareRequest(form, { giftType, product: chosen }));
       if (!res?.ok) {
         setFailure(res?.error || 'We could not price this order. Please check the delivery details.');
         return;
@@ -90,7 +116,7 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
     } finally {
       setBusy(false);
     }
-  }, [form, giftType, product]);
+  }, [form, giftType, chosen]);
 
   const onPay = useCallback(async () => {
     if (submitting.current) return;
@@ -160,6 +186,58 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
           <p data-testid="provider-checkout-error" role="alert" style={{ background: '#fef2f2', color: '#991b1b', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.9rem' }}>
             {failure}
           </p>
+        )}
+
+        {step === 'product' && (
+          <div data-testid="provider-checkout-picker" style={{ display: 'grid', gap: '0.75rem' }}>
+            {loadingProducts && <p style={{ margin: 0 }}>Loading the live selection…</p>}
+            {!loadingProducts && products.length === 0 && (
+              <p data-testid="provider-checkout-picker-empty" style={{ margin: 0, color: 'var(--text-secondary, #64748b)' }}>
+                No products are available to you right now.
+              </p>
+            )}
+            {products.map((p) => {
+              const selected = chosen?.providerProductId === p.providerProductId;
+              return (
+                <button
+                  key={p.providerProductId}
+                  type="button"
+                  data-testid={`provider-product-${p.providerProductId}`}
+                  onClick={() => setChosen(p)}
+                  style={{
+                    display: 'grid', gridTemplateColumns: p.imageUrl ? '72px 1fr auto' : '1fr auto',
+                    gap: '0.75rem', alignItems: 'center', textAlign: 'left', cursor: 'pointer',
+                    padding: '0.6rem', borderRadius: 10, background: 'var(--bg-primary, #fff)',
+                    border: selected ? '2px solid #4F2D7F' : '1px solid var(--border, #e2e8f0)',
+                  }}
+                >
+                  {p.imageUrl && <img src={p.imageUrl} alt="" width="72" height="72" style={{ borderRadius: 8, objectFit: 'cover' }} />}
+                  <span>
+                    <strong style={{ display: 'block' }}>{p.name}</strong>
+                    <small style={{ color: 'var(--text-secondary, #64748b)' }}>{p.providerProductId}</small>
+                  </span>
+                  {/* The provider's own price, displayed exactly as received. It is never an input:
+                      the amount charged comes from the provider's quote at the next step. */}
+                  <span data-testid={`provider-price-${p.providerProductId}`} style={{ fontWeight: 700 }}>
+                    {formatMinor(p.priceMinor, p.currency)}
+                  </span>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              data-testid="provider-checkout-choose"
+              disabled={!chosen}
+              onClick={() => setStep('details')}
+              style={{
+                padding: '0.7rem 1rem', borderRadius: 10, border: 'none', fontWeight: 700,
+                background: chosen ? '#4F2D7F' : 'var(--border, #cbd5e1)',
+                color: '#fff', cursor: chosen ? 'pointer' : 'not-allowed',
+              }}
+            >
+              Continue with this arrangement
+            </button>
+          </div>
         )}
 
         {step === 'details' && (

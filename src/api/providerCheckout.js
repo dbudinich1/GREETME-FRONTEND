@@ -40,6 +40,19 @@ export async function fetchCheckoutAvailability(giftType) {
 }
 
 /**
+ * The provider's LIVE product list, for the founder-restricted test surface.
+ *
+ * READ ONLY and founder-gated at the backend: an ordinary authenticated user gets 403 and this
+ * resolves to an empty list, so the picker simply does not appear. Prices come from the provider
+ * and are displayed as received — the browser never sends a price back, and the total that is
+ * charged comes from the provider's own quote at prepare time regardless.
+ */
+export async function fetchProviderProducts(giftType) {
+  const res = await callOrUnavailable(() => api.request(`${BASE}/catalog?giftType=${encodeURIComponent(giftType)}`));
+  return Array.isArray(res?.products) ? res.products : [];
+}
+
+/**
  * The provider's CURRENT publishable tokenization configuration.
  *
  * Never cached, never persisted, never put in localStorage: the provider states these values change

@@ -310,6 +310,77 @@ test("an uncertain outcome offers no retry and sends the customer to support", a
   assert.equal(tid("provider-order-number"), null, "no order number may be shown when none came back");
 });
 
+// ===========================================================================
+// The founder-only product picker
+// ===========================================================================
+
+const LIVE_PRODUCTS = [
+  { providerProductId: "T18-1A", name: "Sweet Devotion", priceMinor: 5499, currency: "USD", imageUrl: null },
+  { providerProductId: "B12-3B", name: "Simply Sweet", priceMinor: 4499, currency: "USD", imageUrl: null },
+];
+
+test("the picker lists the provider's LIVE products and their own prices", async () => {
+  ROUTES = { "/provider-checkout/catalog": async () => ({ ok: true, products: LIVE_PRODUCTS }) };
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+
+  assert.ok(tid("provider-checkout-picker"), "the picker is the first step when no product is known");
+  assert.ok(tid("provider-product-T18-1A"));
+  assert.equal(tid("provider-price-T18-1A").textContent, "$54.99");
+  assert.equal(tid("provider-price-B12-3B").textContent, "$44.99");
+
+  // The price is DISPLAY ONLY: there is no editable price control anywhere on this step.
+  const inputs = [...tid("provider-checkout-picker").querySelectorAll("input, select, textarea")];
+  assert.equal(inputs.length, 0, "a price the browser could edit must not exist");
+});
+
+test("a product must be chosen before the checkout will continue", async () => {
+  ROUTES = { "/provider-checkout/catalog": async () => ({ ok: true, products: LIVE_PRODUCTS }) };
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+
+  assert.equal(tid("provider-checkout-choose").disabled, true);
+  await click(tid("provider-checkout-choose"));
+  assert.ok(tid("provider-checkout-picker"), "an unchosen picker cannot advance");
+
+  await click(tid("provider-product-B12-3B"));
+  assert.equal(tid("provider-checkout-choose").disabled, false);
+  await click(tid("provider-checkout-choose"));
+  assert.ok(tid("provider-checkout-details"), "choosing advances to the delivery details");
+});
+
+test("an ordinary customer sees no products and cannot proceed", async () => {
+  // The backend answers 403 to anyone but the founder; the client turns that into an empty list.
+  ROUTES = { "/provider-checkout/catalog": async () => ({ ok: false, error: "founder_required" }) };
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+
+  assert.ok(tid("provider-checkout-picker-empty"), "no product is offered");
+  assert.equal(document.querySelector('[data-testid^="provider-product-"]'), null);
+  assert.equal(tid("provider-checkout-choose").disabled, true);
+});
+
+test("the chosen product is what gets priced, and the browser never sends a price", async () => {
+  const prepares = [];
+  ROUTES = {
+    "/provider-checkout/catalog": async () => ({ ok: true, products: LIVE_PRODUCTS }),
+    "/provider-checkout/prepare": async (body) => { prepares.push(body); return PREPARED; },
+    "/provider-checkout/tokenization": async () => ({ ok: true, tokenization: TOKENIZATION }),
+  };
+  installTokenizer();
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+  await click(tid("provider-product-T18-1A"));
+  await click(tid("provider-checkout-choose"));
+  await fillDetails();
+  await click(tid("provider-checkout-continue"));
+
+  assert.equal(prepares.length, 1);
+  assert.equal(prepares[0].productCode, "T18-1A", "the chosen product is the one priced");
+  const sent = JSON.stringify(prepares[0]);
+  for (const forbidden of ['"priceMinor"', '"orderTotalMinor"', '"total"']) {
+    assert.equal(sent.includes(forbidden), false, `the browser must not send ${forbidden}`);
+  }
+  // And the total shown is the one the PROVIDER quoted, not anything from the picker.
+  assert.match(tid("provider-checkout-summary").textContent, /\$84\.97/);
+});
+
 test("the order is not priced until the form is complete, and nothing is sent meanwhile", async () => {
   ROUTES = { "/provider-checkout/prepare": async () => PREPARED };
   await mount(Modal, { isOpen: true, giftType: "flowers", product: {}, customer: {}, onClose: () => {} });
