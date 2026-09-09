@@ -521,9 +521,12 @@ export default function Merch() {
       {/* TEAM F — provider-fulfilled categories. Renders nothing unless the backend says this
           category is purchasable, so the marketplace below is untouched while the provider is
           dormant. The customer completes the whole order here; there is no vendor redirect. */}
+      {/* No product is passed. A provider-fulfilled item is chosen from the PROVIDER's own live
+          list inside the checkout, never from this marketplace's catalog — handing a Printful
+          product to a florist would be an order nobody could fulfil. */}
       <ProviderCheckoutEntry
         selectedCategory={selectedCategory}
-        product={visibleProducts[0] || null}
+        product={null}
         customer={user}
       />
 

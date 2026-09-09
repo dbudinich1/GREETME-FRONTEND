@@ -167,6 +167,17 @@ test('money is formatted from the authoritative minor units and never recomputed
 // No processor host is hard-coded anywhere on this surface
 // ===========================================================================
 
+test('the marketplace never hands its own product to a provider checkout', () => {
+  // A Printful product in a florist order is an order nobody can fulfil. The entry point passes no
+  // product at all, so the choice can only come from the provider's own live list.
+  const merch = readFileSync(join(HERE, '../../pages/Merch.jsx'), 'utf8');
+  const entry = merch.slice(merch.indexOf('<ProviderCheckoutEntry'), merch.indexOf('/>', merch.indexOf('<ProviderCheckoutEntry')));
+  assert.ok(entry.length > 20, 'the entry point must be present in the marketplace');
+  assert.match(entry, /product=\{null\}/);
+  assert.equal(/visibleProducts|selectedProducts|products\[/.test(entry), false,
+    'no marketplace product may be passed into a provider checkout');
+});
+
 test('the tokenizer address comes from the provider, never from this repository', () => {
   for (const file of ['acceptJsLoader.js', 'ProviderCheckoutModal.jsx', 'ProviderCheckoutEntry.jsx',
     'providerCheckoutModel.js', '../../api/providerCheckout.js']) {
