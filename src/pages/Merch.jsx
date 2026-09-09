@@ -25,6 +25,10 @@ import PriceRangeFilter from '../components/PriceRangeFilter';
 import { useAuth } from '../context/AuthContext';
 import { isFounder } from '../utils/accountState';
 import ManageCatalogDrawer from '../components/founderCatalog/ManageCatalogDrawer';
+// TEAM F — the in-Greet-Me checkout for a PROVIDER-fulfilled category (flowers, gift boxes). It
+// asks the backend whether the category is purchasable and renders NOTHING while the provider is
+// dormant, so this marketplace is unchanged until a founder activates one.
+import ProviderCheckoutEntry from '../components/providerCheckout/ProviderCheckoutEntry';
 
 export default function Merch() {
   const navigate = useNavigate();
@@ -513,6 +517,15 @@ export default function Merch() {
           isNarrow={isNarrow}
         />
       )}
+
+      {/* TEAM F — provider-fulfilled categories. Renders nothing unless the backend says this
+          category is purchasable, so the marketplace below is untouched while the provider is
+          dormant. The customer completes the whole order here; there is no vendor redirect. */}
+      <ProviderCheckoutEntry
+        selectedCategory={selectedCategory}
+        product={visibleProducts[0] || null}
+        customer={user}
+      />
 
       {/* GIFTS — Brandable Goods header: the approved copy and the Brand for My Company action,
           and nothing else. The products themselves render in the ONE shared area below, through
