@@ -26,6 +26,8 @@ const ENTRY = join(__dirname, ".__pc.entry.jsx");
 const START_URL = "http://localhost/dashboard/gifts";
 
 let React, createRoot, act, Entry, Modal, MemoryRouter, window;
+/** The untouched appendChild, captured once so test hooks never stack on one another. */
+let PRISTINE_APPEND_CHILD;
 
 before(async () => {
   writeFileSync(ENTRY,
@@ -49,6 +51,8 @@ before(async () => {
   globalThis.Event = window.Event; globalThis.CustomEvent = window.CustomEvent;
   globalThis.getComputedStyle = window.getComputedStyle;
   globalThis.localStorage = window.localStorage;
+  window.performance.getEntriesByType = (type) => (type === "resource" ? RESOURCES : []);
+  PRISTINE_APPEND_CHILD = window.document.head.appendChild;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   React = (await import("react")).default;
   act = React.act;
@@ -99,11 +103,21 @@ function stubFetch() {
   window.fetch = globalThis.fetch;
 }
 
-/** A tokenizer that behaves like the real one: the card in, a one-time token out. */
-function installTokenizer({ decline = false } = {}) {
+/** The Resource Timing entries the readiness barrier reads. jsdom fetches nothing, so the test
+ *  drives them explicitly — which is also how the production race is reproduced. */
+let RESOURCES = [];
+const completeTokenizerCore = () => RESOURCES.push({ name: "https://tokenizer.example/v1/AcceptCore.js" });
+
+/**
+ * A tokenizer that behaves like the real one: the STUB installs its global on load, and its core
+ * completes separately. `core: false` reproduces the production failure exactly.
+ */
+function installTokenizer({ decline = false, core = true } = {}) {
   const seen = [];
   window.__tokenizerCalls = seen;
-  const original = window.document.head.appendChild.bind(window.document.head);
+  // Always wrap the PRISTINE appendChild. Wrapping the previous wrapper stacked one hook per test,
+  // so a later `core: false` install was still serviced by an earlier `core: true` one.
+  const original = PRISTINE_APPEND_CHILD.bind(window.document.head);
   window.document.head.appendChild = (node) => {
     const appended = original(node);
     if (node.tagName === "SCRIPT" && node.src === TOKENIZER_URL) {
@@ -117,7 +131,11 @@ function installTokenizer({ decline = false } = {}) {
           }
         },
       };
-      setTimeout(() => node.dispatchEvent(new window.Event("load")), 0);
+      setTimeout(() => {
+        node.dispatchEvent(new window.Event("load"));
+        // The library fetching its own core — the evidence readiness waits for.
+        if (core) completeTokenizerCore();
+      }, 0);
     }
     return appended;
   };
@@ -150,6 +168,19 @@ const click = async (el) => {
   await flush(); await flush(); await flush();
 };
 
+/**
+ * Wait for the tokenizer's readiness to actually RENDER, rather than hoping a fixed number of ticks
+ * covered it. Readiness resolves through an observer plus promise hops, so a test asserting the
+ * enabled state must wait for the evidence on screen — bounded, and it fails loudly if it never comes.
+ */
+async function awaitTokenizerReady({ ticks = 40 } = {}) {
+  for (let i = 0; i < ticks; i += 1) {
+    if (!tid("provider-checkout-securing")) return;
+    await flush();
+  }
+  throw new Error("the tokenizer never reached its ready state");
+}
+
 async function fillDetails() {
   setVal(byId("pc-delivery-date"), "2026-09-15");
   setVal(byId("pc-first"), "Dana");
@@ -180,6 +211,8 @@ async function fillCard() {
 beforeEach(() => {
   delete window.Accept;
   delete window.__greetmeTokenizerLoad;
+  RESOURCES = [];
+  if (PRISTINE_APPEND_CHILD) window.document.head.appendChild = PRISTINE_APPEND_CHILD;
   ROUTES = {};
   stubFetch();
 });
@@ -246,6 +279,7 @@ test("the customer completes the order inside Greet-Me and sees the provider ord
   assert.match(tid("provider-checkout-summary").textContent, /Florist One/);
 
   await fillCard();
+  await awaitTokenizerReady();
   await click(tid("provider-checkout-pay"));
 
   // 1. The card went to the PROVIDER's tokenizer, in this browser.
@@ -290,6 +324,7 @@ test("a declined card clears the fields and never reaches the backend", async ()
   await fillDetails();
   await click(tid("provider-checkout-continue"));
   await fillCard();
+  await awaitTokenizerReady();
   await click(tid("provider-checkout-pay"));
 
   assert.equal(submitted, 0, "a card that was never tokenized must not reach the backend");
@@ -313,6 +348,7 @@ test("an uncertain outcome offers no retry and sends the customer to support", a
   await fillDetails();
   await click(tid("provider-checkout-continue"));
   await fillCard();
+  await awaitTokenizerReady();
   await click(tid("provider-checkout-pay"));
 
   // The step's own copy is the modal heading; the confirmation block below it holds the actions.
@@ -562,7 +598,11 @@ test("the review shows every authoritative component, the code, the city/state a
   assert.match(tid("provider-checkout-line-total").textContent, /\$84\.97/);
   // The displayed parts account for the displayed total, exactly.
   assert.equal(5499 + 2499 + 499, 8497);
-  assert.equal(tid("provider-checkout-pay").disabled, false);
+  // A valid quote alone does NOT open the button: the card form is still empty.
+  assert.equal(tid("provider-checkout-pay").disabled, true, "empty card fields keep it closed");
+  await fillCard();
+  await awaitTokenizerReady();
+  assert.equal(tid("provider-checkout-pay").disabled, false, "quote + ready tokenizer + card input");
 });
 
 test("the review never renders the street address, postcode, telephone, card or token", async () => {
@@ -578,6 +618,135 @@ test("a quote with a missing component FAILS CLOSED — no price shown, Place Or
   assert.ok(tid("provider-checkout-quote-unavailable"), "the payer is told the price cannot be shown");
   assert.equal(tid("provider-checkout-line-total"), null, "no total is displayed");
   assert.equal(tid("provider-checkout-pay").disabled, true, "Place Order must be disabled");
+});
+
+// ===========================================================================
+// The payment gate — four independent conditions, each provable alone
+// ===========================================================================
+
+test("the tokenizer starts loading on ARRIVAL at payment, not on the Place Order click", async () => {
+  await reachPayment();
+  // The tag exists before anything has been clicked on this step.
+  const tag = document.querySelector('script[data-greetme-tokenizer]');
+  assert.ok(tag, "the tokenizer is preloaded while the customer types");
+  assert.equal(tag.src, TOKENIZER_URL);
+});
+
+test("a NOT-READY tokenizer shows the securing state and keeps Place Order disabled", async () => {
+  // The exact production failure: the stub installs its global, the core never completes.
+  ROUTES = {
+    "/provider-checkout/catalog": async () => ({ ok: true, products: LIVE_PRODUCTS }),
+    "/provider-checkout/prepare": async () => PREPARED,
+    "/provider-checkout/tokenization": async () => ({ ok: true, tokenization: TOKENIZATION }),
+  };
+  installTokenizer({ core: false });
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+  await click(tid("provider-product-T18-1A"));
+  await click(tid("provider-checkout-choose"));
+  await fillDetails();
+  await click(tid("provider-checkout-continue"));
+  await fillCard();
+
+  const state = tid("provider-checkout-securing") ? "securing"
+    : tid("provider-checkout-tokenizer-failed") ? "failed" : "neither";
+  assert.equal(state, "securing", `a neutral securing state is shown (saw: ${state})`);
+  assert.match(tid("provider-checkout-securing").textContent, /securing payment form/i);
+  assert.equal(tid("provider-checkout-pay").disabled, true,
+    "a complete quote and a filled card are NOT enough while the tokenizer is unproven");
+});
+
+test("empty card fields keep Place Order disabled even with a ready tokenizer", async () => {
+  await reachPayment();
+  assert.equal(tid("provider-checkout-pay").disabled, true);
+  // Each field alone is insufficient; only the complete set opens it.
+  setVal(byId("pc-card"), "4111111111111111");
+  await flush();
+  assert.equal(tid("provider-checkout-pay").disabled, true, "a number alone is not enough");
+  setVal(byId("pc-exp-month"), "01");
+  setVal(byId("pc-exp-year"), "30");
+  await flush();
+  assert.equal(tid("provider-checkout-pay").disabled, true, "still no security code");
+  setVal(byId("pc-cvv"), "123");
+  await flush();
+  await awaitTokenizerReady();
+  assert.equal(tid("provider-checkout-pay").disabled, false);
+});
+
+test("ONE click causes exactly ONE dispatchData, and repeats while processing cause none", async () => {
+  const calls = installTokenizer();
+  ROUTES = {
+    "/provider-checkout/catalog": async () => ({ ok: true, products: LIVE_PRODUCTS }),
+    "/provider-checkout/prepare": async () => PREPARED,
+    "/provider-checkout/tokenization": async () => ({ ok: true, tokenization: TOKENIZATION }),
+    "/provider-checkout/submit": async () => ({ ok: true, status: "accepted", checkout: ACCEPTED }),
+  };
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+  await click(tid("provider-product-T18-1A"));
+  await click(tid("provider-checkout-choose"));
+  await fillDetails();
+  await click(tid("provider-checkout-continue"));
+  await fillCard();
+  await awaitTokenizerReady();
+
+  const pay = tid("provider-checkout-pay");
+  await click(pay);
+  assert.equal(calls.length, 1, "one deliberate click, one tokenization");
+
+  // Hammer it: the button is gone or disabled, and the handler refuses regardless.
+  const again = tid("provider-checkout-pay");
+  if (again) { await click(again); await click(again); }
+  assert.equal(calls.length, 1, "repeated clicks add no further tokenization");
+  const submits = REQUESTS.filter((r) => r.path.includes("/provider-checkout/submit"));
+  assert.equal(submits.length, 1, "and exactly one submission");
+});
+
+test("a declined tokenization is NOT retried automatically", async () => {
+  const calls = installTokenizer({ decline: true });
+  ROUTES = {
+    "/provider-checkout/catalog": async () => ({ ok: true, products: LIVE_PRODUCTS }),
+    "/provider-checkout/prepare": async () => PREPARED,
+    "/provider-checkout/tokenization": async () => ({ ok: true, tokenization: TOKENIZATION }),
+  };
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+  await click(tid("provider-product-T18-1A"));
+  await click(tid("provider-checkout-choose"));
+  await fillDetails();
+  await click(tid("provider-checkout-continue"));
+  await fillCard();
+  await awaitTokenizerReady();
+  await click(tid("provider-checkout-pay"));
+
+  assert.equal(calls.length, 1, "one attempt, and no automatic second one");
+  assert.equal(REQUESTS.filter((r) => r.path.includes("/provider-checkout/submit")).length, 0,
+    "a declined card never reaches submission");
+});
+
+test("no card value is persisted, logged or sent to the Greet-Me API", async () => {
+  installTokenizer();
+  ROUTES = {
+    "/provider-checkout/catalog": async () => ({ ok: true, products: LIVE_PRODUCTS }),
+    "/provider-checkout/prepare": async () => PREPARED,
+    "/provider-checkout/tokenization": async () => ({ ok: true, tokenization: TOKENIZATION }),
+    "/provider-checkout/submit": async () => ({ ok: true, status: "accepted", checkout: ACCEPTED }),
+  };
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+  await click(tid("provider-product-T18-1A"));
+  await click(tid("provider-checkout-choose"));
+  await fillDetails();
+  await click(tid("provider-checkout-continue"));
+  await fillCard();
+  await awaitTokenizerReady();
+  await click(tid("provider-checkout-pay"));
+
+  const sent = JSON.stringify(REQUESTS);
+  for (const forbidden of ["4111111111111111", '"cvv"', '"cardNumber"', '"expMonth"', '"expYear"', '"cardCode"']) {
+    assert.equal(sent.includes(forbidden), false, `${forbidden} must never reach the API`);
+  }
+  // Nor may any of it be left in browser storage.
+  const stored = JSON.stringify({ ls: { ...window.localStorage }, ss: { ...window.sessionStorage } });
+  for (const forbidden of ["4111", "cardNumber", "cvv"]) {
+    assert.equal(stored.includes(forbidden), false, `${forbidden} must not be persisted`);
+  }
 });
 
 test("components that do not sum to the total fail closed too", async () => {
@@ -600,13 +769,17 @@ test("a changed price warns, blocks Place Order, and unblocks only on an express
   assert.match(tid("provider-checkout-line-total").textContent, /\$94\.97/);
 
   await click(tid("provider-checkout-accept-price"));
-  assert.equal(tid("provider-checkout-pay").disabled, false, "an express acknowledgement unblocks it");
+  assert.equal(tid("provider-checkout-pay").disabled, true, "the card form is still empty");
+  await fillCard();
+  await awaitTokenizerReady();
+  assert.equal(tid("provider-checkout-pay").disabled, false, "acknowledged price + card input unblocks it");
 });
 
 test("a blocked review cannot be paid even if the button is clicked anyway", async () => {
   await reachPayment({ prepared: { ...PREPARED, quote: { ...QUOTE, taxMinor: 500 } } });
   await fillCard();
   const before = REQUESTS.length;
+  await awaitTokenizerReady();
   await click(tid("provider-checkout-pay"));
   assert.equal(REQUESTS.length, before, "no request may leave the browser");
   assert.equal(window.__tokenizerCalls.length, 0, "no card may be tokenized");

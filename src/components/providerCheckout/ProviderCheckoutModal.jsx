@@ -20,7 +20,7 @@ import {
   CHECKOUT_STATUS, FIELD_LIMITS, canRetry, formatMinor, providerDisplayName, reviewQuote,
   statusCopy, toPrepareRequest, validateCheckoutForm,
 } from './providerCheckoutModel';
-import { clearCardFields, tokenizeCard } from './acceptJsLoader';
+import { clearCardFields, loadTokenizer, tokenizeCard } from './acceptJsLoader';
 import {
   fetchProviderProducts, fetchTokenizationConfig, prepareCheckout, submitCheckout,
 } from '../../api/providerCheckout';
@@ -57,6 +57,8 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
   const [busy, setBusy] = useState(false);
   // Set only by an express click on the price-changed notice; reset whenever the quote changes.
   const [priceAcknowledged, setPriceAcknowledged] = useState(false);
+  // 'idle' | 'loading' | 'ready' | 'failed' — the tokenizer's PROVEN state, never assumed.
+  const [tokenizerState, setTokenizerState] = useState('idle');
   const [failure, setFailure] = useState(null);
   // One submission per prepared attempt, enforced in the browser as well as in the backend: the
   // provider has no idempotency key, so a double-click must never become a second order.
@@ -121,11 +123,33 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
     }
   }, [form, giftType, chosen]);
 
+  // PRELOAD. The tokenizer starts loading the moment the payment step is reached and a valid
+  // configuration exists — not when Place Order is clicked. The library fetches its own core after
+  // installing its global, and doing that at click time is what produced "Accept.js is not loaded
+  // correctly" in production. Here it happens while the customer is still typing.
+  useEffect(() => {
+    if (step !== 'payment' || !tokenization) return undefined;
+    let cancelled = false;
+    setTokenizerState('loading');
+    loadTokenizer(tokenization).then(
+      () => { if (!cancelled) setTokenizerState('ready'); },
+      () => { if (!cancelled) setTokenizerState('failed'); },
+    );
+    return () => { cancelled = true; };
+  }, [step, tokenization]);
+
   // The authoritative review, derived only from the backend's quote. Recomputed when the quote or
   // the chosen product changes, so an acknowledgement can never carry over to a different price.
   const review = useMemo(() => reviewQuote({ prepared, chosen, form }), [prepared, chosen, form]);
   useEffect(() => { setPriceAcknowledged(false); }, [prepared?.quote?.quoteVersion]);
-  const payAllowed = review.ok && (review.canSubmit || priceAcknowledged);
+  const cardFilled = Boolean(
+    String(card.cardNumber).trim() && String(card.expMonth).trim()
+    && String(card.expYear).trim() && String(card.cvv).trim(),
+  );
+  const quoteAccepted = review.ok && (review.canSubmit || priceAcknowledged);
+  // Four independent conditions, each provable on its own: the quote is valid and acknowledged, the
+  // tokenizer is PROVEN ready, the card fields carry input, and nothing is already in flight.
+  const payAllowed = quoteAccepted && tokenizerState === 'ready' && cardFilled && !busy;
 
   const onPay = useCallback(async () => {
     // Belt as well as braces: the button is disabled, and the handler refuses anyway. A review that
@@ -504,8 +528,21 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
               Your card details go straight to {who}&apos;s payment processor from this page. Greet-Me never receives them.
             </small>
 
-            {/* Fail closed. A review that does not reconcile, or a price that moved and has not been
-                acknowledged, disables the ONLY control that can tokenize a card or place an order. */}
+            {tokenizerState === 'loading' && (
+              <p data-testid="provider-checkout-securing" style={{ margin: 0, color: 'var(--text-secondary, #64748b)' }}>
+                Securing payment form…
+              </p>
+            )}
+            {tokenizerState === 'failed' && (
+              <p data-testid="provider-checkout-tokenizer-failed" style={{ margin: 0, fontWeight: 600, color: '#b91c1c' }}>
+                The payment form could not be prepared. Please reload the page and try again.
+              </p>
+            )}
+
+            {/* Fail closed. A review that does not reconcile, a price that moved and has not been
+                acknowledged, a tokenizer that is not PROVEN ready, an empty card form, or a
+                submission already in flight — any one of them disables the ONLY control that can
+                tokenize a card or place an order. */}
             <button type="button" data-testid="provider-checkout-pay"
               disabled={busy || !payAllowed} onClick={onPay}
               style={{

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 
 import {
   TOKENIZE_ERROR, assertTokenizationConfig, clearCardFields, cspScriptSrcFor, loadTokenizer,
-  tokenizeCard,
+  tokenizeCard, tokenizerCoreLoaded,
 } from './acceptJsLoader.js';
 
 const CONFIG = Object.freeze({
@@ -26,7 +26,11 @@ const CARD = Object.freeze({ cardNumber: '4111 1111 1111 1111', expMonth: '01', 
 /** A fake document whose scripts "load" when told to, so nothing is fetched. */
 function fakeWindow({ onAppend } = {}) {
   const scripts = [];
+  const resources = [];
   const win = {
+    // The evidence the readiness barrier reads. Empty until the library fetches its own core, which
+    // is exactly the production window in which `window.Accept` exists but nothing works yet.
+    performance: { getEntriesByType: (type) => (type === 'resource' ? resources : []) },
     document: {
       head: {
         appendChild(node) {
@@ -47,8 +51,20 @@ function fakeWindow({ onAppend } = {}) {
     },
   };
   win.scripts = scripts;
+  win.resources = resources;
+  /** The library finishing a fetch of its own — the proof the loader waits for. */
+  win.completeCore = () => resources.push({ name: 'https://tokenizer.example/v1/AcceptCore.js' });
+  /** Install the global exactly as the STUB does: present, but with no core behind it yet. */
+  win.installStub = (dispatchData = () => {}) => { win.Accept = { dispatchData }; };
   return win;
 }
+
+/** The ordinary healthy sequence: stub installs, tag loads, core completes. */
+const readyOnAppend = (dispatchData) => (node, w) => {
+  w.installStub(dispatchData);
+  node.fire('load');
+  w.completeCore();
+};
 
 // ===========================================================================
 // The configuration is validated, never repaired
@@ -82,7 +98,7 @@ test('the CSP requirement is derived from what the provider returned', () => {
 // ===========================================================================
 
 test('the tokenizer script is injected only when tokenization is requested', async () => {
-  const win = fakeWindow({ onAppend: (node, w) => { w.Accept = { dispatchData: () => {} }; node.fire('load'); } });
+  const win = fakeWindow({ onAppend: readyOnAppend() });
   assert.equal(win.scripts.length, 0, 'nothing may be loaded before it is asked for');
 
   const tokenizer = await loadTokenizer(CONFIG, { win });
@@ -106,6 +122,94 @@ test('a script that loads without installing the library is refused, not assumed
 });
 
 // ===========================================================================
+// PRESENCE IS NOT READINESS
+//
+// Production, 2026-09-10: Accept.js 200, AcceptCore.js 200 twice, nothing blocked — and the library
+// still answered "Accept.js is not loaded correctly". The global existed; the core did not.
+// ===========================================================================
+
+test('the global appearing WITHOUT its core does not resolve the loader', async () => {
+  // The exact production window: stub installed, tag loaded, core never fetched.
+  const win = fakeWindow({ onAppend: (node, w) => { w.installStub(); node.fire('load'); } });
+  let settled = 'pending';
+  const promise = loadTokenizer(CONFIG, { win, timeoutMs: 120 })
+    .then(() => { settled = 'resolved'; }, () => { settled = 'rejected'; });
+
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(settled, 'pending', 'presence of the global must NOT be treated as readiness');
+  assert.ok(win.Accept, 'the global really is present — that is the point');
+
+  await promise;
+  assert.equal(settled, 'rejected', 'it fails closed rather than proceeding');
+});
+
+test('the core completing IS what resolves readiness', async () => {
+  let release;
+  const win = fakeWindow({
+    onAppend: (node, w) => {
+      w.installStub();
+      node.fire('load');
+      // The core arrives a moment later, exactly as the library fetches it.
+      release = () => w.completeCore();
+    },
+  });
+  let resolved = false;
+  const promise = loadTokenizer(CONFIG, { win, timeoutMs: 2000 }).then(() => { resolved = true; });
+
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(resolved, false, 'still waiting on evidence');
+  release();
+  await promise;
+  assert.equal(resolved, true, 'evidence of the core arriving is what releases it');
+});
+
+test('the barrier reads real resource evidence, not a timer', async () => {
+  const win = fakeWindow();
+  assert.equal(tokenizerCoreLoaded(win, CONFIG.acceptJsUrl), false, 'no entries, no readiness');
+  // An entry for the ENTRY SCRIPT ITSELF proves nothing — the stub is what we already had.
+  win.resources.push({ name: CONFIG.acceptJsUrl });
+  assert.equal(tokenizerCoreLoaded(win, CONFIG.acceptJsUrl), false);
+  // A resource from ANOTHER origin proves nothing about this library.
+  win.resources.push({ name: 'https://unrelated.example/thing.js' });
+  assert.equal(tokenizerCoreLoaded(win, CONFIG.acceptJsUrl), false);
+  // A further resource from the tokenizer's OWN origin is the proof.
+  win.completeCore();
+  assert.equal(tokenizerCoreLoaded(win, CONFIG.acceptJsUrl), true);
+});
+
+test('a core that never arrives fails closed, bounded, with a safe message', async () => {
+  const win = fakeWindow({ onAppend: (node, w) => { w.installStub(); node.fire('load'); } });
+  const started = Date.now();
+  await assert.rejects(loadTokenizer(CONFIG, { win, timeoutMs: 100 }), (e) => {
+    assert.equal(e.code, TOKENIZE_ERROR.LIBRARY_MISSING);
+    assert.match(e.message, /reload the page/i, 'the customer is told what to do');
+    assert.equal(/card|token|key|login/i.test(e.message), false, 'and nothing sensitive is named');
+    return true;
+  });
+  assert.ok(Date.now() - started < 5000, 'bounded, not hanging');
+});
+
+test('a browser with no Resource Timing fails closed rather than assuming readiness', async () => {
+  const win = fakeWindow({ onAppend: (node, w) => { w.installStub(); node.fire('load'); } });
+  delete win.performance;
+  await assert.rejects(loadTokenizer(CONFIG, { win, timeoutMs: 100 }),
+    (e) => e.code === TOKENIZE_ERROR.LIBRARY_MISSING);
+});
+
+test('tokenization NEVER retries dispatchData automatically', async () => {
+  let calls = 0;
+  const win = fakeWindow({
+    onAppend: readyOnAppend((payload, cb) => {
+      calls += 1;
+      // The very failure that started this: the library reporting it is not ready.
+      cb({ messages: { resultCode: 'Error', message: [{ text: 'Accept.js is not loaded correctly' }] } });
+    }),
+  });
+  await assert.rejects(tokenizeCard(CARD, CONFIG, { win }), (e) => e.code === TOKENIZE_ERROR.DECLINED);
+  assert.equal(calls, 1, 'exactly one invocation — a retry is the caller’s decision, never ours');
+});
+
+// ===========================================================================
 // Tokenization returns a token, and nothing else
 // ===========================================================================
 
@@ -120,6 +224,7 @@ test('the card is handed to the provider and only the one-time token comes back'
         },
       };
       node.fire('load');
+      w.completeCore();
     },
   });
 
@@ -146,6 +251,7 @@ test('a decline surfaces the provider message and no card data', async () => {
         }),
       };
       node.fire('load');
+      w.completeCore();
     },
   });
   await assert.rejects(tokenizeCard(CARD, CONFIG, { win }), (e) => {
@@ -161,6 +267,7 @@ test('an Ok response with no token is refused rather than treated as payment', a
     onAppend: (node, w) => {
       w.Accept = { dispatchData: (_p, cb) => cb({ messages: { resultCode: 'Ok' }, opaqueData: {} }) };
       node.fire('load');
+      w.completeCore();
     },
   });
   await assert.rejects(tokenizeCard(CARD, CONFIG, { win }), (e) => e.code === TOKENIZE_ERROR.DECLINED);
