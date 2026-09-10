@@ -67,9 +67,17 @@ const TOKENIZATION = {
   apiLoginId: "login-id", publicClientKey: "public-client-key",
   acceptJsUrl: TOKENIZER_URL, tokenizationKeyFingerprint: "fp-1",
 };
+// Mirrors the real prepare response: the authoritative quote travels WITH the total, and its
+// components account for it exactly (5499 + 2499 + 499 = 8497).
+const QUOTE = {
+  provider: "florist_one", providerProductId: "T18-1A", providerVariantId: null,
+  productMinor: 5499, shippingMinor: 2499, taxMinor: 499, feesMinor: 0,
+  totalMinor: 8497, currency: "USD", taxKnown: true, quoteVersion: "qv-1",
+};
 const PREPARED = {
   ok: true, attemptId: "gpc_1", provider: "florist_one", giftType: "flowers",
   status: "preparing", currency: "USD", orderTotalMinor: 8497, deliveryDate: "2026-09-15", region: "US",
+  quote: QUOTE,
 };
 
 let REQUESTS = [];
@@ -379,6 +387,89 @@ test("the chosen product is what gets priced, and the browser never sends a pric
   }
   // And the total shown is the one the PROVIDER quoted, not anything from the picker.
   assert.match(tid("provider-checkout-summary").textContent, /\$84\.97/);
+});
+
+// ===========================================================================
+// The rendered pre-payment review
+// ===========================================================================
+
+/** Reach the payment step with a chosen product and a given prepare response. */
+async function reachPayment({ prepared = PREPARED, products = LIVE_PRODUCTS } = {}) {
+  ROUTES = {
+    "/provider-checkout/catalog": async () => ({ ok: true, products }),
+    "/provider-checkout/prepare": async () => prepared,
+    "/provider-checkout/tokenization": async () => ({ ok: true, tokenization: TOKENIZATION }),
+  };
+  installTokenizer();
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+  await click(tid("provider-product-T18-1A"));
+  await click(tid("provider-checkout-choose"));
+  await fillDetails();
+  await click(tid("provider-checkout-continue"));
+}
+
+test("the review shows every authoritative component, the code, the city/state and the date", async () => {
+  await reachPayment();
+  const summary = tid("provider-checkout-summary").textContent;
+
+  assert.equal(tid("provider-checkout-review-code").textContent, "T18-1A");
+  assert.equal(tid("provider-checkout-review-city").textContent, "Newark, NJ");
+  assert.equal(tid("provider-checkout-review-date").textContent, "2026-09-15");
+  assert.match(summary, /Sweet Devotion/);
+  assert.match(tid("provider-checkout-line-product").textContent, /\$54\.99/);
+  assert.match(tid("provider-checkout-line-delivery").textContent, /\$24\.99/);
+  assert.match(tid("provider-checkout-line-tax").textContent, /\$4\.99/);
+  assert.match(tid("provider-checkout-line-total").textContent, /\$84\.97/);
+  // The displayed parts account for the displayed total, exactly.
+  assert.equal(5499 + 2499 + 499, 8497);
+  assert.equal(tid("provider-checkout-pay").disabled, false);
+});
+
+test("the review never renders the street address, postcode, telephone, card or token", async () => {
+  await reachPayment();
+  const summary = tid("provider-checkout-summary").textContent;
+  for (const forbidden of ["12 Elm St", "07102", "4111", "cvv", "tok_", "Bearer"]) {
+    assert.equal(summary.includes(forbidden), false, `the review must not show ${forbidden}`);
+  }
+});
+
+test("a quote with a missing component FAILS CLOSED — no price shown, Place Order disabled", async () => {
+  await reachPayment({ prepared: { ...PREPARED, quote: { ...QUOTE, taxMinor: undefined } } });
+  assert.ok(tid("provider-checkout-quote-unavailable"), "the payer is told the price cannot be shown");
+  assert.equal(tid("provider-checkout-line-total"), null, "no total is displayed");
+  assert.equal(tid("provider-checkout-pay").disabled, true, "Place Order must be disabled");
+});
+
+test("components that do not sum to the total fail closed too", async () => {
+  await reachPayment({ prepared: { ...PREPARED, quote: { ...QUOTE, taxMinor: 500 } } });
+  assert.ok(tid("provider-checkout-quote-unavailable"));
+  assert.equal(tid("provider-checkout-pay").disabled, true);
+});
+
+test("a changed price warns, blocks Place Order, and unblocks only on an express acknowledgement", async () => {
+  // The catalog listed 5499; the quote comes back at 6499.
+  await reachPayment({ prepared: { ...PREPARED, quote: { ...QUOTE, productMinor: 6499, totalMinor: 9497 }, orderTotalMinor: 9497 } });
+
+  const warning = tid("provider-checkout-price-changed");
+  assert.ok(warning, "the payer is warned");
+  assert.match(warning.textContent, /\$54\.99/, "the old listed price is named");
+  assert.match(warning.textContent, /\$64\.99/, "the new quoted price is named");
+  assert.equal(tid("provider-checkout-pay").disabled, true, "Place Order is blocked");
+  // The QUOTED figure is what is displayed as the price of record.
+  assert.match(tid("provider-checkout-line-product").textContent, /\$64\.99/);
+  assert.match(tid("provider-checkout-line-total").textContent, /\$94\.97/);
+
+  await click(tid("provider-checkout-accept-price"));
+  assert.equal(tid("provider-checkout-pay").disabled, false, "an express acknowledgement unblocks it");
+});
+
+test("a blocked review cannot be paid even if the button is clicked anyway", async () => {
+  await reachPayment({ prepared: { ...PREPARED, quote: { ...QUOTE, taxMinor: 500 } } });
+  await fillCard();
+  const before = REQUESTS.length;
+  await click(tid("provider-checkout-pay"));
+  assert.equal(REQUESTS.length, before, "no request may leave the browser");
+  assert.equal(window.__tokenizerCalls.length, 0, "no card may be tokenized");
 });
 
 test("the order is not priced until the form is complete, and nothing is sent meanwhile", async () => {

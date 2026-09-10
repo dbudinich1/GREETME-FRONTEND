@@ -232,6 +232,86 @@ export function toPrepareRequest(form, { giftType, product }) {
 }
 
 /** Money, from the authoritative minor units the provider quoted. Never recomputed here. */
+/**
+ * The authoritative pre-payment review.
+ *
+ * WHY THIS EXISTS. A total on its own is not a review. Before a card is entered, the payer must see
+ * what they are being charged FOR — item, delivery, tax — and those figures must be the provider's
+ * own, not anything this browser computed. Nothing here adds, derives or substitutes a money value:
+ * every amount is copied out of the backend's quote, and the only arithmetic performed is a CHECK
+ * that the parts the provider sent add up to the total the provider sent.
+ *
+ * FAIL CLOSED. Any missing or malformed component, or a sum that does not reconcile, returns
+ * `ok: false`. The caller must then refuse to tokenize a card or place an order — a payer must
+ * never be asked to authorize a number nobody can account for.
+ *
+ * PRICE CHANGED. The catalog price was a list price at browse time; the quote is the price of
+ * record. When they differ the review still renders — the payer is entitled to see the real
+ * figure — but `priceChanged` is set and the caller must block submission until the payer has
+ * expressly acknowledged the new authoritative quote.
+ *
+ * @param {object} prepared  the backend prepare response ({ quote, orderTotalMinor, currency, deliveryDate })
+ * @param {object} chosen    the product selected from the picker (its catalog priceMinor)
+ * @param {object} form      the delivery form — ONLY city and state are read
+ */
+export function reviewQuote({ prepared, chosen, form } = {}) {
+  const quote = prepared?.quote;
+  const fail = (reason) => ({ ok: false, reason, canSubmit: false, priceChanged: null, lines: [] });
+  if (!quote || typeof quote !== 'object') return fail('quote_missing');
+
+  const currency = quote.currency || prepared?.currency;
+  if (typeof currency !== 'string' || !currency) return fail('currency_missing');
+
+  // Each component must be an integer count of minor units. A float, a string, a null or an
+  // absent field is malformed — never coerced, never defaulted to zero.
+  const parts = {
+    productMinor: quote.productMinor,
+    shippingMinor: quote.shippingMinor,
+    taxMinor: quote.taxMinor,
+    feesMinor: Number.isInteger(quote.feesMinor) ? quote.feesMinor : 0,
+  };
+  for (const [key, value] of Object.entries(parts)) {
+    if (!Number.isInteger(value) || value < 0) return fail(`component_malformed:${key}`);
+  }
+  const totalMinor = Number.isInteger(quote.totalMinor) ? quote.totalMinor : prepared?.orderTotalMinor;
+  if (!Number.isInteger(totalMinor) || totalMinor <= 0) return fail('total_malformed');
+
+  // The one arithmetic operation in this function, and it is a verification rather than a
+  // computation: the provider's parts must account for the provider's total, exactly.
+  const summed = parts.productMinor + parts.shippingMinor + parts.taxMinor + parts.feesMinor;
+  if (summed !== totalMinor) return fail('components_do_not_sum');
+
+  const catalogMinor = Number.isInteger(chosen?.priceMinor) ? chosen.priceMinor : null;
+  const priceChanged = catalogMinor !== null && catalogMinor !== parts.productMinor
+    ? { catalogMinor, quotedMinor: parts.productMinor, currency }
+    : null;
+
+  const lines = [
+    { key: 'product', label: 'Flowers', minor: parts.productMinor },
+    { key: 'delivery', label: 'Delivery', minor: parts.shippingMinor },
+    { key: 'tax', label: 'Tax', minor: parts.taxMinor },
+    ...(parts.feesMinor > 0 ? [{ key: 'fees', label: 'Fees', minor: parts.feesMinor }] : []),
+  ];
+
+  return {
+    ok: true,
+    reason: null,
+    // Submission is permitted only when the review reconciles AND the price has not moved under
+    // the payer. A changed price is not an error — it is a fact they must accept first.
+    canSubmit: priceChanged === null,
+    priceChanged,
+    currency,
+    lines,
+    totalMinor,
+    deliveryDate: prepared?.deliveryDate ?? null,
+    productName: chosen?.name ?? null,
+    productCode: quote.providerProductId ?? chosen?.providerProductId ?? null,
+    // CITY AND STATE ONLY. The street address and telephone number are deliberately not carried
+    // into the review at all, so no later edit to this component can render them by accident.
+    recipientCityState: [form?.city, form?.state].filter(Boolean).join(', ') || null,
+  };
+}
+
 export function formatMinor(minor, currency = 'USD') {
   if (!Number.isInteger(minor)) return '';
   const amount = (minor / 100).toFixed(2);

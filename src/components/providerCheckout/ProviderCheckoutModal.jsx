@@ -17,8 +17,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import GreetMeLogo from '../GreetMeLogo';
 import {
-  CHECKOUT_STATUS, FIELD_LIMITS, canRetry, formatMinor, providerDisplayName, statusCopy,
-  toPrepareRequest, validateCheckoutForm,
+  CHECKOUT_STATUS, FIELD_LIMITS, canRetry, formatMinor, providerDisplayName, reviewQuote,
+  statusCopy, toPrepareRequest, validateCheckoutForm,
 } from './providerCheckoutModel';
 import { clearCardFields, tokenizeCard } from './acceptJsLoader';
 import {
@@ -54,6 +54,8 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
   const [tokenization, setTokenization] = useState(null);
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
+  // Set only by an express click on the price-changed notice; reset whenever the quote changes.
+  const [priceAcknowledged, setPriceAcknowledged] = useState(false);
   const [failure, setFailure] = useState(null);
   // One submission per prepared attempt, enforced in the browser as well as in the backend: the
   // provider has no idempotency key, so a double-click must never become a second order.
@@ -118,7 +120,16 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
     }
   }, [form, giftType, chosen]);
 
+  // The authoritative review, derived only from the backend's quote. Recomputed when the quote or
+  // the chosen product changes, so an acknowledgement can never carry over to a different price.
+  const review = useMemo(() => reviewQuote({ prepared, chosen, form }), [prepared, chosen, form]);
+  useEffect(() => { setPriceAcknowledged(false); }, [prepared?.quote?.quoteVersion]);
+  const payAllowed = review.ok && (review.canSubmit || priceAcknowledged);
+
   const onPay = useCallback(async () => {
+    // Belt as well as braces: the button is disabled, and the handler refuses anyway. A review that
+    // does not reconcile must not be payable through any path, including a synthetic click.
+    if (!payAllowed) return;
     if (submitting.current) return;
     submitting.current = true;
     setBusy(true);
@@ -146,7 +157,7 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
     } finally {
       setBusy(false);
     }
-  }, [card, tokenization, prepared, giftType]);
+  }, [card, tokenization, prepared, giftType, payAllowed]);
 
   if (!isOpen) return null;
 
@@ -343,13 +354,60 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
           <div data-testid="provider-checkout-payment" style={{ display: 'grid', gap: '0.75rem' }}>
             {/* The authoritative summary: the provider's own quote, shown exactly as quoted. */}
             <div data-testid="provider-checkout-summary" style={{ background: 'var(--bg-secondary, #f8fafc)', borderRadius: 10, padding: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
-                <span>Total charged by {who}</span>
-                <span>{formatMinor(prepared.orderTotalMinor, prepared.currency)}</span>
-              </div>
-              <small style={{ color: 'var(--text-secondary, #64748b)' }}>
-                Delivery on {prepared.deliveryDate}. {who} charges this amount directly; Greet-Me does not add a charge for it.
-              </small>
+              {!review.ok && (
+                <p data-testid="provider-checkout-quote-unavailable" style={{ margin: 0, fontWeight: 600, color: '#b91c1c' }}>
+                  We could not display a complete price for this order, so it cannot be paid for here.
+                  Please start again or contact support.
+                </p>
+              )}
+
+              {review.ok && (
+                <>
+                  <div data-testid="provider-checkout-review-item" style={{ marginBottom: '0.5rem' }}>
+                    <strong style={{ display: 'block' }}>{review.productName}</strong>
+                    <small style={{ color: 'var(--text-secondary, #64748b)' }}>
+                      Item <span data-testid="provider-checkout-review-code">{review.productCode}</span>
+                      {review.recipientCityState ? <> · to <span data-testid="provider-checkout-review-city">{review.recipientCityState}</span></> : null}
+                      {review.deliveryDate ? <> · delivery <span data-testid="provider-checkout-review-date">{review.deliveryDate}</span></> : null}
+                    </small>
+                  </div>
+
+                  {review.lines.map((line) => (
+                    <div key={line.key} data-testid={`provider-checkout-line-${line.key}`}
+                      style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.92rem', padding: '0.15rem 0' }}>
+                      <span>{line.label}</span>
+                      <span>{formatMinor(line.minor, review.currency)}</span>
+                    </div>
+                  ))}
+
+                  <div data-testid="provider-checkout-line-total"
+                    style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, borderTop: '1px solid var(--border, #e2e8f0)', marginTop: '0.4rem', paddingTop: '0.4rem' }}>
+                    <span>Total charged by {who}</span>
+                    <span>{formatMinor(review.totalMinor, review.currency)}</span>
+                  </div>
+
+                  <small style={{ color: 'var(--text-secondary, #64748b)' }}>
+                    {who} charges this amount directly; Greet-Me does not add a charge for it.
+                  </small>
+
+                  {review.priceChanged && (
+                    <div data-testid="provider-checkout-price-changed"
+                      style={{ marginTop: '0.6rem', padding: '0.6rem', borderRadius: 8, background: '#fef3c7', border: '1px solid #f59e0b' }}>
+                      <strong style={{ display: 'block' }}>The price has changed</strong>
+                      <small>
+                        This arrangement was listed at {formatMinor(review.priceChanged.catalogMinor, review.currency)} and
+                        {' '}{who} has now quoted {formatMinor(review.priceChanged.quotedMinor, review.currency)} for it.
+                        The quoted price is the one that will be charged.
+                      </small>
+                      <button type="button" data-testid="provider-checkout-accept-price"
+                        onClick={() => setPriceAcknowledged(true)}
+                        style={{ marginTop: '0.5rem', padding: '0.45rem 0.8rem', borderRadius: 8, border: 'none', background: '#b45309', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                        I understand the new price
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             <div>
@@ -379,8 +437,15 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
               Your card details go straight to {who}&apos;s payment processor from this page. Greet-Me never receives them.
             </small>
 
-            <button type="button" data-testid="provider-checkout-pay" disabled={busy} onClick={onPay}
-              style={{ padding: '0.7rem 1rem', borderRadius: 10, border: 'none', background: '#4F2D7F', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+            {/* Fail closed. A review that does not reconcile, or a price that moved and has not been
+                acknowledged, disables the ONLY control that can tokenize a card or place an order. */}
+            <button type="button" data-testid="provider-checkout-pay"
+              disabled={busy || !payAllowed} onClick={onPay}
+              style={{
+                padding: '0.7rem 1rem', borderRadius: 10, border: 'none', fontWeight: 700, color: '#fff',
+                background: payAllowed ? '#4F2D7F' : 'var(--border, #cbd5e1)',
+                cursor: payAllowed ? 'pointer' : 'not-allowed',
+              }}>
               {busy ? 'Sending your order…' : `Place order with ${who}`}
             </button>
           </div>
