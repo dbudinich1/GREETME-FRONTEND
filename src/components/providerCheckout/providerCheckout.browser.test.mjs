@@ -157,6 +157,7 @@ async function fillDetails() {
   setVal(byId("pc-city"), "Newark");
   setVal(byId("pc-state"), "NJ");
   setVal(byId("pc-zip"), "07102");
+  setVal(byId("pc-recipient-phone"), "(201) 555-0123");
   setVal(byId("pc-message"), "Thinking of you");
   setVal(byId("pc-cust-first"), "Sam");
   setVal(byId("pc-cust-email"), "sam@example.com");
@@ -407,6 +408,74 @@ async function reachPayment({ prepared = PREPARED, products = LIVE_PRODUCTS } = 
   await fillDetails();
   await click(tid("provider-checkout-continue"));
 }
+
+test("the recipient telephone field renders as a telephone input and is required", async () => {
+  ROUTES = { "/provider-checkout/catalog": async () => ({ ok: true, products: LIVE_PRODUCTS }) };
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+  await click(tid("provider-product-T18-1A"));
+  await click(tid("provider-checkout-choose"));
+
+  const field = byId("pc-recipient-phone");
+  assert.ok(field, "the field exists");
+  assert.equal(field.getAttribute("type"), "tel", "it is a telephone input");
+  assert.match(document.querySelector('label[for="pc-recipient-phone"]').textContent, /recipient telephone/i);
+
+  // Everything else complete, telephone left empty: prepare must not be called.
+  await fillDetails();
+  setVal(field, "");
+  const before = REQUESTS.length;
+  await click(tid("provider-checkout-continue"));
+  assert.equal(REQUESTS.length, before, "no prepare request may be sent");
+  assert.ok(tid("provider-checkout-details"), "the customer stays on the details step");
+});
+
+test("a badly-formed telephone number is refused in the browser, before any request", async () => {
+  ROUTES = {
+    "/provider-checkout/catalog": async () => ({ ok: true, products: LIVE_PRODUCTS }),
+    "/provider-checkout/prepare": async () => PREPARED,
+  };
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+  await click(tid("provider-product-T18-1A"));
+  await click(tid("provider-checkout-choose"));
+  await fillDetails();
+
+  for (const bad of ["555", "12015550123", "201-555-0123 x22", "call me"]) {
+    setVal(byId("pc-recipient-phone"), bad);
+    const before = REQUESTS.length;
+    await click(tid("provider-checkout-continue"));
+    assert.equal(REQUESTS.length, before, `${bad} must not reach the API`);
+  }
+});
+
+test("the telephone number reaches recipient.phone as ten digits, never the sender", async () => {
+  const prepares = [];
+  ROUTES = {
+    "/provider-checkout/catalog": async () => ({ ok: true, products: LIVE_PRODUCTS }),
+    "/provider-checkout/prepare": async (body) => { prepares.push(body); return PREPARED; },
+    "/provider-checkout/tokenization": async () => ({ ok: true, tokenization: TOKENIZATION }),
+  };
+  installTokenizer();
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+  await click(tid("provider-product-T18-1A"));
+  await click(tid("provider-checkout-choose"));
+  await fillDetails();
+  await click(tid("provider-checkout-continue"));
+
+  assert.equal(prepares.length, 1);
+  assert.equal(prepares[0].recipient.phone, "2015550123", "the recipient's number, normalized");
+  // The surface collects no sender telephone at all, so `sender.phone` is empty — which is the
+  // strongest possible proof that the recipient's number was not copied into it.
+  assert.equal(prepares[0].sender.phone, "");
+  assert.notEqual(prepares[0].recipient.phone, prepares[0].sender.phone);
+});
+
+test("the telephone number never appears on the quote review", async () => {
+  await reachPayment();
+  const summary = tid("provider-checkout-summary").textContent;
+  for (const forbidden of ["2015550123", "(201) 555-0123", "201-555-0123"]) {
+    assert.equal(summary.includes(forbidden), false, `the review must not show ${forbidden}`);
+  }
+});
 
 test("the review shows every authoritative component, the code, the city/state and the date", async () => {
   await reachPayment();

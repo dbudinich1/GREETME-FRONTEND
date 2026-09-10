@@ -15,8 +15,8 @@ import { dirname, join } from 'node:path';
 import {
   CHECKOUT_STATUS, FORBIDDEN_CLAIMS, PAYMENT_MATERIAL_KEYS, assertNoPaymentMaterial, canRetry,
   categoryNoun, claimsDeliveryStatus, formatMinor, isTerminal, looksLikeCardNumber,
-  providerDisplayName, redactPaymentMaterial, reviewQuote, statusCopy, toPrepareRequest,
-  validateCheckoutForm,
+  normalizeRecipientPhone, providerDisplayName, redactPaymentMaterial, reviewQuote, statusCopy,
+  toPrepareRequest, validateCheckoutForm,
 } from './providerCheckoutModel.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -25,7 +25,11 @@ const read = (rel) => readFileSync(join(HERE, rel), 'utf8');
 const VALID_FORM = {
   deliveryDate: '2026-09-15', recipientFirstName: 'Dana', recipientLastName: 'Rivers',
   address1: '12 Elm St', city: 'Newark', state: 'NJ', postalCode: '07102',
+  // The provider requires the RECIPIENT's number; the sender's is a separate field, deliberately
+  // different here so a test can prove the two are never interchanged.
+  recipientPhone: '(201) 555-0123',
   cardMessage: 'Thinking of you', customerFirstName: 'Sam', customerEmail: 'sam@example.com',
+  customerPhone: '9735551111',
 };
 
 // ===========================================================================
@@ -182,6 +186,79 @@ const CHOSEN = Object.freeze({ providerProductId: 'T18-1A', name: 'Sweet Devotio
 const FORM = Object.freeze({
   city: 'Hoboken', state: 'NJ', address1: '123 Private St', address2: 'Apt 4',
   postalCode: '07030', customerPhone: '5551234567',
+});
+
+// ===========================================================================
+// The recipient telephone number
+// ===========================================================================
+
+test('ordinary US formatting is accepted and normalized to exactly ten digits', () => {
+  for (const typed of [
+    '(201) 555-0123', '201-555-0123', '201 555 0123', '201.555.0123',
+    '2015550123', ' (201)555-0123 ', '(201)  555 - 0123',
+  ]) {
+    const r = normalizeRecipientPhone(typed);
+    assert.equal(r.ok, true, `${typed} should be accepted`);
+    assert.equal(r.digits, '2015550123');
+    assert.equal(r.digits.length, 10);
+  }
+});
+
+test('missing, short, long, alphabetic and extension values are all refused', () => {
+  const cases = [
+    ['', 'required'], ['   ', 'required'], [null, 'required'], [undefined, 'required'],
+    ['201555012', 'too_short'], ['555-0123', 'too_short'],
+    ['12015550123', 'too_long'], ['+1 201 555 0123', 'not_digits'],
+    ['201-555-0123 x22', 'not_digits'], ['201-555-0123 ext 4', 'not_digits'],
+    ['call me', 'not_digits'], ['201-555-012A', 'not_digits'],
+  ];
+  for (const [typed, reason] of cases) {
+    const r = normalizeRecipientPhone(typed);
+    assert.equal(r.ok, false, `${JSON.stringify(typed)} must be refused`);
+    assert.equal(r.reason, reason, `${JSON.stringify(typed)} reason`);
+    assert.equal(r.digits, null);
+  }
+});
+
+test('the telephone number is REQUIRED, and its message is shown before any API call', () => {
+  const errors = validateCheckoutForm({ ...VALID_FORM, recipientPhone: '' });
+  assert.ok(errors.recipientPhone, 'a missing number blocks the form');
+  assert.match(errors.recipientPhone, /telephone/i);
+  // A complete form has no telephone error at all.
+  assert.equal(validateCheckoutForm(VALID_FORM).recipientPhone, undefined);
+  // And a badly-formed one is named specifically rather than generically.
+  assert.match(validateCheckoutForm({ ...VALID_FORM, recipientPhone: '12015550123' }).recipientPhone, /country code/i);
+});
+
+test('the prepare request carries recipient.phone as ten digits — and never the sender’s', () => {
+  const req = toPrepareRequest(VALID_FORM, { giftType: 'flowers', product: { providerProductId: 'T18-1A' } });
+  assert.equal(req.recipient.phone, '2015550123');
+  assert.equal(req.recipient.phone.length, 10);
+  // The sender's number is a DIFFERENT value in a DIFFERENT place, and is never substituted.
+  assert.equal(req.sender.phone, '9735551111');
+  assert.notEqual(req.recipient.phone, req.sender.phone);
+});
+
+test('an invalid telephone number never reaches the recipient contract', () => {
+  const req = toPrepareRequest({ ...VALID_FORM, recipientPhone: '555' }, { giftType: 'flowers', product: {} });
+  assert.equal('phone' in req.recipient, false, 'a refused number must not be sent at all');
+});
+
+test('the recipient contract keeps its existing shape — no second recipient model', () => {
+  const req = toPrepareRequest(VALID_FORM, { giftType: 'flowers', product: { providerProductId: 'T18-1A' } });
+  assert.deepEqual(Object.keys(req.recipient).sort(), ['firstName', 'lastName', 'phone', 'shippingAddress']);
+  assert.deepEqual(
+    Object.keys(req.recipient.shippingAddress).sort(),
+    ['city', 'country', 'line1', 'state', 'zip'],
+  );
+});
+
+test('the telephone number is NOT carried into the quote review', () => {
+  const r = reviewQuote({ prepared: PREPARED, chosen: CHOSEN, form: { ...FORM, recipientPhone: '2015550123' } });
+  const serialized = JSON.stringify(r);
+  assert.equal(serialized.includes('2015550123'), false, 'the review must not carry the telephone number');
+  assert.equal(serialized.includes('phone'), false);
+  assert.equal(r.recipientCityState, 'Hoboken, NJ');
 });
 
 test('every required safe component is present in the review', () => {

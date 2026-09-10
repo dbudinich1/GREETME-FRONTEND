@@ -190,6 +190,8 @@ export function validateCheckoutForm(form = {}) {
   if (!required(form.city)) errors.city = 'Enter the city.';
   if (!required(form.state)) errors.state = 'Enter the state.';
   if (!required(form.postalCode)) errors.postalCode = 'Enter the ZIP code.';
+  const phone = normalizeRecipientPhone(form.recipientPhone);
+  if (!phone.ok) errors.recipientPhone = PHONE_MESSAGES[phone.reason];
   if (!required(form.cardMessage)) errors.cardMessage = 'Write a card message.';
   else if (form.cardMessage.length > FIELD_LIMITS.cardMessage) errors.cardMessage = `Keep the card message under ${FIELD_LIMITS.cardMessage} characters.`;
   if (form.specialInstructions && form.specialInstructions.length > FIELD_LIMITS.specialInstructions) {
@@ -201,6 +203,42 @@ export function validateCheckoutForm(form = {}) {
 }
 
 /** The request body for `prepare`, built from the validated form. Carries no payment material. */
+/**
+ * The RECIPIENT's telephone number, normalized to what the provider requires.
+ *
+ * The provider's rule is exactly ten digits. People type telephone numbers with parentheses,
+ * spaces, hyphens and dots, so those are stripped — and nothing else is. A country code, an
+ * extension or a letter makes the value something other than ten digits and is REFUSED rather than
+ * silently trimmed into shape: quietly discarding part of a number the florist will dial is worse
+ * than asking for it again.
+ */
+const PHONE_FORMATTING = /[\s().-]/g;
+
+export const PHONE_REFUSAL = Object.freeze({
+  REQUIRED: 'required',
+  NOT_DIGITS: 'not_digits',
+  TOO_SHORT: 'too_short',
+  TOO_LONG: 'too_long',
+});
+
+export function normalizeRecipientPhone(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return { ok: false, reason: PHONE_REFUSAL.REQUIRED, digits: null };
+  const stripped = raw.replace(PHONE_FORMATTING, '');
+  // Letters, "+", "ext", "x123" — anything that is not a digit after formatting is removed.
+  if (!/^[0-9]+$/.test(stripped)) return { ok: false, reason: PHONE_REFUSAL.NOT_DIGITS, digits: null };
+  if (stripped.length < 10) return { ok: false, reason: PHONE_REFUSAL.TOO_SHORT, digits: null };
+  if (stripped.length > 10) return { ok: false, reason: PHONE_REFUSAL.TOO_LONG, digits: null };
+  return { ok: true, reason: null, digits: stripped };
+}
+
+const PHONE_MESSAGES = Object.freeze({
+  [PHONE_REFUSAL.REQUIRED]: 'Enter the recipient’s telephone number.',
+  [PHONE_REFUSAL.NOT_DIGITS]: 'Use digits only — no letters or extensions.',
+  [PHONE_REFUSAL.TOO_SHORT]: 'Enter a 10-digit US telephone number.',
+  [PHONE_REFUSAL.TOO_LONG]: 'Enter a 10-digit US telephone number, without the country code.',
+});
+
 export function toPrepareRequest(form, { giftType, product }) {
   return {
     giftType,
@@ -213,6 +251,11 @@ export function toPrepareRequest(form, { giftType, product }) {
     recipient: {
       firstName: form.recipientFirstName,
       ...(form.recipientLastName ? { lastName: form.recipientLastName } : {}),
+      // The RECIPIENT's own number, normalized to the provider's ten digits. Never the sender's:
+      // that one travels in `sender.phone` below and the two are never interchanged.
+      ...(normalizeRecipientPhone(form.recipientPhone).ok
+        ? { phone: normalizeRecipientPhone(form.recipientPhone).digits }
+        : {}),
       shippingAddress: {
         line1: form.address1,
         ...(form.address2 ? { line2: form.address2 } : {}),

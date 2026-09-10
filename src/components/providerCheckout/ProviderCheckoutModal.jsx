@@ -43,7 +43,7 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
   const [step, setStep] = useState(product ? 'details' : 'product');
   const [form, setForm] = useState({
     deliveryDate: '', recipientFirstName: '', recipientLastName: '',
-    address1: '', address2: '', city: '', state: '', postalCode: '',
+    address1: '', address2: '', city: '', state: '', postalCode: '', recipientPhone: '',
     cardMessage: '', specialInstructions: '', allowSubstitutions: false,
     customerFirstName: customer?.firstName || '', customerLastName: customer?.lastName || '',
     customerEmail: customer?.email || '', customerPhone: '',
@@ -297,6 +297,21 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
                   <input id="pc-zip" style={input} value={form.postalCode} onChange={set('postalCode')} />
                   {errors.postalCode && <small style={{ color: '#b91c1c' }}>{errors.postalCode}</small>}
                 </div>
+              </div>
+
+              {/* REQUIRED BY THE PROVIDER, and it is the RECIPIENT's — the florist calls this number
+                  about the delivery. The sender's telephone is a separate field and is never
+                  substituted for it. It is not shown on the review screen. */}
+              <div style={{ marginTop: '0.5rem' }}>
+                <label style={label} htmlFor="pc-recipient-phone">Recipient telephone number</label>
+                <input id="pc-recipient-phone" type="tel" inputMode="tel" autoComplete="off"
+                  placeholder="(201) 555-0123" style={input}
+                  value={form.recipientPhone} onChange={set('recipientPhone')} />
+                {errors.recipientPhone
+                  ? <small style={{ color: '#b91c1c' }}>{errors.recipientPhone}</small>
+                  : <small style={{ color: 'var(--text-secondary, #64748b)' }}>
+                      The florist may need to call about the delivery.
+                    </small>}
               </div>
             </fieldset>
 
