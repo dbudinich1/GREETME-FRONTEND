@@ -45,6 +45,7 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
     deliveryDate: '', recipientFirstName: '', recipientLastName: '',
     address1: '', address2: '', city: '', state: '', postalCode: '', recipientPhone: '',
     cardMessage: '', specialInstructions: '', allowSubstitutions: false,
+    billingLine1: '', billingLine2: '', billingCity: '', billingState: '', billingZip: '',
     customerFirstName: customer?.firstName || '', customerLastName: customer?.lastName || '',
     customerEmail: customer?.email || '', customerPhone: '',
   });
@@ -358,11 +359,62 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
               Allow the florist to substitute flowers of equal or greater value
             </label>
 
+            {/* BILLING — the cardholder's own details, required by the provider for the charge.
+                Self-contained and dependency-free (form, errors, set) so it can move into the
+                existing Add Gift flow later without being rewritten. It is NOT a second recipient
+                form: the recipient's name, address and telephone are collected once, above. */}
+            <fieldset data-testid="provider-checkout-billing"
+              style={{ border: '1px solid var(--border, #e2e8f0)', borderRadius: 10, padding: '0.75rem', margin: 0 }}>
+              <legend style={{ ...label, marginBottom: 0, padding: '0 0.35rem' }}>Your billing details</legend>
+              <small style={{ display: 'block', color: 'var(--text-secondary, #64748b)', marginBottom: '0.5rem' }}>
+                The address and telephone number on your card statement — not the delivery address.
+              </small>
+              <div>
+                <label style={label} htmlFor="pc-billing-line1">Street address</label>
+                <input id="pc-billing-line1" autoComplete="billing address-line1" style={input}
+                  value={form.billingLine1} onChange={set('billingLine1')} />
+                {errors.billingLine1 && <small style={{ color: '#b91c1c' }}>{errors.billingLine1}</small>}
+              </div>
+              <div style={{ marginTop: '0.5rem' }}>
+                <label style={label} htmlFor="pc-billing-line2">Apartment, suite (optional)</label>
+                <input id="pc-billing-line2" autoComplete="billing address-line2" style={input}
+                  value={form.billingLine2} onChange={set('billingLine2')} />
+              </div>
+              <div style={{ ...row, marginTop: '0.5rem', gridTemplateColumns: '2fr 1fr 1fr' }}>
+                <div>
+                  <label style={label} htmlFor="pc-billing-city">City</label>
+                  <input id="pc-billing-city" autoComplete="billing address-level2" style={input}
+                    value={form.billingCity} onChange={set('billingCity')} />
+                  {errors.billingCity && <small style={{ color: '#b91c1c' }}>{errors.billingCity}</small>}
+                </div>
+                <div>
+                  <label style={label} htmlFor="pc-billing-state">State</label>
+                  <input id="pc-billing-state" autoComplete="billing address-level1" maxLength={2} style={input}
+                    value={form.billingState} onChange={set('billingState')} />
+                  {errors.billingState && <small style={{ color: '#b91c1c' }}>{errors.billingState}</small>}
+                </div>
+                <div>
+                  <label style={label} htmlFor="pc-billing-zip">ZIP</label>
+                  <input id="pc-billing-zip" autoComplete="billing postal-code" style={input}
+                    value={form.billingZip} onChange={set('billingZip')} />
+                  {errors.billingZip && <small style={{ color: '#b91c1c' }}>{errors.billingZip}</small>}
+                </div>
+              </div>
+              <div style={{ marginTop: '0.5rem' }}>
+                <label style={label} htmlFor="pc-cust-phone">Your telephone number</label>
+                <input id="pc-cust-phone" type="tel" inputMode="tel" autoComplete="billing tel" style={input}
+                  placeholder="(201) 555-0123"
+                  value={form.customerPhone} onChange={set('customerPhone')} />
+                {errors.customerPhone && <small style={{ color: '#b91c1c' }}>{errors.customerPhone}</small>}
+              </div>
+            </fieldset>
+
             <button type="button" data-testid="provider-checkout-continue" disabled={busy} onClick={onPrepare}
               style={{ padding: '0.7rem 1rem', borderRadius: 10, border: 'none', background: '#4F2D7F', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
               {busy ? 'Pricing your order…' : 'Continue to payment'}
             </button>
           </div>
+
         )}
 
         {step === 'payment' && prepared && (

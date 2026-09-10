@@ -30,6 +30,9 @@ const VALID_FORM = {
   recipientPhone: '(201) 555-0123',
   cardMessage: 'Thinking of you', customerFirstName: 'Sam', customerEmail: 'sam@example.com',
   customerPhone: '9735551111',
+  // The CARDHOLDER's billing details — deliberately a different address from the delivery one.
+  billingLine1: '1 Sender St', billingLine2: 'Apt 2', billingCity: 'Hoboken',
+  billingState: 'NJ', billingZip: '07030',
 };
 
 // ===========================================================================
@@ -349,6 +352,66 @@ test('no money value is ever computed by the browser — only verified', () => {
   const fromBackend = new Set([QUOTE.productMinor, QUOTE.shippingMinor, QUOTE.taxMinor, QUOTE.totalMinor]);
   for (const line of r.lines) assert.ok(fromBackend.has(line.minor), `${line.key} was not a backend figure`);
   assert.ok(fromBackend.has(r.totalMinor));
+});
+
+test('the billing address maps to sender.billingAddress, never to the recipient', () => {
+  const req = toPrepareRequest(VALID_FORM, { giftType: 'flowers', product: { providerProductId: 'T18-1A' } });
+  assert.deepEqual(req.sender.billingAddress, {
+    line1: '1 Sender St', line2: 'Apt 2', city: 'Hoboken', state: 'NJ', zip: '07030', country: 'US',
+  });
+  // The delivery address is a different address in a different place, and neither moved.
+  assert.equal(req.recipient.shippingAddress.line1, '12 Elm St');
+  assert.notEqual(req.sender.billingAddress.line1, req.recipient.shippingAddress.line1);
+  assert.equal('billingAddress' in req.recipient, false, 'the recipient carries no billing address');
+  assert.equal('shippingAddress' in req.sender, false, 'the sender carries no delivery address');
+});
+
+test('the customer telephone is normalized and is never the recipient’s', () => {
+  const req = toPrepareRequest(VALID_FORM, { giftType: 'flowers', product: {} });
+  assert.equal(req.sender.phone, '9735551111');
+  assert.equal(req.recipient.phone, '2015550123');
+  assert.notEqual(req.sender.phone, req.recipient.phone);
+  // Formatting is accepted for the customer exactly as it is for the recipient.
+  const formatted = toPrepareRequest({ ...VALID_FORM, customerPhone: '(973) 555-1111' }, { giftType: 'flowers', product: {} });
+  assert.equal(formatted.sender.phone, '9735551111');
+});
+
+test('every required billing field is refused BEFORE prepare is called', () => {
+  const cases = [
+    ['billingLine1', '', /billing street/i],
+    ['billingCity', '', /billing city/i],
+    ['billingState', '', /2-letter/i],
+    ['billingState', 'New Jersey', /2-letter/i],
+    ['billingZip', '', /5-digit/i],
+    ['billingZip', '073', /5-digit/i],
+    ['customerPhone', '', /telephone/i],
+    ['customerPhone', '973555111', /10-digit/i],
+  ];
+  for (const [field, value, message] of cases) {
+    const errors = validateCheckoutForm({ ...VALID_FORM, [field]: value });
+    assert.ok(errors[field], `${field}=${JSON.stringify(value)} must be refused`);
+    assert.match(errors[field], message);
+  }
+  // Line 2 is genuinely optional.
+  assert.equal(validateCheckoutForm({ ...VALID_FORM, billingLine2: '' }).billingLine2, undefined);
+  assert.deepEqual(validateCheckoutForm(VALID_FORM), {});
+});
+
+test('an incomplete billing address never reaches the provider payload', () => {
+  const req = toPrepareRequest({ ...VALID_FORM, customerPhone: '55' }, { giftType: 'flowers', product: {} });
+  assert.equal('phone' in req.sender, false, 'a refused number must not be sent at all');
+});
+
+test('billing details are NOT carried into the quote review', () => {
+  const r = reviewQuote({
+    prepared: PREPARED, chosen: CHOSEN,
+    form: { ...FORM, billingLine1: '1 Sender St', billingZip: '07030', customerPhone: '9735551111' },
+  });
+  const serialized = JSON.stringify(r);
+  for (const forbidden of ['1 Sender St', '07030', '9735551111', 'billing', 'Billing']) {
+    assert.equal(serialized.includes(forbidden), false, `the review must not carry ${forbidden}`);
+  }
+  assert.equal(r.recipientCityState, 'Hoboken, NJ');
 });
 
 test('the marketplace never hands its own product to a provider checkout', () => {

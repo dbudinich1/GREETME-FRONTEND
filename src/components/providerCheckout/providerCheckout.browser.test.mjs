@@ -158,6 +158,11 @@ async function fillDetails() {
   setVal(byId("pc-state"), "NJ");
   setVal(byId("pc-zip"), "07102");
   setVal(byId("pc-recipient-phone"), "(201) 555-0123");
+  setVal(byId("pc-billing-line1"), "1 Sender St");
+  setVal(byId("pc-billing-city"), "Hoboken");
+  setVal(byId("pc-billing-state"), "NJ");
+  setVal(byId("pc-billing-zip"), "07030");
+  setVal(byId("pc-cust-phone"), "(973) 555-1111");
   setVal(byId("pc-message"), "Thinking of you");
   setVal(byId("pc-cust-first"), "Sam");
   setVal(byId("pc-cust-email"), "sam@example.com");
@@ -463,9 +468,9 @@ test("the telephone number reaches recipient.phone as ten digits, never the send
 
   assert.equal(prepares.length, 1);
   assert.equal(prepares[0].recipient.phone, "2015550123", "the recipient's number, normalized");
-  // The surface collects no sender telephone at all, so `sender.phone` is empty — which is the
-  // strongest possible proof that the recipient's number was not copied into it.
-  assert.equal(prepares[0].sender.phone, "");
+  // The customer's own number is now collected too, in the billing block. The two are entered in
+  // different fields, normalized the same way, and must never be interchanged.
+  assert.equal(prepares[0].sender.phone, "9735551111", "the customer's number, normalized");
   assert.notEqual(prepares[0].recipient.phone, prepares[0].sender.phone);
 });
 
@@ -473,6 +478,72 @@ test("the telephone number never appears on the quote review", async () => {
   await reachPayment();
   const summary = tid("provider-checkout-summary").textContent;
   for (const forbidden of ["2015550123", "(201) 555-0123", "201-555-0123"]) {
+    assert.equal(summary.includes(forbidden), false, `the review must not show ${forbidden}`);
+  }
+});
+
+test("the billing block renders on the details step, before the card is ever shown", async () => {
+  ROUTES = { "/provider-checkout/catalog": async () => ({ ok: true, products: LIVE_PRODUCTS }) };
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+  await click(tid("provider-product-T18-1A"));
+  await click(tid("provider-checkout-choose"));
+
+  assert.ok(tid("provider-checkout-billing"), "billing is collected with the other details");
+  assert.ok(byId("pc-billing-line1") && byId("pc-billing-city") && byId("pc-billing-state") && byId("pc-billing-zip"));
+  assert.equal(byId("pc-cust-phone").getAttribute("type"), "tel");
+  // The card fields belong to the LATER step and must not exist yet.
+  assert.equal(byId("pc-card"), null, "no card field before the quote");
+});
+
+test("an incomplete billing address blocks prepare in the browser", async () => {
+  ROUTES = {
+    "/provider-checkout/catalog": async () => ({ ok: true, products: LIVE_PRODUCTS }),
+    "/provider-checkout/prepare": async () => PREPARED,
+  };
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+  await click(tid("provider-product-T18-1A"));
+  await click(tid("provider-checkout-choose"));
+  await fillDetails();
+
+  for (const [id, bad] of [["pc-billing-line1", ""], ["pc-billing-city", ""],
+    ["pc-billing-state", "New Jersey"], ["pc-billing-zip", "073"], ["pc-cust-phone", "555"]]) {
+    const good = byId(id).value;
+    setVal(byId(id), bad);
+    const before = REQUESTS.length;
+    await click(tid("provider-checkout-continue"));
+    assert.equal(REQUESTS.length, before, `${id}=${JSON.stringify(bad)} must not reach the API`);
+    setVal(byId(id), good);
+  }
+});
+
+test("the billing address reaches sender.billingAddress and never the recipient", async () => {
+  const prepares = [];
+  ROUTES = {
+    "/provider-checkout/catalog": async () => ({ ok: true, products: LIVE_PRODUCTS }),
+    "/provider-checkout/prepare": async (body) => { prepares.push(body); return PREPARED; },
+    "/provider-checkout/tokenization": async () => ({ ok: true, tokenization: TOKENIZATION }),
+  };
+  installTokenizer();
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: null, customer: {}, onClose: () => {} });
+  await click(tid("provider-product-T18-1A"));
+  await click(tid("provider-checkout-choose"));
+  await fillDetails();
+  await click(tid("provider-checkout-continue"));
+
+  assert.equal(prepares.length, 1);
+  assert.equal(prepares[0].sender.billingAddress.line1, "1 Sender St");
+  assert.equal(prepares[0].sender.billingAddress.zip, "07030");
+  assert.equal(prepares[0].sender.phone, "9735551111");
+  assert.equal(prepares[0].recipient.shippingAddress.line1, "12 Elm St");
+  assert.notEqual(prepares[0].sender.billingAddress.line1, prepares[0].recipient.shippingAddress.line1);
+  // And nothing about the buyer's IP is offered by the browser at all.
+  assert.equal(JSON.stringify(prepares[0]).includes('"ip"'), false, "the browser must not send an IP");
+});
+
+test("billing details never appear on the quote review", async () => {
+  await reachPayment();
+  const summary = tid("provider-checkout-summary").textContent;
+  for (const forbidden of ["1 Sender St", "07030", "9735551111", "Hoboken"]) {
     assert.equal(summary.includes(forbidden), false, `the review must not show ${forbidden}`);
   }
 });

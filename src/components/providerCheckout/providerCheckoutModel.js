@@ -192,6 +192,19 @@ export function validateCheckoutForm(form = {}) {
   if (!required(form.postalCode)) errors.postalCode = 'Enter the ZIP code.';
   const phone = normalizeRecipientPhone(form.recipientPhone);
   if (!phone.ok) errors.recipientPhone = PHONE_MESSAGES[phone.reason];
+
+  // BILLING — the cardholder's, required by the provider for the charge itself. Refused here, in
+  // the browser, so an incomplete order never becomes a provider request.
+  const customerPhone = normalizeRecipientPhone(form.customerPhone);
+  if (!customerPhone.ok) errors.customerPhone = PHONE_MESSAGES[customerPhone.reason];
+  if (!required(form.billingLine1)) errors.billingLine1 = 'Enter your billing street address.';
+  if (!required(form.billingCity)) errors.billingCity = 'Enter your billing city.';
+  if (!/^[A-Za-z]{2}$/.test(String(form.billingState ?? '').trim())) {
+    errors.billingState = 'Use a 2-letter state code.';
+  }
+  if (!/^\d{5}(-\d{4})?$/.test(String(form.billingZip ?? '').trim())) {
+    errors.billingZip = 'Enter a 5-digit ZIP code.';
+  }
   if (!required(form.cardMessage)) errors.cardMessage = 'Write a card message.';
   else if (form.cardMessage.length > FIELD_LIMITS.cardMessage) errors.cardMessage = `Keep the card message under ${FIELD_LIMITS.cardMessage} characters.`;
   if (form.specialInstructions && form.specialInstructions.length > FIELD_LIMITS.specialInstructions) {
@@ -269,7 +282,21 @@ export function toPrepareRequest(form, { giftType, product }) {
       firstName: form.customerFirstName,
       lastName: form.customerLastName || '',
       email: form.customerEmail,
-      phone: form.customerPhone || '',
+      // The CUSTOMER's own number, normalized the same way the recipient's is. The two are
+      // different fields for different people and are never interchanged.
+      ...(normalizeRecipientPhone(form.customerPhone).ok
+        ? { phone: normalizeRecipientPhone(form.customerPhone).digits }
+        : {}),
+      // The CARDHOLDER's billing address. Required by the provider for the charge, and a
+      // different address from the recipient's delivery address.
+      billingAddress: {
+        line1: form.billingLine1,
+        ...(form.billingLine2 ? { line2: form.billingLine2 } : {}),
+        city: form.billingCity,
+        state: form.billingState,
+        zip: form.billingZip,
+        country: 'US',
+      },
     },
   };
 }
