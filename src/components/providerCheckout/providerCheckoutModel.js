@@ -15,13 +15,16 @@
 // cancellation or refund API. The furthest the customer may ever be told is that the provider
 // ACCEPTED the order, and `FORBIDDEN_CLAIMS` below is enforced against our own copy by a test.
 
-/** The five states the backend reports. Nothing else is a status. */
+/** The six states the backend reports. Nothing else is a status. */
 export const CHECKOUT_STATUS = Object.freeze({
   PREPARING: 'preparing',
   SUBMITTING: 'submitting',
   ACCEPTED: 'accepted',
   SUBMISSION_FAILED: 'submission_failed',
   CONFIRMATION_UNCERTAIN: 'confirmation_uncertain',
+  // The provider re-quoted at the moment of submission and the price had moved. Nothing was sent
+  // and nothing was charged: the checkout goes back to the quote and waits to be accepted again.
+  QUOTE_CHANGED: 'quote_changed',
 });
 
 /**
@@ -97,6 +100,15 @@ export function statusCopy(status, { provider, giftType, dispatched } = {}) {
       return {
         title: 'We could not place this order',
         body: 'Nothing was charged. Please check the order details, or contact support if this keeps happening.',
+      };
+    case CHECKOUT_STATUS.QUOTE_CHANGED:
+      // Two facts, in the order that matters to someone who just pressed Pay: it did not go
+      // through, and no money moved. The provider is not named — it did nothing wrong, and it was
+      // never asked. Nothing here suggests a charge, a retry or an order.
+      return {
+        title: 'The price changed before this order was placed',
+        body: `The price of this ${noun} order changed while you were paying, so nothing was sent and `
+          + 'nothing was charged. Please review the updated price and confirm it before paying again.',
       };
     case CHECKOUT_STATUS.CONFIRMATION_UNCERTAIN:
       return {

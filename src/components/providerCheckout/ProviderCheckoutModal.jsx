@@ -174,6 +174,26 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
         paymentToken: token,
         paymentBinding: { issuedAt, fingerprint: tokenization?.tokenizationKeyFingerprint, rail: tokenization?.rail },
       });
+      // THE PRICE MOVED. The backend re-quoted at submission, the figures did not match the ones
+      // this customer accepted, and it refused before sending anything. Nothing was dispatched and
+      // nothing was charged — so this is not a result to show as an outcome, it is a return to the
+      // quote. The token minted a moment ago is discarded unused by going out of scope here: it is
+      // single-use, it was never sent, and it is never held in state.
+      if (res?.status === CHECKOUT_STATUS.QUOTE_CHANGED) {
+        clearCardFields(setCard);
+        setCard({ ...EMPTY_CARD });
+        // The old acknowledgement is void: it was an agreement to a price that no longer exists.
+        setPriceAcknowledged(false);
+        // And so is the quote itself, which forces the existing review flow to fetch a fresh one.
+        setPrepared(null);
+        setResult(null);
+        setFailure(statusCopy(CHECKOUT_STATUS.QUOTE_CHANGED, { provider, giftType }).body);
+        setStep('details');
+        // Released deliberately: the next attempt must be a new human action, not a continuation
+        // of this one. Nothing re-tokenizes and nothing resubmits on its own.
+        submitting.current = false;
+        return;
+      }
       setResult(res);
       setStep('confirmation');
     } catch (err) {
@@ -185,7 +205,7 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
     } finally {
       setBusy(false);
     }
-  }, [card, tokenization, prepared, giftType, payAllowed]);
+  }, [card, tokenization, prepared, giftType, payAllowed, provider]);
 
   if (!isOpen) return null;
 

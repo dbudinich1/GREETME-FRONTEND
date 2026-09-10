@@ -67,6 +67,22 @@ test('a refusal the provider actually made may be described as theirs', () => {
   assert.match(copy.body, /nothing was charged/);
 });
 
+test('a quote that changed is explained without blaming the provider or implying a charge', () => {
+  const copy = statusCopy(CHECKOUT_STATUS.QUOTE_CHANGED, { provider: 'florist_one', giftType: 'flowers' });
+  assert.match(copy.body, /price of this flower order changed/i);
+  assert.match(copy.body, /nothing was charged/i);
+  assert.doesNotMatch(copy.body, /Florist One/, 'the provider was never asked, so it cannot have refused');
+  assert.equal(/did not accept|rejected|declined/i.test(`${copy.title} ${copy.body}`), false);
+});
+
+test('a changed quote is neither terminal nor retryable — it is a return to the review', () => {
+  // Retry here would mean paying again at a price nobody has agreed to. The only way forward is a
+  // fresh quote and a fresh acknowledgement, which is a new deliberate action, not a retry.
+  assert.equal(isTerminal(CHECKOUT_STATUS.QUOTE_CHANGED), false);
+  assert.equal(canRetry({ status: CHECKOUT_STATUS.QUOTE_CHANGED }), false);
+  assert.equal(claimsDeliveryStatus({ status: CHECKOUT_STATUS.QUOTE_CHANGED }), false);
+});
+
 test('no status copy ever claims delivery, tracking, completion or a refund', () => {
   for (const status of Object.values(CHECKOUT_STATUS)) {
     for (const provider of ['florist_one', 'goody', 'unknown_provider']) {

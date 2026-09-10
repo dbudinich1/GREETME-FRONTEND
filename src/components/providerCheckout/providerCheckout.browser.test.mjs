@@ -311,6 +311,63 @@ test("the customer completes the order inside Greet-Me and sees the provider ord
     "no vendor link may appear anywhere on the surface");
 });
 
+test("a price that moved sends the customer back to the quote — no charge, no retry, no second token", async () => {
+  const tokenizerCalls = installTokenizer();
+  const submits = [];
+  let prepares = 0;
+  ROUTES = {
+    "/provider-checkout/prepare": async () => { prepares += 1; return PREPARED; },
+    "/provider-checkout/tokenization": async () => ({ ok: true, provider: "florist_one", tokenization: TOKENIZATION }),
+    "/provider-checkout/submit": async (body) => {
+      submits.push(body);
+      return {
+        ok: false, status: "quote_changed", requiresFreshQuote: true,
+        dispatched: "no", customerCharged: "no", retryProhibited: false,
+        providerCode: "PROVIDER_QUOTE_CHANGED",
+      };
+    },
+  };
+
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: { providerProductId: "PRD-1" }, customer: {}, onClose: () => {} });
+  await fillDetails();
+  await click(tid("provider-checkout-continue"));
+  await fillCard();
+  await awaitTokenizerReady();
+  await click(tid("provider-checkout-pay"));
+
+  // Exactly one tokenization and exactly one submission — and then nothing else happens on its own.
+  assert.equal(tokenizerCalls.length, 1, "the card was tokenized once");
+  assert.equal(submits.length, 1, "submitted once");
+  await flush(); await flush(); await flush();
+  assert.equal(tokenizerCalls.length, 1, "no automatic re-tokenization");
+  assert.equal(submits.length, 1, "no automatic resubmission");
+
+  // The customer is back at the quote step, not on a confirmation and not on a failure.
+  assert.equal(tid("provider-checkout-payment"), null, "the payment step is gone");
+  assert.equal(tid("provider-order-number"), null, "no order number, because no order exists");
+  assert.ok(tid("provider-checkout-continue"), "the existing quote-review flow is where they land");
+
+  // Every card field is empty, and the token minted a moment ago was never kept.
+  for (const id of ["pc-card", "pc-exp-month", "pc-exp-year", "pc-cvv"]) {
+    const el = byId(id);
+    assert.equal(el === null || el.value === "", true, `${id} must not hold a value`);
+  }
+  assert.equal(JSON.stringify(REQUESTS).split("ONE-TIME-TOKEN").length - 1, 1,
+    "the token crossed once and was never re-sent");
+
+  // The wording is accurate: the price moved, nothing was charged, and the provider is not blamed.
+  const shown = tid("provider-checkout-modal").textContent;
+  assert.match(shown, /price of this flower order changed/i);
+  assert.match(shown, /nothing was charged/i);
+  assert.equal(/did not accept|rejected|declined/i.test(shown), false, "the provider must not be blamed");
+  assert.equal(/charged your card|payment was taken/i.test(shown), false, "no charge may be implied");
+
+  // A fresh quote requires a deliberate action, and it is a NEW prepare.
+  assert.equal(prepares, 1, "nothing re-priced by itself");
+  await click(tid("provider-checkout-continue"));
+  assert.equal(prepares, 2, "the fresh quote comes from a new deliberate acknowledgement");
+});
+
 test("a declined card clears the fields and never reaches the backend", async () => {
   installTokenizer({ decline: true });
   let submitted = 0;
