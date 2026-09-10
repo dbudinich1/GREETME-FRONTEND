@@ -25,6 +25,13 @@ export const CHECKOUT_STATUS = Object.freeze({
 });
 
 /**
+ * WHO the backend says refused, mirroring the tri-state it reports on every failed submission.
+ * 'no' is the important one: the order never left Greet-Me, so nothing about it is the provider's
+ * doing. 'unknown' is never a failure — it becomes CONFIRMATION_UNCERTAIN instead.
+ */
+export const DISPATCHED = Object.freeze({ NO: 'no', UNKNOWN: 'unknown', YES: 'yes' });
+
+/**
  * Display names, keyed by the machine provider id the backend returns.
  *
  * DISPLAY METADATA ONLY. Nothing routes on these, and the backend never accepts one back: the
@@ -61,7 +68,7 @@ export const FORBIDDEN_CLAIMS = Object.freeze([
  * The accepted line is the contract sentence, with the category and the fulfilling provider filled
  * in: "Your flower order has been accepted by Florist One."
  */
-export function statusCopy(status, { provider, giftType } = {}) {
+export function statusCopy(status, { provider, giftType, dispatched } = {}) {
   const who = providerDisplayName(provider);
   const noun = categoryNoun(giftType);
   switch (status) {
@@ -77,9 +84,19 @@ export function statusCopy(status, { provider, giftType } = {}) {
         note: `${who} does not publish delivery updates to Greet-Me. Keep your order number for any questions.`,
       };
     case CHECKOUT_STATUS.SUBMISSION_FAILED:
+      // WHO refused decides what the customer is told. `dispatched: 'no'` means the order never
+      // left Greet-Me — a local refusal (a stale price, a failed validation) that it would be
+      // simply untrue to attribute to the provider. Only a dispatch the provider actually saw and
+      // turned down may be described as the provider's decision, and never in its own words.
+      if (dispatched === DISPATCHED.YES) {
+        return {
+          title: 'We could not place this order',
+          body: `${who} did not accept this order, so nothing was charged for it. Check the details and try again.`,
+        };
+      }
       return {
         title: 'We could not place this order',
-        body: `${who} did not accept this order, so nothing was charged for it. Check the details and try again.`,
+        body: 'Nothing was charged. Please check the order details, or contact support if this keeps happening.',
       };
     case CHECKOUT_STATUS.CONFIRMATION_UNCERTAIN:
       return {

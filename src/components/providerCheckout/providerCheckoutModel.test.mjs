@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import {
-  CHECKOUT_STATUS, FORBIDDEN_CLAIMS, PAYMENT_MATERIAL_KEYS, assertNoPaymentMaterial, canRetry,
+  CHECKOUT_STATUS, DISPATCHED, FORBIDDEN_CLAIMS, PAYMENT_MATERIAL_KEYS, assertNoPaymentMaterial, canRetry,
   categoryNoun, claimsDeliveryStatus, formatMinor, isTerminal, looksLikeCardNumber,
   normalizeRecipientPhone, providerDisplayName, redactPaymentMaterial, reviewQuote, statusCopy,
   toPrepareRequest, validateCheckoutForm,
@@ -43,6 +43,28 @@ test('acceptance is the furthest claim, and it names the provider', () => {
   const copy = statusCopy(CHECKOUT_STATUS.ACCEPTED, { provider: 'florist_one', giftType: 'flowers' });
   assert.equal(copy.body, 'Your flower order has been accepted by Florist One.');
   assert.match(copy.note, /does not publish delivery updates/);
+});
+
+test('a failure Greet-Me generated itself is never attributed to the provider', () => {
+  // The order never left Greet-Me, so saying the provider refused it would be a false statement
+  // about a third party. The customer still gets the two facts that matter: it did not go through,
+  // and nothing was charged.
+  for (const dispatched of [DISPATCHED.NO, null, undefined]) {
+    const copy = statusCopy(CHECKOUT_STATUS.SUBMISSION_FAILED, {
+      provider: 'florist_one', giftType: 'flowers', dispatched,
+    });
+    assert.doesNotMatch(copy.body, /Florist One/,
+      `a failure with dispatched=${String(dispatched)} must not name the provider`);
+    assert.match(copy.body, /Nothing was charged/);
+  }
+});
+
+test('a refusal the provider actually made may be described as theirs', () => {
+  const copy = statusCopy(CHECKOUT_STATUS.SUBMISSION_FAILED, {
+    provider: 'florist_one', giftType: 'flowers', dispatched: DISPATCHED.YES,
+  });
+  assert.match(copy.body, /Florist One did not accept this order/);
+  assert.match(copy.body, /nothing was charged/);
 });
 
 test('no status copy ever claims delivery, tracking, completion or a refund', () => {

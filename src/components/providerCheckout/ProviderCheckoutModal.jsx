@@ -66,7 +66,10 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
 
   const provider = prepared?.provider ?? result?.checkout?.provider ?? null;
   const copy = useMemo(
-    () => statusCopy(result?.status ?? (prepared ? CHECKOUT_STATUS.PREPARING : CHECKOUT_STATUS.PREPARING), { provider, giftType }),
+    () => statusCopy(
+      result?.status ?? (prepared ? CHECKOUT_STATUS.PREPARING : CHECKOUT_STATUS.PREPARING),
+      { provider, giftType, dispatched: result?.dispatched ?? null },
+    ),
     [result, prepared, provider, giftType],
   );
 
