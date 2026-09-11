@@ -311,6 +311,93 @@ test("the customer completes the order inside Greet-Me and sees the provider ord
     "no vendor link may appear anywhere on the surface");
 });
 
+test("the submit payload names the payment binding EXACTLY as the backend reads it", async () => {
+  // THE REGRESSION THIS FILE EXISTS FOR. On 2026-09-11 a real founder order was refused with
+  // PAYMENT_TOKEN_INCOMPATIBLE on every attempt, because this payload sent the fingerprint under
+  // `fingerprint` while the backend reads `paymentBinding.tokenizationKeyFingerprint`. Nothing was
+  // charged — the guard refused rather than gambling — but no card could ever have succeeded.
+  //
+  // A test that only checked "a binding was sent" would have passed throughout. This one asserts
+  // the field NAME, because the name is the contract.
+  installTokenizer();
+  const submits = [];
+  ROUTES = {
+    "/provider-checkout/prepare": async () => PREPARED,
+    "/provider-checkout/tokenization": async () => ({ ok: true, provider: "florist_one", tokenization: TOKENIZATION }),
+    "/provider-checkout/submit": async (body) => {
+      submits.push(body);
+      return {
+        ok: true, status: "accepted", providerOrderId: "ORD-77421",
+        checkout: {
+          attemptId: "gpc_1", provider: "florist_one", status: "accepted", providerOrderId: "ORD-77421",
+          deliveryStatusKnown: false, statusSource: "provider_submission_acknowledgement",
+        },
+      };
+    },
+  };
+
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: { providerProductId: "PRD-1" }, customer: {}, onClose: () => {} });
+  await fillDetails();
+  await click(tid("provider-checkout-continue"));
+  await fillCard();
+  await awaitTokenizerReady();
+  await click(tid("provider-checkout-pay"));
+
+  assert.equal(submits.length, 1, "exactly one submission");
+  const binding = submits[0].paymentBinding;
+  assert.ok(binding && typeof binding === "object", "a payment binding is sent");
+
+  // The canonical name, carrying the value the tokenization config published.
+  assert.equal(
+    binding.tokenizationKeyFingerprint,
+    TOKENIZATION.tokenizationKeyFingerprint,
+    "the binding must carry the config's fingerprint under the canonical name",
+  );
+
+  // And the wrong name must be gone. Not merely unused — absent, so a backend reading the
+  // canonical field can never receive undefined while the value sits beside it under an alias.
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(binding, "fingerprint"),
+    false,
+    "`fingerprint` must not appear: one canonical name, spelled the same on both sides",
+  );
+
+  // The rest of the binding, unchanged.
+  assert.equal(binding.rail, TOKENIZATION.rail);
+  assert.equal(typeof binding.issuedAt, "string");
+  assert.ok(Number.isFinite(Date.parse(binding.issuedAt)), "issuedAt is a real timestamp");
+
+  // The binding still carries no payment material of any kind.
+  const asText = JSON.stringify(binding);
+  for (const forbidden of ["4111111111111111", "cvv", "cardNumber", "expMonth", "ONE-TIME-TOKEN"]) {
+    assert.equal(asText.includes(forbidden), false, `the binding leaked ${forbidden}`);
+  }
+});
+
+test("the binding's key names are exactly the three the backend contract defines", async () => {
+  // Pinned as a set, so a fourth key cannot be added silently and a renamed one fails here rather
+  // than in production against a real card.
+  installTokenizer();
+  const submits = [];
+  ROUTES = {
+    "/provider-checkout/prepare": async () => PREPARED,
+    "/provider-checkout/tokenization": async () => ({ ok: true, provider: "florist_one", tokenization: TOKENIZATION }),
+    "/provider-checkout/submit": async (body) => { submits.push(body); return { ok: true, status: "accepted", providerOrderId: "ORD-1", checkout: {} }; },
+  };
+
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: { providerProductId: "PRD-1" }, customer: {}, onClose: () => {} });
+  await fillDetails();
+  await click(tid("provider-checkout-continue"));
+  await fillCard();
+  await awaitTokenizerReady();
+  await click(tid("provider-checkout-pay"));
+
+  assert.deepEqual(
+    Object.keys(submits[0].paymentBinding).sort(),
+    ["issuedAt", "rail", "tokenizationKeyFingerprint"],
+  );
+});
+
 test("a price that moved sends the customer back to the quote — no charge, no retry, no second token", async () => {
   const tokenizerCalls = installTokenizer();
   const submits = [];

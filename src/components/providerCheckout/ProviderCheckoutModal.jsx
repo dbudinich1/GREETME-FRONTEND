@@ -172,7 +172,16 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
         attemptId: prepared.attemptId,
         giftType,
         paymentToken: token,
-        paymentBinding: { issuedAt, fingerprint: tokenization?.tokenizationKeyFingerprint, rail: tokenization?.rail },
+        // THE FIELD NAME IS THE CONTRACT. The backend reads `paymentBinding.tokenizationKeyFingerprint`
+        // and refuses anything it cannot prove was minted with Florist One's own publishable key.
+        // Sending the same value under a shorter name meant the field arrived undefined and EVERY
+        // submission was refused with PAYMENT_TOKEN_INCOMPATIBLE, for any card, deterministically.
+        // One canonical name, spelled the same on both sides.
+        paymentBinding: {
+          issuedAt,
+          tokenizationKeyFingerprint: tokenization?.tokenizationKeyFingerprint,
+          rail: tokenization?.rail,
+        },
       });
       // THE PRICE WAS NOT CONFIRMED. Either the backend re-quoted and the figures did not match
       // what this customer accepted (QUOTE_CHANGED), or it could not obtain a quote at all
