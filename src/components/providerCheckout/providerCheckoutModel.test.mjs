@@ -83,6 +83,28 @@ test('a changed quote is neither terminal nor retryable — it is a return to th
   assert.equal(claimsDeliveryStatus({ status: CHECKOUT_STATUS.QUOTE_CHANGED }), false);
 });
 
+test('a price that could not be confirmed never claims the price changed', () => {
+  const copy = statusCopy(CHECKOUT_STATUS.QUOTE_UNAVAILABLE, { provider: 'florist_one', giftType: 'flowers' });
+  assert.match(copy.body, /could not confirm the current price/i);
+  assert.match(copy.body, /nothing was charged/i);
+  // The whole point of the separate status: an unreachable provider has told us nothing about its
+  // prices, so the copy may not assert that they moved.
+  assert.doesNotMatch(`${copy.title} ${copy.body}`, /changed/i);
+  assert.doesNotMatch(copy.body, /Florist One/);
+  assert.equal(/did not accept|rejected|declined/i.test(`${copy.title} ${copy.body}`), false);
+});
+
+test('the two quote states say different things, and neither is terminal or retryable', () => {
+  const changed = statusCopy(CHECKOUT_STATUS.QUOTE_CHANGED, { provider: 'florist_one', giftType: 'flowers' });
+  const unavailable = statusCopy(CHECKOUT_STATUS.QUOTE_UNAVAILABLE, { provider: 'florist_one', giftType: 'flowers' });
+  assert.notEqual(changed.title, unavailable.title);
+  assert.notEqual(changed.body, unavailable.body);
+  for (const status of [CHECKOUT_STATUS.QUOTE_CHANGED, CHECKOUT_STATUS.QUOTE_UNAVAILABLE]) {
+    assert.equal(isTerminal(status), false);
+    assert.equal(canRetry({ status }), false);
+  }
+});
+
 test('no status copy ever claims delivery, tracking, completion or a refund', () => {
   for (const status of Object.values(CHECKOUT_STATUS)) {
     for (const provider of ['florist_one', 'goody', 'unknown_provider']) {

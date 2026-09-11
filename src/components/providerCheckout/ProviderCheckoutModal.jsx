@@ -174,12 +174,16 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
         paymentToken: token,
         paymentBinding: { issuedAt, fingerprint: tokenization?.tokenizationKeyFingerprint, rail: tokenization?.rail },
       });
-      // THE PRICE MOVED. The backend re-quoted at submission, the figures did not match the ones
-      // this customer accepted, and it refused before sending anything. Nothing was dispatched and
-      // nothing was charged — so this is not a result to show as an outcome, it is a return to the
-      // quote. The token minted a moment ago is discarded unused by going out of scope here: it is
+      // THE PRICE WAS NOT CONFIRMED. Either the backend re-quoted and the figures did not match
+      // what this customer accepted (QUOTE_CHANGED), or it could not obtain a quote at all
+      // (QUOTE_UNAVAILABLE). Both refused before sending anything, so nothing was dispatched and
+      // nothing was charged — and neither is a result to show as an outcome. Both are a return to
+      // the quote, and each keeps its OWN wording, because "the price changed" and "we could not
+      // confirm the price" are different statements and only one of them is true at a time.
+      //
+      // The token minted a moment ago is discarded unused by going out of scope here: it is
       // single-use, it was never sent, and it is never held in state.
-      if (res?.status === CHECKOUT_STATUS.QUOTE_CHANGED) {
+      if (res?.status === CHECKOUT_STATUS.QUOTE_CHANGED || res?.status === CHECKOUT_STATUS.QUOTE_UNAVAILABLE) {
         clearCardFields(setCard);
         setCard({ ...EMPTY_CARD });
         // The old acknowledgement is void: it was an agreement to a price that no longer exists.
@@ -187,7 +191,7 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
         // And so is the quote itself, which forces the existing review flow to fetch a fresh one.
         setPrepared(null);
         setResult(null);
-        setFailure(statusCopy(CHECKOUT_STATUS.QUOTE_CHANGED, { provider, giftType }).body);
+        setFailure(statusCopy(res.status, { provider, giftType }).body);
         setStep('details');
         // Released deliberately: the next attempt must be a new human action, not a continuation
         // of this one. Nothing re-tokenizes and nothing resubmits on its own.

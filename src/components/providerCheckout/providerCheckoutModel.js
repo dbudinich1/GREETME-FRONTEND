@@ -15,7 +15,7 @@
 // cancellation or refund API. The furthest the customer may ever be told is that the provider
 // ACCEPTED the order, and `FORBIDDEN_CLAIMS` below is enforced against our own copy by a test.
 
-/** The six states the backend reports. Nothing else is a status. */
+/** The seven states the backend reports. Nothing else is a status. */
 export const CHECKOUT_STATUS = Object.freeze({
   PREPARING: 'preparing',
   SUBMITTING: 'submitting',
@@ -25,6 +25,10 @@ export const CHECKOUT_STATUS = Object.freeze({
   // The provider re-quoted at the moment of submission and the price had moved. Nothing was sent
   // and nothing was charged: the checkout goes back to the quote and waits to be accepted again.
   QUOTE_CHANGED: 'quote_changed',
+  // The price could not be CONFIRMED — the provider could not be reached, took too long, or
+  // answered with something unreadable. Nothing was sent and nothing was charged, and nothing is
+  // known about whether the price moved, so this must never be described as a change.
+  QUOTE_UNAVAILABLE: 'quote_unavailable',
 });
 
 /**
@@ -109,6 +113,14 @@ export function statusCopy(status, { provider, giftType, dispatched } = {}) {
         title: 'The price changed before this order was placed',
         body: `The price of this ${noun} order changed while you were paying, so nothing was sent and `
           + 'nothing was charged. Please review the updated price and confirm it before paying again.',
+      };
+    case CHECKOUT_STATUS.QUOTE_UNAVAILABLE:
+      // Deliberately says LESS than the quote-changed line. We do not know that the price moved,
+      // so we do not say so; what is certain is that nothing went through and nothing was charged.
+      return {
+        title: 'We could not confirm the price',
+        body: `We could not confirm the current price for this ${noun} order, so nothing was sent and `
+          + 'nothing was charged. Please price it again in a moment and confirm before paying.',
       };
     case CHECKOUT_STATUS.CONFIRMATION_UNCERTAIN:
       return {

@@ -368,6 +368,53 @@ test("a price that moved sends the customer back to the quote — no charge, no 
   assert.equal(prepares, 2, "the fresh quote comes from a new deliberate acknowledgement");
 });
 
+test("a quote that could not be obtained returns to the review WITHOUT claiming the price changed", async () => {
+  const tokenizerCalls = installTokenizer();
+  const submits = [];
+  ROUTES = {
+    "/provider-checkout/prepare": async () => PREPARED,
+    "/provider-checkout/tokenization": async () => ({ ok: true, provider: "florist_one", tokenization: TOKENIZATION }),
+    "/provider-checkout/submit": async (body) => {
+      submits.push(body);
+      return {
+        ok: false, status: "quote_unavailable", requiresFreshQuote: true,
+        dispatched: "no", customerCharged: "no", retryProhibited: false,
+        providerCode: "PROVIDER_QUOTE_UNAVAILABLE",
+      };
+    },
+  };
+
+  await mount(Modal, { isOpen: true, giftType: "flowers", product: { providerProductId: "PRD-1" }, customer: {}, onClose: () => {} });
+  await fillDetails();
+  await click(tid("provider-checkout-continue"));
+  await fillCard();
+  await awaitTokenizerReady();
+  await click(tid("provider-checkout-pay"));
+
+  // Same protections as the changed-price path: one tokenization, one submission, nothing automatic.
+  assert.equal(tokenizerCalls.length, 1);
+  assert.equal(submits.length, 1);
+  await flush(); await flush(); await flush();
+  assert.equal(tokenizerCalls.length, 1, "no automatic re-tokenization");
+  assert.equal(submits.length, 1, "no automatic resubmission");
+
+  assert.equal(tid("provider-checkout-payment"), null, "the payment step is gone");
+  assert.equal(tid("provider-order-number"), null, "no order exists");
+  assert.ok(tid("provider-checkout-continue"), "back in the existing review flow");
+  for (const id of ["pc-card", "pc-exp-month", "pc-exp-year", "pc-cvv"]) {
+    const el = byId(id);
+    assert.equal(el === null || el.value === "", true, `${id} must not hold a value`);
+  }
+
+  // The wording is the DIFFERENT one: nothing was charged, and no claim that the price moved.
+  const shown = tid("provider-checkout-modal").textContent;
+  assert.match(shown, /could not confirm the current price/i);
+  assert.match(shown, /nothing was charged/i);
+  assert.equal(/price of this flower order changed/i.test(shown), false,
+    "an unobtainable quote must not be reported as a changed price");
+  assert.equal(/did not accept|rejected|declined/i.test(shown), false);
+});
+
 test("a declined card clears the fields and never reaches the backend", async () => {
   installTokenizer({ decline: true });
   let submitted = 0;
