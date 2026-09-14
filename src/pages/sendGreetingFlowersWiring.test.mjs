@@ -65,22 +65,22 @@ test("includeGift is evaluated, and flowers is excluded UNTIL the provider has a
   assert.equal(decide({}), false);
 });
 
-test("the accepted handler attaches the gift by the SERVER's token, or attaches nothing", () => {
-  const handler = block("const handleFlowerOrderAccepted", "// SAFE RETRY", "accepted handler");
+test("the gift is attached by the SERVER's token, and by nothing else", () => {
+  // REWRITTEN with the two-phase link. The payload is built in dispatchFlowerGreeting, which is only
+  // reachable with a token the backend proved LINKED — so "attaches nothing without a token" is now a
+  // property of the call graph rather than a ternary.
+  const accepted = block("const handleFlowerOrderAccepted", "/**", "accepted handler");
+  assert.match(accepted, /result\.giftClaimToken/, "the token comes from the accepted RESULT");
 
-  // The token comes from the accepted RESULT and from nowhere else.
-  assert.match(handler, /result\.giftClaimToken/);
-  assert.match(handler, /includeGift: true/);
-  assert.match(handler, /gift: \{ type: 'flowers', claimToken: giftClaimToken \}/);
+  const dispatch = block("const dispatchFlowerGreeting", "/**", "dispatch");
+  assert.match(dispatch, /includeGift: true/);
+  assert.match(dispatch, /gift: \{ type: 'flowers', claimToken: giftClaimToken \}/);
   // ONLY the type and the token travel. Everything the recipient is told is rebuilt server-side, so
   // no product, price or provider may be sent from this browser.
-  const giftObject = handler.slice(handler.indexOf("gift: {"), handler.indexOf("}", handler.indexOf("gift: {")) + 1);
+  const giftObject = dispatch.slice(dispatch.indexOf("gift: {"), dispatch.indexOf("}", dispatch.indexOf("gift: {")) + 1);
   for (const f of ["name", "price", "priceMinor", "provider", "providerOrderId", "itemSummary"]) {
     assert.equal(giftObject.includes(f), false, `the gift payload must not carry ${f}`);
   }
-  // No token means no gift: the order is real and charged, but an unprovable pointer is worse than
-  // none, so the greeting goes out as an ordinary one.
-  assert.match(handler, /\?\s*\{[\s\S]*?\}\s*:\s*greetingData/);
 });
 
 test("the accepted handler gates on ACCEPTED and latches at exactly one send", () => {
@@ -135,11 +135,124 @@ test("executeGreetingSend remains the SOLE dispatcher — this flow adds no send
   const sendCalls = SRC.match(/api\.sendGreeting\(/g) || [];
   assert.equal(sendCalls.length, 3, "no new api.sendGreeting call site");
 
-  for (const name of ["handleFlowerOrderAccepted", "handleRetryGreetingOnly"]) {
+  // The flower paths reach the dispatcher through dispatchFlowerGreeting; the greeting-only retry
+  // calls it directly. None of them touches the API itself.
+  for (const name of ["dispatchFlowerGreeting", "handleRetryGreetingOnly"]) {
     const body = block(`const ${name}`, "\n  };", name);
     assert.match(body, /executeGreetingSend\(/, `${name} dispatches through the sole dispatcher`);
     assert.equal(/api\.sendGreeting/.test(body), false, `${name} must not call the API directly`);
   }
+  for (const name of ["handleFlowerOrderAccepted", "handleRetryGiftLink"]) {
+    const body = block(`const ${name}`, "\n  };", name);
+    assert.equal(/executeGreetingSend\(/.test(body), false,
+      `${name} must dispatch only through dispatchFlowerGreeting`);
+    assert.equal(/api\.sendGreeting/.test(body), false, `${name} must not call the API directly`);
+  }
+});
+
+
+// ===========================================================================
+// The gift link: accepted and charged, but not yet attached
+// ===========================================================================
+
+test("an accepted order with NO gift token must not send the greeting", () => {
+  // THE CORRECTION. Sending here would be permanent: a sent Greet-Me can never be given a gift
+  // afterwards, so a recoverable bookkeeping failure would become a charged parcel the recipient is
+  // never told about.
+  // COMMENTS STRIPPED. The handler explains at length WHY it does not dispatch, naming the dispatch
+  // in order to say where the latch lives instead — scanning prose would find that mention and read
+  // it as a call.
+  const handler = codeOnly(block("const handleFlowerOrderAccepted", "/**", "accepted handler"));
+
+  // The early return happens BEFORE any dispatch.
+  const guardAt = handler.indexOf("if (!giftClaimToken) {");
+  const dispatchAt = handler.indexOf("dispatchFlowerGreeting");
+  assert.ok(guardAt > -1, "the no-token branch must exist");
+  assert.ok(dispatchAt > guardAt, "and must return before the dispatch");
+  assert.match(handler.slice(guardAt, dispatchAt), /return;/, "it returns rather than falling through");
+
+  // It HOLDS the accepted attempt rather than discarding it.
+  assert.match(handler, /setPendingGiftLink\(\{/);
+  assert.match(handler, /attemptId: result\?\.checkout\?\.attemptId/);
+  // And it does not claim a confirmed gift.
+  assert.equal(/setGiftConfirmedForSend\(true\)/.test(handler), false,
+    "an unattached gift must not be reported as confirmed");
+});
+
+test("executeGreetingSend for flowers happens in exactly ONE place, gated on a token", () => {
+  // Both callers — the straight-through path and the retry — go through one dispatch, and each
+  // supplies a token it has already proven non-empty.
+  const dispatch = block("const dispatchFlowerGreeting", "/**", "dispatch");
+  assert.match(dispatch, /await executeGreetingSend\(payload\)/);
+  assert.match(dispatch, /gift: \{ type: 'flowers', claimToken: giftClaimToken \}/);
+  assert.match(dispatch, /includeGift: true/);
+
+  // THE LATCH LIVES IN THE DISPATCH, not in the accepted handler. That is what leaves it open for a
+  // retry: an accepted order whose link failed has not sent, so its one send must still be available.
+  const guardAt = dispatch.indexOf("if (flowerSendStarted.current) return;");
+  const setAt = dispatch.indexOf("flowerSendStarted.current = true;");
+  assert.ok(guardAt > -1 && setAt > guardAt, "checked before it is set");
+  assert.ok(setAt < dispatch.indexOf("executeGreetingSend"), "and closed before the send");
+
+  const accepted = block("const handleFlowerOrderAccepted", "/**", "accepted handler");
+  assert.equal(/flowerSendStarted\.current = true/.test(accepted), false,
+    "the accepted handler must not latch, or a failed link would block its own retry");
+
+  // Exactly two callers — the straight-through path and the link retry — plus one declaration.
+  assert.equal((CODE.match(/await dispatchFlowerGreeting\(/g) || []).length, 2, "exactly two callers");
+  assert.equal((CODE.match(/const dispatchFlowerGreeting = /g) || []).length, 1, "one declaration");
+});
+
+test("the retry replays the SAME accepted attempt and can never reach the provider", () => {
+  const retry = block("const handleRetryGiftLink", "\n  };", "gift link retry");
+
+  assert.match(retry, /retryGiftLink\(\{/);
+  assert.match(retry, /attemptId: pendingGiftLink\.attemptId/,
+    "the SAME attempt, never a new one");
+  // Only a LINKED token resumes the send.
+  assert.match(retry, /if \(!token\) return;/);
+  assert.match(retry, /dispatchFlowerGreeting\(greetingData, token\)/);
+  // It must not construct an attempt, return anyone to payment, or touch the provider.
+  for (const forbidden of [
+    "prepareCheckout", "submitCheckout", "tokenize", "placeOrder", "fetchTokenizationConfig",
+    "setIsFlowersCheckoutOpen(true)", "paymentToken", "paymentBinding",
+  ]) {
+    assert.equal(retry.includes(forbidden), false, `the retry must never ${forbidden}`);
+  }
+  // And it cannot run twice at once.
+  assert.match(retry, /if \(!pendingGiftLink\?\.attemptId \|\| retryingGiftLink\) return;/);
+});
+
+test("the pending-link panel shows the approved words and offers only a link retry", () => {
+  assert.match(CODE, /\{pendingGiftLink && \(/);
+  const panel = block('data-testid="gift-link-pending"', "</div>", "pending panel");
+  assert.match(panel, /Your flower order is confirmed, but we&rsquo;re still attaching it to your Greet-Me\./);
+  assert.match(panel, /Please try again\./);
+  assert.match(panel, /data-testid="retry-gift-link"/);
+  assert.match(panel, /onClick=\{handleRetryGiftLink\}/);
+  // No provider name, no order number, and no second checkout offered.
+  for (const forbidden of ["Florist", "florist", "providerOrderId", "order number", "Pay", "checkout"]) {
+    assert.equal(panel.includes(forbidden), false, `the panel must not mention ${forbidden}`);
+  }
+});
+
+test("the ordinary send confirmation cannot appear while the gift is unlinked", () => {
+  // It is gated on a COMPLETED job, and a job only exists once executeGreetingSend has run — which
+  // the unlinked path never reaches.
+  assert.match(CODE, /if \(jobStatus === 'completed'\) \{/);
+  assert.match(SRC, /Your Greet-Me has been sent/);
+  const accepted = block("const handleFlowerOrderAccepted", "/**", "accepted handler");
+  const noToken = accepted.slice(accepted.indexOf("if (!giftClaimToken) {"));
+  assert.equal(/executeGreetingSend/.test(noToken.slice(0, noToken.indexOf("}"))), false,
+    "the unlinked branch dispatches nothing, so no job and no confirmation can exist");
+});
+
+test("a fresh checkout clears the pending link, so one order cannot inherit another's state", () => {
+  const opener = block("const handleReviewFlowersCheckout", "// THE ONE PLACE", "review handler");
+  assert.match(opener, /setPendingGiftLink\(null\)/);
+  assert.match(opener, /setGiftConfirmedForSend\(false\)/);
+  assert.match(opener, /setConfirmedGiftPayload\(null\)/);
+  assert.match(opener, /flowerSendStarted\.current = false;/);
 });
 
 // ===========================================================================
@@ -191,10 +304,14 @@ test("closing the checkout releases the parked greeting and touches no draft sta
   const setters = [...CODE.matchAll(/setGiftConfirmedForSend\((.*?)\);/g)].map((m) => m[1]);
   assert.ok(setters.length >= 1, "the flag must be set somewhere");
   const truthy = setters.filter((a) => a !== "false");
-  assert.deepEqual(truthy, ["Boolean(giftClaimToken)"],
-    "only a server-minted gift token may turn the recipient announcement on");
-  assert.match(block("const handleFlowerOrderAccepted", "// SAFE RETRY", "accepted"),
-    /setGiftConfirmedForSend\(Boolean\(giftClaimToken\)\)/);
+  assert.deepEqual(truthy, ["true"], "exactly one place turns the recipient announcement on");
+  // And that one place is the dispatch, which is unreachable without a token the backend proved
+  // linked — so the announcement cannot be shown for a gift that is not attached.
+  const dispatch = block("const dispatchFlowerGreeting", "/**", "dispatch");
+  assert.match(dispatch, /setGiftConfirmedForSend\(true\)/);
+  const accepted = block("const handleFlowerOrderAccepted", "/**", "accepted");
+  assert.equal(/setGiftConfirmedForSend\(true\)/.test(accepted), false,
+    "the accepted handler must not claim a confirmed gift on its own");
   // And a fresh checkout clears both the flag and any retry payload left from a previous attempt.
   const opener = block("const handleReviewFlowersCheckout", "// THE ONE PLACE", "review handler");
   assert.match(opener, /setGiftConfirmedForSend\(false\)/);

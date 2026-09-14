@@ -114,6 +114,25 @@ export async function submitCheckout({ attemptId, giftType, paymentToken, paymen
   }));
 }
 
+/**
+ * RETRY THE GIFT LINK for an order the provider has already accepted.
+ *
+ * The SAME /submit endpoint, and deliberately so — there is no second route. An attempt that is
+ * already settled takes the replay branch, which returns before the provider is ever resolved, so
+ * this cannot submit, tokenize or charge anything no matter how often it is called. It carries the
+ * attempt id and nothing else: NO payment token, NO binding, NO card material of any kind, because
+ * the order it is recovering was paid for long before this call exists.
+ *
+ * Resolves with `{ giftClaimToken, giftLinkFailed, ... }`. A token comes back only once the backend
+ * has proven the gift record exists; a pending reservation is never projected.
+ */
+export async function retryGiftLink({ attemptId, giftType } = {}) {
+  return callOrUnavailable(() => api.request(`${BASE}/submit`, {
+    method: 'POST',
+    body: JSON.stringify({ attemptId, giftType }),
+  }));
+}
+
 /** Read a checkout attempt back. Reports the submission acknowledgement, never a delivery status. */
 export async function readCheckout(attemptId) {
   return api.request(`${BASE}/${encodeURIComponent(attemptId)}`);

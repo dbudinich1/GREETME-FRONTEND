@@ -26,6 +26,9 @@ import PreSendReviewModal from '../components/PreSendReviewModal';
 // The catalogue is NOT here: products live in the Gift Place, which this page navigates to and back
 // through the return-to-greeting mechanism that already existed.
 import ProviderCheckoutModal from '../components/providerCheckout/ProviderCheckoutModal';
+// The gift-link retry. It re-posts to the EXISTING submit endpoint, whose settled-attempt branch
+// returns before the provider is ever resolved — so it cannot submit, tokenize or charge.
+import { retryGiftLink } from '../api/providerCheckout';
 import { CHECKOUT_STATUS } from '../components/providerCheckout/providerCheckoutModel';
 // The SAME projection the Gift Place renders its cards through, so the gift shown back on the
 // greeting is described in exactly the words and the price format the sender just chose it by.
@@ -176,9 +179,16 @@ export default function SendGreeting() {
   // same request — same gift claim token, same recipient, same surprise announcement. This is what
   // makes the retry in handleRetryGreetingOnly safe: it re-sends a greeting, never a gift.
   const [confirmedGiftPayload, setConfirmedGiftPayload] = useState(null);
-  // EXACTLY ONE SEND PER ACCEPTED ORDER. A ref, not state: it must be true for the rest of this
-  // handler's synchronous run, and a re-render must not be able to reopen the window.
+  // EXACTLY ONE SEND PER ACCEPTED ORDER. A ref, not state: it must be true for the rest of the
+  // dispatch's synchronous run, and a re-render must not be able to reopen the window.
   const flowerSendStarted = useRef(false);
+  // AN ACCEPTED, CHARGED ORDER WHOSE GIFT IS NOT YET ATTACHED.
+  //
+  // Held — never discarded — because the attempt id is the only handle on a real purchase, and it is
+  // what the retry replays. While this is set the greeting has NOT been sent and must not be: sending
+  // it is what would foreclose the fix, since a sent greeting can never be given a gift afterwards.
+  const [pendingGiftLink, setPendingGiftLink] = useState(null);
+  const [retryingGiftLink, setRetryingGiftLink] = useState(false);
 
   // Phase 3D Batch A — A2.3: Pre-send ceremonial review modal state
   const [isPreSendReviewOpen, setIsPreSendReviewOpen] = useState(false);
@@ -1026,6 +1036,7 @@ export default function SendGreeting() {
     // from a previous attempt that a later failure could replay.
     setGiftConfirmedForSend(false);
     setConfirmedGiftPayload(null);
+    setPendingGiftLink(null);
     setIsPreSendReviewOpen(false);
     setIsFlowersCheckoutOpen(true);
   };
@@ -1039,9 +1050,9 @@ export default function SendGreeting() {
   // must not depend on a caller keeping its promise.
   const handleFlowerOrderAccepted = async (result) => {
     if (result?.status !== CHECKOUT_STATUS.ACCEPTED) return;
-    if (flowerSendStarted.current) return;
-    flowerSendStarted.current = true;
-
+    // NO LATCH HERE. The one-send latch lives in dispatchFlowerGreeting, deliberately: an accepted
+    // order whose gift link failed has NOT sent, so closing the latch at this point would block the
+    // retry from ever sending the greeting it is recovering.
     const greetingData = pendingGreetingData;
     if (!greetingData) return;
 
@@ -1049,29 +1060,91 @@ export default function SendGreeting() {
     // at the gift record, and it is what makes the recipient's QR say something is coming rather than
     // announcing nothing at all — the defect this replaces was sending flowers as "no gift".
     //
-    // The token comes from the SERVER's accepted response and from nowhere else. If it is absent the
-    // order is still real and still charged, but nothing may be attached: the greeting goes out as an
-    // ordinary one, because a gift pointer we cannot prove is worse than no gift at all.
+    // The token comes from the SERVER's accepted response and from nowhere else, and it arrives ONLY
+    // once the backend has proven the gift record exists — a pending reservation is never projected.
+    // If it is absent the order is still real and still charged, and the greeting WAITS.
     const giftClaimToken = typeof result.giftClaimToken === 'string' ? result.giftClaimToken : '';
-    const payload = giftClaimToken
-      ? {
-          ...greetingData,
-          includeGift: true,
-          // ONLY the type and the token. Everything the recipient is told is rebuilt server-side from
-          // the durable record, so nothing about the arrangement, its price or the provider travels
-          // from this browser — see resolveOutboundGift's provider-backed branch.
-          gift: { type: 'flowers', claimToken: giftClaimToken },
-        }
-      : greetingData;
 
-    setGiftConfirmedForSend(Boolean(giftClaimToken));
+    // CLOSED AUTOMATICALLY either way. The checkout has no terminal screen of its own; the sender
+    // does not have to dismiss a receipt to find out what happened.
+    setIsFlowersCheckoutOpen(false);
+
+    // THE ORDER IS ACCEPTED AND CHARGED, BUT THE GIFT IS NOT ATTACHED.
+    //
+    // The greeting is NOT sent. That is the whole correction: a sent greeting can never be given a
+    // gift afterwards, so sending one now would turn a recoverable bookkeeping failure into a
+    // permanent one — a charged parcel the recipient is never told about. The accepted attempt is
+    // held instead, and the sender is offered a retry of the LINK. No second checkout is offered,
+    // because there is nothing left to buy.
+    if (!giftClaimToken) {
+      setPendingGiftLink({
+        attemptId: result?.checkout?.attemptId ?? result?.attemptId ?? null,
+        giftType: 'flowers',
+      });
+      return;
+    }
+
+    await dispatchFlowerGreeting(greetingData, giftClaimToken);
+  };
+
+  /**
+   * THE ONE DISPATCH for a flower greeting, whether it runs straight after payment or after a
+   * successful link retry.
+   *
+   * The latch lives here rather than in the accepted handler, so an accepted order whose link failed
+   * leaves it OPEN — the retry must still be able to send, exactly once, when the gift finally
+   * attaches.
+   */
+  const dispatchFlowerGreeting = async (greetingData, giftClaimToken) => {
+    if (flowerSendStarted.current) return;
+    flowerSendStarted.current = true;
+
+    const payload = {
+      ...greetingData,
+      includeGift: true,
+      // ONLY the type and the token. Everything the recipient is told is rebuilt server-side from
+      // the durable record, so nothing about the arrangement, its price or the provider travels
+      // from this browser — see resolveOutboundGift's provider-backed branch.
+      gift: { type: 'flowers', claimToken: giftClaimToken },
+    };
+
+    setGiftConfirmedForSend(true);
     // Kept verbatim so a greeting-only retry replays THIS request — same token, same announcement.
     setConfirmedGiftPayload(payload);
-    // CLOSED AUTOMATICALLY. The checkout has no terminal screen of its own; the sender does not have
-    // to dismiss a receipt to find out whether their Greet-Me went.
-    setIsFlowersCheckoutOpen(false);
+    setPendingGiftLink(null);
     setPendingGreetingData(null);
     await executeGreetingSend(payload);
+  };
+
+  /**
+   * RETRY THE GIFT LINK — never the order.
+   *
+   * It replays the SAME accepted checkout attempt through the existing submit endpoint, whose
+   * settled-attempt branch returns before the provider is resolved. So this constructs no new
+   * attempt, returns nobody to payment, and cannot submit, tokenize, place or charge anything.
+   *
+   * Only a token the backend has proven LINKED resumes the send; a pending reservation comes back as
+   * null and leaves the sender exactly where they were, free to try again.
+   */
+  const handleRetryGiftLink = async () => {
+    if (!pendingGiftLink?.attemptId || retryingGiftLink) return;
+    setRetryingGiftLink(true);
+    setErrors({});
+    try {
+      const res = await retryGiftLink({
+        attemptId: pendingGiftLink.attemptId,
+        giftType: pendingGiftLink.giftType,
+      });
+      const token = typeof res?.giftClaimToken === 'string' ? res.giftClaimToken : '';
+      if (!token) return;
+      const greetingData = pendingGreetingData;
+      if (!greetingData) return;
+      await dispatchFlowerGreeting(greetingData, token);
+    } catch {
+      // Left on screen deliberately: the order is safe, and the sender may try again.
+    } finally {
+      setRetryingGiftLink(false);
+    }
   };
 
   // SAFE RETRY — a greeting-only retry for a gift that is already confirmed.
@@ -1906,6 +1979,48 @@ if (typeof window !== "undefined") {
         {referralError && (
           <Alert type="error" message={referralError} />
         )}
+        {/* ACCEPTED AND CHARGED, GIFT NOT YET ATTACHED.
+            The greeting has deliberately NOT been sent: sending it would foreclose the fix, because a
+            sent Greet-Me can never be given a gift afterwards. The order is held, not discarded, and
+            the only control offered retries THE LINK — never another checkout, because there is
+            nothing left to buy. */}
+        {pendingGiftLink && (
+          <div
+            data-testid="gift-link-pending"
+            role="alert"
+            style={{
+              padding: '0.875rem 1rem',
+              marginBottom: '1rem',
+              borderRadius: '0.625rem',
+              border: '1px solid #fcd34d',
+              background: '#fffbeb',
+            }}
+          >
+            <p style={{ margin: '0 0 0.5rem', fontWeight: 700, color: '#92400e' }}>
+              Your flower order is confirmed, but we&rsquo;re still attaching it to your Greet-Me.
+              Please try again.
+            </p>
+            <button
+              type="button"
+              data-testid="retry-gift-link"
+              disabled={retryingGiftLink || sending}
+              onClick={handleRetryGiftLink}
+              style={{
+                padding: '0.6rem 1.1rem',
+                borderRadius: '0.5rem',
+                border: 'none',
+                background: (retryingGiftLink || sending) ? 'var(--border, #cbd5e1)' : '#b45309',
+                color: '#fff',
+                fontWeight: 700,
+                fontFamily: 'inherit',
+                cursor: (retryingGiftLink || sending) ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {retryingGiftLink ? 'Trying again\u2026' : 'Try again'}
+            </button>
+          </div>
+        )}
+
         {/* SAFE RETRY. The gift is bought, paid for and recorded; only the Greet-Me failed. So the
             offer is a GREETING retry and nothing else — it cannot reopen checkout, cannot tokenize,
             cannot submit, cannot recharge and cannot create a second gift, because it replays the one
