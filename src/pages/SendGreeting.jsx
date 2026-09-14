@@ -497,10 +497,16 @@ export default function SendGreeting() {
         }
       }
 
-      // Open the gift modal only if returning from gift browse
-      if (giftType) {
-        setIsGiftModalOpen(true);
-      }
+      // THE GIFT CHOOSER DOES NOT REOPEN ON THE WAY BACK.
+      //
+      // Returning from the Gift Place with a product already chosen used to reopen "Choose a Gift"
+      // with nothing selected, so the sender had to dismiss an empty modal before they could see the
+      // flower they had just picked. The chooser is for CHOOSING; arriving back having already chosen
+      // is not a reason to ask again.
+      //
+      // It now opens only when the sender asks for it — Add a Gift, Edit Gift, or Change Gift. The
+      // attachment itself is restored above by setGiftSettings and is deliberately untouched here:
+      // nothing about the selected product is cleared, replaced or re-selected by this.
 
       // Clean up the URL - delay to ensure state updates are committed
       setTimeout(() => {
@@ -2296,96 +2302,13 @@ if (typeof window !== "undefined") {
             </select>
             {errors.contactId && <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.contactId}</p>}
           </div>
-
-          {/* Phase 3D Batch A — A3: persistent attached-items indicator.
-              Renders only when an attachment exists. Pure presentational read
-              from giftSettings + cart count. No orchestration / checkout /
-              send-logic side effects. */}
-          {/* SELECTED GIFT — THE ONE SUMMARY, whatever was chosen.
-              A gift picked in the Gift Place is shown back here, on the greeting, before anything is
-              paid for: image, name, price, and a way to change it. This is the screen the founder's
-              cadence turns on — the sender is looking at their greeting AND their gift together, and
-              only then presses the single primary action. */}
-          {selectedGiftSummary && (
-            <div
-              data-testid="selected-gift-summary"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.875rem',
-                padding: '0.875rem',
-                marginBottom: '1rem',
-                border: '1px solid var(--border, #e5e7eb)',
-                borderRadius: '0.75rem',
-                background: 'var(--bg-primary, #fff)',
-              }}
-            >
-              <div
-                aria-hidden="true"
-                style={{
-                  width: 56,
-                  height: 56,
-                  flexShrink: 0,
-                  borderRadius: '0.5rem',
-                  background: selectedGiftSummary.imageUrl
-                    ? `url(${selectedGiftSummary.imageUrl}) center/cover no-repeat`
-                    : 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.5rem',
-                }}
-              >
-                {!selectedGiftSummary.imageUrl && '🎁'}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-tertiary, #9ca3af)' }}>
-                  Selected Gift
-                </div>
-                <div data-testid="selected-gift-name" style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary, #111827)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {selectedGiftSummary.name}
-                </div>
-                {selectedGiftSummary.priceLabel && (
-                  <div data-testid="selected-gift-price" style={{ fontSize: '0.875rem', color: 'var(--primary)', fontWeight: 700 }}>
-                    {selectedGiftSummary.priceLabel}
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                data-testid="selected-gift-change"
-                onClick={() => setIsGiftModalOpen(true)}
-                style={{
-                  padding: '0.5rem 0.875rem',
-                  borderRadius: '0.5rem',
-                  border: '1px solid var(--border, #e5e7eb)',
-                  background: 'transparent',
-                  color: 'var(--text-secondary, #6b7280)',
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  fontFamily: 'inherit',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Change Gift
-              </button>
-            </div>
-          )}
-
-          <AttachmentIndicator
-            giftMode={giftSettings.type}
-            qrCashAmountCents={(() => {
-              const amt = giftSettings.amount === 0
-                ? (giftSettings.customAmount || 0)
-                : (giftSettings.amount || 25);
-              return Math.round(amt * 100);
-            })()}
-            qrCashIsReferral={!!referralCode}
-            curatedMaxSpendCents={(giftSettings.maxSpend || 0) * 100}
-            marketplaceItemCount={attachedMarketplaceCount}
-          />
-
+          {/* THE SELECTED GIFT IS NOT SHOWN HERE.
+              This row is Recipient | Occasion | Tone, and those three are its only children. A gift
+              summary rendered here was a FOURTH grid child: it took the second column, pushed Occasion
+              across and dropped Tone onto a second row, so choosing a gift silently rearranged the
+              form. The summary and the attached-items indicator now live in the "Add a Gift
+              (Optional)" section below, which is the one place the current selection is shown or
+              managed. Nothing about what a selection MEANS or how it is stored changed. */}
           {/* Occasion - Dropdown */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -3027,6 +2950,97 @@ if (typeof window !== "undefined") {
               <Gift size={18} />
               {giftSettings.type !== 'none' ? 'Edit Gift' : 'Add a Gift (Optional)'}
             </button>
+            {/* MOVED HERE from the Recipient/Occasion/Tone row, unchanged.
+                Relocated rather than deleted: the product image, name and price live only in this
+                card, and the attached-item count only in the indicator, so deleting them would have
+                taken that information off the Send form altogether. */}
+            {/* Phase 3D Batch A — A3: persistent attached-items indicator.
+                Renders only when an attachment exists. Pure presentational read
+                from giftSettings + cart count. No orchestration / checkout /
+                send-logic side effects. */}
+            {/* SELECTED GIFT — THE ONE SUMMARY, whatever was chosen.
+                A gift picked in the Gift Place is shown back here, on the greeting, before anything is
+                paid for: image, name, price, and a way to change it. This is the screen the founder's
+                cadence turns on — the sender is looking at their greeting AND their gift together, and
+                only then presses the single primary action. */}
+            {selectedGiftSummary && (
+              <div
+                data-testid="selected-gift-summary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.875rem',
+                  padding: '0.875rem',
+                  marginBottom: '1rem',
+                  border: '1px solid var(--border, #e5e7eb)',
+                  borderRadius: '0.75rem',
+                  background: 'var(--bg-primary, #fff)',
+                }}
+              >
+                <div
+                  aria-hidden="true"
+                  style={{
+                    width: 56,
+                    height: 56,
+                    flexShrink: 0,
+                    borderRadius: '0.5rem',
+                    background: selectedGiftSummary.imageUrl
+                      ? `url(${selectedGiftSummary.imageUrl}) center/cover no-repeat`
+                      : 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.5rem',
+                  }}
+                >
+                  {!selectedGiftSummary.imageUrl && '🎁'}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-tertiary, #9ca3af)' }}>
+                    Selected Gift
+                  </div>
+                  <div data-testid="selected-gift-name" style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary, #111827)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {selectedGiftSummary.name}
+                  </div>
+                  {selectedGiftSummary.priceLabel && (
+                    <div data-testid="selected-gift-price" style={{ fontSize: '0.875rem', color: 'var(--primary)', fontWeight: 700 }}>
+                      {selectedGiftSummary.priceLabel}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  data-testid="selected-gift-change"
+                  onClick={() => setIsGiftModalOpen(true)}
+                  style={{
+                    padding: '0.5rem 0.875rem',
+                    borderRadius: '0.5rem',
+                    border: '1px solid var(--border, #e5e7eb)',
+                    background: 'transparent',
+                    color: 'var(--text-secondary, #6b7280)',
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    fontFamily: 'inherit',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Change Gift
+                </button>
+              </div>
+            )}
+            <AttachmentIndicator
+              giftMode={giftSettings.type}
+              qrCashAmountCents={(() => {
+                const amt = giftSettings.amount === 0
+                  ? (giftSettings.customAmount || 0)
+                  : (giftSettings.amount || 25);
+                return Math.round(amt * 100);
+              })()}
+              qrCashIsReferral={!!referralCode}
+              curatedMaxSpendCents={(giftSettings.maxSpend || 0) * 100}
+              marketplaceItemCount={attachedMarketplaceCount}
+            />
 
             {/* Gift Summary */}
             {giftSettings.type !== 'none' && (
