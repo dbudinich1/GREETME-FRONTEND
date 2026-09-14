@@ -25,10 +25,20 @@ import PriceRangeFilter from '../components/PriceRangeFilter';
 import { useAuth } from '../context/AuthContext';
 import { isFounder } from '../utils/accountState';
 import ManageCatalogDrawer from '../components/founderCatalog/ManageCatalogDrawer';
-// TEAM F — the in-Greet-Me checkout for a PROVIDER-fulfilled category (flowers, gift boxes). It
-// asks the backend whether the category is purchasable and renders NOTHING while the provider is
-// dormant, so this marketplace is unchanged until a founder activates one.
-import ProviderCheckoutEntry from '../components/providerCheckout/ProviderCheckoutEntry';
+// GIFT PLACE — ONE product area for every category, provider-fulfilled or not.
+//
+// Flowers used to be a separate surface: a button that opened a modal that loaded its own list, with
+// its own card, its own price format and its own action in its own place. A shopper switching from
+// Americana to Flowers found the page had changed shape. Now every category projects into the same
+// view model and renders through the same card and the same grid — a provider is a projector, never
+// a second grid.
+import { GiftProductGrid } from '../components/giftPlace/GiftProductCard';
+import {
+  actionLabelFor, fromCatalogProduct, fromProviderProduct, giftTypeForSelector, projectGiftCards,
+} from './giftPlaceViewModel';
+// The posture gate and the four proven catalogue states, in a hook so they stay assertable by
+// MOUNTING rather than by scraping this file. A dormant provider is never asked for products.
+import { useProviderCatalogue } from '../components/giftPlace/useProviderCatalogue';
 
 export default function Merch() {
   const navigate = useNavigate();
@@ -39,7 +49,6 @@ export default function Merch() {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [showQRCashModal, setShowQRCashModal] = useState(false); // AGP-02
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
-  const [addedItems, setAddedItems] = useState(new Set());
   const [showCartModal, setShowCartModal] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState(null);
   const [pickerProduct, setPickerProduct] = useState(null);
@@ -48,6 +57,8 @@ export default function Merch() {
   const [error, setError] = useState(null);
   // GIFTS — the marketplace opens on Brandable Goods, the leading selector.
   const [selectedCategory, setSelectedCategory] = useState(DEFAULT_SELECTION);
+
+
 
   // Session context: recipient gift flow vs SendGreeting Just-Because flow
   const returnRecipientId = searchParams.get('returnRecipientId');
@@ -72,6 +83,15 @@ export default function Merch() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // THE CATALOGUE LOADS ON SELECTION. Clicking the category IS the request to see what is in it, so
+  // there is no button between the two and nothing navigates.
+  const providerGiftType = giftTypeForSelector(selectedCategory);
+  const {
+    products: providerProducts,
+    state: providerState,
+    retry: retryProviderCatalogue,
+  } = useProviderCatalogue(providerGiftType);
 
   // GIFTS — the ONE selection behind the ONE shared product area. Every selector, including
   // Brandable Goods, resolves through the same rule, so no two surfaces can disagree about what
@@ -106,6 +126,73 @@ export default function Merch() {
   const hiddenByPrice = selectedProducts.length > 0 && visibleProducts.length === 0;
 
   const selectedCategoryLabel = selectionLabel(selectedCategory);
+
+  // THE ONE PROJECTION. Whatever supplied the products, the grid below receives the same six fields
+  // in the same shape. This is the line that makes Flowers and Americana the same page.
+  const cards = useMemo(() => (
+    providerGiftType
+      ? projectGiftCards(providerProducts, fromProviderProduct)
+      : projectGiftCards(visibleProducts, fromCatalogProduct)
+  ), [providerGiftType, providerProducts, visibleProducts]);
+
+  // The grid's state, from whichever source is feeding it.
+  const gridState = providerGiftType
+    ? providerState
+    : (loading ? 'loading' : error ? 'failed' : 'ready');
+
+  // THE ACTION LABEL IS DECIDED BY CONTEXT, NOT BY PRODUCT TYPE. Shopping for a greeting attaches
+  // one gift to it; a direct store visit adds to a cart. The card's structure and the button's
+  // position are identical either way — only the words change.
+  const giftActionLabel = actionLabelFor(cameFromSendGreeting ? 'greeting' : 'store');
+
+  /**
+   * SELECTING A PROVIDER ARRANGEMENT FOR A GREETING.
+   *
+   * It attaches the arrangement and returns. It does NOT price, tokenize, pay or order: checkout
+   * belongs to Send Greet-Me, after the sender has pressed Continue on a greeting they can still see.
+   *
+   * The draft travels through the EXISTING return-to-greeting mechanism — the same sessionStorage
+   * blob GiftSelectorModal writes and SendGreeting already restores — with the chosen arrangement
+   * added to the giftSettings it already carries. No second preservation path is introduced.
+   */
+  const selectProviderGiftForGreeting = (card) => {
+    const chosen = providerProducts.find((p) => String(p.providerProductId) === String(card.id));
+    if (!chosen) return;
+    let saved = {};
+    try {
+      saved = JSON.parse(sessionStorage.getItem('sendGreetingState') || '{}');
+    } catch {
+      saved = {};
+    }
+    try {
+      sessionStorage.setItem('sendGreetingState', JSON.stringify({
+        ...saved,
+        giftSettings: {
+          ...(saved.giftSettings || {}),
+          type: 'flowers',
+          flowersProduct: chosen,
+        },
+      }));
+    } catch {
+      // A storage failure must not strand the shopper here with a silent no-op.
+      alert('We could not hold on to your greeting. Please go back and try again.');
+      return;
+    }
+    navigate('/dashboard/send?returnTo=send&giftType=flowers');
+  };
+
+  /** One entry point for the one card action, whichever source the card came from. */
+  const handleGiftCardAction = (card) => {
+    if (providerGiftType) {
+      // Outside a greeting there is nothing to attach an arrangement to, and this surface must never
+      // start a checkout of its own.
+      if (!cameFromSendGreeting) return;
+      selectProviderGiftForGreeting(card);
+      return;
+    }
+    const product = visibleProducts.find((p) => String(p.syncProductId) === String(card.id));
+    if (product) handleAddToCart(product, { stopPropagation() {} });
+  };
 
   // Handle resize for mobile detection
   useEffect(() => {
@@ -158,7 +245,6 @@ export default function Merch() {
         // merchandise stays untagged and independent.
         ...(cameFromSendGreeting && { sendContext: 'greeting-flow' }),
       });
-      setAddedItems((prev) => new Set(prev).add(product.syncProductId));
       window.dispatchEvent(new Event('cartUpdated'));
       setPickerProduct(null);
       setLastAddedItem({
@@ -179,13 +265,8 @@ export default function Merch() {
   const handleContinueShopping = () => {
     setShowCartModal(false);
     setPickerProduct(null);
-    if (lastAddedItem) {
-      setAddedItems(prev => {
-        const next = new Set(prev);
-        next.delete(lastAddedItem.syncProductId);
-        return next;
-      });
-    }
+    // The per-card "Added!" flag went with the hand-written card it belonged to. The shared card has
+    // one action in one state, and the confirmation modal is what tells the shopper the item landed.
     setLastAddedItem(null);
   };
 
@@ -518,17 +599,10 @@ export default function Merch() {
         />
       )}
 
-      {/* TEAM F — provider-fulfilled categories. Renders nothing unless the backend says this
-          category is purchasable, so the marketplace below is untouched while the provider is
-          dormant. The customer completes the whole order here; there is no vendor redirect. */}
-      {/* No product is passed. A provider-fulfilled item is chosen from the PROVIDER's own live
-          list inside the checkout, never from this marketplace's catalog — handing a Printful
-          product to a florist would be an order nobody could fulfil. */}
-      <ProviderCheckoutEntry
-        selectedCategory={selectedCategory}
-        product={null}
-        customer={user}
-      />
+      {/* THE SEPARATE FLOWER SURFACE IS GONE. Provider-fulfilled categories now render through
+          the SAME grid as every other category, from the same projection, with the action in the
+          same place. There is no button between the category and its products, no picker modal,
+          and no second catalogue anywhere. */}
 
       {/* GIFTS — Brandable Goods header: the approved copy and the Brand for My Company action,
           and nothing else. The products themselves render in the ONE shared area below, through
@@ -614,9 +688,10 @@ export default function Merch() {
             Coming later — not yet available
           </span>
         </div>
-      ) : hiddenByPrice && !loading && !error ? (
+      ) : hiddenByPrice && !loading && !error && !providerGiftType ? (
         /* The collection EXISTS — the chosen price range simply excludes all of it. Distinct from
-           Coming Soon, and recoverable without hunting for the control that caused it. */
+           Coming Soon, and recoverable without hunting for the control that caused it. Price
+           filtering applies to the catalogue only; a provider prices its own goods at quote. */
         <div style={{
           padding: '4rem 2rem',
           textAlign: 'center',
@@ -647,188 +722,21 @@ export default function Merch() {
             Clear price filter
           </button>
         </div>
-      ) : visibleProducts.length === 0 && !loading && !error ? (
-        /* A category with nothing curated into it yet. Non-purchasable placeholder. */
-        <div style={{
-          padding: '4rem 2rem',
-          textAlign: 'center',
-          color: 'var(--text-secondary)',
-          border: '1px dashed var(--border)',
-          borderRadius: 'var(--radius-xl)'
-        }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>&#10024;</div>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
-            {selectedCategoryLabel} &mdash; Coming Soon
-          </h3>
-          <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: 0 }}>
-            We&rsquo;re curating this collection. Check back soon.
-          </p>
-        </div>
       ) : (
-      <>
-      {/* Merch Grid — loading / error / empty / products */}
-      {loading ? (
-        <div style={{
-          padding: '4rem 2rem',
-          textAlign: 'center',
-          color: 'var(--text-secondary)',
-          fontSize: '0.9375rem',
-          fontStyle: 'italic'
-        }}>
-          Loading…
-        </div>
-      ) : error ? (
-        <div style={{
-          padding: '3rem 2rem',
-          textAlign: 'center',
-          color: 'var(--text-secondary)',
-          fontSize: '0.9375rem',
-          lineHeight: 1.6
-        }}>
-          We&rsquo;re having trouble loading our merchandise right now. Please try again shortly.
-        </div>
-      ) : products.length === 0 ? (
-        <div style={{
-          padding: '3rem 2rem',
-          textAlign: 'center',
-          color: 'var(--text-secondary)',
-          fontSize: '0.9375rem',
-          lineHeight: 1.6
-        }}>
-          Our curated collection is being refreshed. Please check back soon.
-        </div>
-      ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isNarrow
-            ? '1fr 1fr'
-            : 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: isNarrow ? '0.75rem' : '1.5rem',
-          maxWidth: '100%',
-          overflowX: 'hidden'
-        }}>
-          {visibleProducts.map((item) => {
-            const minDollars = (item.priceCentsMin / 100).toFixed(item.priceCentsMin % 100 === 0 ? 0 : 2);
-            const maxDollars = (item.priceCentsMax / 100).toFixed(item.priceCentsMax % 100 === 0 ? 0 : 2);
-            const displayPrice = item.priceCentsMin === item.priceCentsMax
-              ? `$${minDollars}`
-              : `$${minDollars} – $${maxDollars}`;
-            const hasMultipleOptions = item.variantCount > 1;
-            return (
-              <div
-                key={item.syncProductId}
-                style={{
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-xl)',
-                  overflow: 'hidden',
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer',
-                  position: 'relative'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                {/* Product image — Printful CDN URL with gradient/emoji fallback */}
-                <div style={{
-                  width: '100%',
-                  height: isNarrow ? '120px' : '200px',
-                  background: item.imageUrl
-                    ? `url(${item.imageUrl}) center/cover no-repeat`
-                    : 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: isNarrow ? '2.5rem' : '4rem'
-                }}>
-                  {!item.imageUrl && '🛍️'}
-                </div>
-
-                {/* Content */}
-                <div style={{ padding: isNarrow ? '0.75rem' : '1.5rem' }}>
-                  <h3 style={{
-                    fontSize: isNarrow ? '0.875rem' : '1.125rem',
-                    fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    marginBottom: '0.25rem'
-                  }}>
-                    {item.name}
-                  </h3>
-
-                  {hasMultipleOptions && (
-                    <p style={{
-                      fontSize: '0.75rem',
-                      color: 'var(--text-tertiary)',
-                      fontStyle: 'italic',
-                      marginBottom: '0.75rem'
-                    }}>
-                      Additional sizes/models available
-                    </p>
-                  )}
-
-                  {/* Price and Actions */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingTop: isNarrow ? '0.5rem' : '1rem',
-                    borderTop: isNarrow ? 'none' : '1px solid var(--border)',
-                    flexWrap: isNarrow ? 'wrap' : 'nowrap',
-                    gap: '0.5rem'
-                  }}>
-                    <div>
-                      <span style={{
-                        fontSize: isNarrow ? '1rem' : '1.5rem',
-                        fontWeight: 700,
-                        color: 'var(--primary)'
-                      }}>
-                        {displayPrice}
-                      </span>
-                    </div>
-                    <button
-                      onClick={(e) => handleAddToCart(item, e)}
-                      style={{
-                        padding: isNarrow ? '0.375rem 0.75rem' : '0.5rem 1.25rem',
-                        background: addedItems.has(item.syncProductId) ? '#22c55e' : 'var(--primary)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 'var(--radius-md)',
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                        fontWeight: 600,
-                        fontSize: isNarrow ? '0.75rem' : '0.875rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      {addedItems.has(item.syncProductId) ? (
-                        <>
-                          <Check size={isNarrow ? 14 : 18} />
-                          {isNarrow ? '✓' : 'Added!'}
-                        </>
-                      ) : (
-                        <>
-                          <ShoppingCart size={isNarrow ? 14 : 18} />
-                          {isNarrow ? 'Add' : 'Add to Cart'}
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      </>
+        /* THE ONE SHARED PRODUCT AREA. Every category arrives here — Brandable Goods, Americana,
+           Tech, Flowers — through the same projection, the same card and the same grid, with
+           loading, failed and empty each saying only what is true. Flowers has no surface of its
+           own any more, which is the whole point: switching category changes the products, never
+           the shape of the page. */
+        <GiftProductGrid
+          cards={cards}
+          state={gridState}
+          actionLabel={giftActionLabel}
+          onAction={handleGiftCardAction}
+          onRetry={providerGiftType ? retryProviderCatalogue : null}
+          isNarrow={isNarrow}
+          emptyLabel={selectedCategoryLabel}
+        />
       )}
       </div>
       {/* End Background Frame */}

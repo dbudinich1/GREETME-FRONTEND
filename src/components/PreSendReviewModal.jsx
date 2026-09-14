@@ -82,12 +82,12 @@ export default function PreSendReviewModal({
       // ONE PRIMARY ACTION, and it is still the send. Payment is the next STEP of it, not a
       // different errand, so the label says what the button starts rather than where it goes.
       return {
-        label: 'Pay the florist and send',
+        label: 'Continue',
         onClick: onConfirmFlowersCheckout,
         disabled: !hasFlower || !!sending,
         icon: 'payment',
         note: hasFlower
-          ? 'Your Greet-Me sends by itself as soon as the florist accepts the order.'
+          ? 'Your Greet-Me sends by itself as soon as your gift payment is confirmed.'
           : 'Choose an arrangement below, or return to the greeting to change the gift type.',
       };
     }

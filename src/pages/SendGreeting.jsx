@@ -22,12 +22,14 @@ import GiftSelectorModal from '../components/GiftSelectorModal';
 import ShareTheLovePanel from '../components/ShareTheLovePanel';
 import GiftConfirmationModal from '../components/GiftConfirmationModal';
 import PreSendReviewModal from '../components/PreSendReviewModal';
-// The EXISTING provider checkout and the EXISTING provider catalogue, reused verbatim. This flow
-// adds no checkout, no payment path and no second catalogue of its own.
-import ProviderCheckoutEntry from '../components/providerCheckout/ProviderCheckoutEntry';
+// The EXISTING provider checkout, reused verbatim. This flow adds no checkout and no payment path.
+// The catalogue is NOT here: products live in the Gift Place, which this page navigates to and back
+// through the return-to-greeting mechanism that already existed.
 import ProviderCheckoutModal from '../components/providerCheckout/ProviderCheckoutModal';
 import { CHECKOUT_STATUS } from '../components/providerCheckout/providerCheckoutModel';
-import { fetchCheckoutAvailability } from '../api/providerCheckout';
+// The SAME projection the Gift Place renders its cards through, so the gift shown back on the
+// greeting is described in exactly the words and the price format the sender just chose it by.
+import { fromProviderProduct } from './giftPlaceViewModel';
 import EmailVerificationModal from '../components/EmailVerificationModal';
 import VoiceMissingModal from '../components/VoiceMissingModal';
 import '../styles/ceremony.css';
@@ -165,13 +167,15 @@ export default function SendGreeting() {
   // sends itself → one confirmation covering both. Nothing here navigates, nothing returns to the
   // dashboard, and the flower order is never presented as finished while the Greet-Me is unsent.
   // ───────────────────────────────────────────────
-  // Asked once, when the page loads. The catalogue component asks again for itself — deliberately,
-  // so each surface is fail-closed on its own evidence rather than on a boolean passed down to it.
-  const [flowersAvailable, setFlowersAvailable] = useState(false);
   const [isFlowersCheckoutOpen, setIsFlowersCheckoutOpen] = useState(false);
-  // The ACCEPTED provider order, kept only so the combined confirmation can quote its number. Set
-  // from the backend's own accepted result; never from anything the browser inferred.
-  const [flowerOrder, setFlowerOrder] = useState(null);
+  // CONFIRMED, and that is all this holds. Set from the backend's own accepted result and used to say
+  // "your selected gift is confirmed" — never to quote an order number, which belongs in the sender's
+  // authenticated order history and nowhere near the recipient.
+  const [giftConfirmedForSend, setGiftConfirmedForSend] = useState(false);
+  // THE SEND PAYLOAD FOR A CONFIRMED GIFT, kept verbatim so a greeting-only retry replays exactly the
+  // same request — same gift claim token, same recipient, same surprise announcement. This is what
+  // makes the retry in handleRetryGreetingOnly safe: it re-sends a greeting, never a gift.
+  const [confirmedGiftPayload, setConfirmedGiftPayload] = useState(null);
   // EXACTLY ONE SEND PER ACCEPTED ORDER. A ref, not state: it must be true for the rest of this
   // handler's synchronous run, and a re-render must not be able to reopen the window.
   const flowerSendStarted = useRef(false);
@@ -283,21 +287,6 @@ export default function SendGreeting() {
     fetchContacts();
   }, []);
 
-  // Is the flower provider live? A posture question only: it costs no vendor call and no storage
-  // read, and it decides whether the option is OFFERED at all. Fail closed — an unanswered question
-  // is not an invitation to sell something.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const posture = await fetchCheckoutAvailability('flowers');
-        if (!cancelled && posture?.available === true) setFlowersAvailable(true);
-      } catch {
-        // Stays false.
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   // Demo mode prefill: ?demo=true&contactId=X → auto-select contact + Mother's Day
   useEffect(() => {
@@ -798,6 +787,27 @@ export default function SendGreeting() {
     return Object.keys(newErrors).length === 0;
   };
 
+  /**
+   * THE ONE SELECTED-GIFT SUMMARY, whatever kind of gift it is.
+   *
+   * A gift chosen in the Gift Place is shown back on the greeting in one shape — image, name, price,
+   * Change Gift — so the sender reviews their choice in the same terms they made it. A provider
+   * arrangement projects through the SAME view model the Gift Place card used, which is what stops
+   * the price format or the name drifting between the two screens.
+   *
+   * Returns null when there is nothing to show, and the summary simply does not render: an empty
+   * panel saying "no gift" would be noise on the common path.
+   */
+  const selectedGiftSummary = (() => {
+    if (giftSettings?.type === 'flowers' && giftSettings.flowersProduct) {
+      const card = fromProviderProduct(giftSettings.flowersProduct);
+      return card && { name: card.name, priceLabel: card.priceLabel, imageUrl: card.imageUrl };
+    }
+    // Marketplace items already have their own removable list on the review step; the cart is their
+    // source of truth and duplicating it here would give one gift two summaries.
+    return null;
+  })();
+
   // Check if in demo mode (URL param)
   const isDemo = new URLSearchParams(location.search).get('demo') === 'true';
 
@@ -999,6 +1009,10 @@ export default function SendGreeting() {
   // Flowers path. A DELIBERATE MIRROR of handleReviewQRCashFresh below: park the completed
   // greeting, open the payment step, and let the success handler dispatch the one send. The only
   // difference is which checkout opens — the shape of the flow is the proven one, not a new one.
+  //
+  // Reached from CONTINUE on the pre-send review, after the sender has come back from the Gift Place
+  // and looked at the arrangement they picked. Checkout never begins at the moment a product is
+  // selected: selecting attaches, Continue pays.
   const handleReviewFlowersCheckout = () => {
     const selectedContact = contacts.find(c => c.id === formData.contactId);
     if (!selectedContact) return;
@@ -1008,7 +1022,10 @@ export default function SendGreeting() {
     // A fresh checkout is a fresh chance to send. Released here and nowhere else, so it is armed by
     // a human action and disarmed by the send itself.
     flowerSendStarted.current = false;
-    setFlowerOrder(null);
+    // A fresh checkout starts from a clean slate: no confirmed gift, and no retry payload left over
+    // from a previous attempt that a later failure could replay.
+    setGiftConfirmedForSend(false);
+    setConfirmedGiftPayload(null);
     setIsPreSendReviewOpen(false);
     setIsFlowersCheckoutOpen(true);
   };
@@ -1018,26 +1035,56 @@ export default function SendGreeting() {
   // Reached only from ProviderCheckoutModal's accepted handoff, which fires for
   // CHECKOUT_STATUS.ACCEPTED and for nothing else — so a cancelled window, a decline, a refused
   // submission, a price that moved and an UNCERTAIN confirmation all arrive here never. The status
-  // is re-checked anyway: this is the last gate before a greeting goes out announcing an order, and
-  // it must not depend on a caller keeping its promise.
+  // is re-checked anyway: this is the last gate before a greeting goes out announcing a gift, and it
+  // must not depend on a caller keeping its promise.
   const handleFlowerOrderAccepted = async (result) => {
     if (result?.status !== CHECKOUT_STATUS.ACCEPTED) return;
     if (flowerSendStarted.current) return;
     flowerSendStarted.current = true;
 
-    // The greeting is sent EXACTLY as composed. No gift payload rides along — see the note on
-    // `includeGift` in buildGreetingData — so this is the same send a no-gift Greet-Me performs,
-    // through the same sole dispatcher.
     const greetingData = pendingGreetingData;
     if (!greetingData) return;
 
-    setFlowerOrder({
-      providerOrderId: result.providerOrderId || null,
-      provider: result?.checkout?.provider || null,
-    });
+    // THE GIFT THE BACKEND MINTED FOR THIS ACCEPTED ORDER. Its claim token is the greeting's pointer
+    // at the gift record, and it is what makes the recipient's QR say something is coming rather than
+    // announcing nothing at all — the defect this replaces was sending flowers as "no gift".
+    //
+    // The token comes from the SERVER's accepted response and from nowhere else. If it is absent the
+    // order is still real and still charged, but nothing may be attached: the greeting goes out as an
+    // ordinary one, because a gift pointer we cannot prove is worse than no gift at all.
+    const giftClaimToken = typeof result.giftClaimToken === 'string' ? result.giftClaimToken : '';
+    const payload = giftClaimToken
+      ? {
+          ...greetingData,
+          includeGift: true,
+          // ONLY the type and the token. Everything the recipient is told is rebuilt server-side from
+          // the durable record, so nothing about the arrangement, its price or the provider travels
+          // from this browser — see resolveOutboundGift's provider-backed branch.
+          gift: { type: 'flowers', claimToken: giftClaimToken },
+        }
+      : greetingData;
+
+    setGiftConfirmedForSend(Boolean(giftClaimToken));
+    // Kept verbatim so a greeting-only retry replays THIS request — same token, same announcement.
+    setConfirmedGiftPayload(payload);
+    // CLOSED AUTOMATICALLY. The checkout has no terminal screen of its own; the sender does not have
+    // to dismiss a receipt to find out whether their Greet-Me went.
     setIsFlowersCheckoutOpen(false);
     setPendingGreetingData(null);
-    await executeGreetingSend(greetingData);
+    await executeGreetingSend(payload);
+  };
+
+  // SAFE RETRY — a greeting-only retry for a gift that is already confirmed.
+  //
+  // The provider has accepted and charged, and the gift record exists. What failed is the Greet-Me.
+  // So this re-sends THE SAME PAYLOAD and nothing else: it never reopens checkout, never tokenizes,
+  // never submits, never calls placeorder, never recharges and cannot create a second gift. The
+  // backend binds the same claim token idempotently, so the surprise announcement survives intact.
+  const handleRetryGreetingOnly = async () => {
+    if (!confirmedGiftPayload) return;
+    if (sending) return;
+    setErrors({});
+    await executeGreetingSend(confirmedGiftPayload);
   };
 
   // Closing or cancelling the flower checkout. NOTHING WAS ORDERED AND NOTHING IS SENT: the parked
@@ -1382,21 +1429,17 @@ if (typeof window !== "undefined") {
           >
             That Greet-Me is on its way.
           </p>
-          {/* ONE CONFIRMATION, BOTH RESULTS. The flower order is reported here and only here — the
-              checkout it came from has no terminal screen of its own, precisely so that this is the
-              first and only moment either result is called finished. "Accepted" is the furthest the
-              provider lets us go: it publishes no delivery, tracking or status feed to Greet-Me. */}
-          {flowerOrder && (
+          {/* THE ORDINARY CONFIRMATION, plus one line. The gift is reported as confirmed and nothing
+              more: no order number, no provider name, no arrangement, no delivery claim. The order
+              number stays in the sender's authenticated order history, where it is useful and where
+              it is nowhere near the recipient. */}
+          {giftConfirmedForSend && (
             <p
-              data-testid="send-flower-order-confirmation"
+              data-testid="send-gift-confirmed"
               className="ceremony-body ceremony-fade-in"
               style={{ marginTop: '10px' }}
             >
-              Your flower order has been accepted
-              {flowerOrder.providerOrderId
-                ? <> &mdash; order number <strong>{flowerOrder.providerOrderId}</strong></>
-                : null}
-              .
+              Your selected gift is confirmed.
             </p>
           )}
           <div
@@ -1863,7 +1906,48 @@ if (typeof window !== "undefined") {
         {referralError && (
           <Alert type="error" message={referralError} />
         )}
-        {errors.submit && <Alert type="error" message={errors.submit} />}
+        {/* SAFE RETRY. The gift is bought, paid for and recorded; only the Greet-Me failed. So the
+            offer is a GREETING retry and nothing else — it cannot reopen checkout, cannot tokenize,
+            cannot submit, cannot recharge and cannot create a second gift, because it replays the one
+            payload that already carries the confirmed gift's claim token. Shown instead of the bare
+            error, so the sender is never left reading "send failed" while wondering about their money. */}
+        {confirmedGiftPayload && errors.submit ? (
+          <div
+            data-testid="gift-confirmed-send-failed"
+            role="alert"
+            style={{
+              padding: '0.875rem 1rem',
+              marginBottom: '1rem',
+              borderRadius: '0.625rem',
+              border: '1px solid #fcd34d',
+              background: '#fffbeb',
+            }}
+          >
+            <p style={{ margin: '0 0 0.5rem', fontWeight: 700, color: '#92400e' }}>
+              Your gift is confirmed, but your Greet-Me could not be sent.
+            </p>
+            <button
+              type="button"
+              data-testid="retry-greeting-only"
+              disabled={sending}
+              onClick={handleRetryGreetingOnly}
+              style={{
+                padding: '0.6rem 1.1rem',
+                borderRadius: '0.5rem',
+                border: 'none',
+                background: sending ? 'var(--border, #cbd5e1)' : '#b45309',
+                color: '#fff',
+                fontWeight: 700,
+                fontFamily: 'inherit',
+                cursor: sending ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {sending ? 'Sending…' : 'Retry your Greet-Me'}
+            </button>
+          </div>
+        ) : (
+          errors.submit && <Alert type="error" message={errors.submit} />
+        )}
         {/* Phase 3D Batch A — A2.4: in-memory retry affordance after failed
             resume dispatch (founder option b). Ephemeral — appears only when
             resumeRetryContext is set; vanishes on page unmount; cleared on
@@ -1963,6 +2047,78 @@ if (typeof window !== "undefined") {
               Renders only when an attachment exists. Pure presentational read
               from giftSettings + cart count. No orchestration / checkout /
               send-logic side effects. */}
+          {/* SELECTED GIFT — THE ONE SUMMARY, whatever was chosen.
+              A gift picked in the Gift Place is shown back here, on the greeting, before anything is
+              paid for: image, name, price, and a way to change it. This is the screen the founder's
+              cadence turns on — the sender is looking at their greeting AND their gift together, and
+              only then presses the single primary action. */}
+          {selectedGiftSummary && (
+            <div
+              data-testid="selected-gift-summary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.875rem',
+                padding: '0.875rem',
+                marginBottom: '1rem',
+                border: '1px solid var(--border, #e5e7eb)',
+                borderRadius: '0.75rem',
+                background: 'var(--bg-primary, #fff)',
+              }}
+            >
+              <div
+                aria-hidden="true"
+                style={{
+                  width: 56,
+                  height: 56,
+                  flexShrink: 0,
+                  borderRadius: '0.5rem',
+                  background: selectedGiftSummary.imageUrl
+                    ? `url(${selectedGiftSummary.imageUrl}) center/cover no-repeat`
+                    : 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.5rem',
+                }}
+              >
+                {!selectedGiftSummary.imageUrl && '🎁'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-tertiary, #9ca3af)' }}>
+                  Selected Gift
+                </div>
+                <div data-testid="selected-gift-name" style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary, #111827)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {selectedGiftSummary.name}
+                </div>
+                {selectedGiftSummary.priceLabel && (
+                  <div data-testid="selected-gift-price" style={{ fontSize: '0.875rem', color: 'var(--primary)', fontWeight: 700 }}>
+                    {selectedGiftSummary.priceLabel}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                data-testid="selected-gift-change"
+                onClick={() => setIsGiftModalOpen(true)}
+                style={{
+                  padding: '0.5rem 0.875rem',
+                  borderRadius: '0.5rem',
+                  border: '1px solid var(--border, #e5e7eb)',
+                  background: 'transparent',
+                  color: 'var(--text-secondary, #6b7280)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  fontFamily: 'inherit',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Change Gift
+              </button>
+            </div>
+          )}
+
           <AttachmentIndicator
             giftMode={giftSettings.type}
             qrCashAmountCents={(() => {
@@ -2717,18 +2873,6 @@ if (typeof window !== "undefined") {
         getOccasionLabel={() => 'Just Because'}
         getOccasionEmoji={() => '💝'}
         context="oneoff"
-        // ATTACH MODE. The catalogue reports a choice and opens nothing: the arrangement is pinned
-        // to the greeting being composed, and the checkout belongs to Send Greet-Me. Absent while
-        // the provider is dormant, which is also what withholds the option itself.
-        flowersCatalogue={flowersAvailable ? (
-          <ProviderCheckoutEntry
-            selectedCategory="flowers"
-            product={null}
-            customer={user}
-            selectedProductId={giftSettings?.flowersProduct?.providerProductId || null}
-            onSelect={(p) => setGiftSettings(prev => ({ ...prev, flowersProduct: p }))}
-          />
-        ) : null}
         onBrowse={(type) => {
           // Save current state to sessionStorage before navigating
           const stateToSave = {
@@ -2743,13 +2887,12 @@ if (typeof window !== "undefined") {
 
           // Close the modal and navigate to the appropriate page
           setIsGiftModalOpen(false);
-          if (type === 'marketplace') {
+          // ONE DESTINATION. The Gift Place holds every category, flowers included, and
+          // /dashboard/merch is a redirect to it — which is why offering both was offering the same
+          // page twice. `returnTo=send` is the existing return-to-greeting contract: the Gift Place
+          // reads it to show the "shopping for your greeting" context and to come back here.
+          if (type === 'marketplace' || type === 'merch') {
             navigate('/dashboard/gifts?returnTo=send&giftType=marketplace');
-          } else if (type === 'merch') {
-            // Physical merchandise attaches through the SAME cart, checkout,
-            // payment and resume path as the Gift Place — one money path, so
-            // one binding, one claim token and one reveal.
-            navigate('/dashboard/merch?returnTo=send&giftType=merch');
           }
         }}
       />
@@ -2819,6 +2962,9 @@ if (typeof window !== "undefined") {
         giftType="flowers"
         product={giftSettings?.flowersProduct || null}
         customer={user}
+        // The greeting's recipient. It is what lets the backend bind the accepted order to THIS
+        // greeting and refuse it for any other — the same binding an attached merchandise order uses.
+        contactId={formData.contactId || null}
         onAccepted={handleFlowerOrderAccepted}
       />
 

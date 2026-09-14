@@ -253,9 +253,16 @@ export default function GiftClaim() {
         <div style={styles.card}>
           <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🎁</div>
           <h1 style={styles.title}>
+            {/* THE SERVER'S OWN HEADLINE, when it sent one. A physically shipped gift is a surprise
+                that may arrive separately from the Greet-Me, and "Something special is coming your
+                way" is the approved way to say so — composed server-side, exactly like statusMessage
+                below, so this page can never invent a claim about a parcel it knows nothing about.
+                Every other gift type sends no statusTitle and keeps the wording it always had. */}
             {isOwnerView
               ? 'This gift is for your recipient'
-              : forName ? `A gift for you, ${forName}` : 'A gift for you'}
+              : gift.statusTitle
+                ? gift.statusTitle
+                : forName ? `A gift for you, ${forName}` : 'A gift for you'}
           </h1>
 
           {gift.senderName && !isOwnerView && (

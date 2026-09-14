@@ -118,6 +118,11 @@ test("the reveal renders only server-provided, allow-listed fields", () => {
   const referenced = new Set([...block.matchAll(/gift\.(\w+)/g)].map((m) => m[1]));
   const allowed = new Set([
     "giftType", "itemSummary", "statusMessage", "senderName", "recipientName", "sourceGreetingJobId",
+    // ADDED 2026-09-14 with the physical provider gift. statusTitle is composed SERVER-SIDE exactly
+    // like statusMessage beside it — the approved "Something special is coming your way" — so the
+    // page still cannot invent a claim of its own about a parcel it knows nothing about. It carries
+    // no product, price, provider, order number or delivery assertion.
+    "statusTitle",
   ]);
   for (const key of referenced) {
     assert.ok(allowed.has(key), `the reveal must not render gift.${key}`);
@@ -144,18 +149,41 @@ test("an invalid claim still fails safely through the existing branch", () => {
 // ============================================================
 // 23 — digital stays out; merchandise comes back
 // ============================================================
-test("physical merchandise is selectable again", () => {
-  assert.match(SELECTOR, /\{ value: 'merch', label: 'Greet-Me Merch'/);
-  assert.match(SELECTOR, /giftSetting\.type === 'merch' && onBrowse/);
-  assert.match(SELECTOR, /onBrowse\('merch'\)/);
+test("physical goods are reachable through the ONE Gift Place, not a duplicate control", () => {
+  // REWRITTEN 2026-09-14. "Greet-Me Merch" and "Greet-Me Gift Place" were two controls for one
+  // destination — /dashboard/merch redirects to /dashboard/gifts — so the decision screen asked the
+  // same question twice. Merchandise is still fully reachable; it is reached through the Gift Place,
+  // which now holds every category including Flowers.
+  assert.equal(/value: 'merch'/.test(SELECTOR), false, "the duplicate control must be gone");
+  assert.equal(/Browse Greet-Me Merch/.test(SELECTOR), false);
+  assert.match(SELECTOR, /\{ value: 'marketplace', label: 'Greet-Me Gift Place'/);
+  // And the one destination still carries the merchandise vocabulary through the send flow.
+  assert.match(SEND, /navigate\('\/dashboard\/gifts\?returnTo=send&giftType=marketplace'\)/);
 });
 
-test("no digital, Prezzee or gift-card option is offered", () => {
+test("the decision screen offers EXACTLY four choices, in the approved order", () => {
   const start = SELECTOR.indexOf("const GIFT_OPTIONS = [");
   const options = SELECTOR.slice(start, SELECTOR.indexOf("];", start));
   const values = [...options.matchAll(/value: '(\w+)'/g)].map((m) => m[1]);
-  assert.deepEqual(values.sort(), ["curated", "marketplace", "merch", "none", "qrcash"]);
+  // ORDER MATTERS and is asserted as order, not as a set: None, QR Cash, Gift Place, Select.
+  assert.deepEqual(values, ["none", "qrcash", "marketplace", "curated"]);
   assert.equal(/prezzee|digital|gift ?card|smart ?card/i.test(options), false);
+});
+
+test("the gift decision screen shows no products and offers no second gift", () => {
+  // It asks ONE question. It had stopped doing that: an inline flower catalogue turned it into a
+  // shopping surface, and an "Include QR Cash with this card" checkbox turned one gift into two.
+  // COMMENTS STRIPPED. The file explains at length what it deliberately no longer does, and naming a
+  // removed control in order to say "this is gone" is the opposite of shipping it. The guard is about
+  // the CODE.
+  const selectorCode = codeOnly(SELECTOR);
+  assert.equal(/flowersCatalogue|gift-selector-flowers/.test(selectorCode), false,
+    "no product catalogue may render on the decision screen");
+  assert.equal(/qrCashAddOn/.test(selectorCode), false, "no second, separately-charged gift may be offered");
+  assert.equal(/Include QR Cash with this card/.test(selectorCode), false);
+  // Single-select is still a radio group, so choosing one option replaces the last.
+  assert.match(SELECTOR, /type="radio"/);
+  assert.match(SELECTOR, /onGiftChange\(occ\.type, 'type', option\.value\)/);
 });
 
 // ============================================================
@@ -172,9 +200,13 @@ test("the send payload carries the recipient pointer", () => {
   assert.match(SEND, /contactId: selectedContact\.id,/);
 });
 
-test("physical merchandise routes into the same paid-order path", () => {
-  assert.match(SEND, /else if \(type === 'merch'\) \{/);
-  assert.match(SEND, /\/dashboard\/merch\?returnTo=send&giftType=merch/);
+test("physical merchandise routes into the same paid-order path, through one destination", () => {
+  // One branch for one page. /dashboard/merch redirects to /dashboard/gifts, so routing 'merch'
+  // anywhere else was routing it to the same place by a longer road.
+  assert.match(SEND, /if \(type === 'marketplace' \|\| type === 'merch'\) \{/);
+  assert.match(SEND, /\/dashboard\/gifts\?returnTo=send&giftType=marketplace/);
+  // The cart, the checkout and the claim token for merchandise are untouched by this packet.
+  assert.match(SEND, /sendDraftId: resumeDraft,/);
 });
 
 test("curated attaches the selected tier and nothing it invented", () => {

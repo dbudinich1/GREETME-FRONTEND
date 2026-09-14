@@ -293,9 +293,15 @@ const PHONE_MESSAGES = Object.freeze({
   [PHONE_REFUSAL.TOO_LONG]: 'Enter a 10-digit US telephone number, without the country code.',
 });
 
-export function toPrepareRequest(form, { giftType, product }) {
+export function toPrepareRequest(form, { giftType, product, contactId = null }) {
   return {
     giftType,
+    // THE GREETING'S RECIPIENT, when this order is being bought for one. A pointer and nothing more:
+    // it grants no access, and the backend re-validates it against the sender's own records before
+    // any gift is attached to a Greet-Me. Without it an accepted order can never be bound to a
+    // greeting — which is exactly the right outcome for a standalone marketplace purchase, and the
+    // wrong one for a gift chosen inside the send flow, so it is threaded through deliberately.
+    ...(contactId ? { contactId } : {}),
     productCode: product?.providerProductId ?? product?.code ?? '',
     priceMajor: product?.priceMajor,
     deliveryDate: form.deliveryDate,

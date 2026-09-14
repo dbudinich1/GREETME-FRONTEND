@@ -127,9 +127,13 @@ test("the unified selector order and Brandable default are unchanged", () => {
 });
 
 test("there is still exactly ONE shared product grid and one add-to-cart path", () => {
-  assert.equal((MERCH_CODE.match(/\.map\(\(item\) => \{/g) || []).length, 1);
-  assert.equal((MERCH.match(/handleAddToCart\(item, e\)/g) || []).length, 1);
-  assert.match(MERCH, /\{visibleProducts\.map\(\(item\) => \{/);
+  // REWRITTEN 2026-09-14. The page no longer holds a card map at all: one shared grid component
+  // renders every category, Flowers included, so "one product surface" is now proven by the ABSENCE
+  // of any hand-written map plus exactly one grid element. The founder drawer is untouched by that.
+  assert.equal((MERCH_CODE.match(/\.map\(\(item\) => \{/g) || []).length, 0, "no hand-written card map");
+  assert.equal((MERCH_CODE.match(/<GiftProductGrid/g) || []).length, 1, "exactly one grid");
+  assert.equal((MERCH_CODE.match(/onAction=\{handleGiftCardAction\}/g) || []).length, 1);
+  assert.equal((MERCH.match(/cartService\.addItem\(/g) || []).length, 1, "one add-to-cart path");
 });
 
 test("the price filter and its pipeline are untouched", () => {

@@ -43,6 +43,9 @@ export default function ProviderCheckoutModal({
   // which is what makes "nothing else happens unless the order was really accepted" a property of
   // this file rather than a promise made by its caller.
   onAccepted = null,
+  // The greeting's recipient, when this checkout is a step inside a send. Forwarded to prepare so the
+  // accepted order can be bound to that greeting and to no other.
+  contactId = null,
 }) {
   // A caller that already knows the product (the marketplace, later) starts at the details step.
   // With no product in hand the customer picks one first, from the PROVIDER's live list.
@@ -118,7 +121,7 @@ export default function ProviderCheckoutModal({
     setBusy(true);
     setFailure(null);
     try {
-      const res = await prepareCheckout(toPrepareRequest(form, { giftType, product: chosen }));
+      const res = await prepareCheckout(toPrepareRequest(form, { giftType, product: chosen, contactId }));
       if (!res?.ok) {
         setFailure(res?.error || 'We could not price this order. Please check the delivery details.');
         return;
@@ -138,7 +141,7 @@ export default function ProviderCheckoutModal({
     } finally {
       setBusy(false);
     }
-  }, [form, giftType, chosen]);
+  }, [form, giftType, chosen, contactId]);
 
   // PRELOAD. The tokenizer starts loading the moment the payment step is reached and a valid
   // configuration exists — not when Place Order is clicked. The library fetches its own core after
@@ -283,8 +286,15 @@ export default function ProviderCheckoutModal({
           )}
         </div>
 
-        <h2 style={{ fontSize: '1.15rem', margin: '0 0 0.25rem' }}>{copy.title}</h2>
-        <p style={{ margin: '0 0 1rem', color: 'var(--text-secondary, #475569)', fontSize: '0.9rem' }}>{copy.body}</p>
+        {/* On the embedded handoff both lines are suppressed: statusCopy's accepted wording names the
+            fulfilling provider, which is right for a standalone purchase and wrong for the moment
+            just before Greet-Me's own confirmation. */}
+        {!handedOffAccepted && (
+          <>
+            <h2 style={{ fontSize: '1.15rem', margin: '0 0 0.25rem' }}>{copy.title}</h2>
+            <p style={{ margin: '0 0 1rem', color: 'var(--text-secondary, #475569)', fontSize: '0.9rem' }}>{copy.body}</p>
+          </>
+        )}
 
         {failure && (
           <p data-testid="provider-checkout-error" role="alert" style={{ background: '#fef2f2', color: '#991b1b', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.9rem' }}>
@@ -623,7 +633,25 @@ export default function ProviderCheckoutModal({
           </div>
         )}
 
-        {step === 'confirmation' && (
+        {/* EMBEDDED AND ACCEPTED — a HANDOFF, not a destination.
+            The greeting this order belongs to is being sent right now, so this surface shows no
+            outcome of its own: no "Order accepted" heading, no order number, no provider name, and
+            no Done. Naming the florist here would also make the last thing the sender reads before
+            their own confirmation a supplier's name rather than Greet-Me's. The order number stays
+            available in their authenticated order history.
+            It closes itself: the caller has already taken over the screen. */}
+        {step === 'confirmation' && handedOffAccepted && (
+          <div data-testid="provider-checkout-handoff" style={{ display: 'grid', gap: '0.5rem', justifyItems: 'center', padding: '0.5rem 0' }}>
+            <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>
+              Payment confirmed
+            </p>
+            <p style={{ margin: 0, color: 'var(--text-secondary, #64748b)' }}>
+              Sending your Greet-Me&hellip;
+            </p>
+          </div>
+        )}
+
+        {step === 'confirmation' && !handedOffAccepted && (
           <div data-testid="provider-checkout-confirmation" style={{ display: 'grid', gap: '0.75rem' }}>
             {result?.providerOrderId && (
               <div style={{ background: 'var(--bg-secondary, #f8fafc)', borderRadius: 10, padding: '0.75rem' }}>
@@ -643,19 +671,10 @@ export default function ProviderCheckoutModal({
               </button>
             )}
 
-            {/* NOT DONE. The order was accepted and the greeting it is attached to is being sent
-                right now; the combined confirmation belongs to that flow, not to this one. There is
-                deliberately no control here — the customer has nothing left to decide. */}
-            {handedOffAccepted ? (
-              <p data-testid="provider-checkout-handoff" style={{ margin: 0, fontWeight: 600 }}>
-                Sending your Greet-Me&hellip;
-              </p>
-            ) : (
-              <button type="button" data-testid="provider-checkout-done" onClick={onClose}
-                style={{ padding: '0.7rem 1rem', borderRadius: 10, border: 'none', background: '#4F2D7F', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                Done
-              </button>
-            )}
+            <button type="button" data-testid="provider-checkout-done" onClick={onClose}
+              style={{ padding: '0.7rem 1rem', borderRadius: 10, border: 'none', background: '#4F2D7F', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+              Done
+            </button>
           </div>
         )}
       </div>
