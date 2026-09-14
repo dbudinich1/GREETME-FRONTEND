@@ -34,6 +34,19 @@ export const SEND_STATE_KEY = 'sendGreetingState';
 /** The one field this module owns inside that record. */
 export const PENDING_GIFT_LINK_FIELD = 'pendingGiftLink';
 
+/**
+ * GATE B — the send idempotency key for the greeting being composed.
+ *
+ * ONE key per composed greeting, reused on every retry of it, so the backend derives one stable
+ * logical job and a lost response converges instead of sending twice. It lives in the same record as
+ * everything else about this draft, which is what carries it through a refresh or a link recovery.
+ *
+ * It is NOT the attempt id, the claim token, the provider order number or the contact id. Each of
+ * those names something else — a checkout, a gift, a vendor's order, a person — and reusing one as a
+ * send key would tie the identity of a send to a thing that can legitimately change or repeat.
+ */
+export const SEND_REQUEST_ID_FIELD = 'sendRequestId';
+
 /** The only status the marker may carry. A marker exists because a link is pending; there is no other reason. */
 export const PENDING_STATUS = 'pending';
 
@@ -109,6 +122,42 @@ export function readPendingGiftLink() {
 /** The greeting draft stored beside the marker, so a refresh restores the same greeting. */
 export function readSendDraft() {
   return readRecord();
+}
+
+/**
+ * The send key for this greeting: the one already stored, or a new one minted and stored now.
+ *
+ * Minted BEFORE the first send request, so the very first attempt already carries it — a key created
+ * only on retry would be useless, because the request it needed to converge with was sent without it.
+ */
+export function ensureSendRequestId(generate = () => crypto.randomUUID()) {
+  const existing = readRecord();
+  const current = existing?.[SEND_REQUEST_ID_FIELD];
+  if (typeof current === 'string' && current) return current;
+  const minted = generate();
+  writeRecord({ ...(existing || {}), [SEND_REQUEST_ID_FIELD]: minted });
+  return minted;
+}
+
+/** The stored key, or null. Read-only — it never mints. */
+export function readSendRequestId() {
+  const value = readRecord()?.[SEND_REQUEST_ID_FIELD];
+  return typeof value === 'string' && value ? value : null;
+}
+
+/**
+ * Drop the key so the NEXT greeting gets its own.
+ *
+ * Called on exactly two occasions: a definitive send success, and the sender deliberately starting a
+ * new greeting. Never on a failure, and never on unmount — a key that disappears while its send is
+ * still in doubt is the whole problem this exists to solve.
+ */
+export function clearSendRequestId() {
+  const record = readRecord();
+  if (!record || !(SEND_REQUEST_ID_FIELD in record)) return false;
+  const next = { ...record };
+  delete next[SEND_REQUEST_ID_FIELD];
+  return writeRecord(next);
 }
 
 /**

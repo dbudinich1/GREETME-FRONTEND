@@ -32,7 +32,8 @@ import { retryGiftLink } from '../api/providerCheckout';
 // The link-pending recovery marker, carried inside the EXISTING sendGreetingState record, and the
 // one-shot remount replay that uses it. No new storage system, route or checkout attempt.
 import {
-  clearPendingGiftLink, persistPendingGiftLink, readPendingGiftLink,
+  clearPendingGiftLink, clearSendRequestId, ensureSendRequestId, persistPendingGiftLink,
+  readPendingGiftLink,
 } from './pendingGiftLink';
 import { usePendingGiftLinkRecovery } from '../components/giftPlace/usePendingGiftLinkRecovery';
 import { CHECKOUT_STATUS } from '../components/providerCheckout/providerCheckoutModel';
@@ -748,6 +749,8 @@ export default function SendGreeting() {
         // whether the work finished. Only a completed job does.
         clearPendingGiftLink();
         setPendingGiftLink(null);
+        // And the send key: this greeting is definitively sent, so the next one gets its own.
+        clearSendRequestId();
         setShowReadyBeat(true);
         // 800ms: a breath, not a flash (Stage B premium completion-state spec).
         setTimeout(() => setShowReadyBeat(false), 800);
@@ -929,9 +932,21 @@ export default function SendGreeting() {
     setSending(true);
     setJobStatus(null);
     try {
-      const response = await api.sendGreeting(greetingData);
+      // GATE B — ONE KEY PER COMPOSED GREETING, on the very first attempt and on every retry of it.
+      //
+      // `ensureSendRequestId` mints it only if this greeting has none, so a retry reuses the key the
+      // original request carried. That is what lets the backend derive one stable logical job and
+      // converge a lost response instead of sending twice. It is dropped only on a definitive send
+      // success, or when the sender deliberately starts a new greeting.
+      const response = await api.sendGreeting({
+        ...greetingData,
+        sendRequestId: ensureSendRequestId(),
+      });
       setJobId(response.jobId);
-      setJobStatus('queued');
+      // A REPLAY IS NOT A NEW SEND. When the backend recognises the key it returns the job that
+      // already exists — possibly one the worker has already completed — so the ordinary confirmation
+      // follows from polling that job rather than from submitting anything again.
+      setJobStatus(response.status || 'queued');
     } catch (error) {
       // Locked Voice Integrity: backend VOICE_CLONE_MISSING responses surface
       // the warm VoiceMissingModal checkpoint instead of a generic alert.
@@ -1484,6 +1499,9 @@ if (typeof window !== "undefined") {
     });
     setJobId(null);
     setCompletedJobId(null);
+    // A DELIBERATE NEW GREETING. The previous key belonged to a send that is finished; carrying it
+    // forward would make the next greeting converge onto the last one.
+    clearSendRequestId();
     setJobStatus(null);
     setSending(false);
     setErrors({});

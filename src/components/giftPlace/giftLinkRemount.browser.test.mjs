@@ -27,7 +27,8 @@ const ENTRY = join(__dirname, ".__glr.entry.jsx");
 
 let React, createRoot, act, window;
 let useRecovery, RECOVERY, persist, readMarker, clearMarker, correlate, CORRELATION,
-  PENDING_FIELD, SEND_KEY, readDraft;
+  PENDING_FIELD, SEND_KEY, readDraft,
+  ensureKey, readKey, clearKey, KEY_FIELD;
 
 before(async () => {
   writeFileSync(ENTRY,
@@ -35,6 +36,7 @@ before(async () => {
     + 'export {\n'
     + '  persistPendingGiftLink, readPendingGiftLink, clearPendingGiftLink,\n'
     + '  correlatePendingGiftLink, CORRELATION, PENDING_GIFT_LINK_FIELD, SEND_STATE_KEY, readSendDraft,\n'
+    + '  ensureSendRequestId, readSendRequestId, clearSendRequestId, SEND_REQUEST_ID_FIELD,\n'
     + '} from "../../pages/pendingGiftLink.js";\n');
   await esbuild.build({
     entryPoints: [ENTRY], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
@@ -63,6 +65,8 @@ before(async () => {
     clearPendingGiftLink: clearMarker, correlatePendingGiftLink: correlate,
     CORRELATION, PENDING_GIFT_LINK_FIELD: PENDING_FIELD, SEND_STATE_KEY: SEND_KEY,
     readSendDraft: readDraft,
+    ensureSendRequestId: ensureKey, readSendRequestId: readKey,
+    clearSendRequestId: clearKey, SEND_REQUEST_ID_FIELD: KEY_FIELD,
   } = await import(pathToFileURL(BUNDLE).href));
 });
 after(() => { try { rmSync(BUNDLE, { force: true }); rmSync(ENTRY, { force: true }); } catch { /* ignore */ } });
@@ -389,6 +393,91 @@ test("unreadable or absent storage is simply no recovery, never a crash", () => 
   assert.equal(readMarker(), null);
   window.sessionStorage.setItem(SEND_KEY, JSON.stringify({ [PENDING_FIELD]: { status: "done", attemptId: ATTEMPT } }));
   assert.equal(readMarker(), null, "only a pending marker is a marker");
+});
+
+
+// ===========================================================================
+// GATE B — the send idempotency key's lifecycle
+// ===========================================================================
+
+test("one key per composed greeting: minted once, then reused by every retry", () => {
+  const first = ensureKey(() => "6f9619ff-8b86-4d01-b42d-00cf4fc964ff");
+  assert.equal(first, "6f9619ff-8b86-4d01-b42d-00cf4fc964ff");
+  // Every later call — a retry, a re-render, a recovery — returns the SAME key. A key minted per
+  // attempt would be useless: the request it needed to converge with was sent under a different one.
+  for (let i = 0; i < 5; i += 1) {
+    assert.equal(ensureKey(() => "SHOULD-NOT-BE-USED"), first, "no second key is minted");
+  }
+  assert.equal(readKey(), first);
+});
+
+test("the key lives in the EXISTING record, beside the draft and the marker", () => {
+  persist({
+    attemptId: ATTEMPT, giftType: "flowers", userId: SENDER, contactId: CONTACT, productId: PRODUCT,
+    draft: { formData: { contactId: CONTACT, customMessage: "hi" } },
+  });
+  const key = ensureKey(() => "3f2504e0-4f89-41d3-9a0c-0305e82c3301");
+
+  const record = JSON.parse(window.sessionStorage.getItem(SEND_KEY));
+  assert.equal(record[KEY_FIELD], key, "one record holds all three");
+  assert.ok(record[PENDING_FIELD], "the marker survives");
+  assert.equal(record.formData.customMessage, "hi", "and so does the draft");
+  // ONE storage key, still. No second system was introduced for the send key.
+  assert.equal(window.sessionStorage.length, 1);
+});
+
+test("the key survives a refresh and a link recovery", () => {
+  const key = ensureKey(() => "6f9619ff-8b86-4d01-b42d-00cf4fc964ff");
+  persist({
+    attemptId: ATTEMPT, giftType: "flowers", userId: SENDER, contactId: CONTACT, productId: PRODUCT,
+    draft: { formData: { contactId: CONTACT } },
+  });
+  // A refresh is a fresh read of the same record.
+  assert.equal(readKey(), key, "survives a refresh");
+  // Clearing the MARKER after a link recovery must not take the key with it: the greeting still has
+  // to be sent, and that send must converge with the ones before it.
+  clearMarker();
+  assert.equal(readMarker(), null);
+  assert.equal(readKey(), key, "survives the link recovery");
+});
+
+test("the key is NOT the attempt id, the claim token or the contact", () => {
+  const key = ensureKey(() => "6f9619ff-8b86-4d01-b42d-00cf4fc964ff");
+  persist({
+    attemptId: ATTEMPT, giftType: "flowers", userId: SENDER, contactId: CONTACT, productId: PRODUCT,
+  });
+  assert.notEqual(key, ATTEMPT);
+  assert.notEqual(key, CONTACT);
+  assert.notEqual(key, PRODUCT);
+  // And it is a v4 UUID, the only shape the backend accepts as a key.
+  assert.match(key, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+});
+
+test("the key clears ONLY on a definitive success, and a new greeting gets a new one", () => {
+  const first = ensureKey(() => "6f9619ff-8b86-4d01-b42d-00cf4fc964ff");
+  persist({
+    attemptId: ATTEMPT, giftType: "flowers", userId: SENDER, contactId: CONTACT, productId: PRODUCT,
+    draft: { formData: { contactId: CONTACT } },
+  });
+
+  // The terminal condition.
+  assert.equal(clearKey(), true);
+  assert.equal(readKey(), null);
+  // Only the key: the draft beside it is untouched.
+  assert.ok(readDraft().formData, "the draft survives");
+
+  // The next greeting mints its own, so it cannot converge onto the last one.
+  const second = ensureKey(() => "3f2504e0-4f89-41d3-9a0c-0305e82c3301");
+  assert.notEqual(second, first);
+  assert.equal(clearKey(), true);
+  assert.equal(clearKey(), false, "clearing twice is harmless");
+});
+
+test("unreadable storage never throws and never blocks a send", () => {
+  window.sessionStorage.setItem(SEND_KEY, "{not json");
+  const key = ensureKey(() => "6f9619ff-8b86-4d01-b42d-00cf4fc964ff");
+  assert.equal(key, "6f9619ff-8b86-4d01-b42d-00cf4fc964ff", "a key is still produced");
+  assert.equal(readKey(), key, "and recorded once the record is rewritten");
 });
 
 // ===========================================================================
