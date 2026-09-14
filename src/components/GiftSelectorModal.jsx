@@ -15,6 +15,18 @@ const GIFT_OPTIONS = [
   { value: 'marketplace', label: 'Greet-Me Gift Place', description: 'Browse made-in-USA gifts' }
 ];
 
+// FLOWERS IS NOT LIKE THE OTHERS, and that difference is why it is declared apart rather than added
+// to the list above. Every entry in GIFT_OPTIONS mints a Greet-Me claim token and resolves at
+// /gift/:claimToken. A florist-delivered arrangement has nothing to claim: it is dispatched to the
+// recipient's street address by the provider, who is the merchant of record for it. So it carries no
+// claim token and must never be given one — and it is offered ONLY when the caller supplies a
+// catalogue, which is the same thing as saying only when the provider is live.
+const FLOWERS_OPTION = Object.freeze({
+  value: 'flowers',
+  label: 'Fresh Flowers',
+  description: 'A florist-delivered arrangement, chosen right here',
+});
+
 const QR_CASH_PRESETS = [10, 25, 50, 100];
 const CURATED_MAX_TIERS = [25, 50, 75, 100, 150];
 
@@ -27,11 +39,21 @@ export default function GiftSelectorModal({
   getOccasionLabel,
   getOccasionEmoji,
   context = 'recipient', // 'recipient' (full options) or 'oneoff' (no auto/scheduling)
-  onBrowse = null // callback for browsing merch/marketplace: (type) => void
+  onBrowse = null, // callback for browsing merch/marketplace: (type) => void
+  // The provider-fulfilled flower catalogue, as a node. Supplied by the send flow; absent
+  // everywhere else, and absent while the provider is dormant. Presence is what offers the option,
+  // so there is no way to select Flowers on a surface that cannot show any.
+  //
+  // IT RENDERS IN PLACE. Choosing Flowers is already the request to see them, so the arrangements
+  // appear in this modal under the option the shopper just picked — no button in between, and no
+  // navigation away from the greeting being composed.
+  flowersCatalogue = null,
 }) {
   const getGiftSetting = (occasionValue) => {
     return occasionGiftSettings?.[occasionValue] || { type: 'none', autoGift: false };
   };
+
+  const options = flowersCatalogue ? [...GIFT_OPTIONS, FLOWERS_OPTION] : GIFT_OPTIONS;
 
   return (
     <Modal
@@ -116,7 +138,7 @@ export default function GiftSelectorModal({
 
                   {/* Gift Type Selection - Card-style Radio Options */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {GIFT_OPTIONS.map((option) => {
+                    {options.map((option) => {
                       const isSelected = giftSetting.type === option.value;
                       return (
                         <label
@@ -174,6 +196,26 @@ export default function GiftSelectorModal({
                       );
                     })}
                   </div>
+
+                  {/* Flower catalogue — rendered IN PLACE the moment Flowers is chosen. No button
+                      stands between the option and the arrangements, and nothing navigates. */}
+                  {giftSetting.type === 'flowers' && flowersCatalogue && (
+                    <div
+                      data-testid="gift-selector-flowers"
+                      style={{
+                        marginTop: '1rem',
+                        padding: '1.125rem',
+                        background: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)',
+                        borderRadius: '0.625rem',
+                        border: '1px solid #f9a8d4'
+                      }}
+                    >
+                      <p style={{ fontSize: '0.8125rem', color: '#9d174d', margin: '0 0 0.75rem' }}>
+                        Pick an arrangement. You&apos;ll pay the florist when you send this Greet-Me.
+                      </p>
+                      {flowersCatalogue}
+                    </div>
+                  )}
 
                   {/* QR Cash Amount Selector */}
                   {giftSetting.type === 'qrcash' && (
@@ -389,8 +431,11 @@ export default function GiftSelectorModal({
                     </div>
                   )}
 
-                  {/* QR Cash Add-On - Show for non-none and non-qrcash types */}
-                  {giftSetting.type !== 'none' && giftSetting.type !== 'qrcash' && (
+                  {/* QR Cash Add-On - Show for non-none and non-qrcash types.
+                      NOT for flowers: that gift is charged by the provider at its own checkout, and
+                      offering a second, separately-charged attachment beside it would invent a
+                      two-payment send that nothing downstream is built to settle. */}
+                  {giftSetting.type !== 'none' && giftSetting.type !== 'qrcash' && giftSetting.type !== 'flowers' && (
                     <div style={{
                       marginTop: '1rem',
                       padding: '1.125rem',

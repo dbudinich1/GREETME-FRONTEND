@@ -34,7 +34,16 @@ const input = {
 };
 const row = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' };
 
-export default function ProviderCheckoutModal({ isOpen, onClose, giftType, product, customer }) {
+export default function ProviderCheckoutModal({
+  isOpen, onClose, giftType, product, customer,
+  // EMBEDDED MODE. Given, this checkout is a STEP INSIDE something larger — today, a Greet-Me that
+  // has been composed but not sent. It is called with the backend's own accepted result, exactly
+  // once, and only for CHECKOUT_STATUS.ACCEPTED. Every other outcome — a decline, a refused
+  // submission, an uncertain confirmation, a price that moved, a closed window — leaves it uncalled,
+  // which is what makes "nothing else happens unless the order was really accepted" a property of
+  // this file rather than a promise made by its caller.
+  onAccepted = null,
+}) {
   // A caller that already knows the product (the marketplace, later) starts at the details step.
   // With no product in hand the customer picks one first, from the PROVIDER's live list.
   const [chosen, setChosen] = useState(product ?? null);
@@ -63,6 +72,11 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
   // One submission per prepared attempt, enforced in the browser as well as in the backend: the
   // provider has no idempotency key, so a double-click must never become a second order.
   const submitting = useRef(false);
+  // EXACTLY ONCE, independently of how often the accepted result is re-rendered. `submitting` already
+  // stops a second dispatch; this stops a second HANDOFF, which is a different event and would send
+  // a second greeting from one order. It is never reset — an accepted order is handed off once for
+  // the life of this checkout, and a further attempt would need a new one.
+  const handedOff = useRef(false);
 
   const provider = prepared?.provider ?? result?.checkout?.provider ?? null;
   const copy = useMemo(
@@ -209,6 +223,15 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
       }
       setResult(res);
       setStep('confirmation');
+      // THE ONLY STATUS THAT MAY CONTINUE ANYTHING. `accepted` is the backend's authoritative word
+      // that the provider took the order and the customer was charged for it. `submission_failed`
+      // did not happen; `confirmation_uncertain` is NOT KNOWN to have happened, and treating it as
+      // acceptance is exactly the mistake that would send a greeting announcing an order that may
+      // not exist. Both are left here, on screen, for a human.
+      if (onAccepted && res?.status === CHECKOUT_STATUS.ACCEPTED && !handedOff.current) {
+        handedOff.current = true;
+        onAccepted(res);
+      }
     } catch (err) {
       // Terminal failure: the fields are cleared here too, so a decline never leaves a card number
       // sitting in a form the browser might restore.
@@ -218,7 +241,12 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
     } finally {
       setBusy(false);
     }
-  }, [card, tokenization, prepared, giftType, payAllowed, provider]);
+  }, [card, tokenization, prepared, giftType, payAllowed, provider, onAccepted]);
+
+  // EMBEDDED AND ACCEPTED. The order is real and the greeting it belongs to is now being sent by the
+  // caller, so this checkout has no terminal state of its own to offer. "Done" would be a lie in the
+  // one direction that matters: the flower order is settled, the Greet-Me is not.
+  const handedOffAccepted = Boolean(onAccepted) && result?.status === CHECKOUT_STATUS.ACCEPTED;
 
   if (!isOpen) return null;
 
@@ -241,14 +269,18 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <GreetMeLogo />
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close checkout"
-            style={{ padding: 0, width: 32, height: 32, borderRadius: 8, border: '1px solid var(--border, #e2e8f0)', background: 'transparent', cursor: 'pointer' }}
-          >
-            <X size={16} />
-          </button>
+          {/* Closable at every step EXCEPT after an accepted handoff, where there is nothing to
+              close: the greeting is mid-send and the next screen is the combined confirmation. */}
+          {!handedOffAccepted && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close checkout"
+              style={{ padding: 0, width: 32, height: 32, borderRadius: 8, border: '1px solid var(--border, #e2e8f0)', background: 'transparent', cursor: 'pointer' }}
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
 
         <h2 style={{ fontSize: '1.15rem', margin: '0 0 0.25rem' }}>{copy.title}</h2>
@@ -611,10 +643,19 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
               </button>
             )}
 
-            <button type="button" data-testid="provider-checkout-done" onClick={onClose}
-              style={{ padding: '0.7rem 1rem', borderRadius: 10, border: 'none', background: '#4F2D7F', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-              Done
-            </button>
+            {/* NOT DONE. The order was accepted and the greeting it is attached to is being sent
+                right now; the combined confirmation belongs to that flow, not to this one. There is
+                deliberately no control here — the customer has nothing left to decide. */}
+            {handedOffAccepted ? (
+              <p data-testid="provider-checkout-handoff" style={{ margin: 0, fontWeight: 600 }}>
+                Sending your Greet-Me&hellip;
+              </p>
+            ) : (
+              <button type="button" data-testid="provider-checkout-done" onClick={onClose}
+                style={{ padding: '0.7rem 1rem', borderRadius: 10, border: 'none', background: '#4F2D7F', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                Done
+              </button>
+            )}
           </div>
         )}
       </div>

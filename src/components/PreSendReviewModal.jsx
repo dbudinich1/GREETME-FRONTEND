@@ -36,15 +36,18 @@ export default function PreSendReviewModal({
   qrCashAttachment,           // { amountCents, feeCents, totalCents, kind: 'fresh' | 'referral' } | null
   curatedAttachment,          // { maxSpendCents } | null
   marketplaceAttachments,     // Array<{ id, name, price, partner }> | null
+  flowersAttachment,          // { providerProductId, name, priceMinor, currency } | null
   sending,
   onConfirmDirectSend,
   onConfirmQRCashFresh,
   onMarketplaceCheckout,      // A2.4: active handler (replaces A2.3 onMarketplaceBlocked stub)
+  onConfirmFlowersCheckout,   // provider checkout as an embedded step of THIS send
   onRemoveAttachment,
 }) {
   if (!isOpen) return null;
 
   const hasMarketplaceItems = Array.isArray(marketplaceAttachments) && marketplaceAttachments.length > 0;
+  const hasFlower = Boolean(flowersAttachment?.providerProductId);
 
   // Primary CTA configuration — derived from giftMode + attachment kind.
   // Each path routes to an existing terminal handler in SendGreeting.jsx.
@@ -73,6 +76,19 @@ export default function PreSendReviewModal({
         note: hasMarketplaceItems
           ? null
           : 'Add a marketplace gift below, or return to the greeting to change the gift type.',
+      };
+    }
+    if (giftMode === 'flowers') {
+      // ONE PRIMARY ACTION, and it is still the send. Payment is the next STEP of it, not a
+      // different errand, so the label says what the button starts rather than where it goes.
+      return {
+        label: 'Pay the florist and send',
+        onClick: onConfirmFlowersCheckout,
+        disabled: !hasFlower || !!sending,
+        icon: 'payment',
+        note: hasFlower
+          ? 'Your Greet-Me sends by itself as soon as the florist accepts the order.'
+          : 'Choose an arrangement below, or return to the greeting to change the gift type.',
       };
     }
     return { label: 'Send Now', onClick: onConfirmDirectSend, disabled: !!sending, icon: 'send' };
@@ -315,6 +331,41 @@ export default function PreSendReviewModal({
                 }}>
                   Greet-Me will personally follow up regarding your curated gift request.
                 </p>
+              </div>
+            )}
+
+            {/* Flower attachment. The figure shown is the ARRANGEMENT's own list price, labelled as
+                such: delivery and tax are set by the florist's quote at the payment step, and this
+                surface must not imply it knows the total before the provider has said what it is. */}
+            {giftMode === 'flowers' && (
+              <div data-testid="review-flowers" style={{
+                padding: '1rem 1.125rem',
+                background: '#fdf2f8',
+                border: '1px solid #fbcfe8',
+                borderRadius: '0.625rem',
+              }}>
+                {hasFlower ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#9d174d' }}>
+                        {flowersAttachment.name}
+                      </span>
+                      {typeof flowersAttachment.priceMinor === 'number' && (
+                        <span data-testid="review-flowers-price" style={{ fontSize: '0.875rem', fontWeight: 500, color: '#be185d', whiteSpace: 'nowrap' }}>
+                          {formatPrice(flowersAttachment.priceMinor)}
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: '#be185d', margin: '0.5rem 0 0', lineHeight: 1.5 }}>
+                      Arrangement price. The florist&apos;s delivery and tax are added at the payment step,
+                      and you approve the total there before anything is charged.
+                    </p>
+                  </>
+                ) : (
+                  <p data-testid="review-flowers-none" style={{ fontSize: '0.8125rem', color: '#9d174d', margin: 0 }}>
+                    No arrangement chosen yet.
+                  </p>
+                )}
               </div>
             )}
 

@@ -22,6 +22,12 @@ import GiftSelectorModal from '../components/GiftSelectorModal';
 import ShareTheLovePanel from '../components/ShareTheLovePanel';
 import GiftConfirmationModal from '../components/GiftConfirmationModal';
 import PreSendReviewModal from '../components/PreSendReviewModal';
+// The EXISTING provider checkout and the EXISTING provider catalogue, reused verbatim. This flow
+// adds no checkout, no payment path and no second catalogue of its own.
+import ProviderCheckoutEntry from '../components/providerCheckout/ProviderCheckoutEntry';
+import ProviderCheckoutModal from '../components/providerCheckout/ProviderCheckoutModal';
+import { CHECKOUT_STATUS } from '../components/providerCheckout/providerCheckoutModel';
+import { fetchCheckoutAvailability } from '../api/providerCheckout';
 import EmailVerificationModal from '../components/EmailVerificationModal';
 import VoiceMissingModal from '../components/VoiceMissingModal';
 import '../styles/ceremony.css';
@@ -151,6 +157,25 @@ export default function SendGreeting() {
   const [giftRequestId, setGiftRequestId] = useState(null);
   const [giftConfirmed, setGiftConfirmed] = useState(false);
 
+  // ───────────────────────────────────────────────
+  // Flowers — a provider-fulfilled gift, paid at the provider's own checkout, which runs as an
+  // EMBEDDED STEP of this send rather than as an errand of its own.
+  //
+  // The cadence is: compose → choose an arrangement → press Send Greet-Me → pay → the greeting
+  // sends itself → one confirmation covering both. Nothing here navigates, nothing returns to the
+  // dashboard, and the flower order is never presented as finished while the Greet-Me is unsent.
+  // ───────────────────────────────────────────────
+  // Asked once, when the page loads. The catalogue component asks again for itself — deliberately,
+  // so each surface is fail-closed on its own evidence rather than on a boolean passed down to it.
+  const [flowersAvailable, setFlowersAvailable] = useState(false);
+  const [isFlowersCheckoutOpen, setIsFlowersCheckoutOpen] = useState(false);
+  // The ACCEPTED provider order, kept only so the combined confirmation can quote its number. Set
+  // from the backend's own accepted result; never from anything the browser inferred.
+  const [flowerOrder, setFlowerOrder] = useState(null);
+  // EXACTLY ONE SEND PER ACCEPTED ORDER. A ref, not state: it must be true for the rest of this
+  // handler's synchronous run, and a re-render must not be able to reopen the window.
+  const flowerSendStarted = useRef(false);
+
   // Phase 3D Batch A — A2.3: Pre-send ceremonial review modal state
   const [isPreSendReviewOpen, setIsPreSendReviewOpen] = useState(false);
 
@@ -256,6 +281,22 @@ export default function SendGreeting() {
 
   useEffect(() => {
     fetchContacts();
+  }, []);
+
+  // Is the flower provider live? A posture question only: it costs no vendor call and no storage
+  // read, and it decides whether the option is OFFERED at all. Fail closed — an unanswered question
+  // is not an invitation to sell something.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const posture = await fetchCheckoutAvailability('flowers');
+        if (!cancelled && posture?.available === true) setFlowersAvailable(true);
+      } catch {
+        // Stays false.
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // Demo mode prefill: ?demo=true&contactId=X → auto-select contact + Mother's Day
@@ -790,7 +831,16 @@ export default function SendGreeting() {
       // against the sender's own records before any gift is attached; it grants
       // nothing on its own.
       contactId: selectedContact.id,
-      includeGift: Boolean(giftSettings?.type && giftSettings.type !== 'none'),
+      // GIFTING-INTEGRITY: `includeGift` is a promise that a VALIDATED Greet-Me gift record will be
+      // attached, and the backend resolver refuses the whole send when it cannot build one. Flowers
+      // never can: the arrangement is dispatched to the recipient's street address by the provider,
+      // who is the merchant of record, so there is no claim token, no QR and nothing to reveal at
+      // /gift/:claimToken. Setting the flag for it would have sent every flower Greet-Me into
+      // SEND_GIFT_ERRORS.MALFORMED — "Please re-select your gift" — for a selection that was
+      // perfectly valid. The flower order is confirmed to the SENDER, beside the send itself.
+      includeGift: Boolean(
+        giftSettings?.type && giftSettings.type !== 'none' && giftSettings.type !== 'flowers',
+      ),
       // Curated is founder-fulfilled out of band — there is no payment to
       // wait on, so the selected spend tier IS the evidence that a gift was
       // chosen. GIFTING-INTEGRITY: the backend validates that tier, mints the
@@ -944,6 +994,58 @@ export default function SendGreeting() {
 
     // None / curated / marketplace-empty / (dead) merch: direct dispatch.
     await executeGreetingSend(greetingData);
+  };
+
+  // Flowers path. A DELIBERATE MIRROR of handleReviewQRCashFresh below: park the completed
+  // greeting, open the payment step, and let the success handler dispatch the one send. The only
+  // difference is which checkout opens — the shape of the flow is the proven one, not a new one.
+  const handleReviewFlowersCheckout = () => {
+    const selectedContact = contacts.find(c => c.id === formData.contactId);
+    if (!selectedContact) return;
+    if (!giftSettings?.flowersProduct?.providerProductId) return;
+    const greetingData = buildGreetingData(selectedContact);
+    setPendingGreetingData(greetingData);
+    // A fresh checkout is a fresh chance to send. Released here and nowhere else, so it is armed by
+    // a human action and disarmed by the send itself.
+    flowerSendStarted.current = false;
+    setFlowerOrder(null);
+    setIsPreSendReviewOpen(false);
+    setIsFlowersCheckoutOpen(true);
+  };
+
+  // THE ONE PLACE A FLOWER ORDER TURNS INTO A SEND.
+  //
+  // Reached only from ProviderCheckoutModal's accepted handoff, which fires for
+  // CHECKOUT_STATUS.ACCEPTED and for nothing else — so a cancelled window, a decline, a refused
+  // submission, a price that moved and an UNCERTAIN confirmation all arrive here never. The status
+  // is re-checked anyway: this is the last gate before a greeting goes out announcing an order, and
+  // it must not depend on a caller keeping its promise.
+  const handleFlowerOrderAccepted = async (result) => {
+    if (result?.status !== CHECKOUT_STATUS.ACCEPTED) return;
+    if (flowerSendStarted.current) return;
+    flowerSendStarted.current = true;
+
+    // The greeting is sent EXACTLY as composed. No gift payload rides along — see the note on
+    // `includeGift` in buildGreetingData — so this is the same send a no-gift Greet-Me performs,
+    // through the same sole dispatcher.
+    const greetingData = pendingGreetingData;
+    if (!greetingData) return;
+
+    setFlowerOrder({
+      providerOrderId: result.providerOrderId || null,
+      provider: result?.checkout?.provider || null,
+    });
+    setIsFlowersCheckoutOpen(false);
+    setPendingGreetingData(null);
+    await executeGreetingSend(greetingData);
+  };
+
+  // Closing or cancelling the flower checkout. NOTHING WAS ORDERED AND NOTHING IS SENT: the parked
+  // greeting is released, and the DRAFT — formData, the chosen arrangement, the photos — is
+  // untouched, so the sender can change or remove the gift and send without composing again.
+  const handleFlowersCheckoutClose = () => {
+    setIsFlowersCheckoutOpen(false);
+    setPendingGreetingData(null);
   };
 
   // QR Cash fresh-charge path: opens the existing GiftConfirmationModal.
@@ -1280,6 +1382,23 @@ if (typeof window !== "undefined") {
           >
             That Greet-Me is on its way.
           </p>
+          {/* ONE CONFIRMATION, BOTH RESULTS. The flower order is reported here and only here — the
+              checkout it came from has no terminal screen of its own, precisely so that this is the
+              first and only moment either result is called finished. "Accepted" is the furthest the
+              provider lets us go: it publishes no delivery, tracking or status feed to Greet-Me. */}
+          {flowerOrder && (
+            <p
+              data-testid="send-flower-order-confirmation"
+              className="ceremony-body ceremony-fade-in"
+              style={{ marginTop: '10px' }}
+            >
+              Your flower order has been accepted
+              {flowerOrder.providerOrderId
+                ? <> &mdash; order number <strong>{flowerOrder.providerOrderId}</strong></>
+                : null}
+              .
+            </p>
+          )}
           <div
             className="ceremony-fade-in-late"
             style={{
@@ -2598,6 +2717,18 @@ if (typeof window !== "undefined") {
         getOccasionLabel={() => 'Just Because'}
         getOccasionEmoji={() => '💝'}
         context="oneoff"
+        // ATTACH MODE. The catalogue reports a choice and opens nothing: the arrangement is pinned
+        // to the greeting being composed, and the checkout belongs to Send Greet-Me. Absent while
+        // the provider is dormant, which is also what withholds the option itself.
+        flowersCatalogue={flowersAvailable ? (
+          <ProviderCheckoutEntry
+            selectedCategory="flowers"
+            product={null}
+            customer={user}
+            selectedProductId={giftSettings?.flowersProduct?.providerProductId || null}
+            onSelect={(p) => setGiftSettings(prev => ({ ...prev, flowersProduct: p }))}
+          />
+        ) : null}
         onBrowse={(type) => {
           // Save current state to sessionStorage before navigating
           const stateToSave = {
@@ -2660,11 +2791,35 @@ if (typeof window !== "undefined") {
             ? cartService.getCart().filter(i => i.sendContext === 'greeting-flow')
             : null
         }
+        flowersAttachment={
+          giftSettings.type === 'flowers' && giftSettings.flowersProduct
+            ? {
+                providerProductId: giftSettings.flowersProduct.providerProductId,
+                name: giftSettings.flowersProduct.name,
+                priceMinor: giftSettings.flowersProduct.priceMinor,
+                currency: giftSettings.flowersProduct.currency,
+              }
+            : null
+        }
         sending={sending}
         onConfirmDirectSend={handleReviewDirectSend}
         onConfirmQRCashFresh={handleReviewQRCashFresh}
         onMarketplaceCheckout={handleReviewMarketplaceCheckout}
+        onConfirmFlowersCheckout={handleReviewFlowersCheckout}
         onRemoveAttachment={handleReviewRemoveAttachment}
+      />
+
+      {/* The EXISTING provider checkout, opened as the next STEP of this send. The recipient, the
+          message, the media and the chosen arrangement are all still here behind it — nothing was
+          reset and nothing navigated — and its accepted handoff is the only thing that can dispatch
+          the greeting. */}
+      <ProviderCheckoutModal
+        isOpen={isFlowersCheckoutOpen}
+        onClose={handleFlowersCheckoutClose}
+        giftType="flowers"
+        product={giftSettings?.flowersProduct || null}
+        customer={user}
+        onAccepted={handleFlowerOrderAccepted}
       />
 
       {/* QR Cash™ Confirmation Modal */}
