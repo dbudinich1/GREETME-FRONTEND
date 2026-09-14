@@ -162,7 +162,7 @@ test("an accepted order with NO gift token must not send the greeting", () => {
   // COMMENTS STRIPPED. The handler explains at length WHY it does not dispatch, naming the dispatch
   // in order to say where the latch lives instead — scanning prose would find that mention and read
   // it as a call.
-  const handler = codeOnly(block("const handleFlowerOrderAccepted", "/**", "accepted handler"));
+  const handler = codeOnly(block("const handleFlowerOrderAccepted", "\n  };", "accepted handler"));
 
   // The early return happens BEFORE any dispatch.
   const guardAt = handler.indexOf("if (!giftClaimToken) {");
@@ -173,7 +173,10 @@ test("an accepted order with NO gift token must not send the greeting", () => {
 
   // It HOLDS the accepted attempt rather than discarding it.
   assert.match(handler, /setPendingGiftLink\(\{/);
-  assert.match(handler, /attemptId: result\?\.checkout\?\.attemptId/);
+  assert.match(handler, /const attemptId = result\?\.checkout\?\.attemptId/,
+    "the attempt id comes from the SERVER's accepted evidence");
+  // AND IT IS PERSISTED, so a refresh does not lose the only handle on a charged order.
+  assert.match(handler, /persistPendingGiftLink\(\{/);
   // And it does not claim a confirmed gift.
   assert.equal(/setGiftConfirmedForSend\(true\)/.test(handler), false,
     "an unattached gift must not be reported as confirmed");
@@ -198,8 +201,10 @@ test("executeGreetingSend for flowers happens in exactly ONE place, gated on a t
   assert.equal(/flowerSendStarted\.current = true/.test(accepted), false,
     "the accepted handler must not latch, or a failed link would block its own retry");
 
-  // Exactly two callers — the straight-through path and the link retry — plus one declaration.
-  assert.equal((CODE.match(/await dispatchFlowerGreeting\(/g) || []).length, 2, "exactly two callers");
+  // THREE callers, one declaration: the straight-through path after payment, the in-session link
+  // retry, and the remount recovery's onLinked. Each is reached only with a token the backend proved
+  // linked, and all three funnel into the one latched dispatch.
+  assert.equal((CODE.match(/await dispatchFlowerGreeting\(/g) || []).length, 3, "exactly three callers");
   assert.equal((CODE.match(/const dispatchFlowerGreeting = /g) || []).length, 1, "one declaration");
 });
 

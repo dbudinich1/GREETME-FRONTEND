@@ -29,6 +29,12 @@ import ProviderCheckoutModal from '../components/providerCheckout/ProviderChecko
 // The gift-link retry. It re-posts to the EXISTING submit endpoint, whose settled-attempt branch
 // returns before the provider is ever resolved — so it cannot submit, tokenize or charge.
 import { retryGiftLink } from '../api/providerCheckout';
+// The link-pending recovery marker, carried inside the EXISTING sendGreetingState record, and the
+// one-shot remount replay that uses it. No new storage system, route or checkout attempt.
+import {
+  clearPendingGiftLink, persistPendingGiftLink, readPendingGiftLink,
+} from './pendingGiftLink';
+import { usePendingGiftLinkRecovery } from '../components/giftPlace/usePendingGiftLinkRecovery';
 import { CHECKOUT_STATUS } from '../components/providerCheckout/providerCheckoutModel';
 // The SAME projection the Gift Place renders its cards through, so the gift shown back on the
 // greeting is described in exactly the words and the price format the sender just chose it by.
@@ -189,6 +195,11 @@ export default function SendGreeting() {
   // it is what would foreclose the fix, since a sent greeting can never be given a gift afterwards.
   const [pendingGiftLink, setPendingGiftLink] = useState(null);
   const [retryingGiftLink, setRetryingGiftLink] = useState(false);
+  // The marker restored from the EXISTING session record on mount. Read once, synchronously, so a
+  // refresh of /dashboard/send finds it before anything else decides the page is empty.
+  const [restoredGiftLink] = useState(() => readPendingGiftLink());
+  // A restored marker that did not correlate. Shown as a recoverable support state, never replayed.
+  const [giftLinkRefused, setGiftLinkRefused] = useState(null);
 
   // Phase 3D Batch A — A2.3: Pre-send ceremonial review modal state
   const [isPreSendReviewOpen, setIsPreSendReviewOpen] = useState(false);
@@ -399,8 +410,13 @@ export default function SendGreeting() {
     const selectedPhoto = params.get('selectedPhoto');
     const fromMediaLibrary = params.get('fromMediaLibrary');
 
-    // Only restore once per navigation - prevents race conditions
-    if (returnTo === 'send' && !hasRestoredStateRef.current) {
+    // Only restore once per navigation - prevents race conditions.
+    //
+    // A LINK-PENDING MARKER ALSO RESTORES. The round-trip restore is gated on `returnTo=send`, which a
+    // plain browser refresh does not carry — so before this, refreshing lost the greeting entirely.
+    // An accepted, charged order whose gift is still being attached must survive that, so the marker
+    // opens the same restore on the same record.
+    if ((returnTo === 'send' || restoredGiftLink) && !hasRestoredStateRef.current) {
       hasRestoredStateRef.current = true;
       // Restore saved form state from sessionStorage
       const savedState = sessionStorage.getItem('sendGreetingState');
@@ -426,10 +442,18 @@ export default function SendGreeting() {
         } catch (e) {
           // State restoration failed — non-critical, proceed with defaults
         }
-        // Clean up saved state - delay to handle React Strict Mode double-render
-        setTimeout(() => {
-          sessionStorage.removeItem('sendGreetingState');
-        }, 100);
+        // Clean up saved state - delay to handle React Strict Mode double-render.
+        //
+        // BUT NOT WHILE A LINK IS PENDING. The marker must outlive the restore that consumed it, or a
+        // second refresh would find nothing and the sender would lose a charged order for good. It is
+        // cleared on ONE proven terminal condition — a definitive Greet-Me send success — and on
+        // nothing else. `clearPendingGiftLink` removes only the marker; the draft beside it belongs to
+        // the marketplace and media round trips.
+        if (!restoredGiftLink) {
+          setTimeout(() => {
+            sessionStorage.removeItem('sendGreetingState');
+          }, 100);
+        }
       } else if (giftType) {
         // No saved state, just set the gift type
         setGiftSettings(prev => ({ ...prev, type: giftType }));
@@ -716,6 +740,14 @@ export default function SendGreeting() {
       if (response.status === 'completed') {
         setSending(false);
         setCompletedJobId(jobId);
+        // THE ONE PROVEN TERMINAL CONDITION. The Greet-Me is definitively sent, so the recovery
+        // marker has nothing left to recover and is removed — and only here.
+        //
+        // NOT when the gift links: a linked gift whose greeting has not gone out is exactly the state
+        // that still needs recovering. NOT on unmount: a component going away proves nothing about
+        // whether the work finished. Only a completed job does.
+        clearPendingGiftLink();
+        setPendingGiftLink(null);
         setShowReadyBeat(true);
         // 800ms: a breath, not a flash (Stage B premium completion-state spec).
         setTimeout(() => setShowReadyBeat(false), 800);
@@ -1077,9 +1109,27 @@ export default function SendGreeting() {
     // held instead, and the sender is offered a retry of the LINK. No second checkout is offered,
     // because there is nothing left to buy.
     if (!giftClaimToken) {
-      setPendingGiftLink({
-        attemptId: result?.checkout?.attemptId ?? result?.attemptId ?? null,
+      const attemptId = result?.checkout?.attemptId ?? result?.attemptId ?? null;
+      setPendingGiftLink({ attemptId, giftType: 'flowers' });
+      // PERSISTED, so a refresh does not lose the only handle on a charged order. The marker carries
+      // the attempt the SERVER minted plus three correlating facts, and no token, card, credential or
+      // provider payload of any kind — see src/pages/pendingGiftLink.js.
+      persistPendingGiftLink({
+        attemptId,
         giftType: 'flowers',
+        userId: user?.id || null,
+        contactId: formData.contactId || null,
+        productId: giftSettings?.flowersProduct?.providerProductId || null,
+        // The greeting draft beside it, through the same record the send flow already uses, so the
+        // sender comes back to the greeting they composed rather than an empty form.
+        draft: {
+          formData,
+          giftSettings,
+          defaultPhoto,
+          memoryPhotos,
+          useMemoryPhotos,
+          excludedMemoryPhotos: Array.from(excludedMemoryPhotos),
+        },
       });
       return;
     }
@@ -1117,6 +1167,44 @@ export default function SendGreeting() {
   };
 
   /**
+   * REMOUNT RECOVERY — one automatic replay of the SAME settled attempt, then the visible control.
+   *
+   * Correlation is fail-closed and runs before anything reaches the network: the restored marker must
+   * name this authenticated sender, this contact and this arrangement. `ready` holds the attempt back
+   * until contacts have loaded, so the one attempt is not spent on a page that cannot yet correlate.
+   */
+  const giftLinkRecovery = usePendingGiftLinkRecovery({
+    marker: restoredGiftLink,
+    ready: !loading && contacts.length > 0 && Boolean(formData.contactId),
+    identity: {
+      userId: user?.id || null,
+      contactId: formData.contactId || null,
+      productId: giftSettings?.flowersProduct?.providerProductId || null,
+      giftType: 'flowers',
+    },
+    onLinked: async (token) => {
+      // The greeting is rebuilt from the RESTORED draft through the same path the ordinary flow uses,
+      // so a recovered send is the same send — same recipient, same message, same media.
+      const selectedContact = contacts.find((c) => c.id === formData.contactId);
+      if (!selectedContact) return;
+      await dispatchFlowerGreeting(buildGreetingData(selectedContact), token);
+    },
+  });
+
+  // A restored marker that does not correlate is never replayed; it is surfaced instead.
+  useEffect(() => {
+    if (giftLinkRecovery.isRefused) setGiftLinkRefused(giftLinkRecovery.refusal);
+  }, [giftLinkRecovery.isRefused, giftLinkRecovery.refusal]);
+
+  // While a recovery is live the page shows the pending panel, exactly as it does straight after a
+  // failed link in the same session.
+  useEffect(() => {
+    if (restoredGiftLink && giftLinkRecovery.isPending && !pendingGiftLink) {
+      setPendingGiftLink({ attemptId: restoredGiftLink.attemptId, giftType: restoredGiftLink.giftType });
+    }
+  }, [restoredGiftLink, giftLinkRecovery.isPending, pendingGiftLink]);
+
+  /**
    * RETRY THE GIFT LINK — never the order.
    *
    * It replays the SAME accepted checkout attempt through the existing submit endpoint, whose
@@ -1131,6 +1219,12 @@ export default function SendGreeting() {
     setRetryingGiftLink(true);
     setErrors({});
     try {
+      // AFTER A REMOUNT the hook owns the attempt and the one-send hand-off, so the visible control
+      // routes through it — replaying the SAME attempt id rather than opening a second path to it.
+      if (restoredGiftLink && restoredGiftLink.attemptId === pendingGiftLink.attemptId) {
+        await giftLinkRecovery.retryNow();
+        return;
+      }
       const res = await retryGiftLink({
         attemptId: pendingGiftLink.attemptId,
         giftType: pendingGiftLink.giftType,
@@ -1979,6 +2073,33 @@ if (typeof window !== "undefined") {
         {referralError && (
           <Alert type="error" message={referralError} />
         )}
+        {/* A RESTORED MARKER THAT DOES NOT CORRELATE.
+            It is never replayed — submitting it could attach a real, paid parcel to the wrong
+            greeting, or to another person's session on a shared browser. The order itself is safe and
+            still recoverable by support, so the sender is told that plainly rather than shown a
+            control that would fail closed anyway. */}
+        {giftLinkRefused && !pendingGiftLink && (
+          <div
+            data-testid="gift-link-refused"
+            role="alert"
+            style={{
+              padding: '0.875rem 1rem',
+              marginBottom: '1rem',
+              borderRadius: '0.625rem',
+              border: '1px solid #fecaca',
+              background: '#fef2f2',
+            }}
+          >
+            <p style={{ margin: 0, fontWeight: 700, color: '#991b1b' }}>
+              We found a confirmed flower order that doesn&rsquo;t match this Greet-Me.
+            </p>
+            <p style={{ margin: '0.375rem 0 0', color: '#991b1b', fontSize: '0.875rem' }}>
+              Nothing has been charged again and your order is safe. Please contact support so we can
+              attach it for you.
+            </p>
+          </div>
+        )}
+
         {/* ACCEPTED AND CHARGED, GIFT NOT YET ATTACHED.
             The greeting has deliberately NOT been sent: sending it would foreclose the fix, because a
             sent Greet-Me can never be given a gift afterwards. The order is held, not discarded, and

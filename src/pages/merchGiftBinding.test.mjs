@@ -101,7 +101,13 @@ test("returning from Merch preserves the draft and reopens the same gift mode", 
   // SendGreeting restores the snapshot it wrote before browsing, and re-selects
   // the gift type carried on the URL.
   assert.match(SEND, /sessionStorage\.setItem\('sendGreetingState'/);
-  assert.match(SEND, /if \(returnTo === 'send' && !hasRestoredStateRef\.current\)/);
+  // REWRITTEN 2026-09-14. The round trip is unchanged; the condition that opens the restore simply
+  // widened. A link-pending recovery marker now opens the SAME restore on the SAME record, because a
+  // plain browser refresh carries no `returnTo` and an accepted, charged order must survive one.
+  assert.match(SEND, /returnTo === 'send' \|\| restoredGiftLink/);
+  assert.match(SEND, /!hasRestoredStateRef\.current/);
+  // Still ONE record and ONE restore — no second storage system was introduced.
+  assert.equal((SEND.match(/sessionStorage\.getItem\('sendGreetingState'\)/g) || []).length, 1);
   assert.match(SEND, /setGiftSettings\(\{ \.\.\.parsed\.giftSettings, type: giftType \}\)/);
 });
 
