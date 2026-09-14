@@ -34,7 +34,19 @@ const input = {
 };
 const row = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' };
 
-export default function ProviderCheckoutModal({ isOpen, onClose, giftType, product, customer }) {
+export default function ProviderCheckoutModal({
+  isOpen, onClose, giftType, product, customer,
+  // EMBEDDED MODE. Given, this checkout is a STEP INSIDE something larger — today, a Greet-Me that
+  // has been composed but not sent. It is called with the backend's own accepted result, exactly
+  // once, and only for CHECKOUT_STATUS.ACCEPTED. Every other outcome — a decline, a refused
+  // submission, an uncertain confirmation, a price that moved, a closed window — leaves it uncalled,
+  // which is what makes "nothing else happens unless the order was really accepted" a property of
+  // this file rather than a promise made by its caller.
+  onAccepted = null,
+  // The greeting's recipient, when this checkout is a step inside a send. Forwarded to prepare so the
+  // accepted order can be bound to that greeting and to no other.
+  contactId = null,
+}) {
   // A caller that already knows the product (the marketplace, later) starts at the details step.
   // With no product in hand the customer picks one first, from the PROVIDER's live list.
   const [chosen, setChosen] = useState(product ?? null);
@@ -63,6 +75,11 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
   // One submission per prepared attempt, enforced in the browser as well as in the backend: the
   // provider has no idempotency key, so a double-click must never become a second order.
   const submitting = useRef(false);
+  // EXACTLY ONCE, independently of how often the accepted result is re-rendered. `submitting` already
+  // stops a second dispatch; this stops a second HANDOFF, which is a different event and would send
+  // a second greeting from one order. It is never reset — an accepted order is handed off once for
+  // the life of this checkout, and a further attempt would need a new one.
+  const handedOff = useRef(false);
 
   const provider = prepared?.provider ?? result?.checkout?.provider ?? null;
   const copy = useMemo(
@@ -104,7 +121,7 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
     setBusy(true);
     setFailure(null);
     try {
-      const res = await prepareCheckout(toPrepareRequest(form, { giftType, product: chosen }));
+      const res = await prepareCheckout(toPrepareRequest(form, { giftType, product: chosen, contactId }));
       if (!res?.ok) {
         setFailure(res?.error || 'We could not price this order. Please check the delivery details.');
         return;
@@ -124,7 +141,7 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
     } finally {
       setBusy(false);
     }
-  }, [form, giftType, chosen]);
+  }, [form, giftType, chosen, contactId]);
 
   // PRELOAD. The tokenizer starts loading the moment the payment step is reached and a valid
   // configuration exists — not when Place Order is clicked. The library fetches its own core after
@@ -209,6 +226,15 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
       }
       setResult(res);
       setStep('confirmation');
+      // THE ONLY STATUS THAT MAY CONTINUE ANYTHING. `accepted` is the backend's authoritative word
+      // that the provider took the order and the customer was charged for it. `submission_failed`
+      // did not happen; `confirmation_uncertain` is NOT KNOWN to have happened, and treating it as
+      // acceptance is exactly the mistake that would send a greeting announcing an order that may
+      // not exist. Both are left here, on screen, for a human.
+      if (onAccepted && res?.status === CHECKOUT_STATUS.ACCEPTED && !handedOff.current) {
+        handedOff.current = true;
+        onAccepted(res);
+      }
     } catch (err) {
       // Terminal failure: the fields are cleared here too, so a decline never leaves a card number
       // sitting in a form the browser might restore.
@@ -218,7 +244,12 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
     } finally {
       setBusy(false);
     }
-  }, [card, tokenization, prepared, giftType, payAllowed, provider]);
+  }, [card, tokenization, prepared, giftType, payAllowed, provider, onAccepted]);
+
+  // EMBEDDED AND ACCEPTED. The order is real and the greeting it belongs to is now being sent by the
+  // caller, so this checkout has no terminal state of its own to offer. "Done" would be a lie in the
+  // one direction that matters: the flower order is settled, the Greet-Me is not.
+  const handedOffAccepted = Boolean(onAccepted) && result?.status === CHECKOUT_STATUS.ACCEPTED;
 
   if (!isOpen) return null;
 
@@ -241,18 +272,29 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <GreetMeLogo />
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close checkout"
-            style={{ padding: 0, width: 32, height: 32, borderRadius: 8, border: '1px solid var(--border, #e2e8f0)', background: 'transparent', cursor: 'pointer' }}
-          >
-            <X size={16} />
-          </button>
+          {/* Closable at every step EXCEPT after an accepted handoff, where there is nothing to
+              close: the greeting is mid-send and the next screen is the combined confirmation. */}
+          {!handedOffAccepted && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close checkout"
+              style={{ padding: 0, width: 32, height: 32, borderRadius: 8, border: '1px solid var(--border, #e2e8f0)', background: 'transparent', cursor: 'pointer' }}
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
 
-        <h2 style={{ fontSize: '1.15rem', margin: '0 0 0.25rem' }}>{copy.title}</h2>
-        <p style={{ margin: '0 0 1rem', color: 'var(--text-secondary, #475569)', fontSize: '0.9rem' }}>{copy.body}</p>
+        {/* On the embedded handoff both lines are suppressed: statusCopy's accepted wording names the
+            fulfilling provider, which is right for a standalone purchase and wrong for the moment
+            just before Greet-Me's own confirmation. */}
+        {!handedOffAccepted && (
+          <>
+            <h2 style={{ fontSize: '1.15rem', margin: '0 0 0.25rem' }}>{copy.title}</h2>
+            <p style={{ margin: '0 0 1rem', color: 'var(--text-secondary, #475569)', fontSize: '0.9rem' }}>{copy.body}</p>
+          </>
+        )}
 
         {failure && (
           <p data-testid="provider-checkout-error" role="alert" style={{ background: '#fef2f2', color: '#991b1b', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.9rem' }}>
@@ -591,7 +633,25 @@ export default function ProviderCheckoutModal({ isOpen, onClose, giftType, produ
           </div>
         )}
 
-        {step === 'confirmation' && (
+        {/* EMBEDDED AND ACCEPTED — a HANDOFF, not a destination.
+            The greeting this order belongs to is being sent right now, so this surface shows no
+            outcome of its own: no "Order accepted" heading, no order number, no provider name, and
+            no Done. Naming the florist here would also make the last thing the sender reads before
+            their own confirmation a supplier's name rather than Greet-Me's. The order number stays
+            available in their authenticated order history.
+            It closes itself: the caller has already taken over the screen. */}
+        {step === 'confirmation' && handedOffAccepted && (
+          <div data-testid="provider-checkout-handoff" style={{ display: 'grid', gap: '0.5rem', justifyItems: 'center', padding: '0.5rem 0' }}>
+            <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>
+              Payment confirmed
+            </p>
+            <p style={{ margin: 0, color: 'var(--text-secondary, #64748b)' }}>
+              Sending your Greet-Me&hellip;
+            </p>
+          </div>
+        )}
+
+        {step === 'confirmation' && !handedOffAccepted && (
           <div data-testid="provider-checkout-confirmation" style={{ display: 'grid', gap: '0.75rem' }}>
             {result?.providerOrderId && (
               <div style={{ background: 'var(--bg-secondary, #f8fafc)', borderRadius: 10, padding: '0.75rem' }}>

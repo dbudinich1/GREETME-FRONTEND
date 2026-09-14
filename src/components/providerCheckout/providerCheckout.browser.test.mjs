@@ -25,13 +25,17 @@ const BUNDLE = join(__dirname, ".__pc.bundle.mjs");
 const ENTRY = join(__dirname, ".__pc.entry.jsx");
 const START_URL = "http://localhost/dashboard/gifts";
 
-let React, createRoot, act, Entry, Modal, MemoryRouter, window;
+let React, createRoot, act, useProviderCatalogue, GiftProductGrid, Modal, MemoryRouter, window;
 /** The untouched appendChild, captured once so test hooks never stack on one another. */
 let PRISTINE_APPEND_CHILD;
 
 before(async () => {
   writeFileSync(ENTRY,
-    'export { default as Entry } from "./ProviderCheckoutEntry.jsx";\n'
+    // The separate provider surface is gone — every category renders through the ONE shared grid on
+    // the Gift Place now. The dormancy guarantee it used to carry lives in this hook, so the hook is
+    // what gets mounted: the property is still proven by RENDERING, not by scraping a page.
+    'export { useProviderCatalogue } from "../giftPlace/useProviderCatalogue.js";\n'
+    + 'export { GiftProductGrid } from "../giftPlace/GiftProductCard.jsx";\n'
     + 'export { default as Modal } from "./ProviderCheckoutModal.jsx";\n'
     // The surface renders inside the dashboard router in the real app, and the Greet-Me header
     // logo is a link, so it is mounted in that same context rather than stubbed away.
@@ -57,7 +61,7 @@ before(async () => {
   React = (await import("react")).default;
   act = React.act;
   ({ createRoot } = await import("react-dom/client"));
-  ({ Entry, Modal, MemoryRouter } = await import(pathToFileURL(BUNDLE).href));
+  ({ useProviderCatalogue, GiftProductGrid, Modal, MemoryRouter } = await import(pathToFileURL(BUNDLE).href));
 });
 after(() => { try { rmSync(BUNDLE, { force: true }); rmSync(ENTRY, { force: true }); } catch { /* ignore */ } });
 
@@ -142,6 +146,24 @@ function installTokenizer({ decline = false, core = true } = {}) {
   return seen;
 }
 
+/**
+ * The Gift Place's provider category, reduced to the two things under test here: the posture gate and
+ * what renders. It is the REAL hook and the REAL grid, so a dormant provider is proven to render
+ * nothing and to ask for nothing.
+ */
+function Category({ selectedCategory }) {
+  const giftType = { flowers: "flowers", gift_baskets: "gift_boxes" }[selectedCategory] || null;
+  const { products, state, retry } = useProviderCatalogue(giftType);
+  if (!giftType || state === "loading") return null;
+  return React.createElement(GiftProductGrid, {
+    cards: products.map((p) => ({
+      id: p.providerProductId, source: "provider", name: p.name, description: "",
+      imageUrl: p.imageUrl || null, priceLabel: "", priceMinor: p.priceMinor,
+    })),
+    state, actionLabel: "Select Gift", onAction: () => {}, onRetry: retry, emptyLabel: "Flowers",
+  });
+}
+
 let root, host;
 const flush = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 0)); }); };
 async function mount(Component, props) {
@@ -223,9 +245,9 @@ beforeEach(() => {
 
 test("while the provider is dormant the marketplace shows nothing and loads no payment library", async () => {
   ROUTES = { "/provider-checkout/availability": async () => ({ ok: true, available: false, reason: "provider_disabled" }) };
-  await mount(Entry, { selectedCategory: "flowers", product: null, customer: null });
+  await mount(Category, { selectedCategory: "flowers" });
 
-  assert.equal(tid("provider-checkout-entry"), null, "no entry point may render while dormant");
+  assert.equal(tid("gift-grid"), null, "no products may render while dormant");
   assert.equal(document.querySelector("script[data-greetme-tokenizer]"), null,
     "no tokenizer script may be loaded on marketplace render");
   assert.equal(REQUESTS.filter((r) => !r.path.includes("availability")).length, 0,
@@ -234,8 +256,8 @@ test("while the provider is dormant the marketplace shows nothing and loads no p
 
 test("a category no provider backs asks nothing at all", async () => {
   ROUTES = { "/provider-checkout/availability": async () => ({ ok: true, available: true }) };
-  await mount(Entry, { selectedCategory: "tech", product: null, customer: null });
-  assert.equal(tid("provider-checkout-entry"), null);
+  await mount(Category, { selectedCategory: "tech" });
+  assert.equal(tid("gift-grid"), null);
   assert.equal(REQUESTS.length, 0, "a non-provider category must not even ask");
 });
 
@@ -243,8 +265,10 @@ test("an unanswerable posture question fails closed", async () => {
   ROUTES = { "/provider-checkout/availability": async () => { throw new Error("network down"); } };
   globalThis.fetch = async () => { throw new Error("network down"); };
   window.fetch = globalThis.fetch;
-  await mount(Entry, { selectedCategory: "flowers", product: null, customer: null });
-  assert.equal(tid("provider-checkout-entry"), null);
+  await mount(Category, { selectedCategory: "flowers" });
+  assert.equal(tid("gift-grid"), null, "an unanswered question leaves the gate shut");
+  assert.equal(REQUESTS.some((r) => r.path.includes("/catalog")), false,
+    "and nothing is read from a provider we could not ask about");
 });
 
 // ===========================================================================

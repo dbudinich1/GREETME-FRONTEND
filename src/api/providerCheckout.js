@@ -48,8 +48,31 @@ export async function fetchCheckoutAvailability(giftType) {
  * charged comes from the provider's own quote at prepare time regardless.
  */
 export async function fetchProviderProducts(giftType) {
+  const { products } = await fetchProviderCatalog(giftType);
+  return products;
+}
+
+/**
+ * The same one call, with the FAILURE PRESERVED.
+ *
+ * WHY THIS EXISTS. `api.request` does not throw on a network failure — it returns
+ * `{ ok: false, status: 0, networkError: true }` — and a 404 comes back the same shape. Read through
+ * `fetchProviderProducts` alone, all of those are indistinguishable from a genuinely empty catalogue,
+ * so a surface that only sees the array can do nothing but tell the customer that nothing is
+ * available. That is a false statement about the provider's stock, and it also hides the one case
+ * where trying again is the right answer.
+ *
+ * `ok` is therefore returned separately from `products`: "we could not look" and "there is nothing
+ * here" are different sentences, and only one of them is true at a time. One network call site —
+ * fetchProviderProducts delegates here rather than repeating the request.
+ */
+export async function fetchProviderCatalog(giftType) {
   const res = await callOrUnavailable(() => api.request(`${BASE}/catalog?giftType=${encodeURIComponent(giftType)}`));
-  return Array.isArray(res?.products) ? res.products : [];
+  if (Array.isArray(res?.products)) return { ok: true, products: res.products };
+  // A dormant provider is not a failure: it answered, and the answer is that there is nothing to
+  // show. Everything else — a dead network, a 404, an unreadable body — is.
+  if (res?.unavailable === true) return { ok: true, products: [] };
+  return { ok: false, products: [] };
 }
 
 /**
@@ -88,6 +111,25 @@ export async function submitCheckout({ attemptId, giftType, paymentToken, paymen
   return callOrUnavailable(() => api.request(`${BASE}/submit`, {
     method: 'POST',
     body: JSON.stringify({ attemptId, giftType, paymentToken, paymentBinding }),
+  }));
+}
+
+/**
+ * RETRY THE GIFT LINK for an order the provider has already accepted.
+ *
+ * The SAME /submit endpoint, and deliberately so — there is no second route. An attempt that is
+ * already settled takes the replay branch, which returns before the provider is ever resolved, so
+ * this cannot submit, tokenize or charge anything no matter how often it is called. It carries the
+ * attempt id and nothing else: NO payment token, NO binding, NO card material of any kind, because
+ * the order it is recovering was paid for long before this call exists.
+ *
+ * Resolves with `{ giftClaimToken, giftLinkFailed, ... }`. A token comes back only once the backend
+ * has proven the gift record exists; a pending reservation is never projected.
+ */
+export async function retryGiftLink({ attemptId, giftType } = {}) {
+  return callOrUnavailable(() => api.request(`${BASE}/submit`, {
+    method: 'POST',
+    body: JSON.stringify({ attemptId, giftType }),
   }));
 }
 

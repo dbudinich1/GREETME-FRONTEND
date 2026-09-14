@@ -7,14 +7,23 @@ import { DollarSign } from 'lucide-react';
 // nice-to-have. Digital gift cards are deliberately absent: no redemption
 // source exists for them, so they could not produce a working QR, and a type
 // that cannot be revealed must never be offered.
+// EXACTLY FOUR CHOICES, in this order, single-select.
+//
+// This is a DECISION SCREEN, and it had stopped being one. It offered five options where two of them
+// — "Greet-Me Merch" and "Greet-Me Gift Place" — were the same destination: /dashboard/merch now
+// redirects to /dashboard/gifts, so both buttons walked the sender to one page. Beside them sat an
+// inline flower catalogue and an "Include QR Cash with this card" checkbox, so the screen was
+// simultaneously asking which gift, showing products, and offering a SECOND gift.
+//
+// One gift per greeting is the model, so this screen asks one question. Products belong in the Gift
+// Place; there is no add-on, and nothing here is a second selection.
 const GIFT_OPTIONS = [
   { value: 'none', label: 'None', description: 'No gift for now' },
   { value: 'qrcash', label: 'QR Cash\u2122', description: 'Send cash they can scan and spend' },
-  { value: 'curated', label: 'Let Greet-Me™ Select', description: 'We\'ll select something thoughtful within your limit' },
-  { value: 'merch', label: 'Greet-Me Merch', description: 'Send something from the Greet-Me collection' },
-  { value: 'marketplace', label: 'Greet-Me Gift Place', description: 'Browse made-in-USA gifts' }
+  // The Gift Place is one destination holding every category, flowers included.
+  { value: 'marketplace', label: 'Greet-Me Gift Place', description: 'Browse gifts, flowers and more' },
+  { value: 'curated', label: 'Greet-Me\u2122 Select', description: 'We\'ll select something thoughtful within your limit' },
 ];
-
 const QR_CASH_PRESETS = [10, 25, 50, 100];
 const CURATED_MAX_TIERS = [25, 50, 75, 100, 150];
 
@@ -27,11 +36,12 @@ export default function GiftSelectorModal({
   getOccasionLabel,
   getOccasionEmoji,
   context = 'recipient', // 'recipient' (full options) or 'oneoff' (no auto/scheduling)
-  onBrowse = null // callback for browsing merch/marketplace: (type) => void
+  onBrowse = null // callback for browsing the Gift Place: (type) => void
 }) {
   const getGiftSetting = (occasionValue) => {
     return occasionGiftSettings?.[occasionValue] || { type: 'none', autoGift: false };
   };
+
 
   return (
     <Modal
@@ -315,42 +325,9 @@ export default function GiftSelectorModal({
                     </div>
                   )}
 
-                  {/* Merch Browse Button */}
-                  {giftSetting.type === 'merch' && onBrowse && (
-                    <div style={{
-                      marginTop: '1rem',
-                      padding: '1.125rem',
-                      background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-                      borderRadius: '0.625rem',
-                      border: '1px solid #60a5fa'
-                    }}>
-                      <p style={{
-                        fontSize: '0.8125rem',
-                        color: '#1d4ed8',
-                        marginBottom: '0.75rem'
-                      }}>
-                        Choose something from the Greet-Me collection
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => onBrowse('merch')}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem 1.25rem',
-                          background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '0.5rem',
-                          fontSize: '0.9375rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          fontFamily: 'inherit'
-                        }}
-                      >
-                        Browse Greet-Me Merch
-                      </button>
-                    </div>
-                  )}
+                  {/* THE MERCH BROWSE BUTTON IS GONE, with the option it belonged to. It walked the
+                      sender to /dashboard/merch, which now redirects to the Gift Place — the same
+                      destination the Gift Place option already opens. Two controls, one page. */}
 
                   {/* Marketplace Browse Button */}
                   {giftSetting.type === 'marketplace' && onBrowse && (
@@ -389,105 +366,10 @@ export default function GiftSelectorModal({
                     </div>
                   )}
 
-                  {/* QR Cash Add-On - Show for non-none and non-qrcash types */}
-                  {giftSetting.type !== 'none' && giftSetting.type !== 'qrcash' && (
-                    <div style={{
-                      marginTop: '1rem',
-                      padding: '1.125rem',
-                      background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
-                      borderRadius: '0.625rem',
-                      border: '1px solid #fcd34d'
-                    }}>
-                      <label style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.625rem',
-                        cursor: 'pointer',
-                        marginBottom: giftSetting.qrCashAddOn ? '0.75rem' : 0
-                      }}>
-                        <input
-                          type="checkbox"
-                          checked={giftSetting.qrCashAddOn === true}
-                          onChange={(e) => onGiftChange(occ.type, 'qrCashAddOn', e.target.checked)}
-                          style={{
-                            width: '1.125rem',
-                            height: '1.125rem',
-                            accentColor: '#f59e0b',
-                            borderRadius: '0.25rem'
-                          }}
-                        />
-                        <span style={{
-                          fontSize: '0.9375rem',
-                          fontWeight: 600,
-                          color: '#92400e'
-                        }}>
-                          Include QR Cash with this card
-                        </span>
-                      </label>
-                      {giftSetting.qrCashAddOn && (
-                        <div style={{
-                          marginLeft: '1.75rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.625rem',
-                          flexWrap: 'wrap'
-                        }}>
-                          <label style={{
-                            fontSize: '0.8125rem',
-                            fontWeight: 500,
-                            color: '#92400e',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.375rem'
-                          }}>
-                            <DollarSign size={14} />
-                            Amount:
-                          </label>
-                          <select
-                            value={giftSetting.qrCashAddOnAmount || 25}
-                            onChange={(e) => onGiftChange(occ.type, 'qrCashAddOnAmount', parseInt(e.target.value))}
-                            style={{
-                              padding: '0.5rem 0.75rem',
-                              border: '1px solid #fbbf24',
-                              borderRadius: '0.5rem',
-                              fontSize: '0.875rem',
-                              fontFamily: 'inherit',
-                              fontWeight: 500,
-                              background: 'white',
-                              cursor: 'pointer',
-                              minWidth: 0
-                            }}
-                          >
-                            {QR_CASH_PRESETS.map((amt) => (
-                              <option key={amt} value={amt}>${amt}</option>
-                            ))}
-                            <option value={0}>Custom</option>
-                          </select>
-                          {giftSetting.qrCashAddOnAmount === 0 && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                              <span style={{ color: '#92400e', fontWeight: 500 }}>$</span>
-                              <input
-                                type="number"
-                                min="1"
-                                placeholder="Amount"
-                                value={giftSetting.qrCashAddOnCustomAmount || ''}
-                                onChange={(e) => onGiftChange(occ.type, 'qrCashAddOnCustomAmount', parseInt(e.target.value))}
-                                style={{
-                                  width: '80px',
-                                  padding: '0.5rem 0.625rem',
-                                  border: '1px solid #fbbf24',
-                                  borderRadius: '0.5rem',
-                                  fontSize: '0.875rem',
-                                  fontFamily: 'inherit',
-                                  background: 'white'
-                                }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {/* THE QR CASH ADD-ON IS GONE. It offered a SECOND gift on a screen whose whole
+                      job is to ask which ONE gift to send, and it was separately charged — two
+                      payments for one greeting, which nothing downstream is built to settle.
+                      QR Cash remains available as a first-class choice above. */}
 
                   {/* Auto-Gift Toggle - Only show in recipient context (not one-off) */}
                   {context !== 'oneoff' && giftSetting.type !== 'none' && (

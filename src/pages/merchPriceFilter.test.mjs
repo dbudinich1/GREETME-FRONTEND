@@ -13,6 +13,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import {
+  GIFT_CARD_FIELDS, actionLabelFor, fromCatalogProduct, fromProviderProduct,
+} from "./giftPlaceViewModel.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -214,11 +217,21 @@ test("a price-filtered-out category shows the price message, not Coming Soon", (
   assert.equal(got.length, 0, "the fixture must actually produce an empty price result");
   assert.match(SRC, /No products in this price range\./);
   assert.match(CODE, /const hiddenByPrice = selectedProducts\.length > 0 && visibleProducts\.length === 0/);
-  // The price branch is evaluated BEFORE the Coming Soon branch, so a real collection is never
+  // REWRITTEN 2026-09-14. The three empty states still exist and are still distinct, but two of them
+  // moved: "Coming Soon" and the failed-to-load state now live inside the ONE shared grid component
+  // that every category renders through, so they cannot drift per category. The price-range state
+  // stays on the page, because price filtering is a property of the catalogue and not of the grid.
+  //
+  // The ORDERING property is unchanged and still what matters: the price branch is evaluated BEFORE
+  // the grid renders, so a real collection whose products are merely filtered out can never be
   // mislabelled as uncurated.
   const priceIdx = CODE.indexOf("hiddenByPrice && !loading");
-  const comingIdx = CODE.indexOf("visibleProducts.length === 0 && !loading");
-  assert.ok(priceIdx > -1 && comingIdx > priceIdx, "the price empty state must be checked first");
+  const gridIdx = CODE.indexOf("<GiftProductGrid");
+  assert.ok(priceIdx > -1, "the price empty state must still be decided on the page");
+  assert.ok(gridIdx > priceIdx, "the price empty state must be checked before the shared grid renders");
+  // And it applies to the catalogue only: a provider prices its own goods at quote, so the filter
+  // must not be able to hide a provider category behind a price message.
+  assert.match(CODE, /hiddenByPrice && !loading && !error && !providerGiftType/);
 });
 
 test("the price empty state offers a way out of the filter", () => {
@@ -229,9 +242,20 @@ test("genuinely uncurated categories keep their Coming Soon state", () => {
   for (const id of ["gift_baskets", "flowers", "americana", "faith_and_inspiration"]) {
     assert.deepEqual(selectProducts(FIXTURE, id), [], `${id} must stay empty`);
   }
-  // With no selected products at all, hiddenByPrice is false, so Coming Soon renders.
-  assert.match(SRC, /Coming Soon/);
-  assert.match(SRC, /We&rsquo;re curating this collection/);
+  // With no selected products at all, hiddenByPrice is false, so the grid's own empty state renders.
+  // It lives in the shared card module now — ONE definition for every category, which is the point.
+  const grid = readFileSync(join(HERE, "../components/giftPlace/GiftProductCard.jsx"), "utf8");
+  assert.match(grid, /Coming Soon/);
+  assert.match(grid, /We&rsquo;re curating this collection/);
+  // The page passes the category's own label in, so the wording is per-category without the STATE
+  // being per-category.
+  assert.match(CODE, /emptyLabel=\{selectedCategoryLabel\}/);
+  // A FAILED read is its own state and never borrows this one: "we could not look" and "there is
+  // nothing here" are different sentences, and only one of them is ever true.
+  assert.match(grid, /data-testid="gift-grid-empty"/);
+  assert.match(grid, /data-testid="gift-grid-error"/);
+  assert.ok(grid.indexOf('gift-grid-error') < grid.indexOf('gift-grid-empty'),
+    "a failure must be reported before anything is called empty");
 });
 
 test("Gift Cards stays dormant, non-purchasable, and is not price-filtered", () => {
@@ -253,10 +277,46 @@ test("Gift Cards stays dormant, non-purchasable, and is not price-filtered", () 
 // 13/17/18/19 — the surrounding guarantees still hold
 // ============================================================
 
-test("there is still exactly ONE product grid and one card map", () => {
-  assert.equal((CODE.match(/\.map\(\(item\) => \{/g) || []).length, 1);
-  assert.equal((SRC.match(/handleAddToCart\(item, e\)/g) || []).length, 1);
-  assert.match(SRC, /\{visibleProducts\.map\(\(item\) => \{/);
+test("there is still exactly ONE product grid, and now exactly one card too", () => {
+  // REWRITTEN 2026-09-14, and the claim got STRONGER. The page used to hold its own hand-written card
+  // map, and provider-fulfilled categories had a second surface of their own with a different card, a
+  // different price format and its action in a different place. Both are gone: every category — the
+  // curated catalogue and Flowers alike — projects into one view model and renders through one card
+  // in one grid.
+  assert.equal((CODE.match(/<GiftProductGrid/g) || []).length, 1, "exactly one grid is rendered");
+  // No hand-written card map survives on the page.
+  assert.equal((CODE.match(/\.map\(\(item\) => \{/g) || []).length, 0, "no second card map");
+  // One action entry point, whichever source the card came from.
+  assert.equal((CODE.match(/onAction=\{handleGiftCardAction\}/g) || []).length, 1);
+  assert.equal((CODE.match(/const handleGiftCardAction =/g) || []).length, 1);
+  // And the separate provider surface is gone from the page entirely.
+  assert.ok(!CODE.includes("ProviderCheckoutEntry"), "no separate provider surface may remain");
+  assert.ok(!CODE.includes("ProviderCheckoutModal"),
+    "the Gift Place must not open a checkout: selecting attaches, Continue pays");
+});
+
+test("both sources project into the ONE card shape, so the grid cannot go ragged", () => {
+  // The projection is the whole reason one grid is possible, so it is asserted by RUNNING it rather
+  // than by matching source text.
+  const catalog = fromCatalogProduct({
+    syncProductId: "sp-1", name: "Laptop Sleeve", imageUrl: "https://img.example/x.png",
+    priceCentsMin: 3900, priceCentsMax: 4400, variantCount: 2,
+  });
+  const provider = fromProviderProduct({
+    providerProductId: "T18-1A", name: "Autumn Warmth", priceMinor: 7499, currency: "USD",
+    imageUrl: null, description: "A hand-tied seasonal bouquet.",
+  });
+
+  for (const card of [catalog, provider]) {
+    assert.deepEqual(Object.keys(card).sort(), [...GIFT_CARD_FIELDS].sort(),
+      "every source must produce exactly the shared card fields");
+  }
+  // Prices are formatted by one function, so a range and a single price read the same way.
+  assert.equal(catalog.priceLabel, "$39 – $44");
+  assert.equal(provider.priceLabel, "$74.99");
+  // The action LABEL is decided by context, never by which source the product came from.
+  assert.equal(actionLabelFor("greeting"), "Select Gift");
+  assert.equal(actionLabelFor("store"), "Add to Cart");
 });
 
 test("QR Cash is byte-identical to its deployed form", () => {

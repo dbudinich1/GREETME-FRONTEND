@@ -60,7 +60,11 @@ const CATEGORY_LABELS = GREET_ME_CATEGORIES.map((c) => c.label);
 // that panel alone and cannot be satisfied by unrelated markup elsewhere on the page.
 const GIFT_CARDS_BRANCH = (() => {
   const start = CODE.indexOf("selectedCategory === 'gift_cards'");
-  const end = CODE.indexOf("visibleProducts.length === 0", start);
+  // The branch used to end where the page's own hand-written empty state began. That empty state
+  // moved into the ONE shared grid every category now renders through, so the branch is bounded by
+  // the next arm of the same ternary instead. The property is unchanged: Gift Cards is decided
+  // FIRST, and the panel it renders offers nothing purchasable.
+  const end = CODE.indexOf("hiddenByPrice", start);
   assert.ok(start > -1 && end > start, "the dormant Gift Cards branch must exist and come first");
   return CODE.slice(start, end);
 })();
@@ -209,11 +213,17 @@ test("the Brandable header carries the approved copy and the existing business r
   assert.match(CODE, /selectedCategory === BRANDABLE &&/);
 });
 
-test("no separate persistent Brandable product surface remains", () => {
+test("no separate persistent product surface remains — for Brandable OR for a provider", () => {
   assert.ok(!SRC.includes("brandableProducts"), "the second product list must be gone");
-  // Exactly one place renders product cards, and it is the shared grid.
-  assert.equal((CODE.match(/\.map\(\(item\) => \{/g) || []).length, 1, "exactly one product grid");
+  // REWRITTEN 2026-09-14, and the claim widened. The page no longer holds a card map at all: one
+  // shared grid component renders every category, so "exactly one product surface" is now provable
+  // by the ABSENCE of any hand-written map plus exactly one grid element.
+  assert.equal((CODE.match(/\.map\(\(item\) => \{/g) || []).length, 0, "no hand-written card map");
+  assert.equal((CODE.match(/<GiftProductGrid/g) || []).length, 1, "exactly one product grid");
   assert.ok(!CODE.includes("brandable-${item.syncProductId}"), "the duplicate card key must be gone");
+  // Flowers had a surface of its own — a button, a modal and a second catalogue. It is gone too, and
+  // that is the same guarantee for a provider that this test always made for Brandable Goods.
+  assert.ok(!CODE.includes("ProviderCheckoutEntry"), "no separate provider product surface may remain");
 });
 
 // ============================================================
@@ -282,7 +292,9 @@ test("switching selection replaces the shared set rather than adding to it", () 
   assert.notDeepEqual(idsOf(brandable), idsOf(tech));
   assert.ok(tech.length < brandable.length, "Tech is a strict subset view, not an addition");
   // The component renders exactly one list, so a switch cannot leave the previous set on screen.
-  assert.equal((CODE.match(/visibleProducts\.map\(/g) || []).length, 1);
+  // That list is now the projection handed to the one shared grid.
+  assert.equal((CODE.match(/<GiftProductGrid/g) || []).length, 1);
+  assert.match(CODE, /cards=\{cards\}/, "the grid renders the one projected set");
 });
 
 test("selection labels are display copy for the empty state", () => {
@@ -303,8 +315,11 @@ test("a malformed product list is handled without throwing", () => {
 // ============================================================
 
 test("there is exactly ONE add-to-cart path on the page", () => {
+  // One action entry point for the one card, whichever source the product came from. It routes a
+  // catalogue product into the SAME handleAddToCart the page has always used.
+  assert.equal((CODE.match(/onAction=\{handleGiftCardAction\}/g) || []).length, 1);
   assert.equal(
-    (SRC.match(/handleAddToCart\(item, e\)/g) || []).length,
+    (SRC.match(/handleAddToCart\(product, \{ stopPropagation\(\) \{\} \}\)/g) || []).length,
     1,
     "one grid means one handler invocation site"
   );
@@ -323,14 +338,44 @@ test("products come from the single existing merch endpoint", () => {
 });
 
 test("the grid renders the SELECTED product list through the one shared rule", () => {
-  assert.match(SRC, /\{visibleProducts\.map\(\(item\) => \{/);
+  // The selection rule is unchanged; what changed is that its output is PROJECTED before it is
+  // rendered, so a provider's products and the catalogue's arrive at the grid in one shape.
   assert.match(SRC, /selectProducts\(products, selectedCategory\)/);
+  assert.match(CODE, /projectGiftCards\(visibleProducts, fromCatalogProduct\)/);
+  assert.match(CODE, /projectGiftCards\(providerProducts, fromProviderProduct\)/);
+  // ONE ternary decides which source feeds the one grid — there is no second grid to feed.
+  assert.equal((CODE.match(/<GiftProductGrid/g) || []).length, 1);
+});
+
+test("a provider category loads its catalogue on SELECTION, with no button and no navigation", () => {
+  // The founder's correction, as a structural claim: clicking Flowers IS the request to see flowers.
+  // The posture gate and the four proven states live in ONE hook, so the page states which category
+  // it wants and the containment is proven by mounting that hook rather than by reading this file —
+  // see providerCheckout.browser.test.mjs and sendFlowFlowers.browser.test.mjs.
+  assert.match(CODE, /useProviderCatalogue\(providerGiftType\)/);
+  assert.match(CODE, /const providerGiftType = giftTypeForSelector\(selectedCategory\)/);
+  // The page itself must not reach the provider by any other route.
+  assert.ok(!CODE.includes("fetchProviderCatalog"), "the page must not read a catalogue of its own");
+  assert.ok(!CODE.includes("fetchCheckoutAvailability"), "nor ask its own posture question");
+
+  // Selecting an arrangement ATTACHES it and returns. It must not price, tokenize, pay or order.
+  assert.match(CODE, /const selectProviderGiftForGreeting =/);
+  for (const forbidden of ["prepareCheckout", "submitCheckout", "tokenize", "placeOrder", "ProviderCheckoutModal"]) {
+    assert.ok(!CODE.includes(forbidden), `the Gift Place must not ${forbidden}`);
+  }
+  // It returns through the EXISTING return-to-greeting mechanism, not a second one.
+  assert.match(CODE, /sessionStorage\.setItem\('sendGreetingState'/);
+  assert.match(CODE, /navigate\('\/dashboard\/send\?returnTo=send&giftType=flowers'\)/);
+  // And outside a greeting there is nothing to attach to, so the action does nothing at all.
+  assert.match(CODE, /if \(!cameFromSendGreeting\) return;/);
 });
 
 test("the personal-greeting round trip and direct entry are preserved", () => {
   assert.match(SRC, /returnTo === 'send'/);
   assert.match(SRC, /searchParams\.get\('returnRecipientId'\)/);
   assert.match(SRC, /navigate\('\/dashboard\/send\?returnTo=send&giftType=merch'\)/);
+  // And the provider round trip uses the SAME mechanism with its own gift type.
+  assert.match(SRC, /navigate\('\/dashboard\/send\?returnTo=send&giftType=flowers'\)/);
   assert.match(SRC, /sendContext: 'greeting-flow'/);
   // Direct entry: both session headers are conditional, so /dashboard/gifts with no query
   // parameters renders the marketplace on its own.

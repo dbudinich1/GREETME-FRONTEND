@@ -22,6 +22,24 @@ import GiftSelectorModal from '../components/GiftSelectorModal';
 import ShareTheLovePanel from '../components/ShareTheLovePanel';
 import GiftConfirmationModal from '../components/GiftConfirmationModal';
 import PreSendReviewModal from '../components/PreSendReviewModal';
+// The EXISTING provider checkout, reused verbatim. This flow adds no checkout and no payment path.
+// The catalogue is NOT here: products live in the Gift Place, which this page navigates to and back
+// through the return-to-greeting mechanism that already existed.
+import ProviderCheckoutModal from '../components/providerCheckout/ProviderCheckoutModal';
+// The gift-link retry. It re-posts to the EXISTING submit endpoint, whose settled-attempt branch
+// returns before the provider is ever resolved — so it cannot submit, tokenize or charge.
+import { retryGiftLink } from '../api/providerCheckout';
+// The link-pending recovery marker, carried inside the EXISTING sendGreetingState record, and the
+// one-shot remount replay that uses it. No new storage system, route or checkout attempt.
+import {
+  clearPendingGiftLink, clearSendRequestId, ensureSendRequestId, persistPendingGiftLink,
+  readPendingGiftLink,
+} from './pendingGiftLink';
+import { usePendingGiftLinkRecovery } from '../components/giftPlace/usePendingGiftLinkRecovery';
+import { CHECKOUT_STATUS } from '../components/providerCheckout/providerCheckoutModel';
+// The SAME projection the Gift Place renders its cards through, so the gift shown back on the
+// greeting is described in exactly the words and the price format the sender just chose it by.
+import { fromProviderProduct } from './giftPlaceViewModel';
 import EmailVerificationModal from '../components/EmailVerificationModal';
 import VoiceMissingModal from '../components/VoiceMissingModal';
 import '../styles/ceremony.css';
@@ -151,6 +169,39 @@ export default function SendGreeting() {
   const [giftRequestId, setGiftRequestId] = useState(null);
   const [giftConfirmed, setGiftConfirmed] = useState(false);
 
+  // ───────────────────────────────────────────────
+  // Flowers — a provider-fulfilled gift, paid at the provider's own checkout, which runs as an
+  // EMBEDDED STEP of this send rather than as an errand of its own.
+  //
+  // The cadence is: compose → choose an arrangement → press Send Greet-Me → pay → the greeting
+  // sends itself → one confirmation covering both. Nothing here navigates, nothing returns to the
+  // dashboard, and the flower order is never presented as finished while the Greet-Me is unsent.
+  // ───────────────────────────────────────────────
+  const [isFlowersCheckoutOpen, setIsFlowersCheckoutOpen] = useState(false);
+  // CONFIRMED, and that is all this holds. Set from the backend's own accepted result and used to say
+  // "your selected gift is confirmed" — never to quote an order number, which belongs in the sender's
+  // authenticated order history and nowhere near the recipient.
+  const [giftConfirmedForSend, setGiftConfirmedForSend] = useState(false);
+  // THE SEND PAYLOAD FOR A CONFIRMED GIFT, kept verbatim so a greeting-only retry replays exactly the
+  // same request — same gift claim token, same recipient, same surprise announcement. This is what
+  // makes the retry in handleRetryGreetingOnly safe: it re-sends a greeting, never a gift.
+  const [confirmedGiftPayload, setConfirmedGiftPayload] = useState(null);
+  // EXACTLY ONE SEND PER ACCEPTED ORDER. A ref, not state: it must be true for the rest of the
+  // dispatch's synchronous run, and a re-render must not be able to reopen the window.
+  const flowerSendStarted = useRef(false);
+  // AN ACCEPTED, CHARGED ORDER WHOSE GIFT IS NOT YET ATTACHED.
+  //
+  // Held — never discarded — because the attempt id is the only handle on a real purchase, and it is
+  // what the retry replays. While this is set the greeting has NOT been sent and must not be: sending
+  // it is what would foreclose the fix, since a sent greeting can never be given a gift afterwards.
+  const [pendingGiftLink, setPendingGiftLink] = useState(null);
+  const [retryingGiftLink, setRetryingGiftLink] = useState(false);
+  // The marker restored from the EXISTING session record on mount. Read once, synchronously, so a
+  // refresh of /dashboard/send finds it before anything else decides the page is empty.
+  const [restoredGiftLink] = useState(() => readPendingGiftLink());
+  // A restored marker that did not correlate. Shown as a recoverable support state, never replayed.
+  const [giftLinkRefused, setGiftLinkRefused] = useState(null);
+
   // Phase 3D Batch A — A2.3: Pre-send ceremonial review modal state
   const [isPreSendReviewOpen, setIsPreSendReviewOpen] = useState(false);
 
@@ -258,6 +309,7 @@ export default function SendGreeting() {
     fetchContacts();
   }, []);
 
+
   // Demo mode prefill: ?demo=true&contactId=X → auto-select contact + Mother's Day
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -359,8 +411,13 @@ export default function SendGreeting() {
     const selectedPhoto = params.get('selectedPhoto');
     const fromMediaLibrary = params.get('fromMediaLibrary');
 
-    // Only restore once per navigation - prevents race conditions
-    if (returnTo === 'send' && !hasRestoredStateRef.current) {
+    // Only restore once per navigation - prevents race conditions.
+    //
+    // A LINK-PENDING MARKER ALSO RESTORES. The round-trip restore is gated on `returnTo=send`, which a
+    // plain browser refresh does not carry — so before this, refreshing lost the greeting entirely.
+    // An accepted, charged order whose gift is still being attached must survive that, so the marker
+    // opens the same restore on the same record.
+    if ((returnTo === 'send' || restoredGiftLink) && !hasRestoredStateRef.current) {
       hasRestoredStateRef.current = true;
       // Restore saved form state from sessionStorage
       const savedState = sessionStorage.getItem('sendGreetingState');
@@ -386,10 +443,18 @@ export default function SendGreeting() {
         } catch (e) {
           // State restoration failed — non-critical, proceed with defaults
         }
-        // Clean up saved state - delay to handle React Strict Mode double-render
-        setTimeout(() => {
-          sessionStorage.removeItem('sendGreetingState');
-        }, 100);
+        // Clean up saved state - delay to handle React Strict Mode double-render.
+        //
+        // BUT NOT WHILE A LINK IS PENDING. The marker must outlive the restore that consumed it, or a
+        // second refresh would find nothing and the sender would lose a charged order for good. It is
+        // cleared on ONE proven terminal condition — a definitive Greet-Me send success — and on
+        // nothing else. `clearPendingGiftLink` removes only the marker; the draft beside it belongs to
+        // the marketplace and media round trips.
+        if (!restoredGiftLink) {
+          setTimeout(() => {
+            sessionStorage.removeItem('sendGreetingState');
+          }, 100);
+        }
       } else if (giftType) {
         // No saved state, just set the gift type
         setGiftSettings(prev => ({ ...prev, type: giftType }));
@@ -676,6 +741,16 @@ export default function SendGreeting() {
       if (response.status === 'completed') {
         setSending(false);
         setCompletedJobId(jobId);
+        // THE ONE PROVEN TERMINAL CONDITION. The Greet-Me is definitively sent, so the recovery
+        // marker has nothing left to recover and is removed — and only here.
+        //
+        // NOT when the gift links: a linked gift whose greeting has not gone out is exactly the state
+        // that still needs recovering. NOT on unmount: a component going away proves nothing about
+        // whether the work finished. Only a completed job does.
+        clearPendingGiftLink();
+        setPendingGiftLink(null);
+        // And the send key: this greeting is definitively sent, so the next one gets its own.
+        clearSendRequestId();
         setShowReadyBeat(true);
         // 800ms: a breath, not a flash (Stage B premium completion-state spec).
         setTimeout(() => setShowReadyBeat(false), 800);
@@ -757,6 +832,27 @@ export default function SendGreeting() {
     return Object.keys(newErrors).length === 0;
   };
 
+  /**
+   * THE ONE SELECTED-GIFT SUMMARY, whatever kind of gift it is.
+   *
+   * A gift chosen in the Gift Place is shown back on the greeting in one shape — image, name, price,
+   * Change Gift — so the sender reviews their choice in the same terms they made it. A provider
+   * arrangement projects through the SAME view model the Gift Place card used, which is what stops
+   * the price format or the name drifting between the two screens.
+   *
+   * Returns null when there is nothing to show, and the summary simply does not render: an empty
+   * panel saying "no gift" would be noise on the common path.
+   */
+  const selectedGiftSummary = (() => {
+    if (giftSettings?.type === 'flowers' && giftSettings.flowersProduct) {
+      const card = fromProviderProduct(giftSettings.flowersProduct);
+      return card && { name: card.name, priceLabel: card.priceLabel, imageUrl: card.imageUrl };
+    }
+    // Marketplace items already have their own removable list on the review step; the cart is their
+    // source of truth and duplicating it here would give one gift two summaries.
+    return null;
+  })();
+
   // Check if in demo mode (URL param)
   const isDemo = new URLSearchParams(location.search).get('demo') === 'true';
 
@@ -790,7 +886,16 @@ export default function SendGreeting() {
       // against the sender's own records before any gift is attached; it grants
       // nothing on its own.
       contactId: selectedContact.id,
-      includeGift: Boolean(giftSettings?.type && giftSettings.type !== 'none'),
+      // GIFTING-INTEGRITY: `includeGift` is a promise that a VALIDATED Greet-Me gift record will be
+      // attached, and the backend resolver refuses the whole send when it cannot build one. Flowers
+      // never can: the arrangement is dispatched to the recipient's street address by the provider,
+      // who is the merchant of record, so there is no claim token, no QR and nothing to reveal at
+      // /gift/:claimToken. Setting the flag for it would have sent every flower Greet-Me into
+      // SEND_GIFT_ERRORS.MALFORMED — "Please re-select your gift" — for a selection that was
+      // perfectly valid. The flower order is confirmed to the SENDER, beside the send itself.
+      includeGift: Boolean(
+        giftSettings?.type && giftSettings.type !== 'none' && giftSettings.type !== 'flowers',
+      ),
       // Curated is founder-fulfilled out of band — there is no payment to
       // wait on, so the selected spend tier IS the evidence that a gift was
       // chosen. GIFTING-INTEGRITY: the backend validates that tier, mints the
@@ -827,9 +932,21 @@ export default function SendGreeting() {
     setSending(true);
     setJobStatus(null);
     try {
-      const response = await api.sendGreeting(greetingData);
+      // GATE B — ONE KEY PER COMPOSED GREETING, on the very first attempt and on every retry of it.
+      //
+      // `ensureSendRequestId` mints it only if this greeting has none, so a retry reuses the key the
+      // original request carried. That is what lets the backend derive one stable logical job and
+      // converge a lost response instead of sending twice. It is dropped only on a definitive send
+      // success, or when the sender deliberately starts a new greeting.
+      const response = await api.sendGreeting({
+        ...greetingData,
+        sendRequestId: ensureSendRequestId(),
+      });
       setJobId(response.jobId);
-      setJobStatus('queued');
+      // A REPLAY IS NOT A NEW SEND. When the backend recognises the key it returns the job that
+      // already exists — possibly one the worker has already completed — so the ordinary confirmation
+      // follows from polling that job rather than from submitting anything again.
+      setJobStatus(response.status || 'queued');
     } catch (error) {
       // Locked Voice Integrity: backend VOICE_CLONE_MISSING responses surface
       // the warm VoiceMissingModal checkpoint instead of a generic alert.
@@ -944,6 +1061,220 @@ export default function SendGreeting() {
 
     // None / curated / marketplace-empty / (dead) merch: direct dispatch.
     await executeGreetingSend(greetingData);
+  };
+
+  // Flowers path. A DELIBERATE MIRROR of handleReviewQRCashFresh below: park the completed
+  // greeting, open the payment step, and let the success handler dispatch the one send. The only
+  // difference is which checkout opens — the shape of the flow is the proven one, not a new one.
+  //
+  // Reached from CONTINUE on the pre-send review, after the sender has come back from the Gift Place
+  // and looked at the arrangement they picked. Checkout never begins at the moment a product is
+  // selected: selecting attaches, Continue pays.
+  const handleReviewFlowersCheckout = () => {
+    const selectedContact = contacts.find(c => c.id === formData.contactId);
+    if (!selectedContact) return;
+    if (!giftSettings?.flowersProduct?.providerProductId) return;
+    const greetingData = buildGreetingData(selectedContact);
+    setPendingGreetingData(greetingData);
+    // A fresh checkout is a fresh chance to send. Released here and nowhere else, so it is armed by
+    // a human action and disarmed by the send itself.
+    flowerSendStarted.current = false;
+    // A fresh checkout starts from a clean slate: no confirmed gift, and no retry payload left over
+    // from a previous attempt that a later failure could replay.
+    setGiftConfirmedForSend(false);
+    setConfirmedGiftPayload(null);
+    setPendingGiftLink(null);
+    setIsPreSendReviewOpen(false);
+    setIsFlowersCheckoutOpen(true);
+  };
+
+  // THE ONE PLACE A FLOWER ORDER TURNS INTO A SEND.
+  //
+  // Reached only from ProviderCheckoutModal's accepted handoff, which fires for
+  // CHECKOUT_STATUS.ACCEPTED and for nothing else — so a cancelled window, a decline, a refused
+  // submission, a price that moved and an UNCERTAIN confirmation all arrive here never. The status
+  // is re-checked anyway: this is the last gate before a greeting goes out announcing a gift, and it
+  // must not depend on a caller keeping its promise.
+  const handleFlowerOrderAccepted = async (result) => {
+    if (result?.status !== CHECKOUT_STATUS.ACCEPTED) return;
+    // NO LATCH HERE. The one-send latch lives in dispatchFlowerGreeting, deliberately: an accepted
+    // order whose gift link failed has NOT sent, so closing the latch at this point would block the
+    // retry from ever sending the greeting it is recovering.
+    const greetingData = pendingGreetingData;
+    if (!greetingData) return;
+
+    // THE GIFT THE BACKEND MINTED FOR THIS ACCEPTED ORDER. Its claim token is the greeting's pointer
+    // at the gift record, and it is what makes the recipient's QR say something is coming rather than
+    // announcing nothing at all — the defect this replaces was sending flowers as "no gift".
+    //
+    // The token comes from the SERVER's accepted response and from nowhere else, and it arrives ONLY
+    // once the backend has proven the gift record exists — a pending reservation is never projected.
+    // If it is absent the order is still real and still charged, and the greeting WAITS.
+    const giftClaimToken = typeof result.giftClaimToken === 'string' ? result.giftClaimToken : '';
+
+    // CLOSED AUTOMATICALLY either way. The checkout has no terminal screen of its own; the sender
+    // does not have to dismiss a receipt to find out what happened.
+    setIsFlowersCheckoutOpen(false);
+
+    // THE ORDER IS ACCEPTED AND CHARGED, BUT THE GIFT IS NOT ATTACHED.
+    //
+    // The greeting is NOT sent. That is the whole correction: a sent greeting can never be given a
+    // gift afterwards, so sending one now would turn a recoverable bookkeeping failure into a
+    // permanent one — a charged parcel the recipient is never told about. The accepted attempt is
+    // held instead, and the sender is offered a retry of the LINK. No second checkout is offered,
+    // because there is nothing left to buy.
+    if (!giftClaimToken) {
+      const attemptId = result?.checkout?.attemptId ?? result?.attemptId ?? null;
+      setPendingGiftLink({ attemptId, giftType: 'flowers' });
+      // PERSISTED, so a refresh does not lose the only handle on a charged order. The marker carries
+      // the attempt the SERVER minted plus three correlating facts, and no token, card, credential or
+      // provider payload of any kind — see src/pages/pendingGiftLink.js.
+      persistPendingGiftLink({
+        attemptId,
+        giftType: 'flowers',
+        userId: user?.id || null,
+        contactId: formData.contactId || null,
+        productId: giftSettings?.flowersProduct?.providerProductId || null,
+        // The greeting draft beside it, through the same record the send flow already uses, so the
+        // sender comes back to the greeting they composed rather than an empty form.
+        draft: {
+          formData,
+          giftSettings,
+          defaultPhoto,
+          memoryPhotos,
+          useMemoryPhotos,
+          excludedMemoryPhotos: Array.from(excludedMemoryPhotos),
+        },
+      });
+      return;
+    }
+
+    await dispatchFlowerGreeting(greetingData, giftClaimToken);
+  };
+
+  /**
+   * THE ONE DISPATCH for a flower greeting, whether it runs straight after payment or after a
+   * successful link retry.
+   *
+   * The latch lives here rather than in the accepted handler, so an accepted order whose link failed
+   * leaves it OPEN — the retry must still be able to send, exactly once, when the gift finally
+   * attaches.
+   */
+  const dispatchFlowerGreeting = async (greetingData, giftClaimToken) => {
+    if (flowerSendStarted.current) return;
+    flowerSendStarted.current = true;
+
+    const payload = {
+      ...greetingData,
+      includeGift: true,
+      // ONLY the type and the token. Everything the recipient is told is rebuilt server-side from
+      // the durable record, so nothing about the arrangement, its price or the provider travels
+      // from this browser — see resolveOutboundGift's provider-backed branch.
+      gift: { type: 'flowers', claimToken: giftClaimToken },
+    };
+
+    setGiftConfirmedForSend(true);
+    // Kept verbatim so a greeting-only retry replays THIS request — same token, same announcement.
+    setConfirmedGiftPayload(payload);
+    setPendingGiftLink(null);
+    setPendingGreetingData(null);
+    await executeGreetingSend(payload);
+  };
+
+  /**
+   * REMOUNT RECOVERY — one automatic replay of the SAME settled attempt, then the visible control.
+   *
+   * Correlation is fail-closed and runs before anything reaches the network: the restored marker must
+   * name this authenticated sender, this contact and this arrangement. `ready` holds the attempt back
+   * until contacts have loaded, so the one attempt is not spent on a page that cannot yet correlate.
+   */
+  const giftLinkRecovery = usePendingGiftLinkRecovery({
+    marker: restoredGiftLink,
+    ready: !loading && contacts.length > 0 && Boolean(formData.contactId),
+    identity: {
+      userId: user?.id || null,
+      contactId: formData.contactId || null,
+      productId: giftSettings?.flowersProduct?.providerProductId || null,
+      giftType: 'flowers',
+    },
+    onLinked: async (token) => {
+      // The greeting is rebuilt from the RESTORED draft through the same path the ordinary flow uses,
+      // so a recovered send is the same send — same recipient, same message, same media.
+      const selectedContact = contacts.find((c) => c.id === formData.contactId);
+      if (!selectedContact) return;
+      await dispatchFlowerGreeting(buildGreetingData(selectedContact), token);
+    },
+  });
+
+  // A restored marker that does not correlate is never replayed; it is surfaced instead.
+  useEffect(() => {
+    if (giftLinkRecovery.isRefused) setGiftLinkRefused(giftLinkRecovery.refusal);
+  }, [giftLinkRecovery.isRefused, giftLinkRecovery.refusal]);
+
+  // While a recovery is live the page shows the pending panel, exactly as it does straight after a
+  // failed link in the same session.
+  useEffect(() => {
+    if (restoredGiftLink && giftLinkRecovery.isPending && !pendingGiftLink) {
+      setPendingGiftLink({ attemptId: restoredGiftLink.attemptId, giftType: restoredGiftLink.giftType });
+    }
+  }, [restoredGiftLink, giftLinkRecovery.isPending, pendingGiftLink]);
+
+  /**
+   * RETRY THE GIFT LINK — never the order.
+   *
+   * It replays the SAME accepted checkout attempt through the existing submit endpoint, whose
+   * settled-attempt branch returns before the provider is resolved. So this constructs no new
+   * attempt, returns nobody to payment, and cannot submit, tokenize, place or charge anything.
+   *
+   * Only a token the backend has proven LINKED resumes the send; a pending reservation comes back as
+   * null and leaves the sender exactly where they were, free to try again.
+   */
+  const handleRetryGiftLink = async () => {
+    if (!pendingGiftLink?.attemptId || retryingGiftLink) return;
+    setRetryingGiftLink(true);
+    setErrors({});
+    try {
+      // AFTER A REMOUNT the hook owns the attempt and the one-send hand-off, so the visible control
+      // routes through it — replaying the SAME attempt id rather than opening a second path to it.
+      if (restoredGiftLink && restoredGiftLink.attemptId === pendingGiftLink.attemptId) {
+        await giftLinkRecovery.retryNow();
+        return;
+      }
+      const res = await retryGiftLink({
+        attemptId: pendingGiftLink.attemptId,
+        giftType: pendingGiftLink.giftType,
+      });
+      const token = typeof res?.giftClaimToken === 'string' ? res.giftClaimToken : '';
+      if (!token) return;
+      const greetingData = pendingGreetingData;
+      if (!greetingData) return;
+      await dispatchFlowerGreeting(greetingData, token);
+    } catch {
+      // Left on screen deliberately: the order is safe, and the sender may try again.
+    } finally {
+      setRetryingGiftLink(false);
+    }
+  };
+
+  // SAFE RETRY — a greeting-only retry for a gift that is already confirmed.
+  //
+  // The provider has accepted and charged, and the gift record exists. What failed is the Greet-Me.
+  // So this re-sends THE SAME PAYLOAD and nothing else: it never reopens checkout, never tokenizes,
+  // never submits, never calls placeorder, never recharges and cannot create a second gift. The
+  // backend binds the same claim token idempotently, so the surprise announcement survives intact.
+  const handleRetryGreetingOnly = async () => {
+    if (!confirmedGiftPayload) return;
+    if (sending) return;
+    setErrors({});
+    await executeGreetingSend(confirmedGiftPayload);
+  };
+
+  // Closing or cancelling the flower checkout. NOTHING WAS ORDERED AND NOTHING IS SENT: the parked
+  // greeting is released, and the DRAFT — formData, the chosen arrangement, the photos — is
+  // untouched, so the sender can change or remove the gift and send without composing again.
+  const handleFlowersCheckoutClose = () => {
+    setIsFlowersCheckoutOpen(false);
+    setPendingGreetingData(null);
   };
 
   // QR Cash fresh-charge path: opens the existing GiftConfirmationModal.
@@ -1168,6 +1499,9 @@ if (typeof window !== "undefined") {
     });
     setJobId(null);
     setCompletedJobId(null);
+    // A DELIBERATE NEW GREETING. The previous key belonged to a send that is finished; carrying it
+    // forward would make the next greeting converge onto the last one.
+    clearSendRequestId();
     setJobStatus(null);
     setSending(false);
     setErrors({});
@@ -1280,6 +1614,19 @@ if (typeof window !== "undefined") {
           >
             That Greet-Me is on its way.
           </p>
+          {/* THE ORDINARY CONFIRMATION, plus one line. The gift is reported as confirmed and nothing
+              more: no order number, no provider name, no arrangement, no delivery claim. The order
+              number stays in the sender's authenticated order history, where it is useful and where
+              it is nowhere near the recipient. */}
+          {giftConfirmedForSend && (
+            <p
+              data-testid="send-gift-confirmed"
+              className="ceremony-body ceremony-fade-in"
+              style={{ marginTop: '10px' }}
+            >
+              Your selected gift is confirmed.
+            </p>
+          )}
           <div
             className="ceremony-fade-in-late"
             style={{
@@ -1744,7 +2091,117 @@ if (typeof window !== "undefined") {
         {referralError && (
           <Alert type="error" message={referralError} />
         )}
-        {errors.submit && <Alert type="error" message={errors.submit} />}
+        {/* A RESTORED MARKER THAT DOES NOT CORRELATE.
+            It is never replayed — submitting it could attach a real, paid parcel to the wrong
+            greeting, or to another person's session on a shared browser. The order itself is safe and
+            still recoverable by support, so the sender is told that plainly rather than shown a
+            control that would fail closed anyway. */}
+        {giftLinkRefused && !pendingGiftLink && (
+          <div
+            data-testid="gift-link-refused"
+            role="alert"
+            style={{
+              padding: '0.875rem 1rem',
+              marginBottom: '1rem',
+              borderRadius: '0.625rem',
+              border: '1px solid #fecaca',
+              background: '#fef2f2',
+            }}
+          >
+            <p style={{ margin: 0, fontWeight: 700, color: '#991b1b' }}>
+              We found a confirmed flower order that doesn&rsquo;t match this Greet-Me.
+            </p>
+            <p style={{ margin: '0.375rem 0 0', color: '#991b1b', fontSize: '0.875rem' }}>
+              Nothing has been charged again and your order is safe. Please contact support so we can
+              attach it for you.
+            </p>
+          </div>
+        )}
+
+        {/* ACCEPTED AND CHARGED, GIFT NOT YET ATTACHED.
+            The greeting has deliberately NOT been sent: sending it would foreclose the fix, because a
+            sent Greet-Me can never be given a gift afterwards. The order is held, not discarded, and
+            the only control offered retries THE LINK — never another checkout, because there is
+            nothing left to buy. */}
+        {pendingGiftLink && (
+          <div
+            data-testid="gift-link-pending"
+            role="alert"
+            style={{
+              padding: '0.875rem 1rem',
+              marginBottom: '1rem',
+              borderRadius: '0.625rem',
+              border: '1px solid #fcd34d',
+              background: '#fffbeb',
+            }}
+          >
+            <p style={{ margin: '0 0 0.5rem', fontWeight: 700, color: '#92400e' }}>
+              Your flower order is confirmed, but we&rsquo;re still attaching it to your Greet-Me.
+              Please try again.
+            </p>
+            <button
+              type="button"
+              data-testid="retry-gift-link"
+              disabled={retryingGiftLink || sending}
+              onClick={handleRetryGiftLink}
+              style={{
+                padding: '0.6rem 1.1rem',
+                borderRadius: '0.5rem',
+                border: 'none',
+                background: (retryingGiftLink || sending) ? 'var(--border, #cbd5e1)' : '#b45309',
+                color: '#fff',
+                fontWeight: 700,
+                fontFamily: 'inherit',
+                cursor: (retryingGiftLink || sending) ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {retryingGiftLink ? 'Trying again\u2026' : 'Try again'}
+            </button>
+          </div>
+        )}
+
+        {/* SAFE RETRY. The gift is bought, paid for and recorded; only the Greet-Me failed. So the
+            offer is a GREETING retry and nothing else — it cannot reopen checkout, cannot tokenize,
+            cannot submit, cannot recharge and cannot create a second gift, because it replays the one
+            payload that already carries the confirmed gift's claim token. Shown instead of the bare
+            error, so the sender is never left reading "send failed" while wondering about their money. */}
+        {confirmedGiftPayload && errors.submit ? (
+          <div
+            data-testid="gift-confirmed-send-failed"
+            role="alert"
+            style={{
+              padding: '0.875rem 1rem',
+              marginBottom: '1rem',
+              borderRadius: '0.625rem',
+              border: '1px solid #fcd34d',
+              background: '#fffbeb',
+            }}
+          >
+            <p style={{ margin: '0 0 0.5rem', fontWeight: 700, color: '#92400e' }}>
+              Your gift is confirmed, but your Greet-Me could not be sent.
+            </p>
+            <button
+              type="button"
+              data-testid="retry-greeting-only"
+              disabled={sending}
+              onClick={handleRetryGreetingOnly}
+              style={{
+                padding: '0.6rem 1.1rem',
+                borderRadius: '0.5rem',
+                border: 'none',
+                background: sending ? 'var(--border, #cbd5e1)' : '#b45309',
+                color: '#fff',
+                fontWeight: 700,
+                fontFamily: 'inherit',
+                cursor: sending ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {sending ? 'Sending…' : 'Retry your Greet-Me'}
+            </button>
+          </div>
+        ) : (
+          errors.submit && <Alert type="error" message={errors.submit} />
+        )}
         {/* Phase 3D Batch A — A2.4: in-memory retry affordance after failed
             resume dispatch (founder option b). Ephemeral — appears only when
             resumeRetryContext is set; vanishes on page unmount; cleared on
@@ -1844,6 +2301,78 @@ if (typeof window !== "undefined") {
               Renders only when an attachment exists. Pure presentational read
               from giftSettings + cart count. No orchestration / checkout /
               send-logic side effects. */}
+          {/* SELECTED GIFT — THE ONE SUMMARY, whatever was chosen.
+              A gift picked in the Gift Place is shown back here, on the greeting, before anything is
+              paid for: image, name, price, and a way to change it. This is the screen the founder's
+              cadence turns on — the sender is looking at their greeting AND their gift together, and
+              only then presses the single primary action. */}
+          {selectedGiftSummary && (
+            <div
+              data-testid="selected-gift-summary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.875rem',
+                padding: '0.875rem',
+                marginBottom: '1rem',
+                border: '1px solid var(--border, #e5e7eb)',
+                borderRadius: '0.75rem',
+                background: 'var(--bg-primary, #fff)',
+              }}
+            >
+              <div
+                aria-hidden="true"
+                style={{
+                  width: 56,
+                  height: 56,
+                  flexShrink: 0,
+                  borderRadius: '0.5rem',
+                  background: selectedGiftSummary.imageUrl
+                    ? `url(${selectedGiftSummary.imageUrl}) center/cover no-repeat`
+                    : 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.5rem',
+                }}
+              >
+                {!selectedGiftSummary.imageUrl && '🎁'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-tertiary, #9ca3af)' }}>
+                  Selected Gift
+                </div>
+                <div data-testid="selected-gift-name" style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary, #111827)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {selectedGiftSummary.name}
+                </div>
+                {selectedGiftSummary.priceLabel && (
+                  <div data-testid="selected-gift-price" style={{ fontSize: '0.875rem', color: 'var(--primary)', fontWeight: 700 }}>
+                    {selectedGiftSummary.priceLabel}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                data-testid="selected-gift-change"
+                onClick={() => setIsGiftModalOpen(true)}
+                style={{
+                  padding: '0.5rem 0.875rem',
+                  borderRadius: '0.5rem',
+                  border: '1px solid var(--border, #e5e7eb)',
+                  background: 'transparent',
+                  color: 'var(--text-secondary, #6b7280)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  fontFamily: 'inherit',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Change Gift
+              </button>
+            </div>
+          )}
+
           <AttachmentIndicator
             giftMode={giftSettings.type}
             qrCashAmountCents={(() => {
@@ -2612,13 +3141,12 @@ if (typeof window !== "undefined") {
 
           // Close the modal and navigate to the appropriate page
           setIsGiftModalOpen(false);
-          if (type === 'marketplace') {
+          // ONE DESTINATION. The Gift Place holds every category, flowers included, and
+          // /dashboard/merch is a redirect to it — which is why offering both was offering the same
+          // page twice. `returnTo=send` is the existing return-to-greeting contract: the Gift Place
+          // reads it to show the "shopping for your greeting" context and to come back here.
+          if (type === 'marketplace' || type === 'merch') {
             navigate('/dashboard/gifts?returnTo=send&giftType=marketplace');
-          } else if (type === 'merch') {
-            // Physical merchandise attaches through the SAME cart, checkout,
-            // payment and resume path as the Gift Place — one money path, so
-            // one binding, one claim token and one reveal.
-            navigate('/dashboard/merch?returnTo=send&giftType=merch');
           }
         }}
       />
@@ -2660,11 +3188,38 @@ if (typeof window !== "undefined") {
             ? cartService.getCart().filter(i => i.sendContext === 'greeting-flow')
             : null
         }
+        flowersAttachment={
+          giftSettings.type === 'flowers' && giftSettings.flowersProduct
+            ? {
+                providerProductId: giftSettings.flowersProduct.providerProductId,
+                name: giftSettings.flowersProduct.name,
+                priceMinor: giftSettings.flowersProduct.priceMinor,
+                currency: giftSettings.flowersProduct.currency,
+              }
+            : null
+        }
         sending={sending}
         onConfirmDirectSend={handleReviewDirectSend}
         onConfirmQRCashFresh={handleReviewQRCashFresh}
         onMarketplaceCheckout={handleReviewMarketplaceCheckout}
+        onConfirmFlowersCheckout={handleReviewFlowersCheckout}
         onRemoveAttachment={handleReviewRemoveAttachment}
+      />
+
+      {/* The EXISTING provider checkout, opened as the next STEP of this send. The recipient, the
+          message, the media and the chosen arrangement are all still here behind it — nothing was
+          reset and nothing navigated — and its accepted handoff is the only thing that can dispatch
+          the greeting. */}
+      <ProviderCheckoutModal
+        isOpen={isFlowersCheckoutOpen}
+        onClose={handleFlowersCheckoutClose}
+        giftType="flowers"
+        product={giftSettings?.flowersProduct || null}
+        customer={user}
+        // The greeting's recipient. It is what lets the backend bind the accepted order to THIS
+        // greeting and refuse it for any other — the same binding an attached merchandise order uses.
+        contactId={formData.contactId || null}
+        onAccepted={handleFlowerOrderAccepted}
       />
 
       {/* QR Cash™ Confirmation Modal */}

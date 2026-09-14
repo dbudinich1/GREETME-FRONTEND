@@ -120,7 +120,7 @@ test('no status copy ever claims delivery, tracking, completion or a refund', ()
 test('the rendered surfaces contain no forbidden claim either', () => {
   // The copy module is where wording is supposed to live, so the components are checked too: a
   // stray "your flowers are on their way" in JSX would be exactly as untrue.
-  for (const file of ['ProviderCheckoutModal.jsx', 'ProviderCheckoutEntry.jsx']) {
+  for (const file of ['ProviderCheckoutModal.jsx']) {
     // Only what a customer could READ is checked: comments discuss what must never be claimed, and
     // identifiers ("cancelled" as a cleanup flag) are not copy.
     const source = read(file).replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -477,16 +477,25 @@ test('billing details are NOT carried into the quote review', () => {
 test('the marketplace never hands its own product to a provider checkout', () => {
   // A Printful product in a florist order is an order nobody can fulfil. The entry point passes no
   // product at all, so the choice can only come from the provider's own live list.
+  // REWRITTEN 2026-09-14, and the guarantee is now structural rather than a prop check. The Gift
+  // Place holds NO provider checkout at all: selecting an arrangement attaches it to the greeting and
+  // returns, and payment happens later, in the send flow, from the provider's own live product. So a
+  // marketplace product cannot be handed to a florist because there is nothing here to hand it to.
   const merch = readFileSync(join(HERE, '../../pages/Merch.jsx'), 'utf8');
-  const entry = merch.slice(merch.indexOf('<ProviderCheckoutEntry'), merch.indexOf('/>', merch.indexOf('<ProviderCheckoutEntry')));
-  assert.ok(entry.length > 20, 'the entry point must be present in the marketplace');
-  assert.match(entry, /product=\{null\}/);
-  assert.equal(/visibleProducts|selectedProducts|products\[/.test(entry), false,
-    'no marketplace product may be passed into a provider checkout');
+  assert.equal(merch.includes('<ProviderCheckoutModal'), false,
+    'the Gift Place must not open a provider checkout');
+  assert.equal(merch.includes('ProviderCheckoutEntry'), false,
+    'the separate provider surface must be gone');
+  // The arrangement handed onward is looked up in the PROVIDER's own list, never the catalogue's.
+  assert.match(merch, /providerProducts\.find\(/);
+  const select = merch.slice(merch.indexOf('const selectProviderGiftForGreeting'),
+    merch.indexOf('const handleGiftCardAction'));
+  assert.equal(/visibleProducts|selectProducts\(/.test(select), false,
+    'no marketplace product may be passed into a provider order');
 });
 
 test('the tokenizer address comes from the provider, never from this repository', () => {
-  for (const file of ['acceptJsLoader.js', 'ProviderCheckoutModal.jsx', 'ProviderCheckoutEntry.jsx',
+  for (const file of ['acceptJsLoader.js', 'ProviderCheckoutModal.jsx',
     'providerCheckoutModel.js', '../../api/providerCheckout.js']) {
     const text = read(file);
     assert.equal(/authorize\s*\.\s*net/i.test(text), false, `${file} must not hard-code a processor host`);
