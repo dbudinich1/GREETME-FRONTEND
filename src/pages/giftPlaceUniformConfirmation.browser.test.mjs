@@ -122,6 +122,14 @@ before(async () => {
     + "  __transport.catalogCalls += 1;\n"
     + "  return giftType === 'flowers' ? { ok: true, products: flowers } : { ok: true, products: [] };\n"
     + "}\n"
+    // HARNESS COMPLETENESS, not new behaviour. The Gift Place now mounts the existing
+    // ProviderCheckoutModal for a STANDALONE purchase, and that component imports these two from the
+    // same transport module. Without them in this stub the bundle cannot link and every test in this
+    // file fails for a harness reason rather than a product one. Both still refuse to do anything: no
+    // test in this file may reach a product list or a tokenization config, and nothing here opens a
+    // checkout at all — these assertions are all about the greeting-attached confirmation.
+    + "export async function fetchProviderProducts() { throw new Error('no test here may list products'); }\n"
+    + "export async function fetchTokenizationConfig() { throw new Error('no test here may fetch tokenization'); }\n"
     + "export async function retryGiftLink() { throw new Error('no test may retry a gift link'); }\n"
     + "export async function prepareCheckout() { throw new Error('no test may prepare a checkout'); }\n"
     + "export async function submitCheckout() { throw new Error('no test may submit a checkout'); }\n");
@@ -498,15 +506,23 @@ test("13. no order, provider submission, tokenization, charge, send or recipient
     assert.ok(__transport.availabilityCalls >= 1, "the posture gate really was consulted");
     assert.ok(__transport.catalogCalls >= 1, "and the catalogue really was read");
 
-    // The Gift Place must not even be able to start a checkout.
+    // The Gift Place must move no money itself.
     // Comments are stripped first: Merch.jsx's own comment explains that it deliberately does NOT
     // price, tokenize, pay or order, and prose must never be mistaken for the behaviour it denies.
+    //
+    // REWRITTEN: `ProviderCheckoutModal` has been removed from this list, and only that one. The page
+    // now mounts the EXISTING checkout for a STANDALONE purchase, which is the opposite of the page
+    // acquiring a money path of its own. Every genuinely money-moving name stays forbidden.
     const src = readFileSync(join(__dirname, "Merch.jsx"), "utf8");
     const code = stripComments(src);
-    for (const forbidden of ["prepareCheckout", "submitCheckout", "tokenize", "placeOrder",
-      "ProviderCheckoutModal"]) {
+    for (const forbidden of ["prepareCheckout", "submitCheckout", "tokenize", "placeOrder"]) {
       assert.equal(code.includes(forbidden), false, `the Gift Place must not ${forbidden}`);
     }
+    // AND IN THIS FLOW — the greeting-attached one, which is what this file is about — no checkout is
+    // opened at all. That is the assertion the old forbidden-name check was really making, and it is
+    // now made against the rendered DOM instead of against a string, which is stronger.
+    assert.equal(m.host.querySelectorAll('[data-testid="provider-checkout-modal"]').length, 0,
+      "the send flow never opens a checkout from the Gift Place: selecting attaches, Done & Send pays");
     assert.equal(m.host.querySelectorAll('[data-testid="provider-checkout-pay"]').length, 0,
       "no Pay control is rendered anywhere in this flow");
   } finally { await m.unmount(); }

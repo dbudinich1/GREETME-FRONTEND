@@ -360,9 +360,21 @@ test("a provider category loads its catalogue on SELECTION, with no button and n
 
   // Selecting an arrangement ATTACHES it and returns. It must not price, tokenize, pay or order.
   assert.match(CODE, /const selectProviderGiftForGreeting =/);
-  for (const forbidden of ["prepareCheckout", "submitCheckout", "tokenize", "placeOrder", "ProviderCheckoutModal"]) {
+  // THE PAGE STILL MOVES NO MONEY ITSELF — REWRITTEN, AND STILL THE POINT OF THIS GUARD.
+  //
+  // `ProviderCheckoutModal` has been REMOVED from this forbidden list, and only that one. A standalone
+  // flower purchase is now authorized, so the page mounts the EXISTING checkout component — which is
+  // precisely the opposite of the page acquiring a money path of its own. Every genuinely
+  // money-moving name below stays forbidden: pricing, tokenization, submission and order placement
+  // belong to that component and to the backend, never to this page.
+  for (const forbidden of ["prepareCheckout", "submitCheckout", "tokenize", "placeOrder"]) {
     assert.ok(!CODE.includes(forbidden), `the Gift Place must not ${forbidden}`);
   }
+  // And it reuses the ONE existing checkout rather than declaring a flower-shaped copy of one.
+  assert.equal((CODE.match(/<ProviderCheckoutModal/g) || []).length, 1,
+    "exactly one checkout is mounted, and it is the shared one");
+  assert.match(CODE, /import ProviderCheckoutModal from '\.\.\/components\/providerCheckout\/ProviderCheckoutModal'/,
+    "imported from its existing home — not reimplemented on this page");
   // It returns through the EXISTING return-to-greeting mechanism, not a second one.
   assert.match(CODE, /sessionStorage\.setItem\('sendGreetingState'/);
 
@@ -382,8 +394,27 @@ test("a provider category loads its catalogue on SELECTION, with no button and n
   // The return still exists — on the confirmation's own button, carrying the flower's gift type.
   assert.match(CODE, /navigate\(`\/dashboard\/send\?returnTo=send&giftType=\$\{giftType\}`\)/);
   assert.match(CODE, /lastAddedItem\?\.giftType === 'flowers' \? 'flowers' : 'merch'/);
-  // And outside a greeting there is nothing to attach to, so the action does nothing at all.
-  assert.match(CODE, /if \(!cameFromSendGreeting\) return;/);
+  // REWRITTEN. This asserted `if (!cameFromSendGreeting) return;` — that outside a greeting the action
+  // did nothing at all. That was true, and it was the DEFECT: the button was enabled, fired, and was
+  // silently discarded, because the only checkout the page knew about was the Printful cart's and a
+  // flower cannot ride it. A standalone purchase is now authorized, so asserting that early return
+  // would be asserting the defect.
+  //
+  // The new truth, and it is a stronger claim: BOTH situations are handled explicitly, and neither is
+  // dropped.
+  const actionFn = CODE.slice(CODE.indexOf("const handleGiftCardAction ="),
+    CODE.indexOf("const handleGiftCardAction =") + 900);
+  assert.ok(!/!cameFromSendGreeting\s*\)\s*return\s*;/.test(actionFn),
+    "a direct flower selection must never be silently discarded again");
+  assert.match(actionFn, /selectProviderGiftForGreeting\(card\)/, "the greeting path is handled");
+  assert.match(actionFn, /selectProviderGiftStandalone\(card\)/, "and the standalone path is handled");
+  // The standalone path attaches nothing: there is no greeting for it to attach to.
+  const standaloneFn = CODE.slice(CODE.indexOf("const selectProviderGiftStandalone ="),
+    CODE.indexOf("const handleGiftCardAction ="));
+  assert.ok(standaloneFn.length > 0, "the standalone selection must be findable");
+  assert.ok(!standaloneFn.includes("sessionStorage"), "a standalone purchase writes no greeting draft");
+  assert.ok(!standaloneFn.includes("cartService"), "and no cart line");
+  assert.match(standaloneFn, /setShowCartModal\(true\)/, "it opens the same shared confirmation");
 });
 
 test("the personal-greeting round trip and direct entry are preserved", () => {

@@ -39,6 +39,11 @@ import {
 // The posture gate and the four proven catalogue states, in a hook so they stay assertable by
 // MOUNTING rather than by scraping this file. A dormant provider is never asked for products.
 import { useProviderCatalogue } from '../components/giftPlace/useProviderCatalogue';
+// THE EXISTING PROVIDER CHECKOUT, REUSED AS-IS. Not a second checkout, not a flower-shaped copy of
+// one: the same component Send Greet-Me opens, mounted here with its greeting arguments left off.
+// Omitting `contactId` is what makes the order unattachable to any greeting, and omitting
+// `onAccepted` is what selects its own standalone terminal confirmation instead of a handoff.
+import ProviderCheckoutModal from '../components/providerCheckout/ProviderCheckoutModal';
 
 export default function Merch() {
   const navigate = useNavigate();
@@ -52,6 +57,12 @@ export default function Merch() {
   const [showCartModal, setShowCartModal] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState(null);
   const [pickerProduct, setPickerProduct] = useState(null);
+  // A STANDALONE ARRANGEMENT AWAITING ITS CHECKOUT. Set only when a flower is chosen outside a
+  // greeting; it holds the PROVIDER's own product record, which is what the checkout needs to start at
+  // its details step. Cleared whenever a cart item takes the confirmation over, so "Go to Checkout"
+  // can never route a merch confirmation into the provider's checkout.
+  const [standaloneFlower, setStandaloneFlower] = useState(null);
+  const [isFlowersCheckoutOpen, setIsFlowersCheckoutOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -143,7 +154,10 @@ export default function Merch() {
   // THE ACTION LABEL IS DECIDED BY CONTEXT, NOT BY PRODUCT TYPE. Shopping for a greeting attaches
   // one gift to it; a direct store visit adds to a cart. The card's structure and the button's
   // position are identical either way — only the words change.
-  const giftActionLabel = actionLabelFor(cameFromSendGreeting ? 'greeting' : 'store');
+  // The gift type refines the STORE case only: a provider category bought outside a greeting says what
+  // it actually does ("Order Flowers"), because such a product never reaches the cart. Shopping for a
+  // greeting is "Select Gift" for every category, exactly as before.
+  const giftActionLabel = actionLabelFor(cameFromSendGreeting ? 'greeting' : 'store', providerGiftType);
 
   /**
    * SELECTING A PROVIDER ARRANGEMENT FOR A GREETING.
@@ -198,13 +212,58 @@ export default function Merch() {
     setShowCartModal(true);
   };
 
+  /**
+   * SELECTING A PROVIDER ARRANGEMENT FOR ITSELF — a standalone purchase, with no greeting anywhere.
+   *
+   * This is the path that used to not exist. The button fired and the handler returned, because the
+   * only checkout the Gift Place knew about was the cart's, and a flower cannot ride that: the cart and
+   * Checkout.jsx are Printful-specific. So the guard was correct and the missing piece was a checkout,
+   * not a cart entry.
+   *
+   * WHAT IT DELIBERATELY DOES NOT DO, and each absence is asserted:
+   *   * no sessionStorage write — there is no greeting draft to attach anything to;
+   *   * no cartService call — a flower never becomes a cart line;
+   *   * no navigation — the shopper stays exactly where they are;
+   *   * no checkout yet. The confirmation opens FIRST, which is the founder's uniform selection rule:
+   *     every category confirms the same way before anything else happens.
+   *
+   * The confirmation it opens is the same one merch opens, with the same fields in the same shape, so
+   * the surface cannot tell a flower from a mug — which is the whole point.
+   */
+  const selectProviderGiftStandalone = (card) => {
+    const chosen = providerProducts.find((p) => String(p.providerProductId) === String(card.id));
+    if (!chosen) return;
+    setPickerProduct(null);
+    // Held for the checkout the shopper may or may not go on to open. Choosing a different
+    // arrangement replaces it, exactly as a second merch selection replaces the first.
+    setStandaloneFlower(chosen);
+    setLastAddedItem({
+      providerProductId: chosen.providerProductId,
+      name: chosen.name,
+      // A NUMBER, like every merch price, so the shared surface formats one money format and not two.
+      price: Number.isFinite(Number(chosen.priceMinor)) ? Number(chosen.priceMinor) / 100 : card.priceLabel,
+      imageUrl: chosen.imageUrl || card.imageUrl || null,
+      giftType: 'flowers',
+    });
+    setShowCartModal(true);
+  };
+
+  // AN ARRANGEMENT THAT BELONGS TO A GREETING, as opposed to one bought on its own. The confirmation's
+  // return affordances key on this rather than on the flower itself: outside a greeting there is
+  // nothing to return to, so offering "Return to Greeting" would strand the shopper.
+  const flowerForGreeting = lastAddedItem?.giftType === 'flowers' && cameFromSendGreeting;
+
   /** One entry point for the one card action, whichever source the card came from. */
   const handleGiftCardAction = (card) => {
     if (providerGiftType) {
-      // Outside a greeting there is nothing to attach an arrangement to, and this surface must never
-      // start a checkout of its own.
-      if (!cameFromSendGreeting) return;
-      selectProviderGiftForGreeting(card);
+      // ONE CATEGORY, TWO SITUATIONS. Inside a greeting the arrangement is attached to it; outside
+      // one it is simply bought. Both open the same confirmation first, and neither starts a checkout
+      // from this click.
+      if (cameFromSendGreeting) {
+        selectProviderGiftForGreeting(card);
+        return;
+      }
+      selectProviderGiftStandalone(card);
       return;
     }
     const product = visibleProducts.find((p) => String(p.syncProductId) === String(card.id));
@@ -264,6 +323,9 @@ export default function Merch() {
       });
       window.dispatchEvent(new Event('cartUpdated'));
       setPickerProduct(null);
+      // A CART ITEM NOW OWNS THE CONFIRMATION. Any arrangement held from an earlier selection is
+      // released here, so this confirmation's "Go to Checkout" cannot reach the provider's checkout.
+      setStandaloneFlower(null);
       setLastAddedItem({
         syncProductId: product.syncProductId,
         name: `${product.name} — ${variant.label}`,
@@ -294,6 +356,19 @@ export default function Merch() {
 
   const handleGoToCheckout = () => {
     setShowCartModal(false);
+    // A STANDALONE ARRANGEMENT GOES TO THE PROVIDER'S OWN CHECKOUT, NEVER TO THE CART.
+    //
+    // The cart and Checkout.jsx are Printful-specific — they key on `printfulSyncVariantId` — so
+    // sending a flower there would produce a checkout that cannot describe, price or place it. The
+    // provider's checkout is the one that can, and it already exists.
+    //
+    // Guarded on all three facts rather than on the flower alone: a held arrangement, a confirmation
+    // that is actually showing one, and no greeting context. Any merch confirmation therefore keeps the
+    // cart route it has always had, byte for byte.
+    if (standaloneFlower && lastAddedItem?.giftType === 'flowers' && !cameFromSendGreeting) {
+      setIsFlowersCheckoutOpen(true);
+      return;
+    }
     navigate('/dashboard/cart');
   };
 
@@ -774,6 +849,12 @@ export default function Merch() {
       />
 
 
+      {/* A FLOWER RETURNS TO A GREETING ONLY WHEN THERE IS ONE.
+             The three return-affordance rules below previously keyed on the flower alone, which was
+             sound while a flower could only ever be chosen from inside a send. Now that one can be
+             bought on its own, "Return to Greeting" must not be offered to a shopper who never came
+             from a greeting — there is nothing to return to. The greeting-attached path keeps its
+             behaviour exactly, because in that path this is true whenever the old clause was. */}
       {/* Add to Cart Confirmation Modal — picker mode when pickerProduct is set */}
       <AddToCartModal
         isOpen={showCartModal}
@@ -789,13 +870,13 @@ export default function Merch() {
         // flower is the greeting — anything else would strand the attachment. Every other category
         // keeps the routing it already had, byte for byte.
         onReturnToRecipient={
-          lastAddedItem?.giftType === 'flowers'
+          flowerForGreeting
             ? handleReturnToGreeting
             : (returnRecipientId ? handleReturnToRecipient : (cameFromSendGreeting ? handleReturnToGreeting : null))
         }
-        showReturnToRecipient={lastAddedItem?.giftType === 'flowers' || !!returnRecipientId || cameFromSendGreeting}
+        showReturnToRecipient={flowerForGreeting || !!returnRecipientId || cameFromSendGreeting}
         returnToLabel={
-          lastAddedItem?.giftType === 'flowers' || (cameFromSendGreeting && !returnRecipientId)
+          flowerForGreeting || (cameFromSendGreeting && !returnRecipientId)
             ? "Return to Greeting"
             : "Return to Recipient Settings"
         }
@@ -804,6 +885,23 @@ export default function Merch() {
         // gift chooser, but this guards stale links / deep links.
         showGoToCheckout={!cameFromSendGreeting}
       />
+
+      {/* THE STANDALONE FLOWER CHECKOUT — the EXISTING provider checkout, with its greeting arguments
+             left off.
+             `contactId` is omitted, which is precisely what makes the resulting order unattachable to
+             any greeting: the backend stores it as null and the send-time binding refuses a gift whose
+             contactId is absent. `onAccepted` is omitted, which is what makes this checkout show its
+             own terminal confirmation — the provider's order number and Done — instead of handing off
+             to a greeting dispatch. No greeting is created, queued or sent from this page. */}
+      {isFlowersCheckoutOpen && standaloneFlower && (
+        <ProviderCheckoutModal
+          isOpen={isFlowersCheckoutOpen}
+          onClose={() => setIsFlowersCheckoutOpen(false)}
+          giftType="flowers"
+          product={standaloneFlower}
+          customer={user}
+        />
+      )}
 
       {/* CHECKPOINT 2 — the drawer renders OVER this page. No route change, no second page. */}
       {founder && (

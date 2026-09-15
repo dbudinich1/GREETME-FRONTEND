@@ -475,23 +475,41 @@ test('billing details are NOT carried into the quote review', () => {
 });
 
 test('the marketplace never hands its own product to a provider checkout', () => {
-  // A Printful product in a florist order is an order nobody can fulfil. The entry point passes no
-  // product at all, so the choice can only come from the provider's own live list.
-  // REWRITTEN 2026-09-14, and the guarantee is now structural rather than a prop check. The Gift
-  // Place holds NO provider checkout at all: selecting an arrangement attaches it to the greeting and
-  // returns, and payment happens later, in the send flow, from the provider's own live product. So a
-  // marketplace product cannot be handed to a florist because there is nothing here to hand it to.
+  // A Printful product in a florist order is an order nobody can fulfil. THAT is the invariant, and it
+  // is unchanged.
+  //
+  // REWRITTEN AGAIN 2026-09-14. The previous version enforced it by asserting the Gift Place held no
+  // provider checkout at all, which was true while a flower could only be bought inside a greeting. A
+  // standalone flower purchase is now authorized, so the page does open the checkout — and the
+  // invariant is therefore asserted DIRECTLY, on the product that reaches it, which is what the guard
+  // was always really about. This is a stronger check than the absence it replaced: it would catch a
+  // marketplace product being handed to a florist even in a page that was allowed to open a checkout.
   const merch = readFileSync(join(HERE, '../../pages/Merch.jsx'), 'utf8');
-  assert.equal(merch.includes('<ProviderCheckoutModal'), false,
-    'the Gift Place must not open a provider checkout');
   assert.equal(merch.includes('ProviderCheckoutEntry'), false,
     'the separate provider surface must be gone');
-  // The arrangement handed onward is looked up in the PROVIDER's own list, never the catalogue's.
+
+  // Exactly one provider checkout, and the product it receives is the arrangement held for it.
+  assert.equal((merch.match(/<ProviderCheckoutModal/g) || []).length, 1,
+    'exactly one provider checkout is mounted');
+  assert.match(merch, /product=\{standaloneFlower\}/,
+    'the checkout receives the held arrangement and nothing else');
+
+  // And that arrangement can only ever have come from the PROVIDER's own live list.
   assert.match(merch, /providerProducts\.find\(/);
+  const setters = merch.match(/setStandaloneFlower\([^)]*\)/g) || [];
+  assert.ok(setters.length >= 1, 'the arrangement must be set somewhere');
+  for (const s of setters) {
+    assert.ok(/setStandaloneFlower\((chosen|null)\)/.test(s),
+      `the held arrangement may only be a provider product or null, got ${s}`);
+  }
+
+  // Neither selection path may reach into the marketplace catalogue for a provider order.
   const select = merch.slice(merch.indexOf('const selectProviderGiftForGreeting'),
     merch.indexOf('const handleGiftCardAction'));
   assert.equal(/visibleProducts|selectProducts\(/.test(select), false,
     'no marketplace product may be passed into a provider order');
+  assert.match(select, /const selectProviderGiftStandalone/,
+    'and the standalone path lives in this same scanned region, so it is covered too');
 });
 
 test('the tokenizer address comes from the provider, never from this repository', () => {

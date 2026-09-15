@@ -38,11 +38,30 @@ export const GIFT_SOURCES = Object.freeze({
 export const GIFT_ACTION_LABELS = Object.freeze({
   greeting: "Select Gift",
   store: "Add to Cart",
+  // A PROVIDER-FULFILLED CATEGORY BOUGHT OUTSIDE A GREETING, keyed by gift type.
+  //
+  // "Add to Cart" would be a plain lie here: a flower never enters the cart, cannot be combined with
+  // merchandise, and is paid for at the florist's own checkout. The shopper is ordering an
+  // arrangement, so the button says so.
+  //
+  // Keyed rather than hardcoded so a second provider category names its own action instead of
+  // inheriting a flower's. Anything without an entry falls back to the store label, which is what
+  // keeps every existing non-provider category byte-identical.
+  flowers: "Order Flowers",
 });
 
-export const actionLabelFor = (context) => (
-  context === "greeting" ? GIFT_ACTION_LABELS.greeting : GIFT_ACTION_LABELS.store
-);
+/**
+ * The card's action label.
+ *
+ * `context` is the shopper's situation — a greeting attaches one gift, a store visit does not — and
+ * it still wins outright: shopping FOR a greeting is always "Select Gift", whatever the category.
+ * `giftType` refines the store case only.
+ */
+export const actionLabelFor = (context, giftType = null) => {
+  if (context === "greeting") return GIFT_ACTION_LABELS.greeting;
+  if (giftType && GIFT_ACTION_LABELS[giftType]) return GIFT_ACTION_LABELS[giftType];
+  return GIFT_ACTION_LABELS.store;
+};
 
 const finite = (n) => (typeof n === "number" && Number.isFinite(n) ? n : null);
 

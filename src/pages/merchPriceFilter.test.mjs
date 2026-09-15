@@ -291,8 +291,20 @@ test("there is still exactly ONE product grid, and now exactly one card too", ()
   assert.equal((CODE.match(/const handleGiftCardAction =/g) || []).length, 1);
   // And the separate provider surface is gone from the page entirely.
   assert.ok(!CODE.includes("ProviderCheckoutEntry"), "no separate provider surface may remain");
-  assert.ok(!CODE.includes("ProviderCheckoutModal"),
-    "the Gift Place must not open a checkout: selecting attaches, Continue pays");
+
+  // THE CHECKOUT IS NOT A SECOND PRODUCT SURFACE — REWRITTEN, NOT RELAXED.
+  //
+  // This assertion used to be `!CODE.includes("ProviderCheckoutModal")`, which was the right guard
+  // while a flower could only be bought from inside a greeting: the Gift Place attached, and Send
+  // Greet-Me paid. A standalone flower purchase is now authorized, so the page does mount the EXISTING
+  // checkout — and the thing worth protecting is no longer "never" but "once, and as a checkout".
+  //
+  // What this still forbids, which is what the old line was really for: a second grid, a second
+  // catalogue, a second card, or more than one checkout on the page.
+  assert.equal((CODE.match(/<ProviderCheckoutModal/g) || []).length, 1,
+    "exactly one provider checkout is mounted — it is a checkout, not another product surface");
+  assert.equal((CODE.match(/<GiftProductGrid/g) || []).length, 1,
+    "and it did not bring a second grid with it");
 });
 
 test("both sources project into the ONE card shape, so the grid cannot go ragged", () => {
