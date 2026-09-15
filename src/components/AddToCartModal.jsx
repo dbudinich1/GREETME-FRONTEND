@@ -192,6 +192,24 @@ export default function AddToCartModal({
                 padding: '1rem',
                 marginBottom: '1.5rem'
               }}>
+                {/* THE ITEM'S OWN PICTURE, when the caller has one.
+                    Optional on purpose: this surface is shared by every Gift Place category, and a
+                    caller that passes no imageUrl renders exactly what it rendered before. It is the
+                    same projected imageUrl the product card was shown with, so the shopper is
+                    confirming the thing they just looked at. */}
+                {item.imageUrl && (
+                  <div
+                    data-testid="cart-modal-item-image"
+                    aria-hidden="true"
+                    style={{
+                      width: '100%',
+                      height: 140,
+                      marginBottom: '0.75rem',
+                      borderRadius: '0.5rem',
+                      background: `url(${item.imageUrl}) center/cover no-repeat`,
+                    }}
+                  />
+                )}
                 <p style={{
                   fontSize: '1rem',
                   fontWeight: 600,

@@ -154,6 +154,13 @@ export default function Merch() {
    * The draft travels through the EXISTING return-to-greeting mechanism — the same sessionStorage
    * blob GiftSelectorModal writes and SendGreeting already restores — with the chosen arrangement
    * added to the giftSettings it already carries. No second preservation path is introduced.
+   *
+   * IT NO LONGER NAVIGATES. Selecting a flower used to jump straight back to the greeting, which made
+   * flowers the one category that behaved differently and threw away where the shopper was — their
+   * category, their price filter, their scroll position. It now opens the SAME "Added to Cart!"
+   * confirmation every other category opens, and the shopper decides: Continue Shopping stays exactly
+   * here, Return to Greeting goes back. The attachment is written before either choice, so the flower
+   * is held from the moment it is picked.
    */
   const selectProviderGiftForGreeting = (card) => {
     const chosen = providerProducts.find((p) => String(p.providerProductId) === String(card.id));
@@ -178,7 +185,17 @@ export default function Merch() {
       alert('We could not hold on to your greeting. Please go back and try again.');
       return;
     }
-    navigate('/dashboard/send?returnTo=send&giftType=flowers');
+    // THE SAME CONFIRMATION, not a navigation. `price` is passed as a NUMBER so the shared surface
+    // formats it exactly as it formats a merch price — the shopper sees one money format, not two.
+    setPickerProduct(null);
+    setLastAddedItem({
+      providerProductId: chosen.providerProductId,
+      name: chosen.name,
+      price: Number.isFinite(Number(chosen.priceMinor)) ? Number(chosen.priceMinor) / 100 : card.priceLabel,
+      imageUrl: chosen.imageUrl || card.imageUrl || null,
+      giftType: 'flowers',
+    });
+    setShowCartModal(true);
   };
 
   /** One entry point for the one card action, whichever source the card came from. */
@@ -251,6 +268,11 @@ export default function Merch() {
         syncProductId: product.syncProductId,
         name: `${product.name} — ${variant.label}`,
         price: variant.priceCents / 100,
+        // The same picture the card was shown with. The confirmation renders it when it is there, so
+        // every category confirms the same way.
+        imageUrl: product.imageUrl || null,
+        // Which return this confirmation belongs to. Merch returns to the greeting as merch.
+        giftType: 'merch',
       });
       setShowCartModal(true);
     } catch (err) {
@@ -286,7 +308,11 @@ export default function Merch() {
 
   const handleReturnToGreeting = () => {
     setShowCartModal(false);
-    navigate('/dashboard/send?returnTo=send&giftType=merch');
+    // WHICHEVER CATEGORY THIS CONFIRMATION IS FOR. SendGreeting restores the attachment from the
+    // giftType it is handed, so a flower must come back as `flowers` and merch as `merch`. Defaulting
+    // to merch keeps every pre-existing return byte-identical.
+    const giftType = lastAddedItem?.giftType === 'flowers' ? 'flowers' : 'merch';
+    navigate(`/dashboard/send?returnTo=send&giftType=${giftType}`);
   };
 
   return (
@@ -758,9 +784,21 @@ export default function Merch() {
         onVariantSelected={handleVariantSelected}
         onContinueShopping={handleContinueShopping}
         onGoToCheckout={handleGoToCheckout}
-        onReturnToRecipient={returnRecipientId ? handleReturnToRecipient : (cameFromSendGreeting ? handleReturnToGreeting : null)}
-        showReturnToRecipient={!!returnRecipientId || cameFromSendGreeting}
-        returnToLabel={cameFromSendGreeting && !returnRecipientId ? "Return to Greeting" : "Return to Recipient Settings"}
+        // A FLOWER ALWAYS RETURNS TO THE GREETING. An arrangement is attached to the greeting being
+        // composed, so even when a recipient-settings round trip is also in play the return for a
+        // flower is the greeting — anything else would strand the attachment. Every other category
+        // keeps the routing it already had, byte for byte.
+        onReturnToRecipient={
+          lastAddedItem?.giftType === 'flowers'
+            ? handleReturnToGreeting
+            : (returnRecipientId ? handleReturnToRecipient : (cameFromSendGreeting ? handleReturnToGreeting : null))
+        }
+        showReturnToRecipient={lastAddedItem?.giftType === 'flowers' || !!returnRecipientId || cameFromSendGreeting}
+        returnToLabel={
+          lastAddedItem?.giftType === 'flowers' || (cameFromSendGreeting && !returnRecipientId)
+            ? "Return to Greeting"
+            : "Return to Recipient Settings"
+        }
         // Phase 3D Batch A — A2.1: defensive suppression for any residual
         // send-flow URL that lands here. Per A2.6 Merch is removed from the
         // gift chooser, but this guards stale links / deep links.

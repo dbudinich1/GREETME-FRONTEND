@@ -148,7 +148,10 @@ test("Gift Cards, Coming Soon, cart and both return flows are unchanged", () => 
   assert.match(MERCH, /Coming later — not yet available/);
   assert.match(MERCH, /Coming Soon/);
   assert.equal((MERCH.match(/cartService\.addItem\(/g) || []).length, 1);
-  assert.match(MERCH, /navigate\('\/dashboard\/send\?returnTo=send&giftType=merch'\)/);
+  // REWRITTEN: the merch return is unchanged in BEHAVIOUR, but one return expression now serves
+  // every category and carries the gift type, so the literal became a template.
+  assert.match(MERCH, /navigate\(`\/dashboard\/send\?returnTo=send&giftType=\$\{giftType\}`\)/);
+  assert.match(MERCH, /=== 'flowers' \? 'flowers' : 'merch'/);
   assert.match(MERCH, /searchParams\.get\('returnRecipientId'\)/);
   assert.match(MERCH, /sendContext: 'greeting-flow'/);
 });

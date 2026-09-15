@@ -365,7 +365,23 @@ test("a provider category loads its catalogue on SELECTION, with no button and n
   }
   // It returns through the EXISTING return-to-greeting mechanism, not a second one.
   assert.match(CODE, /sessionStorage\.setItem\('sendGreetingState'/);
-  assert.match(CODE, /navigate\('\/dashboard\/send\?returnTo=send&giftType=flowers'\)/);
+
+  // REWRITTEN. Selecting a flower no longer navigates at all — the title's "no navigation" is now
+  // true of the selection itself. It opens the SAME "Added to Cart!" confirmation every other Gift
+  // Place category opens, and the shopper chooses: Continue Shopping stays here, Return to Greeting
+  // goes back. Asserting the old immediate `navigate(...giftType=flowers)` would now be asserting the
+  // defect.
+  const selectFn = CODE.slice(
+    CODE.indexOf("const selectProviderGiftForGreeting ="),
+    CODE.indexOf("const handleGiftCardAction ="),
+  );
+  assert.ok(selectFn.length > 0, "the selection function must be findable");
+  assert.ok(!selectFn.includes("navigate("), "selecting a flower must not navigate");
+  assert.match(selectFn, /setShowCartModal\(true\)/, "it opens the shared confirmation");
+  assert.match(selectFn, /giftType: 'flowers'/, "tagged so the return knows which category it is");
+  // The return still exists — on the confirmation's own button, carrying the flower's gift type.
+  assert.match(CODE, /navigate\(`\/dashboard\/send\?returnTo=send&giftType=\$\{giftType\}`\)/);
+  assert.match(CODE, /lastAddedItem\?\.giftType === 'flowers' \? 'flowers' : 'merch'/);
   // And outside a greeting there is nothing to attach to, so the action does nothing at all.
   assert.match(CODE, /if \(!cameFromSendGreeting\) return;/);
 });
@@ -373,9 +389,13 @@ test("a provider category loads its catalogue on SELECTION, with no button and n
 test("the personal-greeting round trip and direct entry are preserved", () => {
   assert.match(SRC, /returnTo === 'send'/);
   assert.match(SRC, /searchParams\.get\('returnRecipientId'\)/);
-  assert.match(SRC, /navigate\('\/dashboard\/send\?returnTo=send&giftType=merch'\)/);
-  // And the provider round trip uses the SAME mechanism with its own gift type.
-  assert.match(SRC, /navigate\('\/dashboard\/send\?returnTo=send&giftType=flowers'\)/);
+  // REWRITTEN. Both round trips now go through ONE return, which carries whichever gift type the
+  // confirmation belongs to — so there is one navigation expression instead of two literals, and
+  // merch still returns as merch.
+  assert.match(SRC, /navigate\(`\/dashboard\/send\?returnTo=send&giftType=\$\{giftType\}`\)/);
+  assert.match(SRC, /const giftType = lastAddedItem\?\.giftType === 'flowers' \? 'flowers' : 'merch';/);
+  assert.equal((SRC.match(/returnTo=send&giftType=/g) || []).length, 1,
+    "one return expression serves every category");
   assert.match(SRC, /sendContext: 'greeting-flow'/);
   // Direct entry: both session headers are conditional, so /dashboard/gifts with no query
   // parameters renders the marketplace on its own.
