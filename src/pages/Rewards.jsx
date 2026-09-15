@@ -39,6 +39,19 @@ function makeRedemptionRequestId() {
   return `rdm-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+// The ONLY rewards this page's shared confirm/redeem flow can act on — an explicit allowlist so
+// generalizing beyond the single free_greeting case never makes any OTHER reward tile clickable.
+// Every entry reuses the SAME canonical route (POST /api/hearts/redeem) and the SAME
+// confirm/cancel/outcome experience; optionId is exactly what the backend dispatch
+// (services/heartsRedeemDispatch.js) recognizes — never invented here. Module-level (not
+// component-local) and named-exported alongside the default so this mapping is unit-testable
+// without mounting the whole page.
+export const REDEEMABLE_OPTION_ID_BY_REWARD = Object.freeze({
+  anytime_greetme: 'free_greeting',
+  anytime_3: 'anytime_credits_3',
+  anytime_5: 'anytime_credits_5',
+});
+
 export default function Rewards() {
   const navigate = useNavigate();
   const [balance, setBalance] = useState(0);
@@ -61,8 +74,13 @@ export default function Rewards() {
   const [heroHeartsStep, setHeroHeartsStep] = useState('selection'); // 'selection' | 'confirmation'
   const [lastAddedHeroBundle, setLastAddedHeroBundle] = useState(null);
 
-  // H7 B5 — Free Greeting redemption UI state (server-authoritative; dormant until B7).
+  // H7 B5 — canonical Hearts redemption UI state, LIVE. Generalized (unchanged shape) to cover
+  // every reward this page's confirm/redeem flow can act on: Anytime Greet-Me (free_greeting) and,
+  // as of the Anytime Credits connection, the 3/5-credit bundles. Still ONE shared intent at a
+  // time — redeemTargetId says WHICH reward it's for; the confirm/cancel/outcome experience and
+  // its wiring to POST /api/hearts/redeem are unchanged from the free_greeting-only version.
   const [redeemOpen, setRedeemOpen] = useState(false);            // confirmation step shown
+  const [redeemTargetId, setRedeemTargetId] = useState(null);     // which reward id the open/pending intent is for
   const [redeemRequestId, setRedeemRequestId] = useState(null);   // one per intent (Correction #6)
   const [redeemSubmitting, setRedeemSubmitting] = useState(false);// request in flight
   const [redeemOutcome, setRedeemOutcome] = useState(null);       // { type, message }
@@ -254,18 +272,22 @@ export default function Rewards() {
     return () => { cancelled = true; };
   }, []);
 
-  // Open the redemption intent: generate ONE requestId, reused across retries within this
-  // intent. If an id already exists (re-open without cancel), keep it.
-  const openRedeemIntent = () => {
+  // Open the redemption intent for ONE reward (must be in the explicit allowlist above — every
+  // caller is gated on that before this is even reachable). Generates ONE requestId, reused
+  // across retries within this intent. If an id already exists (re-open without cancel), keep it.
+  const openRedeemIntent = (rewardId) => {
+    if (!REDEEMABLE_OPTION_ID_BY_REWARD[rewardId]) return; // defense in depth — never open for anything else
     setRedeemOutcome(null);
+    setRedeemTargetId(rewardId);
     setRedeemRequestId((prev) => prev || makeRedemptionRequestId());
     setRedeemOpen(true);
   };
 
-  // Cancel/close the intent → next intent gets a fresh id.
+  // Cancel/close the intent → next intent gets a fresh id and a fresh target.
   const cancelRedeemIntent = () => {
     if (redeemSubmitting) return;
     setRedeemOpen(false);
+    setRedeemTargetId(null);
     setRedeemRequestId(null);
     setRedeemOutcome(null);
   };
@@ -273,20 +295,29 @@ export default function Rewards() {
   const confirmRedeemIntent = async () => {
     if (redeemSubmitting) return;              // double-click / in-flight guard
     const reqId = redeemRequestId;
-    if (!reqId) {                              // required request state missing
+    const optionId = REDEEMABLE_OPTION_ID_BY_REWARD[redeemTargetId];
+    if (!reqId || !optionId) {                 // required request state missing
       setRedeemOutcome({ type: 'error', message: 'Could not start redemption. Please try again.' });
       return;
     }
     setRedeemSubmitting(true);
     setRedeemOutcome(null);
     try {
-      const res = await api.redeemHearts('free_greeting', reqId);
+      const res = await api.redeemHearts(optionId, reqId);
       if (res && res.ok && (res.reason === 'applied' || res.reason === 'duplicate')) {
-        // success (duplicate is treated as success — idempotent re-submit of same intent)
-        setRedeemOutcome({ type: 'success', message: '🎉 Redeemed! 1 Anytime Greet-Me has been added to your account.' });
+        // success (duplicate is treated as success — idempotent re-submit of same intent).
+        // The grant count comes from the SERVER response, never invented here, so the message
+        // is exactly right for whichever reward this intent was for (1, 3, or 5).
+        const count = Number(res.granted?.anytimeGreetMes) || 1;
+        const noun = count === 1 ? 'Anytime Greet-Me' : 'Anytime Greet-Mes';
+        const verb = count === 1 ? 'has' : 'have';
+        setRedeemOutcome({ type: 'success', message: `🎉 Redeemed! ${count} ${noun} ${verb} been added to your account.` });
         setRedeemOpen(false);
+        // NOT clearing redeemTargetId here — the outcome message renders on whichever tile
+        // redeemTargetId names, so it must keep pointing at this reward until the next intent
+        // opens (or cancel runs) rather than disappearing the instant the dialog closes.
         setRedeemRequestId(null);              // intent completed
-        try { pushInApp(COMMS_EVENTS?.REWARDS_REDEEMED, { cost: REDEEM_COST }); } catch { /* non-fatal */ }
+        try { pushInApp(COMMS_EVENTS?.REWARDS_REDEEMED, { cost: res.cost ?? REDEEM_COST }); } catch { /* non-fatal */ }
       } else if (res && res.ok === false && res.networkError) {
         // keep the dialog + requestId so a retry reuses the same id
         setRedeemOutcome({ type: 'error', message: 'Network error — please try again.' });
@@ -301,6 +332,8 @@ export default function Rewards() {
         // paused — honest: redemption is not available yet (backend pauseHeartsRedemption=true)
         setRedemptionPaused(true);
         setRedeemOpen(false);
+        // Same as the success case above — keep redeemTargetId so the "paused" message renders
+        // on the reward tile it's actually about.
         setRedeemRequestId(null);
         setRedeemOutcome({ type: 'paused', message: 'Redemption is temporarily unavailable — please try again shortly.' });
       } else if (status === 429) {
@@ -356,7 +389,9 @@ export default function Rewards() {
             catalog={canonicalCatalog}
             balance={balance}
             redemptionPaused={redemptionPaused}
+            redeemableRewardIds={REDEEMABLE_OPTION_ID_BY_REWARD}
             redeemOpen={redeemOpen}
+            redeemTargetId={redeemTargetId}
             redeemSubmitting={redeemSubmitting}
             redeemOutcome={redeemOutcome}
             openRedeemIntent={openRedeemIntent}

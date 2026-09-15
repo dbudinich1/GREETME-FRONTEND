@@ -7,9 +7,11 @@
 // redemption handlers/state are page-owned and passed as props (unchanged).
 //
 // Redemption is NOT implemented here for LOCKED rewards — they render read-only (no CTA). The
-// ONLY interactive reward is the Anytime Greet-Me (the live H7 Free Greeting), whose existing
-// redeem flow is preserved verbatim. Server "maker gift" items (empty while the vendor catalog is
-// dormant) continue to render in their own section, preserving the existing architecture.
+// interactive rewards are the ones named in the `redeemableRewardIds` allowlist passed down from
+// Rewards.jsx (the Anytime Greet-Me H7 Free Greeting, and — as of the Anytime Credits connection —
+// the 3/5-credit bundles); every other reward is never given a click handler, regardless of its
+// AVAILABLE/LOCKED badge. Server "maker gift" items (empty while the vendor catalog is dormant)
+// continue to render in their own section, preserving the existing architecture.
 
 import { useState } from 'react';
 import { Gift, ChevronDown, X } from 'lucide-react';
@@ -133,10 +135,13 @@ export default function HubRedeemMarketplace({
   // Canonical catalog — server source of truth (grouped by category); falls back to the
   // built-in CANONICAL_CATALOG while the /api/hearts/catalog endpoint is rolling out.
   catalog,
-  // Free Greeting (H7) redemption
+  // Canonical Hearts redemption (H7 Free Greeting + Anytime Credits) — ONE shared intent at a
+  // time across every allowlisted reward; redeemTargetId says which reward it's currently for.
   balance,
   redemptionPaused,
+  redeemableRewardIds = {},
   redeemOpen,
+  redeemTargetId,
   redeemSubmitting,
   redeemOutcome,
   openRedeemIntent,
@@ -164,9 +169,10 @@ export default function HubRedeemMarketplace({
   // Filter (display only) → take the first COMPACT_COUNT for the 4×2 overview. Everything else stays
   // one tap away in the unchanged "View All Rewards" expansion (which always shows the FULL catalog).
   const compactRewards = flatRewards.filter(activeFilter.test).slice(0, COMPACT_COUNT);
+  // Still used by the "View All Rewards" modal subtitle below (that list stays non-interactive
+  // and unchanged); the interactive tiles compute their own per-reward cost/insufficient/disabled
+  // now (renderRedeemableTile), since more than one reward's cost is relevant after this change.
   const anytimeCost = activeCatalog.flatMap((c) => c.rewards).find((r) => r.id === 'anytime_greetme')?.hearts ?? REDEEM_COST;
-  const insufficient = balance < anytimeCost;
-  const freeGreetingDisabled = redemptionPaused || insufficient || redeemSubmitting;
 
   // The "All Rewards" modal shows the FULL canonical catalog (grouped by category) plus any real
   // server maker-gift items. No fabricated/placeholder rewards are ever added.
@@ -195,129 +201,147 @@ export default function HubRedeemMarketplace({
     }] : []),
   ];
 
-  // The live Anytime Greet-Me tile (H7 Free Greeting) — the one interactive, AVAILABLE reward.
-  // Markup preserved verbatim from the prior surface; only relocated into its canonical category.
-  const renderAnytimeTile = () => (
-    <div key="anytime_greetme" style={{
-      background: 'var(--gray-50)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius-lg)',
-      padding: '1rem',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '2.75rem',
-          height: '2.75rem',
-          borderRadius: '50%',
-          background: 'rgba(236, 72, 153, 0.12)'
-        }}>
-          <Gift size={22} style={{ color: '#ec4899' }} />
-        </span>
-        <StateBadge available={true} />
-      </div>
-      <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Anytime Greet-Me</div>
-      <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.25rem', lineHeight: 1.5, flex: 1 }}>
-        Redeem {anytimeCost.toLocaleString()} Hearts for 1 Anytime Greet-Me
-      </div>
-      <div style={{ marginTop: '0.625rem' }}>
-        <CostPill hearts={anytimeCost} />
-      </div>
+  // Grant count for each redeemable reward's "Redeem X Hearts for N Anytime Greet-Me(s)" copy —
+  // the exact count the backend grants (config/redemptionCatalog.js: anytime_greetme count:1,
+  // anytime_credits_3 count:3, anytime_credits_5 count:5). Never invented here; the SUCCESS
+  // message itself (Rewards.jsx confirmRedeemIntent) reads the actual count off the server
+  // response, not this table — this table is display copy for the pre-confirmation state only,
+  // where no server response exists yet.
+  const ANYTIME_GRANT_COUNT = { anytime_greetme: 1, anytime_3: 3, anytime_5: 5 };
 
-      {!redeemOpen ? (
-        <button
-          className="hub-btn"
-          onClick={openRedeemIntent}
-          disabled={freeGreetingDisabled}
-          style={{
-            marginTop: '0.875rem',
-            width: '100%',
-            padding: '0.75rem',
-            background: freeGreetingDisabled ? 'var(--gray-300)' : 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
-            color: 'white',
-            border: 'none',
-            borderRadius: 'var(--radius-lg)',
-            fontSize: '0.875rem',
-            fontWeight: 700,
-            boxShadow: freeGreetingDisabled ? 'none' : '0 8px 20px -6px rgba(236, 72, 153, 0.5)',
-            cursor: freeGreetingDisabled ? 'not-allowed' : 'pointer',
-            fontFamily: 'inherit'
-          }}
-        >
-          {redemptionPaused
-            ? 'Temporarily unavailable'
-            : insufficient
-              ? `Need ${(anytimeCost - balance).toLocaleString()} more Hearts`
-              : `Redeem ${anytimeCost.toLocaleString()} Hearts`}
-        </button>
-      ) : (
-        <div style={{ marginTop: '0.875rem' }}>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', margin: '0 0 0.75rem' }}>
-            Spend <strong>{anytimeCost.toLocaleString()} Hearts</strong> for <strong>1 Anytime Greet-Me</strong>?
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              className="hub-btn"
-              onClick={cancelRedeemIntent}
-              disabled={redeemSubmitting}
-              style={{
-                flex: 1,
-                padding: '0.5rem',
-                background: 'var(--gray-100)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.8125rem',
-                fontWeight: 600,
-                cursor: redeemSubmitting ? 'not-allowed' : 'pointer',
-                fontFamily: 'inherit'
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              className="hub-btn"
-              onClick={confirmRedeemIntent}
-              disabled={redeemSubmitting || insufficient}
-              style={{
-                flex: 1,
-                padding: '0.5rem',
-                background: (redeemSubmitting || insufficient) ? 'var(--gray-300)' : '#ec4899',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.8125rem',
-                fontWeight: 600,
-                cursor: (redeemSubmitting || insufficient) ? 'not-allowed' : 'pointer',
-                fontFamily: 'inherit'
-              }}
-            >
-              {redeemSubmitting ? 'Redeeming…' : 'Confirm'}
-            </button>
-          </div>
+  // The interactive tile for any reward in the redeemableRewardIds allowlist — originally built
+  // for the Anytime Greet-Me (H7 Free Greeting) alone; generalized (markup otherwise unchanged)
+  // to also cover the Anytime Credits bundles. Every reward NOT in that allowlist still renders
+  // through the plain read-only RewardTile below, regardless of its AVAILABLE/LOCKED badge.
+  const renderRedeemableTile = (reward) => {
+    const count = ANYTIME_GRANT_COUNT[reward.id] ?? 1;
+    const noun = count === 1 ? 'Anytime Greet-Me' : 'Anytime Greet-Mes';
+    const isThisIntentOpen = redeemOpen && redeemTargetId === reward.id;
+    const isThisOutcome = Boolean(redeemOutcome) && redeemTargetId === reward.id;
+    const insufficient = balance < reward.hearts;
+    const disabled = redemptionPaused || insufficient || redeemSubmitting;
+    return (
+      <div key={reward.id} style={{
+        background: 'var(--gray-50)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '1rem',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '2.75rem',
+            height: '2.75rem',
+            borderRadius: '50%',
+            background: 'rgba(236, 72, 153, 0.12)'
+          }}>
+            <Gift size={22} style={{ color: '#ec4899' }} />
+          </span>
+          <StateBadge available={reward.available} />
         </div>
-      )}
+        <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{reward.title}</div>
+        <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.25rem', lineHeight: 1.5, flex: 1 }}>
+          Redeem {reward.hearts.toLocaleString()} Hearts for {count} {noun}
+        </div>
+        <div style={{ marginTop: '0.625rem' }}>
+          <CostPill hearts={reward.hearts} />
+        </div>
 
-      {redeemOutcome && (
-        <p style={{
-          marginTop: '0.625rem',
-          marginBottom: 0,
-          fontSize: '0.8125rem',
-          lineHeight: 1.5,
-          fontWeight: 500,
-          color: redeemOutcome.type === 'success'
-            ? '#16a34a'
-            : (redeemOutcome.type === 'paused' ? 'var(--text-secondary)' : '#dc2626')
-        }}>
-          {redeemOutcome.message}
-        </p>
-      )}
-    </div>
-  );
+        {!isThisIntentOpen ? (
+          <button
+            className="hub-btn"
+            onClick={() => openRedeemIntent(reward.id)}
+            disabled={disabled}
+            style={{
+              marginTop: '0.875rem',
+              width: '100%',
+              padding: '0.75rem',
+              background: disabled ? 'var(--gray-300)' : 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              boxShadow: disabled ? 'none' : '0 8px 20px -6px rgba(236, 72, 153, 0.5)',
+              cursor: disabled ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit'
+            }}
+          >
+            {redemptionPaused
+              ? 'Temporarily unavailable'
+              : insufficient
+                ? `Need ${(reward.hearts - balance).toLocaleString()} more Hearts`
+                : `Redeem ${reward.hearts.toLocaleString()} Hearts`}
+          </button>
+        ) : (
+          <div style={{ marginTop: '0.875rem' }}>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', margin: '0 0 0.75rem' }}>
+              Spend <strong>{reward.hearts.toLocaleString()} Hearts</strong> for <strong>{count} {noun}</strong>?
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                className="hub-btn"
+                onClick={cancelRedeemIntent}
+                disabled={redeemSubmitting}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  background: 'var(--gray-100)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  cursor: redeemSubmitting ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="hub-btn"
+                onClick={confirmRedeemIntent}
+                disabled={redeemSubmitting || insufficient}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  background: (redeemSubmitting || insufficient) ? 'var(--gray-300)' : '#ec4899',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  cursor: (redeemSubmitting || insufficient) ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit'
+                }}
+              >
+                {redeemSubmitting ? 'Redeeming…' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isThisOutcome && (
+          <p style={{
+            marginTop: '0.625rem',
+            marginBottom: 0,
+            fontSize: '0.8125rem',
+            lineHeight: 1.5,
+            fontWeight: 500,
+            color: redeemOutcome.type === 'success'
+              ? '#16a34a'
+              : (redeemOutcome.type === 'paused' ? 'var(--text-secondary)' : '#dc2626')
+          }}>
+            {redeemOutcome.message}
+          </p>
+        )}
+      </div>
+    );
+  };
 
   // A server maker-gift tile (real vendor items only; empty while the vendor catalog is dormant).
   // Preserved from the prior surface, including the server-authoritative `redeemable` CTA.
@@ -458,13 +482,17 @@ export default function HubRedeemMarketplace({
       </div>
 
       {/* ---- Compact overview: 4 cols × 2 rows (8 cards), flat (no per-category sprawl). Cards are
-              UNCHANGED (same AVAILABLE|LOCKED tiles + live Anytime redeem). The category filter and
-              the "View All Rewards" expansion below reach everything beyond these 8. ---- */}
+              UNCHANGED (same AVAILABLE|LOCKED tiles + live redeem) except that the redeemable set
+              now also covers the Anytime Credits bundles, via the explicit allowlist prop — every
+              other reward id still falls through to the plain read-only RewardTile, unconditionally.
+              The category filter and the "View All Rewards" expansion below reach everything beyond
+              these 8, unchanged (that list was never interactive, for any reward, before or after
+              this change). ---- */}
       {compactRewards.length > 0 ? (
         <div className="hub-mkt-compact-grid">
           {compactRewards.map((r) => (
-            r.id === 'anytime_greetme'
-              ? renderAnytimeTile()
+            Object.prototype.hasOwnProperty.call(redeemableRewardIds, r.id)
+              ? renderRedeemableTile(r)
               : <RewardTile key={r.id} title={r.title} hearts={r.hearts} available={r.available} unlock={r.unlock} />
           ))}
         </div>
