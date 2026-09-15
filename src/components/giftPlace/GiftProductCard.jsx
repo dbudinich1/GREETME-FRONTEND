@@ -22,7 +22,31 @@
 import { Check, ShoppingCart, Gift } from 'lucide-react';
 
 /** One fixed image ratio for every source, so a grid row cannot go ragged. */
-const IMAGE_HEIGHT = { narrow: 120, wide: 200 };
+const IMAGE_HEIGHT = { narrow: 150, wide: 240 };
+
+// THE WHOLE PRODUCT, NEVER A CROP OF IT.
+//
+// This was `center/cover`, which scales the photo until the box is covered and throws the overflow
+// away. Merch mockups are near-square so they survived it; a flower arrangement does not. The
+// provider ships its own size as free text — '14"w x 20"h' is the convention — so arrangements are
+// TALLER THAN WIDE, and a portrait photo scaled to cover a landscape box loses roughly half its
+// height: the top of the blooms and the base of the vase both go.
+//
+// `contain` fits the entire image inside the box and crops nothing. The box itself is unchanged in
+// kind — every card in every category still gets ONE identical frame, so no grid row can go ragged —
+// and the letterboxing that a portrait photo leaves beside itself is filled with the neutral surface
+// colour rather than a stretched copy of the product. Nothing is distorted: `contain` preserves the
+// source aspect ratio by definition.
+//
+// Written as LONGHAND on purpose. jsdom does not expose the `background` shorthand's parts, so the
+// previous shorthand could only be asserted by reading this file; these four properties are readable
+// from the mounted DOM, which is why the proofs for this behaviour can be real assertions.
+const IMAGE_FIT = {
+  backgroundSize: 'contain',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat',
+  backgroundColor: 'var(--bg-secondary, #f8fafc)',
+};
 
 export function GiftProductCard({ card, actionLabel, onAction, selected = false, isNarrow = false, disabled = false }) {
   if (!card) return null;
@@ -52,9 +76,13 @@ export function GiftProductCard({ card, actionLabel, onAction, selected = false,
           width: '100%',
           height: isNarrow ? IMAGE_HEIGHT.narrow : IMAGE_HEIGHT.wide,
           flexShrink: 0,
-          background: card.imageUrl
-            ? `url(${card.imageUrl}) center/cover no-repeat`
-            : 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+          // A little room so a tall arrangement does not touch the frame edge. Uniform for every
+          // category, so the frames stay identically sized.
+          padding: isNarrow ? '0.375rem' : '0.5rem',
+          boxSizing: 'border-box',
+          ...(card.imageUrl
+            ? { backgroundImage: `url(${card.imageUrl})`, ...IMAGE_FIT }
+            : { background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' }),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

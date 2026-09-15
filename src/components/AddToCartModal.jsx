@@ -203,10 +203,22 @@ export default function AddToCartModal({
                     aria-hidden="true"
                     style={{
                       width: '100%',
-                      height: 140,
+                      // Raised with the fit change below: at 140 a contained portrait arrangement had
+                      // almost no height to occupy and read as a thumbnail floating in a wide band.
+                      height: 200,
                       marginBottom: '0.75rem',
                       borderRadius: '0.5rem',
-                      background: `url(${item.imageUrl}) center/cover no-repeat`,
+                      padding: '0.5rem',
+                      boxSizing: 'border-box',
+                      // THE WHOLE PRODUCT, exactly as the card shows it. This was `center/cover`,
+                      // which cropped a tall arrangement's blooms and vase away; `contain` fits all of
+                      // it and distorts nothing. Longhand so the mounted DOM can be asserted — jsdom
+                      // does not expose the shorthand's parts.
+                      backgroundImage: `url(${item.imageUrl})`,
+                      backgroundSize: 'contain',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundColor: 'var(--bg-secondary, #f8fafc)',
                     }}
                   />
                 )}
