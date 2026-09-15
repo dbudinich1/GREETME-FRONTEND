@@ -158,6 +158,16 @@ export default function GiftClaim() {
       if (res?.ok) {
         if (res.fulfilled || res.alreadyFulfilled) {
           setFulfilled(true);
+        } else if (res.submitted) {
+          // MANUAL PAYOUT REVIEW — the launch posture. The recipient has finished their side and the
+          // claim is now with a person, so this reuses the EXISTING claimed screen, whose copy already
+          // says the request has been submitted and a confirmation will follow. It must NOT set
+          // `fulfilled`: nobody has been paid yet, and telling them otherwise would be a lie.
+          //
+          // Checked BEFORE the onboarding branch so it can never be bypassed. The two are mutually
+          // exclusive on the server (a submitted response carries onboardingComplete: true), and this
+          // ordering means that stays true here even if that ever changes.
+          setClaimed(true);
         } else if (res.onboardingComplete === false) {
           setConnectPending(true);
           setSubmitError('Your account setup is not complete. Please try again to finish setting up your payout details.');
