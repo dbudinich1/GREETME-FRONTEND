@@ -28,9 +28,12 @@ test("REDEEMABLE_OPTION_ID_BY_REWARD is exported, module-level, and frozen", () 
   assert.ok(match, "the exact frozen, exported literal must be present in Rewards.jsx");
 });
 
-const CONNECTED_IDS = ["anytime_greetme", "anytime_3", "anytime_5", "renewal_10", "renewal_15", "renewal_20", "upgrade_discount"];
+const CONNECTED_IDS = [
+  "anytime_greetme", "anytime_3", "anytime_5", "renewal_10", "renewal_15", "renewal_20",
+  "upgrade_discount", "qr_fee_waiver", "holiday_bonus",
+];
 
-test("exactly the seven connected reward ids map to the exact canonical optionId strings", () => {
+test("exactly the nine connected reward ids map to the exact canonical optionId strings", () => {
   const body = match[1];
   const pairs = Object.fromEntries(
     [...body.matchAll(/(\w+):\s*'([\w]+)'/g)].map((m) => [m[1], m[2]])
@@ -43,14 +46,21 @@ test("exactly the seven connected reward ids map to the exact canonical optionId
     renewal_15: "renewal_15",
     renewal_20: "renewal_20",
     upgrade_discount: "upgrade_discount",
+    qr_fee_waiver: "qr_fee_waiver",
+    holiday_bonus: "holiday_bonus",
   });
 });
 
-test("every OTHER reward in the full 20-reward canonical catalog is absent from the map's source", () => {
+test("every OTHER reward in the full 20-reward canonical catalog is absent from the map's source — including the four STOPPED at activation (Prestige/Champion dormant)", () => {
   const body = match[1];
   const allIds = CANONICAL_CATALOG.flatMap((cat) => cat.rewards.map((r) => r.id));
   const otherIds = allIds.filter((id) => !CONNECTED_IDS.includes(id));
-  assert.ok(otherIds.length >= 13, "sanity: the other 13 rewards exist in the catalog");
+  assert.ok(otherIds.length >= 11, "sanity: the other 11 rewards exist in the catalog");
+  // Explicitly confirm the four Prestige-gated rewards are among those excluded — the STOP
+  // condition must be visible here, not just absent by coincidence.
+  for (const stopped of ["upgrade_credit", "gift_5", "gift_10", "gift_25"]) {
+    assert.ok(otherIds.includes(stopped), `${stopped} must be one of the excluded ids (STOPPED at activation)`);
+  }
   for (const id of otherIds) {
     assert.doesNotMatch(body, new RegExp(`\\b${id}\\b`), `${id} must not appear in the redeemable map`);
   }
