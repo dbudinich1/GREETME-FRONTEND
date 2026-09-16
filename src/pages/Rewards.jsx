@@ -10,7 +10,7 @@ import { COMMS_EVENTS } from '../utils/commsCatalog';
 // UX-HUB-3 Batch 2 — Hearts Hub presentational components (behavior-preserving extraction).
 // Rewards.jsx remains the single owner of all state, effects, handlers, API calls, and
 // navigation; these children render the same markup from props.
-import { REDEEM_COST } from '../components/hub/hubConfig';
+import { REDEEM_COST, CANONICAL_CATALOG } from '../components/hub/hubConfig';
 import HubBalanceCard from '../components/hub/HubBalanceCard';
 import HubJourney from '../components/hub/HubJourney';
 import HubWaysToEarn from '../components/hub/HubWaysToEarn';
@@ -50,6 +50,10 @@ export const REDEEMABLE_OPTION_ID_BY_REWARD = Object.freeze({
   anytime_greetme: 'free_greeting',
   anytime_3: 'anytime_credits_3',
   anytime_5: 'anytime_credits_5',
+  renewal_10: 'renewal_10',
+  renewal_15: 'renewal_15',
+  renewal_20: 'renewal_20',
+  upgrade_discount: 'upgrade_discount',
 });
 
 export default function Rewards() {
@@ -272,6 +276,17 @@ export default function Rewards() {
     return () => { cancelled = true; };
   }, []);
 
+  // Look up a reward's display title by id — server catalog first, static fallback if the server
+  // call hasn't resolved. Used only for the success-message copy below; never for cost or state.
+  const findRewardTitle = (rewardId) => {
+    const source = Array.isArray(canonicalCatalog) && canonicalCatalog.length ? canonicalCatalog : CANONICAL_CATALOG;
+    for (const cat of source) {
+      const hit = cat.rewards.find((r) => r.id === rewardId);
+      if (hit) return hit.title;
+    }
+    return 'reward';
+  };
+
   // Open the redemption intent for ONE reward (must be in the explicit allowlist above — every
   // caller is gated on that before this is even reachable). Generates ONE requestId, reused
   // across retries within this intent. If an id already exists (re-open without cancel), keep it.
@@ -306,12 +321,21 @@ export default function Rewards() {
       const res = await api.redeemHearts(optionId, reqId);
       if (res && res.ok && (res.reason === 'applied' || res.reason === 'duplicate')) {
         // success (duplicate is treated as success — idempotent re-submit of same intent).
-        // The grant count comes from the SERVER response, never invented here, so the message
-        // is exactly right for whichever reward this intent was for (1, 3, or 5).
-        const count = Number(res.granted?.anytimeGreetMes) || 1;
-        const noun = count === 1 ? 'Anytime Greet-Me' : 'Anytime Greet-Mes';
-        const verb = count === 1 ? 'has' : 'have';
-        setRedeemOutcome({ type: 'success', message: `🎉 Redeemed! ${count} ${noun} ${verb} been added to your account.` });
+        // The message branches on what the SERVER actually granted, never invented here, so it's
+        // exactly right whether this intent was an Anytime credit (anytimeGreetMes count) or a
+        // subscription discount (a Stripe couponId — no anytimeGreetMes field at all).
+        let message;
+        const grantedCount = Number(res.granted?.anytimeGreetMes) || 0;
+        if (grantedCount > 0) {
+          const noun = grantedCount === 1 ? 'Anytime Greet-Me' : 'Anytime Greet-Mes';
+          const verb = grantedCount === 1 ? 'has' : 'have';
+          message = `🎉 Redeemed! ${grantedCount} ${noun} ${verb} been added to your account.`;
+        } else if (res.granted?.couponId) {
+          message = `🎉 Your ${findRewardTitle(redeemTargetId)} has been applied — it'll show on your next invoice.`;
+        } else {
+          message = '🎉 Redeemed! Your reward has been applied.';
+        }
+        setRedeemOutcome({ type: 'success', message });
         setRedeemOpen(false);
         // NOT clearing redeemTargetId here — the outcome message renders on whichever tile
         // redeemTargetId names, so it must keep pointing at this reward until the next intent

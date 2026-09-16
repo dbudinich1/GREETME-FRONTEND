@@ -201,21 +201,15 @@ export default function HubRedeemMarketplace({
     }] : []),
   ];
 
-  // Grant count for each redeemable reward's "Redeem X Hearts for N Anytime Greet-Me(s)" copy —
-  // the exact count the backend grants (config/redemptionCatalog.js: anytime_greetme count:1,
-  // anytime_credits_3 count:3, anytime_credits_5 count:5). Never invented here; the SUCCESS
-  // message itself (Rewards.jsx confirmRedeemIntent) reads the actual count off the server
-  // response, not this table — this table is display copy for the pre-confirmation state only,
-  // where no server response exists yet.
-  const ANYTIME_GRANT_COUNT = { anytime_greetme: 1, anytime_3: 3, anytime_5: 5 };
-
   // The interactive tile for any reward in the redeemableRewardIds allowlist — originally built
   // for the Anytime Greet-Me (H7 Free Greeting) alone; generalized (markup otherwise unchanged)
-  // to also cover the Anytime Credits bundles. Every reward NOT in that allowlist still renders
-  // through the plain read-only RewardTile below, regardless of its AVAILABLE/LOCKED badge.
+  // to also cover the Anytime Credits bundles and, as of the Subscription-discount connection,
+  // rewards whose grant isn't an Anytime Greet-Me count at all. The pre-confirmation copy uses
+  // the reward's own title generically ("Redeem X Hearts for {title}") rather than a per-type
+  // grant description, so it never needs a new branch for a new grant kind; the SUCCESS message
+  // (Rewards.jsx confirmRedeemIntent), which DOES need to say what was actually granted, branches
+  // on the real server response instead of anything computed here.
   const renderRedeemableTile = (reward) => {
-    const count = ANYTIME_GRANT_COUNT[reward.id] ?? 1;
-    const noun = count === 1 ? 'Anytime Greet-Me' : 'Anytime Greet-Mes';
     const isThisIntentOpen = redeemOpen && redeemTargetId === reward.id;
     const isThisOutcome = Boolean(redeemOutcome) && redeemTargetId === reward.id;
     const insufficient = balance < reward.hearts;
@@ -245,7 +239,7 @@ export default function HubRedeemMarketplace({
         </div>
         <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{reward.title}</div>
         <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.25rem', lineHeight: 1.5, flex: 1 }}>
-          Redeem {reward.hearts.toLocaleString()} Hearts for {count} {noun}
+          Redeem {reward.hearts.toLocaleString()} Hearts for {reward.title}
         </div>
         <div style={{ marginTop: '0.625rem' }}>
           <CostPill hearts={reward.hearts} />
@@ -280,7 +274,7 @@ export default function HubRedeemMarketplace({
         ) : (
           <div style={{ marginTop: '0.875rem' }}>
             <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', margin: '0 0 0.75rem' }}>
-              Spend <strong>{reward.hearts.toLocaleString()} Hearts</strong> for <strong>{count} {noun}</strong>?
+              Spend <strong>{reward.hearts.toLocaleString()} Hearts</strong> for <strong>{reward.title}</strong>?
             </p>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
@@ -491,7 +485,12 @@ export default function HubRedeemMarketplace({
       {compactRewards.length > 0 ? (
         <div className="hub-mkt-compact-grid">
           {compactRewards.map((r) => (
-            Object.prototype.hasOwnProperty.call(redeemableRewardIds, r.id)
+            // Interactive ONLY when the reward is BOTH in the allowlist AND the server actually
+            // considers it available — a reward can be allowlisted (its route is connected) while
+            // still LOCKED because its own master switch (e.g. marketplaceRedemptionEnabled for
+            // the Subscription-category discounts) hasn't been turned on. Truthful by
+            // construction: never a clickable button under a LOCKED badge.
+            Object.prototype.hasOwnProperty.call(redeemableRewardIds, r.id) && r.available
               ? renderRedeemableTile(r)
               : <RewardTile key={r.id} title={r.title} hearts={r.hearts} available={r.available} unlock={r.unlock} />
           ))}

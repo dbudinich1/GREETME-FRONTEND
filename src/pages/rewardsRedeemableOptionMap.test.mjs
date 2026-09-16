@@ -28,7 +28,9 @@ test("REDEEMABLE_OPTION_ID_BY_REWARD is exported, module-level, and frozen", () 
   assert.ok(match, "the exact frozen, exported literal must be present in Rewards.jsx");
 });
 
-test("exactly the three intended reward ids map to the exact canonical optionId strings", () => {
+const CONNECTED_IDS = ["anytime_greetme", "anytime_3", "anytime_5", "renewal_10", "renewal_15", "renewal_20", "upgrade_discount"];
+
+test("exactly the seven connected reward ids map to the exact canonical optionId strings", () => {
   const body = match[1];
   const pairs = Object.fromEntries(
     [...body.matchAll(/(\w+):\s*'([\w]+)'/g)].map((m) => [m[1], m[2]])
@@ -37,14 +39,18 @@ test("exactly the three intended reward ids map to the exact canonical optionId 
     anytime_greetme: "free_greeting",
     anytime_3: "anytime_credits_3",
     anytime_5: "anytime_credits_5",
+    renewal_10: "renewal_10",
+    renewal_15: "renewal_15",
+    renewal_20: "renewal_20",
+    upgrade_discount: "upgrade_discount",
   });
 });
 
 test("every OTHER reward in the full 20-reward canonical catalog is absent from the map's source", () => {
   const body = match[1];
   const allIds = CANONICAL_CATALOG.flatMap((cat) => cat.rewards.map((r) => r.id));
-  const otherIds = allIds.filter((id) => !["anytime_greetme", "anytime_3", "anytime_5"].includes(id));
-  assert.ok(otherIds.length >= 17, "sanity: the other 17 rewards exist in the catalog");
+  const otherIds = allIds.filter((id) => !CONNECTED_IDS.includes(id));
+  assert.ok(otherIds.length >= 13, "sanity: the other 13 rewards exist in the catalog");
   for (const id of otherIds) {
     assert.doesNotMatch(body, new RegExp(`\\b${id}\\b`), `${id} must not appear in the redeemable map`);
   }
@@ -62,4 +68,10 @@ test("confirmRedeemIntent sends the reward's mapped optionId, not a hardcoded st
     /redeemHearts\('free_greeting'/,
     "the hardcoded 'free_greeting' call site must be gone — only the generalized call remains"
   );
+});
+
+test("the success message branches on the REAL server grant shape (Anytime count vs Stripe coupon), never assumes one kind", () => {
+  assert.match(SRC, /Number\(res\.granted\?\.anytimeGreetMes\)/, "checks for an Anytime grant explicitly");
+  assert.match(SRC, /res\.granted\?\.couponId/, "checks for a subscription-discount grant explicitly");
+  assert.match(SRC, /findRewardTitle\(redeemTargetId\)/, "the discount branch names the actual reward, not a generic string");
 });

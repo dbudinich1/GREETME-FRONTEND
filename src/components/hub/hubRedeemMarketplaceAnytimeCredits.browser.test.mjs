@@ -82,10 +82,17 @@ const CATALOG = [
     { id: "holiday_bonus", title: "Holiday Bonus Send", hearts: 750, available: false, unlock: null },
   ] },
   { category: "Subscription", rewards: [
+    // Allowlisted (connected) but NOT server-available — matches production reality today
+    // (marketplaceRedemptionEnabled is off). Must stay a plain, non-actionable RewardTile.
     { id: "renewal_10", title: "10% Renewal Discount", hearts: 750, available: false, unlock: "Active subscription" },
+    // Allowlisted AND server-available — matches the state once the founder flips that flag.
+    { id: "renewal_15", title: "15% Renewal Discount", hearts: 1200, available: true, unlock: "Active subscription" },
   ] },
 ];
-const REDEEMABLE_IDS = { anytime_greetme: "free_greeting", anytime_3: "anytime_credits_3", anytime_5: "anytime_credits_5" };
+const REDEEMABLE_IDS = {
+  anytime_greetme: "free_greeting", anytime_3: "anytime_credits_3", anytime_5: "anytime_credits_5",
+  renewal_10: "renewal_10", renewal_15: "renewal_15", renewal_20: "renewal_20", upgrade_discount: "upgrade_discount",
+};
 
 let openCalls, cancelCalls, confirmCalls;
 function baseProps(overrides = {}) {
@@ -159,7 +166,9 @@ test("confirm dialog for the 3-credit reward shows the exact cost+grant copy and
   const r = await renderWith(props);
   assert.ok(r.host.textContent.includes("Spend"), "confirm copy must render");
   assert.ok(r.host.textContent.includes("1,200 Hearts"), "exact cost in the confirm copy");
-  assert.ok(r.host.textContent.includes("3 Anytime Greet-Mes"), "exact grant count, pluralized, in the confirm copy");
+  // Copy is generic (reward.title), not a per-grant-type count — generalized in the Subscription-
+  // discount connection so a new grant kind never needs a new copy branch here.
+  assert.ok(r.host.textContent.includes("3 Anytime Credits"), "the reward's own title appears in the confirm copy");
   const confirmBtn = [...r.host.querySelectorAll("button")].find((b) => b.textContent === "Confirm");
   const cancelBtn = [...r.host.querySelectorAll("button")].find((b) => b.textContent === "Cancel");
   assert.ok(confirmBtn && cancelBtn);
@@ -204,11 +213,54 @@ test("a LOCKED reward's card shows its unlock reason and exact price, never a re
   assert.ok(r.host.textContent.includes("Unlocks with Active subscription"));
 });
 
-test("total interactive Redeem/Confirm/Cancel affordances equal exactly the 3 allowlisted rewards — never more", async () => {
+test("total interactive Redeem/Confirm/Cancel affordances equal exactly the allowlisted-AND-available rewards — never more", async () => {
   const props = baseProps();
   const r = await renderWith(props);
   const redeemButtons = [...r.host.querySelectorAll("button")].filter((b) => /^Redeem\s/.test(b.textContent));
-  assert.equal(redeemButtons.length, 3, "exactly anytime_greetme + anytime_3 + anytime_5, nothing else");
+  assert.equal(redeemButtons.length, 4, "anytime_greetme + anytime_3 + anytime_5 + renewal_15 (available); renewal_10 is allowlisted but NOT available, so it's excluded");
+});
+
+// ── A connected-but-not-yet-live reward (allowlisted, server says LOCKED) stays non-actionable ──
+
+test("renewal_10 is allowlisted (route connected) but server-LOCKED (marketplaceRedemptionEnabled off) — still renders with NO button", async () => {
+  const props = baseProps();
+  const r = await renderWith(props);
+  const titleEl = [...r.host.querySelectorAll("div")].find(
+    (d) => d.children.length === 0 && d.textContent.trim() === "10% Renewal Discount"
+  );
+  assert.ok(titleEl);
+  const card = titleEl.parentElement;
+  assert.equal(card.querySelectorAll("button").length, 0, "connected but not server-available -> still no button (truthful, not clickable-but-refused)");
+});
+
+// ── A connected AND server-available Subscription-discount reward IS actionable, generic copy ──
+
+// 3 Anytime Credits and 15% Renewal Discount share the same 1,200-Hearts cost, so button lookup
+// must be scoped to the right CARD (by its title), not just by cost text.
+function cardByTitle(host, title) {
+  const titleEl = [...host.querySelectorAll("div")].find((d) => d.children.length === 0 && d.textContent.trim() === title);
+  assert.ok(titleEl, `"${title}" must render somewhere on the page`);
+  return titleEl.parentElement;
+}
+
+test("renewal_15 (allowlisted AND available) shows a Redeem button with title-based copy, and calls openRedeemIntent('renewal_15')", async () => {
+  const props = baseProps();
+  const r = await renderWith(props);
+  const card = cardByTitle(r.host, "15% Renewal Discount");
+  const btn = [...card.querySelectorAll("button")].find((b) => /^Redeem\s/.test(b.textContent));
+  assert.ok(btn, "a Redeem button must exist in the 15% Renewal Discount card specifically");
+  assert.match(btn.textContent, /1,200\s+Hearts/, "exact price on that card's own button");
+  btn.click();
+  assert.deepEqual(openCalls, ["renewal_15"]);
+  await r.unmount();
+});
+
+test("renewal_15's confirm dialog uses the generic title-based copy, not an Anytime-specific grant count", async () => {
+  const props = baseProps({ redeemOpen: true, redeemTargetId: "renewal_15" });
+  const r = await renderWith(props);
+  const card = cardByTitle(r.host, "15% Renewal Discount");
+  assert.ok(card.textContent.includes("1,200 Hearts"));
+  assert.ok(!card.textContent.includes("Anytime Greet-Me"), "no Anytime-specific wording leaks into THIS card's own copy (other tiles on the page legitimately mention it)");
 });
 
 // ── Outcome message shown only on the tile it belongs to ───────────────────────────────────
