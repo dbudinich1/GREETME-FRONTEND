@@ -46,6 +46,13 @@ function makeRedemptionRequestId() {
 // (services/heartsRedeemDispatch.js) recognizes — never invented here. Module-level (not
 // component-local) and named-exported alongside the default so this mapping is unit-testable
 // without mounting the whole page.
+// ACTIVATED 2026-09-16 (founder-authorized launch): qr_fee_waiver and holiday_bonus added, using
+// the same optionId the backend canonical dispatch (services/heartsRedeemDispatch.js) already
+// recognizes for each. upgrade_credit / gift_5 / gift_10 / gift_25 deliberately NOT added — STOPPED
+// at activation: canonicalCatalog.js gates all four behind prerequisite:{kind:'prestige_tier'},
+// and Prestige remains dormant (LAUNCH_CONTROL.prestigeEnabled:false), so isChampionEligible() can
+// never return true for any user. Adding a tile mapping for an unreachable reward would be a
+// "looks live, cannot be redeemed" state this project's Governing Law explicitly forbids.
 export const REDEEMABLE_OPTION_ID_BY_REWARD = Object.freeze({
   anytime_greetme: 'free_greeting',
   anytime_3: 'anytime_credits_3',
@@ -54,6 +61,8 @@ export const REDEEMABLE_OPTION_ID_BY_REWARD = Object.freeze({
   renewal_15: 'renewal_15',
   renewal_20: 'renewal_20',
   upgrade_discount: 'upgrade_discount',
+  qr_fee_waiver: 'qr_fee_waiver',
+  holiday_bonus: 'holiday_bonus',
 });
 
 export default function Rewards() {
