@@ -29,6 +29,8 @@ import Pricing from "./pages/Pricing";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Merch from "./pages/Merch";
+// PREZZEE DORMANT FRONTEND COMPLETION (2026-09-17) — see the route registration below.
+import PrezzeeSmartCard from "./pages/PrezzeeSmartCard";
 import MerchOrders from "./pages/MerchOrders";
 import HeroProgram from "./pages/HeroProgram";
 import AnimationBank from "./pages/AnimationBank";
@@ -202,6 +204,12 @@ export default function App() {
             <Route path="merch" element={<Navigate to="/dashboard/gifts" replace />} />
             <Route path="merch/orders" element={<MerchOrders />} />
             <Route path="gifts" element={<Merch />} />
+            {/* PREZZEE DORMANT FRONTEND COMPLETION (2026-09-17): deliberately NOT linked from
+                DashboardLayout's navigation, Merch.jsx, or anywhere else — reachable only by
+                this exact URL. The backend additionally refuses every call it makes (503,
+                LAUNCH_CONTROL.pauseGiftCards) while Prezzee stays dormant, so this route being
+                addressable does not make the Smart Card publicly purchasable. */}
+            <Route path="gifts/smart-card" element={<PrezzeeSmartCard />} />
             <Route path="hero" element={<HeroProgram />} />
             <Route path="animations" element={<AnimationBank />} />
             <Route path="invitations" element={<Invitations />} />

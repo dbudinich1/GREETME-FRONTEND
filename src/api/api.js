@@ -674,6 +674,27 @@ class ApiService {
   }
 
   // --------------------
+  // Greet-Me Smart Card, powered by Prezzee (dormant — PREZZEE DORMANT FRONTEND COMPLETION)
+  // --------------------
+  getPrezzeeCardTiles() {
+    return this.request("/api/gifts/prezzee-card/tiles");
+  }
+
+  chargePrezzeeCard(payload) {
+    return this.request("/api/gifts/prezzee-card", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  finalizePrezzeeCard(payload) {
+    return this.request("/api/gifts/prezzee-card/finalize", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  // --------------------
   // G1G1 Gift Membership
   // --------------------
   getG1G1Gift(giftCode) {
