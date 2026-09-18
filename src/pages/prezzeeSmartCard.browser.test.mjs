@@ -286,7 +286,9 @@ test("REQUIRED TEST 10: a requires_action response is finalized exactly once —
 // ── 11. Errors never expose provider or payment secrets ─────────────────────────────────────
 
 test("REQUIRED TEST 11: a failed charge shows only the server's own safe message — never a raw provider/payment object", async () => {
-  FAKE.setResponses({ chargePrezzeeCard: async () => ({ ok: false, error: "Your card was declined." }) });
+  // The REAL api.request() contract for a decline: the route answers 402 and request() THROWS
+  // with .status (see REQUIRED TEST 12's note) — it never resolves {ok:false} for a 402.
+  FAKE.setResponses({ chargePrezzeeCard: async () => { const e = new Error("Your card was declined."); e.status = 402; throw e; } });
   const s = await mountReady();
   await click(s.q('[data-tile-id="prezzee_smart_card_1000"]'));
   await setValue(s.q('input[type="email"]'), "r@example.com");
@@ -337,3 +339,98 @@ test("REQUIRED TEST 14: the tile grid and page use relative sizing, not a fixed 
   assert.doesNotMatch(src, /minWidth:\s*'\d{3,}px'/, "no wide fixed minimum width");
 });
 
+
+// ── 10b. Retry safety: a failure can never become a second charge ───────────────────────────
+//
+// Added in the independent verification pass (2026-09-17). Before it, EVERY failure rotated the
+// idempotency key and allowed a fresh charge — including a failed finalize AFTER 3DS had already
+// succeeded, and a network failure that api.request() resolves as {ok:false,status:0}, where the
+// first request may already have charged the card.
+
+async function openAndConfirm(s, tileId = "prezzee_smart_card_2500") {
+  await click(s.q(`[data-tile-id="${tileId}"]`));
+  await setValue(s.q('input[type="email"]'), "r@example.com");
+  await setValue(s.qa("input").filter((i) => i.type !== "email")[0], "Dana");
+  await flush();
+  await click([...s.qa("button")].find((b) => /continue to payment/i.test(b.textContent)));
+  await flush();
+  await click(s.tid("fake-modal-confirm"));
+  await flush();
+}
+const thrown = (status, message = "server said no") => async () => { const e = new Error(message); e.status = status; throw e; };
+
+test("RETRY SAFETY: 3DS succeeded but finalize failed — the retry re-finalizes the SAME PaymentIntent and never charges again", async () => {
+  let finalizeAttempts = 0;
+  FAKE.setResponses({
+    chargePrezzeeCard: async () => ({ ok: true, requiresAction: true, clientSecret: "cs_1", paymentIntentId: "pi_paid_1" }),
+    finalizePrezzeeCard: async () => {
+      finalizeAttempts += 1;
+      if (finalizeAttempts === 1) { const e = new Error("Failed to finalize gift card purchase"); e.status = 500; throw e; }
+      return { ok: true, gift: { claimToken: "t3", giftAmountCents: 2500, feeCents: 103, totalCents: 2603 } };
+    },
+  });
+  const s = await mountReady();
+  await openAndConfirm(s);
+
+  assert.equal(FAKE.calls.chargePrezzeeCard.length, 1);
+  assert.equal(FAKE.calls.finalizePrezzeeCard.length, 1);
+  assert.match(s.text(), /you will not be charged again/i);
+  assert.ok(s.qa("[data-tile-id]").every((b) => b.disabled), "tile selection is locked while a paid payment awaits finalize");
+
+  await click(s.tid("fake-modal-confirm")); // retry
+  await flush();
+
+  assert.equal(FAKE.calls.chargePrezzeeCard.length, 1, "the retry must NOT start a second charge");
+  assert.equal(FAKE.calls.finalizePrezzeeCard.length, 2);
+  assert.deepEqual(FAKE.calls.finalizePrezzeeCard.map(([p]) => p.paymentIntentId), ["pi_paid_1", "pi_paid_1"]);
+  assert.match(s.text(), /\$26\.03/);
+});
+
+for (const [label, response] of [
+  ["a network failure (resolved {ok:false,status:0})", async () => ({ ok: false, status: 0, networkError: true })],
+  ["a 5xx from the charge route", thrown(500, "Failed to process gift card purchase")],
+  ["an error with no status", thrown(undefined, "socket hang up")],
+]) {
+  test(`RETRY SAFETY: ${label} is an UNKNOWN outcome — no retry is offered and no second charge can be made`, async () => {
+    FAKE.setResponses({ chargePrezzeeCard: response });
+    const s = await mountReady();
+    await openAndConfirm(s);
+    assert.equal(FAKE.calls.chargePrezzeeCard.length, 1);
+    assert.match(s.text(), /could not confirm whether your payment went through/i);
+    assert.match(s.text(), /contact support/i);
+
+    await click(s.tid("fake-modal-confirm")); // attempted retry
+    await flush();
+    assert.equal(FAKE.calls.chargePrezzeeCard.length, 1, "no second charge after an unknown outcome");
+    const cont = [...s.qa("button")].find((b) => /continue to payment/i.test(b.textContent));
+    assert.equal(cont.disabled, true, "the page offers no new attempt");
+  });
+}
+
+test("RETRY SAFETY: a definitive decline (402) allows a retry, under a FRESH idempotency key", async () => {
+  let n = 0;
+  FAKE.setResponses({ chargePrezzeeCard: async (...a) => { n += 1; if (n === 1) return thrown(402, "Your card was declined")(); return { ok: true, gift: { claimToken: "t4", giftAmountCents: 2500, feeCents: 103, totalCents: 2603 } }; } });
+  const s = await mountReady();
+  await openAndConfirm(s);
+  assert.match(s.text(), /Your card was declined/);
+  await click(s.tid("fake-modal-confirm"));
+  await flush();
+  assert.equal(FAKE.calls.chargePrezzeeCard.length, 2);
+  const [k1, k2] = FAKE.calls.chargePrezzeeCard.map(([p]) => p.giftRequestId);
+  assert.notEqual(k1, k2, "a definitively-uncharged attempt gets a new key");
+  assert.match(s.text(), /\$26\.03/);
+});
+
+test("RETRY SAFETY: a failed 3DS challenge (nothing captured) allows a fresh attempt", async () => {
+  FAKE.setResponses({ chargePrezzeeCard: async () => ({ ok: true, requiresAction: true, clientSecret: "cs_2", paymentIntentId: "pi_unpaid_2" }) });
+  FAKE.confirm3ds = async () => ({ error: { message: "Authentication was not completed." } });
+  const s = await mountReady();
+  await openAndConfirm(s);
+  assert.equal(FAKE.calls.finalizePrezzeeCard.length, 0, "an unauthenticated payment is never finalized");
+  assert.match(s.text(), /Authentication was not completed\./);
+  await click(s.tid("fake-modal-confirm"));
+  await flush();
+  assert.equal(FAKE.calls.chargePrezzeeCard.length, 2);
+  const [k1, k2] = FAKE.calls.chargePrezzeeCard.map(([p]) => p.giftRequestId);
+  assert.notEqual(k1, k2);
+});

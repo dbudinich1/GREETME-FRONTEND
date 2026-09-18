@@ -26,6 +26,20 @@ function previewFee(amountCents) {
 
 const fmt = (cents) => `$${(cents / 100).toFixed(2)}`;
 
+// Statuses at which the server has DEFINITIVELY not taken payment: auth/validation/mismatch
+// refusals before Stripe (400/401/403/404), a declined or not-completed PaymentIntent (402), rate
+// limiting (429), and the dormant pause gate (503). Anything else — a network failure (status 0),
+// a 5xx, a missing status — may have happened after Stripe charged the card, so it is UNKNOWN.
+const NOT_CHARGED_STATUSES = new Set([400, 401, 402, 403, 404, 429, 503]);
+const OUTCOME_UNKNOWN_MESSAGE =
+  'We could not confirm whether your payment went through. Please do not try again: contact support and we will check it for you.';
+
+function failure(message, status) {
+  const err = new Error(message);
+  err.status = status;
+  return err;
+}
+
 export default function PrezzeeSmartCard() {
   const [loadState, setLoadState] = useState('loading'); // 'loading' | 'ready' | 'dormant' | 'error'
   const [product, setProduct] = useState(null);
@@ -38,6 +52,12 @@ export default function PrezzeeSmartCard() {
   const [chargeError, setChargeError] = useState(null);
   const [successGift, setSuccessGift] = useState(null);
   const giftRequestIdRef = useRef(crypto.randomUUID());
+  // A PaymentIntent that 3DS has already SUCCEEDED for. While set, a retry only re-finalizes it
+  // (idempotent by paymentIntentId server-side) and never starts a second charge.
+  const paidPaymentIntentIdRef = useRef(null);
+  // Set when a charge failed in a way that may already have taken payment. Retry is then refused.
+  const [outcomeUnknown, setOutcomeUnknown] = useState(false);
+  const [awaitingFinalize, setAwaitingFinalize] = useState(false); // mirrors paidPaymentIntentIdRef for rendering
 
   useEffect(() => {
     let cancelled = false;
@@ -75,7 +95,7 @@ export default function PrezzeeSmartCard() {
     [selectedTile],
   );
 
-  const canContinue = Boolean(selectedTile) && recipientEmail.trim() && recipientName.trim() && !charging;
+  const canContinue = Boolean(selectedTile) && recipientEmail.trim() && recipientName.trim() && !charging && !outcomeUnknown;
 
   const handleContinue = useCallback(() => {
     if (!canContinue) return;
@@ -87,58 +107,88 @@ export default function PrezzeeSmartCard() {
   // through as a prop) and this handler's own re-entry — a second click while a request is
   // already in flight is a no-op, not a second charge.
   const handleConfirm = useCallback(async (paymentMethodId, stripeInstance) => {
-    if (charging || !selectedTile) return;
+    if (charging || outcomeUnknown || !selectedTile) return;
     setCharging(true);
     setChargeError(null);
 
-    try {
-      // ONLY the tile id is submitted — never an amount, fee, total, product code, currency, or
-      // provider. Every one of those is resolved server-side from the tile id alone.
-      const chargeResult = await api.chargePrezzeeCard({
-        tileId: selectedTile.id,
-        recipientEmail,
-        recipientName,
-        paymentMethodId,
-        giftRequestId: giftRequestIdRef.current,
-      });
-
-      let gift;
-      if (chargeResult.requiresAction && chargeResult.clientSecret) {
-        if (!stripeInstance) throw new Error('Payment authentication failed. Please try again.');
-        const { error: confirmError, paymentIntent } = await stripeInstance.confirmCardPayment(
-          chargeResult.clientSecret,
+    const finalizePaid = async (paymentIntentId) => {
+      let finalizeResult = null;
+      try {
+        finalizeResult = await api.finalizePrezzeeCard({ paymentIntentId, recipientEmail, recipientName });
+      } catch { /* thrown non-2xx — handled as not finalized below */ }
+      if (!finalizeResult?.ok || !finalizeResult.gift) {
+        throw new Error(
+          'Your payment went through, but we could not finish setting up the Smart Card. '
+          + 'Please try again — you will not be charged again.',
         );
-        if (confirmError) throw new Error(confirmError.message || 'Card authentication failed.');
-        if (paymentIntent.status !== 'succeeded') throw new Error('Payment was not completed after authentication.');
+      }
+      return finalizeResult.gift;
+    };
 
-        const finalizeResult = await api.finalizePrezzeeCard({
-          paymentIntentId: chargeResult.paymentIntentId,
-          recipientEmail,
-          recipientName,
-        });
-        if (!finalizeResult.ok || !finalizeResult.gift) {
-          throw new Error(finalizeResult.error || 'Smart Card purchase could not be finalized.');
-        }
-        gift = finalizeResult.gift;
-      } else if (chargeResult.ok && chargeResult.gift) {
-        gift = chargeResult.gift;
+    try {
+      let gift;
+      if (paidPaymentIntentIdRef.current) {
+        // 3DS already succeeded on an earlier attempt: finish THAT payment, never charge again.
+        gift = await finalizePaid(paidPaymentIntentIdRef.current);
       } else {
-        // Never surface a raw provider/payment error object — only the server's own safe message.
-        throw new Error(chargeResult.error || 'Smart Card purchase failed.');
+        // ONLY the tile id is submitted — never an amount, fee, total, product code, currency, or
+        // provider. Every one of those is resolved server-side from the tile id alone.
+        let chargeResult;
+        try {
+          chargeResult = await api.chargePrezzeeCard({
+            tileId: selectedTile.id,
+            recipientEmail,
+            recipientName,
+            paymentMethodId,
+            giftRequestId: giftRequestIdRef.current,
+          });
+        } catch (err) {
+          // Never surface a raw provider/payment error object — only the server's own safe message.
+          throw failure(err?.message || 'Smart Card purchase failed.', err?.status);
+        }
+
+        if (chargeResult?.requiresAction && chargeResult.clientSecret) {
+          if (!stripeInstance) throw failure('Payment authentication failed. Please try again.', 402);
+          const { error: confirmError, paymentIntent } = await stripeInstance.confirmCardPayment(
+            chargeResult.clientSecret,
+          );
+          if (confirmError) throw failure(confirmError.message || 'Card authentication failed.', 402);
+          if (paymentIntent?.status !== 'succeeded') {
+            throw failure('Payment was not completed after authentication.', 402);
+          }
+          paidPaymentIntentIdRef.current = chargeResult.paymentIntentId;
+          setAwaitingFinalize(true);
+          gift = await finalizePaid(chargeResult.paymentIntentId);
+        } else if (chargeResult?.ok && chargeResult.gift) {
+          gift = chargeResult.gift;
+        } else {
+          throw failure(chargeResult?.error || 'Smart Card purchase failed.', chargeResult?.status);
+        }
       }
 
+      paidPaymentIntentIdRef.current = null;
+      setAwaitingFinalize(false);
       setIsConfirmOpen(false);
       setSuccessGift(gift); // server-returned values — authoritative, shown as-is
       setSelectedTileId(null);
     } catch (error) {
-      setChargeError(error?.message || 'Failed to purchase the Smart Card. Please try again.');
-      // Fresh idempotency key so a genuinely new attempt isn't blocked by Stripe's own
-      // idempotency-key reuse rules — mirrors the existing QR Cash retry behavior exactly.
-      giftRequestIdRef.current = crypto.randomUUID();
+      if (paidPaymentIntentIdRef.current) {
+        // Paid but not finalized: keep the key and the PaymentIntent; the next attempt re-finalizes.
+        setChargeError(error?.message);
+      } else if (NOT_CHARGED_STATUSES.has(error?.status)) {
+        setChargeError(error?.message || 'Failed to purchase the Smart Card. Please try again.');
+        // Definitively not charged: a fresh key lets a new card/attempt through Stripe's
+        // idempotency-key reuse rules — the existing QR Cash retry behavior.
+        giftRequestIdRef.current = crypto.randomUUID();
+      } else {
+        // May already be charged. Keep the key, refuse any further attempt from this page.
+        setOutcomeUnknown(true);
+        setChargeError(OUTCOME_UNKNOWN_MESSAGE);
+      }
     } finally {
       setCharging(false);
     }
-  }, [charging, selectedTile, recipientEmail, recipientName]);
+  }, [charging, outcomeUnknown, selectedTile, recipientEmail, recipientName]);
 
   if (loadState === 'loading') {
     return (
@@ -213,7 +263,7 @@ export default function PrezzeeSmartCard() {
               aria-checked={selected}
               data-tile-id={tile.id}
               onClick={() => setSelectedTileId(tile.id)}
-              disabled={charging}
+              disabled={charging || outcomeUnknown || awaitingFinalize}
               style={{
                 padding: '1rem 0.5rem',
                 borderRadius: '0.75rem',
@@ -222,7 +272,7 @@ export default function PrezzeeSmartCard() {
                 color: selected ? '#065f46' : '#1f2937',
                 fontSize: '1.0625rem',
                 fontWeight: 700,
-                cursor: charging ? 'not-allowed' : 'pointer',
+                cursor: (charging || outcomeUnknown || awaitingFinalize) ? 'not-allowed' : 'pointer',
                 fontFamily: 'inherit',
               }}
             >
