@@ -202,3 +202,71 @@ test("E3: executionAvailability rides through on a successful list, untouched", 
   assert.equal(r.ok, true);
   assert.deepEqual(r.data.executionAvailability, { canAuthorizeRun: false, reason: "corporate_campaign_execution_disabled" });
 });
+
+// ── D19A — the read-only published gift catalog ───────────────────────────────────────────────
+//
+// Every refusal below must yield NO products. A fabricated list is a product nobody curated, so
+// each case asserts the absence of data rather than merely the presence of an error flag.
+
+test("D19A: the catalog request is organization-scoped, gift-type encoded, and authenticated", async () => {
+  const { client, calls } = mk([{ status: 200, json: { giftType: "gift_boxes", provider: "p", items: [] } }]);
+  await client.listGiftCatalog("org 1/A", "gift_boxes");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, "GET");
+  assert.equal(calls[0].url, "/api/corporate-campaigns/organizations/org%201%2FA/gift-catalog?giftType=gift_boxes");
+  assert.equal(calls[0].headers.Authorization, "Bearer t");
+  assert.equal(calls[0].body, undefined, "a read sends no body");
+});
+
+test("D19A: an unusual gift type is encoded, never interpolated raw", async () => {
+  const { client, calls } = mk([{ status: 200, json: { items: [] } }]);
+  await client.listGiftCatalog("org1", "a&b=c d/e");
+  assert.equal(calls[0].url, "/api/corporate-campaigns/organizations/org1/gift-catalog?giftType=a%26b%3Dc%20d%2Fe");
+  const { client: c2, calls: k2 } = mk([{ status: 200, json: { items: [] } }]);
+  await c2.listGiftCatalog("org1", undefined);
+  assert.equal(k2[0].url, "/api/corporate-campaigns/organizations/org1/gift-catalog?giftType=");
+});
+
+test("D19A: a published list is returned exactly as the server sent it", async () => {
+  const items = [{ catalogItemId: "gm-p-1", provider: "p", providerProductId: "prod-1", title: "Box", priceCents: 2500 }];
+  const { client } = mk([{ status: 200, json: { giftType: "gift_boxes", provider: "p", items } }]);
+  const r = await client.listGiftCatalog("org1", "gift_boxes");
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.data.items, items, "no client-side reshaping, defaulting or caching");
+});
+
+test("D19A: 403 produces NO products", async () => {
+  for (const status of [401, 403]) {
+    const { client } = mk([{ status, json: { items: [{ providerProductId: "leaked" }] } }]);
+    const r = await client.listGiftCatalog("org1", "gift_boxes");
+    assert.equal(r.ok, false);
+    assert.equal(r.unauthorized, true);
+    assert.equal(r.data, undefined);
+    assert.equal(JSON.stringify(r).includes("leaked"), false, `${status} must not leak a product`);
+  }
+});
+
+test("D19A: a dormant 503 produces NO products", async () => {
+  const { client } = mk([{ status: 503, json: { disabled: true, reason: DORMANT_REASON, items: [{ providerProductId: "leaked" }] } }]);
+  const r = await client.listGiftCatalog("org1", "gift_boxes");
+  assert.equal(r.ok, false);
+  assert.equal(r.dormant, true);
+  assert.equal(r.reason, DORMANT_REASON);
+  assert.equal(r.data, undefined);
+  assert.equal(JSON.stringify(r).includes("leaked"), false);
+});
+
+test("D19A: every other failure — 404, 409, 500 and a network error — produces NO products", async () => {
+  for (const response of [
+    { status: 404, json: { items: [{ providerProductId: "leaked" }] } },
+    { status: 409, json: { items: [{ providerProductId: "leaked" }] } },
+    { status: 500, json: { items: [{ providerProductId: "leaked" }] } },
+    { throw: true },
+  ]) {
+    const { client } = mk([response]);
+    const r = await client.listGiftCatalog("org1", "gift_boxes");
+    assert.equal(r.ok, false, JSON.stringify(response));
+    assert.equal(r.data?.items, undefined, "no items survive a refusal");
+    assert.equal(JSON.stringify(r).includes("leaked"), false);
+  }
+});

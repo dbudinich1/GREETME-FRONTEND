@@ -205,10 +205,117 @@ export const CORPORATE_GIFT_OPTIONS = Object.freeze([
 // bare `maxSpend`/`amount` is the exact shape that turns $25 into $2,500.
 export const CURATED_TIERS_CENTS = Object.freeze([2500, 5000, 7500, 10000, 15000]);
 
+// D19A — the gift types that are fulfilled by an external provider and therefore carry ONE
+// administrator-selected product plus its variant selection.
+//
+// The SERVER is the authority: it derives this set from its own provider registry, refuses any
+// product on a type that is not in it, and refuses a product that its catalog has not published.
+// This list exists only so the surface knows which types need a product before it asks, and so a
+// product can never be attached to a gift type that does not take one. Quantity is not a field:
+// one product, one unit, decided server-side.
+export const PROVIDER_FUNDABLE_GIFT_TYPES = Object.freeze(["gift_boxes"]);
+
+export function isProviderFundableGiftType(type) {
+  return PROVIDER_FUNDABLE_GIFT_TYPES.includes(type);
+}
+
+/** The product's own identifier, or "" when nothing selectable was supplied. */
+export function selectedProductId(product) {
+  if (!product || typeof product !== "object" || Array.isArray(product)) return "";
+  return typeof product.providerProductId === "string" ? product.providerProductId.trim() : "";
+}
+
 export const centsToDisplay = (cents) => `$${Math.round(Number(cents) || 0) / 100}`;
 
+// ── G3 — THE GIFT BOX OPTION (Founder decision 2026-09-20) ───────────────────────────────────
+//
+// A provider-backed gift needs an entry point, and until now the corporate card had none: the four
+// options above are the whole offer, so `gift_boxes` — which the SERVER has accepted as corporate-
+// automatable all along — could not be chosen by anyone.
+//
+// IT IS NOT IN `CORPORATE_GIFT_OPTIONS`, and that is the decision, not an oversight. The four above
+// are always offered. This one is offered only while the organisation's catalog actually returns a
+// published, selectable gift box, because an option that cannot be completed is worse than an
+// option that is absent: it invites a reader to choose something, then refuses them.
+//
+// The catalog is the ONLY source of that answer. Nothing here fabricates a product, assumes one
+// exists, or reads a provider flag — a refusal, a dormant provider or an empty list all produce the
+// same thing, which is no option at all.
+export const PROVIDER_GIFT_OPTION = Object.freeze({
+  value: "gift_boxes",
+  label: "Gift Box",
+  description: "Choose one gift box for every recipient in this campaign.",
+  automatable: true,
+});
+
+/**
+ * The gift options a reader may see, in order: the four standing options, with Gift Box inserted
+ * IMMEDIATELY AFTER the curated option when — and only when — it may be offered.
+ *
+ * It may be offered when the catalog published at least one selectable item, or when this campaign
+ * has ALREADY been saved with a gift box. The second case is not an exception to the rule: hiding
+ * the option a campaign is actually configured with would render the card as though it carried no
+ * gift, which misreports what the server holds. Choosing it afresh still requires a live product.
+ */
+export function corporateGiftOptions({ catalogItemCount = 0, currentGiftType = null } = {}) {
+  const offer = Number(catalogItemCount) > 0 || isProviderFundableGiftType(currentGiftType);
+  if (!offer) return CORPORATE_GIFT_OPTIONS;
+  const out = [];
+  for (const opt of CORPORATE_GIFT_OPTIONS) {
+    out.push(opt);
+    if (opt.value === "curated") out.push(PROVIDER_GIFT_OPTION);
+  }
+  return Object.freeze(out);
+}
+
+/**
+ * The published items in a catalog response — FAIL-CLOSED.
+ *
+ * Any refusal (dormant, unauthorized, network, error) and any malformed body yields an empty list,
+ * which in turn means no option and no selectable product. An item with no identifier is dropped:
+ * it could never be saved, so offering it would only produce a later refusal.
+ */
+export function publishedCatalogItems(res) {
+  if (!res || res.ok !== true) return [];
+  const items = res.data && Array.isArray(res.data.items) ? res.data.items : [];
+  return items.filter((item) => selectedProductId(item) !== "");
+}
+
+/** The variant labels the catalog published for a product. Never invented, never defaulted. */
+export function publishedVariantNames(product) {
+  if (!product || typeof product !== "object") return [];
+  const names = Array.isArray(product.variantNames) ? product.variantNames : [];
+  return names.filter((n) => typeof n === "string" && n.trim() !== "");
+}
+
+/** Add or remove one variant label, returning a NEW array. Unknown labels are ignored. */
+export function toggleVariantSelection(selected, name, published = []) {
+  const chosen = Array.isArray(selected) ? selected.filter((v) => typeof v === "string") : [];
+  if (typeof name !== "string" || name.trim() === "") return chosen;
+  if (Array.isArray(published) && published.length > 0 && !published.includes(name)) return chosen;
+  return chosen.includes(name) ? chosen.filter((v) => v !== name) : [...chosen, name];
+}
+
+/**
+ * Is the draft's product still one the catalog publishes?
+ *
+ * A selection saved last month whose product has since been retired must not be re-sent: the server
+ * would refuse it at configuration, and if it somehow passed it would be refused again before
+ * funding. Reported while the list is KNOWN — an unread or refused catalog says nothing either way,
+ * so it never marks a selection stale.
+ */
+export function isStaleProductSelection({ giftType, product, items, catalogRead = false } = {}) {
+  if (!isProviderFundableGiftType(giftType)) return false;
+  if (!catalogRead) return false;
+  const id = selectedProductId(product);
+  if (!id) return false;
+  return !(Array.isArray(items) ? items : []).some((item) => selectedProductId(item) === id);
+}
+
 export function giftOptionState(value) {
-  const opt = CORPORATE_GIFT_OPTIONS.find((o) => o.value === value);
+  // G3 — the provider option is a REAL option wherever it is shown; whether it is shown at all is
+  // `corporateGiftOptions()`'s decision, above, and is never re-litigated here.
+  const opt = [...CORPORATE_GIFT_OPTIONS, PROVIDER_GIFT_OPTION].find((o) => o.value === value);
   // An unknown value is a different case entirely: it names nothing a reader can see, so it stays
   // non-selectable and keeps its own short label. It is not one of the two real gifts above.
   if (!opt) return { selectable: false, reason: "Not available for campaigns" };
@@ -674,6 +781,10 @@ export function buildCampaignDraft(campaign, contacts) {
     individualRefs,
     giftType: d.defaultGift ? d.defaultGift.type : "none",
     tierCents: d.defaultGift && d.defaultGift.maxSpendCents ? d.defaultGift.maxSpendCents : CURATED_TIERS_CENTS[0],
+    // D19A — the saved product selection, read back so a reopened card shows what was chosen and
+    // Cancel restores it. Absent on every curated or giftless campaign, exactly as before.
+    product: d.defaultGift && d.defaultGift.product ? d.defaultGift.product : null,
+    variants: d.defaultGift && Array.isArray(d.defaultGift.variants) ? [...d.defaultGift.variants] : [],
     scheduleMode: d.scheduleMode || "campaign_date",
     // The <input type="datetime-local"> shape, which is what the field round-trips.
     scheduledForLocal: d.scheduledForUtc ? String(d.scheduledForUtc).slice(0, 16) : "",
@@ -691,6 +802,12 @@ export function draftFingerprint(draft) {
     [...(d.categories || [])].sort(),
     [...(d.individualRefs || [])].sort(),
     d.giftType, d.giftType === "curated" ? d.tierCents : null,
+    // D19A — a changed product or variant selection must light up Save, and only a provider-backed
+    // gift has one. Every other draft contributes the same `null` it would have before, so curated
+    // and giftless cards compare exactly as they always did.
+    isProviderFundableGiftType(d.giftType)
+      ? [selectedProductId(d.product), [...(Array.isArray(d.variants) ? d.variants : [])].sort(), d.tierCents]
+      : null,
     d.scheduleMode,
     d.scheduleMode === "campaign_date" ? d.scheduledForLocal : null,
     d.scheduleMode === "contact_saved_date" ? d.occasionType : null,
@@ -698,12 +815,44 @@ export function draftFingerprint(draft) {
   ]);
 }
 
-export function buildDeliveryConfigBody({ scheduleMode, scheduledForUtc, occasionType, timeZone, giftType, curatedTierCents, overrides = [] } = {}) {
+/**
+ * D19A — THE ONE PRIMARY GIFT, including a provider-backed product selection.
+ *
+ * Curated is untouched: same object, same two fields, same tier. A provider-backed type carries the
+ * administrator's ONE chosen product and its variants alongside the tier the server also requires.
+ *
+ * FAIL-CLOSED, and this is the whole point of the function: a provider-backed type with no product,
+ * a malformed product, or a product with no identifier serializes `null` — no gift — rather than a
+ * half-selection the server would have to refuse later. A product attached to a type that does not
+ * take one (curated, none, or an interactively funded type) is IGNORED, so a stale selection left
+ * in a draft cannot ride onto the wrong gift.
+ *
+ * SINGULAR by construction: one object, never a list, so a campaign cannot carry two products.
+ */
+export function buildDefaultGift({ giftType, curatedTierCents, product, variants } = {}) {
+  if (giftType === "curated") return { type: "curated", maxSpendCents: curatedTierCents };
+  if (!isProviderFundableGiftType(giftType)) return null;
+  if (!selectedProductId(product)) return null;
+  const chosen = (Array.isArray(variants) ? variants : [])
+    .filter((v) => typeof v === "string" && v.trim() !== "");
+  return {
+    type: giftType,
+    // The server requires a tier on a provider-backed gift too; it is a ceiling, never a price.
+    maxSpendCents: curatedTierCents,
+    // The provider's normalized product, forwarded exactly as the catalog published it. Nothing is
+    // rewritten, renamed or defaulted here: the server re-checks its shape when each recipient is
+    // priced, and the durable writer re-checks it again before anything is persisted.
+    product,
+    variants: chosen,
+  };
+}
+
+export function buildDeliveryConfigBody({ scheduleMode, scheduledForUtc, occasionType, timeZone, giftType, curatedTierCents, product = null, variants = [], overrides = [] } = {}) {
   const body = { scheduleMode };
   if (scheduleMode === "campaign_date") body.scheduledForUtc = scheduledForUtc || null;
   if (scheduleMode === "contact_saved_date") body.occasionType = occasionType || null;
   if (timeZone) body.timeZone = timeZone;
-  body.defaultGift = giftType === "curated" ? { type: "curated", maxSpendCents: curatedTierCents } : null;
+  body.defaultGift = buildDefaultGift({ giftType, curatedTierCents, product, variants });
   body.recipientGiftOverrides = (Array.isArray(overrides) ? overrides : [])
     .map((o) => (o && o.action === "replace"
       ? { contactId: o.contactId, action: "replace", gift: { type: "curated", maxSpendCents: o.maxSpendCents } }
