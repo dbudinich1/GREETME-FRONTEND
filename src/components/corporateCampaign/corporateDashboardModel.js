@@ -227,8 +227,95 @@ export function selectedProductId(product) {
 
 export const centsToDisplay = (cents) => `$${Math.round(Number(cents) || 0) / 100}`;
 
+// ── G3 — THE GIFT BOX OPTION (Founder decision 2026-09-20) ───────────────────────────────────
+//
+// A provider-backed gift needs an entry point, and until now the corporate card had none: the four
+// options above are the whole offer, so `gift_boxes` — which the SERVER has accepted as corporate-
+// automatable all along — could not be chosen by anyone.
+//
+// IT IS NOT IN `CORPORATE_GIFT_OPTIONS`, and that is the decision, not an oversight. The four above
+// are always offered. This one is offered only while the organisation's catalog actually returns a
+// published, selectable gift box, because an option that cannot be completed is worse than an
+// option that is absent: it invites a reader to choose something, then refuses them.
+//
+// The catalog is the ONLY source of that answer. Nothing here fabricates a product, assumes one
+// exists, or reads a provider flag — a refusal, a dormant provider or an empty list all produce the
+// same thing, which is no option at all.
+export const PROVIDER_GIFT_OPTION = Object.freeze({
+  value: "gift_boxes",
+  label: "Gift Box",
+  description: "Choose one gift box for every recipient in this campaign.",
+  automatable: true,
+});
+
+/**
+ * The gift options a reader may see, in order: the four standing options, with Gift Box inserted
+ * IMMEDIATELY AFTER the curated option when — and only when — it may be offered.
+ *
+ * It may be offered when the catalog published at least one selectable item, or when this campaign
+ * has ALREADY been saved with a gift box. The second case is not an exception to the rule: hiding
+ * the option a campaign is actually configured with would render the card as though it carried no
+ * gift, which misreports what the server holds. Choosing it afresh still requires a live product.
+ */
+export function corporateGiftOptions({ catalogItemCount = 0, currentGiftType = null } = {}) {
+  const offer = Number(catalogItemCount) > 0 || isProviderFundableGiftType(currentGiftType);
+  if (!offer) return CORPORATE_GIFT_OPTIONS;
+  const out = [];
+  for (const opt of CORPORATE_GIFT_OPTIONS) {
+    out.push(opt);
+    if (opt.value === "curated") out.push(PROVIDER_GIFT_OPTION);
+  }
+  return Object.freeze(out);
+}
+
+/**
+ * The published items in a catalog response — FAIL-CLOSED.
+ *
+ * Any refusal (dormant, unauthorized, network, error) and any malformed body yields an empty list,
+ * which in turn means no option and no selectable product. An item with no identifier is dropped:
+ * it could never be saved, so offering it would only produce a later refusal.
+ */
+export function publishedCatalogItems(res) {
+  if (!res || res.ok !== true) return [];
+  const items = res.data && Array.isArray(res.data.items) ? res.data.items : [];
+  return items.filter((item) => selectedProductId(item) !== "");
+}
+
+/** The variant labels the catalog published for a product. Never invented, never defaulted. */
+export function publishedVariantNames(product) {
+  if (!product || typeof product !== "object") return [];
+  const names = Array.isArray(product.variantNames) ? product.variantNames : [];
+  return names.filter((n) => typeof n === "string" && n.trim() !== "");
+}
+
+/** Add or remove one variant label, returning a NEW array. Unknown labels are ignored. */
+export function toggleVariantSelection(selected, name, published = []) {
+  const chosen = Array.isArray(selected) ? selected.filter((v) => typeof v === "string") : [];
+  if (typeof name !== "string" || name.trim() === "") return chosen;
+  if (Array.isArray(published) && published.length > 0 && !published.includes(name)) return chosen;
+  return chosen.includes(name) ? chosen.filter((v) => v !== name) : [...chosen, name];
+}
+
+/**
+ * Is the draft's product still one the catalog publishes?
+ *
+ * A selection saved last month whose product has since been retired must not be re-sent: the server
+ * would refuse it at configuration, and if it somehow passed it would be refused again before
+ * funding. Reported while the list is KNOWN — an unread or refused catalog says nothing either way,
+ * so it never marks a selection stale.
+ */
+export function isStaleProductSelection({ giftType, product, items, catalogRead = false } = {}) {
+  if (!isProviderFundableGiftType(giftType)) return false;
+  if (!catalogRead) return false;
+  const id = selectedProductId(product);
+  if (!id) return false;
+  return !(Array.isArray(items) ? items : []).some((item) => selectedProductId(item) === id);
+}
+
 export function giftOptionState(value) {
-  const opt = CORPORATE_GIFT_OPTIONS.find((o) => o.value === value);
+  // G3 — the provider option is a REAL option wherever it is shown; whether it is shown at all is
+  // `corporateGiftOptions()`'s decision, above, and is never re-litigated here.
+  const opt = [...CORPORATE_GIFT_OPTIONS, PROVIDER_GIFT_OPTION].find((o) => o.value === value);
   // An unknown value is a different case entirely: it names nothing a reader can see, so it stays
   // non-selectable and keeps its own short label. It is not one of the two real gifts above.
   if (!opt) return { selectable: false, reason: "Not available for campaigns" };
