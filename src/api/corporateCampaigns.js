@@ -207,6 +207,19 @@ export function createCorporateCampaignsClient({
     // SLICE D — the delivery contract + the two owner-only final actions. These map 1:1 onto the
     // shipped backend endpoints; the client adds no persistence, no defaults, and no local state.
     updateDeliveryConfig: (orgId, campaignId, body) => call("PATCH", `${one(orgId, campaignId)}/delivery-config`, { body: body || {} }),
+    // D19A — the READ-ONLY published catalog for a provider-backed gift type.
+    //
+    // It is deliberately this client and no other: the same base URL, the same bearer token, and
+    // the same normalization, so a dormant 503, a 401/403, a network failure or any other refusal
+    // returns a refusal object and NEVER a product. There is no local cache, no default list and
+    // no fallback, because a fabricated product is a product nobody curated.
+    //
+    // Organization-scoped, not campaign-scoped: the surface asks what this organization may select,
+    // and the server authorizes the organization with its existing membership guard.
+    listGiftCatalog: (orgId, giftType) => call(
+      "GET",
+      `/organizations/${encodeURIComponent(orgId)}/gift-catalog?giftType=${encodeURIComponent(giftType == null ? "" : giftType)}`,
+    ),
     schedule: (orgId, campaignId) => call("POST", `${one(orgId, campaignId)}/schedule`, { body: {} }),
     // SLICE E5 - the runtime switch. Deliberately NOT a variant of schedule/activate: those
     // authorize a run, this records whether the organization wants the campaign running at all.

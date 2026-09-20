@@ -205,6 +205,26 @@ export const CORPORATE_GIFT_OPTIONS = Object.freeze([
 // bare `maxSpend`/`amount` is the exact shape that turns $25 into $2,500.
 export const CURATED_TIERS_CENTS = Object.freeze([2500, 5000, 7500, 10000, 15000]);
 
+// D19A — the gift types that are fulfilled by an external provider and therefore carry ONE
+// administrator-selected product plus its variant selection.
+//
+// The SERVER is the authority: it derives this set from its own provider registry, refuses any
+// product on a type that is not in it, and refuses a product that its catalog has not published.
+// This list exists only so the surface knows which types need a product before it asks, and so a
+// product can never be attached to a gift type that does not take one. Quantity is not a field:
+// one product, one unit, decided server-side.
+export const PROVIDER_FUNDABLE_GIFT_TYPES = Object.freeze(["gift_boxes"]);
+
+export function isProviderFundableGiftType(type) {
+  return PROVIDER_FUNDABLE_GIFT_TYPES.includes(type);
+}
+
+/** The product's own identifier, or "" when nothing selectable was supplied. */
+export function selectedProductId(product) {
+  if (!product || typeof product !== "object" || Array.isArray(product)) return "";
+  return typeof product.providerProductId === "string" ? product.providerProductId.trim() : "";
+}
+
 export const centsToDisplay = (cents) => `$${Math.round(Number(cents) || 0) / 100}`;
 
 export function giftOptionState(value) {
@@ -674,6 +694,10 @@ export function buildCampaignDraft(campaign, contacts) {
     individualRefs,
     giftType: d.defaultGift ? d.defaultGift.type : "none",
     tierCents: d.defaultGift && d.defaultGift.maxSpendCents ? d.defaultGift.maxSpendCents : CURATED_TIERS_CENTS[0],
+    // D19A — the saved product selection, read back so a reopened card shows what was chosen and
+    // Cancel restores it. Absent on every curated or giftless campaign, exactly as before.
+    product: d.defaultGift && d.defaultGift.product ? d.defaultGift.product : null,
+    variants: d.defaultGift && Array.isArray(d.defaultGift.variants) ? [...d.defaultGift.variants] : [],
     scheduleMode: d.scheduleMode || "campaign_date",
     // The <input type="datetime-local"> shape, which is what the field round-trips.
     scheduledForLocal: d.scheduledForUtc ? String(d.scheduledForUtc).slice(0, 16) : "",
@@ -691,6 +715,12 @@ export function draftFingerprint(draft) {
     [...(d.categories || [])].sort(),
     [...(d.individualRefs || [])].sort(),
     d.giftType, d.giftType === "curated" ? d.tierCents : null,
+    // D19A — a changed product or variant selection must light up Save, and only a provider-backed
+    // gift has one. Every other draft contributes the same `null` it would have before, so curated
+    // and giftless cards compare exactly as they always did.
+    isProviderFundableGiftType(d.giftType)
+      ? [selectedProductId(d.product), [...(Array.isArray(d.variants) ? d.variants : [])].sort(), d.tierCents]
+      : null,
     d.scheduleMode,
     d.scheduleMode === "campaign_date" ? d.scheduledForLocal : null,
     d.scheduleMode === "contact_saved_date" ? d.occasionType : null,
@@ -698,12 +728,44 @@ export function draftFingerprint(draft) {
   ]);
 }
 
-export function buildDeliveryConfigBody({ scheduleMode, scheduledForUtc, occasionType, timeZone, giftType, curatedTierCents, overrides = [] } = {}) {
+/**
+ * D19A — THE ONE PRIMARY GIFT, including a provider-backed product selection.
+ *
+ * Curated is untouched: same object, same two fields, same tier. A provider-backed type carries the
+ * administrator's ONE chosen product and its variants alongside the tier the server also requires.
+ *
+ * FAIL-CLOSED, and this is the whole point of the function: a provider-backed type with no product,
+ * a malformed product, or a product with no identifier serializes `null` — no gift — rather than a
+ * half-selection the server would have to refuse later. A product attached to a type that does not
+ * take one (curated, none, or an interactively funded type) is IGNORED, so a stale selection left
+ * in a draft cannot ride onto the wrong gift.
+ *
+ * SINGULAR by construction: one object, never a list, so a campaign cannot carry two products.
+ */
+export function buildDefaultGift({ giftType, curatedTierCents, product, variants } = {}) {
+  if (giftType === "curated") return { type: "curated", maxSpendCents: curatedTierCents };
+  if (!isProviderFundableGiftType(giftType)) return null;
+  if (!selectedProductId(product)) return null;
+  const chosen = (Array.isArray(variants) ? variants : [])
+    .filter((v) => typeof v === "string" && v.trim() !== "");
+  return {
+    type: giftType,
+    // The server requires a tier on a provider-backed gift too; it is a ceiling, never a price.
+    maxSpendCents: curatedTierCents,
+    // The provider's normalized product, forwarded exactly as the catalog published it. Nothing is
+    // rewritten, renamed or defaulted here: the server re-checks its shape when each recipient is
+    // priced, and the durable writer re-checks it again before anything is persisted.
+    product,
+    variants: chosen,
+  };
+}
+
+export function buildDeliveryConfigBody({ scheduleMode, scheduledForUtc, occasionType, timeZone, giftType, curatedTierCents, product = null, variants = [], overrides = [] } = {}) {
   const body = { scheduleMode };
   if (scheduleMode === "campaign_date") body.scheduledForUtc = scheduledForUtc || null;
   if (scheduleMode === "contact_saved_date") body.occasionType = occasionType || null;
   if (timeZone) body.timeZone = timeZone;
-  body.defaultGift = giftType === "curated" ? { type: "curated", maxSpendCents: curatedTierCents } : null;
+  body.defaultGift = buildDefaultGift({ giftType, curatedTierCents, product, variants });
   body.recipientGiftOverrides = (Array.isArray(overrides) ? overrides : [])
     .map((o) => (o && o.action === "replace"
       ? { contactId: o.contactId, action: "replace", gift: { type: "curated", maxSpendCents: o.maxSpendCents } }
