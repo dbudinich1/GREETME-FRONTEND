@@ -32,6 +32,10 @@ import {
   draftFingerprint,
   deriveActions,
   buildDeliveryConfigBody,
+  buildDefaultGift,
+  isProviderFundableGiftType,
+  selectedProductId,
+  PROVIDER_FUNDABLE_GIFT_TYPES,
   readViewerOwnerCapability,
   readExecutionCapability,
   EXECUTION_DORMANT_MESSAGE,
@@ -763,5 +767,137 @@ test("E3: no raw backend flag name appears in the dashboard model", () => {
                       "corporateCampaignDeliveryEnabled", "campaignFeaturedSpreadEnabled",
                       "LAUNCH_CONTROL", "launchControl"]) {
     assert.equal(src.includes(flag), false, flag);
+  }
+});
+
+// ── D19A — the provider-backed product selection on the delivery-config wire ──────────────────
+//
+// The server remains the authority: it derives the fundable types from its registry, requires the
+// product to be a PUBLISHED catalog item, and re-checks the normalized shape when each recipient
+// is priced. These tests fix what the CLIENT may serialize, and above all what it must refuse to.
+
+const D19A_PRODUCT = Object.freeze({ providerProductId: "prod-1", name: "Cookie Box", restrictions: {}, variants: {}, capabilities: {} });
+const FUNDABLE = PROVIDER_FUNDABLE_GIFT_TYPES[0];
+
+test("D19A: a provider-backed gift serializes ONE product, its variants and the tier", () => {
+  const body = buildDeliveryConfigBody({
+    scheduleMode: "campaign_date", scheduledForUtc: "2026-12-24T14:00:00.000Z",
+    giftType: FUNDABLE, curatedTierCents: 5000, product: D19A_PRODUCT, variants: ["Chocolate Chip"],
+  });
+  assert.deepEqual(body.defaultGift, {
+    type: FUNDABLE, maxSpendCents: 5000, product: D19A_PRODUCT, variants: ["Chocolate Chip"],
+  });
+  // Singular by construction: one object, never a list.
+  assert.equal(Array.isArray(body.defaultGift), false);
+  assert.equal("products" in body.defaultGift, false);
+  // The money vocabulary is unchanged — no ambiguous field may appear.
+  const json = JSON.stringify(body);
+  for (const bare of ['"maxSpend"', '"amount"', '"amountCents"', '"fee"', '"total"']) {
+    assert.equal(json.includes(bare), false, bare);
+  }
+});
+
+test("D19A: a missing, malformed or unidentified product FAILS CLOSED — no gift is serialized", () => {
+  for (const [label, over] of [
+    ["no product at all", {}],
+    ["null", { product: null }],
+    ["a string", { product: "prod-1" }],
+    ["an array", { product: [D19A_PRODUCT] }],
+    ["no providerProductId", { product: { name: "Cookie Box" } }],
+    ["a blank providerProductId", { product: { providerProductId: "   " } }],
+    ["a non-string providerProductId", { product: { providerProductId: 7 } }],
+  ]) {
+    const body = buildDeliveryConfigBody({
+      scheduleMode: "campaign_date", giftType: FUNDABLE, curatedTierCents: 5000, variants: ["Chocolate Chip"], ...over,
+    });
+    assert.equal(body.defaultGift, null, label + ": a half-selection is never sent");
+  }
+});
+
+test("D19A: only ONE primary product can be serialized, and only on a type that takes one", () => {
+  // A product attached to a type that does not take one is ignored, not smuggled through.
+  for (const giftType of ["curated", "none", "qrcash", "marketplace", undefined, "nonsense"]) {
+    const body = buildDeliveryConfigBody({
+      scheduleMode: "campaign_date", giftType, curatedTierCents: 2500, product: D19A_PRODUCT, variants: ["Chocolate Chip"],
+    });
+    if (giftType === "curated") {
+      assert.deepEqual(body.defaultGift, { type: "curated", maxSpendCents: 2500 }, "curated is untouched");
+    } else {
+      assert.equal(body.defaultGift, null, giftType + ": no product may ride on this type");
+    }
+  }
+  // Per-recipient overrides still carry only a curated tier: a second product is unreachable.
+  const withOverrides = buildDeliveryConfigBody({
+    scheduleMode: "campaign_date", giftType: FUNDABLE, curatedTierCents: 5000, product: D19A_PRODUCT,
+    overrides: [{ contactId: "e1", action: "replace", maxSpendCents: 2500 }],
+  });
+  assert.deepEqual(withOverrides.recipientGiftOverrides, [
+    { contactId: "e1", action: "replace", gift: { type: "curated", maxSpendCents: 2500 } },
+  ]);
+  assert.equal(JSON.stringify(withOverrides.recipientGiftOverrides).includes("providerProductId"), false);
+});
+
+test("D19A: variants are strings only, and default to an empty list", () => {
+  const mk = (variants) => buildDefaultGift({ giftType: FUNDABLE, curatedTierCents: 2500, product: D19A_PRODUCT, variants });
+  assert.deepEqual(mk(undefined).variants, []);
+  assert.deepEqual(mk(null).variants, []);
+  assert.deepEqual(mk("Chocolate Chip").variants, [], "a non-list is not a selection");
+  assert.deepEqual(mk(["Chocolate Chip", "", "   ", 42, null, "Oatmeal"]).variants, ["Chocolate Chip", "Oatmeal"]);
+});
+
+test("D19A: a saved product and its variants read back through buildCampaignDraft", () => {
+  const campaign = {
+    audienceRefs: [],
+    deliveryConfig: {
+      scheduleMode: "campaign_date", scheduledForUtc: "2026-12-24T14:00:00.000Z", timeZone: "UTC",
+      defaultGift: { type: FUNDABLE, maxSpendCents: 7500, product: D19A_PRODUCT, variants: ["Oatmeal"] },
+    },
+  };
+  const d = buildCampaignDraft(campaign, ROSTER);
+  assert.equal(d.giftType, FUNDABLE);
+  assert.equal(d.tierCents, 7500);
+  assert.deepEqual(d.product, D19A_PRODUCT);
+  assert.deepEqual(d.variants, ["Oatmeal"]);
+  // Round-trip: what was read back serializes to the same gift.
+  const body = buildDeliveryConfigBody({
+    scheduleMode: d.scheduleMode, scheduledForUtc: "2026-12-24T14:00:00.000Z", timeZone: d.timeZone,
+    giftType: d.giftType, curatedTierCents: d.tierCents, product: d.product, variants: d.variants,
+  });
+  assert.deepEqual(body.defaultGift, campaign.deliveryConfig.defaultGift);
+  // A changed product or variant lights up Save; an unchanged one does not.
+  assert.equal(draftFingerprint(d), draftFingerprint(buildCampaignDraft(campaign, ROSTER)));
+  assert.notEqual(draftFingerprint(d), draftFingerprint({ ...d, product: { providerProductId: "prod-2" } }));
+  assert.notEqual(draftFingerprint(d), draftFingerprint({ ...d, variants: ["Chocolate Chip"] }));
+});
+
+test("D19A: curated and giftless campaigns are behaviourally unchanged", () => {
+  // The exact assertions the pre-existing suite makes, re-made after the extension.
+  const curated = buildDeliveryConfigBody({ scheduleMode: "campaign_date", scheduledForUtc: "2026-12-24T14:00:00.000Z", giftType: "curated", curatedTierCents: 2500 });
+  assert.deepEqual(curated.defaultGift, { type: "curated", maxSpendCents: 2500 });
+  assert.equal("product" in curated.defaultGift, false, "curated carries no product key at all");
+  assert.equal("variants" in curated.defaultGift, false);
+  assert.equal(buildDeliveryConfigBody({ scheduleMode: "campaign_date", giftType: "none" }).defaultGift, null);
+
+  // Read-back and dirty-detection for a curated campaign are untouched.
+  const campaign = { audienceRefs: [], deliveryConfig: { scheduleMode: "campaign_date", defaultGift: { type: "curated", maxSpendCents: 5000 } } };
+  const d = buildCampaignDraft(campaign, ROSTER);
+  assert.equal(d.giftType, "curated");
+  assert.equal(d.tierCents, 5000);
+  assert.equal(d.product, null);
+  assert.deepEqual(d.variants, []);
+  assert.equal(draftFingerprint(d), draftFingerprint(buildCampaignDraft(campaign, ROSTER)));
+  // A product left over in a curated draft changes neither the wire body nor the fingerprint.
+  assert.equal(draftFingerprint(d), draftFingerprint({ ...d, product: D19A_PRODUCT, variants: ["Chocolate Chip"] }));
+});
+
+test("D19A: the fundable-type helpers state the rule the server owns", () => {
+  assert.equal(isProviderFundableGiftType(FUNDABLE), true);
+  for (const t of ["curated", "none", "qrcash", "marketplace", "", null, undefined]) {
+    assert.equal(isProviderFundableGiftType(t), false, String(t));
+  }
+  assert.equal(selectedProductId(D19A_PRODUCT), "prod-1");
+  assert.equal(selectedProductId({ providerProductId: "  prod-2  " }), "prod-2");
+  for (const bad of [null, undefined, "x", [], {}, { providerProductId: "" }]) {
+    assert.equal(selectedProductId(bad), "", JSON.stringify(bad));
   }
 });
