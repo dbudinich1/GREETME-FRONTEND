@@ -13,7 +13,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CONTACT_CATEGORIES,
-  CORPORATE_GIFT_OPTIONS,
+  corporateGiftOptions,
+  publishedCatalogItems,
+  publishedVariantNames,
+  toggleVariantSelection,
+  isStaleProductSelection,
+  isProviderFundableGiftType,
+  selectedProductId,
+  PROVIDER_GIFT_OPTION,
   CURATED_TIERS_CENTS,
   SCHEDULE_MODES,
   centsToDisplay,
@@ -124,6 +131,52 @@ export default function CampaignCard({
   // live, and a dormant 503 means it is not. That keeps the editor's own rule intact - capability
   // comes from the server - without inventing a second capability source or a new endpoint.
   const [spread, setSpread] = useState({ capabilityEnabled: false, readiness: null, message: null });
+
+  // ── G3 — THE PUBLISHED GIFT-BOX CATALOG ────────────────────────────────────────────────────
+  //
+  // Read from the SAME organization-scoped endpoint the accepted client already exposes. `read`
+  // records that the server actually answered: until it has, an unknown list is not an empty one,
+  // so a saved selection is never called stale on the strength of a request still in flight.
+  const [giftCatalog, setGiftCatalog] = useState({ items: [], read: false, message: null });
+
+  useEffect(() => {
+    // Only for a card the reader has actually opened, exactly like the spread capability above.
+    if (!expanded || !client || typeof client.listGiftCatalog !== "function") return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await client.listGiftCatalog(orgId, PROVIDER_GIFT_OPTION.value);
+        if (!alive) return;
+        // FAIL-CLOSED, and silent by design: a dormant provider, a refusal and an empty catalog are
+        // the same fact to a reader — there is nothing to choose — and none of them is an error
+        // worth printing on a card about campaigns.
+        setGiftCatalog({ items: publishedCatalogItems(res), read: res && res.ok === true, message: null });
+      } catch {
+        if (alive) setGiftCatalog({ items: [], read: false, message: null });
+      }
+    })();
+    return () => { alive = false; };
+  }, [expanded, orgId, client]);
+
+  const giftOptions = corporateGiftOptions({
+    catalogItemCount: giftCatalog.items.length,
+    // What the SERVER holds, not what is being edited: switching away in an unsaved draft must not
+    // make the option vanish mid-edit, which would strand the reader with no way back to it.
+    currentGiftType: persisted.giftType,
+  });
+  const productChosen = isProviderFundableGiftType(draft.giftType) ? selectedProductId(draft.product) : "";
+  const chosenVariants = Array.isArray(draft.variants) ? draft.variants : [];
+  const variantChoices = publishedVariantNames(draft.product);
+  const staleProduct = isStaleProductSelection({
+    giftType: draft.giftType, product: draft.product, items: giftCatalog.items, catalogRead: giftCatalog.read,
+  });
+  // A gift box with nothing chosen is not a saveable campaign: the wire contract would serialise no
+  // gift at all, silently turning a gift campaign into a greeting-only one.
+  const productMissing = isProviderFundableGiftType(draft.giftType) && !productChosen;
+  const giftBlocked = staleProduct || productMissing;
+  const giftBlockedNote = staleProduct
+    ? "That gift box is no longer published. Choose one from the list to save this campaign."
+    : (productMissing ? "Choose a gift box to save this campaign." : null);
 
   useEffect(() => {
     // Only when the reader is actually looking at this campaign's spread choices.
@@ -324,6 +377,10 @@ export default function CampaignCard({
   // rather than to more.
   async function saveAll() {
     if (!dirty || !actions.save.enabled) return;
+    // G3 — a half-made or stale gift-box selection is refused HERE, before the audience is written.
+    // The server refuses it too, at configuration and again before funding; stopping first means the
+    // campaign is never left addressed to a new audience by a save that could not complete.
+    if (giftBlocked) { setMessage(giftBlockedNote); return; }
     setMessage(null); setPending("save");
     try {
       const nextRefs = refsOf(draft);
@@ -338,6 +395,10 @@ export default function CampaignCard({
         timeZone: draft.timeZone,
         giftType: draft.giftType,
         curatedTierCents: draft.tierCents,
+        // G3 — the accepted wire contract does the rest: it attaches these only to a gift type that
+        // takes a product, and serialises NO gift at all rather than a half-selection.
+        product: draft.product,
+        variants: draft.variants,
       });
       const res = await client.updateDeliveryConfig(orgId, campaign.campaignId, body);
       if (!res || res.ok !== true) return reportFailure(res);
@@ -613,7 +674,7 @@ export default function CampaignCard({
                   carried by the radio's own disabled semantics, which assistive technology already
                   announces, so nothing is communicated by colour alone. */}
               <BubbleGroup label="What goes with the greeting" role="radiogroup" testId={uid("gift")}>
-                {CORPORATE_GIFT_OPTIONS.map((opt) => {
+                {giftOptions.map((opt) => {
                   const state = giftOptionState(opt.value);
                   return (
                     <ChoiceBubble
@@ -636,6 +697,71 @@ export default function CampaignCard({
                     onChange={(e) => edit({ tierCents: Number(e.target.value) })} data-testid={`card-tier-${campaign.campaignId}`}>
                     {CURATED_TIERS_CENTS.map((c) => <option key={c} value={c}>{centsToDisplay(c)}</option>)}
                   </select>
+                </div>
+              ) : null}
+
+              {/* ── G3 — THE GIFT BOX SELECTION ───────────────────────────────────────────────
+                  Rendered inside the EXISTING Gift Options section, only while the gift box is the
+                  chosen gift. ONE product per campaign, enforced by the radio group itself rather
+                  than by a rule applied afterwards, and the variant labels are exactly the ones the
+                  catalog published for the chosen product — no second product schema, no vendor
+                  call, no local catalog. */}
+              {isProviderFundableGiftType(draft.giftType) ? (
+                <div className="gcd-wcard-foot gcd-wcard-foot--stack" data-testid={`card-giftbox-${campaign.campaignId}`}>
+                  <label className="gcd-wcard-field" htmlFor={uid("gb-tier")}>
+                    Spend limit <span className="gcd-wcard-note">(a ceiling, never a price)</span>
+                  </label>
+                  <select id={uid("gb-tier")} value={draft.tierCents} disabled={locked}
+                    onChange={(e) => edit({ tierCents: Number(e.target.value) })}
+                    data-testid={`card-giftbox-tier-${campaign.campaignId}`}>
+                    {CURATED_TIERS_CENTS.map((c) => <option key={c} value={c}>{centsToDisplay(c)}</option>)}
+                  </select>
+
+                  {giftCatalog.items.length > 0 ? (
+                    <BubbleGroup label="Which gift box" role="radiogroup" testId={uid("giftbox")}>
+                      {giftCatalog.items.map((item) => {
+                        const id = selectedProductId(item);
+                        return (
+                          <ChoiceBubble
+                            key={id} id={uid(`gb-${id}`)} name={uid("gb-group")} value={id}
+                            label={item.title || id}
+                            note={Number.isInteger(item.priceCents) ? centsToDisplay(item.priceCents) : null}
+                            checked={productChosen === id}
+                            disabled={locked}
+                            // One product replaces the other outright, and its variants go with it:
+                            // a label published for one box means nothing on another.
+                            onChange={() => edit({ product: item, variants: [] })}
+                          />
+                        );
+                      })}
+                    </BubbleGroup>
+                  ) : (
+                    <span className="gcd-wcard-note" data-testid={`card-giftbox-empty-${campaign.campaignId}`}>
+                      No gift boxes are published yet.
+                    </span>
+                  )}
+
+                  {productChosen && variantChoices.length > 0 ? (
+                    <fieldset className="gcd-wcard-variants" data-testid={`card-giftbox-variants-${campaign.campaignId}`}>
+                      <legend className="gcd-wcard-note">Options published for this gift box</legend>
+                      {variantChoices.map((name) => (
+                        <label key={name} className="gcd-wcard-variant" htmlFor={uid(`gb-v-${name}`)}>
+                          <input
+                            type="checkbox" id={uid(`gb-v-${name}`)} value={name} disabled={locked}
+                            checked={chosenVariants.includes(name)}
+                            onChange={() => edit({ variants: toggleVariantSelection(chosenVariants, name, variantChoices) })}
+                          />
+                          {" "}{name}
+                        </label>
+                      ))}
+                    </fieldset>
+                  ) : null}
+
+                  {giftBlockedNote ? (
+                    <span className="gcd-wcard-note" role="status" data-testid={`card-giftbox-note-${campaign.campaignId}`}>
+                      {giftBlockedNote}
+                    </span>
+                  ) : null}
                 </div>
               ) : null}
             </section>

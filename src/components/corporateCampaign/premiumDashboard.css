@@ -687,6 +687,18 @@
   border: 1px solid var(--gcd-line-strong); border-radius: 10px; background: #fff; color: var(--gcd-ink);
 }
 
+/* G3 — the gift-box selection, inside the existing Gift Options section. The product list and its
+   published option labels stack instead of sitting in one row: a row of gift boxes wraps into an
+   unreadable ribbon on a phone, and the spend limit must stay beside its own label. */
+.gcd-wcard-foot--stack { flex-direction: column; align-items: stretch; gap: 10px; }
+.gcd-wcard-variants {
+  margin: 0; padding: 10px 12px;
+  border: 1px solid var(--gcd-line); border-radius: 10px;
+  display: flex; flex-wrap: wrap; gap: 8px 16px;
+}
+.gcd-wcard-variants legend { padding: 0 4px; }
+.gcd-wcard-variant { font-size: .86rem; color: var(--gcd-ink); display: inline-flex; align-items: center; gap: 6px; }
+
 /* CORRECTION 4 — desktop scale. The expanded body gets the page's width rather than sitting in a
    narrow column, and the type steps up with it. */
 .gcd-card--expanded { padding-left: 26px; padding-right: 26px; }

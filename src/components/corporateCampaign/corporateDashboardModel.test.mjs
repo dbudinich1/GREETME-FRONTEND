@@ -901,3 +901,121 @@ test("D19A: the fundable-type helpers state the rule the server owns", () => {
     assert.equal(selectedProductId(bad), "", JSON.stringify(bad));
   }
 });
+
+// ══ G3 — THE GIFT BOX OPTION (Founder decision 2026-09-20) ══════════════════════════════════
+import {
+  PROVIDER_GIFT_OPTION,
+  corporateGiftOptions,
+  publishedCatalogItems,
+  publishedVariantNames,
+  toggleVariantSelection,
+  isStaleProductSelection,
+} from "./corporateDashboardModel.js";
+
+const ITEM = {
+  catalogItemId: "gm-prov-box-a", provider: "prov", providerProductId: "box-a",
+  title: "Roasted and Toasted", priceCents: 7800, currency: "USD",
+  variantNames: ["Dark Roast", "Medium Roast"],
+};
+
+test("G3: the option carries the founder-decided label and description, exactly", () => {
+  assert.equal(PROVIDER_GIFT_OPTION.value, "gift_boxes");
+  assert.equal(PROVIDER_GIFT_OPTION.label, "Gift Box");
+  assert.equal(PROVIDER_GIFT_OPTION.description, "Choose one gift box for every recipient in this campaign.");
+  assert.equal(PROVIDER_GIFT_OPTION.automatable, true);
+  // It is NOT one of the four standing options; it is offered conditionally.
+  assert.equal(CORPORATE_GIFT_OPTIONS.some((o) => o.value === "gift_boxes"), false);
+});
+
+test("G3: with nothing published the option is absent — not disabled, not greyed, absent", () => {
+  const shown = corporateGiftOptions({ catalogItemCount: 0, currentGiftType: "none" });
+  assert.deepEqual(shown.map((o) => o.value), ["none", "curated", "qrcash", "marketplace"]);
+  assert.equal(shown, CORPORATE_GIFT_OPTIONS, "the standing list is returned unchanged");
+});
+
+test("G3: with a published item the option sits IMMEDIATELY AFTER curated", () => {
+  const shown = corporateGiftOptions({ catalogItemCount: 1 });
+  assert.deepEqual(shown.map((o) => o.value), ["none", "curated", "gift_boxes", "qrcash", "marketplace"]);
+  assert.equal(shown[2], PROVIDER_GIFT_OPTION);
+});
+
+test("G3: a campaign already saved with a gift box keeps seeing the option, even with an empty catalog", () => {
+  const shown = corporateGiftOptions({ catalogItemCount: 0, currentGiftType: "gift_boxes" });
+  assert.equal(shown.some((o) => o.value === "gift_boxes"), true,
+    "hiding it would render a configured campaign as though it carried no gift");
+});
+
+test("G3: the option is selectable wherever it is shown; the other four are unchanged", () => {
+  assert.equal(giftOptionState("gift_boxes").selectable, true);
+  assert.equal(giftOptionState("gift_boxes").reason, null);
+  assert.equal(giftOptionState("none").selectable, true);
+  assert.equal(giftOptionState("curated").selectable, true);
+  assert.equal(giftOptionState("qrcash").selectable, false);
+  assert.equal(giftOptionState("marketplace").selectable, false);
+  assert.equal(giftOptionState("flowers").selectable, false, "an unknown type is still refused");
+});
+
+test("G3: the new wording obeys the existing wording rules", () => {
+  const banned = /needs a person|complete the purchase|interactive funding|unavailable|unsupported|not offered|coming soon/i;
+  const shown = `${PROVIDER_GIFT_OPTION.label} ${PROVIDER_GIFT_OPTION.description}`;
+  assert.equal(banned.test(shown), false);
+  assert.equal(/goody|ongoody|prezzee|vendor|provider/i.test(shown), false, "it names no vendor and no plumbing");
+});
+
+test("G3: only a real published list produces items — every refusal produces none", () => {
+  assert.deepEqual(publishedCatalogItems({ ok: true, data: { items: [ITEM] } }), [ITEM]);
+  for (const refusal of [
+    null, undefined, {}, { ok: false, dormant: true },
+    { ok: false, unauthorized: true, data: { items: [ITEM] } },
+    { ok: false, networkError: true },
+    { ok: true, data: null }, { ok: true, data: { items: "nope" } },
+  ]) {
+    assert.deepEqual(publishedCatalogItems(refusal), [], JSON.stringify(refusal));
+  }
+  // An item with no identifier could never be saved, so it is never offered.
+  assert.deepEqual(publishedCatalogItems({ ok: true, data: { items: [{ title: "No id" }, ITEM] } }), [ITEM]);
+});
+
+test("G3: variant labels come from the product the catalog published, or nowhere", () => {
+  assert.deepEqual(publishedVariantNames(ITEM), ["Dark Roast", "Medium Roast"]);
+  for (const bad of [null, undefined, {}, { variantNames: null }, { variantNames: [""] }, { variantNames: [3] }]) {
+    assert.deepEqual(publishedVariantNames(bad), [], JSON.stringify(bad));
+  }
+});
+
+test("G3: toggling a variant adds then removes it, and refuses a label that was never published", () => {
+  const published = ["Dark Roast", "Medium Roast"];
+  assert.deepEqual(toggleVariantSelection([], "Dark Roast", published), ["Dark Roast"]);
+  assert.deepEqual(toggleVariantSelection(["Dark Roast"], "Dark Roast", published), []);
+  assert.deepEqual(toggleVariantSelection(["Dark Roast"], "Medium Roast", published), ["Dark Roast", "Medium Roast"]);
+  assert.deepEqual(toggleVariantSelection(["Dark Roast"], "Smuggled", published), ["Dark Roast"],
+    "a label the catalog never published cannot be attached");
+  assert.deepEqual(toggleVariantSelection(null, "", published), []);
+});
+
+test("G3: a retired product is stale — but an unread catalog never makes one stale", () => {
+  const base = { giftType: "gift_boxes", product: ITEM };
+  assert.equal(isStaleProductSelection({ ...base, items: [ITEM], catalogRead: true }), false);
+  assert.equal(isStaleProductSelection({ ...base, items: [], catalogRead: true }), true);
+  assert.equal(isStaleProductSelection({ ...base, items: [], catalogRead: false }), false,
+    "a request still in flight, or a refusal, says nothing about the selection");
+  assert.equal(isStaleProductSelection({ giftType: "curated", product: ITEM, items: [], catalogRead: true }), false,
+    "curated carries no product, so it can never be stale");
+  assert.equal(isStaleProductSelection({ giftType: "gift_boxes", product: null, items: [], catalogRead: true }), false,
+    "nothing chosen is not the same as a stale choice");
+});
+
+test("G3: the wire contract is the D19A one, unchanged — one product, its variants, no quantity", () => {
+  const body = buildDeliveryConfigBody({
+    scheduleMode: "campaign_date", scheduledForUtc: "2026-12-15T15:00:00.000Z",
+    giftType: "gift_boxes", curatedTierCents: 7500, product: ITEM, variants: ["Dark Roast"],
+  });
+  assert.equal(body.defaultGift.type, "gift_boxes");
+  assert.deepEqual(body.defaultGift.product, ITEM);
+  assert.deepEqual(body.defaultGift.variants, ["Dark Roast"]);
+  assert.equal("quantity" in body.defaultGift, false);
+  // And the fail-closed rule the picker depends on: no product means no gift, never a half one.
+  assert.equal(buildDeliveryConfigBody({
+    scheduleMode: "campaign_date", giftType: "gift_boxes", curatedTierCents: 7500, product: null,
+  }).defaultGift, null);
+});
