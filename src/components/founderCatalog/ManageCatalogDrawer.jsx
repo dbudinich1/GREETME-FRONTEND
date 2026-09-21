@@ -13,13 +13,15 @@
 //   • Not a bulk tool. One product becomes one draft, through one explicit action.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { X, Lock, AlertTriangle, Plus, Check } from 'lucide-react';
+import { X, Lock, AlertTriangle, Plus, Check, RefreshCw } from 'lucide-react';
 import founderCatalogApi from '../../api/founderCatalog';
 import {
   CATEGORY_LABELS, REFUSAL_COPY, SECTIONS, STORABLE_CATEGORY_IDS, toggleCategoryId,
   lifecycleBadge, formatMoney, previewImageUrl,
   emptyProductForm, validateProductForm, buildProductPayload,
+  attentionBadge, hasChanged, changedSummary,
 } from './catalogDrawerModel';
+import ProviderBrowsePanel from './ProviderBrowsePanel.jsx';
 import MerchCurationSection from './MerchCurationSection.jsx';
 import MerchStagingSection from './MerchStagingSection.jsx';
 
@@ -72,6 +74,11 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
   const [form, setForm] = useState(null);          // null = closed
   const [formErrors, setFormErrors] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // BROWSE (full catalog integration). Opened per provider, from the Providers section, and only
+  // for a provider the server has already reported as browseAvailable.
+  const [browsing, setBrowsing] = useState(null);       // providerId | null
+  const [refreshing, setRefreshing] = useState(null);
 
   const isProviders = section === 'providers';
   const isMerch = section === 'merch';
@@ -138,6 +145,39 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
     } finally {
       setSaving(false);
     }
+  };
+
+  /** Ask the provider about ONE record. Provider-owned fields only; curation is untouched. */
+  const refreshItem = async (item) => {
+    setNotice(null); setSuccess(null); setRefreshing(item.id);
+    try {
+      const res = await client.refreshItem(item.internal.vendor, item.id, item.etag);
+      setItems((prev) => prev.map((i) => (i.id === item.id ? res.item : i)));
+      const changed = Array.isArray(res?.delta?.changed) ? res.delta.changed : [];
+      setSuccess(changed.length === 0
+        ? `${item.display.title} — nothing changed at the provider.`
+        : `${item.display.title} — the provider changed ${changed.length} field${changed.length === 1 ? '' : 's'}.`);
+    } catch (e) {
+      const code = e?.body?.error || e?.error || e?.message;
+      setNotice(REFUSAL_COPY[code] || `Could not refresh: ${code || 'unknown reason'}`);
+    } finally { setRefreshing(null); }
+  };
+
+  /** Bounded bulk refresh. The server clamps the limit; there is no "refresh everything". */
+  const refreshProvider = async (providerId) => {
+    setNotice(null); setSuccess(null); setRefreshing(providerId);
+    try {
+      const res = await client.refreshProvider(providerId);
+      setSuccess(
+        `Checked ${res.examined} record${res.examined === 1 ? '' : 's'}: `
+        + `${res.refreshed} updated, ${res.markedUnavailable} now unavailable`
+        + (res.limited ? ' — more remain, run it again.' : '.'),
+      );
+      await load();
+    } catch (e) {
+      const code = e?.body?.error || e?.error || e?.message;
+      setNotice(REFUSAL_COPY[code] || `Could not refresh: ${code || 'unknown reason'}`);
+    } finally { setRefreshing(null); }
   };
 
   const applyPatch = async (item, patch) => {
@@ -389,7 +429,7 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
                   type="button"
                   data-testid={`browse-${p.providerId}`}
                   disabled={!p.browseAvailable}
-                  onClick={() => p.browseAvailable && client.browseProvider(p.providerId)}
+                  onClick={() => p.browseAvailable && setBrowsing((b) => (b === p.providerId ? null : p.providerId))}
                   style={{
                     marginTop: '0.75rem', padding: '0.375rem 0.875rem', borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--border)', background: 'transparent',
@@ -397,8 +437,35 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
                     cursor: p.browseAvailable ? 'pointer' : 'not-allowed', fontSize: '0.8125rem', fontWeight: 600,
                   }}
                 >
-                  {p.browseAvailable ? 'Browse products' : <><Lock size={12} style={{ verticalAlign: '-1px' }} /> Browse unavailable</>}
+                  {p.browseAvailable
+                    ? (browsing === p.providerId ? 'Close browser' : 'Browse products')
+                    : <><Lock size={12} style={{ verticalAlign: '-1px' }} /> Browse unavailable</>}
                 </button>
+
+                {/* Bounded bulk refresh, beside the provider it belongs to. */}
+                {p.browseAvailable && (
+                  <button
+                    type="button"
+                    data-testid={`refresh-provider-${p.providerId}`}
+                    disabled={refreshing === p.providerId}
+                    onClick={() => refreshProvider(p.providerId)}
+                    style={{ ...btn('var(--text-secondary)'), marginTop: '0.75rem', marginLeft: '0.5rem' }}
+                  >
+                    <RefreshCw size={12} style={{ verticalAlign: '-1px' }} />
+                    {refreshing === p.providerId ? ' Refreshing…' : ' Refresh stored records'}
+                  </button>
+                )}
+
+                {browsing === p.providerId && p.browseAvailable && (
+                  <div style={{ marginTop: '0.875rem', paddingTop: '0.875rem', borderTop: '1px solid var(--border)' }}>
+                    <ProviderBrowsePanel
+                      client={client}
+                      providerId={p.providerId}
+                      providerLabel={p.label}
+                      onAdded={load}
+                    />
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -426,6 +493,30 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
                     </span>
                   );
                 })()}
+
+                {/* ATTENTION — derived from what is STORED, so a listing costs no vendor call. */}
+                {(() => {
+                  const badge = attentionBadge(item);
+                  if (!badge) return null;
+                  const tone = BADGE_TONE[badge.tone === 'bad' ? 'warn' : badge.tone] || BADGE_TONE.warn;
+                  return (
+                    <span data-testid={`attention-${item.id}`} title={badge.hint}
+                      style={{
+                        display: 'inline-block', marginLeft: '0.375rem', padding: '0.1875rem 0.5rem',
+                        borderRadius: '9999px', border: `1px solid ${tone.border}`,
+                        background: tone.bg, color: tone.color,
+                        fontSize: '0.6875rem', fontWeight: 800, letterSpacing: '0.03em',
+                      }}>
+                      {badge.label}
+                    </span>
+                  );
+                })()}
+
+                {hasChanged(item) && (
+                  <p data-testid={`changed-${item.id}`} style={{ margin: '0.375rem 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    {changedSummary(item)}
+                  </p>
+                )}
 
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', alignItems: 'flex-start' }}>
                   {previewImageUrl(item) && (
@@ -500,6 +591,14 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
                     <button type="button" data-testid={`reactivate-${item.id}`} onClick={() => runLifecycle(item, 'reactivate')}
                       style={btn('var(--primary)')}>Reactivate to Draft</button>
                   )}
+                  {/* Ask the provider about this ONE record. Curation and publication are untouched. */}
+                  <button type="button" data-testid={`refresh-${item.id}`}
+                    disabled={refreshing === item.id}
+                    onClick={() => refreshItem(item)}
+                    style={btn('var(--text-secondary)')}>
+                    <RefreshCw size={12} style={{ verticalAlign: '-1px' }} />
+                    {refreshing === item.id ? ' Refreshing…' : ' Refresh from provider'}
+                  </button>
                 </div>
               </li>
             ))}

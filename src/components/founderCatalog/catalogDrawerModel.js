@@ -364,3 +364,99 @@ export function buildProductPayload(form) {
     },
   };
 }
+
+// ── FULL CATALOG INTEGRATION (2026-09-21) ──────────────────────────────────────────────────
+//
+// Vocabulary for browsing, importing and refreshing, kept here for the reason the header gives:
+// JSX cannot be imported under `node --test`, so anything defined inside a component can only be
+// asserted by scraping source. These are executable, so the panel and its tests read the same
+// rules rather than two copies that drift.
+
+/** Attention states, mirroring the server's own vocabulary. Display only — the server decides. */
+export const ATTENTION_COPY = Object.freeze({
+  removed: { label: 'REMOVED BY PROVIDER', tone: 'bad', hint: 'The provider no longer lists this product. Its curation is kept.' },
+  inactive: { label: 'INACTIVE AT PROVIDER', tone: 'bad', hint: 'The provider marked it inactive, so it cannot be published.' },
+  ineligible: { label: 'NOT DIRECT-SEND ELIGIBLE', tone: 'warn', hint: 'It cannot be completed unattended — usually a variant or price rule.' },
+  price_moved: { label: 'PRICE OR VARIANTS CHANGED', tone: 'warn', hint: 'This is published and the vendor changed it. Review before the next send.' },
+  provider_error: { label: 'COULD NOT BE CHECKED', tone: 'warn', hint: 'The last refresh failed. This is not the same as the product being gone.' },
+  none: null,
+});
+
+/** The attention badge for one item, or null when nothing needs attention. */
+export function attentionBadge(item) {
+  const id = item?.provider?.attention;
+  if (typeof id !== 'string' || id === 'none') return null;
+  const copy = ATTENTION_COPY[id];
+  return copy ? { id, ...copy } : null;
+}
+
+/** Has anything the provider owns changed since the founder last looked? */
+export function hasChanged(item) {
+  const changed = item?.provider?.changedFields;
+  return Array.isArray(changed) && changed.length > 0;
+}
+
+/** The changed-field list, in words rather than field names. */
+export const CHANGED_FIELD_COPY = Object.freeze({
+  priceCents: 'price',
+  currency: 'currency',
+  variants: 'variants',
+  title: 'title',
+  description: 'description',
+  providerStatus: 'provider status',
+  available: 'availability',
+  directSendEligible: 'direct-send eligibility',
+});
+
+export function changedSummary(item) {
+  const changed = Array.isArray(item?.provider?.changedFields) ? item.provider.changedFields : [];
+  const words = changed.map((f) => CHANGED_FIELD_COPY[f] || f);
+  if (words.length === 0) return null;
+  if (words.length === 1) return `The provider changed the ${words[0]}.`;
+  return `The provider changed the ${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}.`;
+}
+
+/** Browse paging state — bounded here so a surface cannot ask for an unbounded page. */
+export const BROWSE_PAGE_SIZE = 20;
+export const MAX_BROWSE_PAGE_SIZE = 50;
+
+export function clampBrowseCount(count) {
+  const n = Number(count);
+  if (!Number.isInteger(n) || n <= 0) return BROWSE_PAGE_SIZE;
+  return Math.min(n, MAX_BROWSE_PAGE_SIZE);
+}
+
+/** Page arithmetic, as a pure function so the panel never derives it twice. */
+export function browsePaging({ start = 0, count = BROWSE_PAGE_SIZE, total = 0 } = {}) {
+  const size = clampBrowseCount(count);
+  const from = Number.isInteger(start) && start >= 0 ? start : 0;
+  return {
+    start: from,
+    count: size,
+    total,
+    shownFrom: total === 0 ? 0 : from + 1,
+    shownTo: Math.min(from + size, total),
+    hasPrev: from > 0,
+    hasNext: from + size < total,
+    prevStart: Math.max(0, from - size),
+    nextStart: from + size,
+  };
+}
+
+/**
+ * Read a browse response into products, fail-closed.
+ *
+ * A refusal — dormant, unauthorized, network — yields no products at all, exactly as the corporate
+ * gift-box picker already does. A surface that showed an empty list for a refusal would imply the
+ * vendor was asked and had nothing, which is a different and wrong answer.
+ */
+export function browseProducts(res) {
+  if (!res || res.ok === false) return [];
+  const products = Array.isArray(res.products) ? res.products : [];
+  return products.filter((p) => p && typeof p.providerProductId === 'string' && p.providerProductId !== '');
+}
+
+/** Is this browse response a dormant refusal, as opposed to an empty catalog? */
+export function isDormantBrowse(res) {
+  return Boolean(res && res.ok === false && res.reason === 'provider_disabled');
+}

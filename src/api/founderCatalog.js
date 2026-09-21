@@ -42,6 +42,34 @@ export const founderCatalogApi = {
   browseProvider: (providerId, { q, categoryId, start, count = 20 } = {}) =>
     api.request(`${BASE}/providers/${encodeURIComponent(providerId)}/browse${qs({ q, categoryId, start, count })}`),
 
+  /**
+   * ONE product becomes ONE draft, SERVER-OWNED.
+   *
+   * It sends two identifiers and nothing else. The server fetches the product and builds the
+   * record itself, so this method cannot carry a title, price, image, currency, variant list or
+   * availability even by mistake — there is nowhere in the body to put one, and the server refuses
+   * any extra field by name.
+   */
+  addFromProvider: ({ providerId, externalProductId }) =>
+    api.request(`${BASE}/items/from-provider`, {
+      method: 'POST',
+      body: JSON.stringify({ providerId, externalProductId }),
+    }),
+
+  /** Ask the provider about ONE stored record and refresh its provider-owned fields. */
+  refreshItem: (vendor, id, etag) =>
+    api.request(`${BASE}/items/${encodeURIComponent(vendor)}/${encodeURIComponent(id)}/refresh`, {
+      method: 'POST',
+      headers: etag ? { 'If-Match': etag } : undefined,
+    }),
+
+  /** Bounded bulk refresh. `limit` is clamped server-side; there is no "refresh everything". */
+  refreshProvider: (providerId, { limit } = {}) =>
+    api.request(`${BASE}/providers/${encodeURIComponent(providerId)}/refresh`, {
+      method: 'POST',
+      body: JSON.stringify(limit === undefined ? {} : { limit }),
+    }),
+
   /** ONE product becomes ONE draft. There is no array form and no bulk endpoint. */
   createDraft: ({ source, vendor, externalProductId, snapshot }) =>
     api.request(`${BASE}/items`, {
