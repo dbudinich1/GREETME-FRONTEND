@@ -19,6 +19,7 @@ import {
   CATEGORY_LABELS, REFUSAL_COPY, SECTIONS, STORABLE_CATEGORY_IDS, toggleCategoryId,
 } from './catalogDrawerModel';
 import MerchCurationSection from './MerchCurationSection.jsx';
+import MerchStagingSection from './MerchStagingSection.jsx';
 
 // Re-exported so the component remains the single import site for callers that already have it.
 export { STORABLE_CATEGORY_IDS, CATEGORY_LABELS, SECTIONS };
@@ -42,11 +43,12 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
   const isProviders = section === 'providers';
   const isMerch = section === 'merch';
   const [merchDirty, setMerchDirty] = useState(false);
+  const [stagingDirty, setStagingDirty] = useState(false);
 
 
   // Unsaved merch edits must not vanish silently on close or a section switch. The guard is a
   // confirm rather than a block: the founder stays in control, but is never surprised.
-  const confirmDiscard = () => !merchDirty
+  const confirmDiscard = () => !(merchDirty || stagingDirty)
     || (typeof window !== 'undefined' && typeof window.confirm === 'function'
       ? window.confirm('You have unsaved merch changes. Discard them?') : true);
   const guardedClose = () => { if (confirmDiscard()) { setMerchDirty(false); onClose(); } };
@@ -164,6 +166,19 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
 
         {isMerch && (
           <MerchCurationSection client={client} onDirtyChange={setMerchDirty} />
+        )}
+
+        {/* PHASE 2 — staging a product that is NOT yet in the catalog.
+            A SIBLING of the curation section, never inside it. The two do different things:
+            the section above curates products that are already on sale and offers no browse,
+            no create and no import — an invariant its own suite asserts on that subtree. This
+            block prepares a reviewed code change for something that is not on sale at all, and
+            keeping it outside `merch-section` is what stops Phase 2 from quietly widening what
+            Phase 1 promises about itself. */}
+        {isMerch && (
+          <div data-testid="merch-staging-block" style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle, #e6e1d8)' }}>
+            <MerchStagingSection client={client} onDirtyChange={setStagingDirty} />
+          </div>
         )}
 
         {!loading && !error && !isMerch && isProviders && (
