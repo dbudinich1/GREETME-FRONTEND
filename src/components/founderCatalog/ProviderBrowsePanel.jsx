@@ -15,12 +15,20 @@
 // A DORMANT PROVIDER IS NEVER REQUESTED. The drawer only renders this panel for a provider the
 // server has already reported as browseAvailable, so a disabled provider is a stated fact rather
 // than a spinner waiting on a 503.
+//
+// SEARCH SPANS THE CATALOG, AND SAYS HOW FAR IT GOT. The server walks a bounded number of provider
+// pages per request, so a match on page three is found — but a catalog larger than that bound is
+// only partly searched. When that happens this panel NEVER prints "No products match": an empty
+// result from a partial search is not a statement about the catalog, and saying it were would be
+// the most convincing wrong answer the surface could give. It says how much was searched and
+// offers to continue from where the search stopped.
 
 import { useCallback, useEffect, useState } from 'react';
 import { Search, Plus, Check, AlertTriangle, RefreshCw } from 'lucide-react';
 import {
   CATEGORY_LABELS, STORABLE_CATEGORY_IDS, REFUSAL_COPY,
   browseProducts, isDormantBrowse, browsePaging, BROWSE_PAGE_SIZE, formatMoney,
+  browseTraversal, browseCountCopy,
 } from './catalogDrawerModel';
 
 const card = {
@@ -40,7 +48,11 @@ export default function ProviderBrowsePanel({ client, providerId, providerLabel,
   const [applied, setApplied] = useState('');              // the query actually searched
   const [categoryId, setCategoryId] = useState('');
   const [start, setStart] = useState(0);
-  const [state, setState] = useState({ loading: false, products: [], total: 0, dormant: false, error: null });
+  const [cursor, setCursor] = useState(null);            // continue a truncated search from here
+  const [state, setState] = useState({
+    loading: false, products: [], total: 0, dormant: false, error: null,
+    traversal: { complete: true, truncated: false, scanned: 0, failed: false, nextCursor: null },
+  });
   const [adding, setAdding] = useState(null);
   const [added, setAdded] = useState([]);
   const [notice, setNotice] = useState(null);
@@ -53,25 +65,35 @@ export default function ProviderBrowsePanel({ client, providerId, providerLabel,
         categoryId: categoryId || undefined,
         start,
         count: BROWSE_PAGE_SIZE,
+        cursor: cursor || undefined,
       });
       // FAIL-CLOSED: a refusal yields no products, and a dormant refusal is named as such rather
-      // than shown as an empty catalog.
+      // than shown as an empty catalog. Completeness is likewise believed only when stated.
       setState({
         loading: false,
         products: browseProducts(res),
         total: Number.isInteger(res?.total) ? res.total : 0,
         dormant: isDormantBrowse(res),
         error: res && res.ok === false && !isDormantBrowse(res) ? (REFUSAL_COPY[res.error] || 'The provider catalog could not be read.') : null,
+        traversal: browseTraversal(res),
       });
     } catch (e) {
-      setState({ loading: false, products: [], total: 0, dormant: false, error: 'The provider catalog could not be read.' });
+      setState({
+        loading: false, products: [], total: 0, dormant: false,
+        error: 'The provider catalog could not be read.',
+        traversal: browseTraversal(null),
+      });
     }
-  }, [client, providerId, applied, categoryId, start]);
+  }, [client, providerId, applied, categoryId, start, cursor]);
 
   useEffect(() => { load(); }, [load]);
 
-  const search = (e) => { e.preventDefault(); setStart(0); setApplied(query.trim()); };
-  const pickCategory = (id) => { setStart(0); setCategoryId((c) => (c === id ? '' : id)); };
+  // A NEW search starts a NEW traversal. Carrying a continuation across a changed query would
+  // silently skip the beginning of the catalog for the new terms.
+  const search = (e) => { e.preventDefault(); setStart(0); setCursor(null); setApplied(query.trim()); };
+  const pickCategory = (id) => { setStart(0); setCursor(null); setCategoryId((c) => (c === id ? '' : id)); };
+  const keepSearching = () => { setStart(0); setCursor(state.traversal.nextCursor); };
+  const startOver = () => { setStart(0); setCursor(null); };
 
   const addAsDraft = async (product) => {
     setAdding(product.providerProductId);
@@ -155,8 +177,35 @@ export default function ProviderBrowsePanel({ client, providerId, providerLabel,
       {!state.loading && !state.error && (
         <>
           <p data-testid="browse-count" style={{ margin: '0.75rem 0 0.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-            {state.total === 0 ? 'No products match.' : `Showing ${paging.shownFrom}–${paging.shownTo} of ${state.total}`}
+            {browseCountCopy({ total: state.total, paging, traversal: state.traversal })}
           </p>
+
+          {state.traversal.truncated && (
+            <p data-testid="browse-truncated" role="status" style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', color: '#9a3412' }}>
+              <AlertTriangle size={12} style={{ verticalAlign: '-2px' }} />{' '}
+              {state.traversal.failed
+                ? 'The provider stopped responding partway through this search, so the rest of the catalog was not searched.'
+                : 'This search stopped at a safety limit, so the rest of the catalog has not been searched yet.'}
+              {state.traversal.nextCursor && (
+                <>
+                  {' '}
+                  <button type="button" data-testid="browse-continue" onClick={keepSearching}
+                    style={{ ...btn(false), padding: '0.125rem 0.5rem', fontSize: '0.75rem' }}>
+                    Keep searching
+                  </button>
+                </>
+              )}
+            </p>
+          )}
+          {cursor && (
+            <p data-testid="browse-continued" style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+              Continuing from where the last search stopped.{' '}
+              <button type="button" data-testid="browse-restart" onClick={startOver}
+                style={{ ...btn(false), padding: '0.125rem 0.5rem', fontSize: '0.75rem' }}>
+                Start over
+              </button>
+            </p>
+          )}
 
           <ul data-testid="browse-results" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '0.625rem' }}>
             {state.products.map((p) => {

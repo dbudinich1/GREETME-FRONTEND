@@ -20,6 +20,7 @@ import esbuild from "esbuild";
 import {
   attentionBadge, hasChanged, changedSummary, browsePaging, browseProducts,
   isDormantBrowse, clampBrowseCount, BROWSE_PAGE_SIZE, MAX_BROWSE_PAGE_SIZE, ATTENTION_COPY,
+  browseTraversal, browseCountCopy,
 } from "./catalogDrawerModel.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -77,7 +78,12 @@ function clientStub(over = {}) {
     listProviders: async () => { calls.providers++; return { ok: true, providers: PROVIDERS() }; },
     browseProvider: async (providerId, opts) => {
       calls.browse.push({ providerId, ...opts });
-      return { ok: true, providerId, persisted: false, start: opts?.start || 0, count: opts?.count || 20, total: 1, products: [BROWSE_PRODUCT()] };
+      return {
+        ok: true, providerId, persisted: false, start: opts?.start || 0, count: opts?.count || 20,
+        total: 1, products: [BROWSE_PRODUCT()],
+        totalIsExact: true, nextCursor: null,
+        traversal: { complete: true, truncated: false, outcome: "complete", pagesFetched: 1, productsScanned: 1, fromPage: 1, error: null },
+      };
     },
     addFromProvider: async (body) => { calls.added.push(body); return { ok: true, item: ITEM({ display: { title: "Roasted and Toasted", imageUrl: null } }) }; },
     refreshItem: async (vendor, id, etag) => { calls.refreshItem.push({ vendor, id, etag }); return { ok: true, item: ITEM(), delta: { changed: [], becameUnavailable: false, priceOrVariantsMoved: false } }; },
@@ -195,7 +201,11 @@ test("paging asks for the next window and never exceeds the page size", async ()
   const client = clientStub({
     browseProvider: async (providerId, opts) => {
       client.calls.browse.push({ providerId, ...opts });
-      return { ok: true, total: 57, start: opts.start, count: opts.count, products: [BROWSE_PRODUCT()] };
+      return {
+        ok: true, total: 57, start: opts.start, count: opts.count, products: [BROWSE_PRODUCT()],
+        totalIsExact: true, nextCursor: null,
+        traversal: { complete: true, truncated: false, outcome: "complete", pagesFetched: 1, productsScanned: 57, fromPage: 1, error: null },
+      };
     },
   });
   await mount(panelEl(client));
@@ -362,5 +372,120 @@ test("changed summaries read as sentences, not field names", () => {
   assert.equal(
     changedSummary({ provider: { changedFields: ["priceCents", "variants", "title"] } }),
     "The provider changed the price, variants and title.",
+  );
+});
+
+// ══ MULTI-PAGE SEARCH — TRUNCATION, HONEST EMPTINESS, CONTINUATION ══════════════════════════
+//
+// The server searches a bounded slice of the provider catalog per request. These prove the panel
+// never launders a partial search into a statement about the whole catalog.
+
+const TRUNCATED = (over = {}) => ({
+  ok: true, providerId: "prov", persisted: false, start: 0, count: 20,
+  total: 0, products: [],
+  totalIsExact: false, nextCursor: "p6",
+  traversal: { complete: false, truncated: true, outcome: "page_budget", pagesFetched: 5, productsScanned: 500, fromPage: 1, error: null },
+  ...over,
+});
+
+test("an EMPTY result from a truncated search is never reported as 'no products match'", async () => {
+  const client = clientStub({ browseProvider: async (providerId, opts) => { client.calls.browse.push({ providerId, ...opts }); return TRUNCATED(); } });
+  await mount(panelEl(client));
+
+  const count = tid("browse-count").textContent;
+  assert.doesNotMatch(count, /No products match/i, "that sentence is a claim about the whole catalog");
+  assert.match(count, /first 500 products/, "it says what was actually searched");
+  assert.ok(tid("browse-truncated"), "and the truncation is stated in its own right");
+  assert.match(tid("browse-truncated").textContent, /safety limit/i);
+});
+
+test("a COMPLETE search that finds nothing DOES say so plainly", async () => {
+  const client = clientStub({
+    browseProvider: async () => TRUNCATED({
+      totalIsExact: true, nextCursor: null,
+      traversal: { complete: true, truncated: false, outcome: "complete", pagesFetched: 2, productsScanned: 140, fromPage: 1, error: null },
+    }),
+  });
+  await mount(panelEl(client));
+  assert.equal(tid("browse-count").textContent, "No products match.");
+  assert.equal(tid("browse-truncated"), null, "nothing to warn about when the whole catalog was searched");
+});
+
+test("continuation resumes with the cursor the server issued, and does not restart", async () => {
+  const seen = [];
+  const client = clientStub({
+    browseProvider: async (providerId, opts) => {
+      seen.push(opts);
+      return opts?.cursor
+        ? { ...TRUNCATED(), total: 1, products: [BROWSE_PRODUCT()], totalIsExact: true, nextCursor: null,
+            traversal: { complete: true, truncated: false, outcome: "complete", pagesFetched: 1, productsScanned: 40, fromPage: 6, error: null } }
+        : TRUNCATED();
+    },
+  });
+  await mount(panelEl(client));
+  await clickEl(tid("browse-continue"));
+
+  assert.equal(seen.length, 2);
+  assert.equal(seen[0].cursor, undefined, "the first pass starts at the beginning");
+  assert.equal(seen[1].cursor, "p6", "the second resumes exactly where the server stopped");
+  assert.ok(tid("browse-item-box-1"), "and the product found later is shown");
+  assert.ok(tid("browse-continued"), "the panel says it is continuing rather than pretending to be page one");
+  assert.ok(tid("browse-restart"), "and offers a way back to the beginning");
+});
+
+test("a NEW search abandons the continuation instead of skipping the catalog's beginning", async () => {
+  const seen = [];
+  const client = clientStub({
+    browseProvider: async (providerId, opts) => { seen.push(opts); return TRUNCATED(); },
+  });
+  await mount(panelEl(client));
+  await clickEl(tid("browse-continue"));
+  assert.equal(seen[seen.length - 1].cursor, "p6");
+
+  await setValue(tid("browse-q"), "hoodie");
+  await clickEl(tid("browse-search"));
+  const last = seen[seen.length - 1];
+  assert.equal(last.q, "hoodie");
+  assert.equal(last.cursor, undefined, "a new query searches from the start, or it would silently skip products");
+
+  await clickEl(tid("browse-cat-tech"));
+  assert.equal(seen[seen.length - 1].cursor, undefined, "so does a new filter");
+});
+
+test("a provider failure partway through is described as a failure, not as an empty catalog", async () => {
+  const client = clientStub({
+    browseProvider: async () => TRUNCATED({
+      traversal: { complete: false, truncated: true, outcome: "provider_error", pagesFetched: 1, productsScanned: 100, fromPage: 1, error: "provider_catalog_error" },
+      nextCursor: "p2",
+    }),
+  });
+  await mount(panelEl(client));
+  assert.match(tid("browse-count").textContent, /stopped responding/i);
+  assert.match(tid("browse-truncated").textContent, /stopped responding/i);
+  assert.ok(tid("browse-continue"), "and a retry is still offered from the page that failed");
+});
+
+test("browseTraversal is fail-closed: completeness is believed only when stated", () => {
+  assert.equal(browseTraversal(null).complete, false);
+  assert.equal(browseTraversal({ ok: false, reason: "provider_disabled" }).complete, false);
+  assert.equal(browseTraversal({ ok: true, total: 3, products: [] }).complete, false, "an old-shaped response claims nothing");
+  assert.equal(browseTraversal({ ok: true, totalIsExact: true, traversal: { complete: true } }).complete, true);
+  assert.equal(browseTraversal({ ok: true, totalIsExact: true, traversal: { complete: false } }).complete, false);
+  assert.equal(browseTraversal({ ok: true, totalIsExact: true, traversal: { complete: true }, nextCursor: "p4" }).nextCursor, "p4");
+  assert.equal(browseTraversal({ ok: true, traversal: { outcome: "provider_error" } }).failed, true);
+});
+
+test("browseCountCopy never presents a partial search as the catalog's answer", () => {
+  const partial = { complete: false, truncated: true, scanned: 500, failed: false };
+  assert.match(browseCountCopy({ total: 0, traversal: partial }), /first 500 products/);
+  assert.doesNotMatch(browseCountCopy({ total: 0, traversal: partial }), /No products match/);
+  assert.equal(browseCountCopy({ total: 0, traversal: { complete: true, scanned: 12 } }), "No products match.");
+  assert.match(
+    browseCountCopy({ total: 4, paging: browsePaging({ start: 0, count: 20, total: 4 }), traversal: partial }),
+    /Showing 1–4 of 4 found so far/,
+  );
+  assert.equal(
+    browseCountCopy({ total: 4, paging: browsePaging({ start: 0, count: 20, total: 4 }), traversal: { complete: true, scanned: 4 } }),
+    "Showing 1–4 of 4",
   );
 });

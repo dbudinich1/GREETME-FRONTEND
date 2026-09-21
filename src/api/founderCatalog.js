@@ -38,9 +38,12 @@ export const founderCatalogApi = {
    * Browse a provider's catalog. The drawer only calls this for a provider the server has
    * already reported as browseAvailable — a dormant provider is never requested at all, so the
    * disabled state is not a spinner waiting on a 503.
+   *
+   * `cursor` continues a search the server had to truncate at its own safety bound, resuming
+   * where the last pass stopped instead of re-reading everything already searched.
    */
-  browseProvider: (providerId, { q, categoryId, start, count = 20 } = {}) =>
-    api.request(`${BASE}/providers/${encodeURIComponent(providerId)}/browse${qs({ q, categoryId, start, count })}`),
+  browseProvider: (providerId, { q, categoryId, start, count = 20, cursor } = {}) =>
+    api.request(`${BASE}/providers/${encodeURIComponent(providerId)}/browse${qs({ q, categoryId, start, count, cursor })}`),
 
   /**
    * ONE product becomes ONE draft, SERVER-OWNED.

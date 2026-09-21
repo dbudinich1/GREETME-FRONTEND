@@ -460,3 +460,45 @@ export function browseProducts(res) {
 export function isDormantBrowse(res) {
   return Boolean(res && res.ok === false && res.reason === 'provider_disabled');
 }
+
+/**
+ * How much of the provider catalog this browse response actually saw.
+ *
+ * FAIL-CLOSED ON COMPLETENESS, which is the whole point. Completeness is believed only when the
+ * server positively says so: a response that predates this field, or a refusal, is treated as
+ * INCOMPLETE. The cost of wrongly assuming incomplete is one extra "keep searching" button; the
+ * cost of wrongly assuming complete is telling a founder a product does not exist.
+ */
+export function browseTraversal(res) {
+  const t = res && typeof res.traversal === 'object' && res.traversal !== null ? res.traversal : {};
+  const complete = res?.ok !== false && res?.totalIsExact === true && t.complete === true;
+  return {
+    complete,
+    truncated: !complete,
+    scanned: Number.isInteger(t.productsScanned) ? t.productsScanned : 0,
+    pagesFetched: Number.isInteger(t.pagesFetched) ? t.pagesFetched : 0,
+    outcome: typeof t.outcome === 'string' ? t.outcome : null,
+    failed: t.outcome === 'provider_error',
+    nextCursor: typeof res?.nextCursor === 'string' && res.nextCursor !== '' ? res.nextCursor : null,
+  };
+}
+
+/**
+ * What the count line says, in words, for a given response.
+ *
+ * AN EMPTY RESULT IS NOT ALLOWED TO SOUND AUTHORITATIVE UNLESS IT IS. "No products match" is a
+ * claim about the whole catalog; after a truncated traversal the only true statement is about the
+ * part that was searched, and this says that instead.
+ */
+export function browseCountCopy({ total = 0, paging, traversal } = {}) {
+  const t = traversal || { complete: true, scanned: 0, failed: false };
+  if (total === 0) {
+    if (t.complete) return 'No products match.';
+    if (t.failed) {
+      return `No matches in the first ${t.scanned} products, and the provider stopped responding before the rest could be searched.`;
+    }
+    return `No matches in the first ${t.scanned} products of the provider catalog. Keep searching to look further.`;
+  }
+  const shown = paging ? `Showing ${paging.shownFrom}–${paging.shownTo} of ${total}` : `${total} matches`;
+  return t.complete ? shown : `${shown} found so far in the first ${t.scanned} products`;
+}
