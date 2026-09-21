@@ -31,6 +31,25 @@ import {
   browseTraversal, browseCountCopy,
 } from './catalogDrawerModel';
 
+/**
+ * Provider-level constraints a product row cannot show.
+ *
+ * These are DELIVERY-SHAPE facts, not merchandising: where the provider ships, and how far ahead
+ * it will accept a date. They belong to the provider, so they are stated once per provider rather
+ * than repeated per row — and they are stated at all because a founder cannot infer them from a
+ * picture and a price.
+ *
+ * A provider with no entry here prints nothing. An empty panel is the honest default: inventing a
+ * reassuring line for a provider whose limits nobody has written down would be worse than silence.
+ */
+const PROVIDER_BROWSE_LIMITS = Object.freeze({
+  florist_one: Object.freeze([
+    'Delivers to United States addresses only. A product published here cannot be sent anywhere else.',
+    'Delivery dates are offered up to 30 days ahead, and each address is checked at checkout.',
+    'One product, one price — this provider publishes no sizes or variants.',
+  ]),
+});
+
 const card = {
   border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '0.75rem',
   display: 'flex', gap: '0.75rem', alignItems: 'flex-start',
@@ -123,8 +142,29 @@ export default function ProviderBrowsePanel({ client, providerId, providerLabel,
     );
   }
 
+  const limits = PROVIDER_BROWSE_LIMITS[providerId] || null;
+
   return (
     <section data-testid="provider-browse-panel" aria-label={`Browse ${providerLabel || providerId}`}>
+      {/* THE LIMITS OF WHAT CAN BE SOLD, STATED BEFORE ANYTHING IS CHOSEN.
+          A founder curating a catalog is making a commitment on Greet-Me's behalf, and the two
+          constraints below cannot be read off a product row: they are properties of the provider,
+          not of the item. Printing them here — above the results, not in a tooltip — is what stops
+          a product being published for a country it cannot reach or a date it cannot meet. */}
+      {limits ? (
+        <ul
+          data-testid="browse-limits"
+          style={{
+            listStyle: 'none', margin: '0 0 0.75rem', padding: '0.5rem 0.625rem',
+            border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
+            background: 'var(--bg-secondary, #f9fafb)',
+            fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'grid', gap: '0.25rem',
+          }}
+        >
+          {limits.map((line) => <li key={line}>{line}</li>)}
+        </ul>
+      ) : null}
+
       <form onSubmit={search} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <label htmlFor="browse-q" style={{ flex: '1 1 12rem', minWidth: 0 }}>
           <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
