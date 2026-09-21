@@ -137,9 +137,15 @@ test("there is still exactly ONE shared product grid and one add-to-cart path", 
 });
 
 test("the price filter and its pipeline are untouched", () => {
+  // PIPELINE ORDER IS UNCHANGED and is still what this asserts: selection, then price, then
+  // render. UPDATED 2026-09-21 for the sources each step reads — the filter now runs over whichever
+  // set feeds the grid, and the bounds describe that same set, so a provider category is priced and
+  // filtered instead of sitting under a control that ignored it.
   assert.match(MERCH_CODE, /selectProducts\(products, selectedCategory\)/);
-  assert.match(MERCH_CODE, /filterByPrice\(selectedProducts, minCents, maxCents\)/);
-  assert.match(MERCH_CODE, /priceBounds\(products\)/);
+  assert.match(MERCH_CODE, /const gridSource = providerGiftType \? pricedProviderProducts : selectedProducts/);
+  assert.match(MERCH_CODE, /filterByPrice\(gridSource, minCents, maxCents\)/);
+  assert.match(MERCH_CODE, /const boundsSource = providerGiftType \? pricedProviderProducts : products/);
+  assert.match(MERCH_CODE, /priceBounds\(boundsSource\)/);
   assert.match(MERCH, /No products in this price range\./);
 });
 

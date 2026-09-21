@@ -112,29 +112,58 @@ export default function Merch() {
     [products, selectedCategory]
   );
 
-  // GIFTS — price range. Bounds come from the WHOLE loaded catalog, never from the current
-  // selection, so the control keeps one scale and the handles do not jump when the category
-  // changes.
-  const bounds = useMemo(() => priceBounds(products), [products]);
+  // PROVIDER PRODUCTS, PRICED IN THE SHARED VOCABULARY.
+  //
+  // A provider product states its price as `priceMinor`; the shared price helpers read
+  // `priceCentsMin`/`priceCentsMax`. They are the same number in the same units under two names,
+  // and reconciling them here — additively, leaving every original field intact — is what lets
+  // one price control serve every category instead of one control that silently ignores half of
+  // them.
+  const pricedProviderProducts = useMemo(() => (
+    (providerProducts || []).map((p) => (
+      Number.isFinite(p?.priceMinor)
+        ? { ...p, priceCentsMin: p.priceMinor, priceCentsMax: p.priceMinor }
+        : p
+    ))
+  ), [providerProducts]);
+
+  // GIFTS — price range.
+  //
+  // THE BOUNDS DESCRIBE WHAT IS ON SCREEN. They used to come from the merch catalog alone, which
+  // was true while merch was the whole catalog and quietly wrong once provider categories joined
+  // the page: on 2026-09-21 the bar read $14–$59 (the merch range) while Flowers held a $79.95
+  // arrangement, so the scale could not describe the thing it sat above. A scale that cannot
+  // reach a product on the page is worse than no scale.
+  //
+  // For a provider category the source is the provider's own set; for merch it is the whole loaded
+  // catalog exactly as before, so the handles still do not jump between merch selectors.
+  const boundsSource = providerGiftType ? pricedProviderProducts : products;
+  const bounds = useMemo(() => priceBounds(boundsSource), [boundsSource]);
 
   // `null` means "the shopper has not chosen a range", which resolves to the full bounds below.
   // Holding it this way rather than seeding state from an effect means the default is always the
-  // complete range even before products arrive, a deliberate choice SURVIVES every category
-  // switch, and Reset is simply a return to null.
+  // complete range even before products arrive — so a product that loads ABOVE the previous
+  // maximum is visible by default rather than filtered out by a range chosen before it existed.
+  // Reset is simply a return to null.
   const [priceRange, setPriceRange] = useState(null);
   const minCents = priceRange ? priceRange.min : bounds?.floor;
   const maxCents = priceRange ? priceRange.max : bounds?.ceiling;
 
+  // THE GRID'S SOURCE, whichever it is. Both paths now go through the same price filter: a control
+  // that renders above a category it does not filter is a promise the page does not keep, and
+  // "Any price" appearing to do nothing is exactly how that looked.
+  const gridSource = providerGiftType ? pricedProviderProducts : selectedProducts;
+
   // The pipeline, in order: selection, then price, then the one shared card map.
   const visibleProducts = useMemo(
-    () => filterByPrice(selectedProducts, minCents, maxCents),
-    [selectedProducts, minCents, maxCents]
+    () => filterByPrice(gridSource, minCents, maxCents),
+    [gridSource, minCents, maxCents]
   );
 
   // Distinguishes the two empty states: a category nothing has been curated into yet is
   // "Coming Soon", while a category that HAS products none of which match the range is a price
   // result. Conflating them would tell a shopper a collection does not exist when it does.
-  const hiddenByPrice = selectedProducts.length > 0 && visibleProducts.length === 0;
+  const hiddenByPrice = gridSource.length > 0 && visibleProducts.length === 0;
 
   const selectedCategoryLabel = selectionLabel(selectedCategory);
 
@@ -142,9 +171,9 @@ export default function Merch() {
   // in the same shape. This is the line that makes Flowers and Americana the same page.
   const cards = useMemo(() => (
     providerGiftType
-      ? projectGiftCards(providerProducts, fromProviderProduct)
+      ? projectGiftCards(visibleProducts, fromProviderProduct)
       : projectGiftCards(visibleProducts, fromCatalogProduct)
-  ), [providerGiftType, providerProducts, visibleProducts]);
+  ), [providerGiftType, visibleProducts]);
 
   // The grid's state, from whichever source is feeding it.
   const gridState = providerGiftType
@@ -645,7 +674,14 @@ export default function Merch() {
                 }} />
               )}
               <button
-                onClick={() => setSelectedCategory(sel.id)}
+                onClick={() => {
+                  // A RANGE BELONGS TO THE CATALOG IT WAS CHOSEN OVER. Carrying $20–$30 from a
+                  // merch selector into Flowers would hide every arrangement and say "no products
+                  // match", which is a statement about the filter dressed up as one about the
+                  // catalog. Switching category returns to the full range of whatever is next.
+                  setPriceRange(null);
+                  setSelectedCategory(sel.id);
+                }}
                 aria-pressed={isSelected}
                 style={{
                   flexShrink: 0,

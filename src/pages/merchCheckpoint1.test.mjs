@@ -342,7 +342,12 @@ test("the grid renders the SELECTED product list through the one shared rule", (
   // rendered, so a provider's products and the catalogue's arrive at the grid in one shape.
   assert.match(SRC, /selectProducts\(products, selectedCategory\)/);
   assert.match(CODE, /projectGiftCards\(visibleProducts, fromCatalogProduct\)/);
-  assert.match(CODE, /projectGiftCards\(providerProducts, fromProviderProduct\)/);
+  // UPDATED 2026-09-21. Both sources now reach the grid through the SAME price-filtered set.
+  // Provider cards used to come straight from the fetch, which is why the price control appeared
+  // to do nothing on a provider category — it filtered a list the grid never rendered.
+  assert.match(CODE, /projectGiftCards\(visibleProducts, fromProviderProduct\)/);
+  assert.equal(/projectGiftCards\(providerProducts,/.test(CODE), false,
+    "the unfiltered provider path must not come back");
   // ONE ternary decides which source feeds the one grid — there is no second grid to feed.
   assert.equal((CODE.match(/<GiftProductGrid/g) || []).length, 1);
 });

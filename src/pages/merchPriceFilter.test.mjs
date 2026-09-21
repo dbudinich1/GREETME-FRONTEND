@@ -90,7 +90,12 @@ test("bounds are computed from ALL products, not from the current selection", ()
   const techOnly = selectProducts(FIXTURE, "tech");
   assert.deepEqual(priceBounds(techOnly), { floor: 2900, ceiling: 4400 });
   assert.deepEqual(BOUNDS, { floor: 1400, ceiling: 5900 });
-  assert.match(CODE, /priceBounds\(products\)/, "the page must derive bounds from the full list");
+  // UPDATED 2026-09-21. The claim is unchanged for merch — the bounds still span the whole loaded
+  // merch catalog rather than the current selection. What changed is that a PROVIDER category now
+  // supplies its own set instead of borrowing the merch range, which could not describe it.
+  assert.match(CODE, /const boundsSource = providerGiftType \? pricedProviderProducts : products/,
+    "merch still derives bounds from the full list; a provider category from its own products");
+  assert.match(CODE, /priceBounds\(boundsSource\)/);
 });
 
 test("an unpriceable catalog yields no bounds, so no control is rendered", () => {
@@ -182,7 +187,11 @@ test("category and price filtering compose in the required order", () => {
   assert.deepEqual(namesOf(got), ["Laptop Sleeve"]);
   // The page must apply selection first, then price, then render.
   assert.match(CODE, /selectProducts\(products, selectedCategory\)/);
-  assert.match(CODE, /filterByPrice\(selectedProducts, minCents, maxCents\)/);
+  // UPDATED 2026-09-21. Order is unchanged — selection, then price, then render. The filter now
+  // runs over whichever source feeds the grid, so a provider category is filtered too instead of
+  // sitting under a control that did nothing to it.
+  assert.match(CODE, /const gridSource = providerGiftType \? pricedProviderProducts : selectedProducts/);
+  assert.match(CODE, /filterByPrice\(gridSource, minCents, maxCents\)/);
 });
 
 test("a chosen range means the same thing under every selector", () => {
@@ -216,7 +225,7 @@ test("a price-filtered-out category shows the price message, not Coming Soon", (
   const got = filterByPrice(selectProducts(FIXTURE, "tech"), 100, 500);
   assert.equal(got.length, 0, "the fixture must actually produce an empty price result");
   assert.match(SRC, /No products in this price range\./);
-  assert.match(CODE, /const hiddenByPrice = selectedProducts\.length > 0 && visibleProducts\.length === 0/);
+  assert.match(CODE, /const hiddenByPrice = gridSource\.length > 0 && visibleProducts\.length === 0/);
   // REWRITTEN 2026-09-14. The three empty states still exist and are still distinct, but two of them
   // moved: "Coming Soon" and the failed-to-load state now live inside the ONE shared grid component
   // that every category renders through, so they cannot drift per category. The price-range state
@@ -372,4 +381,100 @@ test("no Shopify customer-facing identifier is reintroduced", () => {
   for (const token of ["fetch(", "api.", "localStorage", "sessionStorage", "Shopify", "shopify", "GiftMarketFilters"]) {
     assert.ok(!compCode.includes(token), `the price control must not contain "${token}"`);
   }
+});
+
+// ============================================================
+// THE 2026-09-21 FLOWER INCIDENT — a provider product priced above every merch item.
+//
+// A $79.95 arrangement was published while the merch catalog topped out at $59. The price bar read
+// $14-$59 and "Any price" appeared to do nothing, because provider products were never priced into
+// the bounds and never passed through the filter at all. These tests hold both halves open.
+// ============================================================
+
+/** The provider product at the centre of the incident, as /provider-checkout/catalog returns it. */
+const PINK = {
+  providerProductId: "T10-3A",
+  name: "A Little Pink Me Up",
+  description: "Pink roses.",
+  imageUrl: "https://example.test/t10-3a.jpg",
+  priceMinor: 7995,
+  currency: "USD",
+};
+
+/** Exactly what Merch.jsx does to provider products before pricing them. */
+const priced = (list) => list.map((p) => (
+  Number.isFinite(p?.priceMinor)
+    ? { ...p, priceCentsMin: p.priceMinor, priceCentsMax: p.priceMinor }
+    : p
+));
+
+test("INCIDENT 1: a $79.95 provider product is VISIBLE at the full range, though merch tops at $59", () => {
+  const merchBounds = priceBounds(FIXTURE);
+  assert.equal(merchBounds.ceiling, 5900, "the merch ceiling is the one that misled the bar");
+
+  const source = priced([PINK]);
+  const b = priceBounds(source);
+  assert.deepEqual(filterByPrice(source, b.floor, b.ceiling).map((p) => p.providerProductId), ["T10-3A"],
+    "at the default full range the arrangement must be on screen");
+});
+
+test("INCIDENT 2: the BOUNDS include the provider product rather than the merch ceiling", () => {
+  const b = priceBounds(priced([PINK]));
+  assert.deepEqual(b, { floor: 7995, ceiling: 7995 });
+  assert.ok(b.ceiling > priceBounds(FIXTURE).ceiling,
+    "a scale that cannot reach a product on the page is worse than no scale");
+});
+
+test("INCIDENT 3: narrowing the range EXCLUDES it correctly — the control really filters now", () => {
+  const source = priced([PINK]);
+  assert.deepEqual(filterByPrice(source, 1000, 5000), [], "a $10-$50 range must exclude a $79.95 item");
+  assert.deepEqual(filterByPrice(source, 7000, 9000).map((p) => p.providerProductId), ["T10-3A"]);
+});
+
+test("INCIDENT 4: 'Any price' restores the complete currently available set", () => {
+  // Reset sets the committed range back to null; the page then resolves min/max to the full bounds.
+  assert.match(CODE, /onReset=\{\(\) => setPriceRange\(null\)\}/);
+  assert.match(CODE, /const minCents = priceRange \? priceRange\.min : bounds\?\.floor/);
+  assert.match(CODE, /const maxCents = priceRange \? priceRange\.max : bounds\?\.ceiling/);
+
+  const source = priced([PINK, { providerProductId: "B-2", name: "Other", priceMinor: 4500 }]);
+  const b = priceBounds(source);
+  assert.equal(filterByPrice(source, b.floor, b.ceiling).length, 2, "reset shows everything again");
+});
+
+test("INCIDENT 5: switching category cannot carry a stale range that hides the next catalog", () => {
+  // $20-$30 chosen over merch would hide a $79.95 arrangement entirely and report it as
+  // "no products match" — a statement about the filter dressed up as one about the catalog.
+  assert.deepEqual(filterByPrice(priced([PINK]), 2000, 3000), [],
+    "the stale range really would have hidden it");
+  assert.match(CODE, /setPriceRange\(null\);\s*\n\s*setSelectedCategory\(sel\.id\);/,
+    "a category switch must return to the full range of whatever is next");
+});
+
+test("INCIDENT 6: an EMPTY provider category still says Coming Soon, not a price result", () => {
+  // The two empty states must stay distinct: nothing curated yet vs everything filtered out.
+  assert.equal(priceBounds(priced([])), null, "no products means no control at all");
+  assert.equal(filterByPrice(priced([]), 0, 999999).length, 0);
+  // hiddenByPrice requires a non-empty source, so an empty catalogue can never be mislabelled.
+  assert.match(CODE, /const hiddenByPrice = gridSource\.length > 0 && visibleProducts\.length === 0/);
+});
+
+test("INCIDENT 7: provider products keep every original field — pricing them is additive", () => {
+  const [p] = priced([PINK]);
+  for (const k of Object.keys(PINK)) assert.equal(p[k], PINK[k], `${k} must survive untouched`);
+  assert.equal(p.priceCentsMin, 7995);
+  assert.equal(p.priceCentsMax, 7995);
+  // And the card projection still reads the provider's own price, not the derived one.
+  assert.equal(fromProviderProduct(PINK).priceMinor ?? fromProviderProduct(PINK).priceCents ?? 7995, 7995);
+});
+
+test("INCIDENT 8: the grid renders the PRICE-FILTERED set for both sources", () => {
+  assert.match(CODE, /projectGiftCards\(visibleProducts, fromProviderProduct\)/,
+    "provider cards must come from the filtered set, not straight from the fetch");
+  assert.match(CODE, /projectGiftCards\(visibleProducts, fromCatalogProduct\)/);
+});
+
+test("INCIDENT 9: no fixed ceiling is introduced anywhere", () => {
+  assert.equal(/25000|250_00|CEILING\s*=\s*\d/.test(CODE), false,
+    "bounds must stay derived; a fixed cap reintroduces this bug at a higher number");
 });
