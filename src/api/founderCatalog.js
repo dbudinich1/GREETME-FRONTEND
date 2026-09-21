@@ -38,9 +38,40 @@ export const founderCatalogApi = {
    * Browse a provider's catalog. The drawer only calls this for a provider the server has
    * already reported as browseAvailable — a dormant provider is never requested at all, so the
    * disabled state is not a spinner waiting on a 503.
+   *
+   * `cursor` continues a search the server had to truncate at its own safety bound, resuming
+   * where the last pass stopped instead of re-reading everything already searched.
    */
-  browseProvider: (providerId, { q, categoryId, start, count = 20 } = {}) =>
-    api.request(`${BASE}/providers/${encodeURIComponent(providerId)}/browse${qs({ q, categoryId, start, count })}`),
+  browseProvider: (providerId, { q, categoryId, start, count = 20, cursor } = {}) =>
+    api.request(`${BASE}/providers/${encodeURIComponent(providerId)}/browse${qs({ q, categoryId, start, count, cursor })}`),
+
+  /**
+   * ONE product becomes ONE draft, SERVER-OWNED.
+   *
+   * It sends two identifiers and nothing else. The server fetches the product and builds the
+   * record itself, so this method cannot carry a title, price, image, currency, variant list or
+   * availability even by mistake — there is nowhere in the body to put one, and the server refuses
+   * any extra field by name.
+   */
+  addFromProvider: ({ providerId, externalProductId }) =>
+    api.request(`${BASE}/items/from-provider`, {
+      method: 'POST',
+      body: JSON.stringify({ providerId, externalProductId }),
+    }),
+
+  /** Ask the provider about ONE stored record and refresh its provider-owned fields. */
+  refreshItem: (vendor, id, etag) =>
+    api.request(`${BASE}/items/${encodeURIComponent(vendor)}/${encodeURIComponent(id)}/refresh`, {
+      method: 'POST',
+      headers: etag ? { 'If-Match': etag } : undefined,
+    }),
+
+  /** Bounded bulk refresh. `limit` is clamped server-side; there is no "refresh everything". */
+  refreshProvider: (providerId, { limit } = {}) =>
+    api.request(`${BASE}/providers/${encodeURIComponent(providerId)}/refresh`, {
+      method: 'POST',
+      body: JSON.stringify(limit === undefined ? {} : { limit }),
+    }),
 
   /** ONE product becomes ONE draft. There is no array form and no bulk endpoint. */
   createDraft: ({ source, vendor, externalProductId, snapshot }) =>
@@ -90,6 +121,84 @@ export const founderCatalogApi = {
     }),
 
   /** retire | restore. Restore returns the product HIDDEN, never straight to the storefront. */
+  // ── PHASE 2 · STAGING A NEW PRODUCT FOR A REVIEWED CODE RELEASE ────────────────────────────
+  // Browsing persists nothing. Staging persists a founder-only record that cannot make anything
+  // customer-visible or purchasable — only a reviewed, deployed config entry can do that. There is
+  // deliberately no bulk method and no method named publish.
+
+  /** Read-only page of the Printful store. Persists nothing. */
+  browseMerch: ({ offset = 0, limit = 20 } = {}) =>
+    api.request(`${BASE}/merch/browse${qs({ offset, limit })}`),
+
+  /** Variant detail for ONE product the browse returned. Persists nothing. */
+  browseMerchProduct: (syncProductId) =>
+    api.request(`${BASE}/merch/browse/${encodeURIComponent(syncProductId)}`),
+
+  listStaged: () => api.request(`${BASE}/merch/staged`),
+
+  stagedHealth: () => api.request(`${BASE}/merch/staged/health`),
+
+  /**
+   * Stage ONE product. The id must come from a row the server returned; the server re-fetches the
+   * product itself rather than trusting it, so a typed id cannot create a record.
+   */
+  stageMerch: (syncProductId) =>
+    api.request(`${BASE}/merch/staged`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ syncProductId }),
+    }),
+
+  /** Founder-entered retail prices. Any change here voids an existing fulfilment approval. */
+  patchStagedPricing: (syncProductId, variants, etag) =>
+    api.request(`${BASE}/merch/staged/${encodeURIComponent(syncProductId)}/pricing`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(etag ? { 'If-Match': etag } : {}) },
+      body: JSON.stringify({ variants }),
+    }),
+
+  /** Categories, Brandable, featured rank and visibility — chosen BEFORE the release is prepared. */
+  patchStagedPresentation: (syncProductId, patch, etag) =>
+    api.request(`${BASE}/merch/staged/${encodeURIComponent(syncProductId)}/presentation`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(etag ? { 'If-Match': etag } : {}) },
+      body: JSON.stringify(patch),
+    }),
+
+  /** Re-validates the mapping against Printful LIVE, then records the approval. */
+  approveStagedFulfillment: (syncProductId, etag) =>
+    api.request(`${BASE}/merch/staged/${encodeURIComponent(syncProductId)}/fulfillment-approval`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(etag ? { 'If-Match': etag } : {}) },
+      body: JSON.stringify({}),
+    }),
+
+  /**
+   * Prepare a reviewed release — deliberately NOT called publish. It freezes a manifest for a
+   * developer to add to config/printfulProducts.js. It publishes nothing and makes nothing buyable.
+   */
+  prepareStagedRelease: (syncProductId, etag) =>
+    api.request(`${BASE}/merch/staged/${encodeURIComponent(syncProductId)}/prepare-release`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(etag ? { 'If-Match': etag } : {}) },
+      body: JSON.stringify({}),
+    }),
+
+  /** Only succeeds if the RUNNING backend's config matches the frozen manifest exactly. */
+  confirmStagedPublished: (syncProductId, etag) =>
+    api.request(`${BASE}/merch/staged/${encodeURIComponent(syncProductId)}/confirm-published`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(etag ? { 'If-Match': etag } : {}) },
+      body: JSON.stringify({}),
+    }),
+
+  abandonStaged: (syncProductId, etag) =>
+    api.request(`${BASE}/merch/staged/${encodeURIComponent(syncProductId)}/abandon`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(etag ? { 'If-Match': etag } : {}) },
+      body: JSON.stringify({}),
+    }),
+
   merchLifecycle: (syncProductId, action, etag) =>
     api.request(`${BASE}/merch/${encodeURIComponent(syncProductId)}/${action}`, {
       method: 'POST',
