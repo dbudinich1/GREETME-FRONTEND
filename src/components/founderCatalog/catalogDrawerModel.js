@@ -212,3 +212,155 @@ export function toggleCategoryId(current, categoryId) {
   const list = Array.isArray(current) ? current : [];
   return list.includes(categoryId) ? list.filter((c) => c !== categoryId) : [...list, categoryId];
 }
+
+// ── POLISH (Founder addendum 2026-09-21) ───────────────────────────────────────────────────
+//
+// Vocabulary and validation for the curated-product workflow, kept HERE for the reason the header
+// gives: JSX cannot be imported under `node --test`, so anything defined inside the component can
+// only be asserted by scraping source. These are executable, so the drawer and its tests read the
+// same rules rather than two copies that drift.
+//
+// NOTHING HERE ADDS A CAPABILITY. It labels, formats and validates what the existing API already
+// accepts — the create route's own refusals remain the authority, and every one of them is still
+// surfaced through REFUSAL_COPY.
+
+/**
+ * The lifecycle badge for one record.
+ *
+ * FOUR STATES, and the draft one says the quiet part out loud. "Draft" alone reads like a
+ * half-finished document; what a founder actually needs to know is that customers cannot see it,
+ * so the badge says so rather than leaving it to be inferred from which buttons happen to appear.
+ *
+ * `retired` is checked FIRST because a retired record also has displayEnabled false, and reporting
+ * it as merely unpublished would understate a deliberate, reversible removal.
+ */
+export function lifecycleBadge(lifecycle) {
+  const state = lifecycle?.state ?? 'draft';
+  const displayEnabled = lifecycle?.displayEnabled === true;
+  if (state === 'retired') {
+    return { id: 'retired', label: 'RETIRED', tone: 'muted', title: 'Removed from the catalog. Reactivate returns it to draft.' };
+  }
+  if (displayEnabled) {
+    return { id: 'published', label: 'PUBLISHED', tone: 'live', title: 'Visible to customers wherever its categories are shown.' };
+  }
+  // A record that has been published before and is now hidden is not the same thing as one that
+  // has never been published: the first was withdrawn, the second was never offered.
+  if (lifecycle?.lastPublishedAt) {
+    return { id: 'unpublished', label: 'UNPUBLISHED', tone: 'warn', title: 'Was published, now hidden from customers.' };
+  }
+  return {
+    id: 'draft',
+    label: 'DRAFT — NOT VISIBLE TO CUSTOMERS',
+    tone: 'draft',
+    title: 'Never published. Customers cannot see this record.',
+  };
+}
+
+/** Money as a founder reads it: the currency is shown, never assumed to be dollars. */
+export function formatMoney(cents, currency = 'USD') {
+  if (!Number.isInteger(cents)) return '—';
+  const amount = (cents / 100).toFixed(2);
+  const code = typeof currency === 'string' && currency.trim() !== '' ? currency.trim().toUpperCase() : 'USD';
+  return code === 'USD' ? `$${amount} USD` : `${amount} ${code}`;
+}
+
+/** The first image a record carries, or null. Preview only — never a second source of truth. */
+export function previewImageUrl(item) {
+  const override = item?.curation?.overrides?.imageUrl;
+  if (typeof override === 'string' && override.trim() !== '') return override.trim();
+  const images = Array.isArray(item?.vendorAuthoritative?.images) ? item.vendorAuthoritative.images : [];
+  for (const img of images) {
+    const url = typeof img === 'string' ? img : img?.url;
+    if (typeof url === 'string' && url.trim() !== '') return url.trim();
+  }
+  return null;
+}
+
+/**
+ * The ONE provider this narrow launch control adds products for.
+ *
+ * Named here rather than typed into the component so there is a single place to change it, and so
+ * the tests assert the same value the form sends. The drawer as a whole remains provider-generic —
+ * this constant scopes the ADD CONTROL only, which is what makes it narrow rather than a catalog
+ * manager. The customer-facing LABEL still comes from the backend's own provider list; this is a
+ * routing identifier, never display copy.
+ */
+export const LAUNCH_PRODUCT_SOURCE = 'goody';
+
+/** An empty add-product form. One product, one record — there is no bulk shape here. */
+export function emptyProductForm(source = LAUNCH_PRODUCT_SOURCE) {
+  return { source, externalProductId: '', title: '', description: '', imageUrl: '', priceDollars: '', currency: 'USD', variants: '' };
+}
+
+/**
+ * Validate the add-product form BEFORE a round trip, in the founder's words.
+ *
+ * The server refuses the same things and remains the authority — this only makes the refusal
+ * legible in advance, exactly as merchPlacementError already does for placement.
+ *
+ * PRICE IS ENTERED IN DOLLARS AND STORED IN CENTS. That conversion is the one genuinely dangerous
+ * step on this form — a bare "25" meaning $0.25 is how a $25 gift becomes a quarter — so the field
+ * is labelled in dollars, parsed strictly, and converted in one place.
+ */
+export function validateProductForm(form) {
+  const errors = {};
+  const str = (v) => (typeof v === 'string' ? v.trim() : '');
+
+  if (str(form?.source) === '') errors.source = 'Choose which provider this product comes from.';
+  if (str(form?.externalProductId) === '') {
+    errors.externalProductId = "Enter the provider's own product ID — it is how the product is looked up later.";
+  }
+  if (str(form?.title) === '') errors.title = 'Enter the product title.';
+
+  const price = str(form?.priceDollars);
+  if (price === '') {
+    errors.priceDollars = 'Enter the price in dollars, for example 78.00';
+  } else if (!/^\d+(\.\d{1,2})?$/.test(price)) {
+    errors.priceDollars = 'Use dollars and cents only, for example 78.00';
+  } else if (Math.round(Number(price) * 100) <= 0) {
+    errors.priceDollars = 'The price must be more than zero.';
+  }
+
+  const currency = str(form?.currency);
+  if (!/^[A-Za-z]{3}$/.test(currency)) errors.currency = 'Use a three-letter currency code, for example USD.';
+
+  const image = str(form?.imageUrl);
+  if (image !== '' && !/^https:\/\//i.test(image)) errors.imageUrl = 'An image URL must start with https://';
+
+  return { ok: Object.keys(errors).length === 0, errors };
+}
+
+/** Dollars to whole cents. Exported so the conversion is tested, not trusted. */
+export function dollarsToCents(value) {
+  const raw = typeof value === 'string' ? value.trim() : value;
+  if (!/^\d+(\.\d{1,2})?$/.test(String(raw))) return null;
+  return Math.round(Number(raw) * 100);
+}
+
+/**
+ * The create body, built from a validated form.
+ *
+ * Shaped to the EXISTING create contract — `source`, `externalProductId`, `snapshot` — and nothing
+ * else. Lifecycle, availability and display are server-owned, so this cannot carry them even by
+ * mistake: they are not in the object at all.
+ */
+export function buildProductPayload(form) {
+  const str = (v) => (typeof v === 'string' ? v.trim() : '');
+  const imageUrl = str(form?.imageUrl);
+  const variants = str(form?.variants)
+    .split(',')
+    .map((v) => v.trim())
+    .filter((v) => v !== '');
+  return {
+    source: str(form?.source),
+    externalProductId: str(form?.externalProductId),
+    snapshot: {
+      title: str(form?.title),
+      description: str(form?.description),
+      images: imageUrl === '' ? [] : [{ url: imageUrl }],
+      priceCents: dollarsToCents(form?.priceDollars),
+      currency: str(form?.currency).toUpperCase(),
+      variants,
+    },
+  };
+}
