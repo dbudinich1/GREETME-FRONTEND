@@ -680,6 +680,17 @@ class ApiService {
     return this.request("/api/gifts/prezzee-card/tiles");
   }
 
+  /**
+   * The SAME endpoint as getPrezzeeCardTiles(), under a vendor-neutral name for customer-facing
+   * merchandising surfaces (src/pages/Merch.jsx) that must not name any vendor at all — see that
+   * file's own "no Prezzee identifier may appear in executable page code" guarantee. The
+   * standalone Smart Card page (src/pages/PrezzeeSmartCard.jsx) keeps calling the named method
+   * above; nothing about the server contract differs between the two.
+   */
+  getSmartCardTiles() {
+    return this.getPrezzeeCardTiles();
+  }
+
   chargePrezzeeCard(payload) {
     return this.request("/api/gifts/prezzee-card", {
       method: "POST",

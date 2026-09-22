@@ -22,7 +22,7 @@ import esbuild from "esbuild";
 import {
   lifecycleBadge, formatMoney, previewImageUrl,
   validateProductForm, buildProductPayload, dollarsToCents, emptyProductForm,
-  LAUNCH_PRODUCT_SOURCE,
+  LAUNCH_PRODUCT_SOURCE, LAUNCH_PRODUCT_SOURCES,
 } from "./catalogDrawerModel.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -47,6 +47,10 @@ const ITEM = (over = {}) => ({
 
 const PROVIDERS = [
   { providerId: LAUNCH_PRODUCT_SOURCE, label: "Gift Boxes", enabled: false, orderPlacementAllowed: false, browseAvailable: false, reason: "provider_disabled", launchBlockerIds: [] },
+  // 2026-09-22: the second entry in LAUNCH_PRODUCT_SOURCES — enabled, but genuinely has no
+  // browsable catalog (the real posture), mirroring routes/founderCatalogRoutes.js's own
+  // "no_browsable_catalog" reason.
+  { providerId: "prezzee", label: "Gift Cards", enabled: true, orderPlacementAllowed: false, browseAvailable: false, reason: "no_browsable_catalog", launchBlockerIds: [] },
 ];
 
 function clientStub(over = {}) {
@@ -140,16 +144,20 @@ test("the Add Product action is present, labelled, and toggles the form", async 
   assert.equal(tid("add-product-form"), null, "and closes again");
 });
 
-test("the provider is FIXED to the launch provider — it is shown, not chosen", async () => {
+test("the provider is chosen only from the small, explicit launch set — never an open picker", async () => {
   const client = await openAddForm();
   assert.ok(client.calls.providers >= 1, "provider metadata was read from our own backend");
   assert.equal(client.calls.browse, 0, "no vendor browse was requested");
 
+  // 2026-09-22: with two launch sources configured (LAUNCH_PRODUCT_SOURCES), the control is now a
+  // <select> limited to exactly that set — not an open picker across the whole registry, and
+  // still not a free-text field.
   const source = tid("apf-source");
-  assert.equal(source.tagName, "SPAN", "it is not a picker: there is no choice to make here");
-  assert.equal(source.getAttribute("data-source"), LAUNCH_PRODUCT_SOURCE);
-  assert.match(source.textContent, /Gift Boxes/, "the LABEL comes from our backend, not from the component");
-  assert.equal(root.querySelector("#apf-source select"), null);
+  assert.equal(source.tagName, "SELECT", "with more than one launch source, this is a select, not a fixed label");
+  assert.equal(source.value, LAUNCH_PRODUCT_SOURCE, "defaults to the first configured launch source");
+  const optionValues = [...source.options].map((o) => o.value);
+  assert.deepEqual(optionValues, [...LAUNCH_PRODUCT_SOURCES], "the options are EXACTLY the launch set, nothing more");
+  assert.match(source.selectedOptions[0].textContent, /Gift Boxes/, "the LABEL comes from our backend, not from the component");
 });
 
 // ══ 2. LABELS AND VALIDATION ════════════════════════════════════════════════════════════════
