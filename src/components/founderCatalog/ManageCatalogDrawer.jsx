@@ -18,7 +18,7 @@ import founderCatalogApi from '../../api/founderCatalog';
 import {
   CATEGORY_LABELS, REFUSAL_COPY, SECTIONS, STORABLE_CATEGORY_IDS, toggleCategoryId,
   lifecycleBadge, formatMoney, previewImageUrl,
-  emptyProductForm, validateProductForm, buildProductPayload,
+  emptyProductForm, validateProductForm, buildProductPayload, LAUNCH_PRODUCT_SOURCES,
   attentionBadge, hasChanged, changedSummary,
 } from './catalogDrawerModel';
 import ProviderBrowsePanel from './ProviderBrowsePanel.jsx';
@@ -301,16 +301,30 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
               stays unavailable while its provider is dormant.
             </p>
 
-            {/* The provider is FIXED, not chosen. This control exists to add the launch
-                provider's products; offering a picker would imply a choice that is not on offer,
-                and would invite a record filed under the wrong source. The label comes from the
-                backend's own provider list so it is never a second source of truth. */}
+            {/* The provider is chosen only from the SMALL, EXPLICIT LAUNCH_PRODUCT_SOURCES set —
+                never an arbitrary picker across the whole registry, which would invite a record
+                filed under the wrong source. With exactly one launch source configured this stays
+                a fixed, non-editable label (the original behaviour); with more than one — added
+                2026-09-22 alongside the Prezzee Smart Card — it becomes a select limited to
+                exactly that set. The label always comes from the backend's own provider list so
+                it is never a second source of truth. */}
             <p style={fieldLabel}>
               Provider
-              <span data-testid="apf-source" data-source={form.source}
-                style={{ ...field, display: 'block', background: 'var(--bg-secondary, #f9fafb)', color: 'var(--text-secondary)' }}>
-                {providers.find((p) => p.providerId === form.source)?.label || form.source}
-              </span>
+              {LAUNCH_PRODUCT_SOURCES.length > 1 ? (
+                <select
+                  id="apf-source" data-testid="apf-source" data-source={form.source} style={field}
+                  value={form.source} onChange={(e) => editForm({ source: e.target.value })}
+                >
+                  {LAUNCH_PRODUCT_SOURCES.map((id) => (
+                    <option key={id} value={id}>{providers.find((p) => p.providerId === id)?.label || id}</option>
+                  ))}
+                </select>
+              ) : (
+                <span data-testid="apf-source" data-source={form.source}
+                  style={{ ...field, display: 'block', background: 'var(--bg-secondary, #f9fafb)', color: 'var(--text-secondary)' }}>
+                  {providers.find((p) => p.providerId === form.source)?.label || form.source}
+                </span>
+              )}
             </p>
             {formErrors.source && <p data-testid="apf-err-source" style={fieldError}>{formErrors.source}</p>}
 
@@ -407,16 +421,23 @@ export default function ManageCatalogDrawer({ open, onClose, client = founderCat
             {providers.map((p) => (
               <li key={p.providerId} data-testid={`provider-${p.providerId}`}
                 style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '0.875rem' }}>
+                {/* 2026-09-22: `enabled` and `browseAvailable` are DIFFERENT facts, and a provider
+                    can be enabled (fully activated) while still having no browsable catalog — the
+                    Prezzee Smart Card is exactly this: one curated product, not a vendor catalog
+                    to browse. Collapsing both into a single "Active"/"Dormant" label would
+                    misreport that provider as dormant, which it is not. */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                   <strong style={{ fontSize: '0.9375rem' }}>{p.label}</strong>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: p.browseAvailable ? 'var(--primary)' : 'var(--text-tertiary)' }}>
-                    {p.browseAvailable ? 'Active' : 'Dormant — not activated'}
+                  <span data-testid={`status-${p.providerId}`} style={{ fontSize: '0.75rem', fontWeight: 700, color: p.browseAvailable ? 'var(--primary)' : 'var(--text-tertiary)' }}>
+                    {p.browseAvailable ? 'Active' : (p.enabled ? 'Active — no browsable catalog' : 'Dormant — not activated')}
                   </span>
                 </div>
                 {!p.browseAvailable && (
                   <>
                     <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: '0.5rem 0 0.25rem' }}>
-                      Browsing this provider becomes available only after it is separately authorized and activated.
+                      {p.enabled
+                        ? 'This provider is activated, but publishes no catalog Greet-Me can browse here. Add its product using the known provider product ID instead.'
+                        : 'Browsing this provider becomes available only after it is separately authorized and activated.'}
                     </p>
                     {p.launchBlockerIds?.length > 0 && (
                       <ul data-testid={`blockers-${p.providerId}`} style={{ margin: '0.25rem 0 0 1rem', padding: 0, fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>

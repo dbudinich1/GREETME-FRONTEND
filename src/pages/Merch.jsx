@@ -53,6 +53,12 @@ export default function Merch() {
   const founder = isFounder(user);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [showQRCashModal, setShowQRCashModal] = useState(false); // AGP-02
+  // GIFT CARDS — Manage Catalog Publish/Unpublish is the checkout authority (Team C, 2026-09-22).
+  // "Coming later" is the honest DEFAULT, not a hardcoded permanent state: this asks the server —
+  // the same GET the standalone Smart Card page itself asks — and only replaces the placeholder
+  // once the server actually reports the card as available. A read-only, unauthenticated-safe
+  // call: it costs nothing while the record stays a draft, which is the real, current posture.
+  const [giftCardAvailable, setGiftCardAvailable] = useState(false);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
   const [showCartModal, setShowCartModal] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState(null);
@@ -103,6 +109,28 @@ export default function Merch() {
     state: providerState,
     retry: retryProviderCatalogue,
   } = useProviderCatalogue(providerGiftType);
+
+  // GIFT CARDS availability — asked fresh every time this category is selected, from the SAME
+  // endpoint (GET .../prezzee-card/tiles) the standalone Smart Card page itself uses, gated
+  // server-side by prezzeeCardCheckoutBlocked() (pauseGiftCards AND Manage Catalog Publish). A
+  // fail-closed default: any error, a dormant 503, or simply not having answered yet all leave
+  // the placeholder in place — this must never optimistically show a purchase path.
+  useEffect(() => {
+    if (selectedCategory !== 'gift_cards') return undefined;
+    let cancelled = false;
+    setGiftCardAvailable(false);
+    (async () => {
+      try {
+        // Vendor-neutral entry point — see api.js's own note on getSmartCardTiles(). This page
+        // must never name a vendor in its executable code.
+        const res = await api.getSmartCardTiles();
+        if (!cancelled) setGiftCardAvailable(res?.ok === true);
+      } catch {
+        if (!cancelled) setGiftCardAvailable(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedCategory]);
 
   // GIFTS — the ONE selection behind the ONE shared product area. Every selector, including
   // Brandable Goods, resolves through the same rule, so no two surfaces can disagree about what
@@ -792,39 +820,80 @@ export default function Merch() {
       )}
 
       {selectedCategory === 'gift_cards' ? (
-        /* GIFTS-CP1 — GIFT CARDS, DORMANT PRESENTATION.
-           The control renders so the category is discoverable, but the Greet-Me Smart eGift Card
-           is presented as unavailable: no denomination selector, no Add to Cart, no checkout
-           action, nothing that could begin a purchase. Prezzee is NOT activated and this is NOT
-           a Prezzee browser — there is exactly one card described here and no product list. */
-        <div style={{
-          padding: '3rem 2rem',
-          textAlign: 'center',
-          color: 'var(--text-secondary)',
-          border: '1px dashed var(--border)',
-          borderRadius: 'var(--radius-xl)'
-        }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>&#127873;</div>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
-            Greet-Me Smart eGift Card
-          </h3>
-          <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: '0 0 1rem', maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
-            One smart card the recipient can spend at the retailer they choose.
-          </p>
-          <span style={{
-            display: 'inline-block',
-            padding: '0.375rem 0.875rem',
-            borderRadius: '9999px',
-            background: 'var(--bg-secondary, #f1f5f9)',
-            color: 'var(--text-tertiary)',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em'
+        /* GIFTS-CP1, corrected 2026-09-22 (Team C, "founder-control catalog slice") — GIFT CARDS,
+           SERVER-DECIDED PRESENTATION.
+           The "coming later" placeholder is no longer a hardcoded permanent state: it is the
+           fail-closed DEFAULT while giftCardAvailable is false, and is asked fresh from the
+           server (the effect above) every time this category is selected. It is removed ONLY
+           when the server actually reports the Smart Card as available — which requires BOTH
+           pauseGiftCards to be false AND the founder to have PUBLISHED the Manage Catalog record
+           (prezzeeCardCheckoutBlocked(), routes/giftRoutes.js) — never a client-side guess. There
+           is still no denomination selector or Add to Cart HERE: the standalone page at
+           /gifts/smart-card is the one purchase surface, and this tile only links to it once the
+           server has confirmed it is real. */
+        giftCardAvailable ? (
+          <div data-testid="gift-cards-available" style={{
+            padding: '3rem 2rem',
+            textAlign: 'center',
+            color: 'var(--text-secondary)',
+            border: '1px solid var(--primary)',
+            borderRadius: 'var(--radius-xl)'
           }}>
-            Coming later — not yet available
-          </span>
-        </div>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>&#127873;</div>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
+              Greet-Me Smart eGift Card
+            </h3>
+            <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: '0 0 1rem', maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
+              One smart card the recipient can spend at the retailer they choose.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/gifts/smart-card')}
+              style={{
+                padding: '0.625rem 1.25rem',
+                borderRadius: 'var(--radius-md)',
+                border: 'none',
+                background: 'var(--primary)',
+                color: 'white',
+                fontSize: '0.875rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontFamily: 'inherit'
+              }}
+            >
+              View Smart Card options
+            </button>
+          </div>
+        ) : (
+          <div data-testid="gift-cards-coming-later" style={{
+            padding: '3rem 2rem',
+            textAlign: 'center',
+            color: 'var(--text-secondary)',
+            border: '1px dashed var(--border)',
+            borderRadius: 'var(--radius-xl)'
+          }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>&#127873;</div>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
+              Greet-Me Smart eGift Card
+            </h3>
+            <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: '0 0 1rem', maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
+              One smart card the recipient can spend at the retailer they choose.
+            </p>
+            <span style={{
+              display: 'inline-block',
+              padding: '0.375rem 0.875rem',
+              borderRadius: '9999px',
+              background: 'var(--bg-secondary, #f1f5f9)',
+              color: 'var(--text-tertiary)',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em'
+            }}>
+              Coming later — not yet available
+            </span>
+          </div>
+        )
       ) : hiddenByPrice && !loading && !error && !providerGiftType ? (
         /* The collection EXISTS — the chosen price range simply excludes all of it. Distinct from
            Coming Soon, and recoverable without hunting for the control that caused it. Price

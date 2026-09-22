@@ -143,6 +143,28 @@ test("dormant providers are disabled, labelled and list their blockers", async (
   assert.match(blockers.textContent, /no_order_status_mechanism/);
 });
 
+test("an ENABLED provider with no browsable catalog is labelled Active, never Dormant (2026-09-22)", async () => {
+  // A provider can be fully enabled while still having no browse adapter wired — the Prezzee
+  // Smart Card is exactly this (one curated product, not a vendor catalog). Collapsing that into
+  // the same "Dormant" label as a genuinely disabled provider would misreport it.
+  const NO_BROWSABLE_CATALOG_PROVIDERS = [
+    { providerId: "prezzee", label: "Gift Cards", enabled: true, orderPlacementAllowed: false, browseAvailable: false, reason: "no_browsable_catalog", launchBlockerIds: [] },
+  ];
+  const client = clientStub({ listProviders: async () => ({ ok: true, providers: NO_BROWSABLE_CATALOG_PROVIDERS }) });
+  await mount({ open: true, onClose() {}, client });
+  await clickEl([...root.querySelectorAll("nav button")].find((b) => b.textContent.trim() === "Providers"));
+
+  const card = q('[data-testid="provider-prezzee"]');
+  assert.ok(card, "prezzee must be visible");
+  assert.match(card.textContent, /Active — no browsable catalog/);
+  assert.ok(!/Dormant/.test(card.textContent), "must NOT be reported as dormant — it is genuinely enabled");
+  assert.match(card.textContent, /publishes no catalog Greet-Me can browse here/);
+  assert.match(card.textContent, /Add its product using the known provider product ID instead/);
+  // Browsing is still unavailable either way — only the REASON shown differs.
+  const browse = q('[data-testid="browse-prezzee"]');
+  assert.equal(browse.disabled, true);
+});
+
 test("NO request is made for a dormant provider, and no empty-product message is shown", async () => {
   const client = clientStub();
   await mount({ open: true, onClose() {}, client });

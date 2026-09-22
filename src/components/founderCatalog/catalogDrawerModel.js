@@ -277,15 +277,23 @@ export function previewImageUrl(item) {
 }
 
 /**
- * The ONE provider this narrow launch control adds products for.
+ * The SMALL, EXPLICIT set of providers this narrow launch control adds products for.
  *
  * Named here rather than typed into the component so there is a single place to change it, and so
- * the tests assert the same value the form sends. The drawer as a whole remains provider-generic —
- * this constant scopes the ADD CONTROL only, which is what makes it narrow rather than a catalog
- * manager. The customer-facing LABEL still comes from the backend's own provider list; this is a
- * routing identifier, never display copy.
+ * the tests assert the same values the form can send. The drawer as a whole remains
+ * provider-generic — this list scopes the ADD CONTROL only, which is what makes it narrow rather
+ * than a catalog manager: a founder chooses among THESE named providers, never an arbitrary one
+ * from the full registry. The customer-facing LABEL still comes from the backend's own provider
+ * list; these are routing identifiers, never display copy.
+ *
+ * "prezzee" added 2026-09-22 (Team C, "founder-control catalog slice") so the founder can create
+ * the ONE curated Smart Card record through this form, the same way "goody" already works — it
+ * does not replace "goody", since removing it would silently take away an existing capability.
  */
-export const LAUNCH_PRODUCT_SOURCE = 'goody';
+export const LAUNCH_PRODUCT_SOURCES = Object.freeze(['goody', 'prezzee']);
+
+/** Kept for callers that still want a single default — the first of the explicit set above. */
+export const LAUNCH_PRODUCT_SOURCE = LAUNCH_PRODUCT_SOURCES[0];
 
 /** An empty add-product form. One product, one record — there is no bulk shape here. */
 export function emptyProductForm(source = LAUNCH_PRODUCT_SOURCE) {
