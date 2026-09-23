@@ -13,7 +13,7 @@
 // surface, per the approved design ("Catalog shows only products currently published and visible
 // on the customer site").
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Search, Trash2, Plus, ChevronDown, ChevronUp, RefreshCw, Building2 } from 'lucide-react';
+import { X, Search, Trash2, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import founderCatalogApiDefault from '../../api/founderCatalog';
 import {
   STORABLE_CATEGORY_IDS, CATEGORY_LABELS, formatMoney, previewImageUrl, toggleCategoryId,
@@ -272,7 +272,12 @@ export default function ManageCatalogModal({ open, onClose, client = founderCata
   const [loadError, setLoadError] = useState(null);
   const [query, setQuery] = useState('');
   const [providerFilter, setProviderFilter] = useState('');
-  const [view, setView] = useState('catalog'); // 'catalog' | 'add' | 'providers'
+  // PROVIDER-FIRST REDESIGN (2026-09-23): 'home' shows Providers (each with its own Add Products
+  // action) plus a collapsed-by-default Full Live Catalog section. 'add' shows the picker LOCKED
+  // to whichever provider's row was clicked — never a second provider-selection screen.
+  const [view, setView] = useState('home'); // 'home' | 'add'
+  const [addProviderId, setAddProviderId] = useState(null);
+  const [catalogExpanded, setCatalogExpanded] = useState(false);
   const debounceRef = useRef(null);
 
   const load = useCallback(async (opts = {}) => {
@@ -313,6 +318,13 @@ export default function ManageCatalogModal({ open, onClose, client = founderCata
     setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
   }, []);
 
+  const openAddFor = useCallback((providerId) => {
+    setAddProviderId(providerId);
+    setView('add');
+  }, []);
+
+  const closeAdd = useCallback(() => { setView('home'); }, []);
+
   if (!open) return null;
 
   return (
@@ -337,49 +349,6 @@ export default function ManageCatalogModal({ open, onClose, client = founderCata
         borderBottom: '1px solid var(--border)', flexWrap: 'wrap', flexShrink: 0,
       }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, marginRight: 'auto' }}>Manage Catalog</h2>
-        <div style={{ position: 'relative', flex: '1 1 220px', maxWidth: '320px' }}>
-          <Search size={14} style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
-          <input
-            type="text"
-            data-testid="catalog-search"
-            placeholder="Search catalog"
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem 0.75rem 0.5rem 2rem', borderRadius: '0.5rem', border: '1px solid var(--border)', fontFamily: 'inherit' }}
-          />
-        </div>
-        <select
-          data-testid="provider-filter"
-          value={providerFilter}
-          onChange={(e) => setProviderFilter(e.target.value)}
-          style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border)', fontFamily: 'inherit' }}
-        >
-          {PROVIDER_FILTER_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-        </select>
-        <button
-          type="button"
-          data-testid="add-to-catalog-button"
-          onClick={() => setView('add')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 1rem',
-            borderRadius: '0.5rem', border: 'none', background: 'var(--primary)', color: 'white',
-            fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-          }}
-        >
-          <Plus size={16} /> Add to Catalog
-        </button>
-        <button
-          type="button"
-          data-testid="providers-view-button"
-          onClick={() => setView('providers')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 1rem',
-            borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'white',
-            cursor: 'pointer', fontFamily: 'inherit',
-          }}
-        >
-          <Building2 size={16} /> Providers
-        </button>
         <button type="button" data-testid="manage-catalog-close" onClick={onClose} aria-label="Close"
           style={{ padding: '0.5rem', borderRadius: '0.5rem', border: 'none', background: 'transparent', cursor: 'pointer' }}>
           <X size={20} />
@@ -390,30 +359,76 @@ export default function ManageCatalogModal({ open, onClose, client = founderCata
         {view === 'add' && (
           <AddToCatalogPicker
             client={client}
-            onClose={() => setView('catalog')}
+            lockedProviderId={addProviderId}
+            onClose={closeAdd}
             // Refreshes the underlying catalog data in the background WITHOUT switching views —
             // a partial failure must stay on screen (per-item success/error, failed items still
             // selected) rather than being hidden the instant the FIRST item happens to succeed.
-            // The founder closes back to the catalog explicitly once they've seen the outcome.
+            // The founder closes back explicitly once they've seen the outcome.
             onPublished={() => { load(); }}
           />
         )}
-        {view === 'providers' && <ProvidersStatusView client={client} />}
-        {view === 'catalog' && (
-          <>
-            {loading && <p style={{ color: 'var(--text-secondary)' }}>Loading catalog…</p>}
-            {loadError && <p style={{ color: '#dc2626' }}>{loadError}</p>}
-            {!loading && !loadError && items.length === 0 && (
-              <p style={{ color: 'var(--text-secondary)' }}>Nothing is published to your site yet. Use "Add to Catalog" to publish a product.</p>
-            )}
-            {!loading && items.length > 0 && (
-              <div className="gm-manage-catalog-grid" data-testid="catalog-grid">
-                {items.map((item) => (
-                  <CatalogTile key={item.id} item={item} client={client} onRemoved={removeItem} onSaved={replaceItem} />
-                ))}
-              </div>
-            )}
-          </>
+        {view === 'home' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <ProvidersStatusView client={client} onAddProducts={openAddFor} />
+
+            <div data-testid="full-live-catalog-section">
+              <button
+                type="button"
+                data-testid="full-catalog-toggle"
+                aria-expanded={catalogExpanded}
+                onClick={() => setCatalogExpanded((v) => !v)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', textAlign: 'left',
+                  padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--border)',
+                  background: 'white', cursor: 'pointer', fontFamily: 'inherit',
+                  fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)',
+                }}
+              >
+                {catalogExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                Full Live Catalog ({items.length})
+              </button>
+
+              {catalogExpanded && (
+                <div data-testid="full-catalog-expanded" style={{ marginTop: '1rem' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative', flex: '1 1 220px', maxWidth: '320px' }}>
+                      <Search size={14} style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+                      <input
+                        type="text"
+                        data-testid="catalog-search"
+                        placeholder="Search catalog"
+                        value={query}
+                        onChange={(e) => onQueryChange(e.target.value)}
+                        style={{ width: '100%', padding: '0.5rem 0.75rem 0.5rem 2rem', borderRadius: '0.5rem', border: '1px solid var(--border)', fontFamily: 'inherit' }}
+                      />
+                    </div>
+                    <select
+                      data-testid="provider-filter"
+                      value={providerFilter}
+                      onChange={(e) => setProviderFilter(e.target.value)}
+                      style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border)', fontFamily: 'inherit' }}
+                    >
+                      {PROVIDER_FILTER_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                  </div>
+
+                  {loading && <p style={{ color: 'var(--text-secondary)' }}>Loading catalog…</p>}
+                  {loadError && <p style={{ color: '#dc2626' }}>{loadError}</p>}
+                  {!loading && !loadError && items.length === 0 && (
+                    <p style={{ color: 'var(--text-secondary)' }}>Nothing is published to your site yet. Use a provider's "+ Add Products" button above to publish one.</p>
+                  )}
+                  {!loading && items.length > 0 && (
+                    <div className="gm-manage-catalog-grid" data-testid="catalog-grid">
+                      {items.map((item) => (
+                        <CatalogTile key={item.id} item={item} client={client} onRemoved={removeItem} onSaved={replaceItem} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
       </div>
