@@ -59,8 +59,12 @@ async function publishOne(client, sel) {
   }
 }
 
-export default function AddToCatalogPicker({ client, onClose, onPublished }) {
-  const [activeProvider, setActiveProvider] = useState('florist_one');
+export default function AddToCatalogPicker({ client, onClose, onPublished, lockedProviderId }) {
+  // PROVIDER-FIRST REDESIGN (2026-09-23): when opened from a specific provider's "+ Add Products"
+  // row, the picker opens directly on that provider — no second provider-selection screen. The tab
+  // bar (still used as a fallback if ever mounted without a locked provider) is hidden.
+  const isLocked = Boolean(lockedProviderId);
+  const [activeProvider, setActiveProvider] = useState(lockedProviderId || 'florist_one');
   const [browseResults, setBrowseResults] = useState([]);
   const [browsing, setBrowsing] = useState(false);
   const [browseError, setBrowseError] = useState(null);
@@ -140,34 +144,38 @@ export default function AddToCatalogPicker({ client, onClose, onPublished }) {
   return (
     <div data-testid="add-to-catalog-picker" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        <h3 style={{ margin: 0, fontSize: '1.0625rem', fontWeight: 700, marginRight: 'auto' }}>Add to Catalog</h3>
+        <h3 data-testid="add-to-catalog-heading" style={{ margin: 0, fontSize: '1.0625rem', fontWeight: 700, marginRight: 'auto' }}>
+          {isLocked ? `Add Products — ${provider.label}` : 'Add to Catalog'}
+        </h3>
         <button type="button" data-testid="add-to-catalog-close" onClick={onClose} aria-label="Back to catalog"
           style={{ padding: '0.375rem', border: 'none', background: 'transparent', cursor: 'pointer' }}>
           <X size={18} />
         </button>
       </div>
 
-      <div role="tablist" aria-label="Provider" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-        {PROVIDERS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            role="tab"
-            aria-selected={activeProvider === p.id}
-            data-testid={`provider-tab-${p.id}`}
-            onClick={() => setActiveProvider(p.id)}
-            style={{
-              padding: '0.5rem 1rem', borderRadius: '9999px',
-              border: activeProvider === p.id ? '1px solid var(--primary)' : '1px solid var(--border)',
-              background: activeProvider === p.id ? 'var(--primary)' : 'white',
-              color: activeProvider === p.id ? 'white' : 'var(--text-secondary)',
-              fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-            }}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      {!isLocked && (
+        <div role="tablist" aria-label="Provider" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {PROVIDERS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              role="tab"
+              aria-selected={activeProvider === p.id}
+              data-testid={`provider-tab-${p.id}`}
+              onClick={() => setActiveProvider(p.id)}
+              style={{
+                padding: '0.5rem 1rem', borderRadius: '9999px',
+                border: activeProvider === p.id ? '1px solid var(--primary)' : '1px solid var(--border)',
+                background: activeProvider === p.id ? 'var(--primary)' : 'white',
+                color: activeProvider === p.id ? 'white' : 'var(--text-secondary)',
+                fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div style={{ flex: 1, overflow: 'auto' }}>
         {provider.mode === 'browse' && (
