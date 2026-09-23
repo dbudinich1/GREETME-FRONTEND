@@ -891,11 +891,21 @@ class ApiService {
     return this.request("/api/gifts/catalog");
   }
 
-  // SHOPIFY THIN CONNECTION - initiate the EXISTING Shopify-hosted checkout for an approved
-  // Collective gift. An ordinary purchase OMITS the fundraiser `token` property entirely:
-  // sending it with any value (including null) is a fundraiser attempt that fails closed.
-  startGiftCheckout(variantId, quantity = 1) {
-    return this.post("/api/gifts/checkout", { variantId, quantity });
+  // CLOSED 2026-09-22 - the legacy Shopify-hosted cart-permalink checkout.
+  //
+  // Greet-Me takes payment through Stripe. The server now refuses POST /api/gifts/checkout before
+  // it builds any URL, so this method could only ever produce a 503 - and a method that exists,
+  // looks callable and silently fails is worse than one that says what happened. It throws here,
+  // in the browser, without a request, so the closure is visible at the call site rather than in
+  // a network tab.
+  //
+  // It is kept rather than deleted so the surface stays reviewable, and so a future caller sees
+  // this note instead of reinventing the route. No page or component calls it.
+  startGiftCheckout() {
+    throw new Error(
+      "The Shopify-hosted gift checkout is closed. Greet-Me checkout is Stripe-based; " +
+      "use the provider checkout flow instead."
+    );
   }
 
   // M0 — read-only Hearts Marketplace catalog (class/state facts; empty while dormant).
