@@ -26,7 +26,7 @@ const FAKE_API = join(__dirname, ".__pscfs.fakeApi.js");
 const FAKE_MODAL = join(__dirname, ".__pscfs.fakeModal.jsx");
 const BUNDLE = join(__dirname, ".__pscfs.bundle.mjs");
 
-let React, createRoot, act, PrezzeeSmartCard, dom, FAKE;
+let React, createRoot, act, PrezzeeSmartCard, dom, FAKE, MemoryRouter;
 
 before(async () => {
   writeFileSync(FAKE_API, `
@@ -89,6 +89,9 @@ before(async () => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   React = (await import("react")).default; act = React.act;
   ({ createRoot } = await import("react-dom/client"));
+  // Added 2026-09-23: PrezzeeSmartCard.jsx now calls useLocation(), which requires a Router
+  // ancestor — the real app always provides one (App.jsx); this harness now does too.
+  ({ MemoryRouter } = await import("react-router-dom"));
   const m = await import(pathToFileURL(BUNDLE).href);
   PrezzeeSmartCard = m.PrezzeeSmartCard;
   FAKE = globalThis.__PSCFS_TEST__;
@@ -119,6 +122,14 @@ const setValue = async (el, v) => { await act(async () => {
 }); };
 const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 
+function withRouter() {
+  return React.createElement(
+    MemoryRouter,
+    { initialEntries: [{ pathname: "/dashboard/gifts/smart-card", state: null }] },
+    React.createElement(PrezzeeSmartCard),
+  );
+}
+
 async function purchase(s) {
   await click(s.q('[data-tile-id="prezzee_smart_card_1000"]'));
   await setValue(s.q('input[type="email"]'), "r@example.com");
@@ -133,7 +144,7 @@ async function purchase(s) {
 // ── Confirmed fulfilment still produces the existing success behavior ──────────────────────────
 
 test("a charge response with NO fulfillmentStatus field still shows the existing 'Smart Card purchased' success screen", async () => {
-  const s = await mount(React.createElement(PrezzeeSmartCard));
+  const s = await mount(withRouter());
   await flush();
   await purchase(s);
   assert.match(s.text(), /Smart Card purchased/i);
@@ -151,7 +162,7 @@ test("a charge response with fulfillmentStatus:'failed' shows a truthful failure
       error: "Your payment was received, but we could not issue your Smart Card. Contact support for help.",
     }),
   });
-  const s = await mount(React.createElement(PrezzeeSmartCard));
+  const s = await mount(withRouter());
   await flush();
   await purchase(s);
   assert.doesNotMatch(s.text(), /Smart Card purchased/i, "a definite fulfilment failure must never show the success headline");
@@ -170,7 +181,7 @@ test("a charge response with fulfillmentStatus:'pending' shows a truthful pendin
       error: "Your payment was received. We're still confirming your Smart Card — check back shortly, or contact support if this persists.",
     }),
   });
-  const s = await mount(React.createElement(PrezzeeSmartCard));
+  const s = await mount(withRouter());
   await flush();
   await purchase(s);
   assert.doesNotMatch(s.text(), /Smart Card purchased/i, "an unresolved fulfilment must never claim success");
@@ -189,7 +200,7 @@ test("a 3DS finalize response with fulfillmentStatus:'failed' shows the truthful
       error: "Your payment was received, but we could not issue your Smart Card. Contact support for help.",
     }),
   });
-  const s = await mount(React.createElement(PrezzeeSmartCard));
+  const s = await mount(withRouter());
   await flush();
   await purchase(s);
   assert.doesNotMatch(s.text(), /Smart Card purchased/i);

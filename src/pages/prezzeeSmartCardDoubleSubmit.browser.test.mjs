@@ -26,7 +26,7 @@ const FAKE_STRIPE_PROVIDER = join(__dirname, ".__pscds.fakeStripeProvider.js");
 const FAKE_STRIPE_JS = join(__dirname, ".__pscds.fakeStripeJs.jsx");
 const BUNDLE = join(__dirname, ".__pscds.bundle.mjs");
 
-let React, createRoot, act, PrezzeeSmartCard, dom, FAKE;
+let React, createRoot, act, PrezzeeSmartCard, dom, FAKE, MemoryRouter;
 
 before(async () => {
   writeFileSync(FAKE_API, `
@@ -100,6 +100,9 @@ before(async () => {
   globalThis.__PSCDS_TEST__ = { createPaymentMethodCalls: [], pendingCreatePaymentMethod: [] };
   React = (await import("react")).default; act = React.act;
   ({ createRoot } = await import("react-dom/client"));
+  // Added 2026-09-23: PrezzeeSmartCard.jsx now calls useLocation(), which requires a Router
+  // ancestor — the real app always provides one (App.jsx); this harness now does too.
+  ({ MemoryRouter } = await import("react-router-dom"));
   const m = await import(pathToFileURL(BUNDLE).href);
   PrezzeeSmartCard = m.PrezzeeSmartCard;
   FAKE = globalThis.__PSCDS_TEST__;
@@ -136,8 +139,16 @@ const setValue = async (el, v) => { await act(async () => {
 }); };
 const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 
+function withRouter() {
+  return React.createElement(
+    MemoryRouter,
+    { initialEntries: [{ pathname: "/dashboard/gifts/smart-card", state: null }] },
+    React.createElement(PrezzeeSmartCard),
+  );
+}
+
 async function mountAtConfirmModal() {
-  const s = await mount(React.createElement(PrezzeeSmartCard));
+  const s = await mount(withRouter());
   await flush();
   await click(s.q('[data-tile-id="prezzee_smart_card_1000"]'));
   await setValue(s.q('input[type="email"]'), "r@example.com");
