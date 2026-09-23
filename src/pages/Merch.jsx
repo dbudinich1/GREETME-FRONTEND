@@ -28,7 +28,9 @@ import PriceRangeFilter from '../components/PriceRangeFilter';
 // marketplace below is untouched. Visibility is cosmetic — the backend 403s a non-founder.
 import { useAuth } from '../context/AuthContext';
 import { isFounder } from '../utils/accountState';
-import ManageCatalogDrawer from '../components/founderCatalog/ManageCatalogDrawer';
+// UNIFIED MANAGE CATALOG (Team C, 2026-09-23) — replaces ManageCatalogDrawer.jsx per the
+// founder-approved redesign; see ManageCatalogModal.jsx's own header comment.
+import ManageCatalogModal from '../components/founderCatalog/ManageCatalogModal';
 // GIFT PLACE — ONE product area for every category, provider-fulfilled or not.
 //
 // Flowers used to be a separate surface: a button that opened a modal that loaded its own list, with
@@ -1041,9 +1043,9 @@ export default function Merch() {
         />
       )}
 
-      {/* CHECKPOINT 2 — the drawer renders OVER this page. No route change, no second page. */}
+      {/* CHECKPOINT 2 — the modal renders OVER this page. No route change, no second page. */}
       {founder && (
-        <ManageCatalogDrawer open={catalogOpen} onClose={() => setCatalogOpen(false)} />
+        <ManageCatalogModal open={catalogOpen} onClose={() => setCatalogOpen(false)} />
       )}
     </div>
   );
