@@ -6,7 +6,7 @@
 // CardElement wiring, same createPaymentMethod -> onConfirm(paymentMethod.id, stripe) contract —
 // relabeled for the Smart Card product. GiftConfirmationModal.jsx itself is untouched; this is a
 // separate component so QR Cash's copy, styling and behavior stay byte-identical.
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import Modal from './Modal';
 import { AlertCircle, Loader, CreditCard, Gift } from 'lucide-react';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -41,17 +41,52 @@ function PrezzeeCardConfirmForm({
   const [cardError, setCardError] = useState(null);
   const [cardComplete, setCardComplete] = useState(false);
 
+  // DUPLICATE-SUBMIT FIX (2026-09-23, founder-authorized). `charging` is a prop owned by the
+  // parent and only becomes true AFTER stripe.createPaymentMethod() below resolves — a real
+  // network round trip. A second click, Enter, or a repeated handler invocation landing during
+  // that window was not blocked by `charging` alone; this is what let two POST /prezzee-card
+  // requests race the backend's one-shot slot claim for what was reported as a single click.
+  // `submitLockRef` is a ref, not state, so checking it is the FIRST statement in handleConfirm
+  // takes effect synchronously, before React has any chance to re-render — closing that window
+  // regardless of trigger source or parent state. `localSubmitting` only mirrors it to drive the
+  // button's own immediate visual `disabled` state.
+  const submitLockRef = useRef(false);
+  const [localSubmitting, setLocalSubmitting] = useState(false);
+
+  // Once the parent's own charge cycle (which only starts after this component already handed
+  // off a real PaymentMethod via onConfirm) finishes — success, a definitively-not-charged retry,
+  // or an outcome-unknown refusal — `charging` returns to false and this releases the lock so a
+  // legitimate next attempt (e.g. after a declined card) is never permanently stuck.
+  useEffect(() => {
+    if (!charging && submitLockRef.current) {
+      submitLockRef.current = false;
+      setLocalSubmitting(false);
+    }
+  }, [charging]);
+
   const fmt = (cents) => `$${(cents / 100).toFixed(2)}`;
 
-  const isDisabled = charging || !stripe || !elements || !cardComplete;
+  const isDisabled = charging || localSubmitting || !stripe || !elements || !cardComplete;
 
   const handleConfirm = useCallback(async () => {
-    if (isDisabled) return;
+    // Synchronous one-shot guard — must be the very first check, before any await. A second call
+    // arriving in the same tick (double-click, Enter firing alongside a click, a duplicated event
+    // handler invocation) reads this ref as already `true` and returns immediately, before ever
+    // calling stripe.createPaymentMethod() a second time.
+    if (submitLockRef.current) return;
+    if (charging || !stripe || !elements || !cardComplete) return;
+    submitLockRef.current = true;
+    setLocalSubmitting(true);
 
     setCardError(null);
 
     const cardElement = elements.getElement(CardElement);
-    if (!cardElement) return;
+    if (!cardElement) {
+      // Nothing was ever submitted — safe to unlock immediately.
+      submitLockRef.current = false;
+      setLocalSubmitting(false);
+      return;
+    }
 
     const { error, paymentMethod } = await stripe.createPaymentMethod({
       type: 'card',
@@ -59,13 +94,18 @@ function PrezzeeCardConfirmForm({
     });
 
     if (error) {
+      // A client-side card validation/decline before any server call — legitimate to retry with a
+      // corrected or different card.
       setCardError(error.message);
+      submitLockRef.current = false;
+      setLocalSubmitting(false);
       return;
     }
 
-    // Pass both paymentMethod ID and stripe instance for 3DS handling.
+    // A real PaymentMethod now exists. From here on the parent's own `charging` state (and the
+    // effect above) governs the lock for the remainder of this attempt.
     onConfirm(paymentMethod.id, stripe);
-  }, [isDisabled, stripe, elements, onConfirm]);
+  }, [charging, stripe, elements, cardComplete, onConfirm]);
 
   const handleCardChange = useCallback((event) => {
     setCardComplete(event.complete);
@@ -161,7 +201,7 @@ function PrezzeeCardConfirmForm({
         <button
           type="button"
           onClick={onClose}
-          disabled={charging}
+          disabled={charging || localSubmitting}
           style={{
             flex: 1,
             padding: '0.75rem 1rem',
@@ -171,9 +211,9 @@ function PrezzeeCardConfirmForm({
             borderRadius: '0.5rem',
             fontSize: '0.9375rem',
             fontWeight: 500,
-            cursor: charging ? 'not-allowed' : 'pointer',
+            cursor: (charging || localSubmitting) ? 'not-allowed' : 'pointer',
             fontFamily: 'inherit',
-            opacity: charging ? 0.5 : 1,
+            opacity: (charging || localSubmitting) ? 0.5 : 1,
           }}
         >
           Cancel
@@ -202,7 +242,7 @@ function PrezzeeCardConfirmForm({
             boxShadow: isDisabled ? 'none' : '0 2px 4px rgba(16, 185, 129, 0.3)',
           }}
         >
-          {charging ? (
+          {(charging || localSubmitting) ? (
             <>
               <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />
               Charging...
