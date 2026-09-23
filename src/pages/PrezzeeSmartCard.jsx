@@ -11,6 +11,7 @@
 // all either server-supplied or a clearly-labeled PREVIEW of the server's own published formula —
 // never a number the client can edit and have honored.
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import api from '../api/api';
 import PrezzeeCardConfirmationModal from '../components/PrezzeeCardConfirmationModal';
 import { Gift, AlertCircle, Loader, CheckCircle2 } from 'lucide-react';
@@ -41,6 +42,13 @@ function failure(message, status) {
 }
 
 export default function PrezzeeSmartCard() {
+  // DIRECT DENOMINATION DISPLAY (Team C, 2026-09-23): Merch.jsx's own denomination tiles navigate
+  // here with `state: { presetTileId }` so selecting a tile there opens straight into THIS
+  // existing purchase flow with that amount already chosen — no new picker, no new validation
+  // path. A visit with no state (or an id the tile list doesn't recognise) behaves exactly as
+  // before: nothing preselected.
+  const location = useLocation();
+  const presetTileId = location.state?.presetTileId ?? null;
   const [loadState, setLoadState] = useState('loading'); // 'loading' | 'ready' | 'dormant' | 'error'
   const [product, setProduct] = useState(null);
   const [tiles, setTiles] = useState([]);
@@ -80,6 +88,12 @@ export default function PrezzeeSmartCard() {
         }
         setProduct(res.product || null);
         setTiles(res.tiles);
+        // Preselect ONLY a tile the server itself just returned — never trust the router state
+        // value on its own, so a stale or tampered id can never select an amount this exact
+        // server response doesn't recognise.
+        if (presetTileId && res.tiles.some((t) => t.id === presetTileId)) {
+          setSelectedTileId(presetTileId);
+        }
         setLoadState('ready');
       } catch (err) {
         if (cancelled) return;

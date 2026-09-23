@@ -7,6 +7,10 @@ import AddToCartModal from '../components/AddToCartModal';
 import QRCashGiftModal from '../components/QRCashGiftModal';
 import api from '../api/api';
 import greetmeFlags from '../assets/greetme-flags.jpg';
+// Founder-approved production artwork, supplied 2026-09-23 for the Greet-Me Smart eGift Card —
+// used AS-IS (never cropped, stretched, recolored, or substituted) for every denomination tile
+// below. Vendor-neutral name deliberately: this page must never name a vendor in executable code.
+import smartEGiftCardArt from '../assets/gifts/smart-egift-card.png';
 // GIFTS — the selector vocabulary and the ONE selection rule live in a plain module so the
 // partition they produce is executable and testable. See src/pages/merchSelection.js.
 import {
@@ -24,7 +28,9 @@ import PriceRangeFilter from '../components/PriceRangeFilter';
 // marketplace below is untouched. Visibility is cosmetic — the backend 403s a non-founder.
 import { useAuth } from '../context/AuthContext';
 import { isFounder } from '../utils/accountState';
-import ManageCatalogDrawer from '../components/founderCatalog/ManageCatalogDrawer';
+// UNIFIED MANAGE CATALOG (Team C, 2026-09-23) — replaces ManageCatalogDrawer.jsx per the
+// founder-approved redesign; see ManageCatalogModal.jsx's own header comment.
+import ManageCatalogModal from '../components/founderCatalog/ManageCatalogModal';
 // GIFT PLACE — ONE product area for every category, provider-fulfilled or not.
 //
 // Flowers used to be a separate surface: a button that opened a modal that loaded its own list, with
@@ -58,7 +64,11 @@ export default function Merch() {
   // the same GET the standalone Smart Card page itself asks — and only replaces the placeholder
   // once the server actually reports the card as available. A read-only, unauthenticated-safe
   // call: it costs nothing while the record stays a draft, which is the real, current posture.
-  const [giftCardAvailable, setGiftCardAvailable] = useState(false);
+  // DIRECT DENOMINATION DISPLAY (Team C, 2026-09-23): holds the server's own tile list
+  // ({id, displayAmount, amountCents}) once available, `null` while unknown/dormant/unpublished —
+  // the fail-closed default that keeps the "coming later" placeholder in place. No intermediate
+  // "View Smart Card options" step: each tile IS the entry point once tiles are present.
+  const [giftCardTiles, setGiftCardTiles] = useState(null);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
   const [showCartModal, setShowCartModal] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState(null);
@@ -118,15 +128,17 @@ export default function Merch() {
   useEffect(() => {
     if (selectedCategory !== 'gift_cards') return undefined;
     let cancelled = false;
-    setGiftCardAvailable(false);
+    setGiftCardTiles(null);
     (async () => {
       try {
         // Vendor-neutral entry point — see api.js's own note on getSmartCardTiles(). This page
         // must never name a vendor in its executable code.
         const res = await api.getSmartCardTiles();
-        if (!cancelled) setGiftCardAvailable(res?.ok === true);
+        if (!cancelled) {
+          setGiftCardTiles(res?.ok === true && Array.isArray(res.tiles) && res.tiles.length > 0 ? res.tiles : null);
+        }
       } catch {
-        if (!cancelled) setGiftCardAvailable(false);
+        if (!cancelled) setGiftCardTiles(null);
       }
     })();
     return () => { cancelled = true; };
@@ -820,57 +832,72 @@ export default function Merch() {
       )}
 
       {selectedCategory === 'gift_cards' ? (
-        /* GIFTS-CP1, corrected 2026-09-22 (Team C, "founder-control catalog slice") — GIFT CARDS,
-           SERVER-DECIDED PRESENTATION.
-           The "coming later" placeholder is no longer a hardcoded permanent state: it is the
-           fail-closed DEFAULT while giftCardAvailable is false, and is asked fresh from the
-           server (the effect above) every time this category is selected. It is removed ONLY
-           when the server actually reports the Smart Card as available — which requires BOTH
-           pauseGiftCards to be false AND the founder to have PUBLISHED the Manage Catalog record
-           (prezzeeCardCheckoutBlocked(), routes/giftRoutes.js) — never a client-side guess. There
-           is still no denomination selector or Add to Cart HERE: the standalone page at
-           /dashboard/gifts/smart-card is the one purchase surface, and this tile only links to it
-           once the server has confirmed it is real. */
-        giftCardAvailable ? (
-          <div data-testid="gift-cards-available" style={{
-            padding: '3rem 2rem',
-            textAlign: 'center',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--primary)',
-            borderRadius: 'var(--radius-xl)'
-          }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>&#127873;</div>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
+        /* DIRECT DENOMINATION DISPLAY (Team C, 2026-09-23) — GIFT CARDS, SERVER-DECIDED
+           PRESENTATION, NO INTERMEDIATE STEP.
+           `giftCardTiles` is the fail-closed DEFAULT (`null`, showing "coming later") until the
+           server's own tile list (the SAME GET .../prezzee-card/tiles the standalone purchase
+           page itself calls) actually reports tiles — which requires BOTH pauseGiftCards to be
+           false AND the founder to have PUBLISHED the Manage Catalog record
+           (prezzeeCardCheckoutBlocked(), routes/giftRoutes.js) — never a client-side guess. Each
+           tile is its own product-style card; selecting one navigates straight to the existing
+           purchase flow with that exact tile preselected via router state — no picker screen, no
+           "View Smart Card options" button, no separate navigation step in between. */
+        giftCardTiles ? (
+          <div data-testid="gift-cards-available">
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.25rem' }}>
               Greet-Me Smart eGift Card
             </h3>
-            <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: '0 0 1rem', maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
-              One smart card the recipient can spend at the retailer they choose.
+            <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: '0 0 1rem', color: 'var(--text-secondary)' }}>
+              One smart card the recipient can spend at the retailer they choose. Choose an amount:
             </p>
-            <button
-              type="button"
-              // BUG FIX (found in production, 2026-09-22): "gifts/smart-card" is registered in
-              // App.jsx as a NESTED child route under "/dashboard" (relative, not absolute), so
-              // its real, effective path is /dashboard/gifts/smart-card. The PRIOR version of
-              // this call used an unprefixed absolute path that matched no route at all, fell
-              // through to App.jsx's catch-all ("*" -> Navigate to "/"), which for an
-              // authenticated user bounces through Landing's own auth-redirect back to
-              // /dashboard — perceived as this tile "reloading" the gifts dashboard instead of
-              // opening the Smart Card page.
-              onClick={() => navigate('/dashboard/gifts/smart-card')}
-              style={{
-                padding: '0.625rem 1.25rem',
-                borderRadius: 'var(--radius-md)',
-                border: 'none',
-                background: 'var(--primary)',
-                color: 'white',
-                fontSize: '0.875rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                fontFamily: 'inherit'
-              }}
-            >
-              View Smart Card options
-            </button>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+              gap: '1rem',
+            }}>
+              {giftCardTiles.map((tile) => (
+                <button
+                  key={tile.id}
+                  type="button"
+                  data-testid={`gift-card-denomination-${tile.id}`}
+                  // BUG FIX (found in production, 2026-09-22): "gifts/smart-card" is registered in
+                  // App.jsx as a NESTED child route under "/dashboard" (relative, not absolute),
+                  // so its real, effective path is /dashboard/gifts/smart-card.
+                  onClick={() => navigate('/dashboard/gifts/smart-card', { state: { presetTileId: tile.id } })}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.75rem',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--border)',
+                    background: 'white',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  <div style={{ position: 'relative', width: '100%' }}>
+                    {/* Approved production artwork, used as-is: no crop, stretch, recolor, or
+                        substitution — its own natural aspect ratio (469:289) is preserved via
+                        width:100%/height:auto. */}
+                    <img
+                      src={smartEGiftCardArt}
+                      alt="Greet-Me Smart eGift Card"
+                      style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--radius-md)' }}
+                    />
+                    <span style={{
+                      position: 'absolute', bottom: '0.5rem', right: '0.5rem',
+                      background: 'rgba(0,0,0,0.72)', color: 'white',
+                      fontSize: '1.0625rem', fontWeight: 800,
+                      padding: '0.25rem 0.625rem', borderRadius: '9999px',
+                    }}>
+                      {tile.displayAmount}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <div data-testid="gift-cards-coming-later" style={{
@@ -1016,9 +1043,9 @@ export default function Merch() {
         />
       )}
 
-      {/* CHECKPOINT 2 — the drawer renders OVER this page. No route change, no second page. */}
+      {/* CHECKPOINT 2 — the modal renders OVER this page. No route change, no second page. */}
       {founder && (
-        <ManageCatalogDrawer open={catalogOpen} onClose={() => setCatalogOpen(false)} />
+        <ManageCatalogModal open={catalogOpen} onClose={() => setCatalogOpen(false)} />
       )}
     </div>
   );

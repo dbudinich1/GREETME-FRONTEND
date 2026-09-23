@@ -8,6 +8,15 @@
 // component and the tests read the SAME values instead of two lists that must be kept in step.
 
 /**
+ * The ONE Prezzee Smart Card external product id the backend's own curated-identity check
+ * (services/giftCatalog.js#isCuratedSmartCardIdentity) recognises — added 2026-09-23 (Team C,
+ * unified Add to Catalog) so the picker can offer this fixed item without a browse step. Kept as
+ * a named constant, not typed inline, for the same reason LAUNCH_PRODUCT_SOURCES is: one place to
+ * change it, and a single value the picker and its tests both read.
+ */
+export const PREZZEE_SMART_CARD_EXTERNAL_PRODUCT_ID = 'GREETMEL_GREETME_BRANDED_CARD_2';
+
+/**
  * The ids a product may be STORED under.
  *
  * `apparel` is storable and deliberately has NO customer selector yet — storing and surfacing are

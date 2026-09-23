@@ -58,12 +58,14 @@ const CATEGORY_LABELS = GREET_ME_CATEGORIES.map((c) => c.label);
 
 // The dormant Gift Cards branch, isolated so "offers nothing purchasable" is asserted against
 // that panel alone and cannot be satisfied by unrelated markup elsewhere on the page.
+//
+// NARROWED 2026-09-23 (Team C, direct denomination display): the outer ternary now ALSO contains
+// a genuinely purchasable AVAILABLE branch (a live grid of denomination tiles, necessarily using
+// .map() and the word "denomination" in its own comments) once the server reports tiles. This
+// test's actual intent — stated above — was always specific to the DORMANT/"coming later" panel,
+// so it is now bounded to exactly that sub-block instead of the whole ternary.
 const GIFT_CARDS_BRANCH = (() => {
-  const start = CODE.indexOf("selectedCategory === 'gift_cards'");
-  // The branch used to end where the page's own hand-written empty state began. That empty state
-  // moved into the ONE shared grid every category now renders through, so the branch is bounded by
-  // the next arm of the same ternary instead. The property is unchanged: Gift Cards is decided
-  // FIRST, and the panel it renders offers nothing purchasable.
+  const start = CODE.indexOf('data-testid="gift-cards-coming-later"');
   const end = CODE.indexOf("hiddenByPrice", start);
   assert.ok(start > -1 && end > start, "the dormant Gift Cards branch must exist and come first");
   return CODE.slice(start, end);

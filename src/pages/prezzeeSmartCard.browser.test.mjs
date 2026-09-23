@@ -35,7 +35,7 @@ const FAKE_API = join(__dirname, ".__psc.fakeApi.js");
 const FAKE_MODAL = join(__dirname, ".__psc.fakeModal.jsx");
 const BUNDLE = join(__dirname, ".__psc.bundle.mjs");
 
-let React, createRoot, act, PrezzeeSmartCard, dom, FAKE;
+let React, createRoot, act, PrezzeeSmartCard, dom, FAKE, MemoryRouter;
 
 before(async () => {
   writeFileSync(FAKE_API, `
@@ -100,6 +100,10 @@ before(async () => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   React = (await import("react")).default; act = React.act;
   ({ createRoot } = await import("react-dom/client"));
+  // Added 2026-09-23 (Team C, direct denomination display): PrezzeeSmartCard.jsx now calls
+  // useLocation() to read an optional preselected tile id, which requires a Router ancestor —
+  // the real app always provides one (App.jsx); this harness now does too.
+  ({ MemoryRouter } = await import("react-router-dom"));
   const m = await import(pathToFileURL(BUNDLE).href);
   PrezzeeSmartCard = m.PrezzeeSmartCard;
   FAKE = globalThis.__PSC_TEST__;
@@ -141,9 +145,19 @@ const EIGHT_TILES = [
   { id: "prezzee_smart_card_25000", displayAmount: "$250", amountCents: 25000, sharedArtwork: true },
 ];
 
-async function mountReady(tiles = EIGHT_TILES) {
+// Wraps the page in the same Router context App.jsx always provides in production.
+// `locationState` mirrors what Merch.jsx's denomination tiles pass via navigate(path, { state }).
+function withRouter(locationState) {
+  return React.createElement(
+    MemoryRouter,
+    { initialEntries: [{ pathname: "/dashboard/gifts/smart-card", state: locationState || null }] },
+    React.createElement(PrezzeeSmartCard),
+  );
+}
+
+async function mountReady(tiles = EIGHT_TILES, locationState) {
   FAKE.setResponses({ getPrezzeeCardTiles: async () => ({ ok: true, product: { name: "Greet-Me Smart Card, powered by Prezzee", poweredBy: "Prezzee" }, tiles }) });
-  const s = await mount(React.createElement(PrezzeeSmartCard));
+  const s = await mount(withRouter(locationState));
   await flush();
   return s;
 }
@@ -169,6 +183,25 @@ test("REQUIRED TEST 3: no custom-amount or free-entry input exists anywhere on t
   for (const inp of allInputs) {
     assert.notEqual(inp.type, "number");
     assert.doesNotMatch((inp.name || inp.id || "").toLowerCase(), /amount|price|cents|dollar/);
+  }
+});
+
+// ── Direct denomination display: a tile chosen on Merch.jsx arrives preselected ─────────────
+
+test("a presetTileId passed via router state (Merch.jsx's denomination tiles) preselects that exact tile on load", async () => {
+  const s = await mountReady(EIGHT_TILES, { presetTileId: "prezzee_smart_card_5000" });
+  const tileBtn = s.q('[data-tile-id="prezzee_smart_card_5000"]');
+  assert.equal(tileBtn.getAttribute("aria-checked"), "true", "the tile named in router state must be selected without any click");
+  const others = s.qa("[data-tile-id]").filter((b) => b.getAttribute("data-tile-id") !== "prezzee_smart_card_5000");
+  for (const other of others) {
+    assert.equal(other.getAttribute("aria-checked"), "false", "no other tile may be selected");
+  }
+});
+
+test("an unrecognized presetTileId (not in the server's own tile list) selects nothing — never trusts router state alone", async () => {
+  const s = await mountReady(EIGHT_TILES, { presetTileId: "not_a_real_tile_id" });
+  for (const btn of s.qa("[data-tile-id]")) {
+    assert.equal(btn.getAttribute("aria-checked"), "false");
   }
 });
 
@@ -310,7 +343,7 @@ test("REQUIRED TEST 12: while the backend reports dormant (503), the page shows 
   // other than 401/404 — a 503 is a rejected promise with a `.status` property, never a
   // resolved {status:503}.
   FAKE.setResponses({ getPrezzeeCardTiles: async () => { const e = new Error("Digital gift cards are temporarily unavailable."); e.status = 503; e.code = "GIFT_CARDS_PAUSED"; throw e; } });
-  const s = await mount(React.createElement(PrezzeeSmartCard));
+  const s = await mount(withRouter());
   await flush();
   assert.equal(s.qa("[data-tile-id]").length, 0, "no tiles may render while dormant");
   assert.equal(s.qa("input").length, 0, "no purchase form may render while dormant");

@@ -48,7 +48,10 @@ test("Merch.jsx's Smart Card button navigates to the ACTUAL registered route, no
   const realPath = registeredSmartCardPath();
   assert.equal(realPath, "/dashboard/gifts/smart-card", "sanity: the route this test derived is the expected one");
 
-  const navCall = /navigate\(['"]([^'"]*gifts\/smart-card[^'"]*)['"]\)/.exec(MERCH_SRC);
+  // Widened 2026-09-23 (Team C, direct denomination display): the call now also passes a second
+  // argument (`{ state: { presetTileId } }`) so the target page can preselect the chosen
+  // denomination — the regex allows, but does not require, trailing arguments after the path.
+  const navCall = /navigate\(['"]([^'"]*gifts\/smart-card[^'"]*)['"][^)]*\)/.exec(MERCH_SRC);
   assert.ok(navCall, "Merch.jsx must call navigate() with a gifts/smart-card path");
   assert.equal(navCall[1], realPath,
     "Merch.jsx must navigate to the SAME path App.jsx actually registers — a mismatch here is exactly the 2026-09-22 production bug");
