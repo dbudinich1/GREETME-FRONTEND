@@ -40,7 +40,7 @@ const GRID_STYLE_TEXT = `
 .gm-manage-catalog-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 @media (max-width: 1100px) {
   .gm-manage-catalog-grid { grid-template-columns: repeat(3, 1fr); }
@@ -135,7 +135,10 @@ function CatalogTile({ item, client, onRemoved, onSaved }) {
       border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden',
       background: 'white', display: 'flex', flexDirection: 'column',
     }}>
-      <div style={{ position: 'relative', aspectRatio: '4 / 3', background: '#f3f4f6' }}>
+      {/* SOFTENED 2026-09-23: a shorter aspect ratio (was 4/3) so the image is less dominant
+          relative to the product information below it, and a smaller, visually secondary trash
+          control (was a prominent 2rem red circle) — still a real, easy-to-click target. */}
+      <div style={{ position: 'relative', aspectRatio: '16 / 10', background: '#f3f4f6' }}>
         {image ? (
           <img src={image} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         ) : (
@@ -148,15 +151,15 @@ function CatalogTile({ item, client, onRemoved, onSaved }) {
           onClick={() => setConfirming(true)}
           style={{
             position: 'absolute', top: '0.5rem', right: '0.5rem',
-            width: '2rem', height: '2rem', padding: 0, borderRadius: '9999px', border: 'none',
-            background: 'rgba(255,255,255,0.92)', color: '#dc2626', cursor: 'pointer',
+            width: '1.75rem', height: '1.75rem', padding: 0, borderRadius: '9999px', border: 'none',
+            background: 'rgba(255,255,255,0.9)', color: 'var(--text-tertiary)', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <Trash2 size={16} />
+          <Trash2 size={13} />
         </button>
       </div>
-      <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1 }}>
+      <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.375rem', flex: 1 }}>
         <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>{title}</div>
         <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'capitalize' }}>
           {PROVIDER_LABELS[providerId] || providerId || 'Unknown provider'}
@@ -313,15 +316,25 @@ export default function ManageCatalogModal({ open, onClose, client = founderCata
   if (!open) return null;
 
   return (
-    <div data-testid="manage-catalog-modal" style={{
-      position: 'fixed', inset: '1.5rem', zIndex: 900,
-      background: 'white', borderRadius: 'var(--radius-xl)', boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
-      display: 'flex', flexDirection: 'column', overflow: 'hidden',
+    // SOFTENED 2026-09-23: centered over a restrained darkened backdrop, ~90vw wide with a
+    // comfortable margin on all four sides (was edge-anchored via `inset`), max 84vh tall so the
+    // modal never touches the viewport top/bottom either. The header/toolbar below stays a
+    // sibling of the scrollable content area, exactly as before — only its own padding shrank.
+    <div data-testid="manage-catalog-backdrop" style={{
+      position: 'fixed', inset: 0, zIndex: 900,
+      background: 'rgba(15, 23, 42, 0.45)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '2rem',
     }}>
+      <div data-testid="manage-catalog-modal" style={{
+        width: '90vw', maxWidth: '90vw', maxHeight: '84vh',
+        background: 'white', borderRadius: 'var(--radius-xl)', boxShadow: '0 10px 40px rgba(0,0,0,0.18)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}>
       <style>{GRID_STYLE_TEXT}</style>
       <header style={{
-        display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.5rem',
-        borderBottom: '1px solid var(--border)', flexWrap: 'wrap',
+        display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1.25rem',
+        borderBottom: '1px solid var(--border)', flexWrap: 'wrap', flexShrink: 0,
       }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, marginRight: 'auto' }}>Manage Catalog</h2>
         <div style={{ position: 'relative', flex: '1 1 220px', maxWidth: '320px' }}>
@@ -402,6 +415,7 @@ export default function ManageCatalogModal({ open, onClose, client = founderCata
             )}
           </>
         )}
+      </div>
       </div>
     </div>
   );
