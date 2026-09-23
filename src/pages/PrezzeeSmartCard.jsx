@@ -51,6 +51,13 @@ export default function PrezzeeSmartCard() {
   const [charging, setCharging] = useState(false);
   const [chargeError, setChargeError] = useState(null);
   const [successGift, setSuccessGift] = useState(null);
+  // FIX 2026-09-23 (Team C, Prezzee fulfilment failure safety correction): a real production
+  // purchase showed "Smart Card purchased" for an order whose vendor fulfilment had actually
+  // failed — finalizePrezzeeCardOrder() always returns the order, regardless of vendor outcome.
+  // The server now reports `fulfillmentStatus` ("failed"/"pending") whenever it is anything
+  // other than confirmed; `successGift` is set ONLY for a genuinely confirmed purchase, and this
+  // state renders a distinct, truthful "not purchased yet" screen for every other case.
+  const [fulfillmentIssue, setFulfillmentIssue] = useState(null); // { status: 'failed'|'pending', gift, message }
   const giftRequestIdRef = useRef(crypto.randomUUID());
   // A PaymentIntent that 3DS has already SUCCEEDED for. While set, a retry only re-finalizes it
   // (idempotent by paymentIntentId server-side) and never starts a second charge.
@@ -111,6 +118,10 @@ export default function PrezzeeSmartCard() {
     setCharging(true);
     setChargeError(null);
 
+    // FIX 2026-09-23: returns the full { gift, fulfillmentStatus, fulfillmentMessage } outcome —
+    // not just `gift` — so a confirmed-vendor-fulfilment purchase can be told apart from one that
+    // is merely paid-and-ordered. `fulfillmentStatus` is absent (undefined) for a genuinely
+    // confirmed purchase, by the server's own contract (see buildPrezzeeCardOrderResponse).
     const finalizePaid = async (paymentIntentId) => {
       let finalizeResult = null;
       try {
@@ -122,14 +133,14 @@ export default function PrezzeeSmartCard() {
           + 'Please try again — you will not be charged again.',
         );
       }
-      return finalizeResult.gift;
+      return { gift: finalizeResult.gift, fulfillmentStatus: finalizeResult.fulfillmentStatus, fulfillmentMessage: finalizeResult.error };
     };
 
     try {
-      let gift;
+      let outcome;
       if (paidPaymentIntentIdRef.current) {
         // 3DS already succeeded on an earlier attempt: finish THAT payment, never charge again.
-        gift = await finalizePaid(paidPaymentIntentIdRef.current);
+        outcome = await finalizePaid(paidPaymentIntentIdRef.current);
       } else {
         // ONLY the tile id is submitted — never an amount, fee, total, product code, currency, or
         // provider. Every one of those is resolved server-side from the tile id alone.
@@ -158,9 +169,9 @@ export default function PrezzeeSmartCard() {
           }
           paidPaymentIntentIdRef.current = chargeResult.paymentIntentId;
           setAwaitingFinalize(true);
-          gift = await finalizePaid(chargeResult.paymentIntentId);
+          outcome = await finalizePaid(chargeResult.paymentIntentId);
         } else if (chargeResult?.ok && chargeResult.gift) {
-          gift = chargeResult.gift;
+          outcome = { gift: chargeResult.gift, fulfillmentStatus: chargeResult.fulfillmentStatus, fulfillmentMessage: chargeResult.error };
         } else {
           throw failure(chargeResult?.error || 'Smart Card purchase failed.', chargeResult?.status);
         }
@@ -169,8 +180,14 @@ export default function PrezzeeSmartCard() {
       paidPaymentIntentIdRef.current = null;
       setAwaitingFinalize(false);
       setIsConfirmOpen(false);
-      setSuccessGift(gift); // server-returned values — authoritative, shown as-is
       setSelectedTileId(null);
+      // "Smart Card purchased" is shown ONLY for a genuinely confirmed vendor fulfilment — a
+      // "failed" or "pending" disposition renders the distinct, truthful screen instead.
+      if (outcome.fulfillmentStatus === 'failed' || outcome.fulfillmentStatus === 'pending') {
+        setFulfillmentIssue({ status: outcome.fulfillmentStatus, gift: outcome.gift, message: outcome.fulfillmentMessage });
+      } else {
+        setSuccessGift(outcome.gift); // server-returned values — authoritative, shown as-is
+      }
     } catch (error) {
       if (paidPaymentIntentIdRef.current) {
         // Paid but not finalized: keep the key and the PaymentIntent; the next attempt re-finalizes.
@@ -217,6 +234,28 @@ export default function PrezzeeSmartCard() {
         <p style={{ color: '#991b1b', fontSize: '0.9375rem' }}>
           Something went wrong loading the Smart Card. Please try again later.
         </p>
+      </div>
+    );
+  }
+
+  if (fulfillmentIssue) {
+    const isFailed = fulfillmentIssue.status === 'failed';
+    return (
+      <div style={{ padding: '3rem', textAlign: 'center', maxWidth: '32rem', margin: '0 auto' }}>
+        <AlertCircle size={40} style={{ color: isFailed ? '#dc2626' : '#d97706' }} />
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0.75rem 0 0.5rem' }}>
+          {isFailed ? 'We could not issue your Smart Card' : 'Confirming your Smart Card'}
+        </h2>
+        <p style={{ color: 'var(--text-secondary, #6b7280)', fontSize: '0.9375rem' }}>
+          {fulfillmentIssue.message || (isFailed
+            ? 'Your payment was received, but we could not issue your Smart Card. Contact support for help.'
+            : "Your payment was received. We're still confirming your Smart Card — check back shortly, or contact support if this persists.")}
+        </p>
+        {fulfillmentIssue.gift && (
+          <p style={{ color: 'var(--text-secondary, #6b7280)', fontSize: '0.8125rem', marginTop: '0.5rem' }}>
+            Face value {fmt(fulfillmentIssue.gift.giftAmountCents)} · Fee {fmt(fulfillmentIssue.gift.feeCents)} · Total charged {fmt(fulfillmentIssue.gift.totalCents)}
+          </p>
+        )}
       </div>
     );
   }
