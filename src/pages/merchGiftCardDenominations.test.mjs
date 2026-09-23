@@ -26,6 +26,33 @@ test("selecting Gift Cards immediately renders a grid mapped over the server's o
   assert.match(CODE, /giftCardTiles\.map\(/, "the available branch must render one card per server-reported tile");
 });
 
+// ── VISUAL REFINEMENT (2026-09-23): exact 3/2/1 breakpoint grid, matching the flower layout's
+// general width/spacing (~300px cards, 1.5rem desktop gap) — not fluid auto-fill, so eight tiles
+// reliably arrange 3+3+2 on desktop rather than an unpredictable count per row.
+
+test("the Smart Card grid declares exactly 3 columns on desktop, 2 at tablet width, and 1 at small mobile width", () => {
+  const start = CODE.indexOf(".gm-smartcard-grid {");
+  assert.ok(start !== -1, "a scoped stylesheet rule for the smart card grid must exist");
+  const end = CODE.indexOf("`", start);
+  const css = CODE.slice(start, end);
+  assert.match(css, /grid-template-columns:\s*repeat\(3,\s*1fr\)/, "desktop (default) must be 3 columns");
+  assert.match(css, /@media[^{]*max-width:\s*899px[\s\S]*repeat\(2,\s*1fr\)/, "tablet breakpoint must be 2 columns");
+  assert.match(css, /@media[^{]*max-width:\s*559px[\s\S]*repeat\(1,\s*1fr\)/, "small mobile breakpoint must be 1 column");
+});
+
+test("the grid uses the CSS class (not fluid auto-fill/auto-fit), so eight tiles arrange 3+3+2 deterministically", () => {
+  const gridDivIdx = CODE.indexOf('className="gm-smartcard-grid"');
+  assert.ok(gridDivIdx !== -1, "the grid container must use the scoped class");
+  assert.doesNotMatch(CODE, /gm-smartcard-grid[\s\S]{0,5}auto-fill|gm-smartcard-grid[\s\S]{0,5}auto-fit/i);
+});
+
+test("the Smart Card grid's spacing matches the general convention of the existing flower/gift grid (a real rem-based gap, not a tight or zero gap)", () => {
+  const start = CODE.indexOf(".gm-smartcard-grid {");
+  const end = CODE.indexOf("}", start);
+  const block = CODE.slice(start, end);
+  assert.match(block, /gap:\s*1\.5rem/, "desktop gap should match the flower layout's own 1.5rem gap");
+});
+
 test("the OLD 'View Smart Card options' intermediate button no longer exists", () => {
   assert.doesNotMatch(CODE, /View Smart Card options/, "the intermediate button text must be fully removed");
 });

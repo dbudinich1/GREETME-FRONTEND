@@ -844,17 +844,30 @@ export default function Merch() {
            "View Smart Card options" button, no separate navigation step in between. */
         giftCardTiles ? (
           <div data-testid="gift-cards-available">
+            {/* VISUAL REFINEMENT (Team C, 2026-09-23): a real 3/2/1 breakpoint grid — matching the
+                general width and spacing of the existing flower layout's cards (~300px, 1.5rem
+                gap) — not fluid auto-fill, so eight tiles reliably arrange 3+3+2 on desktop rather
+                than an unpredictable count per row. */}
+            <style>{`
+              .gm-smartcard-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 1.5rem;
+              }
+              @media (max-width: 899px) {
+                .gm-smartcard-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+              }
+              @media (max-width: 559px) {
+                .gm-smartcard-grid { grid-template-columns: repeat(1, 1fr); gap: 0.75rem; }
+              }
+            `}</style>
             <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.25rem' }}>
               Greet-Me Smart eGift Card
             </h3>
             <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: '0 0 1rem', color: 'var(--text-secondary)' }}>
               One smart card the recipient can spend at the retailer they choose. Choose an amount:
             </p>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-              gap: '1rem',
-            }}>
+            <div className="gm-smartcard-grid" data-testid="gift-card-grid">
               {giftCardTiles.map((tile) => (
                 <button
                   key={tile.id}
@@ -868,8 +881,8 @@ export default function Merch() {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.75rem',
+                    gap: '0.625rem',
+                    padding: '1rem',
                     borderRadius: 'var(--radius-lg)',
                     border: '1px solid var(--border)',
                     background: 'white',
@@ -886,15 +899,12 @@ export default function Merch() {
                       alt="Greet-Me Smart eGift Card"
                       style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--radius-md)' }}
                     />
-                    <span style={{
-                      position: 'absolute', bottom: '0.5rem', right: '0.5rem',
-                      background: 'rgba(0,0,0,0.72)', color: 'white',
-                      fontSize: '1.0625rem', fontWeight: 800,
-                      padding: '0.25rem 0.625rem', borderRadius: '9999px',
-                    }}>
-                      {tile.displayAmount}
-                    </span>
                   </div>
+                  <span style={{
+                    fontSize: '1.1875rem', fontWeight: 800, color: 'var(--text-primary)',
+                  }}>
+                    {tile.displayAmount}
+                  </span>
                 </button>
               ))}
             </div>

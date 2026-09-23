@@ -101,16 +101,70 @@ async function mountOpen(client) {
   return s;
 }
 
-// ── 1. Wide layout ────────────────────────────────────────────────────────────────────────
+// ── 1. Wide, centered, softened layout ──────────────────────────────────────────────────────
 
-test("Manage Catalog opens in a near-full-screen (fixed inset) layout, not a side drawer", async () => {
+test("Manage Catalog is centered, not a side drawer or an edge-anchored full-bleed panel", async () => {
   const client = fakeClient();
   const s = await mountOpen(client);
+  const backdrop = s.tid("manage-catalog-backdrop");
   const modal = s.tid("manage-catalog-modal");
+  assert.ok(backdrop, "a backdrop wrapper must render");
   assert.ok(modal, "the modal must render");
-  assert.match(modal.getAttribute("style") || "", /position:\s*fixed/);
-  assert.match(modal.getAttribute("style") || "", /inset:/, "must use inset, not a fixed side-panel width");
+  assert.match(backdrop.getAttribute("style") || "", /position:\s*fixed/);
+  assert.match(backdrop.getAttribute("style") || "", /inset:\s*0/, "the BACKDROP covers the full viewport");
+  assert.match(backdrop.getAttribute("style") || "", /align-items:\s*center/, "the modal is vertically centered");
+  assert.match(backdrop.getAttribute("style") || "", /justify-content:\s*center/, "the modal is horizontally centered");
+  assert.doesNotMatch(modal.getAttribute("style") || "", /inset:/, "the MODAL itself must not be edge-anchored — only the backdrop is");
   assert.doesNotMatch(modal.getAttribute("style") || "", /width:\s*\d+px/, "must not be pinned to a fixed pixel drawer width");
+});
+
+test("the modal is constrained to ~90% viewport width and a maximum of ~82-85% viewport height", async () => {
+  const client = fakeClient();
+  const s = await mountOpen(client);
+  const style = s.tid("manage-catalog-modal").getAttribute("style") || "";
+  const widthMatch = /(?:^|;)\s*width:\s*(\d+)vw/.exec(style);
+  assert.ok(widthMatch, "width must be expressed in vw");
+  const widthVw = Number(widthMatch[1]);
+  assert.ok(widthVw >= 88 && widthVw <= 92, `width must be approximately 90vw, got ${widthVw}vw`);
+  const heightMatch = /max-height:\s*(\d+)vh/.exec(style);
+  assert.ok(heightMatch, "max-height must be expressed in vh");
+  const heightVh = Number(heightMatch[1]);
+  assert.ok(heightVh >= 82 && heightVh <= 85, `max-height must be 82-85vh, got ${heightVh}vh`);
+});
+
+test("a restrained darkened backdrop exists, and the backdrop's own padding leaves comfortable margins on all four sides", async () => {
+  const client = fakeClient();
+  const s = await mountOpen(client);
+  const style = s.tid("manage-catalog-backdrop").getAttribute("style") || "";
+  assert.match(style, /background:\s*rgba\(/, "the backdrop must be a semi-transparent darkened overlay, not solid black or transparent");
+  const rgbaMatch = /background:\s*rgba\([^)]*,\s*([\d.]+)\)/.exec(style);
+  assert.ok(rgbaMatch, "backdrop color must be rgba(...)");
+  const alpha = Number(rgbaMatch[1]);
+  assert.ok(alpha > 0.15 && alpha < 0.75, `backdrop opacity should be restrained, not near-opaque or invisible — got ${alpha}`);
+  assert.match(style, /padding:/, "the backdrop's own padding is what creates the exterior margin around the centered modal");
+});
+
+test("rounded corners and a subtle (not heavy) shadow are preserved on the modal", async () => {
+  const client = fakeClient();
+  const s = await mountOpen(client);
+  const style = s.tid("manage-catalog-modal").getAttribute("style") || "";
+  assert.match(style, /border-radius:/);
+  assert.match(style, /box-shadow:/);
+});
+
+test("the header/toolbar (search, provider filter, Add to Catalog) stays outside the scrollable area, and only the product content scrolls", async () => {
+  const client = fakeClient();
+  const s = await mountOpen(client);
+  const header = s.q("header");
+  assert.ok(header, "a header element must exist");
+  assert.ok(header.querySelector('[data-testid="catalog-search"]'), "search lives in the fixed header");
+  assert.ok(header.querySelector('[data-testid="provider-filter"]'), "the provider filter lives in the fixed header");
+  assert.ok(header.querySelector('[data-testid="add-to-catalog-button"]'), "Add to Catalog lives in the fixed header");
+  assert.doesNotMatch(header.getAttribute("style") || "", /overflow:\s*auto|overflow:\s*scroll/, "the header itself must not scroll");
+  // The content area is a SIBLING of <header>, not a descendant — it is the ONE element with overflow:auto.
+  const content = header.nextElementSibling;
+  assert.ok(content, "a content sibling must exist immediately after the header");
+  assert.match(content.getAttribute("style") || "", /overflow:\s*auto/, "only the product content area scrolls");
 });
 
 // ── 2. Only published/customer-visible products appear ─────────────────────────────────────
