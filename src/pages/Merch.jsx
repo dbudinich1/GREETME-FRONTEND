@@ -829,8 +829,8 @@ export default function Merch() {
            pauseGiftCards to be false AND the founder to have PUBLISHED the Manage Catalog record
            (prezzeeCardCheckoutBlocked(), routes/giftRoutes.js) — never a client-side guess. There
            is still no denomination selector or Add to Cart HERE: the standalone page at
-           /gifts/smart-card is the one purchase surface, and this tile only links to it once the
-           server has confirmed it is real. */
+           /dashboard/gifts/smart-card is the one purchase surface, and this tile only links to it
+           once the server has confirmed it is real. */
         giftCardAvailable ? (
           <div data-testid="gift-cards-available" style={{
             padding: '3rem 2rem',
@@ -848,7 +848,15 @@ export default function Merch() {
             </p>
             <button
               type="button"
-              onClick={() => navigate('/gifts/smart-card')}
+              // BUG FIX (found in production, 2026-09-22): "gifts/smart-card" is registered in
+              // App.jsx as a NESTED child route under "/dashboard" (relative, not absolute), so
+              // its real, effective path is /dashboard/gifts/smart-card. The PRIOR version of
+              // this call used an unprefixed absolute path that matched no route at all, fell
+              // through to App.jsx's catch-all ("*" -> Navigate to "/"), which for an
+              // authenticated user bounces through Landing's own auth-redirect back to
+              // /dashboard — perceived as this tile "reloading" the gifts dashboard instead of
+              // opening the Smart Card page.
+              onClick={() => navigate('/dashboard/gifts/smart-card')}
               style={{
                 padding: '0.625rem 1.25rem',
                 borderRadius: 'var(--radius-md)',
