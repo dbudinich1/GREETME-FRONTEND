@@ -158,6 +158,22 @@ test('provider and category names are display metadata with safe fallbacks', () 
   assert.match(providerDisplayName('who_knows'), /partner/);
 });
 
+test('a gift-box provider is never described as a florist', () => {
+  // The mapped name wins outright.
+  assert.equal(providerDisplayName('goody'), 'Goody');
+  assert.equal(providerDisplayName('goody', 'gift_boxes'), 'Goody');
+
+  // And an UNMAPPED provider — one the backend knows and this build does not — falls back by
+  // category rather than to a florist, which is the defect this test exists to prevent.
+  assert.equal(providerDisplayName('some_new_provider', 'gift_boxes'), 'our gifting partner');
+  assert.doesNotMatch(providerDisplayName('some_new_provider', 'gift_boxes'), /florist/i);
+  assert.doesNotMatch(providerDisplayName('some_new_provider'), /florist/i,
+    'with no category at all, say nothing about flowers');
+
+  // Flowers still fall back to a florist, because there it is true.
+  assert.equal(providerDisplayName('some_new_provider', 'flowers'), 'our florist partner');
+});
+
 // ===========================================================================
 // Payment material never leaves the browser
 // ===========================================================================

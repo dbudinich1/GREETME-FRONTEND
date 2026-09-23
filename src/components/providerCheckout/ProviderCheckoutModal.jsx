@@ -253,7 +253,9 @@ export default function ProviderCheckoutModal({
 
   if (!isOpen) return null;
 
-  const who = providerDisplayName(provider);
+  // The category is passed so an unmapped provider falls back to the right kind of partner,
+  // rather than attributing a gift box to a florist.
+  const who = providerDisplayName(provider, giftType);
 
   return (
     <div

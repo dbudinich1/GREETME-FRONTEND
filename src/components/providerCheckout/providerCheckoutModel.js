@@ -49,13 +49,38 @@ export const PROVIDER_DISPLAY_NAMES = Object.freeze({
   goody: 'Goody',
 });
 
+/**
+ * What to call an unmapped provider, by the category it fulfils.
+ *
+ * Only ever reached when a provider id is not in the map above — a new provider the backend knows
+ * and this build does not. Naming the category is the strongest true statement available then.
+ */
+export const CATEGORY_FALLBACK_PARTNERS = Object.freeze({
+  flowers: 'our florist partner',
+  gift_boxes: 'our gifting partner',
+});
+
 /** The customer-facing noun for each provider-backed category. */
 export const CATEGORY_NOUNS = Object.freeze({
   flowers: 'flower',
   gift_boxes: 'gift box',
 });
 
-export const providerDisplayName = (providerId) => PROVIDER_DISPLAY_NAMES[providerId] || 'our florist partner';
+/**
+ * Who is fulfilling this order, in words a customer can read.
+ *
+ * THE FALLBACK USED TO BE WRONG, and wrong in the one way that matters: an unmapped provider read
+ * as "our florist partner", so a gift box would have been attributed to a florist. A fallback is
+ * meant to be vague, not inaccurate. It is now chosen by the CATEGORY when one is known — a
+ * flowers order falls back to a florist, a gift-box order to a gifting partner — and to a neutral
+ * "our gifting partner" otherwise.
+ *
+ * @param {string} providerId  machine provider id from the backend
+ * @param {string} [giftType]  the provider-backed category, when the caller knows it
+ */
+export const providerDisplayName = (providerId, giftType) => (
+  PROVIDER_DISPLAY_NAMES[providerId] || CATEGORY_FALLBACK_PARTNERS[giftType] || 'our gifting partner'
+);
 export const categoryNoun = (giftType) => CATEGORY_NOUNS[giftType] || 'gift';
 
 /**
