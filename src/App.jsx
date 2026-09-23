@@ -204,11 +204,17 @@ export default function App() {
             <Route path="merch" element={<Navigate to="/dashboard/gifts" replace />} />
             <Route path="merch/orders" element={<MerchOrders />} />
             <Route path="gifts" element={<Merch />} />
-            {/* PREZZEE DORMANT FRONTEND COMPLETION (2026-09-17): deliberately NOT linked from
-                DashboardLayout's navigation, Merch.jsx, or anywhere else — reachable only by
-                this exact URL. The backend additionally refuses every call it makes (503,
-                LAUNCH_CONTROL.pauseGiftCards) while Prezzee stays dormant, so this route being
-                addressable does not make the Smart Card publicly purchasable. */}
+            {/* PREZZEE DORMANT FRONTEND COMPLETION (2026-09-17), updated 2026-09-22 ("founder-
+                control catalog slice"): still not linked from DashboardLayout's navigation — a
+                shopper reaches it only via Merch.jsx's Gift Cards tile, and ONLY once the server
+                itself has confirmed the Smart Card is available (a real, authenticated
+                GET .../prezzee-card/tiles success — never a client-side guess). The backend still
+                refuses every call it makes (503) for anyone the server doesn't authorize: an
+                ordinary customer while pauseGiftCards is true, or ANYONE at all once the founder
+                window closes again. This route being addressable does not, by itself, make the
+                Smart Card publicly purchasable. NOTE: this is a route NESTED under /dashboard —
+                its real, effective path is /dashboard/gifts/smart-card, not /gifts/smart-card;
+                see Merch.jsx's own navigate() call, which must match this path exactly. */}
             <Route path="gifts/smart-card" element={<PrezzeeSmartCard />} />
             <Route path="hero" element={<HeroProgram />} />
             <Route path="animations" element={<AnimationBank />} />
