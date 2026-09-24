@@ -17,9 +17,19 @@ import { X, Search, Trash2, ChevronDown, ChevronUp, RefreshCw } from 'lucide-rea
 import founderCatalogApiDefault from '../../api/founderCatalog';
 import {
   STORABLE_CATEGORY_IDS, CATEGORY_LABELS, formatMoney, previewImageUrl, toggleCategoryId,
+  PREZZEE_SMART_CARD_EXTERNAL_PRODUCT_ID,
 } from './catalogDrawerModel';
 import AddToCatalogPicker from './AddToCatalogPicker';
 import ProvidersStatusView from './ProvidersStatusView';
+import smartEGiftCardArt from '../../assets/gifts/smart-egift-card.png';
+
+// MANAGEMENT TILE CORRECTION (2026-09-25): the founder-approved display name for the curated
+// Prezzee Smart Card record, used ONLY on this management tile — never on the customer-facing
+// Smart Card page (Merch.jsx/PrezzeeSmartCard.jsx are untouched by this correction, and still show
+// their own eight real denomination amounts and checkout pricing exactly as before). The record's
+// own vendor-reported price (a single flat cents value that doesn't reflect the real multi-
+// denomination checkout) is likewise not shown here — only on this one management tile.
+const PREZZEE_SMART_CARD_TILE_TITLE = 'Greet-Me Gold Smart Card';
 
 const PROVIDER_FILTER_OPTIONS = [
   { id: '', label: 'All providers' },
@@ -75,8 +85,12 @@ function CatalogTile({ item, client, onRemoved, onSaved }) {
   useEffect(() => { setLocal(item); }, [item]);
 
   const providerId = local.internal?.source || local.internal?.vendor;
-  const image = previewImageUrl(local);
-  const title = local.display?.title || local.vendorAuthoritative?.title || 'Untitled';
+  const isPrezzeeSmartCard = providerId === 'prezzee'
+    && local.internal?.externalProductId === PREZZEE_SMART_CARD_EXTERNAL_PRODUCT_ID;
+  const image = isPrezzeeSmartCard ? smartEGiftCardArt : previewImageUrl(local);
+  const title = isPrezzeeSmartCard
+    ? PREZZEE_SMART_CARD_TILE_TITLE
+    : (local.display?.title || local.vendorAuthoritative?.title || 'Untitled');
   const priceCents = local.vendorAuthoritative?.priceCents;
 
   const runRemove = useCallback(async () => {
@@ -164,9 +178,11 @@ function CatalogTile({ item, client, onRemoved, onSaved }) {
         <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'capitalize' }}>
           {PROVIDER_LABELS[providerId] || providerId || 'Unknown provider'}
         </div>
-        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-          {formatMoney(priceCents, local.vendorAuthoritative?.currency)}
-        </div>
+        {!isPrezzeeSmartCard && (
+          <div data-testid={`tile-price-${local.id}`} style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            {formatMoney(priceCents, local.vendorAuthoritative?.currency)}
+          </div>
+        )}
 
         <button
           type="button"

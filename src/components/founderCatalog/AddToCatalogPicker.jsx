@@ -34,6 +34,30 @@ function selectionKey(providerId, externalId) {
   return `${providerId}:${externalId}`;
 }
 
+/**
+ * PREZZEE RECOVERY (2026-09-25). The Smart Card's catalog record id is deterministic
+ * (`gm-prezzee-<externalProductId>`), and unpublishing it (trash) never deletes that record — it
+ * only hides it, per the trash-can contract ("never permanent deletion"). So re-adding it through
+ * THIS SAME Add Products flow must republish that existing record, not attempt to create a second
+ * one — the backend's own create call correctly refuses a duplicate id with 409 "already_exists".
+ * Without this recovery, a founder who trashed the Smart Card would see a raw "already_exists"
+ * error here and have no way back in. Scoped to Prezzee only: Florist One, Goody and Printful are
+ * untouched below.
+ */
+async function republishExistingPrezzee(client, sel) {
+  try {
+    const list = await client.listItems({ source: 'prezzee', state: 'all', limit: 50 });
+    const items = Array.isArray(list?.items) ? list.items : [];
+    const existing = items.find((it) => it?.internal?.externalProductId === sel.externalProductId);
+    if (!existing) return { ok: false, error: 'already_exists' };
+    const pub = await client.lifecycle(existing.internal.vendor, existing.id, 'publish', existing.etag);
+    if (!pub?.ok) return { ok: false, error: pub?.error || 'Could not publish this product.' };
+    return { ok: true, item: pub.item };
+  } catch (e) {
+    return { ok: false, error: e?.message || 'Could not republish this product.' };
+  }
+}
+
 /** Publishes ONE selected product through the existing single-item endpoints, sequentially. */
 async function publishOne(client, sel) {
   if (sel.providerId === 'printful') {
@@ -49,7 +73,13 @@ async function publishOne(client, sel) {
   try {
     created = await client.addFromProvider({ providerId: sel.providerId, externalProductId: sel.externalProductId });
   } catch (e) {
+    if (sel.providerId === 'prezzee' && (e?.status === 409 || e?.message === 'already_exists')) {
+      return republishExistingPrezzee(client, sel);
+    }
     return { ok: false, error: e?.message || 'Could not add this product.' };
+  }
+  if (sel.providerId === 'prezzee' && created?.error === 'already_exists') {
+    return republishExistingPrezzee(client, sel);
   }
   if (!created?.ok || !created.item) return { ok: false, error: created?.error || 'Could not add this product.' };
   const item = created.item;
