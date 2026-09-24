@@ -90,11 +90,13 @@ test("bounds are computed from ALL products, not from the current selection", ()
   const techOnly = selectProducts(FIXTURE, "tech");
   assert.deepEqual(priceBounds(techOnly), { floor: 2900, ceiling: 4400 });
   assert.deepEqual(BOUNDS, { floor: 1400, ceiling: 5900 });
-  // UPDATED 2026-09-21. The claim is unchanged for merch — the bounds still span the whole loaded
-  // merch catalog rather than the current selection. What changed is that a PROVIDER category now
-  // supplies its own set instead of borrowing the merch range, which could not describe it.
-  assert.match(CODE, /const boundsSource = providerGiftType \? pricedProviderProducts : products/,
-    "merch still derives bounds from the full list; a provider category from its own products");
+  // UPDATED 2026-09-21, then UPDATED AGAIN 2026-09-25 ("AUTHORIZED CANONICAL CUSTOMER CATALOG
+  // CORRECTION"). The claim is unchanged for merch (Brandable Goods) — bounds still span the whole
+  // loaded merch catalog rather than the current selection. Every curated selector (View All, Tech,
+  // Gift Baskets, Flowers, ...) now supplies its OWN on-screen set from the canonical catalog,
+  // exactly as a provider category used to, so the handles still do not jump between selectors.
+  assert.match(CODE, /const boundsSource = isCuratedSelection \? selectedCuratedProducts : products/,
+    "merch still derives bounds from the full list; a curated selector from its own on-screen set");
   assert.match(CODE, /priceBounds\(boundsSource\)/);
 });
 
@@ -187,10 +189,10 @@ test("category and price filtering compose in the required order", () => {
   assert.deepEqual(namesOf(got), ["Laptop Sleeve"]);
   // The page must apply selection first, then price, then render.
   assert.match(CODE, /selectProducts\(products, selectedCategory\)/);
-  // UPDATED 2026-09-21. Order is unchanged — selection, then price, then render. The filter now
-  // runs over whichever source feeds the grid, so a provider category is filtered too instead of
-  // sitting under a control that did nothing to it.
-  assert.match(CODE, /const gridSource = providerGiftType \? pricedProviderProducts : selectedProducts/);
+  // UPDATED 2026-09-21, then UPDATED AGAIN 2026-09-25. Order is unchanged — selection, then price,
+  // then render. The filter runs over whichever source feeds the grid, so a curated selector is
+  // filtered too instead of sitting under a control that did nothing to it.
+  assert.match(CODE, /const gridSource = isCuratedSelection \? selectedCuratedProducts : selectedProducts/);
   assert.match(CODE, /filterByPrice\(gridSource, minCents, maxCents\)/);
 });
 
@@ -234,13 +236,17 @@ test("a price-filtered-out category shows the price message, not Coming Soon", (
   // The ORDERING property is unchanged and still what matters: the price branch is evaluated BEFORE
   // the grid renders, so a real collection whose products are merely filtered out can never be
   // mislabelled as uncurated.
-  const priceIdx = CODE.indexOf("hiddenByPrice && !loading");
+  const priceIdx = CODE.indexOf("hiddenByPrice && !currentLoading");
   const gridIdx = CODE.indexOf("<GiftProductGrid");
   assert.ok(priceIdx > -1, "the price empty state must still be decided on the page");
   assert.ok(gridIdx > priceIdx, "the price empty state must be checked before the shared grid renders");
-  // And it applies to the catalogue only: a provider prices its own goods at quote, so the filter
-  // must not be able to hide a provider category behind a price message.
-  assert.match(CODE, /hiddenByPrice && !loading && !error && !providerGiftType/);
+  // UPDATED 2026-09-25. It now applies to the catalogue AND the canonical curated catalog alike —
+  // curated selectors go through the same price-bounds pipeline the catalogue always has, so a
+  // curated category filtered down to nothing gets the SAME recoverable message, gated on
+  // whichever loading/error pair actually fed the grid (currentLoading/currentError).
+  assert.match(CODE, /hiddenByPrice && !currentLoading && !currentError/);
+  assert.match(CODE, /const currentLoading = isCuratedSelection \? curatedLoading : loading/);
+  assert.match(CODE, /const currentError = isCuratedSelection \? curatedError : error/);
 });
 
 test("the price empty state offers a way out of the filter", () => {
@@ -366,8 +372,12 @@ test("the price control cannot widen the page on mobile", () => {
 });
 
 test("no Shopify customer-facing identifier is reintroduced", () => {
+  // "getGiftCatalog" was REMOVED from this list deliberately, 2026-09-25 — see
+  // merchCheckpoint1.test.mjs's "every customer-facing Shopify branch is gone" for the same,
+  // fuller note. The founder authorized GET /api/gifts/catalog as the canonical customer catalog
+  // source; every OTHER Maker Gifts/Shopify-era identifier below is still forbidden.
   for (const token of [
-    "getGiftCatalog", "startGiftCheckout", "catalogProducts", "handleGiftCheckout",
+    "startGiftCheckout", "catalogProducts", "handleGiftCheckout",
     "checkoutBusyId", "GiftMarketFilters", "Shopify", "shopify", "maker_gifts", "Maker Gifts",
   ]) {
     assert.ok(!SRC.includes(token), `"${token}" must not return to the marketplace page`);
@@ -469,8 +479,11 @@ test("INCIDENT 7: provider products keep every original field — pricing them i
 });
 
 test("INCIDENT 8: the grid renders the PRICE-FILTERED set for both sources", () => {
-  assert.match(CODE, /projectGiftCards\(visibleProducts, fromProviderProduct\)/,
-    "provider cards must come from the filtered set, not straight from the fetch");
+  // UPDATED 2026-09-25 — the curated-catalog selectors now project through fromCuratedProduct
+  // (see merchCheckpoint1.test.mjs), but the property this incident protects is unchanged: the
+  // projection reads visibleProducts (the price-filtered set), never the raw fetch.
+  assert.match(CODE, /projectGiftCards\(visibleProducts, fromCuratedProduct\)/,
+    "curated cards must come from the filtered set, not straight from the fetch");
   assert.match(CODE, /projectGiftCards\(visibleProducts, fromCatalogProduct\)/);
 });
 

@@ -111,3 +111,37 @@ test("the amount is displayed clearly on each tile without obscuring the artwork
   const block = CODE.slice(start, end);
   assert.match(block, /tile\.displayAmount/, "the server's own display amount must be shown on the tile");
 });
+
+// ── COPY REFINEMENT (2026-09-25): founder-approved description, centered, "Choose an amount:"
+// removed — scoped to the live/available Smart Card section only (giftCardTiles branch). The
+// dormant "coming later" branch's own, separate sentence is untouched and out of scope.
+
+test("the Smart Card section shows the exact founder-approved description", () => {
+  const start = CODE.indexOf('data-testid="gift-cards-available"');
+  const end = CODE.indexOf('data-testid="gift-cards-coming-later"', start);
+  const block = CODE.slice(start, end);
+  assert.match(
+    block,
+    /The ultimate gift card that lets your recipient select from hundreds of brands\./,
+    "the exact approved copy must appear, verbatim, in the available Smart Card section",
+  );
+});
+
+test("the old 'Choose an amount:' copy no longer appears in the page's executable/rendered content", () => {
+  assert.doesNotMatch(CODE, /Choose an amount:/, '"Choose an amount:" must be fully removed from rendered copy');
+});
+
+test("the description is centered within the Smart Card section", () => {
+  const start = CODE.indexOf('data-testid="gift-card-description"');
+  assert.ok(start !== -1, "the description paragraph must carry its own testid");
+  const end = CODE.indexOf("</p>", start);
+  const block = CODE.slice(start, end);
+  assert.match(block, /textAlign:\s*'center'/, "the description must be center-aligned");
+});
+
+test("the title above the description is unchanged — this refinement touches only the description", () => {
+  const start = CODE.indexOf('data-testid="gift-cards-available"');
+  const end = CODE.indexOf('data-testid="gift-card-description"', start);
+  const block = CODE.slice(start, end);
+  assert.match(block, /Greet-Me Smart eGift Card/, "the title text must still precede the description, unchanged");
+});

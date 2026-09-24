@@ -25,6 +25,11 @@ export const GIFT_CARD_FIELDS = Object.freeze([
 export const GIFT_SOURCES = Object.freeze({
   CATALOG: "catalog",     // the Greet-Me / Printful curated catalogue
   PROVIDER: "provider",   // a provider-fulfilled category (flowers, gift boxes)
+  // The CANONICAL customer catalog (GET /api/gifts/catalog) — founder-curated, published,
+  // provider-fulfilled products (Florist One, Goody), driving View All and every category
+  // selector below. Distinct from PROVIDER above: PROVIDER was the page's OLD live-provider
+  // display source; CURATED is the founder's own curated/categorized set.
+  CURATED: "curated",
 });
 
 /**
@@ -130,6 +135,41 @@ export function fromProviderProduct(p) {
     imageUrl: p.imageUrl || null,
     priceLabel: formatMinor(p.priceMinor, p.currency || "USD"),
     priceMinor: finite(p.priceMinor),
+  });
+}
+
+/**
+ * Project a canonical curated catalog product (GET /api/gifts/catalog) — a founder-curated,
+ * published, provider-fulfilled product. Same six-field card shape as every other projector,
+ * plus two EXTRA fields used only for routing a selection into the existing provider-checkout
+ * flow: `providerProductId` (the vendor's own product id) and `vendorSource` (which provider —
+ * "goody" / "florist_one" — fulfils it). Neither is rendered by the card; both exist purely so
+ * the click handler can resolve this display projection back to a live provider product without
+ * this module or the card component needing to know a single fact about ordering.
+ *
+ * The Smart Card / QR Cash experience is excluded HERE, in this vendor-aware module, rather than
+ * in Merch.jsx: that page must never name a vendor in its own executable code, and this is the
+ * one place a provider's identity is already read from a stored field. Keeping this special
+ * noncatalog experience separate means it can never render as an ordinary marketplace tile, even
+ * if the backend's own founder-smoke-test gate ever changes.
+ */
+export function fromCuratedProduct(p) {
+  if (!p || p.source === "prezzee") return null;
+  const firstImage = Array.isArray(p.images)
+    ? p.images.find((i) => typeof i?.url === "string" && i.url !== "")?.url
+    : null;
+  return Object.freeze({
+    id: String(p.id ?? ""),
+    source: GIFT_SOURCES.CURATED,
+    name: String(p.title ?? ""),
+    description: String(p.description ?? "").trim(),
+    imageUrl: firstImage || null,
+    priceLabel: formatMinor(p.priceCents, p.currency || "USD"),
+    // The LOW end, for sorting/price-range purposes only. Never used to charge: what is charged
+    // comes from the provider's own quote at checkout, exactly as fromProviderProduct's does.
+    priceMinor: finite(p.priceCents),
+    providerProductId: p.providerProductId ? String(p.providerProductId) : null,
+    vendorSource: p.source || null,
   });
 }
 
