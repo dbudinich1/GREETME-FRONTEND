@@ -11,7 +11,7 @@
 // Recipients page or adds backend routes.
 
 import { useCallback, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Papa from "papaparse";
 import api from "../../api/api";
 import {
@@ -678,6 +678,9 @@ export default function ContactImportWizard() {
               </div>
               <p className="gmiw-tpl-note" data-testid="excel-recommend-note">Guided Excel Template — recommended; includes guided dropdowns and instructions.</p>
               <p className="gmiw-tpl-note" data-testid="csv-disclosure">Basic CSV Template — compatibility option; CSV files do not contain dropdowns, formatting, or workbook instructions.</p>
+              <Link to="/dashboard/templates" data-testid="template-library-link" style={{ display: "inline-block", marginTop: 6, fontSize: ".82rem", fontWeight: 700, color: "#4a3fb0", textDecoration: "none" }}>
+                Browse the Template Library →
+              </Link>
             </div>
           </section>
           {/* PAGE-LEVEL DIVIDER between normal upload and Safe practice mode — non-interactive text */}

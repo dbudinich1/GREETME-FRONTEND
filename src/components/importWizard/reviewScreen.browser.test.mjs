@@ -36,7 +36,9 @@ const API_STUB = `export default {
   async getContacts(){ return (globalThis.__getContacts ? globalThis.__getContacts() : { data: [] }); },
   async importContacts(c){ globalThis.__lastImport = c; return (globalThis.__importContacts ? globalThis.__importContacts(c) : { data: { imported: c.length, failed: 0, errors: [] } }); },
 };`;
-const ROUTER_STUB = `export const useNavigate = () => ((p) => { globalThis.__nav = p; });`;
+const ROUTER_STUB = `import { createElement } from "react";
+export const useNavigate = () => ((p) => { globalThis.__nav = p; });
+export const Link = ({ to, children, ...rest }) => createElement("a", { href: to, ...rest }, children);`;
 const NOTIFY_STUB = `export const showManualToast = (...a) => { (globalThis.__toasts || (globalThis.__toasts = [])).push(a); };`;
 const COMMS_STUB = `export const COMMS_CATEGORIES = { PROFILE: "profile" };`;
 const CORP_STUB = `export const createCorporateCampaignsClient = () => ({ listMemberships: async () => ({ ok: false }) });`;
