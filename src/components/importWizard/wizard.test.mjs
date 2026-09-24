@@ -393,8 +393,7 @@ test("Upload Options: Upload card + Test Drive Wizard trigger card; Test Drive d
   assert.ok(!/"option-1-label"/.test(WIZ), "no parent OPTION 1 label on the Upload section");
   assert.ok(!/"option-2-label"/.test(WIZ), "no parent OPTION 2 label on the Test Drive section");
   assert.match(WIZ, /Upload your contacts/);
-  assert.match(WIZ, /Upload an Excel or CSV file\. Accepted formats: \.xlsx, \.xls, or \.csv \(\.xlsx recommended[\s\S]*?Only a name and valid email are required\. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future\./);
-  assert.ok(!/as need be/.test(WIZ), "uses 'as needed', not 'as need be'");
+  assert.match(WIZ, /Upload an Excel or CSV file to add your contacts\. You'll review everything before importing\./);
   assert.match(WIZ, /choose-csv/);
   // Test Drive is now a two-column trigger card (matches the founder's UX reference) that opens a modal —
   // the old stacked OR-divided inline section is gone by design, not a regression.
@@ -446,7 +445,7 @@ test("Business Test Drive is zero mutation; real Business commit is dormant/fail
 test("Upload Options: blank category template (single format toggle) separate from the Practice sample (UX-reference)", () => {
   assert.match(WIZ, /template-block/);
   assert.match(WIZ, /Need a file to fill out\?/);
-  assert.match(WIZ, /Download \{TEMPLATE_ARTICLE\[templateKind\] \|\| "a"\} \{TEMPLATE_LABEL\[templateKind\] \|\| "contact"\} template with the right columns, complete it, then upload it here\./);
+  assert.match(WIZ, /Download the template, complete it, and upload it here\./);
   // ONE format toggle (Excel/CSV) driving ONE download button — replaces the old two-button layout,
   // matching the founder's UX reference (page 1: a single toggle + a single "Download … template" CTA).
   assert.match(WIZ, /template-fmt-xlsx/);
@@ -559,8 +558,7 @@ test("Excel reader is LAZY-loaded (dynamic import) so SheetJS code-splits out of
 
 test("uploader accepts .xlsx/.xls/.csv; the CSV-only claim is gone; .xlsm rejected with a clear message", () => {
   assert.match(WIZ, /accept="\.xlsx,\.xls,\.csv"/);            // the normal uploader
-  assert.match(WIZ, /Upload an Excel or CSV file\. Accepted formats: \.xlsx, \.xls, or \.csv/);
-  assert.match(WIZ, /\.xlsx recommended/);
+  assert.match(WIZ, /Upload an Excel or CSV file to add your contacts\. You'll review everything before importing\./);
   assert.ok(!/Only CSV \(\.csv\) is supported/.test(WIZ), "removed the CSV-only message");
   assert.ok(!/XLSX is not accepted/.test(WIZ), "removed the 'XLSX not accepted' message");
   assert.match(WIZ, /\.xlsm\$/);                               // extension check
