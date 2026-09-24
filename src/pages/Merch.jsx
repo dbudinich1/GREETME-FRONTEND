@@ -40,7 +40,8 @@ import ManageCatalogModal from '../components/founderCatalog/ManageCatalogModal'
 // a second grid.
 import { GiftProductGrid } from '../components/giftPlace/GiftProductCard';
 import {
-  actionLabelFor, fromCatalogProduct, fromProviderProduct, giftTypeForSelector, projectGiftCards,
+  actionLabelFor, fromCatalogProduct, fromCuratedProduct, giftTypeForSelector, GIFT_SOURCES,
+  projectGiftCards,
 } from './giftPlaceViewModel';
 // The posture gate and the four proven catalogue states, in a hook so they stay assertable by
 // MOUNTING rather than by scraping this file. A dormant provider is never asked for products.
@@ -85,6 +86,16 @@ export default function Merch() {
   // GIFTS — the marketplace opens on Brandable Goods, the leading selector.
   const [selectedCategory, setSelectedCategory] = useState(DEFAULT_SELECTION);
 
+  // CANONICAL CATALOG (Founder-authorized 2026-09-25, "AUTHORIZED CANONICAL CUSTOMER CATALOG
+  // CORRECTION"). GET /api/gifts/catalog is the canonical source for View All and every curated
+  // category selector below (Tech, Gift Baskets, Flowers, Americana, Faith & Inspiration).
+  // Brandable Goods and Gift Cards keep their own separate, un-migrated data sources, unchanged.
+  const [curatedProducts, setCuratedProducts] = useState([]);
+  const [curatedLoading, setCuratedLoading] = useState(true);
+  const [curatedError, setCuratedError] = useState(null);
+  const [curatedAttempt, setCuratedAttempt] = useState(0);
+  const retryCuratedCatalogue = () => setCuratedAttempt((n) => n + 1);
+
 
 
   // Session context: recipient gift flow vs SendGreeting Just-Because flow
@@ -111,14 +122,49 @@ export default function Merch() {
     return () => { cancelled = true; };
   }, []);
 
-  // THE CATALOGUE LOADS ON SELECTION. Clicking the category IS the request to see what is in it, so
-  // there is no button between the two and nothing navigates.
-  const providerGiftType = giftTypeForSelector(selectedCategory);
-  const {
-    products: providerProducts,
-    state: providerState,
-    retry: retryProviderCatalogue,
-  } = useProviderCatalogue(providerGiftType);
+  // Fetch the canonical curated catalog. The Smart Card / QR Cash experience is kept out of this
+  // grid by fromCuratedProduct itself (see giftPlaceViewModel.js) rather than here, so this page
+  // never has to name a vendor in its own executable code.
+  useEffect(() => {
+    let cancelled = false;
+    setCuratedLoading(true);
+    (async () => {
+      try {
+        const res = await api.getGiftCatalog();
+        if (!cancelled) {
+          setCuratedProducts(Array.isArray(res?.products) ? res.products : []);
+          setCuratedError(null);
+        }
+      } catch (err) {
+        if (!cancelled) setCuratedError(err);
+      } finally {
+        if (!cancelled) setCuratedLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [curatedAttempt]);
+
+  // CHECKOUT LOOKUP ONLY — no longer the grid's data source. Both provider-checkout catalogs are
+  // fetched unconditionally (not gated on the selected tab) so that a curated card chosen from
+  // ANY category — Tech and Americana as well as Flowers and Gift Baskets — can be resolved to
+  // its live provider product the moment it is selected. Same endpoint, same hook, same posture
+  // gate as before checkout preservation requires; only WHEN it is called has changed.
+  const { products: flowersProviderProducts } = useProviderCatalogue('flowers');
+  const { products: giftBasketsProviderProducts } = useProviderCatalogue('gift_boxes');
+  const providerProductsForCheckout = useMemo(() => [
+    ...(flowersProviderProducts || []),
+    ...(giftBasketsProviderProducts || []),
+  ], [flowersProviderProducts, giftBasketsProviderProducts]);
+
+  // Is the current selector one of the canonical-catalog-driven ones? Brandable Goods and Gift
+  // Cards are the two selectors that keep their own separate, un-migrated data sources.
+  const isCuratedSelection = selectedCategory !== BRANDABLE && selectedCategory !== 'gift_cards';
+
+  // THE ACTION LABEL'S provider-flavoured word ("Order Flowers") is preserved exactly as before —
+  // only for the two selectors it already applied to. Every newly-curated selector (Tech,
+  // Americana, ...) falls back to the ordinary store/greeting label; the founder's scope did not
+  // ask for new button copy per category.
+  const legacyProviderGiftType = giftTypeForSelector(selectedCategory);
 
   // GIFT CARDS availability — asked fresh every time this category is selected, from the SAME
   // endpoint (GET .../prezzee-card/tiles) the standalone Smart Card page itself uses, gated
@@ -152,20 +198,29 @@ export default function Merch() {
     [products, selectedCategory]
   );
 
-  // PROVIDER PRODUCTS, PRICED IN THE SHARED VOCABULARY.
+  // CURATED PRODUCTS, PRICED IN THE SHARED VOCABULARY.
   //
-  // A provider product states its price as `priceMinor`; the shared price helpers read
-  // `priceCentsMin`/`priceCentsMax`. They are the same number in the same units under two names,
-  // and reconciling them here — additively, leaving every original field intact — is what lets
-  // one price control serve every category instead of one control that silently ignores half of
-  // them.
-  const pricedProviderProducts = useMemo(() => (
-    (providerProducts || []).map((p) => (
-      Number.isFinite(p?.priceMinor)
-        ? { ...p, priceCentsMin: p.priceMinor, priceCentsMax: p.priceMinor }
+  // A curated catalog product states its price as `priceCents`; the shared price helpers read
+  // `priceCentsMin`/`priceCentsMax`. They are the same number in the same units under a different
+  // name, and reconciling them here — additively, leaving every original field intact — is what
+  // lets one price control serve every category instead of one that silently ignores half of them.
+  const pricedCuratedProducts = useMemo(() => (
+    (curatedProducts || []).map((p) => (
+      Number.isFinite(p?.priceCents)
+        ? { ...p, priceCentsMin: p.priceCents, priceCentsMax: p.priceCents }
         : p
     ))
-  ), [providerProducts]);
+  ), [curatedProducts]);
+
+  // The SAME selection rule used for Brandable Goods, applied to the canonical catalog: VIEW_ALL
+  // passes every curated product through once each; every other selector filters by membership in
+  // that selector's greetMeCategories id. A curated product never carries `brandable`, so the
+  // BRANDABLE branch of selectProducts never matches here — this function is never called with
+  // BRANDABLE as the selection while isCuratedSelection is true.
+  const selectedCuratedProducts = useMemo(
+    () => selectProducts(pricedCuratedProducts, selectedCategory),
+    [pricedCuratedProducts, selectedCategory]
+  );
 
   // GIFTS — price range.
   //
@@ -175,9 +230,10 @@ export default function Merch() {
   // arrangement, so the scale could not describe the thing it sat above. A scale that cannot
   // reach a product on the page is worse than no scale.
   //
-  // For a provider category the source is the provider's own set; for merch it is the whole loaded
-  // catalog exactly as before, so the handles still do not jump between merch selectors.
-  const boundsSource = providerGiftType ? pricedProviderProducts : products;
+  // For a curated selector the source is that selector's own on-screen set; for merch (Brandable
+  // Goods) it is the whole loaded catalog exactly as before, so the handles still do not jump
+  // between merch selectors.
+  const boundsSource = isCuratedSelection ? selectedCuratedProducts : products;
   const bounds = useMemo(() => priceBounds(boundsSource), [boundsSource]);
 
   // `null` means "the shopper has not chosen a range", which resolves to the full bounds below.
@@ -192,7 +248,7 @@ export default function Merch() {
   // THE GRID'S SOURCE, whichever it is. Both paths now go through the same price filter: a control
   // that renders above a category it does not filter is a promise the page does not keep, and
   // "Any price" appearing to do nothing is exactly how that looked.
-  const gridSource = providerGiftType ? pricedProviderProducts : selectedProducts;
+  const gridSource = isCuratedSelection ? selectedCuratedProducts : selectedProducts;
 
   // The pipeline, in order: selection, then price, then the one shared card map.
   const visibleProducts = useMemo(
@@ -210,15 +266,20 @@ export default function Merch() {
   // THE ONE PROJECTION. Whatever supplied the products, the grid below receives the same six fields
   // in the same shape. This is the line that makes Flowers and Americana the same page.
   const cards = useMemo(() => (
-    providerGiftType
-      ? projectGiftCards(visibleProducts, fromProviderProduct)
+    isCuratedSelection
+      ? projectGiftCards(visibleProducts, fromCuratedProduct)
       : projectGiftCards(visibleProducts, fromCatalogProduct)
-  ), [providerGiftType, visibleProducts]);
+  ), [isCuratedSelection, visibleProducts]);
 
   // The grid's state, from whichever source is feeding it.
-  const gridState = providerGiftType
-    ? providerState
+  const gridState = isCuratedSelection
+    ? (curatedLoading ? 'loading' : curatedError ? 'failed' : 'ready')
     : (loading ? 'loading' : error ? 'failed' : 'ready');
+  // Same split, for the "no products in this price range" empty state below — curated selections
+  // now go through the same price-bounds pipeline the catalogue always has, so that recoverable
+  // empty state applies to both, gated on whichever loading/error pair actually fed the grid.
+  const currentLoading = isCuratedSelection ? curatedLoading : loading;
+  const currentError = isCuratedSelection ? curatedError : error;
 
   // THE ACTION LABEL IS DECIDED BY CONTEXT, NOT BY PRODUCT TYPE. Shopping for a greeting attaches
   // one gift to it; a direct store visit adds to a cart. The card's structure and the button's
@@ -226,7 +287,7 @@ export default function Merch() {
   // The gift type refines the STORE case only: a provider category bought outside a greeting says what
   // it actually does ("Order Flowers"), because such a product never reaches the cart. Shopping for a
   // greeting is "Select Gift" for every category, exactly as before.
-  const giftActionLabel = actionLabelFor(cameFromSendGreeting ? 'greeting' : 'store', providerGiftType);
+  const giftActionLabel = actionLabelFor(cameFromSendGreeting ? 'greeting' : 'store', legacyProviderGiftType);
 
   /**
    * SELECTING A PROVIDER ARRANGEMENT FOR A GREETING.
@@ -246,7 +307,9 @@ export default function Merch() {
    * is held from the moment it is picked.
    */
   const selectProviderGiftForGreeting = (card) => {
-    const chosen = providerProducts.find((p) => String(p.providerProductId) === String(card.id));
+    const chosen = providerProductsForCheckout.find(
+      (p) => String(p.providerProductId) === String(card.providerProductId)
+    );
     if (!chosen) return;
     let saved = {};
     try {
@@ -300,7 +363,9 @@ export default function Merch() {
    * the surface cannot tell a flower from a mug — which is the whole point.
    */
   const selectProviderGiftStandalone = (card) => {
-    const chosen = providerProducts.find((p) => String(p.providerProductId) === String(card.id));
+    const chosen = providerProductsForCheckout.find(
+      (p) => String(p.providerProductId) === String(card.providerProductId)
+    );
     if (!chosen) return;
     setPickerProduct(null);
     // Held for the checkout the shopper may or may not go on to open. Choosing a different
@@ -324,10 +389,12 @@ export default function Merch() {
 
   /** One entry point for the one card action, whichever source the card came from. */
   const handleGiftCardAction = (card) => {
-    if (providerGiftType) {
+    if (card.source === GIFT_SOURCES.CURATED) {
       // ONE CATEGORY, TWO SITUATIONS. Inside a greeting the arrangement is attached to it; outside
       // one it is simply bought. Both open the same confirmation first, and neither starts a checkout
-      // from this click.
+      // from this click. This now applies to a curated card selected from ANY category — Tech and
+      // Americana as well as Flowers and Gift Baskets — not only the two that used to be the sole
+      // provider-fulfilled selectors.
       if (cameFromSendGreeting) {
         selectProviderGiftForGreeting(card);
         return;
@@ -864,8 +931,11 @@ export default function Merch() {
             <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.25rem' }}>
               Greet-Me Smart eGift Card
             </h3>
-            <p style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: '0 0 1rem', color: 'var(--text-secondary)' }}>
-              One smart card the recipient can spend at the retailer they choose. Choose an amount:
+            {/* COPY REFINEMENT (Team C, 2026-09-25): the founder-approved description, centered
+                within this section. Replaces the old "...Choose an amount:" copy entirely — the
+                denomination tiles below already make the amount choice self-evident. */}
+            <p data-testid="gift-card-description" style={{ fontSize: '0.9375rem', lineHeight: 1.6, margin: '0 auto 1rem', maxWidth: '480px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              The ultimate gift card that lets your recipient select from hundreds of brands.
             </p>
             <div className="gm-smartcard-grid" data-testid="gift-card-grid">
               {giftCardTiles.map((tile) => (
@@ -939,10 +1009,10 @@ export default function Merch() {
             </span>
           </div>
         )
-      ) : hiddenByPrice && !loading && !error && !providerGiftType ? (
+      ) : hiddenByPrice && !currentLoading && !currentError ? (
         /* The collection EXISTS — the chosen price range simply excludes all of it. Distinct from
            Coming Soon, and recoverable without hunting for the control that caused it. Price
-           filtering applies to the catalogue only; a provider prices its own goods at quote. */
+           filtering applies to the catalogue and the canonical curated catalog alike. */
         <div style={{
           padding: '4rem 2rem',
           textAlign: 'center',
@@ -984,7 +1054,7 @@ export default function Merch() {
           state={gridState}
           actionLabel={giftActionLabel}
           onAction={handleGiftCardAction}
-          onRetry={providerGiftType ? retryProviderCatalogue : null}
+          onRetry={isCuratedSelection ? retryCuratedCatalogue : null}
           isNarrow={isNarrow}
           emptyLabel={selectedCategoryLabel}
         />

@@ -135,6 +135,13 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
   // Goody only — Florist One's browse call and behavior are unchanged below.
   const [goodyCursor, setGoodyCursor] = useState(null);
   const [goodyHasMore, setGoodyHasMore] = useState(false);
+  // GOODY BROWSE COMPLETENESS DISCLOSURE (Founder-authorized 2026-09-25, "AUTHORIZED CANONICAL
+  // CUSTOMER CATALOG CORRECTION"). Cumulative across Load More — each browse response only reports
+  // what THAT ONE request scanned/excluded, so these two totals are summed across every page
+  // fetched in the current search, giving the founder a true running count rather than a number
+  // that resets and undercounts on every click.
+  const [goodyScannedTotal, setGoodyScannedTotal] = useState(0);
+  const [goodyExcludedTotal, setGoodyExcludedTotal] = useState(0);
   // PRINTFUL AUDIT CORRECTION (2026-09-25): the raw Printful store browse has no idea whether a
   // product is currently published, retired, or mid-review — that lives in two OTHER endpoints
   // (listMerch, listStaged). Both are fetched alongside the browse so every tile can show its real
@@ -176,18 +183,26 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
       if (!res?.ok) {
         if (!append) setBrowseResults([]);
         setBrowseError(res?.error || 'This provider is not available to browse right now.');
-        if (isGoody) { setGoodyCursor(null); setGoodyHasMore(false); }
+        if (isGoody) {
+          setGoodyCursor(null);
+          setGoodyHasMore(false);
+          if (!append) { setGoodyScannedTotal(0); setGoodyExcludedTotal(0); }
+        }
         return;
       }
       if (isGoody) {
         // Use the model's own already-correct browse projection (real `providerProductId`
         // shape) and drop anything the existing Goody adapter cannot actually fulfil — per
         // requirement, ineligible products are excluded here rather than merely disabled.
-        const eligible = browseProducts(res).filter((p) => p.directSendEligible !== false);
+        const scannedThisPage = browseProducts(res);
+        const eligible = scannedThisPage.filter((p) => p.directSendEligible !== false);
+        const excludedThisPage = scannedThisPage.length - eligible.length;
         setBrowseResults((prev) => (append ? [...prev, ...eligible] : eligible));
         const traversal = browseTraversal(res);
         setGoodyCursor(traversal.nextCursor);
         setGoodyHasMore(Boolean(traversal.nextCursor));
+        setGoodyScannedTotal((prev) => (append ? prev + traversal.scanned : traversal.scanned));
+        setGoodyExcludedTotal((prev) => (append ? prev + excludedThisPage : excludedThisPage));
       } else {
         const products = Array.isArray(res.products) ? res.products : [];
         setBrowseResults(products);
@@ -195,7 +210,11 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
     } catch (e) {
       if (!append) setBrowseResults([]);
       setBrowseError(e?.message || 'This provider is not available to browse right now.');
-      if (isGoody) { setGoodyCursor(null); setGoodyHasMore(false); }
+      if (isGoody) {
+        setGoodyCursor(null);
+        setGoodyHasMore(false);
+        if (!append) { setGoodyScannedTotal(0); setGoodyExcludedTotal(0); }
+      }
     } finally {
       setBrowsing(false);
     }
@@ -219,6 +238,8 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
     setBrowseError(null);
     setGoodyCursor(null);
     setGoodyHasMore(false);
+    setGoodyScannedTotal(0);
+    setGoodyExcludedTotal(0);
     if (provider.mode === 'browse' || provider.mode === 'printful') runBrowse();
     if (provider.mode === 'printful') loadPrintfulContext();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -321,6 +342,15 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
                 Search
               </button>
             </div>
+            {/* GOODY BROWSE COMPLETENESS DISCLOSURE (2026-09-25). Goody's real API has no search
+                parameter — search here is LOCAL substring matching over whatever has already been
+                scanned, never a true server-side search of the full Goody catalog. This must never
+                read as "we searched everything and found this" when it did not. */}
+            {provider.id === 'goody' && (
+              <p data-testid="goody-search-disclosure" style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>
+                Searching products loaded so far. Load more to continue searching the Goody catalog.
+              </p>
+            )}
             {browsing && <p style={{ color: 'var(--text-secondary)' }}>Loading…</p>}
             {browseError && <p style={{ color: '#dc2626' }}>{browseError}</p>}
             {!browsing && !browseError && provider.id !== 'goody' && (
@@ -357,6 +387,20 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
                 real field names, so each tile gets its own key, its own image, and its own price. */}
             {!browsing && !browseError && provider.id === 'goody' && (
               <>
+                {/* GOODY BROWSE COMPLETENESS DISCLOSURE (2026-09-25) — truthful counts, never a
+                    claim of full-catalog coverage. "Scanned" and "excluded" are cumulative across
+                    every Load More click in this search; "displayed" is simply what's on screen. */}
+                <p data-testid="goody-browse-summary" style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                  Scanned {goodyScannedTotal} product{goodyScannedTotal === 1 ? '' : 's'} from Goody
+                  {' — '}displaying {browseResults.length}
+                  {goodyExcludedTotal > 0
+                    ? `, ${goodyExcludedTotal} excluded as ineligible for direct send`
+                    : ''}
+                  {'. '}
+                  {goodyHasMore
+                    ? 'More Goody pages remain — use Load more below to keep going.'
+                    : 'No further Goody pages remain for this search.'}
+                </p>
                 <div data-testid="provider-browse-results" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
                   {browseResults.map((p) => {
                     const productId = p.providerProductId;

@@ -246,19 +246,89 @@ function CatalogTile({ item, client, onRemoved, onSaved }) {
           <div data-testid={`expanded-${local.id}`} style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
             <div>
               <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Categories</div>
+              {/* CATEGORY UX CORRECTION (Founder-authorized 2026-09-25, "AUTHORIZED CANONICAL
+                  CUSTOMER CATALOG CORRECTION"). The toggle buttons below were the ONLY control —
+                  every assignment was equally easy to see and equally easy to miss, so a founder
+                  correcting "wrong category" could add a new one without ever noticing the old one
+                  was still there. This summary makes what is CURRENTLY assigned impossible to miss,
+                  with its own one-click removal, separate from the toggle grid underneath it. */}
+              {categories.length > 0 ? (
+                <div
+                  data-testid={`selected-categories-${local.id}`}
+                  style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '0.5rem' }}
+                >
+                  {categories.map((catId) => (
+                    <span
+                      key={catId}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                        padding: '0.1875rem 0.375rem 0.1875rem 0.625rem', borderRadius: '9999px',
+                        background: 'var(--primary)', color: 'white', fontSize: '0.75rem', fontWeight: 600,
+                      }}
+                    >
+                      {CATEGORY_LABELS[catId] || catId}
+                      <button
+                        type="button"
+                        data-testid={`remove-category-${local.id}-${catId}`}
+                        aria-label={`Remove ${CATEGORY_LABELS[catId] || catId}`}
+                        disabled={saving}
+                        onClick={() => runPatch({ greetMeCategories: toggleCategoryId(categories, catId) })}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          width: '1rem', height: '1rem', padding: 0, borderRadius: '9999px',
+                          border: 'none', background: 'rgba(255,255,255,0.25)', color: 'white', cursor: 'pointer',
+                        }}
+                      >
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div
+                  data-testid={`selected-categories-empty-${local.id}`}
+                  style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}
+                >
+                  No categories assigned yet.
+                </div>
+              )}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
-                {STORABLE_CATEGORY_IDS.map((catId) => (
-                  <button
-                    key={catId}
-                    type="button"
-                    data-testid={`category-${local.id}-${catId}`}
-                    disabled={saving}
-                    onClick={() => runPatch({ greetMeCategories: toggleCategoryId(categories, catId) })}
-                    style={categoryButtonStyle(categories.includes(catId))}
-                  >
-                    {CATEGORY_LABELS[catId] || catId}
-                  </button>
-                ))}
+                {STORABLE_CATEGORY_IDS.map((catId) => {
+                  const isSelected = categories.includes(catId);
+                  return (
+                    <div key={catId} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <button
+                        type="button"
+                        data-testid={`category-${local.id}-${catId}`}
+                        disabled={saving}
+                        onClick={() => runPatch({ greetMeCategories: toggleCategoryId(categories, catId) })}
+                        style={categoryButtonStyle(isSelected)}
+                      >
+                        {CATEGORY_LABELS[catId] || catId}
+                      </button>
+                      {/* "Set as only category" — the explicit replacement action. Never appended
+                          silently: it REPLACES the whole stored array with this one id, so fixing
+                          a wrong assignment is one click instead of "add the right one, then find
+                          and remove every wrong one" via the toggle grid alone. */}
+                      {!isSelected && (
+                        <button
+                          type="button"
+                          data-testid={`only-category-${local.id}-${catId}`}
+                          disabled={saving}
+                          onClick={() => runPatch({ greetMeCategories: [catId] })}
+                          title={`Replace every assigned category with only ${CATEGORY_LABELS[catId] || catId}`}
+                          style={{
+                            background: 'none', border: '1px dashed var(--border)', borderRadius: '0.375rem',
+                            padding: '0.125rem 0.375rem', fontSize: '0.6875rem', color: 'var(--text-tertiary)',
+                            cursor: 'pointer', fontFamily: 'inherit',
+                          }}
+                        >
+                          Only
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
             <label style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

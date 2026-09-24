@@ -195,9 +195,11 @@ test("there is still exactly ONE shared product grid and one add-to-cart path", 
 
 test("the price filter and its pipeline are untouched", () => {
   assert.match(MERCH_CODE, /selectProducts\(products, selectedCategory\)/);
-  assert.match(MERCH_CODE, /const gridSource = providerGiftType \? pricedProviderProducts : selectedProducts/);
+  // UPDATED 2026-09-25 ("AUTHORIZED CANONICAL CUSTOMER CATALOG CORRECTION") — see
+  // merchPriceFilter.test.mjs's "bounds are computed from ALL products..." for the fuller note.
+  assert.match(MERCH_CODE, /const gridSource = isCuratedSelection \? selectedCuratedProducts : selectedProducts/);
   assert.match(MERCH_CODE, /filterByPrice\(gridSource, minCents, maxCents\)/);
-  assert.match(MERCH_CODE, /const boundsSource = providerGiftType \? pricedProviderProducts : products/);
+  assert.match(MERCH_CODE, /const boundsSource = isCuratedSelection \? selectedCuratedProducts : products/);
   assert.match(MERCH_CODE, /priceBounds\(boundsSource\)/);
   assert.match(MERCH, /No products in this price range\./);
 });
@@ -247,8 +249,10 @@ test("logo upload and preview remain absent", () => {
 });
 
 test("no Shopify customer interaction is restored", () => {
+  // "getGiftCatalog" was REMOVED from this list deliberately, 2026-09-25 — see
+  // merchCheckpoint1.test.mjs's "every customer-facing Shopify branch is gone" for the fuller note.
   for (const token of [
-    "getGiftCatalog", "startGiftCheckout", "catalogProducts", "handleGiftCheckout",
+    "startGiftCheckout", "catalogProducts", "handleGiftCheckout",
     "checkoutBusyId", "GiftMarketFilters", "Shopify", "shopify", "maker_gifts", "Maker Gifts",
   ]) {
     assert.ok(!MERCH.includes(token), `"${token}" must not return to the marketplace page`);

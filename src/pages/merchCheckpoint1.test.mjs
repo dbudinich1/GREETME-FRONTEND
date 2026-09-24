@@ -344,23 +344,32 @@ test("the grid renders the SELECTED product list through the one shared rule", (
   // rendered, so a provider's products and the catalogue's arrive at the grid in one shape.
   assert.match(SRC, /selectProducts\(products, selectedCategory\)/);
   assert.match(CODE, /projectGiftCards\(visibleProducts, fromCatalogProduct\)/);
-  // UPDATED 2026-09-21. Both sources now reach the grid through the SAME price-filtered set.
-  // Provider cards used to come straight from the fetch, which is why the price control appeared
-  // to do nothing on a provider category — it filtered a list the grid never rendered.
-  assert.match(CODE, /projectGiftCards\(visibleProducts, fromProviderProduct\)/);
+  // UPDATED 2026-09-21, then UPDATED AGAIN 2026-09-25 ("AUTHORIZED CANONICAL CUSTOMER CATALOG
+  // CORRECTION"). Both sources still reach the grid through the SAME price-filtered set; the
+  // curated-catalog selectors (View All, Tech, Gift Baskets, Flowers, ...) now project through
+  // fromCuratedProduct instead of the old live-provider-fetch projector, because their DATA now
+  // comes from the founder's canonical, categorized /api/gifts/catalog rather than an
+  // uncategorized live provider fetch.
+  assert.match(CODE, /projectGiftCards\(visibleProducts, fromCuratedProduct\)/);
   assert.equal(/projectGiftCards\(providerProducts,/.test(CODE), false,
     "the unfiltered provider path must not come back");
+  assert.equal(/projectGiftCards\(curatedProducts,/.test(CODE), false,
+    "curated cards must come from the price-filtered set, not straight from the fetch");
   // ONE ternary decides which source feeds the one grid — there is no second grid to feed.
   assert.equal((CODE.match(/<GiftProductGrid/g) || []).length, 1);
 });
 
 test("a provider category loads its catalogue on SELECTION, with no button and no navigation", () => {
-  // The founder's correction, as a structural claim: clicking Flowers IS the request to see flowers.
-  // The posture gate and the four proven states live in ONE hook, so the page states which category
-  // it wants and the containment is proven by mounting that hook rather than by reading this file —
-  // see providerCheckout.browser.test.mjs and sendFlowFlowers.browser.test.mjs.
-  assert.match(CODE, /useProviderCatalogue\(providerGiftType\)/);
-  assert.match(CODE, /const providerGiftType = giftTypeForSelector\(selectedCategory\)/);
+  // UPDATED 2026-09-25 ("AUTHORIZED CANONICAL CUSTOMER CATALOG CORRECTION"). The grid no longer
+  // sources a provider category's DISPLAY from useProviderCatalogue — that role now belongs to the
+  // canonical /api/gifts/catalog fetch, so a curated card selected from ANY category (not only
+  // Flowers/Gift Baskets) can be routed to checkout. The hook is still the ONE place the posture
+  // gate and the four proven states live; it is simply called for both provider gift types
+  // unconditionally now, rather than for whichever one the selector happened to map to — see
+  // providerCheckout.browser.test.mjs and sendFlowFlowers.browser.test.mjs for the mounted proof.
+  assert.match(CODE, /useProviderCatalogue\('flowers'\)/);
+  assert.match(CODE, /useProviderCatalogue\('gift_boxes'\)/);
+  assert.match(CODE, /const legacyProviderGiftType = giftTypeForSelector\(selectedCategory\)/);
   // The page itself must not reach the provider by any other route.
   assert.ok(!CODE.includes("fetchProviderCatalog"), "the page must not read a catalogue of its own");
   assert.ok(!CODE.includes("fetchCheckoutAvailability"), "nor ask its own posture question");
@@ -452,11 +461,35 @@ test("no Maker Gifts control, branch, or label remains", () => {
 });
 
 test("every customer-facing Shopify branch is gone", () => {
+  // "getGiftCatalog" was REMOVED from this list deliberately, 2026-09-25 ("AUTHORIZED CANONICAL
+  // CUSTOMER CATALOG CORRECTION"). It named the Maker Gifts/Shopify-era removal (GiftMarketFilters,
+  // the old checkout-driven grid) — that removal is still real and still asserted below. The
+  // founder has since authorized the SAME endpoint, GET /api/gifts/catalog, as the canonical
+  // customer-facing source for curated PROVIDER products via a fresh, unrelated consumer
+  // (fromCuratedProduct-projected cards, not the old GiftMarketFilters/catalogProducts grid). See
+  // "the canonical catalog is consumed through the ONE shared grid, securely" below for the
+  // positive proof this replaces.
   for (const token of [
-    "getGiftCatalog", "startGiftCheckout", "catalogProducts", "handleGiftCheckout",
+    "startGiftCheckout", "catalogProducts", "handleGiftCheckout",
     "checkoutBusyId", "GiftMarketFilters", "Shopify", "shopify",
   ]) {
     assert.ok(!SRC.includes(token), `"${token}" must be gone from the marketplace page`);
+  }
+});
+
+test("the canonical catalog is consumed through the ONE shared grid, securely — not the old Maker Gifts surface", () => {
+  // The canonical endpoint IS read now — deliberately, per the founder's 2026-09-25 architecture
+  // decision. What must still be true is that it feeds the SAME single grid every other selector
+  // does, through the SAME projection and price-filter pipeline, never a second grid, a second
+  // checkout, or the removed GiftMarketFilters component.
+  assert.match(CODE, /api\.getGiftCatalog\(\)/, "the canonical endpoint is read exactly once, via the shared api client");
+  assert.equal((CODE.match(/api\.getGiftCatalog\(\)/g) || []).length, 1, "fetched exactly once");
+  assert.match(CODE, /setCuratedProducts\(/, "held in its own state, never merged into the Printful merch array");
+  assert.match(CODE, /projectGiftCards\(visibleProducts, fromCuratedProduct\)/,
+    "curated products reach the grid through the SAME projection + price-filter pipeline as every other source");
+  assert.equal((CODE.match(/<GiftProductGrid/g) || []).length, 1, "still exactly one grid");
+  for (const forbidden of ["GiftMarketFilters", "catalogProducts", "startGiftCheckout", "handleGiftCheckout"]) {
+    assert.ok(!SRC.includes(forbidden), `the old Maker Gifts surface ("${forbidden}") must not come back`);
   }
 });
 

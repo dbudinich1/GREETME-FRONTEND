@@ -298,3 +298,116 @@ test("Publish Selected remains a single explicit action — no product is publis
   assert.equal(client.calls.addFromProvider.length, 0, "selecting alone must not publish");
   assert.equal(client.calls.lifecycle.length, 0);
 });
+
+// ── Browse completeness disclosure (Founder-authorized 2026-09-25, "AUTHORIZED CANONICAL
+// CUSTOMER CATALOG CORRECTION") — truthful scanned/displayed/excluded counts and the required
+// search-disclosure copy, since Goody's real API has no search parameter at all. ───────────────
+
+test("the exact required search-disclosure copy is shown for Goody, and only for Goody", async () => {
+  const client = fakeClient();
+  const s = await mountGoody(client);
+  assert.equal(
+    s.tid("goody-search-disclosure").textContent.trim(),
+    "Searching products loaded so far. Load more to continue searching the Goody catalog.",
+    "the exact founder-required wording must be shown verbatim"
+  );
+});
+
+test("the browse summary reports scanned, displayed, and excluded-as-ineligible counts truthfully", async () => {
+  const client = fakeClient({
+    browseProvider: async () => ({
+      ok: true,
+      products: [
+        GOODY_ITEM({ providerProductId: "g1", name: "Fulfillable Basket", directSendEligible: true }),
+        GOODY_ITEM({ providerProductId: "g2", name: "Unfulfillable Item", directSendEligible: false }),
+        GOODY_ITEM({ providerProductId: "g3", name: "Also Unfulfillable", directSendEligible: false }),
+      ],
+      total: 3, totalIsExact: true, nextCursor: null,
+      traversal: { complete: true, pagesFetched: 1, productsScanned: 3, outcome: "ok" },
+    }),
+  });
+  const s = await mountGoody(client);
+  const summary = s.tid("goody-browse-summary").textContent;
+  assert.match(summary, /Scanned 3 products from Goody/, "the real scanned count, from the server's own traversal, not the eligible count");
+  assert.match(summary, /displaying 1/, "only the eligible/displayed count, not the raw scanned count");
+  assert.match(summary, /2 excluded as ineligible for direct send/, "the two excluded items must be truthfully counted, not silently dropped");
+});
+
+test("the browse summary states truthfully whether further Goody pages remain", async () => {
+  let call = 0;
+  const client = fakeClient({
+    browseProvider: async () => {
+      call += 1;
+      if (call === 1) {
+        return { ok: true, products: [GOODY_ITEM({ providerProductId: "g1" })], total: 1, totalIsExact: false, nextCursor: "p2", traversal: { complete: false, pagesFetched: 1, productsScanned: 1, outcome: "ok" } };
+      }
+      return { ok: true, products: [GOODY_ITEM({ providerProductId: "g2" })], total: 2, totalIsExact: true, nextCursor: null, traversal: { complete: true, pagesFetched: 2, productsScanned: 2, outcome: "ok" } };
+    },
+  });
+  const s = await mountGoody(client);
+  assert.match(s.tid("goody-browse-summary").textContent, /More Goody pages remain/);
+  await click(s.tid("goody-load-more"));
+  await flush();
+  assert.match(s.tid("goody-browse-summary").textContent, /No further Goody pages remain/);
+});
+
+test("scanned and excluded counts ACCUMULATE across Load More, rather than resetting to the latest page alone", async () => {
+  let call = 0;
+  const client = fakeClient({
+    browseProvider: async () => {
+      call += 1;
+      if (call === 1) {
+        return {
+          ok: true,
+          products: [
+            GOODY_ITEM({ providerProductId: "g1", directSendEligible: true }),
+            GOODY_ITEM({ providerProductId: "g2", directSendEligible: false }),
+          ],
+          total: 2, totalIsExact: false, nextCursor: "p2",
+          traversal: { complete: false, pagesFetched: 1, productsScanned: 2, outcome: "ok" },
+        };
+      }
+      return {
+        ok: true,
+        products: [
+          GOODY_ITEM({ providerProductId: "g3", directSendEligible: true }),
+          GOODY_ITEM({ providerProductId: "g4", directSendEligible: false }),
+        ],
+        total: 4, totalIsExact: true, nextCursor: null,
+        traversal: { complete: true, pagesFetched: 2, productsScanned: 2, outcome: "ok" },
+      };
+    },
+  });
+  const s = await mountGoody(client);
+  await click(s.tid("goody-load-more"));
+  await flush();
+  const summary = s.tid("goody-browse-summary").textContent;
+  assert.match(summary, /Scanned 4 products from Goody/, "2 scanned on page 1 + 2 on page 2 = 4 total, not just the latest page's 2");
+  assert.match(summary, /displaying 2/, "g1 and g3 are the two eligible/displayed items");
+  assert.match(summary, /2 excluded as ineligible/, "g2 and g4 together, not just the latest page's 1");
+});
+
+test("a fresh search resets the scanned/excluded totals rather than carrying over the previous search's counts", async () => {
+  let queryArg = null;
+  const client = fakeClient({
+    browseProvider: async (providerId, args) => {
+      queryArg = args.q;
+      if (!queryArg) {
+        return { ok: true, products: [GOODY_ITEM({ providerProductId: "g1", directSendEligible: false })], total: 1, totalIsExact: true, nextCursor: null, traversal: { complete: true, pagesFetched: 1, productsScanned: 5, outcome: "ok" } };
+      }
+      return { ok: true, products: [GOODY_ITEM({ providerProductId: "gb1", name: "Basket" })], total: 1, totalIsExact: true, nextCursor: null, traversal: { complete: true, pagesFetched: 1, productsScanned: 1, outcome: "ok" } };
+    },
+  });
+  const s = await mountGoody(client);
+  assert.match(s.tid("goody-browse-summary").textContent, /Scanned 5 products/);
+  const search = s.tid("provider-browse-search");
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value").set.call(search, "basket");
+    search.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    search.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  });
+  await flush();
+  const summary = s.tid("goody-browse-summary").textContent;
+  assert.match(summary, /Scanned 1 product from Goody/, "the new search's own scan count, not 5 (previous) + 1 — and singular wording for exactly 1");
+  assert.doesNotMatch(summary, /excluded as ineligible/, "zero excluded this search must not carry over stale exclusion text");
+});

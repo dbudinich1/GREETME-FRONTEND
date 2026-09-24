@@ -470,3 +470,71 @@ test("Printful selection submits to the existing staging endpoint, never a publi
   assert.equal(client.calls.lifecycle.length, 0, "Printful must never go through the direct publish transition");
   assert.match(s.text(), /Submitted for review/);
 });
+
+// ── Category UX correction (Founder-authorized 2026-09-25, "AUTHORIZED CANONICAL CUSTOMER
+// CATALOG CORRECTION") — a visible list of what's currently assigned, a one-click removal per
+// category, and an explicit "Set as only category" replacement action, so a founder correcting a
+// wrong category can no longer silently ADD a new one while the old one stays invisible. ─────────
+
+async function expandTileWith(categories) {
+  const client = fakeClient({
+    listItems: async (args) => {
+      client.calls.listItems.push(args);
+      return { ok: true, items: [PUBLISHED_ITEM({ curation: { greetMeCategories: categories, brandable: false, featuredRank: null } })] };
+    },
+  });
+  const s = await mountOpen(client);
+  await click(s.tid("full-catalog-toggle"));
+  await flush();
+  await click(s.tid("expand-florist_one:p1"));
+  await flush();
+  return { s, client };
+}
+
+test("currently-assigned categories are shown as a visible, labeled list — not just highlighted toggle buttons", async () => {
+  const { s } = await expandTileWith(["gift_baskets"]);
+  const list = s.tid("selected-categories-florist_one:p1");
+  assert.ok(list, "a dedicated selected-categories summary must render");
+  assert.match(list.textContent, /Gift Baskets/);
+  assert.ok(s.tid("remove-category-florist_one:p1-gift_baskets"), "each listed category must carry its own removal control");
+});
+
+test("a product with no categories assigned shows an explicit empty state, not a blank space", async () => {
+  const { s } = await expandTileWith([]);
+  assert.ok(!s.tid("selected-categories-florist_one:p1"), "no populated list when nothing is assigned");
+  assert.ok(s.tid("selected-categories-empty-florist_one:p1"), "an explicit 'none assigned' state must render instead");
+  assert.match(s.text(), /No categories assigned yet\./);
+});
+
+test("the remove control on a selected category PATCHes it out of the stored array — nothing else in the array is touched", async () => {
+  const { s, client } = await expandTileWith(["gift_baskets", "tech"]);
+  await click(s.tid("remove-category-florist_one:p1-gift_baskets"));
+  await flush();
+  assert.equal(client.calls.patchItem.length, 1);
+  const [, , patch] = client.calls.patchItem[0];
+  assert.deepEqual(patch.greetMeCategories, ["tech"], "gift_baskets removed, tech left exactly as it was");
+});
+
+test("'Set as only category' REPLACES the whole stored array — it does not append alongside the wrong one", async () => {
+  const { s, client } = await expandTileWith(["gift_baskets"]);
+  assert.ok(s.tid("only-category-florist_one:p1-tech"), "the replacement action must be offered for an unselected category");
+  await click(s.tid("only-category-florist_one:p1-tech"));
+  await flush();
+  assert.equal(client.calls.patchItem.length, 1);
+  const [, , patch] = client.calls.patchItem[0];
+  assert.deepEqual(patch.greetMeCategories, ["tech"], "gift_baskets must be GONE, not merely joined by tech");
+});
+
+test("'Set as only category' is not offered for a category that is already the current selection", async () => {
+  const { s } = await expandTileWith(["gift_baskets"]);
+  assert.ok(!s.tid("only-category-florist_one:p1-gift_baskets"), "no replacement action for an id already selected — the remove control covers that case");
+});
+
+test("intentional multi-category assignment is still reachable — the toggle grid still adds a SECOND category without removing the first", async () => {
+  const { s, client } = await expandTileWith(["gift_baskets"]);
+  await click(s.tid("category-florist_one:p1-tech"));
+  await flush();
+  assert.equal(client.calls.patchItem.length, 1);
+  const [, , patch] = client.calls.patchItem[0];
+  assert.deepEqual(patch.greetMeCategories.sort(), ["gift_baskets", "tech"], "the toggle grid still supports intentional multi-category, unchanged");
+});
