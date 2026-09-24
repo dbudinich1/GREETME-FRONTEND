@@ -671,9 +671,9 @@ export default function ContactImportWizard() {
               onUploadPracticeCsv are unchanged; only the presentation (side-by-side cards + a modal
               instead of a full inline section) moved. */}
           <div className="gmiw-uxref-grid">
-            <section className="gmiw-upsec" data-testid="upload-section">
-              <h3>Upload your contacts</h3>
-              <p>Upload an Excel or CSV file. Accepted formats: .xlsx, .xls, or .csv (.xlsx recommended — it carries the guided dropdowns). Only a name and valid email are required. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future.</p>
+            <section className="gmiw-upsec gmiw-upsec--center" data-testid="upload-section">
+              <h3 style={{ textAlign: "center" }}>Upload your contacts</h3>
+              <p style={{ textAlign: "center" }}>Upload an Excel or CSV file to add your contacts. You'll review everything before importing.</p>
               <label className="gmiw-choose" data-testid="choose-csv">
                 Choose a file
                 <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onRealFile(e.target.files[0])} />
@@ -694,21 +694,23 @@ export default function ContactImportWizard() {
 
           {/* Blank, category-specific template (NOT the populated Practice CSV) — one format toggle,
               one download button, same downloadTemplate(kind, fmt) handler as before this pass. */}
-          <section className="gmiw-upsec" data-testid="template-block">
+          <section className="gmiw-upsec gmiw-upsec--center gmiw-tpl-panel" data-testid="template-block">
             <h4 style={{ textAlign: "center" }} data-testid="template-heading">{TEMPLATE_HEADING[templateKind] || "Need a file to fill out?"}</h4>
-            <p>Download {TEMPLATE_ARTICLE[templateKind] || "a"} {TEMPLATE_LABEL[templateKind] || "contact"} template with the right columns, complete it, then upload it here.</p>
-            <p className="gmiw-tpl-note" data-testid="template-version-note">Version 2 — includes guided Type, Relation, and Description dropdowns in Excel.</p>
+            <p style={{ textAlign: "center" }}>Download the template, complete it, and upload it here.</p>
             <div className="gmiw-fmt-toggle" role="group" aria-label="File format">
               <button type="button" data-testid="template-fmt-xlsx" className={tplFmt === "xlsx" ? "active" : ""} onClick={() => setTplFmt("xlsx")}>Excel (.xlsx)</button>
               <button type="button" data-testid="template-fmt-csv" className={tplFmt === "csv" ? "active" : ""} onClick={() => setTplFmt("csv")}>CSV (.csv)</button>
             </div>
-            <div>
-              <button data-testid="download-template-btn" style={btn(PURPLE)} onClick={() => downloadTemplate(templateKind, tplFmt)}>
+            <div className="gmiw-tpl-dl-wrap">
+              <button data-testid="download-template-btn" className="gmiw-tpl-dl-btn" style={btn(PURPLE)} onClick={() => downloadTemplate(templateKind, tplFmt)}>
                 Download {activeGroupMeta ? activeGroupMeta.title : "contact"} template ({tplFmt === "xlsx" ? "Excel" : "CSV"})
               </button>
             </div>
-            <p className="gmiw-tpl-note" data-testid="excel-recommend-note">Guided Excel Template — recommended; includes guided dropdowns and instructions.</p>
-            <p className="gmiw-tpl-note" data-testid="csv-disclosure">Basic CSV Template — compatibility option; CSV files do not contain dropdowns, formatting, or workbook instructions.</p>
+            <div className="gmiw-tpl-finePrint">
+              <p className="gmiw-tpl-note" data-testid="template-version-note">Version 2 — includes guided Type, Relation, and Description dropdowns in Excel.</p>
+              <p className="gmiw-tpl-note" data-testid="excel-recommend-note">Guided Excel Template — recommended; includes guided dropdowns and instructions.</p>
+              <p className="gmiw-tpl-note" data-testid="csv-disclosure">Basic CSV Template — compatibility option; CSV files do not contain dropdowns, formatting, or workbook instructions.</p>
+            </div>
           </section>
 
           <TestDriveModal
@@ -876,9 +878,25 @@ function PremiumStyles() {
       .gmiw-tpl-library-callout b{ color:#4a3fb0; }
       .gmiw-tpl-library-callout span:first-child{ min-width:0; overflow-wrap:anywhere; }
       .gmiw-tpl-library-callout span:last-child{ flex-shrink:0; font-weight:800; font-size:.8rem; color:#4a3fb0; }
-      .gmiw-fmt-toggle{ display:inline-flex; border:1px solid rgba(27,24,48,.15); border-radius:999px; padding:2px; margin:4px 0 10px; }
-      .gmiw-fmt-toggle button{ border:none; border-radius:999px; padding:6px 14px; font-size:.8rem; font-weight:700; cursor:pointer; background:transparent; color:#1b1830; }
+      /* Upload/Template panels — center all content (heading, copy, controls) within the card. */
+      .gmiw-upsec--center{ justify-items:center; text-align:center; }
+      .gmiw-tpl-panel{ align-content:center; }
+      /* Format toggle — a compact, self-sized pill (never stretches to the row width); both options
+         share identical height/width/padding so neither control reads as "more important". */
+      .gmiw-fmt-toggle{ display:inline-flex; justify-self:center; width:fit-content; border:1px solid rgba(27,24,48,.15);
+        border-radius:999px; padding:2px; margin:4px 0 10px; }
+      .gmiw-fmt-toggle button{ border:none; border-radius:999px; padding:6px 14px; min-width:112px; height:36px;
+        display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box;
+        font-size:.8rem; font-weight:700; cursor:pointer; background:transparent; color:#1b1830; }
       .gmiw-fmt-toggle button.active{ background:linear-gradient(135deg,#6d74ee,#764ba2); color:#fff; }
+      @media (max-width:640px){ .gmiw-fmt-toggle button{ min-width:96px; } }
+      /* Download CTA — centered, width bounded so it never spans edge-to-edge on a wide card. */
+      .gmiw-tpl-dl-wrap{ display:flex; justify-content:center; width:100%; }
+      .gmiw-tpl-dl-btn{ width:min(340px, 100%); }
+      /* Fine print — the truthful Excel/CSV disclosures, grouped and de-emphasized as one small block
+         rather than three separate loud paragraphs (reduces visual noise without removing disclosure). */
+      .gmiw-tpl-finePrint{ display:grid; gap:3px; margin-top:2px; }
+      .gmiw-tpl-finePrint .gmiw-tpl-note{ font-size:.72rem; color:#8a8698; line-height:1.4; }
       /* Test Drive modal — compact, centered, fits the viewport without internal scrolling at normal
          desktop sizes; the two primary actions sit side by side on desktop, stack on mobile. */
       .gmiw-modal-overlay{ position:fixed; inset:0; background:rgba(30,20,50,.45); display:flex; align-items:center; justify-content:center; padding:16px; z-index:60; }
@@ -899,15 +917,70 @@ function PremiumStyles() {
       .gmiw-modal-sep{ color:#c4bdd6; font-size:.78rem; }
       @media (max-width:640px){ .gmiw-modal-primary-row{ flex-direction:column; } .gmiw-modal-cta button, .gmiw-modal-cta label{ width:100%; box-sizing:border-box; }
         .gmiw-modal-secondary-row{ flex-direction:column; gap:6px; } .gmiw-modal-sep{ display:none; } }
+      /* ---- Review screen — centered white card, summary counts, clean contact table ---- */
+      .gmiw-review-shell{ display:flex; justify-content:center; }
+      .gmiw-review-card{ box-sizing:border-box; width:100%; max-width:760px; background:#fff; border-radius:20px;
+        border:1px solid rgba(27,24,48,.08); box-shadow:0 20px 50px -30px rgba(50,20,90,.35); padding:26px 26px 22px;
+        display:grid; gap:16px; }
+      .gmiw-review-heading{ margin:0; text-align:center; font-family:Georgia,serif; font-size:1.4rem; color:#2c2140; }
+      .gmiw-review-subtitle{ margin:0; text-align:center; color:#605c78; font-size:.88rem; line-height:1.5; }
+      .gmiw-review-summary{ display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+      .gmiw-review-stat{ box-sizing:border-box; min-width:96px; text-align:center; border-radius:12px; padding:10px 16px;
+        background:rgba(109,116,238,.07); border:1px solid rgba(109,116,238,.18); }
+      .gmiw-review-stat b{ display:block; font-size:1.2rem; color:#2c2140; }
+      .gmiw-review-stat span{ font-size:.72rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#6b6580; }
+      .gmiw-review-stat--ready{ background:rgba(31,157,107,.09); border-color:rgba(31,157,107,.25); }
+      .gmiw-review-stat--ready b{ color:#1f7a57; }
+      .gmiw-review-stat--needsinfo{ background:rgba(214,69,69,.08); border-color:rgba(214,69,69,.25); }
+      .gmiw-review-stat--needsinfo b{ color:#a3241a; }
+      .gmiw-review-note{ text-align:center; font-size:.8rem; color:#605c78; }
+      .gmiw-review-partial{ box-sizing:border-box; border-radius:12px; padding:14px 16px; text-align:center;
+        border:1px solid rgba(31,157,107,.45); background:rgba(31,157,107,.06); color:#1f7a57; }
+      .gmiw-review-partial b{ font-size:.95rem; }
+      .gmiw-review-table-block{ display:grid; gap:8px; }
+      .gmiw-review-table-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+      .gmiw-review-table-head b{ font-size:.9rem; color:#2c2140; }
+      .gmiw-review-table-wrap{ overflow-x:auto; border:1px solid #eee; border-radius:12px; }
+      .gmiw-review-table{ width:100%; border-collapse:collapse; font-size:.82rem; }
+      .gmiw-review-table th{ text-align:left; font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+        color:#8a7fb5; padding:10px 12px; background:#faf9fd; border-bottom:1px solid #eee; white-space:nowrap; }
+      .gmiw-review-table td{ padding:9px 12px; border-bottom:1px solid #f4f4f7; color:#332a52; vertical-align:middle; }
+      .gmiw-review-table tr:last-child td{ border-bottom:none; }
+      .gmiw-review-td-name{ font-weight:700; }
+      .gmiw-review-row--ok{ background:rgba(31,157,107,.04); }
+      .gmiw-review-row--needsinfo{ background:rgba(214,69,69,.06); }
+      .gmiw-review-pill{ display:inline-block; border-radius:999px; padding:3px 10px; font-size:.72rem; font-weight:800; white-space:nowrap; }
+      .gmiw-review-edit-link{ background:none; border:none; cursor:pointer; color:#4a3fb0; font-weight:700; font-size:.78rem; text-decoration:underline; padding:2px; white-space:nowrap; }
+      .gmiw-review-edit-dash{ color:#c4bdd6; }
+      .gmiw-review-warning{ box-sizing:border-box; border-radius:14px; padding:16px; border:1px solid rgba(214,145,16,.45); background:rgba(214,145,16,.06); }
+      .gmiw-review-warning > b{ font-size:.95rem; color:#7a5410; }
+      .gmiw-review-practice{ box-sizing:border-box; border-radius:14px; padding:16px; display:grid; gap:8px;
+        border:1px solid rgba(214,145,16,.4); background:rgba(214,145,16,.06); }
+      .gmiw-review-actions{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding-top:4px; border-top:1px solid #f0eef7; }
+      .gmiw-review-actions-primary{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
+      @media (max-width:640px){
+        .gmiw-review-card{ padding:20px 16px 18px; border-radius:16px; }
+        /* Mailing Address + Type hide first on narrow screens — Name/Email/Status/Edit stay visible without horizontal scroll */
+        .gmiw-review-table th:nth-child(3), .gmiw-review-table td:nth-child(3),
+        .gmiw-review-table th:nth-child(4), .gmiw-review-table td:nth-child(4){ display:none; }
+        .gmiw-review-table{ font-size:.76rem; }
+        .gmiw-review-table th, .gmiw-review-table td{ padding:8px 6px; }
+        .gmiw-review-td-name{ max-width:84px; overflow-wrap:anywhere; }
+        .gmiw-review-table td:nth-child(2){ max-width:108px; overflow-wrap:anywhere; }
+        .gmiw-review-pill{ padding:2px 7px; font-size:.64rem; white-space:normal; }
+        .gmiw-review-edit-link{ font-size:.7rem; }
+        .gmiw-review-actions{ flex-direction:column; align-items:stretch; }
+        .gmiw-review-actions-primary{ justify-content:flex-start; }
+      }
     `}</style>
   );
 }
-function WandSparkles() {
+function WandSparkles({ size = 34, stroke = "#f2dca6" }) {
   return (
-    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#f2dca6" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" role="img" aria-label="wand and sparkles">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" role="img" aria-label="wand and sparkles">
       <path d="M4 20l9.5-9.5" />
       <path d="M13 6.5l4.5 4.5" />
-      <path d="M17 3l.9 2.1L20 6l-2.1.9L17 9l-.9-2.1L14 6l2.1-.9z" fill="#f2dca6" stroke="none" />
+      <path d="M17 3l.9 2.1L20 6l-2.1.9L17 9l-.9-2.1L14 6l2.1-.9z" fill={stroke} stroke="none" />
       <path d="M7 4l.5 1.3L8.8 5.8 7.5 6.3 7 7.6 6.5 6.3 5.2 5.8 6.5 5.3z" fill="#fff" stroke="none" opacity=".9" />
       <path d="M20 15l.4 1.1 1.1.4-1.1.4-.4 1.1-.4-1.1-1.1-.4 1.1-.4z" fill="#fff" stroke="none" opacity=".9" />
     </svg>
@@ -978,8 +1051,6 @@ const BUSINESS_GROUPS = [
 ];
 // Category-specific template-panel copy (display copy only — keyed by templateKind, which already
 // derives from personalGroup/recipientKind, so both update automatically when the category changes).
-const TEMPLATE_LABEL = { family: "Family", friend: "Friend", professional: "Professional", employee: "Employee", client: "Client", vendor: "Vendor" };
-const TEMPLATE_ARTICLE = { family: "a", friend: "a", professional: "a", employee: "an", client: "a", vendor: "a" };
 const TEMPLATE_HEADING = {
   family: "Need a Family Import Template?",
   friend: "Need a Friend Import Template?",
@@ -1010,7 +1081,7 @@ function TestDriveModal({ open, onClose, kindLabel, onDownloadSample, onDownload
       <div className="gmiw-modal" role="dialog" aria-modal="true" aria-label="Test Drive Wizard" onClick={(e) => e.stopPropagation()}>
         <button type="button" className="gmiw-modal-close" aria-label="Close" data-testid="td-modal-close" onClick={onClose}>×</button>
         <h3 className="gmiw-modal-title">
-          <span aria-hidden="true">🪄</span> Test Drive Wizard
+          <span aria-hidden="true" className="gmiw-modal-wand"><WandSparkles size={20} stroke="#6d74ee" /></span> Test Drive Wizard
         </h3>
         <span className="gmiw-modal-badge">🛡 Safe practice mode</span>
         <ol className="gmiw-modal-steps">
@@ -1085,103 +1156,120 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
   const blockers = [...buckets.needsFix, ...buckets.invalidExcluded];
   // Every non-blocker contact appears once, as a recipient-style card, with its state.
   const shown = [...buckets.ready, ...buckets.added, ...buckets.alreadyInList, ...buckets.willSkip];
+  // The table shows every contact — blockers first, so they're visible before "See all" is toggled.
+  const allRows = [...blockers, ...shown];
   const heading = isSample ? "Preview your practice contacts" : "Review your contacts";
   const supporting = isSample
     ? "This is how these contacts would appear in your recipient list. Nothing has been saved or sent."
-    : "Check the contacts below, make any changes you want, then add them to your recipient list.";
+    : "We matched your file's columns automatically — review and confirm below.";
   const preview = seeAll
-    ? paginate(shown, confPage, DETAILS_BATCH)
-    : { slice: shown.slice(0, PREVIEW_N), pages: 1, page: 0, total: shown.length };
+    ? paginate(allRows, confPage, DETAILS_BATCH)
+    : { slice: allRows.slice(0, PREVIEW_N), pages: 1, page: 0, total: allRows.length };
+  const contactByIndex = new Map(rows.map((r) => [r.index, r.contact]));
 
   return (
-    <div data-testid="confirm-screen" style={{ display: "grid", gap: 14 }}>
-      <div style={card}>
-        <h2 style={{ margin: 0, fontFamily: "Georgia,serif", fontSize: "1.3rem" }}>{heading}</h2>
-        <p style={{ ...sub, marginTop: 4 }}>{supporting}</p>
-        <div style={{ display: "grid", gap: 2, marginTop: 4 }}>
-          {!isSample && importCount > 0 && <div style={{ fontSize: ".98rem", color: "#1f9d6b", fontWeight: 700 }}>{importCount} contact{importCount === 1 ? "" : "s"} ready to add</div>}
-          {counts.alreadyInList > 0 && <div style={sub}>{counts.alreadyInList} already in your recipient list—we'll skip {counts.alreadyInList === 1 ? "this contact" : "them"}.</div>}
-          {counts.willSkip > 0 && <div style={sub}>{counts.willSkip} won't be added.</div>}
-        </div>
-      </div>
+    <div data-testid="confirm-screen" className="gmiw-review-shell">
+      <div className="gmiw-review-card">
+        <h2 className="gmiw-review-heading">{heading}</h2>
+        <p className="gmiw-review-subtitle">{supporting}</p>
 
-      {/* Opt-in recommended safe defaults — compact notice; never applied silently. */}
-      {dfltApplied > 0 ? (
-        <div className="gmiw-defaults" data-testid="defaults-applied">
-          <b>Recommended settings applied to {dfltApplied} contact{dfltApplied === 1 ? "" : "s"}.</b>
-          <div className="gmiw-defaults-cta">
-            <button data-testid="undo-defaults" style={btn("transparent", "#8a1f1f")} onClick={undoDefaults}>Undo</button>
+        {/* Summary counts — total / ready / needs info */}
+        <div className="gmiw-review-summary" data-testid="review-summary">
+          <div className="gmiw-review-stat"><b>{counts.total}</b><span>Total</span></div>
+          <div className="gmiw-review-stat gmiw-review-stat--ready"><b>{importCount}</b><span>Ready</span></div>
+          <div className="gmiw-review-stat gmiw-review-stat--needsinfo"><b>{blockers.length}</b><span>Needs Info</span></div>
+        </div>
+        {counts.alreadyInList > 0 && <div className="gmiw-review-note">{counts.alreadyInList} already in your recipient list—we'll skip {counts.alreadyInList === 1 ? "this contact" : "them"}.</div>}
+        {counts.willSkip > 0 && <div className="gmiw-review-note">{counts.willSkip} won't be added.</div>}
+
+        {/* Opt-in recommended safe defaults — compact notice; never applied silently. */}
+        {dfltApplied > 0 ? (
+          <div className="gmiw-defaults" data-testid="defaults-applied">
+            <b>Recommended settings applied to {dfltApplied} contact{dfltApplied === 1 ? "" : "s"}.</b>
+            <div className="gmiw-defaults-cta">
+              <button data-testid="undo-defaults" style={btn("transparent", "#8a1f1f")} onClick={undoDefaults}>Undo</button>
+            </div>
           </div>
-        </div>
-      ) : (dflt.available && !dfltDismissed) ? (
-        <div className="gmiw-defaults" data-testid="defaults-notice">
-          <b>Recommended settings are available</b>
-          <p>We can apply conservative relationship settings to contacts with missing details. Existing CSV values and any changes you make will always take priority.</p>
-          <p style={{ fontWeight: 700, color: "#3a2f6e" }}>Apply recommended settings to {dflt.count} contact{dflt.count === 1 ? "" : "s"}</p>
-          <div className="gmiw-defaults-cta">
-            <button data-testid="apply-defaults" style={btn(PURPLE)} onClick={applyDefaults}>Apply recommended settings</button>
-            <button data-testid="review-individually" style={btn("transparent", "#4a3fb0")} onClick={() => setDfltDismissed(true)}>Review individually</button>
+        ) : (dflt.available && !dfltDismissed) ? (
+          <div className="gmiw-defaults" data-testid="defaults-notice">
+            <b>Recommended settings are available</b>
+            <p>We can apply conservative relationship settings to contacts with missing details. Existing CSV values and any changes you make will always take priority.</p>
+            <p style={{ fontWeight: 700, color: "#3a2f6e" }}>Apply recommended settings to {dflt.count} contact{dflt.count === 1 ? "" : "s"}</p>
+            <div className="gmiw-defaults-cta">
+              <button data-testid="apply-defaults" style={btn(PURPLE)} onClick={applyDefaults}>Apply recommended settings</button>
+              <button data-testid="review-individually" style={btn("transparent", "#4a3fb0")} onClick={() => setDfltDismissed(true)}>Review individually</button>
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      {/* Partial real import — truthful, never a false 'complete success' */}
-      {partial && (
-        <div data-testid="partial" style={{ ...card, borderColor: "rgba(31,157,107,.45)", background: "rgba(31,157,107,.06)" }}>
-          <b style={{ fontSize: ".95rem", color: "#1f7a57" }}>{partial.added} contact{partial.added === 1 ? " was" : "s were"} added. {partial.failed} could not be added.</b>
-          <div style={{ ...sub, marginTop: 3 }}>Added contacts won't be submitted again. Fix the ones below and add them when you're ready.</div>
-        </div>
-      )}
-
-      {/* Quick fix — genuine blockers only */}
-      {blockers.length > 0 && (
-        <div data-testid="quickfix" style={{ ...card, borderColor: "rgba(214,145,16,.45)" }}>
-          <b style={{ fontSize: ".95rem" }}>{blockers.length} contact{blockers.length === 1 ? "" : "s"} need a quick fix before they can be added.</b>
-          <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
-            {blockers.map((it) => <QuickFixRow key={it.index} it={it} on={on} />)}
+        {/* Partial real import — truthful, never a false 'complete success' */}
+        {partial && (
+          <div data-testid="partial" className="gmiw-review-partial">
+            <b>{partial.added} contact{partial.added === 1 ? " was" : "s were"} added. {partial.failed} could not be added.</b>
+            <div className="gmiw-review-note">Added contacts won't be submitted again. Fix the ones below and add them when you're ready.</div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Recipient-style preview (bounded/paginated) — one card per contact, with its state */}
-      {shown.length > 0 && (
-        <div style={card}>
-          <div style={{ ...rowStyle, marginBottom: 6 }}>
-            <b style={{ fontSize: ".9rem" }}>Your contacts</b>
-            {shown.length > PREVIEW_N && <button style={linkBtn} onClick={() => { setSeeAll((v) => !v); setConfPage(0); }}>{seeAll ? "Show less" : `See all ${shown.length}`}</button>}
+        {/* Clean table — every contact, one row each: Name / Email / Type / Mailing Address / Status / Edit */}
+        {allRows.length > 0 && (
+          <div className="gmiw-review-table-block">
+            <div className="gmiw-review-table-head">
+              <b>Your contacts</b>
+              {allRows.length > PREVIEW_N && <button style={linkBtn} onClick={() => { setSeeAll((v) => !v); setConfPage(0); }}>{seeAll ? "Show less" : `See all ${allRows.length}`}</button>}
+            </div>
+            <div className="gmiw-review-table-wrap">
+              <table className="gmiw-review-table">
+                <thead>
+                  <tr><th>Name</th><th>Email</th><th>Type</th><th>Mailing Address</th><th>Status</th><th>Edit</th></tr>
+                </thead>
+                <tbody>
+                  {preview.slice.map((it) => (
+                    <ReviewTableRow key={it.index} it={it} business={business}
+                      contact={contactByIndex.get(it.index)} onAddRelationship={openDetails} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {seeAll && preview.pages > 1 && <Pager page={preview.page} pages={preview.pages} onPage={setConfPage} />}
           </div>
-          <div style={{ border: "1px solid #eee", borderRadius: 10, overflow: "hidden" }}>
-            {preview.slice.map((it, i) => <ReadyPreviewRow key={it.index} it={it} business={business} first={i === 0} onAddRelationship={openDetails} />)}
+        )}
+
+        {/* Warning panel — genuine blockers only, with the actual fix controls */}
+        {blockers.length > 0 && (
+          <div data-testid="quickfix" className="gmiw-review-warning">
+            <b>{blockers.length} contact{blockers.length === 1 ? "" : "s"} need a quick fix before they can be added.</b>
+            <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
+              {blockers.map((it) => <QuickFixRow key={it.index} it={it} on={on} />)}
+            </div>
           </div>
-          {seeAll && preview.pages > 1 && <Pager page={preview.page} pages={preview.pages} onPage={setConfPage} />}
-        </div>
-      )}
+        )}
 
-      {/* Primary Test Drive CTA — view the fictional contacts in the normal Recipients page (Practice View) */}
-      {isSample && (
-        <div data-testid="practice-cta-block" style={{ ...card, borderColor: "rgba(214,145,16,.4)", background: "rgba(214,145,16,.06)", display: "grid", gap: 8 }}>
-          <button data-testid="view-practice-recipients" style={btn(PURPLE)} onClick={onViewPractice}>View Practice Contacts in Recipients</button>
-          <p data-testid="practice-cta-note" style={{ margin: 0, fontSize: ".8rem", color: "#7a5410", lineHeight: 1.5 }}>See how the fictional contacts will look in your Recipients page. They exist only during this Test Drive and will be automatically removed when you exit Test Drive or log out.</p>
-        </div>
-      )}
+        {/* Read-only Test Drive notice + primary CTA — view the fictional contacts in Recipients (Practice View) */}
+        {isSample && (
+          <div data-testid="practice-cta-block" className="gmiw-review-practice">
+            <button data-testid="view-practice-recipients" style={btn(PURPLE)} onClick={onViewPractice}>View Practice Contacts in Recipients</button>
+            <p data-testid="practice-cta-note" className="gmiw-review-note">See how the fictional contacts will look in your Recipients page. They exist only during this Test Drive and will be automatically removed when you exit Test Drive or log out.</p>
+          </div>
+        )}
 
-      {/* Actions */}
-      <div style={{ ...rowStyle }}>
-        <button data-testid="startover" style={btn("transparent", "#1b1830")} onClick={onStartOver}>Start over</button>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          {counts.ready > 0 && <button data-testid="details-cta" style={btn("transparent", "#4a3fb0")} onClick={openDetails}>Add relationship details first</button>}
-          {isIndividualSample ? (
-            <>
-              <button data-testid="sample-upload-own" style={btn("transparent", "#1b1830")} onClick={sampleActions.onUploadOwn}>Upload my own CSV</button>
-              <button data-testid="sample-download" style={btn("transparent", "#1b1830")} onClick={sampleActions.onDownloadCsv}>Download Practice CSV</button>
-              <button data-testid="sample-delete" style={btn("transparent", "#8a1f1f")} onClick={sampleActions.onDelete}>Delete practice contacts</button>
-              <button data-testid="sample-exit" style={btn("transparent", "#1b1830")} onClick={sampleActions.onExit}>Exit Test Drive</button>
-            </>
-          ) : isSample ? (
-            <button data-testid="sample-exit" style={btn("transparent", "#1b1830")} onClick={onStartOver}>Exit Test Drive</button>
-          ) : (
-            <button data-testid="add-cta" style={btn(PURPLE)} disabled={busy || !importEnabled} onClick={onCommit}>{busy ? "Adding…" : `Add ${importCount} contact${importCount === 1 ? "" : "s"}`}</button>
-          )}
+        {/* Actions — clean, aligned: secondary on the left, primary group on the right */}
+        <div className="gmiw-review-actions">
+          <button data-testid="startover" style={btn("transparent", "#1b1830")} onClick={onStartOver}>Start over</button>
+          <div className="gmiw-review-actions-primary">
+            {counts.ready > 0 && <button data-testid="details-cta" style={btn("transparent", "#4a3fb0")} onClick={openDetails}>Add relationship details first</button>}
+            {isIndividualSample ? (
+              <>
+                <button data-testid="sample-upload-own" style={btn("transparent", "#1b1830")} onClick={sampleActions.onUploadOwn}>Upload my own CSV</button>
+                <button data-testid="sample-download" style={btn("transparent", "#1b1830")} onClick={sampleActions.onDownloadCsv}>Download Practice CSV</button>
+                <button data-testid="sample-delete" style={btn("transparent", "#8a1f1f")} onClick={sampleActions.onDelete}>Delete practice contacts</button>
+                <button data-testid="sample-exit" style={btn("transparent", "#1b1830")} onClick={sampleActions.onExit}>Exit Test Drive</button>
+              </>
+            ) : isSample ? (
+              <button data-testid="sample-exit" style={btn("transparent", "#1b1830")} onClick={onStartOver}>Exit Test Drive</button>
+            ) : (
+              <button data-testid="add-cta" style={btn(PURPLE)} disabled={busy || !importEnabled} onClick={onCommit}>{busy ? "Adding…" : `Add ${importCount} contact${importCount === 1 ? "" : "s"}`}</button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -1197,7 +1285,7 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
 const FIX_FIELD_BADGE = { email: "EMAIL", name: "NAME", birthday: "BIRTHDAY", audience: "TYPE" };
 function QuickFixRow({ it, on }) {
   return (
-    <div style={{ border: "1px solid #f0e6cf", borderRadius: 10, padding: 10, display: "grid", gap: 6 }}>
+    <div id={`gmiw-qf-${it.index}`} style={{ border: "1px solid #f0e6cf", borderRadius: 10, padding: 10, display: "grid", gap: 6 }}>
       <div style={{ ...rowStyle }}>
         <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <span aria-hidden="true" style={{ color: "#b8791b", fontSize: "1rem", lineHeight: 1, flexShrink: 0 }}>⚠</span>
@@ -1229,32 +1317,53 @@ function QuickFixRow({ it, on }) {
   );
 }
 
-// Per-contact state label for the recipient-style preview.
-const STATE_LABEL = {
-  added: { t: "Added ✓", c: "#1f7a57" },
-  already_in_list: { t: "Already in your list", c: "#605c78" },
-  will_skip: { t: "Won't be added", c: "#605c78" },
+// Per-row status pill — green Ready/Added, soft-red Needs Info, neutral for already-in-list/skip.
+const STATUS_META = {
+  needs_fix: { t: "Needs Info", fg: "#a3241a", bg: "rgba(214,69,69,.12)" },
+  invalid_excluded: { t: "Needs Info", fg: "#a3241a", bg: "rgba(214,69,69,.12)" },
+  ready: { t: "Ready", fg: "#1f7a57", bg: "rgba(31,157,107,.12)" },
+  added: { t: "Added ✓", fg: "#1f7a57", bg: "rgba(31,157,107,.12)" },
+  already_in_list: { t: "Already in your list", fg: "#605c78", bg: "rgba(96,92,120,.08)" },
+  will_skip: { t: "Won't be added", fg: "#605c78", bg: "rgba(96,92,120,.08)" },
 };
-// One recipient-style card. Truthful about a missing relationship (Morgan Doe rule) and its state.
-function ReadyPreviewRow({ it, business, first, onAddRelationship }) {
-  const rel = business
-    ? (it.audience ? (RECIPIENT_TYPE_OPTIONS.find((o) => o.value === it.audience) || {}).label || "" : "")
-    : (it.relationProvided ? it.relationLabel : "Relationship not provided (optional)");
-  const state = STATE_LABEL[it.bucket];
-  const editable = it.bucket === "ready";
+// One-line mailing-address summary for the review table. Address is always optional — never blocks.
+function mailingAddressLabel(contact) {
+  const a = contact && contact.shippingAddress;
+  if (!a) return "—";
+  const cityState = [a.city, a.state].filter(Boolean).join(", ");
+  return cityState || a.line1 || a.country || "—";
+}
+// Truthful about a missing relationship (Morgan Doe rule) and its state. Green/Ready or Added rows
+// read clean; a Needs Info row is soft-red and its Edit control scrolls to the SAME QuickFixRow fix
+// control the warning panel already renders below (no new edit path — this only reveals it faster).
+function ReviewTableRow({ it, business, contact, onAddRelationship }) {
+  const typeLabel = business
+    ? (it.audience ? (RECIPIENT_TYPE_OPTIONS.find((o) => o.value === it.audience) || {}).label || "—" : "—")
+    : (it.relationProvided ? it.groupLabel : "—");
+  const status = STATUS_META[it.bucket] || STATUS_META.will_skip;
+  const needsInfo = it.bucket === "needs_fix" || it.bucket === "invalid_excluded";
+  const canAddRelationship = it.bucket === "ready" && !business && !it.relationProvided;
+  const scrollToFix = () => {
+    const el = document.getElementById(`gmiw-qf-${it.index}`);
+    if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
   return (
-    <div style={{ ...rowStyle, padding: "8px 12px", borderTop: first ? "none" : "1px solid #f4f4f7", fontSize: ".82rem" }}>
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
-        <span aria-hidden="true" style={{ color: "#1f9d6b", marginRight: 6 }}>✓</span>
-        <b>{it.name}</b> <span style={{ color: "#605c78" }}>· {it.email}</span>
-        {it.retryNote && <span style={{ color: "#b8791b" }}> · {it.retryNote}</span>}
-      </span>
-      <span style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-        {state && <span style={{ color: state.c, fontWeight: 700 }}>{state.t}</span>}
-        <span style={{ color: (business || it.relationProvided) ? "#605c78" : "#a08a5a" }}>{it.birthday ? it.birthday + " · " : ""}{rel}</span>
-        {editable && !business && !it.relationProvided && <button style={linkBtn} onClick={onAddRelationship}>Add relationship</button>}
-      </span>
-    </div>
+    <tr className={needsInfo ? "gmiw-review-row--needsinfo" : "gmiw-review-row--ok"}>
+      <td className="gmiw-review-td-name">{it.name || "This contact"}</td>
+      <td>{it.email || "—"}</td>
+      <td>{typeLabel}</td>
+      <td>{mailingAddressLabel(contact)}</td>
+      <td><span className="gmiw-review-pill" style={{ color: status.fg, background: status.bg }}>{status.t}</span></td>
+      <td>
+        {needsInfo ? (
+          <button className="gmiw-review-edit-link" onClick={scrollToFix}>Fix ↓</button>
+        ) : canAddRelationship ? (
+          <button className="gmiw-review-edit-link" onClick={onAddRelationship}>Add relationship</button>
+        ) : (
+          <span className="gmiw-review-edit-dash" aria-hidden="true">—</span>
+        )}
+      </td>
+    </tr>
   );
 }
 
