@@ -388,38 +388,34 @@ test("upload screen reflects the chosen category with canonical '...Contacts' he
   assert.equal((WIZ.match(/activeGroupMeta\.uploadHeading/g) || []).length, 1);
   assert.match(WIZ, /activeGroupMeta && \(/);
 });
-test("Upload Options: unnumbered Upload/Test-Drive sections; numbering ONLY inside two Test Drive tiles", () => {
-  // Normal Upload + Safe practice mode headings carry NO parent OPTION label (numbering moved into the
-  // Test Drive tiles, whose testids are td-option-N-label — distinct from the old parent option-N-label).
+test("Upload Options: Upload card + Test Drive Wizard trigger card; Test Drive detail moved into a modal (UX-reference visual pass)", () => {
+  // Normal Upload heading carries NO parent OPTION label.
   assert.ok(!/"option-1-label"/.test(WIZ), "no parent OPTION 1 label on the Upload section");
   assert.ok(!/"option-2-label"/.test(WIZ), "no parent OPTION 2 label on the Test Drive section");
   assert.match(WIZ, /Upload your contacts/);
   assert.match(WIZ, /Upload an Excel or CSV file\. Accepted formats: \.xlsx, \.xls, or \.csv \(\.xlsx recommended[\s\S]*?Only a name and valid email are required\. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future\./);
   assert.ok(!/as need be/.test(WIZ), "uses 'as needed', not 'as need be'");
   assert.match(WIZ, /choose-csv/);
-  assert.match(WIZ, /data-testid="upload-or"><span>OR<\/span>/);      // page-level divider between upload and practice
+  // Test Drive is now a two-column trigger card (matches the founder's UX reference) that opens a modal —
+  // the old stacked OR-divided inline section is gone by design, not a regression.
+  assert.match(WIZ, /open-testdrive-modal/);
+  assert.match(WIZ, /TEST DRIVE WIZARD/);
+  assert.match(WIZ, /Try the full import with a fictional sample list — nothing is saved\./);
   assert.match(WIZ, /Safe practice mode/);
-  assert.match(WIZ, /Test Drive the Import Wizard/);
-  assert.match(WIZ, /See the complete import process using fictional contacts\. Nothing will be saved or sent\./);
-  // the old bullet list is GONE
+  assert.match(WIZ, /Test Drive Wizard/);   // modal title
+  // old bullet list / old sample language still gone
   assert.ok(!/Download the Practice CSV and upload it yourself\./.test(WIZ), "old bullet 1 removed");
   assert.ok(!/Start test drive instantly with the Practice CSV already loaded\./.test(WIZ), "old bullet 2 removed");
   assert.ok(!/<ul>[\s\S]*?Practice CSV[\s\S]*?<\/ul>/.test(WIZ), "no Practice-CSV bullet list");
-  // TWO numbered Test Drive choice tiles inside the practice container, with an internal OR between them
-  assert.match(WIZ, /testdrive-option-1[\s\S]*?td-option-1-label[^>]*>OPTION 1[\s\S]*?Download and upload a practice file[\s\S]*?Download Practice Excel Workbook[\s\S]*?Download Practice CSV/);
-  assert.match(WIZ, /testdrive-or"><span>OR<\/span>/);
-  assert.match(WIZ, /testdrive-option-2[\s\S]*?td-option-2-label[^>]*>OPTION 2[\s\S]*?Start the Test Drive instantly[\s\S]*?Start Test Drive/);
-  // OPTION 1 appears only in tile 1, OPTION 2 only in tile 2 (single occurrence each)
-  assert.equal((WIZ.match(/>OPTION 1</g) || []).length, 1);
-  assert.equal((WIZ.match(/>OPTION 2</g) || []).length, 1);
-  assert.match(WIZ, /Download Practice CSV/);
-  assert.match(WIZ, /Start Test Drive/);
-  // old sample-language is gone from the upload/practice surface (Practice CSV used consistently)
   assert.ok(!/Try the sample/.test(WIZ), "old 'Try the sample' removed");
   assert.ok(!/Download Greet-Me sample CSV/.test(WIZ), "old 'Download Greet-Me sample CSV' removed");
   assert.ok(!/Sample Import/.test(WIZ), "old 'Sample Import' removed");
   assert.ok(!/sample CSV/.test(WIZ), "old 'sample CSV' phrasing removed");
-  // downloadable practice file is named for its category
+  // the modal wires the SAME handlers the old inline tiles used — download sample, upload sample, instant start
+  assert.match(WIZ, /onDownloadSample=\{\(\) => downloadPracticeXlsx\(templateKind\)\}/);
+  assert.match(WIZ, /onDownloadSampleCsv=\{\(\) => downloadSampleCsv\(templateKind\)\}/);
+  assert.match(WIZ, /onStartInstant=\{\(\) => \{ setTestDriveOpen\(false\); trySample\(templateKind\); \}\}/);
+  // downloadable practice file is still named for its category
   assert.match(WIZ, /greetme-practice-\$\{kind\}\.csv/);
 });
 test("Practice CSV / Test Drive dataset is category-appropriate for all six categories", () => {
@@ -447,21 +443,22 @@ test("Business Test Drive is zero mutation; real Business commit is dormant/fail
   assert.ok(!/api\./.test(bizBranch), "business preview makes NO API call");
   assert.match(WIZ, /onRealFile = business \? onBusinessRealFile : onFile/);
 });
-test("Upload Options: blank category templates (Excel + CSV) separate from the Practice CSV", () => {
+test("Upload Options: blank category template (single format toggle) separate from the Practice sample (UX-reference)", () => {
   assert.match(WIZ, /template-block/);
   assert.match(WIZ, /Need a file to fill out\?/);
-  assert.match(WIZ, /Download a blank template with the right columns for this contact type/);
-  assert.match(WIZ, /download-excel-template/);
-  assert.match(WIZ, /download-csv-template/);
-  assert.match(WIZ, /Download Guided Excel Template/);   // Slice 2: Excel primary (recommended)
-  assert.match(WIZ, /Download Basic CSV Template/);       // Slice 2: CSV secondary (compatibility)
-  assert.match(WIZ, /downloadTemplate\(templateKind, "xlsx"\)/);
-  assert.match(WIZ, /downloadTemplate\(templateKind, "csv"\)/);
+  assert.match(WIZ, /Download a \{activeGroupMeta \? activeGroupMeta\.title : "contact"\} template with the right columns, complete it, then upload it here\./);
+  // ONE format toggle (Excel/CSV) driving ONE download button — replaces the old two-button layout,
+  // matching the founder's UX reference (page 1: a single toggle + a single "Download … template" CTA).
+  assert.match(WIZ, /template-fmt-xlsx/);
+  assert.match(WIZ, /template-fmt-csv/);
+  assert.match(WIZ, />Excel \(\.xlsx\)</);
+  assert.match(WIZ, />CSV \(\.csv\)</);
+  assert.match(WIZ, /download-template-btn/);
+  assert.match(WIZ, /downloadTemplate\(templateKind, tplFmt\)/);
   assert.match(WIZ, /import \{ templateXlsx, templatePracticeXlsx, practiceFileBase, XLSX_MIME \} from "\.\.\/\.\.\/import\/xlsxTemplate\.js"/);
   assert.match(WIZ, /import \{ templateCsv, templateFileBase \} from "\.\.\/\.\.\/import\/templateModel\.js"/);
-  // the blank template is NEVER labeled a Practice file, and the practice downloads stay populated + separate
-  assert.match(WIZ, /Download Practice CSV/);
-  assert.match(WIZ, /Download Practice Excel Workbook/);   // Slice 2 primary practice download
+  // the blank template is NEVER labeled a Practice file; the Test Drive modal keeps its own separate sample download
+  assert.match(WIZ, /Download sample list/);
   assert.ok(!/Practice (Excel |CSV )?Template\b|Template[^"]{0,20}Practice CSV/.test(WIZ), "blank template never labeled a Practice file");
 });
 test("Review screen: OPT-IN recommended defaults notice with apply / review-individually / undo", () => {
@@ -500,11 +497,13 @@ test("Test Drive → Recipients Practice View CTA (session-scoped, no backend wr
 });
 test("Manual Practice CSV upload is structurally zero-mutation (dedicated control + normal-uploader defense)", () => {
   assert.match(WIZ, /import \{[^}]*detectPracticeCsv, stripPracticeMarker[^}]*\} from "\.\.\/\.\.\/import\/sampleWorkspace\.js"/);
-  // dedicated practice-file upload inside Option 1 (now accepts .xlsx/.xls/.csv, always Test Drive)
-  assert.match(WIZ, /upload-practice/);
-  assert.match(WIZ, />\s*Upload practice file/);
-  assert.match(WIZ, /data-testid="upload-practice"[\s\S]{0,120}accept="\.xlsx,\.xls,\.csv"/);
-  assert.match(WIZ, /onUploadPracticeCsv\(e\.target\.files\[0\]\)/);
+  // dedicated practice-file upload, now inside the Test Drive modal (UX-reference), still accepts
+  // .xlsx/.xls/.csv and always routes to Test Drive.
+  assert.match(WIZ, /td-modal-upload/);
+  assert.match(WIZ, /Upload sample to preview/);
+  assert.match(WIZ, /data-testid="td-modal-upload"[\s\S]{0,200}accept="\.xlsx,\.xls,\.csv"/);
+  assert.match(WIZ, /onUploadSample\(e\.target\.files\[0\]\)/);
+  assert.match(WIZ, /onUploadSample=\{\(file\) => \{ setTestDriveOpen\(false\); onUploadPracticeCsv\(file\); \}\}/);
   // normal uploader defense: detect marker → notice → Continue in Test Drive (no production continuation)
   assert.match(WIZ, /const det = detectPracticeCsv\(fields, rows\)/);   // shared route for CSV + workbook uploads
   assert.match(WIZ, /practice-detected/);
@@ -607,20 +606,20 @@ test("worksheetChoice is cleared on every reset path (no stale multi-sheet state
 });
 
 // ---- Slice 2: guided/practice workbook round-trip UI (source-scan; behavior in generator + browser suites) ----
-test("Slice 2: Excel-primary / CSV-secondary download choices with accurate copy", () => {
-  // format ORDER: Guided Excel first, Basic CSV second
+test("Slice 2 (UX-reference): a single format toggle (Excel first, CSV second) drives the one template download button", () => {
+  // format ORDER: Excel toggle option first, CSV toggle option second
   const block = WIZ.slice(WIZ.indexOf('data-testid="template-block"'));
-  assert.ok(block.indexOf("Download Guided Excel Template") < block.indexOf("Download Basic CSV Template"), "Excel appears before CSV");
+  assert.ok(block.indexOf(">Excel (.xlsx)<") < block.indexOf(">CSV (.csv)<"), "Excel toggle option appears before CSV");
   assert.match(WIZ, /Guided Excel Template — recommended; includes guided dropdowns and instructions/);
   // CSV is explicitly described as NOT carrying dropdowns/formatting/instructions (truthful disclosure)
   assert.match(WIZ, /Basic CSV Template — compatibility option; CSV files do not contain dropdowns, formatting, or workbook instructions/);
   assert.match(WIZ, /data-testid="csv-disclosure"[\s\S]{0,120}CSV files do not contain dropdowns/);
 });
 
-test("Slice 2: Download Practice Excel Workbook is wired as a primary Test Drive action", () => {
-  assert.match(WIZ, /data-testid="download-practice-excel"[\s\S]{0,120}Download Practice Excel Workbook/);
-  assert.match(WIZ, /onClick=\{\(\) => downloadPracticeXlsx\(templateKind\)\}/);
-  // handler builds a genuine .xlsx from templatePracticeXlsx with fictional Sample contacts + marker
+test("Slice 2 (UX-reference): the Test Drive modal's sample download is wired to the same practice-workbook generator", () => {
+  assert.match(WIZ, /data-testid="td-modal-download"[\s\S]{0,120}Download sample list/);
+  assert.match(WIZ, /onDownloadSample=\{\(\) => downloadPracticeXlsx\(templateKind\)\}/);
+  // handler builds a genuine .xlsx from templatePracticeXlsx with fictional Sample contacts + marker — unchanged
   const h = (WIZ.match(/const downloadPracticeXlsx = useCallback\(\(kind\) => \{[\s\S]*?\}, \[\]\);/) || [""])[0];
   assert.ok(h.length > 0, "downloadPracticeXlsx present");
   assert.match(h, /sampleContactsFor\(kind\)/);
@@ -631,9 +630,9 @@ test("Slice 2: Download Practice Excel Workbook is wired as a primary Test Drive
   assert.ok(!/api\./.test(h), "practice-workbook download makes no API call");
 });
 
-test("Slice 2: the dedicated practice upload accepts .xlsx/.xls/.csv and always routes to Test Drive", () => {
-  assert.match(WIZ, /data-testid="upload-practice"[\s\S]{0,140}accept="\.xlsx,\.xls,\.csv"/);
-  // onUploadPracticeCsv → practice source (always Test Drive), workbooks supported via parseFile
+test("Slice 2 (UX-reference): the Test Drive modal's upload accepts .xlsx/.xls/.csv and always routes to Test Drive", () => {
+  assert.match(WIZ, /data-testid="td-modal-upload"[\s\S]{0,200}accept="\.xlsx,\.xls,\.csv"/);
+  // onUploadPracticeCsv (called from the modal's onUploadSample) → practice source (always Test Drive)
   const u = (WIZ.match(/const onUploadPracticeCsv = useCallback\(async \(file\) => \{[\s\S]*?\}, \[routeParsedRows\]\);/) || [""])[0];
   assert.match(u, /routeParsedRows\("practice"/);
 });

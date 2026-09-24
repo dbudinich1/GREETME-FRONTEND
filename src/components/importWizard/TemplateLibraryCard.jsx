@@ -104,6 +104,7 @@ function triggerDownload(blob, filename) {
 
 export default function TemplateLibraryCard({ kind }) {
   const [busy, setBusy] = useState(false);
+  const [fmt, setFmt] = useState("xlsx");   // "xlsx" | "csv" — which format the two buttons below produce
   const copy = CARD_COPY[kind];
   const business = isBusinessTemplateKind(kind);
   const headers = templateHeaders(kind);
@@ -136,6 +137,11 @@ export default function TemplateLibraryCard({ kind }) {
       triggerDownload(new Blob([sampleCsvFor(kind)], { type: "text/csv;charset=utf-8" }), `greetme-practice-${kind}.csv`);
     } finally { setBusy(false); }
   };
+  // The two visible action buttons — which underlying (already-tested) download function they call
+  // depends only on the `fmt` toggle above. Same four generators as before; just one shared format
+  // control instead of four separate buttons, matching the founder's UX reference.
+  const downloadBlank = fmt === "xlsx" ? downloadBlankExcel : downloadBlankCsv;
+  const downloadSample = fmt === "xlsx" ? downloadPracticeExcel : downloadPracticeCsv;
 
   return (
     <div data-testid={`template-library-card-${kind}`} style={{ ...card, display: "flex", flexDirection: "column" }}>
@@ -159,27 +165,34 @@ export default function TemplateLibraryCard({ kind }) {
       </div>
 
       <div style={{ marginTop: "auto" }}>
-        <p style={{ fontSize: ".76rem", fontWeight: 700, margin: "0 0 6px", color: "#1b1830" }}>Blank template — no contacts included</p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-          <button type="button" data-testid={`tpl-lib-excel-${kind}`} style={btn(PURPLE)} disabled={busy} onClick={downloadBlankExcel}>
-            Guided Excel Template
+        <div role="group" aria-label="File format" style={{ display: "inline-flex", border: "1px solid rgba(27,24,48,.15)", borderRadius: 999, padding: 2, marginBottom: 10 }}>
+          <button
+            type="button" data-testid={`tpl-lib-fmt-xlsx-${kind}`} onClick={() => setFmt("xlsx")}
+            style={{ border: "none", borderRadius: 999, padding: "5px 12px", fontSize: ".76rem", fontWeight: 700, cursor: "pointer",
+              background: fmt === "xlsx" ? PURPLE : "transparent", color: fmt === "xlsx" ? "#fff" : "#1b1830" }}
+          >
+            Excel (.xlsx)
           </button>
-          <button type="button" data-testid={`tpl-lib-csv-${kind}`} style={btn("transparent", "#1b1830")} disabled={busy} onClick={downloadBlankCsv}>
-            Basic CSV Template
+          <button
+            type="button" data-testid={`tpl-lib-fmt-csv-${kind}`} onClick={() => setFmt("csv")}
+            style={{ border: "none", borderRadius: 999, padding: "5px 12px", fontSize: ".76rem", fontWeight: 700, cursor: "pointer",
+              background: fmt === "csv" ? PURPLE : "transparent", color: fmt === "csv" ? "#fff" : "#1b1830" }}
+          >
+            CSV (.csv)
           </button>
         </div>
 
-        <p style={{ fontSize: ".76rem", fontWeight: 700, margin: "0 0 6px", color: "#1b1830" }}>
-          Practice sample <span style={{ fontWeight: 400, color: "#5b5570" }}>— fictional contacts, nothing is saved</span>
-        </p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <button type="button" data-testid={`tpl-lib-practice-excel-${kind}`} style={btn(PURPLE)} disabled={busy} onClick={downloadPracticeExcel}>
-            Practice Excel Workbook
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <button type="button" data-testid={`tpl-lib-download-blank-${kind}`} style={{ ...btn(PURPLE), width: "100%" }} disabled={busy} onClick={downloadBlank}>
+            Download blank
           </button>
-          <button type="button" data-testid={`tpl-lib-practice-csv-${kind}`} style={btn("transparent", "#1b1830")} disabled={busy} onClick={downloadPracticeCsv}>
-            Practice CSV
+          <button type="button" data-testid={`tpl-lib-download-sample-${kind}`} style={{ ...btn("transparent", "#1b1830"), width: "100%" }} disabled={busy} onClick={downloadSample}>
+            Download sample
           </button>
         </div>
+        <p style={{ fontSize: ".7rem", color: "#8a839c", margin: "6px 0 0" }}>
+          Blank — no contacts included. Sample — fictional contacts, nothing is saved.
+        </p>
       </div>
     </div>
   );

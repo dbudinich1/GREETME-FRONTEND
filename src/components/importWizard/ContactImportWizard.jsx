@@ -98,6 +98,12 @@ export default function ContactImportWizard() {
   const [practiceDetected, setPracticeDetected] = useState(null);   // { fields, rows } | null
   // A workbook with MULTIPLE eligible worksheets → the user must pick exactly one before mapping.
   const [worksheetChoice, setWorksheetChoice] = useState(null);     // { source, format, sheets:[{name,rowCount,fields,rows}] } | null
+  // Presentation-only state for the UX-reference upload layout: whether the Test Drive modal is open,
+  // and which format the single template-download button currently targets. Neither touches parsing,
+  // validation, or commit — both are read by the same existing downloadTemplate/downloadPracticeXlsx/
+  // downloadSampleCsv/onUploadPracticeCsv/trySample handlers used before this pass.
+  const [testDriveOpen, setTestDriveOpen] = useState(false);
+  const [tplFmt, setTplFmt] = useState("xlsx");
   // Partial real-import outcome ({added, failed}) — keeps the user on the combined screen (never a
   // false "complete success"). null = no partial result to show.
   const [partial, setPartial] = useState(null);
@@ -659,62 +665,58 @@ export default function ContactImportWizard() {
               <button data-testid="change-group" style={{ ...btn("transparent", "#4a3fb0"), padding: "4px 10px", fontSize: ".78rem" }} onClick={changeGroup}>Change</button>
             </div>
           )}
-          {/* NORMAL UPLOAD — unnumbered. Blank templates stay associated with normal upload. */}
-          <section className="gmiw-upsec" data-testid="upload-section">
-            <h3>Upload your contacts</h3>
-            <p>Upload an Excel or CSV file. Accepted formats: .xlsx, .xls, or .csv (.xlsx recommended — it carries the guided dropdowns). Only a name and valid email are required. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future.</p>
-            <label className="gmiw-choose" data-testid="choose-csv">
-              Choose a file
-              <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onRealFile(e.target.files[0])} />
-            </label>
-            {/* Blank, category-specific templates (NOT the populated Practice CSV). Excel is recommended. */}
-            <div className="gmiw-template" data-testid="template-block">
-              <h4>Need a file to fill out?</h4>
-              <p>Download a blank template with the right columns for this contact type, complete it, then upload it here.</p>
-              <p className="gmiw-tpl-note" data-testid="template-version-note">Version 2 — includes guided Type, Relation, and Description dropdowns in Excel.</p>
-              <div className="gmiw-template-cta">
-                <button data-testid="download-excel-template" style={btn(PURPLE)} onClick={() => downloadTemplate(templateKind, "xlsx")}>Download Guided Excel Template</button>
-                <button data-testid="download-csv-template" style={btn("transparent", "#1b1830")} onClick={() => downloadTemplate(templateKind, "csv")}>Download Basic CSV Template</button>
-              </div>
-              <p className="gmiw-tpl-note" data-testid="excel-recommend-note">Guided Excel Template — recommended; includes guided dropdowns and instructions.</p>
-              <p className="gmiw-tpl-note" data-testid="csv-disclosure">Basic CSV Template — compatibility option; CSV files do not contain dropdowns, formatting, or workbook instructions.</p>
-              <Link to="/dashboard/templates" data-testid="template-library-link" style={{ display: "inline-block", marginTop: 6, fontSize: ".82rem", fontWeight: 700, color: "#4a3fb0", textDecoration: "none" }}>
-                Browse the Template Library →
-              </Link>
+          {/* Two-column layout (UX reference): Upload card + Test Drive trigger card. Same handlers
+              as before this pass — onRealFile / trySample / downloadPracticeXlsx / downloadSampleCsv /
+              onUploadPracticeCsv are unchanged; only the presentation (side-by-side cards + a modal
+              instead of a full inline section) moved. */}
+          <div className="gmiw-uxref-grid">
+            <section className="gmiw-upsec" data-testid="upload-section">
+              <h3>Upload your contacts</h3>
+              <p>Upload an Excel or CSV file. Accepted formats: .xlsx, .xls, or .csv (.xlsx recommended — it carries the guided dropdowns). Only a name and valid email are required. You can review and edit everything as needed before importing, and you can edit or update recipients at any time in the future.</p>
+              <label className="gmiw-choose" data-testid="choose-csv">
+                Choose a file
+                <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onRealFile(e.target.files[0])} />
+              </label>
+            </section>
+            <button type="button" className="gmiw-testdrive-card" data-testid="open-testdrive-modal" onClick={() => setTestDriveOpen(true)}>
+              <span className="gmiw-medallion" aria-hidden="true" style={{ width: 56, height: 56 }}><CarIcon /></span>
+              <span className="gmiw-testdrive-label">TEST DRIVE WIZARD</span>
+              <p>Try the full import with a fictional sample list — nothing is saved.</p>
+            </button>
+          </div>
+
+          {/* Template Library callout — links to the standalone browsing page (unchanged route). */}
+          <Link to="/dashboard/templates" className="gmiw-tpl-library-callout" data-testid="template-library-link">
+            <span>Browse the full <b>Template Library</b> — every category's blank template and sample in one place.</span>
+            <span>Open →</span>
+          </Link>
+
+          {/* Blank, category-specific template (NOT the populated Practice CSV) — one format toggle,
+              one download button, same downloadTemplate(kind, fmt) handler as before this pass. */}
+          <section className="gmiw-upsec" data-testid="template-block">
+            <h4>Need a file to fill out?</h4>
+            <p>Download a {activeGroupMeta ? activeGroupMeta.title : "contact"} template with the right columns, complete it, then upload it here.</p>
+            <p className="gmiw-tpl-note" data-testid="template-version-note">Version 2 — includes guided Type, Relation, and Description dropdowns in Excel.</p>
+            <div className="gmiw-fmt-toggle" role="group" aria-label="File format">
+              <button type="button" data-testid="template-fmt-xlsx" className={tplFmt === "xlsx" ? "active" : ""} onClick={() => setTplFmt("xlsx")}>Excel (.xlsx)</button>
+              <button type="button" data-testid="template-fmt-csv" className={tplFmt === "csv" ? "active" : ""} onClick={() => setTplFmt("csv")}>CSV (.csv)</button>
             </div>
+            <div>
+              <button data-testid="download-template-btn" style={btn(PURPLE)} onClick={() => downloadTemplate(templateKind, tplFmt)}>
+                Download {activeGroupMeta ? activeGroupMeta.title : "contact"} template ({tplFmt === "xlsx" ? "Excel" : "CSV"})
+              </button>
+            </div>
+            <p className="gmiw-tpl-note" data-testid="excel-recommend-note">Guided Excel Template — recommended; includes guided dropdowns and instructions.</p>
+            <p className="gmiw-tpl-note" data-testid="csv-disclosure">Basic CSV Template — compatibility option; CSV files do not contain dropdowns, formatting, or workbook instructions.</p>
           </section>
-          {/* PAGE-LEVEL DIVIDER between normal upload and Safe practice mode — non-interactive text */}
-          <div className="gmiw-or" data-testid="upload-or"><span>OR</span></div>
-          {/* SAFE PRACTICE MODE — unnumbered intro, then TWO numbered choice tiles inside the container */}
-          <section className="gmiw-upsec gmiw-practice" data-testid="testdrive-section">
-            <span className="gmiw-badge">Safe practice mode</span>
-            <h3>Test Drive the Import Wizard</h3>
-            <p>See the complete import process using fictional contacts. Nothing will be saved or sent.</p>
-            {/* OPTION 1 tile — Download then Upload the Practice CSV. Both stay inside this Test Drive tile;
-                the dedicated Upload always enters Test Drive (never a production import). */}
-            <div className="gmiw-tdtile" data-testid="testdrive-option-1">
-              <span className="gmiw-optlabel" data-testid="td-option-1-label">OPTION 1</span>
-              <h4>Download and upload a practice file</h4>
-              <p>Download a practice file (Excel recommended), review or complete it, then upload it yourself to experience the complete import process. It always opens in Test Drive — nothing is saved or sent.</p>
-              <div className="gmiw-tdtile-cta">
-                <button data-testid="download-practice-excel" style={btn(PURPLE)} onClick={() => downloadPracticeXlsx(templateKind)}>Download Practice Excel Workbook</button>
-                <button data-testid="download-practice" style={btn("transparent", "#1b1830")} onClick={() => downloadSampleCsv(templateKind)}>Download Practice CSV</button>
-                <label className="gmiw-choose gmiw-choose--sm" data-testid="upload-practice">
-                  Upload practice file
-                  <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onUploadPracticeCsv(e.target.files[0])} />
-                </label>
-              </div>
-            </div>
-            {/* INTERNAL divider between the two Test Drive choice tiles */}
-            <div className="gmiw-or gmiw-or--inner" data-testid="testdrive-or"><span>OR</span></div>
-            {/* OPTION 2 tile — load fictional data → Test Drive review (zero mutation) */}
-            <div className="gmiw-tdtile" data-testid="testdrive-option-2">
-              <span className="gmiw-optlabel" data-testid="td-option-2-label">OPTION 2</span>
-              <h4>Start the Test Drive instantly</h4>
-              <p>Start with the Practice CSV already loaded and proceed directly to the Test Drive review.</p>
-              <button data-testid="start-testdrive" style={btn(PURPLE)} onClick={() => trySample(templateKind)}>Start Test Drive</button>
-            </div>
-          </section>
+
+          <TestDriveModal
+            open={testDriveOpen} onClose={() => setTestDriveOpen(false)} kindLabel={activeGroupMeta ? activeGroupMeta.title : "contact"}
+            onDownloadSample={() => downloadPracticeXlsx(templateKind)}
+            onDownloadSampleCsv={() => downloadSampleCsv(templateKind)}
+            onUploadSample={(file) => { setTestDriveOpen(false); onUploadPracticeCsv(file); }}
+            onStartInstant={() => { setTestDriveOpen(false); trySample(templateKind); }}
+          />
         </div>
       )}
 
@@ -855,6 +857,40 @@ function PremiumStyles() {
         .gmiw-panels, .gmiw-panels--three{ grid-template-columns:1fr; } .gmiw-panel{ min-height:0; padding:26px 20px; }
         .gmiw-choose{ width:100%; } .gmiw-practice-cta{ flex-direction:column; } .gmiw-practice-cta button{ width:100%; }
       }
+      /* UX-reference upload layout (visual/layout only — same handlers as before this pass) */
+      .gmiw-uxref-grid{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:stretch; }
+      @media (max-width:640px){ .gmiw-uxref-grid{ grid-template-columns:1fr; } }
+      .gmiw-testdrive-card{ box-sizing:border-box; width:100%; min-width:0; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; text-align:center; gap:8px; cursor:pointer; font-family:inherit;
+        border-radius:16px; border:1.5px solid #b98fd6; background:linear-gradient(160deg,#f7f0ff 0%,#fdeef7 100%);
+        padding:22px 20px; box-shadow:0 10px 24px -16px rgba(120,60,160,.5); transition:transform .12s ease, box-shadow .12s ease; }
+      .gmiw-testdrive-card:hover{ transform:translateY(-2px); box-shadow:0 16px 32px -16px rgba(120,60,160,.6); }
+      .gmiw-testdrive-card:focus-visible{ outline:3px solid #6d74ee; outline-offset:3px; }
+      .gmiw-testdrive-label{ font-weight:800; letter-spacing:.08em; font-size:.92rem; color:#6b3fa0; }
+      .gmiw-testdrive-card p{ margin:0; color:#5a5170; font-size:.86rem; line-height:1.4; max-width:min(26ch, 100%); overflow-wrap:anywhere; white-space:normal; }
+      .gmiw-tpl-library-callout{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+        text-decoration:none; color:#332a52; background:rgba(109,116,238,.07); border:1px solid rgba(109,116,238,.3);
+        border-radius:14px; padding:12px 16px; font-size:.88rem; }
+      .gmiw-tpl-library-callout:hover{ border-color:#6d74ee; background:rgba(109,116,238,.12); }
+      .gmiw-tpl-library-callout b{ color:#4a3fb0; }
+      .gmiw-tpl-library-callout span:first-child{ min-width:0; overflow-wrap:anywhere; }
+      .gmiw-tpl-library-callout span:last-child{ flex-shrink:0; font-weight:800; font-size:.8rem; color:#4a3fb0; }
+      .gmiw-fmt-toggle{ display:inline-flex; border:1px solid rgba(27,24,48,.15); border-radius:999px; padding:2px; margin:4px 0 10px; }
+      .gmiw-fmt-toggle button{ border:none; border-radius:999px; padding:6px 14px; font-size:.8rem; font-weight:700; cursor:pointer; background:transparent; color:#1b1830; }
+      .gmiw-fmt-toggle button.active{ background:linear-gradient(135deg,#6d74ee,#764ba2); color:#fff; }
+      /* Test Drive modal */
+      .gmiw-modal-overlay{ position:fixed; inset:0; background:rgba(30,20,50,.45); display:flex; align-items:center; justify-content:center; padding:16px; z-index:60; }
+      .gmiw-modal{ position:relative; background:#fff; border-radius:20px; max-width:480px; width:100%; padding:26px 26px 22px; box-shadow:0 30px 70px -30px rgba(50,20,90,.55); }
+      .gmiw-modal-close{ position:absolute; top:14px; right:14px; border:none; background:transparent; font-size:1.3rem; line-height:1; cursor:pointer; color:#6b6580; padding:4px; }
+      .gmiw-modal-title{ display:flex; align-items:center; gap:8px; margin:0 0 10px; font-family:Georgia,serif; font-size:1.25rem; color:#2c2140; }
+      .gmiw-modal-badge{ display:inline-flex; align-items:center; gap:5px; background:rgba(214,145,16,.14); color:#8a5410;
+        border:1px solid rgba(214,145,16,.35); border-radius:999px; padding:3px 10px; font-weight:800; font-size:.7rem; margin-bottom:12px; }
+      .gmiw-modal-steps{ margin:0 0 16px; padding:0; list-style:none; display:grid; gap:8px; color:#4a4663; font-size:.88rem; }
+      .gmiw-modal-steps li{ display:flex; gap:8px; }
+      .gmiw-modal-steps b{ color:#2c2140; }
+      .gmiw-modal-cta{ display:flex; flex-direction:column; gap:10px; }
+      .gmiw-modal-instant{ text-align:center; font-size:.82rem; color:#4a3fb0; font-weight:700; background:none; border:none; cursor:pointer; text-decoration:underline; padding:4px; }
+      @media (max-width:640px){ .gmiw-modal-cta button, .gmiw-modal-cta label{ width:100%; box-sizing:border-box; } }
     `}</style>
   );
 }
@@ -934,6 +970,46 @@ const BUSINESS_GROUPS = [
 ];
 function Empty({ title, body }) {
   return <div style={{ ...card, textAlign: "center" }}><h3 style={{ margin: "0 0 6px", fontFamily: "Georgia,serif" }}>{title}</h3><p style={muted}>{body}</p></div>;
+}
+function CarIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" role="img" aria-hidden="true">
+      <path d="M5 11l1.6-4.2A2 2 0 0 1 8.5 5.5h7a2 2 0 0 1 1.9 1.3L19 11" />
+      <rect x="3" y="11" width="18" height="6" rx="2" />
+      <circle cx="7.5" cy="17.5" r="1.6" /><circle cx="16.5" cy="17.5" r="1.6" />
+    </svg>
+  );
+}
+// Test Drive modal — presentation shell only. Every action calls the SAME handlers the inline Test
+// Drive section used before this UX pass (downloadPracticeXlsx / downloadSampleCsv / onUploadPracticeCsv
+// / trySample, passed down as props); no parsing, validation, or commit logic lives here.
+function TestDriveModal({ open, onClose, kindLabel, onDownloadSample, onDownloadSampleCsv, onUploadSample, onStartInstant }) {
+  if (!open) return null;
+  return (
+    <div className="gmiw-modal-overlay" role="presentation" onClick={onClose}>
+      <div className="gmiw-modal" role="dialog" aria-modal="true" aria-label="Test Drive Wizard" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="gmiw-modal-close" aria-label="Close" data-testid="td-modal-close" onClick={onClose}>×</button>
+        <h3 className="gmiw-modal-title">🪄 Test Drive Wizard</h3>
+        <span className="gmiw-modal-badge">🛡 Safe practice mode</span>
+        <ol className="gmiw-modal-steps">
+          <li><b>1.</b> Download the sample {kindLabel} list (Excel).</li>
+          <li><b>2.</b> Upload it here to preview the mapping.</li>
+          <li><b>3.</b> Review how it gets applied — nothing is saved or sent.</li>
+        </ol>
+        <div className="gmiw-modal-cta">
+          <button type="button" data-testid="td-modal-download" style={btn(PURPLE)} onClick={onDownloadSample}>⬇ Download sample list</button>
+          <label style={{ ...btn("transparent", "#4a3fb0"), border: "1.5px solid #4a3fb0", textAlign: "center", cursor: "pointer" }} data-testid="td-modal-upload">
+            ⬆ Upload sample to preview
+            <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onUploadSample(e.target.files[0])} />
+          </label>
+          <button type="button" data-testid="td-modal-csv" style={{ background: "none", border: "none", cursor: "pointer", fontSize: ".78rem", color: "#6b6580", textDecoration: "underline", padding: 2 }} onClick={onDownloadSampleCsv}>
+            or download the sample as CSV
+          </button>
+          <button type="button" data-testid="td-modal-instant" className="gmiw-modal-instant" onClick={onStartInstant}>or load sample instantly</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 // ============================================================================
 // ReviewScreen — CONFIRMATION-FIRST. A clean file shows "Your contacts are ready" + one primary
@@ -1087,11 +1163,24 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
 
 // A single blocked contact with a plain-language reason and the one control that unblocks it. The
 // component switches on `fixField` (a field name), never on an internal validation code.
+// Status-icon + missing-field badge colors (visual language only — matches the founder's UX
+// reference: amber warning triangle for a row needing a fix, a red pill naming the missing field).
+// FIXABLE fields already come from importCore's real error codes (see FIXABLE above); no new
+// validation is introduced here, only how an existing blocker is displayed.
+const FIX_FIELD_BADGE = { email: "EMAIL", name: "NAME", birthday: "BIRTHDAY", audience: "TYPE" };
 function QuickFixRow({ it, on }) {
   return (
     <div style={{ border: "1px solid #f0e6cf", borderRadius: 10, padding: 10, display: "grid", gap: 6 }}>
       <div style={{ ...rowStyle }}>
-        <b style={{ fontSize: ".88rem" }}>{it.name || "This contact"}</b>
+        <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <span aria-hidden="true" style={{ color: "#b8791b", fontSize: "1rem", lineHeight: 1, flexShrink: 0 }}>⚠</span>
+          <b style={{ fontSize: ".88rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name || "This contact"}</b>
+          {it.fixField && FIX_FIELD_BADGE[it.fixField] && (
+            <span style={{ fontSize: ".64rem", fontWeight: 800, letterSpacing: ".03em", color: "#fff", background: "#c0392b", borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>
+              {FIX_FIELD_BADGE[it.fixField]}
+            </span>
+          )}
+        </span>
         <button data-testid="dont-add" style={{ ...linkBtn, color: "#8a1f1f" }} onClick={() => on.skip(it.index)}>Don't add this contact</button>
       </div>
       <div style={{ fontSize: ".78rem", color: "#b8791b" }}>{it.blockerMessage}</div>
@@ -1129,6 +1218,7 @@ function ReadyPreviewRow({ it, business, first, onAddRelationship }) {
   return (
     <div style={{ ...rowStyle, padding: "8px 12px", borderTop: first ? "none" : "1px solid #f4f4f7", fontSize: ".82rem" }}>
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+        <span aria-hidden="true" style={{ color: "#1f9d6b", marginRight: 6 }}>✓</span>
         <b>{it.name}</b> <span style={{ color: "#605c78" }}>· {it.email}</span>
         {it.retryNote && <span style={{ color: "#b8791b" }}> · {it.retryNote}</span>}
       </span>
