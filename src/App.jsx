@@ -19,6 +19,7 @@ import Profile from "./pages/Profile";
 import Recipients from "./pages/Contacts";
 import GreetingAutomationCampaigns from "./components/corporateCampaign/GreetingAutomationCampaigns";
 import ContactImportWizard from "./components/importWizard/ContactImportWizard";
+import TemplateLibrary from "./pages/TemplateLibrary";
 import Settings from "./pages/Settings";
 import SendGreeting from "./pages/SendGreeting";
 import SentGreetings from "./pages/SentGreetings";
@@ -194,6 +195,7 @@ export default function App() {
             <Route path="contacts" element={<Recipients />} />
             <Route path="campaigns" element={<GreetingAutomationCampaigns />} />
             <Route path="import-wizard" element={<ContactImportWizard />} />
+            <Route path="templates" element={<TemplateLibrary />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
             <Route path="send" element={<SendGreeting />} />
