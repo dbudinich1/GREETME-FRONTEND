@@ -26,6 +26,75 @@ const CARD_COPY = {
   vendor: { title: "Vendors", copy: "Vendors, suppliers, service providers, and business partners." },
 };
 
+// Medallion icon + gradient per category — visually unifies this card with the wizard's own
+// category-select tiles. Icon markup and gradient values are copied from ContactImportWizard.jsx
+// (HomeIcon/HeartIcon/BriefcaseIcon/PeopleIcon/HandshakeIcon/PackageIcon + .gmiw-medallion /
+// --plum / --rose) so the two surfaces read as one system; purely presentational, no shared import.
+const MEDALLION_GRADIENT = {
+  default: "radial-gradient(circle at 32% 30%,#8a5fd0,#5b3a9e)",
+  plum: "radial-gradient(circle at 32% 30%,#a552a3,#6d2d6d)",
+  rose: "radial-gradient(circle at 32% 30%,#cf6aa2,#8e2f66)",
+};
+function HomeIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" role="img" aria-hidden="true">
+      <path d="M3 11l9-7 9 7" /><path d="M5 10v9h14v-9" /><path d="M10 19v-5h4v5" />
+    </svg>
+  );
+}
+function HeartIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" role="img" aria-hidden="true">
+      <path d="M12 21s-7.5-4.9-10-9.2C.4 8.7 1.9 5 5.3 5c2 0 3.4 1.2 4.2 2.4C10.3 6.2 11.7 5 13.7 5c3.4 0 4.9 3.7 3.3 6.8C19.5 16.1 12 21 12 21z" />
+    </svg>
+  );
+}
+function BriefcaseIcon() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" role="img" aria-hidden="true">
+      <rect x="3" y="7.5" width="18" height="12" rx="2.2" />
+      <path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5" />
+      <path d="M3 12.5h18" />
+    </svg>
+  );
+}
+function PeopleIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" role="img" aria-hidden="true">
+      <circle cx="9" cy="8" r="3" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+      <path d="M16 5.2a3 3 0 0 1 0 5.6" /><path d="M17.5 14.3A6.5 6.5 0 0 1 21.5 20" />
+    </svg>
+  );
+}
+function HandshakeIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" role="img" aria-hidden="true">
+      <path d="M11 6.5 8.5 9a2 2 0 0 0 0 2.8l.2.2a2 2 0 0 0 2.8 0L13 10.5" />
+      <path d="m13 10.5 2.5 2.5a2 2 0 0 1 0 2.8l-.2.2a2 2 0 0 1-2.8 0l-2-2" />
+      <path d="M3 8.5 6.5 5H10l3 3" /><path d="M21 8.5 17.5 5H14" /><path d="M3 8.5v6M21 8.5v6" />
+    </svg>
+  );
+}
+function PackageIcon() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" role="img" aria-hidden="true">
+      <path d="M21 8 12 3 3 8v8l9 5 9-5z" /><path d="M3 8l9 5 9-5" /><path d="M12 13v8" /><path d="M7.5 5.5 16.5 10.5" />
+    </svg>
+  );
+}
+const MEDALLION_META = {
+  family: { Icon: HomeIcon, gradient: MEDALLION_GRADIENT.default },
+  friend: { Icon: HeartIcon, gradient: MEDALLION_GRADIENT.rose },
+  professional: { Icon: BriefcaseIcon, gradient: MEDALLION_GRADIENT.plum },
+  employee: { Icon: PeopleIcon, gradient: MEDALLION_GRADIENT.default },
+  client: { Icon: HandshakeIcon, gradient: MEDALLION_GRADIENT.rose },
+  vendor: { Icon: PackageIcon, gradient: MEDALLION_GRADIENT.plum },
+};
+const medallionStyle = (gradient) => ({
+  width: 40, height: 40, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+  background: gradient, boxShadow: "0 8px 16px -8px rgba(70,30,120,.7)", flexShrink: 0,
+});
+
 function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -38,6 +107,8 @@ export default function TemplateLibraryCard({ kind }) {
   const copy = CARD_COPY[kind];
   const business = isBusinessTemplateKind(kind);
   const headers = templateHeaders(kind);
+  const medallion = MEDALLION_META[kind];
+  const MedallionIcon = medallion.Icon;
 
   const downloadBlankExcel = () => {
     setBusy(true);
@@ -68,11 +139,14 @@ export default function TemplateLibraryCard({ kind }) {
 
   return (
     <div data-testid={`template-library-card-${kind}`} style={{ ...card, display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-        <h3 style={{ margin: 0, fontFamily: "Georgia,serif" }}>{copy.title}</h3>
-        <span style={{ fontSize: ".68rem", fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "#6d74ee" }}>
-          {business ? "Business" : "Personal"}
-        </span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={medallionStyle(medallion.gradient)} aria-hidden="true"><MedallionIcon /></span>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <h3 style={{ margin: 0, fontFamily: "Georgia,serif" }}>{copy.title}</h3>
+          <span style={{ fontSize: ".68rem", fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "#6d74ee" }}>
+            {business ? "Business" : "Personal"}
+          </span>
+        </div>
       </div>
       <p style={{ color: "#5b5570", fontSize: ".85rem", margin: "6px 0 10px" }}>{copy.copy}</p>
 
