@@ -660,9 +660,10 @@ export default function ContactImportWizard() {
       {!rows && !summary && !practiceDetected && !worksheetChoice && (
         <div className="gmiw-upload">
           {activeGroupMeta && (
-            <div data-testid="upload-context" style={{ ...card, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "12px 16px" }}>
-              <b style={{ fontFamily: "Georgia,serif", fontSize: "1.05rem" }}>{activeGroupMeta.uploadHeading}</b>
-              <button data-testid="change-group" style={{ ...btn("transparent", "#4a3fb0"), padding: "4px 10px", fontSize: ".78rem" }} onClick={changeGroup}>Change</button>
+            <div data-testid="upload-context" style={{ ...card, display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: 10, padding: "12px 16px" }}>
+              <span aria-hidden="true" />
+              <b style={{ fontFamily: "Georgia,serif", fontSize: "1.05rem", textAlign: "center", overflowWrap: "anywhere" }}>{activeGroupMeta.uploadHeading}</b>
+              <button data-testid="change-group" style={{ ...btn("transparent", "#4a3fb0"), padding: "4px 10px", fontSize: ".78rem", justifySelf: "end" }} onClick={changeGroup}>Change</button>
             </div>
           )}
           {/* Two-column layout (UX reference): Upload card + Test Drive trigger card. Same handlers
@@ -694,8 +695,8 @@ export default function ContactImportWizard() {
           {/* Blank, category-specific template (NOT the populated Practice CSV) — one format toggle,
               one download button, same downloadTemplate(kind, fmt) handler as before this pass. */}
           <section className="gmiw-upsec" data-testid="template-block">
-            <h4>Need a file to fill out?</h4>
-            <p>Download a {activeGroupMeta ? activeGroupMeta.title : "contact"} template with the right columns, complete it, then upload it here.</p>
+            <h4 style={{ textAlign: "center" }} data-testid="template-heading">{TEMPLATE_HEADING[templateKind] || "Need a file to fill out?"}</h4>
+            <p>Download {TEMPLATE_ARTICLE[templateKind] || "a"} {TEMPLATE_LABEL[templateKind] || "contact"} template with the right columns, complete it, then upload it here.</p>
             <p className="gmiw-tpl-note" data-testid="template-version-note">Version 2 — includes guided Type, Relation, and Description dropdowns in Excel.</p>
             <div className="gmiw-fmt-toggle" role="group" aria-label="File format">
               <button type="button" data-testid="template-fmt-xlsx" className={tplFmt === "xlsx" ? "active" : ""} onClick={() => setTplFmt("xlsx")}>Excel (.xlsx)</button>
@@ -811,7 +812,7 @@ function PremiumStyles() {
       .gmiw-optlabel{ justify-self:start; font-size:.68rem; font-weight:800; letter-spacing:.18em; color:#8a7fb5; text-transform:uppercase; }
       .gmiw-upsec h3{ margin:0; font-family:Georgia,'Times New Roman',serif; font-weight:600; font-size:1.2rem; color:#332a52; text-wrap:balance; max-width:100%; overflow-wrap:anywhere; }
       .gmiw-upsec p{ margin:0; color:#5a5170; font-size:.9rem; line-height:1.5; max-width:60ch; overflow-wrap:anywhere; }
-      .gmiw-choose{ display:inline-flex; align-items:center; justify-content:center; text-align:center; justify-self:start;
+      .gmiw-choose{ display:inline-flex; align-items:center; justify-content:center; text-align:center; justify-self:center;
         box-sizing:border-box; max-width:100%; cursor:pointer; overflow-wrap:anywhere;
         background:linear-gradient(135deg,#6d74ee,#764ba2); color:#fff; border-radius:12px; padding:13px 20px; font-weight:800; font-size:.95rem; }
       .gmiw-choose:focus-within{ outline:3px solid #6d74ee; outline-offset:3px; }
@@ -878,19 +879,26 @@ function PremiumStyles() {
       .gmiw-fmt-toggle{ display:inline-flex; border:1px solid rgba(27,24,48,.15); border-radius:999px; padding:2px; margin:4px 0 10px; }
       .gmiw-fmt-toggle button{ border:none; border-radius:999px; padding:6px 14px; font-size:.8rem; font-weight:700; cursor:pointer; background:transparent; color:#1b1830; }
       .gmiw-fmt-toggle button.active{ background:linear-gradient(135deg,#6d74ee,#764ba2); color:#fff; }
-      /* Test Drive modal */
+      /* Test Drive modal — compact, centered, fits the viewport without internal scrolling at normal
+         desktop sizes; the two primary actions sit side by side on desktop, stack on mobile. */
       .gmiw-modal-overlay{ position:fixed; inset:0; background:rgba(30,20,50,.45); display:flex; align-items:center; justify-content:center; padding:16px; z-index:60; }
-      .gmiw-modal{ position:relative; background:#fff; border-radius:20px; max-width:480px; width:100%; padding:26px 26px 22px; box-shadow:0 30px 70px -30px rgba(50,20,90,.55); }
-      .gmiw-modal-close{ position:absolute; top:14px; right:14px; border:none; background:transparent; font-size:1.3rem; line-height:1; cursor:pointer; color:#6b6580; padding:4px; }
-      .gmiw-modal-title{ display:flex; align-items:center; gap:8px; margin:0 0 10px; font-family:Georgia,serif; font-size:1.25rem; color:#2c2140; }
+      .gmiw-modal{ position:relative; background:#fff; border-radius:20px; max-width:420px; width:100%; padding:22px 22px 18px;
+        box-shadow:0 30px 70px -30px rgba(50,20,90,.55); max-height:calc(100vh - 32px); overflow-y:auto; text-align:center; }
+      .gmiw-modal-close{ position:absolute; top:12px; right:12px; border:none; background:transparent; font-size:1.3rem; line-height:1; cursor:pointer; color:#6b6580; padding:4px; }
+      .gmiw-modal-title{ display:flex; align-items:center; justify-content:center; gap:7px; margin:4px 0 8px; font-family:Georgia,serif; font-size:1.18rem; color:#2c2140; }
       .gmiw-modal-badge{ display:inline-flex; align-items:center; gap:5px; background:rgba(214,145,16,.14); color:#8a5410;
-        border:1px solid rgba(214,145,16,.35); border-radius:999px; padding:3px 10px; font-weight:800; font-size:.7rem; margin-bottom:12px; }
-      .gmiw-modal-steps{ margin:0 0 16px; padding:0; list-style:none; display:grid; gap:8px; color:#4a4663; font-size:.88rem; }
-      .gmiw-modal-steps li{ display:flex; gap:8px; }
-      .gmiw-modal-steps b{ color:#2c2140; }
-      .gmiw-modal-cta{ display:flex; flex-direction:column; gap:10px; }
-      .gmiw-modal-instant{ text-align:center; font-size:.82rem; color:#4a3fb0; font-weight:700; background:none; border:none; cursor:pointer; text-decoration:underline; padding:4px; }
-      @media (max-width:640px){ .gmiw-modal-cta button, .gmiw-modal-cta label{ width:100%; box-sizing:border-box; } }
+        border:1px solid rgba(214,145,16,.35); border-radius:999px; padding:3px 10px; font-weight:800; font-size:.7rem; margin-bottom:14px; }
+      .gmiw-modal-steps{ margin:0 0 16px; padding:0; list-style:none; display:grid; gap:6px; color:#4a4663; font-size:.83rem; line-height:1.4; text-align:left; }
+      .gmiw-modal-steps li{ display:flex; gap:6px; }
+      .gmiw-modal-steps b{ color:#2c2140; flex-shrink:0; }
+      .gmiw-modal-cta{ display:flex; flex-direction:column; gap:10px; align-items:stretch; }
+      .gmiw-modal-primary-row{ display:flex; gap:8px; }
+      .gmiw-modal-primary-row button, .gmiw-modal-primary-row label{ flex:1 1 0; min-width:0; white-space:normal; }
+      .gmiw-modal-secondary-row{ display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; }
+      .gmiw-modal-link{ font-size:.78rem; font-weight:700; color:#4a3fb0; background:none; border:none; cursor:pointer; text-decoration:underline; padding:2px; white-space:normal; }
+      .gmiw-modal-sep{ color:#c4bdd6; font-size:.78rem; }
+      @media (max-width:640px){ .gmiw-modal-primary-row{ flex-direction:column; } .gmiw-modal-cta button, .gmiw-modal-cta label{ width:100%; box-sizing:border-box; }
+        .gmiw-modal-secondary-row{ flex-direction:column; gap:6px; } .gmiw-modal-sep{ display:none; } }
     `}</style>
   );
 }
@@ -968,6 +976,18 @@ const BUSINESS_GROUPS = [
   { value: "client", title: "Clients", copy: "Clients, customers, companies, and important customer contacts.", cta: "CHOOSE CLIENTS →", medallion: "gmiw-medallion--rose", Icon: HandshakeIcon, uploadHeading: "Import Client Contacts" },
   { value: "vendor", title: "Vendors", copy: "Vendors, suppliers, service providers, and business partners.", cta: "CHOOSE VENDORS →", medallion: "gmiw-medallion--plum", Icon: PackageIcon, uploadHeading: "Import Vendor Contacts" },
 ];
+// Category-specific template-panel copy (display copy only — keyed by templateKind, which already
+// derives from personalGroup/recipientKind, so both update automatically when the category changes).
+const TEMPLATE_LABEL = { family: "Family", friend: "Friend", professional: "Professional", employee: "Employee", client: "Client", vendor: "Vendor" };
+const TEMPLATE_ARTICLE = { family: "a", friend: "a", professional: "a", employee: "an", client: "a", vendor: "a" };
+const TEMPLATE_HEADING = {
+  family: "Need a Family Import Template?",
+  friend: "Need a Friend Import Template?",
+  professional: "Need a Professional Import Template?",
+  employee: "Need an Employee Import Template?",
+  client: "Need a Client Import Template?",
+  vendor: "Need a Vendor Import Template?",
+};
 function Empty({ title, body }) {
   return <div style={{ ...card, textAlign: "center" }}><h3 style={{ margin: "0 0 6px", fontFamily: "Georgia,serif" }}>{title}</h3><p style={muted}>{body}</p></div>;
 }
@@ -989,7 +1009,9 @@ function TestDriveModal({ open, onClose, kindLabel, onDownloadSample, onDownload
     <div className="gmiw-modal-overlay" role="presentation" onClick={onClose}>
       <div className="gmiw-modal" role="dialog" aria-modal="true" aria-label="Test Drive Wizard" onClick={(e) => e.stopPropagation()}>
         <button type="button" className="gmiw-modal-close" aria-label="Close" data-testid="td-modal-close" onClick={onClose}>×</button>
-        <h3 className="gmiw-modal-title">🪄 Test Drive Wizard</h3>
+        <h3 className="gmiw-modal-title">
+          <span aria-hidden="true">🪄</span> Test Drive Wizard
+        </h3>
         <span className="gmiw-modal-badge">🛡 Safe practice mode</span>
         <ol className="gmiw-modal-steps">
           <li><b>1.</b> Download the sample {kindLabel} list (Excel).</li>
@@ -997,15 +1019,20 @@ function TestDriveModal({ open, onClose, kindLabel, onDownloadSample, onDownload
           <li><b>3.</b> Review how it gets applied — nothing is saved or sent.</li>
         </ol>
         <div className="gmiw-modal-cta">
-          <button type="button" data-testid="td-modal-download" style={btn(PURPLE)} onClick={onDownloadSample}>⬇ Download sample list</button>
-          <label style={{ ...btn("transparent", "#4a3fb0"), border: "1.5px solid #4a3fb0", textAlign: "center", cursor: "pointer" }} data-testid="td-modal-upload">
-            ⬆ Upload sample to preview
-            <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onUploadSample(e.target.files[0])} />
-          </label>
-          <button type="button" data-testid="td-modal-csv" style={{ background: "none", border: "none", cursor: "pointer", fontSize: ".78rem", color: "#6b6580", textDecoration: "underline", padding: 2 }} onClick={onDownloadSampleCsv}>
-            or download the sample as CSV
-          </button>
-          <button type="button" data-testid="td-modal-instant" className="gmiw-modal-instant" onClick={onStartInstant}>or load sample instantly</button>
+          <div className="gmiw-modal-primary-row">
+            <button type="button" data-testid="td-modal-download" style={btn(PURPLE)} onClick={onDownloadSample}>⬇ Download sample list</button>
+            <label style={{ ...btn("transparent", "#4a3fb0"), border: "1.5px solid #4a3fb0", textAlign: "center", cursor: "pointer" }} data-testid="td-modal-upload">
+              ⬆ Upload sample to preview
+              <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => e.target.files[0] && onUploadSample(e.target.files[0])} />
+            </label>
+          </div>
+          <div className="gmiw-modal-secondary-row">
+            <button type="button" data-testid="td-modal-csv" className="gmiw-modal-link" onClick={onDownloadSampleCsv}>
+              Download sample as CSV
+            </button>
+            <span className="gmiw-modal-sep" aria-hidden="true">·</span>
+            <button type="button" data-testid="td-modal-instant" className="gmiw-modal-link" onClick={onStartInstant}>Load sample instantly</button>
+          </div>
         </div>
       </div>
     </div>

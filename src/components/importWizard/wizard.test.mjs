@@ -446,7 +446,7 @@ test("Business Test Drive is zero mutation; real Business commit is dormant/fail
 test("Upload Options: blank category template (single format toggle) separate from the Practice sample (UX-reference)", () => {
   assert.match(WIZ, /template-block/);
   assert.match(WIZ, /Need a file to fill out\?/);
-  assert.match(WIZ, /Download a \{activeGroupMeta \? activeGroupMeta\.title : "contact"\} template with the right columns, complete it, then upload it here\./);
+  assert.match(WIZ, /Download \{TEMPLATE_ARTICLE\[templateKind\] \|\| "a"\} \{TEMPLATE_LABEL\[templateKind\] \|\| "contact"\} template with the right columns, complete it, then upload it here\./);
   // ONE format toggle (Excel/CSV) driving ONE download button — replaces the old two-button layout,
   // matching the founder's UX reference (page 1: a single toggle + a single "Download … template" CTA).
   assert.match(WIZ, /template-fmt-xlsx/);
