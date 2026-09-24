@@ -13,7 +13,10 @@
 // backend could introduce, only new UI truthfully surfacing each item's own real outcome.
 import { useState, useEffect, useCallback } from 'react';
 import { X, Loader, Check, AlertCircle } from 'lucide-react';
-import { PREZZEE_SMART_CARD_EXTERNAL_PRODUCT_ID } from './catalogDrawerModel';
+import {
+  PREZZEE_SMART_CARD_EXTERNAL_PRODUCT_ID, browseProducts, browseTraversal, formatMoney,
+  MAX_BROWSE_PAGE_SIZE,
+} from './catalogDrawerModel';
 
 const PROVIDERS = [
   { id: 'florist_one', label: 'Florist One', mode: 'browse' },
@@ -69,6 +72,13 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
   const [browsing, setBrowsing] = useState(false);
   const [browseError, setBrowseError] = useState(null);
   const [query, setQuery] = useState('');
+  // GOODY CORRECTION (2026-09-24): Goody-only pagination state. The founder-catalog browse route
+  // scans up to 5 vendor pages (up to ~500 real products) per request and returns a `nextCursor`
+  // to resume — the picker never surfaced that, so a founder browsing the default (unfiltered)
+  // list only ever saw the FIRST 30 items with no way to see more or know more existed. Scoped to
+  // Goody only — Florist One's browse call and behavior are unchanged below.
+  const [goodyCursor, setGoodyCursor] = useState(null);
+  const [goodyHasMore, setGoodyHasMore] = useState(false);
   // Map key -> { providerId, externalProductId, title }
   const [selected, setSelected] = useState({});
   const [publishing, setPublishing] = useState(false);
@@ -77,34 +87,60 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
 
   const provider = PROVIDERS.find((p) => p.id === activeProvider);
 
-  const runBrowse = useCallback(async () => {
+  const runBrowse = useCallback(async (opts = {}) => {
     if (provider.mode !== 'browse' && provider.mode !== 'printful') return;
+    const isGoody = provider.id === 'goody';
+    const append = isGoody && opts.append === true;
     setBrowsing(true);
     setBrowseError(null);
     try {
+      const params = { q: query || undefined };
+      if (isGoody) {
+        // Ask for the backend's own max page size, and resume via the response's own cursor
+        // rather than re-scanning from the start — see MAX_BROWSE_PAGE_SIZE's own docstring.
+        params.count = MAX_BROWSE_PAGE_SIZE;
+        if (append && goodyCursor) params.cursor = goodyCursor;
+        else params.start = 0;
+      } else {
+        params.start = 0;
+        params.count = 30;
+      }
       const res = provider.mode === 'printful'
         ? await client.browseMerch({ offset: 0, limit: 40 })
-        : await client.browseProvider(provider.id, { q: query || undefined, start: 0, count: 30 });
+        : await client.browseProvider(provider.id, params);
       if (!res?.ok) {
-        setBrowseResults([]);
+        if (!append) setBrowseResults([]);
         setBrowseError(res?.error || 'This provider is not available to browse right now.');
+        if (isGoody) { setGoodyCursor(null); setGoodyHasMore(false); }
         return;
       }
-      const products = provider.mode === 'printful'
-        ? (Array.isArray(res.products) ? res.products : [])
-        : (Array.isArray(res.products) ? res.products : []);
-      setBrowseResults(products);
+      if (isGoody) {
+        // Use the model's own already-correct browse projection (real `providerProductId`
+        // shape) and drop anything the existing Goody adapter cannot actually fulfil — per
+        // requirement, ineligible products are excluded here rather than merely disabled.
+        const eligible = browseProducts(res).filter((p) => p.directSendEligible !== false);
+        setBrowseResults((prev) => (append ? [...prev, ...eligible] : eligible));
+        const traversal = browseTraversal(res);
+        setGoodyCursor(traversal.nextCursor);
+        setGoodyHasMore(Boolean(traversal.nextCursor));
+      } else {
+        const products = Array.isArray(res.products) ? res.products : [];
+        setBrowseResults(products);
+      }
     } catch (e) {
-      setBrowseResults([]);
+      if (!append) setBrowseResults([]);
       setBrowseError(e?.message || 'This provider is not available to browse right now.');
+      if (isGoody) { setGoodyCursor(null); setGoodyHasMore(false); }
     } finally {
       setBrowsing(false);
     }
-  }, [client, provider, query]);
+  }, [client, provider, query, goodyCursor]);
 
   useEffect(() => {
     setBrowseResults([]);
     setBrowseError(null);
+    setGoodyCursor(null);
+    setGoodyHasMore(false);
     if (provider.mode === 'browse' || provider.mode === 'printful') runBrowse();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProvider]);
@@ -197,7 +233,7 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
             </div>
             {browsing && <p style={{ color: 'var(--text-secondary)' }}>Loading…</p>}
             {browseError && <p style={{ color: '#dc2626' }}>{browseError}</p>}
-            {!browsing && !browseError && (
+            {!browsing && !browseError && provider.id !== 'goody' && (
               <div data-testid="provider-browse-results" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
                 {browseResults.map((p) => {
                   const key = selectionKey(provider.id, p.externalProductId || p.id);
@@ -221,6 +257,68 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
                   );
                 })}
               </div>
+            )}
+            {/* GOODY CORRECTION (2026-09-24): the real browse item shape is
+                {providerProductId, name, imageUrl, priceCents, currency, directSendEligible, ...}
+                — NOT {externalProductId|id, title}. The block above (unchanged, still serves
+                Florist One) read fields that don't exist on a real Goody product, so every tile
+                computed the SAME "goody:undefined" key and collapsed into one shared selection —
+                that is what made one checkbox visually select every tile. This block uses the
+                real field names, so each tile gets its own key, its own image, and its own price. */}
+            {!browsing && !browseError && provider.id === 'goody' && (
+              <>
+                <div data-testid="provider-browse-results" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                  {browseResults.map((p) => {
+                    const productId = p.providerProductId;
+                    const key = selectionKey('goody', productId);
+                    const isSelected = Boolean(selected[key]);
+                    const result = results[key];
+                    return (
+                      <div key={key} data-testid={`browse-result-${key}`} style={{
+                        border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
+                        borderRadius: '0.5rem', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'white',
+                      }}>
+                        <div style={{ position: 'relative', aspectRatio: '4 / 3', background: '#f3f4f6' }}>
+                          {p.imageUrl ? (
+                            <img src={p.imageUrl} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>No image</div>
+                          )}
+                        </div>
+                        <label style={{ padding: '0.625rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', cursor: 'pointer' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <input
+                              type="checkbox"
+                              data-testid={`browse-checkbox-${key}`}
+                              checked={isSelected}
+                              onChange={() => toggleSelect('goody', productId, p.name)}
+                            />
+                            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{p.name || 'Untitled'}</span>
+                          </span>
+                          <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{formatMoney(p.priceCents, p.currency)}</span>
+                          {result && !result.ok && <span style={{ fontSize: '0.75rem', color: '#dc2626' }}>{result.error}</span>}
+                          {result && result.ok && <span style={{ fontSize: '0.75rem', color: '#059669', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Check size={12} /> Published</span>}
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+                {goodyHasMore && (
+                  <button
+                    type="button"
+                    data-testid="goody-load-more"
+                    onClick={() => runBrowse({ append: true })}
+                    disabled={browsing}
+                    style={{
+                      marginTop: '0.75rem', padding: '0.5rem 1rem', borderRadius: '0.5rem',
+                      border: '1px solid var(--border)', background: 'white', fontFamily: 'inherit',
+                      cursor: browsing ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {browsing ? 'Loading…' : 'Load more'}
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
