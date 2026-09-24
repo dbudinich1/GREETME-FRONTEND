@@ -15,7 +15,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { X, Loader, Check, AlertCircle } from 'lucide-react';
 import {
   PREZZEE_SMART_CARD_EXTERNAL_PRODUCT_ID, browseProducts, browseTraversal, formatMoney,
-  MAX_BROWSE_PAGE_SIZE,
+  formatMoneyRange, MAX_BROWSE_PAGE_SIZE, stagedNextAction, stagedStatusLabel,
 } from './catalogDrawerModel';
 
 const PROVIDERS = [
@@ -55,6 +55,32 @@ async function republishExistingPrezzee(client, sel) {
     return { ok: true, item: pub.item };
   } catch (e) {
     return { ok: false, error: e?.message || 'Could not republish this product.' };
+  }
+}
+
+/**
+ * PRINTFUL AUDIT CORRECTION (2026-09-25). A Printful product that was published then retired
+ * (trashed) is still curated — re-staging it through the normal checkbox+Publish Selected flow
+ * would be refused by the backend as a duplicate (`ALREADY_CURATED`: "already in the live
+ * catalog"), since staging is only for a product Greet-Me has never curated before. The real,
+ * existing recovery path is the two EXISTING transitions this catalog already defines: `restore`
+ * (un-retires it, but deliberately lands it hidden — never straight back to the storefront) and
+ * a presentation patch turning `displayEnabled` back on. Both already exist; this wires them
+ * together as one action so a founder isn't left to discover the two-step sequence themselves.
+ */
+async function restorePrintfulProduct(client, syncProductId) {
+  try {
+    const list = await client.listMerch();
+    const items = Array.isArray(list?.items) ? list.items : [];
+    const existing = items.find((it) => it?.syncProductId === syncProductId);
+    if (!existing) return { ok: false, error: 'not_found' };
+    const restored = await client.merchLifecycle(syncProductId, 'restore', existing.etag);
+    if (!restored?.ok || !restored.item) return { ok: false, error: restored?.error || 'Could not restore this product.' };
+    const published = await client.patchMerch(syncProductId, { displayEnabled: true }, restored.item.etag);
+    if (!published?.ok) return { ok: false, error: published?.error || 'Restored, but could not make it visible again.' };
+    return { ok: true, item: published.item };
+  } catch (e) {
+    return { ok: false, error: e?.message || 'Could not restore this product.' };
   }
 }
 
@@ -109,6 +135,15 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
   // Goody only — Florist One's browse call and behavior are unchanged below.
   const [goodyCursor, setGoodyCursor] = useState(null);
   const [goodyHasMore, setGoodyHasMore] = useState(false);
+  // PRINTFUL AUDIT CORRECTION (2026-09-25): the raw Printful store browse has no idea whether a
+  // product is currently published, retired, or mid-review — that lives in two OTHER endpoints
+  // (listMerch, listStaged). Both are fetched alongside the browse so every tile can show its real
+  // current state instead of the static, never-changing "Already live"/"Already staged" labels.
+  const [printfulCurated, setPrintfulCurated] = useState([]);
+  const [printfulStaged, setPrintfulStaged] = useState([]);
+  // Map syncProductId -> { ok, error } once a restore attempt has been made
+  const [restoreResults, setRestoreResults] = useState({});
+  const [restoringId, setRestoringId] = useState(null);
   // Map key -> { providerId, externalProductId, title }
   const [selected, setSelected] = useState({});
   const [publishing, setPublishing] = useState(false);
@@ -166,14 +201,39 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
     }
   }, [client, provider, query, goodyCursor]);
 
+  const loadPrintfulContext = useCallback(async () => {
+    try {
+      const [curatedRes, stagedRes] = await Promise.all([client.listMerch(), client.listStaged()]);
+      setPrintfulCurated(Array.isArray(curatedRes?.items) ? curatedRes.items : []);
+      setPrintfulStaged(Array.isArray(stagedRes?.items) ? stagedRes.items : []);
+    } catch {
+      // A safe no-op refusal: tiles fall back to no known curated/staged match, which is the
+      // honest "unknown" state rather than a hard failure of the whole browse tab.
+      setPrintfulCurated([]);
+      setPrintfulStaged([]);
+    }
+  }, [client]);
+
   useEffect(() => {
     setBrowseResults([]);
     setBrowseError(null);
     setGoodyCursor(null);
     setGoodyHasMore(false);
     if (provider.mode === 'browse' || provider.mode === 'printful') runBrowse();
+    if (provider.mode === 'printful') loadPrintfulContext();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProvider]);
+
+  const runRestorePrintful = useCallback(async (syncProductId) => {
+    setRestoringId(syncProductId);
+    const outcome = await restorePrintfulProduct(client, syncProductId);
+    setRestoreResults((prev) => ({ ...prev, [syncProductId]: outcome }));
+    setRestoringId(null);
+    if (outcome.ok) {
+      loadPrintfulContext();
+      onPublished();
+    }
+  }, [client, loadPrintfulContext, onPublished]);
 
   const toggleSelect = useCallback((providerId, externalProductId, title) => {
     const key = selectionKey(providerId, externalProductId);
@@ -385,34 +445,116 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
             {!browsing && !browseError && (
               <>
                 <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-                  Selected Printful products are submitted for a reviewed release, not published instantly —
-                  the same safety step this catalog has always required for a live supplier.
+                  Printful is a live, shipping supplier — selected products are submitted for a
+                  reviewed release rather than published instantly, so a developer confirms the
+                  mapping before anything can be bought. This is a deliberate safety step, not an
+                  inconsistency: no other workflow here can skip it either.
                 </p>
+                {/* PRINTFUL AUDIT CORRECTION (2026-09-25): every field below is real — thumbnailUrl
+                    and variantCount both already exist on the real /merch/browse response and were
+                    simply never read; price only exists once a product is curated (listMerch), so
+                    an as-yet-unstaged product truthfully says "Price set during staging" rather
+                    than showing a fabricated number. "Already live"/"Already staged" (static,
+                    never-changing checks) are replaced with each product's REAL current state,
+                    cross-referenced from listMerch/listStaged. */}
                 <div data-testid="printful-browse-results" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
                   {browseResults.map((p) => {
-                    const key = selectionKey('printful', p.syncProductId || p.id);
+                    const syncProductId = p.syncProductId;
+                    const key = selectionKey('printful', syncProductId);
                     const isSelected = Boolean(selected[key]);
                     const result = results[key];
-                    const variantCount = Array.isArray(p.variants) ? p.variants.length : (p.variantCount ?? null);
+                    const variantCount = Number.isInteger(p.variantCount) ? p.variantCount : null;
+                    const noVariants = variantCount === 0;
+
+                    const curated = printfulCurated.find((c) => c?.syncProductId === syncProductId);
+                    const staged = printfulStaged.find((s) => s?.syncProductId === syncProductId);
+                    const isPublished = Boolean(curated?.curation?.displayEnabled === true);
+                    const isRetired = Boolean(curated && curated.curation?.displayEnabled === false);
+
+                    // TRUTHFUL STATE LABELS (2026-09-25 revalidation): four states, none of them
+                    // ever call staged merchandise "published" or "live" — staging only ever
+                    // submits for reviewed release (see the explanatory paragraph above).
+                    let statusLabel = null;
+                    let statusDetail = null;
+                    let disabled = false;
+                    if (isPublished) {
+                      statusLabel = 'Already live';
+                      statusDetail = 'Manage it in Full Live Catalog, below Providers.';
+                      disabled = true;
+                    } else if (isRetired) {
+                      statusLabel = 'Retired from your site';
+                      statusDetail = 'Use Restore & Publish below — selecting it here would be refused as a duplicate.';
+                      disabled = true;
+                    } else if (staged) {
+                      statusLabel = 'Already staged';
+                      statusDetail = stagedNextAction(staged) || stagedStatusLabel(staged);
+                      disabled = true;
+                    } else if (noVariants) {
+                      statusLabel = 'Unavailable — no fulfillable variants';
+                      statusDetail = 'This product cannot be staged until it has at least one variant in Printful.';
+                      disabled = true;
+                    } else {
+                      statusLabel = 'Eligible to stage';
+                    }
+
+                    const priceText = curated
+                      ? formatMoneyRange(curated.vendorAuthoritative?.priceCentsMin, curated.vendorAuthoritative?.priceCentsMax, curated.vendorAuthoritative?.currency)
+                      : 'Price set during staging';
+
+                    const restoreResult = restoreResults[syncProductId];
+
                     return (
-                      <label key={key} data-testid={`browse-result-${key}`} style={{
+                      <div key={key} data-testid={`browse-result-${key}`} style={{
                         border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
-                        borderRadius: '0.5rem', padding: '0.625rem', display: 'flex', flexDirection: 'column', gap: '0.375rem', cursor: p.alreadyLive || p.alreadyStaged ? 'not-allowed' : 'pointer',
+                        borderRadius: '0.5rem', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'white',
                       }}>
-                        <input
-                          type="checkbox"
-                          data-testid={`browse-checkbox-${key}`}
-                          checked={isSelected}
-                          disabled={p.alreadyLive || p.alreadyStaged}
-                          onChange={() => toggleSelect('printful', p.syncProductId || p.id, p.name || p.title)}
-                        />
-                        <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{p.name || p.title || 'Untitled'}</span>
-                        {variantCount != null && <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{variantCount} variant(s)</span>}
-                        {p.alreadyLive && <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Already live</span>}
-                        {p.alreadyStaged && <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Already staged</span>}
-                        {result && !result.ok && <span style={{ fontSize: '0.75rem', color: '#dc2626' }}>{result.error}</span>}
-                        {result && result.ok && <span style={{ fontSize: '0.75rem', color: '#059669' }}>Submitted for review</span>}
-                      </label>
+                        <div style={{ position: 'relative', aspectRatio: '4 / 3', background: '#f3f4f6' }}>
+                          {p.thumbnailUrl ? (
+                            <img src={p.thumbnailUrl} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>No image</div>
+                          )}
+                        </div>
+                        <label style={{ padding: '0.625rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', cursor: disabled ? 'not-allowed' : 'pointer' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <input
+                              type="checkbox"
+                              data-testid={`browse-checkbox-${key}`}
+                              checked={isSelected}
+                              disabled={disabled}
+                              onChange={() => toggleSelect('printful', syncProductId, p.name)}
+                            />
+                            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{p.name || 'Untitled'}</span>
+                          </span>
+                          <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{priceText}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                            {variantCount != null ? `${variantCount} variant(s)` : 'Variant count unknown'}
+                          </span>
+                          {statusLabel && <span data-testid={`printful-status-${syncProductId}`} style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{statusLabel}</span>}
+                          {statusDetail && <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{statusDetail}</span>}
+                          {result && !result.ok && <span style={{ fontSize: '0.75rem', color: '#dc2626' }}>{result.error}</span>}
+                          {result && result.ok && <span style={{ fontSize: '0.75rem', color: '#059669' }}>Submitted for review</span>}
+                        </label>
+                        {isRetired && (
+                          <div style={{ padding: '0 0.625rem 0.625rem' }}>
+                            <button
+                              type="button"
+                              data-testid={`printful-restore-${syncProductId}`}
+                              onClick={() => runRestorePrintful(syncProductId)}
+                              disabled={restoringId === syncProductId}
+                              style={{
+                                width: '100%', padding: '0.4rem 0.625rem', borderRadius: '0.375rem',
+                                border: '1px solid var(--border)', background: 'white', fontFamily: 'inherit',
+                                fontSize: '0.75rem', cursor: restoringId === syncProductId ? 'not-allowed' : 'pointer',
+                              }}
+                            >
+                              {restoringId === syncProductId ? 'Restoring…' : 'Restore & Publish'}
+                            </button>
+                            {restoreResult && !restoreResult.ok && <p style={{ fontSize: '0.75rem', color: '#dc2626', margin: '0.375rem 0 0' }}>{restoreResult.error}</p>}
+                            {restoreResult && restoreResult.ok && <p style={{ fontSize: '0.75rem', color: '#059669', margin: '0.375rem 0 0' }}>Restored and published.</p>}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -440,7 +582,10 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
           }}
         >
           {publishing ? <Loader size={16} /> : null}
-          Publish Selected
+          {/* TRUTHFUL LABEL (2026-09-25): Printful's own action never publishes anything — it
+              submits for reviewed release (stageMerch). Every other provider's action really does
+              publish, so only Printful's own label changes here. */}
+          {provider.id === 'printful' ? 'Stage Selected for Review' : 'Publish Selected'}
         </button>
       </footer>
     </div>

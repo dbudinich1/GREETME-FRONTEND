@@ -273,6 +273,21 @@ export function formatMoney(cents, currency = 'USD') {
   return code === 'USD' ? `$${amount} USD` : `${amount} ${code}`;
 }
 
+/**
+ * A price RANGE as a founder reads it (Printful management tile, 2026-09-25) — a curated
+ * merch product carries a min/max across its variants, never one flat price. Collapses to a
+ * single amount when they match or only one bound is known, and never fabricates a number: a
+ * genuinely unknown range still falls back to formatMoney's own honest "—".
+ */
+export function formatMoneyRange(minCents, maxCents, currency = 'USD') {
+  const hasMin = Number.isInteger(minCents);
+  const hasMax = Number.isInteger(maxCents);
+  if (!hasMin && !hasMax) return '—';
+  if (!hasMax || minCents === maxCents) return formatMoney(minCents, currency);
+  if (!hasMin) return formatMoney(maxCents, currency);
+  return `${formatMoney(minCents, currency)} – ${formatMoney(maxCents, currency)}`;
+}
+
 /** The first image a record carries, or null. Preview only — never a second source of truth. */
 export function previewImageUrl(item) {
   const override = item?.curation?.overrides?.imageUrl;
