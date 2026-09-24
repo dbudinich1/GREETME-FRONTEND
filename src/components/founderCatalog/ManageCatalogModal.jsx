@@ -16,7 +16,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Search, Trash2, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import founderCatalogApiDefault from '../../api/founderCatalog';
 import {
-  STORABLE_CATEGORY_IDS, CATEGORY_LABELS, formatMoney, previewImageUrl, toggleCategoryId,
+  STORABLE_CATEGORY_IDS, CATEGORY_LABELS, formatMoney, formatMoneyRange, previewImageUrl, toggleCategoryId,
   PREZZEE_SMART_CARD_EXTERNAL_PRODUCT_ID,
 } from './catalogDrawerModel';
 import AddToCatalogPicker from './AddToCatalogPicker';
@@ -60,6 +60,38 @@ const GRID_STYLE_TEXT = `
 }
 `;
 
+// PRINTFUL AUDIT CORRECTION (2026-09-25). Published Printful products live in a completely
+// separate Cosmos container (`merchCuration`) from the other three providers' `vendorGiftCatalog`
+// — `listItems()` (what Full Live Catalog queries) has no awareness of them at all. That is the
+// confirmed root cause of "a founder can't find/manage an already-live Printful product here": it
+// was never architecturally possible through this call. Rather than changing that backend split,
+// this projects `listMerch()`'s own already-correct shape (image, price range, variant count are
+// all present there — see toFounderMerchItem, services/merchCuration/merchCurationModel.js) into
+// the SAME tile shape CatalogTile already renders, so a published Printful product finally shows
+// up in the one place a founder already knows to look, with its own real trash-can control.
+function normalizeMerchItem(m) {
+  const syncProductId = m?.syncProductId;
+  return {
+    id: `printful-${syncProductId}`,
+    internal: { source: 'printful', vendor: 'printful', externalProductId: syncProductId, syncProductId },
+    vendorAuthoritative: {
+      title: m?.vendorAuthoritative?.name,
+      images: m?.vendorAuthoritative?.imageUrl ? [m.vendorAuthoritative.imageUrl] : [],
+      priceCentsMin: m?.vendorAuthoritative?.priceCentsMin ?? null,
+      priceCentsMax: m?.vendorAuthoritative?.priceCentsMax ?? null,
+      variants: Array.from({ length: Number(m?.vendorAuthoritative?.variantCount) || 0 }),
+      currency: 'USD',
+    },
+    curation: {
+      greetMeCategories: m?.curation?.greetMeCategories || [],
+      featuredRank: m?.curation?.featuredRank ?? null,
+    },
+    lifecycle: { state: m?.curation?.state, displayEnabled: m?.curation?.displayEnabled === true },
+    display: { title: m?.vendorAuthoritative?.name },
+    etag: m?.etag ?? null,
+  };
+}
+
 const categoryButtonStyle = (active) => ({
   padding: '0.3rem 0.7rem',
   borderRadius: '9999px',
@@ -97,7 +129,12 @@ function CatalogTile({ item, client, onRemoved, onSaved }) {
     setRemoving(true);
     setRemoveError(null);
     try {
-      const res = await client.lifecycle(local.internal.vendor, local.id, 'unpublish', local.curation?.etag ?? local.etag);
+      // Printful's published record lives in the separate merch curation store, retired (never
+      // deleted) through its own transition endpoint — the general catalog's unpublish endpoint
+      // does not know about it at all.
+      const res = providerId === 'printful'
+        ? await client.merchLifecycle(local.internal.syncProductId, 'retire', local.etag)
+        : await client.lifecycle(local.internal.vendor, local.id, 'unpublish', local.curation?.etag ?? local.etag);
       if (!res?.ok) {
         setRemoveError(res?.error || 'Could not remove this product. It is still visible on your site.');
         setRemoving(false);
@@ -111,26 +148,31 @@ function CatalogTile({ item, client, onRemoved, onSaved }) {
       setRemoveError(e?.message || 'Could not remove this product. It is still visible on your site.');
       setRemoving(false);
     }
-  }, [client, local, onRemoved]);
+  }, [client, local, onRemoved, providerId]);
 
   const runPatch = useCallback(async (patch) => {
     setSaving(true);
     setSaveError(null);
     try {
-      const res = await client.patchItem(local.internal.vendor, local.id, patch, local.etag);
+      const res = providerId === 'printful'
+        ? await client.patchMerch(local.internal.syncProductId, patch, local.etag)
+        : await client.patchItem(local.internal.vendor, local.id, patch, local.etag);
       if (!res?.ok || !res.item) {
         setSaveError(res?.error || 'Could not save this change.');
         setSaving(false);
         return;
       }
-      setLocal(res.item);
+      // patchMerch returns the raw merch shape (syncProductId/vendorAuthoritative.name/...), not
+      // the tile's normalized shape — re-project it the same way the initial load already did.
+      const nextItem = providerId === 'printful' ? normalizeMerchItem(res.item) : res.item;
+      setLocal(nextItem);
       setSaving(false);
-      onSaved?.(res.item);
+      onSaved?.(nextItem);
     } catch (e) {
       setSaveError(e?.message || 'Could not save this change.');
       setSaving(false);
     }
-  }, [client, local, onSaved]);
+  }, [client, local, onSaved, providerId]);
 
   const runRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -180,7 +222,9 @@ function CatalogTile({ item, client, onRemoved, onSaved }) {
         </div>
         {!isPrezzeeSmartCard && (
           <div data-testid={`tile-price-${local.id}`} style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-            {formatMoney(priceCents, local.vendorAuthoritative?.currency)}
+            {providerId === 'printful'
+              ? formatMoneyRange(local.vendorAuthoritative?.priceCentsMin, local.vendorAuthoritative?.priceCentsMax, local.vendorAuthoritative?.currency)
+              : formatMoney(priceCents, local.vendorAuthoritative?.currency)}
           </div>
         )}
 
@@ -286,6 +330,11 @@ export default function ManageCatalogModal({ open, onClose, client = founderCata
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
+  // PRINTFUL AUDIT CORRECTION (2026-09-25): published Printful products come from a SEPARATE
+  // endpoint (listMerch, a different Cosmos container) than listItems — loaded independently and
+  // merged into the same grid/count below, so this is the ONE place a founder now finds them.
+  const [merchItems, setMerchItems] = useState([]);
+  const [merchLoadError, setMerchLoadError] = useState(null);
   const [query, setQuery] = useState('');
   const [providerFilter, setProviderFilter] = useState('');
   // PROVIDER-FIRST REDESIGN (2026-09-23): 'home' shows Providers (each with its own Add Products
@@ -314,9 +363,23 @@ export default function ManageCatalogModal({ open, onClose, client = founderCata
     }
   }, [client, query, providerFilter]);
 
+  const loadMerch = useCallback(async () => {
+    setMerchLoadError(null);
+    try {
+      const res = await client.listMerch();
+      const raw = Array.isArray(res?.items) ? res.items : [];
+      // Only currently-published Printful products belong in Full Live Catalog — mirrors the
+      // founder catalog's own state:'published' filter above.
+      setMerchItems(raw.filter((m) => m?.curation?.displayEnabled === true).map(normalizeMerchItem));
+    } catch (e) {
+      setMerchLoadError(e?.message || 'Could not load Printful products.');
+    }
+  }, [client]);
+
   useEffect(() => {
     if (!open) return;
     load();
+    loadMerch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, providerFilter]);
 
@@ -326,13 +389,27 @@ export default function ManageCatalogModal({ open, onClose, client = founderCata
     debounceRef.current = setTimeout(() => load({ q: value }), 300);
   }, [load]);
 
+  const isMerchId = (id) => typeof id === 'string' && id.startsWith('printful-');
+
   const removeItem = useCallback((id) => {
-    setItems((prev) => prev.filter((it) => it.id !== id));
+    if (isMerchId(id)) setMerchItems((prev) => prev.filter((it) => it.id !== id));
+    else setItems((prev) => prev.filter((it) => it.id !== id));
   }, []);
 
   const replaceItem = useCallback((updated) => {
-    setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+    if (isMerchId(updated.id)) setMerchItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+    else setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
   }, []);
+
+  // The merch endpoint has no query/source params of its own — the same search box and provider
+  // filter that already govern `items` are applied to the (already client-visible) merch items
+  // too, so switching to "Printful" or typing a search term behaves consistently across both.
+  const visibleMerchItems = merchItems.filter((it) => {
+    if (providerFilter && providerFilter !== 'printful') return false;
+    if (query && !String(it.display?.title || '').toLowerCase().includes(query.toLowerCase())) return false;
+    return true;
+  });
+  const allCatalogItems = [...items, ...visibleMerchItems];
 
   const openAddFor = useCallback((providerId) => {
     setAddProviderId(providerId);
@@ -381,7 +458,7 @@ export default function ManageCatalogModal({ open, onClose, client = founderCata
             // a partial failure must stay on screen (per-item success/error, failed items still
             // selected) rather than being hidden the instant the FIRST item happens to succeed.
             // The founder closes back explicitly once they've seen the outcome.
-            onPublished={() => { load(); }}
+            onPublished={() => { load(); loadMerch(); }}
           />
         )}
         {view === 'home' && (
@@ -402,7 +479,7 @@ export default function ManageCatalogModal({ open, onClose, client = founderCata
                 }}
               >
                 {catalogExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                Full Live Catalog ({items.length})
+                Full Live Catalog ({allCatalogItems.length})
               </button>
 
               {catalogExpanded && (
@@ -431,12 +508,13 @@ export default function ManageCatalogModal({ open, onClose, client = founderCata
 
                   {loading && <p style={{ color: 'var(--text-secondary)' }}>Loading catalog…</p>}
                   {loadError && <p style={{ color: '#dc2626' }}>{loadError}</p>}
-                  {!loading && !loadError && items.length === 0 && (
+                  {merchLoadError && <p style={{ color: '#dc2626' }}>{merchLoadError}</p>}
+                  {!loading && !loadError && allCatalogItems.length === 0 && (
                     <p style={{ color: 'var(--text-secondary)' }}>Nothing is published to your site yet. Use a provider's "+ Add Products" button above to publish one.</p>
                   )}
-                  {!loading && items.length > 0 && (
+                  {!loading && allCatalogItems.length > 0 && (
                     <div className="gm-manage-catalog-grid" data-testid="catalog-grid">
-                      {items.map((item) => (
+                      {allCatalogItems.map((item) => (
                         <CatalogTile key={item.id} item={item} client={client} onRemoved={removeItem} onSaved={replaceItem} />
                       ))}
                     </div>
