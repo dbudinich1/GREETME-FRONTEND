@@ -53,7 +53,7 @@ const CAMPAIGN_TABS = [
   { key: "overview", label: "Overview" },
   { key: "recipients", label: "Recipients" },
   { key: "gift", label: "Message & gift" },
-  { key: "schedule", label: "Schedule" },
+  { key: "schedule", label: "Schedule & Payment" },
 ];
 
 const SPREAD_SOURCES = [
@@ -866,7 +866,8 @@ export default function CampaignCard({
             </section>
           </div>
 
-          {/* ── SCHEDULE TAB — unchanged content/logic, only moved into its own tab. ──────────── */}
+          {/* ── SCHEDULE & PAYMENT TAB — Schedule content/logic unchanged, only moved into its own
+              tab; a presentation-only Payment method summary is reserved below it. ────────────── */}
           <div hidden={activeTab !== "schedule"} data-testid={`tab-schedule-${campaign.campaignId}`}>
           {/* ── SCHEDULE — unchanged modes and payload, kept beneath the selector area ───────── */}
           {/* SLICE F1C - the schedule shape follows the CAMPAIGN, not a question put to the
@@ -912,6 +913,53 @@ export default function CampaignCard({
                 {TIME_ZONES.map((z) => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
               </select>
             </div>
+          </div>
+
+          {/* ── PAYMENT METHOD — presentation only. No new fetch, no new client: the org's card is
+              managed exactly where it always was, in the EXISTING Payment method panel above the
+              dashboard's Contacts section (SavedCardPanel, untouched). This block only reserves
+              the space the approved reference calls for and shows whatever this card already
+              safely knows (its own computed "Est. total"); everything this card cannot know
+              honestly says so instead of guessing. */}
+          <div className="gcd-section" style={{ marginTop: 18 }}>
+            <p className="gcd-section-label">Payment method</p>
+            <dl className="gcd-info" data-testid={`card-payment-summary-${campaign.campaignId}`}>
+              <div className="gcd-info-row">
+                <dt className="gcd-info-label">Card</dt>
+                <dd className="gcd-info-value" data-testid={`card-payment-card-${campaign.campaignId}`}>—</dd>
+              </div>
+              <div className="gcd-info-row">
+                <dt className="gcd-info-label">Funding status</dt>
+                <dd className="gcd-info-value" data-testid={`card-payment-funding-${campaign.campaignId}`}>—</dd>
+              </div>
+              <div className="gcd-info-row">
+                <dt className="gcd-info-label">Estimated campaign total</dt>
+                <dd className="gcd-info-value" data-testid={`card-payment-total-${campaign.campaignId}`}>{metaEstTotal}</dd>
+              </div>
+              <div className="gcd-info-row">
+                <dt className="gcd-info-label">Expected charge date</dt>
+                <dd className="gcd-info-value" data-testid={`card-payment-chargedate-${campaign.campaignId}`}>—</dd>
+              </div>
+            </dl>
+            <p className="gcd-wcard-note" data-testid={`card-payment-placeholder-${campaign.campaignId}`}>
+              Payment method details will appear here.
+            </p>
+            {/* Opens the EXISTING Payment method panel above Contacts — same section, same
+                SavedCardPanel, same card. This closes the modal and scrolls; it calls nothing. */}
+            <button type="button" className="gcd-btn" data-testid={`card-manage-payment-${campaign.campaignId}`}
+              onClick={() => {
+                if (onToggleExpanded) onToggleExpanded(campaign.campaignId);
+                if (typeof window !== "undefined" && window.requestAnimationFrame) {
+                  window.requestAnimationFrame(() => {
+                    const el = document.getElementById("gcd-card-head");
+                    if (el && typeof el.scrollIntoView === "function") {
+                      el.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }
+                  });
+                }
+              }}>
+              Manage payment method
+            </button>
           </div>
           </div>
             </div>
