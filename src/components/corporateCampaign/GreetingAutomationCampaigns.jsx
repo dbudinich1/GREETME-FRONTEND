@@ -762,15 +762,6 @@ export default function GreetingAutomationCampaigns({
           </div>
         ) : null}
 
-        {/* TEAM I (CONNECTION D) — PAYMENT METHOD. Placed above Campaigns because a gift campaign
-            cannot be locked, scheduled or activated without a usable card: the reader should meet
-            that requirement before configuring something it would block. */}
-        <SavedCardPanel
-          orgId={effectiveOrgId}
-          client={cardClient}
-          stripeOverride={stripeOverride}
-        />
-
         {/* B — CONTACT TILES: Employees / Clients / Vendors. FOUNDER-APPROVED LAYOUT
             (2026-09-25) moves this ABOVE Campaigns — previously it sat below the campaigns
             section. Same component, same props/data, same "Manage" (inline roster) and
@@ -877,6 +868,16 @@ export default function GreetingAutomationCampaigns({
             )}
           </div>
         </section>
+
+        {/* TEAM I (CONNECTION D) — PAYMENT METHOD. FOUNDER-APPROVED LAYOUT (2026-09-25) — the
+            account-level card panel moves BELOW Campaigns: Contacts must be the first functional
+            panel on the page. Same component, same props, same behavior — only its position on
+            the page changed. */}
+        <SavedCardPanel
+          orgId={effectiveOrgId}
+          client={cardClient}
+          stripeOverride={stripeOverride}
+        />
 
         {/* F1C ADDENDUM — the standing gift/payment note. Deliberately OUTSIDE the scroll
             viewport and outside every campaign card: one note for the surface, not one per tile.

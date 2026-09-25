@@ -444,7 +444,7 @@
 .gcd-tile-count { font-size: 1.9rem; font-weight: 800; line-height: 1; color: var(--gcd-purple-deep); }
 .gcd-tile-desc { font-size: .78rem; color: var(--gcd-muted); margin: 0; }
 .gcd-tile-recent { font-size: .74rem; color: var(--gcd-faint); margin: 0; }
-.gcd-tile-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; flex-wrap: wrap; }
+.gcd-tile-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 10px; }
 
 .gcd-notice {
   margin-top: 16px; padding: 12px 14px; border-radius: 12px;
@@ -726,6 +726,7 @@
 }
 .gcd-btn--primary:hover:not(:disabled) { background: linear-gradient(135deg, #5f66e8 0%, #6b4295 100%); }
 .gcd-btn--quiet { background: transparent; border-color: transparent; color: var(--gcd-purple-deep); text-decoration: underline; }
+.gcd-btn--block { display: block; width: 100%; text-align: center; }
 
 /* ACTION RAIL — pinned under the campaign header, inside the campaign viewport.
    Sticky is scoped by the card itself, so the rail belongs to the campaign a reader is actually
@@ -853,7 +854,13 @@
   background: var(--gcd-lav); color: var(--gcd-purple-deep); margin-bottom: 4px;
 }
 .gcd-tile-count { text-align: center; }
+/* FOUNDER-APPROVED LAYOUT (2026-09-25) — Total / Ready / Needs info, three equal, evenly-spaced,
+   centered columns. Ready/Needs info have no safely-available source yet (see gcd-tile-stat-value
+   fallback below); this reserves their space rather than fabricating a count. */
+.gcd-tile-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 8px 0 2px; }
 .gcd-tile-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 6px 0 2px; }
+.gcd-tile-stat-value { font-size: 1.3rem; font-weight: 800; line-height: 1; color: var(--gcd-purple-deep); }
+.gcd-tile-stat-value--muted { color: var(--gcd-faint); font-weight: 700; }
 .gcd-tile-stat-label { font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--gcd-faint); }
 
 /* ── Compact campaign row (replaces the always-expanded accordion tile) ─────────────────────── */
