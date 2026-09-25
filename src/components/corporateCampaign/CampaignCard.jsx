@@ -47,6 +47,15 @@ import { CategoryBubble, ChoiceBubble, BubbleGroup } from "./Bubbles.jsx";
 import CampaignFeaturedSpreadEditor from "../../corporateCampaign/CampaignFeaturedSpreadEditor.jsx";
 import "./premiumDashboard.css";
 
+// The four review tabs the approved reference names. Each renders EXISTING section content,
+// unchanged — this only changes which sections are visible at once and where they render.
+const CAMPAIGN_TABS = [
+  { key: "overview", label: "Overview" },
+  { key: "recipients", label: "Recipients" },
+  { key: "gift", label: "Message & gift" },
+  { key: "schedule", label: "Schedule & Payment" },
+];
+
 const SPREAD_SOURCES = [
   { value: "organization_default", label: "Organization Default", note: "Use the organization’s standard look." },
   { value: "saved_spread", label: "Saved Featured Spread", note: "Reuse a spread you’ve already built." },
@@ -113,8 +122,10 @@ export default function CampaignCard({
   }
 
   // Inline rename.
-  const [showInfo, setShowInfo] = useState(false);
   const [renaming, setRenaming] = useState(false);
+  // FOUNDER-APPROVED LAYOUT (2026-09-25) — which tab is showing inside the review/management
+  // modal. Presentation state only; it decides nothing and gates no fetch.
+  const [activeTab, setActiveTab] = useState("overview");
   // TEAM A — removal is a TWO-STEP affordance. The first press only arms it; the second confirms.
   // A destructive action on a card sitting under the pointer during a drag-reorder must never be
   // one stray click away, and an inline confirm keeps the decision on the card being removed
@@ -446,16 +457,27 @@ export default function CampaignCard({
     );
   };
 
+  // ── COMPACT ROW META — Recipients / Send date / Est. total ───────────────────────────────────
+  // Pure display composition from data already derived above (draftRefs, sched, draft.tierCents).
+  // No new business logic: "Up to" is deliberate, matching this surface's existing "a ceiling,
+  // never a price" language for a gift-box/curated spend limit — never a promised final charge.
+  const metaRecipients = `${draftRefs.length} ${draftRefs.length === 1 ? "contact" : "contacts"}`;
+  const metaSendDate = sched.showSharedDate
+    ? (draft.scheduledForLocal
+      ? new Date(draft.scheduledForLocal).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+      : "Not scheduled yet")
+    : `Each contact's ${String(draft.occasionType || "occasion").replace(/-/g, " ")}`;
+  const metaHasCeiling = (draft.giftType === "curated" || isProviderFundableGiftType(draft.giftType)) && Number.isInteger(draft.tierCents);
+  const metaEstTotal = metaHasCeiling ? `Up to ${centsToDisplay(draft.tierCents * Math.max(draftRefs.length, 1))}` : "—";
+
   return (
-    <article className={`gcd-card${expanded ? " gcd-card--expanded" : ""}${dragging ? " gcd-card--dragging" : ""}`}
+    <article className={`gcd-card gcd-camprow${expanded ? " gcd-card--expanded" : ""}${dragging ? " gcd-card--dragging" : ""}`}
       data-testid={`campaign-card-${campaign.campaignId}`} aria-labelledby={uid("name")}>
 
-      {/* ── HEADER / BANNER ────────────────────────────────────────────────────────────────────
-          ONE header, not two. Collapsed it is the tile head; expanded the same element becomes
-          the full-width banner. That is deliberate: a separate banner would mean a second copy of
-          the title and a second edit pencil, and two controls that rename the same thing is how a
-          reader ends up editing the one that is not wired. */}
-      <div className={`gcd-tile-head${expanded ? " gcd-tile-head--banner" : ""}`}>
+      {/* ── HEADER (compact row) — FOUNDER-APPROVED LAYOUT (2026-09-25): this no longer becomes
+          a banner for an inline-expanded body. The row stays this same compact height whether the
+          campaign's modal is open or closed; the modal is a separate overlay entirely (below). */}
+      <div className="gcd-tile-head">
         <div className="gcd-tile-headline">
           {/* TEAM C - THE DRAG HANDLE. A dedicated control, never the whole tile: making the tile
               itself draggable would fight the pencil, the switch and the expander, and would make
@@ -548,31 +570,36 @@ export default function CampaignCard({
             <span className="gcd-switch-track" aria-hidden="true" />
           </label>
 
-          {/* The information panel is RETAINED. The three selector summaries answer who, what and
-              which spread — they do not answer "will this fire every year", which is the fact most
-              often assumed wrongly and the reason this control was added. */}
-          {expanded ? (
-            <button type="button" className="gcd-info-btn" data-testid={`card-info-${campaign.campaignId}`}
-              style={{ padding: 0 }}
-              aria-expanded={showInfo} aria-controls={uid("info")}
-              title={showInfo ? "Hide the summary" : "What will this campaign do?"}
-              aria-label={`What will ${campaignLabel} do?`}
-              onClick={() => setShowInfo((v) => !v)}>
-              i
-            </button>
-          ) : null}
-
-          {/* The expand control sits last so it lands at the far right of the header row. */}
-          <button type="button" className="gcd-expand" data-testid={`card-expand-${campaign.campaignId}`}
-            style={{ padding: 0 }}
-            aria-expanded={expanded} aria-controls={uid("body")}
-            aria-label={`${expanded ? "Collapse" : "Expand"} ${campaignLabel}`}
+          {/* FOUNDER-APPROVED LAYOUT (2026-09-25) — replaces the inline expand/collapse chevron.
+              Opens the SAME campaign in the SAME modal every other "Open campaign" control here
+              opens; `onToggleExpanded` is the identical handler the old chevron called — only the
+              control's label and appearance changed, matching "no accordion expansion". */}
+          <button type="button" className="gcd-btn gcd-btn--primary" data-testid={`card-open-${campaign.campaignId}`}
+            aria-haspopup="dialog" aria-expanded={expanded}
+            aria-label={`Open ${campaignLabel}`}
             onClick={() => onToggleExpanded && onToggleExpanded(campaign.campaignId)}>
-            <span className="gcd-chevron" aria-hidden="true" />
+            Open campaign →
           </button>
         </div>
 
         <p className="gcd-next" data-testid={`card-next-${campaign.campaignId}`}>{status.next}</p>
+      </div>
+
+      {/* ── COMPACT ROW META — Recipients / Send date / Est. total. Visible whether the modal is
+          open or closed, so the row itself is scannable without opening anything. */}
+      <div className="gcd-camp-meta" data-testid={`card-meta-${campaign.campaignId}`}>
+        <div>
+          <div className="gcd-camp-meta-label">Recipients</div>
+          <div className="gcd-camp-meta-value" data-testid={`card-meta-recipients-${campaign.campaignId}`}>{metaRecipients}</div>
+        </div>
+        <div>
+          <div className="gcd-camp-meta-label">Send date</div>
+          <div className="gcd-camp-meta-value" data-testid={`card-meta-send-${campaign.campaignId}`}>{metaSendDate}</div>
+        </div>
+        <div>
+          <div className="gcd-camp-meta-label">Est. total</div>
+          <div className="gcd-camp-meta-value" data-testid={`card-meta-total-${campaign.campaignId}`}>{metaEstTotal}</div>
+        </div>
       </div>
 
       {/* ── INLINE RENAME ──────────────────────────────────────────────────────────────────────
@@ -597,12 +624,46 @@ export default function CampaignCard({
 
       {message ? <p className="gcd-msg" data-testid={`card-msg-${campaign.campaignId}`} role="status">{message}</p> : null}
 
-      {/* ── EXPANDED BODY ──────────────────────────────────────────────────────────────────── */}
+      {/* ── CAMPAIGN REVIEW / MANAGEMENT MODAL — FOUNDER-APPROVED LAYOUT (2026-09-25) ─────────
+          Replaces the inline "EXPANDED BODY" accordion. Every section below is the SAME JSX,
+          the SAME state, and the SAME handlers the accordion body used — only the outer
+          container changed, from an inline div appended under the tile to a pop-out overlay,
+          and the sections are now organised under tabs instead of all always visible at once. */}
       {expanded ? (
-        <div className="gcd-tile-body" id={uid("body")}>
+        <div className="gcd-modal-overlay" role="presentation"
+          onClick={() => onToggleExpanded && onToggleExpanded(campaign.campaignId)}>
+          <div className="gcd-modal" id={uid("body")} role="dialog" aria-modal="true" aria-labelledby={uid("modal-title")}
+            onClick={(e) => e.stopPropagation()}>
+            <header className="gcd-modal-head">
+              <div>
+                <h2 className="gcd-modal-title" id={uid("modal-title")}>{campaignLabel}</h2>
+                <p className="gcd-modal-sub" data-testid={`card-modal-sub-${campaign.campaignId}`}>{status.label} · {status.next}</p>
+              </div>
+              <button type="button" className="gcd-iconbtn" data-testid={`card-close-${campaign.campaignId}`}
+                aria-label={`Close ${campaignLabel}`}
+                onClick={() => onToggleExpanded && onToggleExpanded(campaign.campaignId)}>
+                ×
+              </button>
+            </header>
 
-          {showInfo ? (
-            <dl className="gcd-info" id={uid("info")} data-testid={`card-info-panel-${campaign.campaignId}`}>
+            <div className="gcd-modal-tabs" role="tablist" aria-label={`${campaignLabel} sections`}>
+              {CAMPAIGN_TABS.map((t) => (
+                <button key={t.key} type="button" role="tab" data-testid={`card-tab-${t.key}-${campaign.campaignId}`}
+                  aria-selected={activeTab === t.key}
+                  onClick={() => setActiveTab(t.key)}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="gcd-modal-body">
+
+          {/* ── OVERVIEW TAB — the information panel, RETAINED, now always available rather than
+              toggled. The three selector summaries answer who, what and which spread — they do
+              not answer "will this fire every year", which is the fact most often assumed
+              wrongly and the reason this panel was added. */}
+          <div hidden={activeTab !== "overview"} data-testid={`tab-overview-${campaign.campaignId}`}>
+            <dl className="gcd-info" data-testid={`card-info-panel-${campaign.campaignId}`}>
               {describeCampaignPlan({ draft, recipientCount: draftRefs.length, enabled }).map((row) => (
                 <div className="gcd-info-row" key={row.key}>
                   <dt className="gcd-info-label">{row.label}</dt>
@@ -610,23 +671,12 @@ export default function CampaignCard({
                 </div>
               ))}
             </dl>
-          ) : null}
+          </div>
 
-          {/* ══ THE CONFIGURATION WORKSPACE ══════════════════════════════════════════════════
-              Three COMPLETE cards, side by side, every option visible at once.
-
-              There is deliberately no Change/Done step in front of these choices. A summary that
-              hides its own options makes a reader click to discover what a control even offers,
-              and only one of the three could be seen at a time — so comparing "who gets this"
-              against "what do they get" meant closing one to open the other. The bubbles ARE the
-              controls; the cards only group them.
-
-              Only genuinely SECONDARY tools still open on demand: the individual-contact roster,
-              and the saved/custom spread editors. Those reveal content that cannot fit inline,
-              and the primary bubbles stay visible the whole time. */}
-          <div className="gcd-workspace" data-testid={`card-selectors-${campaign.campaignId}`}>
-
-            {/* ── AUDIENCE ─────────────────────────────────────────────────────────────────── */}
+          <div hidden={activeTab !== "recipients"} data-testid={`tab-recipients-${campaign.campaignId}`}>
+            {/* ── AUDIENCE — unchanged content/logic. Previously one of three side-by-side cards
+                in ".gcd-workspace"; now it is this tab's whole content, so the 3-column grid
+                wrapper is gone, but every bubble/handler/testid below is identical. */}
             <section className="gcd-wcard" data-testid={`selector-audience-${campaign.campaignId}`}
               aria-labelledby={uid("wc-audience")}>
               <h4 className="gcd-wcard-title" id={uid("wc-audience")}>
@@ -660,7 +710,12 @@ export default function CampaignCard({
                 </span>
               </div>
             </section>
+          </div>
 
+          {/* ── MESSAGE & GIFT TAB — Gift Options + Featured Spread, unchanged content/logic.
+              Previously the other two of three side-by-side ".gcd-workspace" cards; now they are
+              this tab's whole content, stacked normally since only one tab shows at a time. */}
+          <div hidden={activeTab !== "gift"} data-testid={`tab-gift-${campaign.campaignId}`}>
             {/* ── GIFT OPTIONS ─────────────────────────────────────────────────────────────── */}
             <section className="gcd-wcard gcd-wcard--gift" data-testid={`selector-gift-${campaign.campaignId}`}
               aria-labelledby={uid("wc-gift")}>
@@ -811,6 +866,9 @@ export default function CampaignCard({
             </section>
           </div>
 
+          {/* ── SCHEDULE & PAYMENT TAB — Schedule content/logic unchanged, only moved into its own
+              tab; a presentation-only Payment method summary is reserved below it. ────────────── */}
+          <div hidden={activeTab !== "schedule"} data-testid={`tab-schedule-${campaign.campaignId}`}>
           {/* ── SCHEDULE — unchanged modes and payload, kept beneath the selector area ───────── */}
           {/* SLICE F1C - the schedule shape follows the CAMPAIGN, not a question put to the
               reader. A seasonal campaign sends on one date; a milestone or birthday campaign
@@ -857,25 +915,67 @@ export default function CampaignCard({
             </div>
           </div>
 
-          {/* ── ACTIONS. Every capability is preserved; only prominence changes. The valid next
-              step leads, other currently-valid steps stay in a quieter row, and steps that are not
-              valid yet are not rendered — a row of five disabled buttons reads as a broken screen
-              and teaches nothing. `deriveActions` still computes all seven. */}
-          <div className="gcd-actions" data-testid={`card-footer-${campaign.campaignId}`}
-            role="group" aria-label={`Actions for ${campaignLabel} \u2014 ${status.label}`}>
+          {/* ── PAYMENT METHOD — presentation only. No new fetch, no new client: the org's card is
+              managed exactly where it always was, in the EXISTING Payment method panel above the
+              dashboard's Contacts section (SavedCardPanel, untouched). This block only reserves
+              the space the approved reference calls for and shows whatever this card already
+              safely knows (its own computed "Est. total"); everything this card cannot know
+              honestly says so instead of guessing. */}
+          <div className="gcd-section" style={{ marginTop: 18 }}>
+            <p className="gcd-section-label">Payment method</p>
+            <dl className="gcd-info" data-testid={`card-payment-summary-${campaign.campaignId}`}>
+              <div className="gcd-info-row">
+                <dt className="gcd-info-label">Card</dt>
+                <dd className="gcd-info-value" data-testid={`card-payment-card-${campaign.campaignId}`}>—</dd>
+              </div>
+              <div className="gcd-info-row">
+                <dt className="gcd-info-label">Funding status</dt>
+                <dd className="gcd-info-value" data-testid={`card-payment-funding-${campaign.campaignId}`}>—</dd>
+              </div>
+              <div className="gcd-info-row">
+                <dt className="gcd-info-label">Estimated campaign total</dt>
+                <dd className="gcd-info-value" data-testid={`card-payment-total-${campaign.campaignId}`}>{metaEstTotal}</dd>
+              </div>
+              <div className="gcd-info-row">
+                <dt className="gcd-info-label">Expected charge date</dt>
+                <dd className="gcd-info-value" data-testid={`card-payment-chargedate-${campaign.campaignId}`}>—</dd>
+              </div>
+            </dl>
+            <p className="gcd-wcard-note" data-testid={`card-payment-placeholder-${campaign.campaignId}`}>
+              Payment method details will appear here.
+            </p>
+            {/* Opens the EXISTING Payment method panel above Contacts — same section, same
+                SavedCardPanel, same card. This closes the modal and scrolls; it calls nothing. */}
+            <button type="button" className="gcd-btn" data-testid={`card-manage-payment-${campaign.campaignId}`}
+              onClick={() => {
+                if (onToggleExpanded) onToggleExpanded(campaign.campaignId);
+                if (typeof window !== "undefined" && window.requestAnimationFrame) {
+                  window.requestAnimationFrame(() => {
+                    const el = document.getElementById("gcd-card-head");
+                    if (el && typeof el.scrollIntoView === "function") {
+                      el.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }
+                  });
+                }
+              }}>
+              Manage payment method
+            </button>
+          </div>
+          </div>
+            </div>
+
+            {/* ── MODAL FOOTER — the SAME two reader-operated actions (Save/Cancel) SLICE F1C
+                kept, plus the same blocked-step/owner reasons, now sticky beneath every tab
+                instead of scrolling away at the bottom of a long expanded card. */}
+            <footer className="gcd-modal-foot" data-testid={`card-footer-${campaign.campaignId}`}
+              role="group" aria-label={`Actions for ${campaignLabel} — ${status.label}`}>
             {dirty ? (
               <p className="gcd-dirty" data-testid={`card-dirty-${campaign.campaignId}`} role="status">
                 Unsaved changes - nothing is sent until you save.
               </p>
             ) : null}
-            {/* WHOSE actions these are. The banner can scroll out of view above a long expanded
-                body, and unlabelled buttons over someone else's settings is how a reader acts on
-                the wrong campaign. */}
-            <span className="gcd-actions-id" data-testid={`rail-context-${campaign.campaignId}`}
-              title={campaignLabel}>
-              <span className="gcd-actions-id-name">{campaignLabel}</span>
-            </span>
             {/* The editor: always present, enabled by whether anything changed. */}
+            <span className="gcd-spacer" />
             {actionButton("save", dirty)}
             {/* SLICE F1C - Save and Cancel are the only actions a reader operates. Approve,
                 Lock, Unlock, Schedule and Activate are no longer buttons: the founder's contract
@@ -901,6 +1001,7 @@ export default function CampaignCard({
                 {actions.schedule.reason || actions.activate.reason}
               </p>
             ) : null}
+            </footer>
           </div>
         </div>
       ) : null}

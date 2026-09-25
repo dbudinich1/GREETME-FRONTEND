@@ -28,6 +28,7 @@ import {
   readViewerOwnerCapability, readExecutionCapability, findAudienceOverlaps, overlapLine,
   GIFT_PAYMENT_DISCLOSURE,
   moveCampaignId, applyCampaignOrder, campaignIdsOf, reorderAnnouncement,
+  CONTACT_CATEGORIES, bucketContactsByCategory, contactCategoryLabel,
 } from "./corporateDashboardModel.js";
 
 // How many overlapping contacts to name before the list becomes wallpaper. The rest are counted,
@@ -92,6 +93,53 @@ function CreateCampaignForm({ name, type, onName, onType, onSubmit, onCancel, cr
   );
 }
 
+// FOUNDER-APPROVED LAYOUT (2026-09-25) — "View all" contacts. READ-ONLY: it renders the exact
+// same `contacts` array and the exact same `bucketContactsByCategory` grouping ContactTiles
+// already computes for its per-category counts. No request, no selection, no write — a founder
+// who wants to CHOOSE contacts for a campaign still uses the existing Select Individual Contacts
+// picker; this is only a way to see everyone at once instead of one category at a time.
+function ContactsViewAll({ contacts, onClose }) {
+  const bucket = bucketContactsByCategory(contacts);
+  return (
+    <div className="gcd-modal-overlay" role="presentation" onClick={onClose}>
+      <div className="gcd-modal" role="dialog" aria-modal="true" aria-labelledby="gcd-viewall-title"
+        data-testid="contacts-viewall-modal" onClick={(e) => e.stopPropagation()}>
+        <header className="gcd-modal-head">
+          <div>
+            <h2 className="gcd-modal-title" id="gcd-viewall-title">All contacts</h2>
+            <p className="gcd-modal-sub">Every employee, client, and vendor available for campaigns.</p>
+          </div>
+          <button type="button" className="gcd-iconbtn" data-testid="contacts-viewall-close" aria-label="Close" onClick={onClose}>×</button>
+        </header>
+        <div className="gcd-modal-body">
+          {CONTACT_CATEGORIES.map((cat) => {
+            const rows = bucket.byCategory[cat.key];
+            return (
+              <div key={cat.key} style={{ marginBottom: 18 }}>
+                <p className="gcd-panel-note" style={{ fontWeight: 700, color: "var(--gcd-ink)" }}>
+                  {cat.label} · {bucket.counts[cat.key]}
+                </p>
+                {rows.length === 0 ? (
+                  <p className="gcd-panel-note">No contacts in this category yet.</p>
+                ) : (
+                  <ul className="gcd-roster" data-testid={`viewall-roster-${cat.key}`}>
+                    {rows.map((c) => (
+                      <li className="gcd-roster-row" key={c.id}>
+                        <span className={`gcd-abbr gcd-abbr--${cat.key}`} title={contactCategoryLabel(c)}>{cat.abbr}</span>
+                        <span className="gcd-roster-name">{c.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // `client` is an optional injection seam used ONLY by tests (default = the real server-derived
 // client). App usage renders <GreetingAutomationCampaigns /> with no props → identical behavior.
 export default function GreetingAutomationCampaigns({
@@ -117,6 +165,9 @@ export default function GreetingAutomationCampaigns({
   const [contacts, setContacts] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [pickerCampaign, setPickerCampaign] = useState(null);
+  // FOUNDER-APPROVED LAYOUT (2026-09-25) — "View all" opens a read-only combined roster of the
+  // SAME `contacts` this surface already holds. It reads no new endpoint and writes nothing.
+  const [viewAllContacts, setViewAllContacts] = useState(false);
   // SLICE F1 - which campaign is expanded, by CAMPAIGN ID and never by array position. The list
   // re-sorts and re-fetches; an index would silently expand a different campaign the moment one
   // was created or removed. Null means all four tiles are collapsed.
@@ -711,14 +762,28 @@ export default function GreetingAutomationCampaigns({
           </div>
         ) : null}
 
-        {/* TEAM I (CONNECTION D) — PAYMENT METHOD. Placed above Campaigns because a gift campaign
-            cannot be locked, scheduled or activated without a usable card: the reader should meet
-            that requirement before configuring something it would block. */}
-        <SavedCardPanel
-          orgId={effectiveOrgId}
-          client={cardClient}
-          stripeOverride={stripeOverride}
+        {/* B — CONTACT TILES: Employees / Clients / Vendors. FOUNDER-APPROVED LAYOUT
+            (2026-09-25) moves this ABOVE Campaigns — previously it sat below the campaigns
+            section. Same component, same props/data, same "Manage" (inline roster) and
+            "Add <Category>" (existing Import Wizard route) behavior, unchanged. Two new,
+            purely presentational actions are added at the panel head: "Import contacts" (the
+            same Import Wizard route, without a category preselected) and "View all" (a
+            read-only combined roster of the contacts already loaded — no new request). */}
+        <ContactTiles
+          contacts={contacts}
+          loading={loadingContacts}
+          onAddCategory={(key) => {
+            // The EXISTING import wizard route, with this category carried in the URL.
+            goTo(`/dashboard/import-wizard?mode=corporate&category=${encodeURIComponent(key)}`);
+          }}
+          onImportAll={() => goTo("/dashboard/import-wizard?mode=corporate")}
+          onViewAll={() => setViewAllContacts(true)}
+          onSelectIndividual={() => setPickerCampaign(rows.length ? rows[0].campaign : null)}
         />
+
+        {viewAllContacts ? (
+          <ContactsViewAll contacts={contacts} onClose={() => setViewAllContacts(false)} />
+        ) : null}
 
         {/* A — CAMPAIGNS: fixed-height internal scroll, sticky header + Add CTA. */}
         <section className="gcd-panel" data-testid="campaigns-panel" aria-labelledby="gcd-campaigns-head">
@@ -804,6 +869,16 @@ export default function GreetingAutomationCampaigns({
           </div>
         </section>
 
+        {/* TEAM I (CONNECTION D) — PAYMENT METHOD. FOUNDER-APPROVED LAYOUT (2026-09-25) — the
+            account-level card panel moves BELOW Campaigns: Contacts must be the first functional
+            panel on the page. Same component, same props, same behavior — only its position on
+            the page changed. */}
+        <SavedCardPanel
+          orgId={effectiveOrgId}
+          client={cardClient}
+          stripeOverride={stripeOverride}
+        />
+
         {/* F1C ADDENDUM — the standing gift/payment note. Deliberately OUTSIDE the scroll
             viewport and outside every campaign card: one note for the surface, not one per tile.
             It is presentational only — a paragraph and a link. It performs no request, holds no
@@ -827,24 +902,6 @@ export default function GreetingAutomationCampaigns({
             </a>
           </p>
         </aside>
-
-        {/* B — CONTACT TILES: Employees / Clients / Vendors, always visible beneath the viewport.
-
-            SLICE E5 - Manage is handled INSIDE the tile, which opens its own roster inline. It is
-            deliberately NOT routed to /dashboard/contacts: that page reads the PERSONAL contact
-            partition, while these contacts live under the organization with contactScope
-            "corporate". Navigating there would show a different roster and let a reader believe it
-            was this one. The dead `pickerCategory` state this used to set is gone - it was written
-            and never read, so the button did nothing at all. */}
-        <ContactTiles
-          contacts={contacts}
-          loading={loadingContacts}
-          onAddCategory={(key) => {
-            // The EXISTING import wizard route, with this category carried in the URL.
-            goTo(`/dashboard/import-wizard?mode=corporate&category=${encodeURIComponent(key)}`);
-          }}
-          onSelectIndividual={() => setPickerCampaign(rows.length ? rows[0].campaign : null)}
-        />
 
         {pickerCampaign ? (
           <IndividualContactPicker
