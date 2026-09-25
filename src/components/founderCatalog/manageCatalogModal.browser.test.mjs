@@ -48,7 +48,11 @@ function fakeClient(overrides = {}) {
       { providerId: "goody", label: "Goody", enabled: false, reason: "Not yet activated", launchBlockerIds: ["approval_missing"] },
       { providerId: "prezzee", label: "Prezzee", enabled: true, browseAvailable: false, reason: "no_browsable_catalog" },
     ] }; },
-    browseProvider: async (providerId, args) => { calls.browseProvider.push([providerId, args]); return { ok: true, products: [{ externalProductId: "ext1", title: "Test Product" }] }; },
+    // FLORIST ONE CORRECTION (2026-09-24): the real browse item shape, shared across every
+    // provider via the server's toBrowseProduct projection, is {providerProductId, name,
+    // imageUrl, priceCents, currency, directSendEligible, alreadyInCatalog, ...} — not
+    // {externalProductId, title}, which never exists on a real product.
+    browseProvider: async (providerId, args) => { calls.browseProvider.push([providerId, args]); return { ok: true, products: [{ providerProductId: "ext1", name: "Test Product", imageUrl: "https://cdn.test/ext1.jpg", priceCents: 4999, currency: "USD", directSendEligible: true, alreadyInCatalog: false }] }; },
     addFromProvider: async (args) => { calls.addFromProvider.push(args); return { ok: true, item: PUBLISHED_ITEM({ id: `${args.providerId}:${args.externalProductId}`, internal: { source: args.providerId, vendor: args.providerId, externalProductId: args.externalProductId } }) }; },
     lifecycle: async (vendor, id, action, etag) => { calls.lifecycle.push([vendor, id, action, etag]); return { ok: true, item: PUBLISHED_ITEM({ id }) }; },
     patchItem: async (vendor, id, patch, etag) => { calls.patchItem.push([vendor, id, patch, etag]); return { ok: true, item: PUBLISHED_ITEM({ id, curation: { greetMeCategories: patch.greetMeCategories || [], brandable: false, featuredRank: patch.featuredRank ?? null } }) }; },
@@ -444,7 +448,10 @@ test("21. A partial failure across two selected items reports success for one an
       if (call === 2) return { ok: false, error: "duplicate_product" };
       return { ok: true, item: PUBLISHED_ITEM({ id: `${args.providerId}:${args.externalProductId}`, internal: { source: args.providerId, vendor: args.providerId, externalProductId: args.externalProductId } }) };
     },
-    browseProvider: async () => ({ ok: true, products: [{ externalProductId: "ext1", title: "Good One" }, { externalProductId: "ext2", title: "Bad One" }] }),
+    browseProvider: async () => ({ ok: true, products: [
+      { providerProductId: "ext1", name: "Good One", imageUrl: "https://cdn.test/ext1.jpg", priceCents: 4999, currency: "USD", directSendEligible: true, alreadyInCatalog: false },
+      { providerProductId: "ext2", name: "Bad One", imageUrl: "https://cdn.test/ext2.jpg", priceCents: 3999, currency: "USD", directSendEligible: true, alreadyInCatalog: false },
+    ] }),
   });
   const s = await mountOpen(client);
   await openAddFor(s, "florist_one");
