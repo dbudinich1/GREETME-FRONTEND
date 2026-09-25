@@ -837,6 +837,76 @@
   .gcd-info-label { flex: 0 0 auto; }
 }
 
+/* ══ FOUNDER-APPROVED LAYOUT (2026-09-25) — centered hero, Contacts-first ordering, compact
+   campaign rows opening in a pop-out modal instead of an inline accordion. Presentation only:
+   every rule below styles EXISTING data/handlers, never introduces a new one. ══════════════ */
+.gcd-hero { text-align: center; }
+.gcd-hero .gcd-sub { margin: 0 auto; }
+
+/* Contacts panel head — new "Import contacts" / "View all" actions alongside the existing title. */
+.gcd-panel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Contact tiles — same 3-equal-column grid as before; refined the card's own content spacing so
+   the count reads as a clean centered stat, matching the approved reference's card language. */
+.gcd-tile-icon {
+  width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+  background: var(--gcd-lav); color: var(--gcd-purple-deep); margin-bottom: 4px;
+}
+.gcd-tile-count { text-align: center; }
+.gcd-tile-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 6px 0 2px; }
+.gcd-tile-stat-label { font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--gcd-faint); }
+
+/* ── Compact campaign row (replaces the always-expanded accordion tile) ─────────────────────── */
+.gcd-camprow { overflow: visible; }
+.gcd-camprow-main {
+  display: grid; grid-template-columns: auto minmax(200px, 1.3fr) minmax(0, 1fr) auto;
+  align-items: center; gap: 18px;
+}
+.gcd-camp-badge {
+  font-size: .72rem; font-weight: 700; border-radius: 999px; padding: 4px 10px; white-space: nowrap;
+  background: var(--gcd-lav); color: var(--gcd-purple-deep);
+}
+.gcd-camp-badge--live { background: rgba(31, 157, 107, .14); color: #17784f; }
+.gcd-camprow-id { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.gcd-camprow-sub { display: block; font-size: .76rem; color: var(--gcd-faint); margin-top: 2px; }
+.gcd-camp-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.gcd-camp-meta-label { font-size: .64rem; letter-spacing: .06em; text-transform: uppercase; color: var(--gcd-faint); margin-bottom: 2px; }
+.gcd-camp-meta-value { font-size: .84rem; color: var(--gcd-ink); font-weight: 600; }
+.gcd-camprow-foot { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
+
+/* ── Campaign review/management modal ────────────────────────────────────────────────────────── */
+.gcd-modal-overlay {
+  position: fixed; inset: 0; z-index: 80; background: rgba(20, 16, 36, .48);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.gcd-modal {
+  background: #fff; border-radius: 20px; width: min(820px, 100%); max-height: calc(100vh - 48px);
+  overflow-y: auto; box-shadow: var(--gcd-shadow-lift); border: 1px solid var(--gcd-line);
+}
+.gcd-modal-head {
+  position: sticky; top: 0; z-index: 2; background: #fff;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 14px;
+  padding: 20px 22px 12px; border-bottom: 1px solid var(--gcd-line);
+}
+.gcd-modal-title { display: flex; align-items: center; gap: 8px; margin: 0; font-family: Georgia, serif; font-size: 1.3rem; }
+.gcd-modal-sub { margin: 4px 0 0; font-size: .8rem; color: var(--gcd-faint); }
+.gcd-iconbtn { border: none; background: transparent; padding: 6px; border-radius: 8px; font-size: 1.2rem; line-height: 1; cursor: pointer; color: var(--gcd-faint); }
+.gcd-iconbtn:hover { background: var(--gcd-lav); }
+.gcd-modal-tabs { display: flex; gap: 4px; padding: 0 22px; border-bottom: 1px solid var(--gcd-line); flex-wrap: wrap; }
+.gcd-modal-tabs button {
+  border: none; background: transparent; padding: 12px 12px; font-size: .84rem; font-weight: 600;
+  color: var(--gcd-faint); border-bottom: 2px solid transparent; white-space: nowrap; cursor: pointer;
+}
+.gcd-modal-tabs button[aria-selected="true"] { color: var(--gcd-purple-deep); border-bottom-color: var(--gcd-purple); }
+.gcd-modal-body { padding: 18px 22px 6px; }
+.gcd-modal-foot {
+  position: sticky; bottom: 0; background: #fff; border-top: 1px solid var(--gcd-line);
+  padding: 14px 22px; display: flex; align-items: center; gap: 10px;
+}
+.gcd-btn--danger { color: #a3241a; border-color: rgba(214, 69, 69, .35); }
+.gcd-btn--danger:hover:not(:disabled) { background: rgba(214, 69, 69, .08); }
+.gcd-spacer { flex: 1; }
+
 /* ══ SLICE F1 — RESPONSIVE. At the END of the file on purpose: several tests locate the mobile
    rules by slicing from the FIRST "@media (max-width: 720px)", so a query introduced higher up
    would silently redirect them to the wrong block. */
@@ -867,4 +937,9 @@
   .gcd-detail--audience .gcd-bubbles { grid-template-columns: minmax(0, 1fr); }
   .gcd-tile-head--banner { margin: -18px -18px 14px; padding: 16px 18px 12px; }
   .gcd-rename-input { flex-basis: 100%; }
+  .gcd-camprow-main { grid-template-columns: 1fr; }
+  .gcd-camp-meta { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .gcd-camprow-foot { justify-content: flex-start; }
+  .gcd-modal-overlay { padding: 0; }
+  .gcd-modal { width: 100%; max-height: 100vh; border-radius: 0; }
 }
