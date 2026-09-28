@@ -18,6 +18,7 @@ import DashboardHome from "./pages/DashboardHome";
 import Profile from "./pages/Profile";
 import Recipients from "./pages/Contacts";
 import GreetingAutomationCampaigns from "./components/corporateCampaign/GreetingAutomationCampaigns";
+import CorporateDashboardTestDrive from "./components/corporateCampaign/testDrive/CorporateDashboardTestDrive.jsx";
 import ContactImportWizard from "./components/importWizard/ContactImportWizard";
 import TemplateLibrary from "./pages/TemplateLibrary";
 import Settings from "./pages/Settings";
@@ -194,6 +195,11 @@ export default function App() {
             <Route index element={<DashboardHome />} />
             <Route path="contacts" element={<Recipients />} />
             <Route path="campaigns" element={<GreetingAutomationCampaigns />} />
+            {/* Corporate Dashboard Test Drive — the REAL dashboard above, fed a fake client/cardClient
+                via its existing test-only injection seam; see CorporateDashboardTestDrive.jsx. A
+                separate route rather than a query param on "campaigns", so production behavior there
+                is untouched by construction (no code path there even checks for a query param). */}
+            <Route path="campaigns/test-drive" element={<CorporateDashboardTestDrive />} />
             <Route path="import-wizard" element={<ContactImportWizard />} />
             <Route path="templates" element={<TemplateLibrary />} />
             <Route path="profile" element={<Profile />} />
