@@ -111,10 +111,10 @@ export default function PracticeContactPanel({ contacts = [], warnings, category
                   <div style={{ fontSize: ".78rem", color: "#605c78" }}>{c.email || "—"}</div>
                   {w ? (
                     <div data-testid={`practice-warning-${c.id}`} role="status" style={{ marginTop: 4, fontSize: ".76rem", color: "#a3241a" }}>
-                      ⚠ {w.message}
+                      <b>⚠ {w.statusLabel}</b> — {w.message}
                     </div>
                   ) : (
-                    <div data-testid={`practice-ready-${c.id}`} style={{ marginTop: 4, fontSize: ".76rem", color: "#1f7a57" }}>✓ Ready for this campaign</div>
+                    <div data-testid={`practice-ready-${c.id}`} style={{ marginTop: 4, fontSize: ".76rem", color: "#1f7a57" }}><b>✓ Campaign Ready</b></div>
                   )}
                 </div>
                 <button type="button" data-testid={`practice-edit-${c.id}`} style={btn("transparent", "#6b4a12")} onClick={() => setEditingId(c.id)}>Edit Contact</button>

@@ -21,6 +21,12 @@ test("practiceContactWarning: no address at all -> absent, names 'mailing addres
   assert.match(w.message, /mailing address/i);
 });
 
+test("practiceContactWarning: founder-approved exact wording (2026-09-27)", () => {
+  const w = practiceContactWarning({ id: "1", shippingAddress: null }, curatedCampaign);
+  assert.equal(w.statusLabel, "Missing for This Campaign");
+  assert.equal(w.message, "Mailing address required for this physical-gift campaign.");
+});
+
 test("practiceContactWarning: partial address -> incomplete, names the EXACT missing fields", () => {
   const w = practiceContactWarning({ id: "1", shippingAddress: { line1: "1 Main St", city: "Springfield" } }, curatedCampaign);
   assert.ok(w);

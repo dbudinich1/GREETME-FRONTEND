@@ -1206,8 +1206,8 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
         {/* Summary counts — total / ready / needs info */}
         <div className="gmiw-review-summary" data-testid="review-summary">
           <div className="gmiw-review-stat"><b>{counts.total}</b><span>Total</span></div>
-          <div className="gmiw-review-stat gmiw-review-stat--ready"><b>{importCount}</b><span>Ready</span></div>
-          <div className="gmiw-review-stat gmiw-review-stat--needsinfo"><b>{blockers.length}</b><span>Needs Info</span></div>
+          <div className="gmiw-review-stat gmiw-review-stat--ready"><b>{importCount}</b><span>Ready to Import</span></div>
+          <div className="gmiw-review-stat gmiw-review-stat--needsinfo"><b>{blockers.length}</b><span>Needs Import Info</span></div>
         </div>
         {counts.alreadyInList > 0 && <div className="gmiw-review-note">{counts.alreadyInList} already in your recipient list—we'll skip {counts.alreadyInList === 1 ? "this contact" : "them"}.</div>}
         {counts.willSkip > 0 && <div className="gmiw-review-note">{counts.willSkip} won't be added.</div>}

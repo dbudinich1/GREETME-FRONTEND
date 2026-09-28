@@ -35,13 +35,19 @@ export function practiceContactWarning(contact, campaign) {
   if (isPhysicalGiftEligible(result.status)) return null;   // ready — nothing to warn about
   const missing = result.missing && result.missing.length ? result.missing : ADDRESS_REQUIRED;
   const fields = missing.map((k) => FIELD_LABEL[k] || k);
+  // FOUNDER-APPROVED WORDING (2026-09-27) — presentation only; the calculation above (which
+  // contacts are flagged, and why) is unchanged. No address at all -> the founder's own example
+  // sentence verbatim. A partial address -> the same sentence shape, naming the SPECIFIC fields
+  // still missing (capitalized as the start of the sentence).
+  const fieldsLabel = result.status === "absent"
+    ? "Mailing address"
+    : fields[0].charAt(0).toUpperCase() + fields[0].slice(1) + fields.slice(1).map((f) => `, ${f}`).join("");
   return {
     status: result.status,
     label: result.label,
+    statusLabel: "Missing for This Campaign",
     missingFields: fields,
-    message: result.status === "absent"
-      ? "Missing mailing address — required for this campaign's gift."
-      : `Missing ${fields.join(", ")} — required for this campaign's gift.`,
+    message: `${fieldsLabel} required for this physical-gift campaign.`,
   };
 }
 

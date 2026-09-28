@@ -66,3 +66,10 @@ test("business prop threads DetailsView -> DetailRow -> RelationshipControls", (
 test("completionModel.js taxonomy itself is never edited by this feature (no RELATIONSHIP_CATEGORIES mutation)", () => {
   assert.doesNotMatch(WIZ, /RELATIONSHIP_CATEGORIES\s*=\s*\[/, "the wizard only ever narrows rendered options, never reassigns the taxonomy");
 });
+
+test("founder-approved review-summary labels (2026-09-27): 'Ready to Import' / 'Needs Import Info'", () => {
+  assert.match(WIZ, /<b>\{importCount\}<\/b><span>Ready to Import<\/span>/);
+  assert.match(WIZ, /<b>\{blockers\.length\}<\/b><span>Needs Import Info<\/span>/);
+  // Total label and the underlying counts themselves are unchanged.
+  assert.match(WIZ, /<b>\{counts\.total\}<\/b><span>Total<\/span>/);
+});
