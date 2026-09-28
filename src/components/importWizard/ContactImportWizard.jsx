@@ -10,7 +10,7 @@
 // / recipientTypeModel / reviewModel). This component orchestrates and never modifies the locked
 // Recipients page or adds backend routes.
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Papa from "papaparse";
 import api from "../../api/api";
@@ -569,6 +569,21 @@ export default function ContactImportWizard() {
 
   const business = mode === MODES.CORPORATE;
 
+  // "View and Manage Your Practice Contacts in the Corporate Dashboard" — the business Test Drive's
+  // single primary action. Same zero-mutation pattern as viewPracticeInRecipients above: persist ONLY
+  // to the session-scoped practice workspace, then open the REAL Corporate Dashboard in its own
+  // Test Drive route (never api.corporate-campaigns, never Cosmos, never the production dashboard
+  // without the practice marker).
+  const viewPracticeInCorporateDashboard = () => {
+    if (!sample || !business) return;
+    try {
+      assertNoRealMix((rows || []).map((r) => r.contact));
+      const built = buildReviewPayload(rows, reviewState);
+      saveSampleWorkspace(built, recipientKind || "employee");
+      navigate("/dashboard/campaigns/test-drive");
+    } catch (e) { setError(String(e && e.message)); }
+  };
+
   // Slice 2B-2B: a genuine Corporate workbook drives the commit flow — preview → confirm + authorized
   // organization selection → authenticated commit (dormant endpoint → truthful 503) → deterministic
   // reconciliation → results summary (stays put). Practice/Test Drive can never reach here (!sample)
@@ -731,6 +746,7 @@ export default function ContactImportWizard() {
           business={business} kindLabel={kindLabel} demo={sample} busy={busy}
           partial={partial} sampleActions={sampleActions} defaultsPath={templateKind}
           onCommit={onCommit} onStartOver={startOver} onViewPractice={viewPracticeInRecipients}
+          onViewPracticeCorporate={viewPracticeInCorporateDashboard}
         />
       )}
     </Shell>
@@ -1122,7 +1138,7 @@ const linkBtn = { ...btn("transparent", "#4a3fb0"), padding: "4px 10px", fontSiz
 const PREVIEW_N = 6;          // small confirmation preview
 const DETAILS_BATCH = 25;     // optional-relationship editor page size
 
-export function ReviewScreen({ rows, state, setState, business, kindLabel, demo, busy, partial, sampleActions, defaultsPath, onCommit, onStartOver, onViewPractice }) {
+export function ReviewScreen({ rows, state, setState, business, kindLabel, demo, busy, partial, sampleActions, defaultsPath, onCommit, onStartOver, onViewPractice, onViewPracticeCorporate }) {
   const review = buildReview(rows, state);
   const { buckets, counts, importCount, importEnabled } = review;
   const [view, setView] = useState("confirm");   // "confirm" | "details"
@@ -1138,6 +1154,20 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
   const dflt = recommendedDefaults(rows, state, defaultsPath);
   const applyDefaults = () => { const res = applyRecommendedDefaults(state, dflt.indices, dflt.def); setState(res.state); setDfltUndo(res.undo); setDfltApplied(res.appliedCount); };
   const undoDefaults = () => { const u = dfltUndo; setDfltUndo(null); setDfltApplied(0); if (u) setState((s) => undoRecommendedDefaults(s, u)); };
+  // FOUNDER-APPROVED TEST DRIVE SIMPLIFICATION — Test Drive never shows the "Recommended settings"
+  // notice or "Add relationship details first" (see below), so a practice contact would otherwise
+  // never get the SAME professional-branch relationship values the downloadable template already
+  // recommends for this category. Apply them automatically, once, using the EXISTING engine
+  // (recommendedDefaults/applyRecommendedDefaults) — no new rule, no new taxonomy, same values a
+  // reader could have applied by hand. Real (non-sample) imports are completely unaffected: this
+  // effect only ever runs when isSample is true.
+  const autoDfltRan = useRef(false);
+  useEffect(() => {
+    if (!isSample || autoDfltRan.current) return;
+    autoDfltRan.current = true;
+    if (dflt.available) applyDefaults();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSample]);
 
   const bind = (fn) => (i, v) => setState((s) => fn(s, i, v));
   const on = {
@@ -1149,7 +1179,7 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
   const openDetails = () => setView("details");
 
   if (view === "details") {
-    return <DetailsView editable={buckets.ready} page={detPage} setPage={setDetPage} on={on}
+    return <DetailsView editable={buckets.ready} page={detPage} setPage={setDetPage} on={on} business={business}
       onDone={() => { setView("confirm"); setDetPage(0); }} onStartOver={onStartOver} />;
   }
 
@@ -1182,8 +1212,11 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
         {counts.alreadyInList > 0 && <div className="gmiw-review-note">{counts.alreadyInList} already in your recipient list—we'll skip {counts.alreadyInList === 1 ? "this contact" : "them"}.</div>}
         {counts.willSkip > 0 && <div className="gmiw-review-note">{counts.willSkip} won't be added.</div>}
 
-        {/* Opt-in recommended safe defaults — compact notice; never applied silently. */}
-        {dfltApplied > 0 ? (
+        {/* Opt-in recommended safe defaults — compact notice; never applied silently. FOUNDER-APPROVED
+            TEST DRIVE SIMPLIFICATION: this entire notice (both the "available" and "applied" states)
+            is hidden for Test Drive — the same defaults are applied automatically instead (see the
+            isSample effect above), with no panel exposed. Real imports are unaffected. */}
+        {!isSample && (dfltApplied > 0 ? (
           <div className="gmiw-defaults" data-testid="defaults-applied">
             <b>Recommended settings applied to {dfltApplied} contact{dfltApplied === 1 ? "" : "s"}.</b>
             <div className="gmiw-defaults-cta">
@@ -1200,7 +1233,7 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
               <button data-testid="review-individually" style={btn("transparent", "#4a3fb0")} onClick={() => setDfltDismissed(true)}>Review individually</button>
             </div>
           </div>
-        ) : null}
+        ) : null)}
 
         {/* Partial real import — truthful, never a false 'complete success' */}
         {partial && (
@@ -1244,8 +1277,16 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
           </div>
         )}
 
-        {/* Read-only Test Drive notice + primary CTA — view the fictional contacts in Recipients (Practice View) */}
-        {isSample && (
+        {/* Read-only Test Drive notice + primary CTA. Personal Test Drive is UNCHANGED (View Practice
+            Contacts in Recipients). Business Test Drive's single primary action now opens the real
+            Corporate Dashboard in Test Drive state, per the founder-approved wording. */}
+        {isSample && business && (
+          <div data-testid="practice-cta-block" className="gmiw-review-practice">
+            <button data-testid="view-practice-dashboard" style={btn(PURPLE)} onClick={onViewPracticeCorporate}>View and Manage Your Practice Contacts in the Corporate Dashboard</button>
+            <p data-testid="practice-cta-note" className="gmiw-review-note">See exactly where these contacts will appear and how you'll manage them after import.</p>
+          </div>
+        )}
+        {isSample && !business && (
           <div data-testid="practice-cta-block" className="gmiw-review-practice">
             <button data-testid="view-practice-recipients" style={btn(PURPLE)} onClick={onViewPractice}>View Practice Contacts in Recipients</button>
             <p data-testid="practice-cta-note" className="gmiw-review-note">See how the fictional contacts will look in your Recipients page. They exist only during this Test Drive and will be automatically removed when you exit Test Drive or log out.</p>
@@ -1256,7 +1297,9 @@ export function ReviewScreen({ rows, state, setState, business, kindLabel, demo,
         <div className="gmiw-review-actions">
           <button data-testid="startover" style={btn("transparent", "#1b1830")} onClick={onStartOver}>Start over</button>
           <div className="gmiw-review-actions-primary">
-            {counts.ready > 0 && <button data-testid="details-cta" style={btn("transparent", "#4a3fb0")} onClick={openDetails}>Add relationship details first</button>}
+            {/* FOUNDER-APPROVED TEST DRIVE SIMPLIFICATION — never shown in Test Drive; real imports
+                (personal or business) keep this exactly as before. */}
+            {!isSample && counts.ready > 0 && <button data-testid="details-cta" style={btn("transparent", "#4a3fb0")} onClick={openDetails}>Add relationship details first</button>}
             {isIndividualSample ? (
               <>
                 <button data-testid="sample-upload-own" style={btn("transparent", "#1b1830")} onClick={sampleActions.onUploadOwn}>Upload my own CSV</button>
@@ -1369,7 +1412,7 @@ function ReviewTableRow({ it, business, contact, onAddRelationship }) {
 
 // Optional relationship editor — opened only from "Add relationship details first". Paginated (F5),
 // edits preserved across pages (they live in review state, not this view).
-function DetailsView({ editable, page, setPage, on, onDone, onStartOver }) {
+function DetailsView({ editable, page, setPage, on, business, onDone, onStartOver }) {
   const pg = paginate(editable, page, DETAILS_BATCH);
   return (
     <div data-testid="details-screen" style={{ display: "grid", gap: 14 }}>
@@ -1378,7 +1421,7 @@ function DetailsView({ editable, page, setPage, on, onDone, onStartOver }) {
         <p style={{ ...sub, marginTop: 4 }}>Optional — this helps Greet-Me personalize each greeting. You can leave any of them blank.</p>
       </div>
       <div style={{ display: "grid", gap: 10 }}>
-        {pg.slice.map((it) => <DetailRow key={it.index} it={it} on={on} />)}
+        {pg.slice.map((it) => <DetailRow key={it.index} it={it} on={on} business={business} />)}
       </div>
       {pg.pages > 1 && <Pager page={pg.page} pages={pg.pages} onPage={setPage} />}
       <div style={{ ...rowStyle }}>
@@ -1389,25 +1432,30 @@ function DetailsView({ editable, page, setPage, on, onDone, onStartOver }) {
   );
 }
 
-function DetailRow({ it, on }) {
+function DetailRow({ it, on, business }) {
   return (
     <div style={{ ...card, padding: 14, display: "grid", gap: 8 }}>
       <div><b style={{ fontSize: ".9rem" }}>{it.name}</b> <span style={sub}>· {it.email}</span></div>
       {!it.relationProvided && !it.relationUnrecognizedRaw && <div style={{ fontSize: ".78rem", color: "#a08a5a" }}>Relationship not provided (optional).</div>}
       {it.relationUnrecognizedRaw && <div style={{ fontSize: ".78rem", color: "#7a5410" }}>We didn't recognize “{it.rawRel}.” You can add the relationship now or leave it blank.</div>}
-      <RelationshipControls it={it} on={on} />
+      <RelationshipControls it={it} on={on} business={business} />
     </div>
   );
 }
 
 // The three canonical ContactForm controls with first-time-user helper text (exact labels).
-function RelationshipControls({ it, on }) {
+// FOUNDER-APPROVED — for a real Business import, the Relationship group is constrained to the
+// existing Professional branch only (no Family/Friend options in a Business picker). The taxonomy
+// itself (RELATIONSHIP_CATEGORIES/RELATIONS_BY_CATEGORY) is untouched — this only narrows which of
+// its ALREADY-canonical options render here.
+function RelationshipControls({ it, on, business }) {
+  const groupOptions = business ? RELATIONSHIP_CATEGORIES.filter((c) => c.value === "professional") : RELATIONSHIP_CATEGORIES;
   return (
     <div style={{ display: "grid", gap: 8 }}>
-      <Field label="Relationship group" help="Is this person family, a friend, or a professional contact?">
+      <Field label="Relationship group" help={business ? "Business contacts use the Professional relationship group." : "Is this person family, a friend, or a professional contact?"}>
         <select data-testid="group-select" value={it.group} onChange={(e) => on.group(it.index, e.target.value)} style={inp}>
           <option value="">Select a group</option>
-          {RELATIONSHIP_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+          {groupOptions.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
       </Field>
       <Field label="Relationship" help="Choose the specific relationship.">
