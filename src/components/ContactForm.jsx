@@ -2670,7 +2670,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                           >
                             <option value="none">None</option>
                             <option value="qrcash">QR Cash™</option>
-                            <option value="merch">Merch</option>
+                            <option value="merch">Branded Goods</option>
                             <option value="curated">Let Greet-Me select a gift</option>
                             <option value="marketplace">Browse Marketplace</option>
                           </select>
