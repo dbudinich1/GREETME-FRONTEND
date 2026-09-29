@@ -20,9 +20,12 @@ test("physical gift types share ONE delivery-address gate", () => {
   assert.match(SRC, /export const DELIVERY_REQUIRED_GIFT_TYPES = \['curated', 'flowers', 'gift_boxes'\]/);
   assert.match(SRC, /export const requiresDeliveryAddress/);
 
-  // Both render paths use the shared predicate — neither restates the list.
+  // All occasion render paths use the shared predicate — none restates the list. Team 3's
+  // Faith-Based Holidays section (six-team merge, 2026-09-29) added a third render path,
+  // correctly reusing this same shared gate rather than duplicating the delivery-type list —
+  // exactly the pattern this test exists to enforce, so the count grows with it (2 -> 3).
   const gates = SRC.match(/requiresDeliveryAddress\(giftSetting\.type\) && \(/g) || [];
-  assert.equal(gates.length, 2, "both occasion render paths are gated by the predicate");
+  assert.equal(gates.length, 3, "every occasion render path is gated by the same shared predicate");
 
   // The old curated-only address gate is gone.
   assert.equal(
