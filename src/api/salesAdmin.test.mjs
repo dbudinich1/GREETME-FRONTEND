@@ -75,6 +75,22 @@ test("the one-time link is returned to the caller and NEVER persisted by the cli
   for (const c of calls) assert.equal(c.url.includes("SECRET-TOKEN"), false, "never in a query string");
 });
 
+test("linkUser PUTs the exact linked-user route with the resolved userId, nothing else", async () => {
+  reply = { ok: true, status: 200, body: { ok: true, salesperson: { salespersonId: "sp1", linkedUserId: "u-1" } } };
+  await salesAdminApi.linkUser("sp1", "u-1");
+  assert.equal(calls[0].method, "PUT");
+  assert.equal(calls[0].url, "/api/sales/admin/salespeople/sp1/linked-user");
+  assert.deepEqual(calls[0].body, { linkedUserId: "u-1" });
+});
+
+test("unlinkUser sends linkedUserId: null — the documented removal contract", async () => {
+  reply = { ok: true, status: 200, body: { ok: true, salesperson: { salespersonId: "sp1", linkedUserId: null } } };
+  await salesAdminApi.unlinkUser("sp1");
+  assert.equal(calls[0].method, "PUT");
+  assert.equal(calls[0].url, "/api/sales/admin/salespeople/sp1/linked-user");
+  assert.deepEqual(calls[0].body, { linkedUserId: null });
+});
+
 test("a network failure degrades to the shared envelope, not an exception", async () => {
   reply = { throws: true };
   const res = await salesAdminApi.list();
@@ -98,4 +114,6 @@ test("error messages are plain language and leak no internal code", () => {
       "no internal code or stack reaches the user");
   }
   assert.match(salesAdminErrorMessage({ status: 404 }, { context: "read" }), /no longer exists/i);
+  assert.match(salesAdminErrorMessage({ status: 409, data: { reason: "USER_ALREADY_LINKED" } }), /already linked to a different salesperson/i);
+  assert.match(salesAdminErrorMessage({ status: 400 }, { context: "linkedUser" }), /valid email address/i);
 });
