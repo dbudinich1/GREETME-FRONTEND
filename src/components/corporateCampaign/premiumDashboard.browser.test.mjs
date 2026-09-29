@@ -379,15 +379,20 @@ test("D: the Curated tier control persists CENTS and is described as private", a
   assert.equal(JSON.stringify(body).includes('"amount"'), false);
 });
 
+// TEAM 5 (2026-09-29): "saved_spread" is removed from the choice set entirely — it had no
+// backing functionality (no picker, no saved-spread list, nothing clickable), unlike the other
+// two options which correspond to the real, only-two-values backend contract
+// (ANIMATION_IMAGE_SOURCE.ORGANIZATION_DEFAULT / CAMPAIGN_OVERRIDE).
 test("F1C: every choice is a real checkbox or radio behind a substantial circle", async () => {
   const s = await mount(cardEl());
   for (const k of ["employee", "client", "vendor"]) assert.equal(s.q(`#c-cmp_1-aud-${k}`).type, "checkbox");
   for (const v of ["none", "curated", "qrcash", "marketplace"]) assert.equal(s.q(`#c-cmp_1-gift-${v}`).type, "radio");
-  for (const v of ["organization_default", "saved_spread", "customize"]) assert.equal(s.q(`#c-cmp_1-spread-${v}`).type, "radio");
+  for (const v of ["organization_default", "customize"]) assert.equal(s.q(`#c-cmp_1-spread-${v}`).type, "radio");
+  assert.equal(s.q("#c-cmp_1-spread-saved_spread"), null, "the non-functional third option is gone");
   // Radios in a group share one name → genuine single-select.
   assert.equal(s.q("#c-cmp_1-gift-none").name, s.q("#c-cmp_1-gift-curated").name);
   // The visual is a circle, and every control keeps its label.
-  assert.ok(s.qa(".gcd-wcard .gcd-dot").length >= 10, "a circle per choice");
+  assert.ok(s.qa(".gcd-wcard .gcd-dot").length >= 9, "a circle per choice");
   for (const el of s.qa(".gcd-wcard .gcd-bubble input")) {
     assert.ok(s.q(`label[for="${el.id}"]`), `${el.id} must have a label`);
   }
@@ -1004,8 +1009,9 @@ test("F1B: all three configuration cards are COMPLETE and visible at once", asyn
   for (const v of ["none", "curated", "qrcash", "marketplace"]) {
     assert.ok(s.q(`#c-cmp_1-gift-${v}`), `${v} bubble visible without another click`);
   }
-  // Featured Spread: all three, immediately.
-  for (const v of ["organization_default", "saved_spread", "customize"]) {
+  // Featured Spread: both real options, immediately (TEAM 5, 2026-09-29 — the non-functional
+  // "saved_spread" third option was removed; see the F1C test above for why).
+  for (const v of ["organization_default", "customize"]) {
     assert.ok(s.q(`#c-cmp_1-spread-${v}`), `${v} bubble visible without another click`);
   }
 });
@@ -1045,15 +1051,16 @@ test("F1B: a disabled gift choice stays VISIBLE and disabled, with its reason", 
   }
 });
 
-test("F1B: the spread editor opens inline WITHOUT hiding the three spread choices", async () => {
+test("F1B: the spread editor opens inline WITHOUT hiding the spread choices", async () => {
   // The only secondary tools that still open on demand are the ones that cannot fit in a bubble.
   const s = await mount(cardEl({}, { isOwner: true }));
   assert.equal(s.tid("card-spread-editor-cmp_1"), null, "closed until Customize is chosen");
 
   await act(async () => { s.q("#c-cmp_1-spread-customize").click(); });
   assert.ok(s.tid("card-spread-editor-cmp_1"), "the existing editor opens inline");
-  // …and the three principal choices are still on screen.
-  for (const v of ["organization_default", "saved_spread", "customize"]) {
+  // …and both real choices are still on screen (TEAM 5, 2026-09-29 — the non-functional
+  // "saved_spread" third option was removed; see the F1C test above for why).
+  for (const v of ["organization_default", "customize"]) {
     assert.ok(s.q(`#c-cmp_1-spread-${v}`), `${v} still visible while the editor is in use`);
   }
   assert.equal(s.qa("[role='dialog']").length, 0, "no modal");
