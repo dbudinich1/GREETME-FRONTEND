@@ -45,7 +45,7 @@ const TILE_ICONS = {
   ),
 };
 
-export default function ContactTiles({ contacts, loading = false, onManage, onAddCategory, onImportAll, onViewAll, onSelectIndividual }) {
+export default function ContactTiles({ contacts, loading = false, onManage, onAddCategory, onImportAll, onViewAll }) {
   const bucket = bucketContactsByCategory(contacts);
   const notice = unclassifiedNotice(bucket);
 
@@ -162,10 +162,6 @@ export default function ContactTiles({ contacts, loading = false, onManage, onAd
         {notice ? (
           <div className="gcd-notice" data-testid="unclassified-notice" role="status">
             <span>{notice.text}</span>
-            <button type="button" className="gcd-btn" data-testid="unclassified-select-individual"
-              onClick={() => onSelectIndividual && onSelectIndividual()}>
-              Select Individual Contacts
-            </button>
           </div>
         ) : null}
       </div>

@@ -23,7 +23,6 @@ import SavedCardPanel from "./SavedCardPanel.jsx";
 // SLICE D — the consolidated premium surface.
 import CampaignCard from "./CampaignCard.jsx";
 import ContactTiles from "./ContactTiles.jsx";
-import IndividualContactPicker from "./IndividualContactPicker.jsx";
 import {
   readViewerOwnerCapability, readExecutionCapability, findAudienceOverlaps, overlapLine,
   GIFT_PAYMENT_DISCLOSURE,
@@ -161,10 +160,17 @@ export default function GreetingAutomationCampaigns({
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("");
-  // SLICE D — the organisation contact pool and the individual-selection surface.
+  // SLICE D — the organisation contact pool.
   const [contacts, setContacts] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
-  const [pickerCampaign, setPickerCampaign] = useState(null);
+  // TEAM 5 (2026-09-29) — the individual-contact picker used to be rendered here, as a sibling of
+  // this section with no elevated z-index, so it mounted BEHIND an already-open campaign modal and
+  // wrote to the server independently of that modal's own draft/Save flow (silently discarding any
+  // unsaved category-checkbox edit the moment it saved and the dashboard refetched). It now lives
+  // inside CampaignCard itself, as part of the same modal and the same edit buffer — see
+  // CampaignCard.jsx's Recipients tab. The global "Select Individual Contacts" entry point that used
+  // to live on the Contacts panel (defaulting to an arbitrary first campaign with no indication which
+  // one) is removed entirely; unclassified contacts remain reachable per-campaign.
   // FOUNDER-APPROVED LAYOUT (2026-09-25) — "View all" opens a read-only combined roster of the
   // SAME `contacts` this surface already holds. It reads no new endpoint and writes nothing.
   const [viewAllContacts, setViewAllContacts] = useState(false);
@@ -778,7 +784,6 @@ export default function GreetingAutomationCampaigns({
           }}
           onImportAll={() => goTo("/dashboard/import-wizard?mode=corporate")}
           onViewAll={() => setViewAllContacts(true)}
-          onSelectIndividual={() => setPickerCampaign(rows.length ? rows[0].campaign : null)}
         />
 
         {viewAllContacts ? (
@@ -861,7 +866,6 @@ export default function GreetingAutomationCampaigns({
                   onExecutionDormant={() => setCanAuthorizeRun(false)}
                   expanded={expandedCampaignId === r.campaign.campaignId}
                   onToggleExpanded={(cid) => setExpandedCampaignId((cur) => (cur === cid ? null : cid))}
-                  onOpenIndividualPicker={(c) => setPickerCampaign(c)}
                   onAfterMutate={async () => { await loadCampaigns(effectiveOrgId); }}
                 />
               ))
@@ -903,16 +907,6 @@ export default function GreetingAutomationCampaigns({
           </p>
         </aside>
 
-        {pickerCampaign ? (
-          <IndividualContactPicker
-            contacts={contacts}
-            orgId={effectiveOrgId}
-            campaign={pickerCampaign}
-            client={client}
-            onClose={() => setPickerCampaign(null)}
-            onSaved={async () => { setPickerCampaign(null); await loadCampaigns(effectiveOrgId); }}
-          />
-        ) : null}
       </div>
     </div>
   );

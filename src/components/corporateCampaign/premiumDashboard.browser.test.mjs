@@ -272,13 +272,17 @@ test("D: exactly three contact tiles, counted from the persisted classification"
   assert.equal(s.qa(".gcd-tile").length, 3);
 });
 
-test("D: the arithmetic is disclosed and the notice names Select Individual Contacts", async () => {
+// TEAM 5 (2026-09-29): the global "Select Individual Contacts" button on this panel used to
+// default to an arbitrary first campaign with no indication which one, and opened a picker that
+// mounted behind an already-open campaign modal. Removed entirely — unclassified contacts remain
+// reachable from within each campaign's own Recipients tab, which is what the notice now says.
+test("D: the arithmetic is disclosed, and the notice points to the per-campaign picker", async () => {
   const s = await mount(React.createElement(ContactTiles, { contacts: CONTACTS }));
   assert.equal(s.tid("contact-totals").textContent, "4 classified · 2 unclassified · 6 total");
   const notice = s.tid("unclassified-notice");
   assert.ok(notice, "the gap is disclosed, never hidden");
-  assert.match(notice.textContent, /2 existing contacts are unclassified\. They remain available through Select Individual Contacts\./);
-  assert.ok(s.tid("unclassified-select-individual"), "and offers the action that actually exists");
+  assert.match(notice.textContent, /2 existing contacts are unclassified\. They remain available from within a campaign's Recipients tab\./);
+  assert.equal(s.tid("unclassified-select-individual"), null, "the disorienting global action is gone");
   // No fabricated remedy.
   assert.equal(/fix classification|reclassify|migrate/i.test(notice.textContent), false);
 });
@@ -441,22 +445,30 @@ test("D: category bubbles call setAudience with a deduplicated, unclassified-fre
 });
 
 // ══ individual picker ═══════════════════════════════════════════════════════════════════════
+// TEAM 5 (2026-09-29): the picker no longer writes to the server itself (see
+// IndividualContactPicker.jsx's header comment) — opening it inside an already-open campaign
+// modal used to write to the server independently of that modal's own draft, which could
+// silently discard an unrelated unsaved edit the instant the dashboard refetched. It now stages
+// its selection into the caller's edit buffer via `onSave`, exactly like every other field on
+// the card, and is rendered in-place inside the modal rather than as a second overlay elsewhere
+// in the DOM — so this test now proves the STAGING contract, not a network call.
 test("D: an unclassified contact is selectable individually and labelled neutrally", async () => {
+  let staged = null;
+  calls.length = 0;
   const s = await mount(React.createElement(IndividualContactPicker, {
-    contacts: CONTACTS, orgId: "org1", campaign: campaign({ audienceRefs: ["e1"] }), client: fakeClient,
-    onClose: () => {}, onSaved: async () => {},
+    contacts: CONTACTS, initialSelected: ["e1"],
+    onClose: () => {}, onSave: (ids) => { staged = ids; },
   }));
   assert.ok(s.tid("pick-u1"), "unclassified contacts remain reachable");
   assert.equal(s.tid("pick-u1-category").textContent, "Unclassified");
   assert.equal(s.tid("pick-e1-category").textContent, "Employee");
 
-  calls.length = 0;
   const box = s.q("#pick-u1");
   await act(async () => { box.click(); });
   await click(s.tid("picker-save"));
-  const refs = calls.find((c) => c[0] === "setAudience")[3];
-  assert.deepEqual([...refs].sort(), ["e1", "u1"]);
-  assert.equal(new Set(refs).size, refs.length);
+  assert.deepEqual([...staged].sort(), ["e1", "u1"], "staged locally, not written to the server");
+  assert.equal(new Set(staged).size, staged.length);
+  assert.equal(calls.length, 0, "no network call — nothing is sent until the campaign's own Save");
 });
 
 

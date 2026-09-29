@@ -45,6 +45,7 @@ import {
 import { EXECUTION_DORMANT_REASON } from "../../api/corporateCampaigns.js";
 import { CategoryBubble, ChoiceBubble, BubbleGroup } from "./Bubbles.jsx";
 import CampaignFeaturedSpreadEditor from "../../corporateCampaign/CampaignFeaturedSpreadEditor.jsx";
+import IndividualContactPicker from "./IndividualContactPicker.jsx";
 import "./premiumDashboard.css";
 
 // The four review tabs the approved reference names. Each renders EXISTING section content,
@@ -95,7 +96,7 @@ export default function CampaignCard({
   // `onOpenDetail` is deliberately gone: the title is a heading, not a link. A campaign is
   // configured on this card, so routing to CampaignDetail to read the same facts was exactly the
   // secondary-screen sequence this redesign removes.
-  onOpenIndividualPicker, onAfterMutate,
+  onAfterMutate,
 }) {
   const status = deriveCampaignStatus(campaign);
   const actions = deriveActions(campaign, { isOwner, canAuthorizeRun });
@@ -126,6 +127,10 @@ export default function CampaignCard({
   // FOUNDER-APPROVED LAYOUT (2026-09-25) — which tab is showing inside the review/management
   // modal. Presentation state only; it decides nothing and gates no fetch.
   const [activeTab, setActiveTab] = useState("overview");
+  // TEAM 5 (2026-09-29) — whether the individual-contact picker is showing inside the Recipients
+  // tab. It is now part of THIS modal (no second overlay) and stages into the draft below, never
+  // writing to the server on its own.
+  const [pickerOpen, setPickerOpen] = useState(false);
   // TEAM A — removal is a TWO-STEP affordance. The first press only arms it; the second confirms.
   // A destructive action on a card sitting under the pointer during a drag-reorder must never be
   // one stray click away, and an inline confirm keeps the decision on the card being removed
@@ -701,7 +706,7 @@ export default function CampaignCard({
                   choice that fits in a bubble. Its availability and count stay on the card. */}
               <div className="gcd-wcard-foot">
                 <button type="button" className="gcd-btn" data-testid={`card-individual-${campaign.campaignId}`}
-                  disabled={locked} onClick={() => onOpenIndividualPicker && onOpenIndividualPicker(campaign)}>
+                  disabled={locked} onClick={() => setPickerOpen(true)}>
                   Select Individual Contacts
                 </button>
                 <span className="gcd-wcard-note" data-testid={`card-audience-total-${campaign.campaignId}`}>
@@ -709,6 +714,16 @@ export default function CampaignCard({
                   {counts.unclassified > 0 ? ` \u00b7 ${counts.unclassified} unclassified` : ""}
                 </span>
               </div>
+              {pickerOpen ? (
+                <div className="gcd-wcard-foot" style={{ display: "block", marginTop: 12 }}>
+                  <IndividualContactPicker
+                    contacts={contacts}
+                    initialSelected={draft.individualRefs}
+                    onClose={() => setPickerOpen(false)}
+                    onSave={(ids) => { edit({ individualRefs: ids }); setPickerOpen(false); }}
+                  />
+                </div>
+              ) : null}
             </section>
           </div>
 

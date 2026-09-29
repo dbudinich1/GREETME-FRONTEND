@@ -75,7 +75,7 @@ export function unclassifiedNotice(bucket) {
   const n = bucket.unclassifiedCount;
   return {
     count: n,
-    text: `${n} existing contact${n === 1 ? "" : "s"} ${n === 1 ? "is" : "are"} unclassified. They remain available through Select Individual Contacts.`,
+    text: `${n} existing contact${n === 1 ? "" : "s"} ${n === 1 ? "is" : "are"} unclassified. They remain available from within a campaign's Recipients tab.`,
   };
 }
 
