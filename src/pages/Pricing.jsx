@@ -21,6 +21,11 @@ export default function Pricing() {
 
   // Referral credit from URL or localStorage
   const [referralCode, setReferralCode] = useState(null);
+  // TEAM 1 — gift/entitlement safety. Set when the user arrived here FROM the gift-entitlement
+  // caution modal (Top Up / Upgrade), via /dashboard/send's own snapshot-before-navigate contract
+  // (the same one Browse Media Library / Browse the Gift Place already use). Purely additive: it
+  // does not touch checkout/subscription logic, only offers a way back to the preserved draft.
+  const [returnToSend, setReturnToSend] = useState(false);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const code = params.get('referral') || localStorage.getItem('greetme_referral_code');
@@ -29,6 +34,7 @@ export default function Pricing() {
     // (used by the Hero "Business Subscriptions" CTA). No pricing/plan/style change.
     const view = params.get('view');
     if (view === 'business' || view === 'personal') setViewMode(view);
+    if (params.get('returnTo') === 'send') setReturnToSend(true);
   }, [location.search]);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
   const [isMedium, setIsMedium] = useState(window.innerWidth < 1100);
@@ -143,6 +149,30 @@ export default function Pricing() {
           padding: isNarrow ? '1rem' : '2rem',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
         }}>
+      {returnToSend ? (
+        <div
+          data-testid="pricing-return-to-send-banner"
+          style={{
+            background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 'var(--radius-md)',
+            padding: '.7rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', gap: '.75rem', flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontSize: '.88rem', color: '#1e3a8a' }}>
+            Your greeting draft is saved — you can come back to it anytime.
+          </span>
+          <button
+            type="button" data-testid="pricing-return-to-send-link"
+            onClick={() => navigate('/dashboard/send?returnTo=send')}
+            style={{
+              padding: '.4rem .9rem', borderRadius: 'var(--radius-md)', border: 'none',
+              background: '#1d4ed8', color: '#fff', fontWeight: 600, fontSize: '.85rem', cursor: 'pointer',
+            }}
+          >
+            Back to your greeting
+          </button>
+        </div>
+      ) : null}
       {/* Header Banner with Toggle */}
       <div style={{
         maxWidth: '100%',

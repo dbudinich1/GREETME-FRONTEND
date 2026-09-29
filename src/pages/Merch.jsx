@@ -4,7 +4,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, Briefcase, Users, Check, ArrowLeft, Settings } from 'lucide-react';
 import cartService from '../services/cartService';
 import AddToCartModal from '../components/AddToCartModal';
-import QRCashGiftModal from '../components/QRCashGiftModal';
 import api from '../api/api';
 import greetmeFlags from '../assets/greetme-flags.jpg';
 // Founder-approved production artwork, supplied 2026-09-23 for the Greet-Me Smart eGift Card —
@@ -59,7 +58,6 @@ export default function Merch() {
   const { user } = useAuth();
   const founder = isFounder(user);
   const [catalogOpen, setCatalogOpen] = useState(false);
-  const [showQRCashModal, setShowQRCashModal] = useState(false); // AGP-02
   // GIFT CARDS — Manage Catalog Publish/Unpublish is the checkout authority (Team C, 2026-09-22).
   // "Coming later" is the honest DEFAULT, not a hardcoded permanent state: this asks the server —
   // the same GET the standalone Smart Card page itself asks — and only replaces the placeholder
@@ -720,7 +718,9 @@ export default function Merch() {
           </div>
         </div>
         <button
-          onClick={() => setShowQRCashModal(true)}
+          // TEAM 1 — canonical QR Cash entry contract. Was: opens the localStorage-only
+          // QRCashGiftModal simulation. Now: the real, backend-wired composer flow.
+          onClick={() => navigate('/dashboard/send?giftType=qrcash')}
           style={{
             marginTop: '0.75rem',
             width: '100%',
@@ -1062,11 +1062,8 @@ export default function Merch() {
       </div>
       {/* End Background Frame */}
 
-      {/* AGP-02 — QR Cash™ gift modal (mirrors dashboard usage) */}
-      <QRCashGiftModal
-        isOpen={showQRCashModal}
-        onClose={() => setShowQRCashModal(false)}
-      />
+      {/* TEAM 1 — the QRCashGiftModal simulation was removed from here; "Send QR Cash™" above now
+          navigates to the real composer flow instead. */}
 
 
       {/* A FLOWER RETURNS TO A GREETING ONLY WHEN THERE IS ONE.

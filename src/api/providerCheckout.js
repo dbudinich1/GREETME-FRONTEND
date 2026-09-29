@@ -107,10 +107,10 @@ export async function prepareCheckout(payload) {
  * never stored by the caller. `attemptId` is the duplicate protection: sending it twice replays the
  * first outcome instead of placing a second order.
  */
-export async function submitCheckout({ attemptId, giftType, paymentToken, paymentBinding } = {}) {
+export async function submitCheckout({ attemptId, giftType, paymentToken, paymentBinding, giftOnlyToken } = {}) {
   return callOrUnavailable(() => api.request(`${BASE}/submit`, {
     method: 'POST',
-    body: JSON.stringify({ attemptId, giftType, paymentToken, paymentBinding }),
+    body: JSON.stringify({ attemptId, giftType, paymentToken, paymentBinding, giftOnlyToken }),
   }));
 }
 

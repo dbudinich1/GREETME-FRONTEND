@@ -21,6 +21,7 @@ import Alert from '../components/Alert';
 import GiftSelectorModal from '../components/GiftSelectorModal';
 import ShareTheLovePanel from '../components/ShareTheLovePanel';
 import GiftConfirmationModal from '../components/GiftConfirmationModal';
+import GiftEntitlementCautionModal from '../components/GiftEntitlementCautionModal';
 import PreSendReviewModal from '../components/PreSendReviewModal';
 // The EXISTING provider checkout, reused verbatim. This flow adds no checkout and no payment path.
 // The catalogue is NOT here: products live in the Gift Place, which this page navigates to and back
@@ -169,6 +170,80 @@ export default function SendGreeting() {
   const [giftRequestId, setGiftRequestId] = useState(null);
   const [giftConfirmed, setGiftConfirmed] = useState(false);
 
+  // TEAM 1 — gift/entitlement safety. Non-null only while the caution modal is genuinely open;
+  // `resolve` is the pending promise's resolver, called exactly once by whichever action the user
+  // takes (see runGiftEntitlementPreflight below). Never set from anything but a real, fresh
+  // server preflight result — this component never invents or infers its own value.
+  const [entitlementCaution, setEntitlementCaution] = useState(null);
+
+  /**
+   * Silent when sufficient, blocking (via the caution modal) when not. Returns
+   * { proceed: boolean, giftOnlyToken: string|null } — callers must NOT charge/order anything
+   * unless `proceed` is true, and must pass `giftOnlyToken` straight through to the actual
+   * charge/order call unchanged (the server re-verifies it independently; a stale or absent token
+   * here can only ever make the server MORE restrictive, never less).
+   */
+  // TEAM 1 — shared by every "go top up / upgrade, then come back to this draft" exit: the caution
+  // modal's two remediation choices, and the post-separation recovery panel below. One snapshot
+  // shape, one destination, so the draft that comes back on `?returnTo=send` is always the same one.
+  const saveDraftForPricingReturn = () => {
+    const stateToSave = { formData, giftSettings, defaultPhoto, memoryPhotos, useMemoryPhotos, excludedMemoryPhotos: Array.from(excludedMemoryPhotos) };
+    try { sessionStorage.setItem('sendGreetingState', JSON.stringify(stateToSave)); } catch {}
+    // No dedicated top-up product exists yet (see completion report) — routed to the same Upgrade
+    // destination as the interim, honest option rather than a dead link.
+    navigate('/dashboard/pricing?view=personal&returnTo=send');
+  };
+
+  const runGiftEntitlementPreflight = async (giftAttemptId) => {
+    let preflight;
+    try {
+      preflight = await api.getSendEntitlementPreflight();
+    } catch {
+      // The read-only preflight itself failing must never block an otherwise-fine send — the
+      // authoritative server-side gate on the actual charge/order route still applies regardless.
+      return { proceed: true, giftOnlyToken: null };
+    }
+    if (preflight?.canSendGreeting) return { proceed: true, giftOnlyToken: null };
+
+    return new Promise((resolve) => {
+      setEntitlementCaution({
+        preflight,
+        giftAttemptId,
+        onTopUp: () => {
+          setEntitlementCaution(null);
+          resolve({ proceed: false, giftOnlyToken: null });
+          saveDraftForPricingReturn();
+        },
+        onUpgrade: () => {
+          setEntitlementCaution(null);
+          resolve({ proceed: false, giftOnlyToken: null });
+          saveDraftForPricingReturn();
+        },
+        onContinueGiftOnly: async () => {
+          try {
+            const auth = await api.requestGiftOnlyAuthorization(giftAttemptId);
+            setEntitlementCaution(null);
+            if (auth?.ok && auth.giftOnlyToken) {
+              resolve({ proceed: true, giftOnlyToken: auth.giftOnlyToken });
+            } else {
+              // The server re-checked and disagreed (e.g. the user actually has a send now) —
+              // fail closed on the ESCAPE HATCH, not on the send: just don't proceed with a
+              // fabricated token. The charge/order route's own gate is authoritative either way.
+              resolve({ proceed: false, giftOnlyToken: null });
+            }
+          } catch {
+            setEntitlementCaution(null);
+            resolve({ proceed: false, giftOnlyToken: null });
+          }
+        },
+        onClose: () => {
+          setEntitlementCaution(null);
+          resolve({ proceed: false, giftOnlyToken: null });
+        },
+      });
+    });
+  };
+
   // ───────────────────────────────────────────────
   // Flowers — a provider-fulfilled gift, paid at the provider's own checkout, which runs as an
   // EMBEDDED STEP of this send rather than as an errand of its own.
@@ -186,6 +261,12 @@ export default function SendGreeting() {
   // same request — same gift claim token, same recipient, same surprise announcement. This is what
   // makes the retry in handleRetryGreetingOnly safe: it re-sends a greeting, never a gift.
   const [confirmedGiftPayload, setConfirmedGiftPayload] = useState(null);
+  // TEAM 1 — true only when the failed send in `confirmedGiftPayload`'s retry failed specifically
+  // because the sender ran out of send entitlement (not a generic transient failure). Distinguishes
+  // "recovery after separation" (this gift, no send available — offer Top Up/Upgrade) from the
+  // ordinary safe-retry panel (offer just Retry) so the sender is never told to blindly retry a send
+  // that will fail again for the same reason.
+  const [giftSeparatedByEntitlement, setGiftSeparatedByEntitlement] = useState(false);
   // EXACTLY ONE SEND PER ACCEPTED ORDER. A ref, not state: it must be true for the rest of the
   // dispatch's synchronous run, and a re-render must not be able to reopen the window.
   const flowerSendStarted = useRef(false);
@@ -371,6 +452,21 @@ export default function SendGreeting() {
     // Only prefill if no contact is also specified (draft restore handles that case)
     if (params.get('contactId')) return;
     setFormData(prev => ({ ...prev, occasionType: occasion }));
+  }, [location.search]);
+
+  // TEAM 1 — gift/entitlement safety, canonical QR Cash entry contract. Any "Send QR Cash" entry
+  // point elsewhere in the app (American Gift Place, Hero Program, the Gifts hub, Dashboard Home)
+  // now navigates here with ?giftType=qrcash instead of opening its own simulated modal, so every
+  // one of them enters the SAME real, backend-wired flow: this composer's own gift selector, which
+  // charges via /api/gifts/charge-now and is gated by the same entitlement check as an attached
+  // gift from a full greeting composition. Fires once per arrival; does not re-fire on an
+  // in-composer state change.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('giftType') !== 'qrcash') return;
+    setGiftSettings(prev => ({ ...prev, type: 'qrcash' }));
+    setIsGiftModalOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
   // Detect referral code from URL and validate
@@ -976,6 +1072,17 @@ export default function SendGreeting() {
         setSending(false);
         return;
       }
+      // TEAM 1 — RECOVERY AFTER SEPARATION. These are the backend's own, pre-existing send-cap
+      // codes (index.js's cap-enforcement block — unrelated to the new gift-purchase gate): the
+      // gift already charged, but the paired Greet-Me hit the sender's real, current entitlement
+      // limit. Recorded only so the panel below can tell this apart from a generic send failure —
+      // it never changes what was charged or sent.
+      if (
+        confirmedGiftPayload
+        && (error?.code === 'GENERATION_CAP' || error?.code === 'LIMIT_EXCEEDED' || error?.code === 'TRIAL_EXPIRED')
+      ) {
+        setGiftSeparatedByEntitlement(true);
+      }
       setErrors({ submit: getErrorMessage(error) });
       setSending(false);
     }
@@ -1089,6 +1196,7 @@ export default function SendGreeting() {
     // from a previous attempt that a later failure could replay.
     setGiftConfirmedForSend(false);
     setConfirmedGiftPayload(null);
+    setGiftSeparatedByEntitlement(false);
     setPendingGiftLink(null);
     setIsPreSendReviewOpen(false);
     setIsFlowersCheckoutOpen(true);
@@ -1272,6 +1380,7 @@ export default function SendGreeting() {
     if (!confirmedGiftPayload) return;
     if (sending) return;
     setErrors({});
+    setGiftSeparatedByEntitlement(false);
     await executeGreetingSend(confirmedGiftPayload);
   };
 
@@ -1345,6 +1454,12 @@ export default function SendGreeting() {
       : (giftSettings.amount || 25);
     const giftAmountCents = Math.round(giftAmountDollars * 100);
 
+    // TEAM 1 — gift/entitlement safety. Silent when the sender has enough sends; blocks on the
+    // caution modal otherwise. The server's own gate on /charge-now is still authoritative — this
+    // is the UX layer, not the safety layer.
+    const { proceed, giftOnlyToken } = await runGiftEntitlementPreflight(giftRequestId);
+    if (!proceed) { setGiftCharging(false); return; }
+
     try {
       // Step 1: Charge for the QR Cash™ gift
       const chargeResult = await api.chargeGift({
@@ -1353,6 +1468,7 @@ export default function SendGreeting() {
         recipientName: pendingGreetingData.recipientName,
         paymentMethodId,
         giftRequestId,
+        giftOnlyToken,
       });
 
       let giftObj;
@@ -1416,8 +1532,29 @@ export default function SendGreeting() {
       await new Promise((r) => setTimeout(r, 2000));
       setGiftConfirmed(false);
       setPendingGreetingData(null);
+      // TEAM 1 — the gift is charged and real from this point on, exactly like the flowers path
+      // above. Kept verbatim (same claim token, same recipient) so that if the send itself fails —
+      // most importantly, if it fails because the "Continue with Gift Only" sender genuinely had no
+      // send available — the existing safe-retry panel can offer a greeting-only retry instead of a
+      // bare error, without ever reopening checkout or charging again.
+      setGiftSeparatedByEntitlement(false);
+      setConfirmedGiftPayload(greetingDataWithGift);
       await executeGreetingSend(greetingDataWithGift);
     } catch (error) {
+      // TEAM 1 — the frontend preflight was stale, skipped, or the user's entitlement changed
+      // between the preflight read and this charge attempt. The server's own gate is what
+      // actually stopped it (api.js throws with .code set from the response body on a non-2xx
+      // status) — nothing was charged. Re-show the SAME caution, now with a fresh server answer,
+      // and let the sender resolve it; the SAME giftRequestId is reused so a subsequent Gift Only
+      // authorization binds to the attempt that was actually blocked.
+      if (error?.code === 'SEND_ENTITLEMENT_AT_RISK') {
+        setGiftCharging(false);
+        const retry = await runGiftEntitlementPreflight(giftRequestId);
+        if (retry.proceed) {
+          return handleGiftConfirm(paymentMethodId, stripeInstance);
+        }
+        return;
+      }
       const msg = error?.message || error?.error || 'Failed to charge QR Cash™ gift. Please try again.';
       setGiftChargeError(msg);
       // Fresh idempotency key so the next attempt isn't blocked by Stripe
@@ -2171,7 +2308,67 @@ if (typeof window !== "undefined") {
             cannot submit, cannot recharge and cannot create a second gift, because it replays the one
             payload that already carries the confirmed gift's claim token. Shown instead of the bare
             error, so the sender is never left reading "send failed" while wondering about their money. */}
-        {confirmedGiftPayload && errors.submit ? (
+        {confirmedGiftPayload && errors.submit && giftSeparatedByEntitlement ? (
+          // TEAM 1 — RECOVERY AFTER SEPARATION. The gift is real and already on its way; what's
+          // missing is a send, not a fix a blind retry can produce. Exact founder-specified copy —
+          // do not paraphrase — plus the SAME Top Up / Upgrade destination as the caution modal,
+          // so the sender lands back on this exact draft (confirmedGiftPayload, still intact) once
+          // they've resolved it, and "Retry your Greet-Me" is still offered for after they do.
+          <div
+            data-testid="gift-separated-recovery"
+            role="alert"
+            style={{
+              padding: '0.875rem 1rem',
+              marginBottom: '1rem',
+              borderRadius: '0.625rem',
+              border: '1px solid #fcd34d',
+              background: '#fffbeb',
+            }}
+          >
+            <p style={{ margin: '0 0 0.5rem', fontWeight: 700, color: '#92400e' }}>
+              Your gift is on its way, but your Greet-Me could not be sent because you did not have a
+              send available. Not to worry—top up or upgrade, then send your saved Greet-Me as a
+              follow-up to your gift.
+            </p>
+            <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                data-testid="gift-separated-topup"
+                onClick={saveDraftForPricingReturn}
+                style={{
+                  padding: '0.6rem 1.1rem', borderRadius: '0.5rem', border: 'none',
+                  background: '#b45309', color: '#fff', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                Top Up
+              </button>
+              <button
+                type="button"
+                data-testid="gift-separated-upgrade"
+                onClick={saveDraftForPricingReturn}
+                style={{
+                  padding: '0.6rem 1.1rem', borderRadius: '0.5rem', border: '1px solid #b45309',
+                  background: '#fff', color: '#92400e', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                Upgrade
+              </button>
+              <button
+                type="button"
+                data-testid="retry-greeting-only"
+                disabled={sending}
+                onClick={handleRetryGreetingOnly}
+                style={{
+                  padding: '0.6rem 1.1rem', borderRadius: '0.5rem', border: '1px solid #b45309',
+                  background: '#fff', color: '#92400e', fontWeight: 700, fontFamily: 'inherit',
+                  cursor: sending ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {sending ? 'Sending…' : 'I’ve topped up — send my Greet-Me'}
+              </button>
+            </div>
+          </div>
+        ) : confirmedGiftPayload && errors.submit ? (
           <div
             data-testid="gift-confirmed-send-failed"
             role="alert"
@@ -3234,6 +3431,7 @@ if (typeof window !== "undefined") {
         // greeting and refuse it for any other — the same binding an attached merchandise order uses.
         contactId={formData.contactId || null}
         onAccepted={handleFlowerOrderAccepted}
+        checkEntitlement={runGiftEntitlementPreflight}
       />
 
       {/* QR Cash™ Confirmation Modal */}
@@ -3268,6 +3466,18 @@ if (typeof window !== "undefined") {
         chargeError={giftChargeError}
       />
 
+      {/* TEAM 1 — gift/entitlement safety caution. Only ever open while entitlementCaution is
+          non-null, which only happens from inside runGiftEntitlementPreflight when the server's
+          own preflight says this sender is genuinely at risk. */}
+      <GiftEntitlementCautionModal
+        isOpen={!!entitlementCaution}
+        preflight={entitlementCaution?.preflight}
+        onClose={() => entitlementCaution?.onClose?.()}
+        onTopUp={() => entitlementCaution?.onTopUp?.()}
+        onUpgrade={() => entitlementCaution?.onUpgrade?.()}
+        onContinueGiftOnly={() => entitlementCaution?.onContinueGiftOnly?.()}
+      />
+
       {/* Locked Voice Integrity — warm checkpoint when the user's voice is missing.
           Sibling-rendered to the send form; draft state in formData untouched. */}
       <VoiceMissingModal
@@ -3280,14 +3490,25 @@ if (typeof window !== "undefined") {
           await retryPendingSend();
         }}
         onSaveDraft={() => {
+          // TEAM 1 fix: this write previously spread `formData` flat onto the record instead of
+          // nesting it under a `formData` key, which is what the restoration reader (the effect a
+          // few hundred lines up in this same file) requires — `if (saved?.formData)` was always
+          // false for a draft saved here, so draftService.saveDraft() succeeded but the draft could
+          // never actually be restored. It also never navigated back with the contactId/occasion
+          // query params the restore effect gates on, so even a shape fix alone couldn't have
+          // resumed it. Both are fixed together here; nothing about draftService itself changed.
           if (formData.contactId && formData.occasionType) {
             try {
               draftService.saveDraft({
                 contactId: formData.contactId,
                 occasionType: formData.occasionType,
-                ...formData,
+                formData,
               });
             } catch {}
+            setShowVoiceMissingCheckpoint(false);
+            setVoiceMissingContext(null);
+            navigate(`/dashboard/send?contactId=${encodeURIComponent(formData.contactId)}&occasion=${encodeURIComponent(formData.occasionType)}`);
+            return;
           }
           setShowVoiceMissingCheckpoint(false);
           setVoiceMissingContext(null);

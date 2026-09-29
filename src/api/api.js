@@ -634,6 +634,22 @@ class ApiService {
   }
 
   // --------------------
+  // TEAM 1 — gift/entitlement safety
+  // --------------------
+  /** Read-only. Never charges/orders/sends anything — only answers "would a send go through right now." */
+  getSendEntitlementPreflight() {
+    return this.request("/api/entitlements/send-preflight");
+  }
+
+  /** Mints a short-lived, single-use, gift-bound authorization AFTER the user's explicit second confirmation. */
+  requestGiftOnlyAuthorization(giftAttemptId) {
+    return this.request("/api/entitlements/gift-only-authorization", {
+      method: "POST",
+      body: JSON.stringify({ giftAttemptId }),
+    });
+  }
+
+  // --------------------
   // QR Cash™ Gifts
   // --------------------
   chargeGift(payload) {

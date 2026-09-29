@@ -283,10 +283,24 @@ test("the retry re-sends the GREETING only, and cannot touch the provider", () =
 });
 
 test("the retry offer appears only when a gift is confirmed AND the greeting failed", () => {
-  assert.match(CODE, /\{confirmedGiftPayload && errors\.submit \?/);
+  // TEAM 1 — the panel now branches on WHY the send failed: a confirmed gift whose paired send was
+  // blocked specifically by the sender's entitlement gets the founder-specified recovery copy
+  // (below), and every other confirmed-gift failure keeps the original generic retry offer. Both
+  // branches remain gated on the same `confirmedGiftPayload && errors.submit` pair — nothing is
+  // shown for an unconfirmed gift or a still-succeeding send.
+  assert.match(CODE, /\{confirmedGiftPayload && errors\.submit && giftSeparatedByEntitlement \?/);
+  assert.match(CODE, /: confirmedGiftPayload && errors\.submit \?/);
   const panel = block('data-testid="gift-confirmed-send-failed"', "data-testid=\"retry-greeting-only\"", "retry panel");
   assert.match(panel, /Your gift is confirmed, but your Greet-Me could not be sent\./);
   assert.match(SRC, /Retry your Greet-Me/);
+  // The recovery-after-separation branch carries the exact founder-specified copy, verbatim.
+  const separation = block('data-testid="gift-separated-recovery"', 'data-testid="retry-greeting-only"', "separation panel");
+  assert.match(
+    separation,
+    /Your gift is on its way, but your Greet-Me could not be sent because you did not have a[\s\S]*send available\. Not to worry—top up or upgrade, then send your saved Greet-Me as a[\s\S]*follow-up to your gift\./
+  );
+  assert.match(separation, /data-testid="gift-separated-topup"/);
+  assert.match(separation, /data-testid="gift-separated-upgrade"/);
   // The ordinary error path is untouched for every other failure.
   assert.match(CODE, /errors\.submit && <Alert type="error" message=\{errors\.submit\} \/>/);
 });
@@ -330,11 +344,17 @@ test("closing the checkout releases the parked greeting and touches no draft sta
 test("the Gift Place is ONE destination, reached through the existing return-to-greeting mechanism", () => {
   assert.match(CODE, /if \(type === 'marketplace' \|\| type === 'merch'\) \{/);
   assert.match(CODE, /navigate\('\/dashboard\/gifts\?returnTo=send&giftType=marketplace'\)/);
-  // ONE MECHANISM, one key, two pre-existing callers: the media library and the Gift Place. Both
-  // write the same `sendGreetingState` blob and both are restored by the same effect, so this packet
-  // introduced no second preservation path — it reused the one that was already there.
-  assert.equal((CODE.match(/sessionStorage\.setItem\('sendGreetingState'/g) || []).length, 2,
-    "the preservation mechanism must stay single, however many callers use it");
+  // ONE MECHANISM, one key. Two pre-existing callers — the media library and the Gift Place — write
+  // the same `sendGreetingState` blob inline, and a third literal write site was added by TEAM 1:
+  // `saveDraftForPricingReturn`, one shared helper consolidating what would otherwise have been two
+  // separate inline writes (Top Up, Upgrade) into one, and reused again by the recovery-after-
+  // separation panel's own Top Up/Upgrade actions. So however many logical callers now reuse it —
+  // five, at last count — the literal count of NEW write sites this packet introduced stays at
+  // exactly one, and all three sites are restored by the same existing effect.
+  assert.equal((CODE.match(/sessionStorage\.setItem\('sendGreetingState'/g) || []).length, 3,
+    "the preservation mechanism must stay at one write site per caller family, however many callers use it");
+  assert.match(CODE, /const saveDraftForPricingReturn = \(\) => \{/,
+    "the entitlement-remediation callers must share ONE write, not one each");
   assert.match(CODE, /sessionStorage\.getItem\('sendGreetingState'\)/);
   // The decision screen carries no catalogue of its own any more.
   assert.equal(/flowersCatalogue/.test(CODE), false);
