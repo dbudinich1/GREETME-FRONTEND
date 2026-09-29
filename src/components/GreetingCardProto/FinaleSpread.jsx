@@ -316,54 +316,67 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
                   A Gift From <span style={{ whiteSpace: 'nowrap' }}>Greet-Me</span>
                 </h3>
 
-                {courtesyQrUrl && courtesyCreditCode ? (
-                  <>
-                    {/* D6-R1: courtesy-credit QR is always anchor-wrapped and clickable
-                        for all viewers (owners and recipients alike). Sender-self-encounter
-                        is handled downstream at CreditClaim.jsx via the existing
-                        isSenderViewingOwnCredit branch (lines 445-479 in that file). */}
-                    <a
-                      href={`${window.location.origin}/#/claim-credit/${courtesyCreditCode}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="Claim your $5 Greet-Me credit"
-                      style={{ display: 'block', textDecoration: 'none' }}
-                    >
-                      <div className="gc-qr-frame">
-                        <div className="gc-qr-code">
-                          <img
-                            src={courtesyQrUrl}
-                            alt="Scan to claim your $5 Greet-Me credit"
-                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                          />
+                {courtesyCreditCode ? (
+                  courtesyQrUrl ? (
+                    <>
+                      {/* D6-R1: courtesy-credit QR is always anchor-wrapped and clickable
+                          for all viewers (owners and recipients alike). Sender-self-encounter
+                          is handled downstream at CreditClaim.jsx via the existing
+                          isSenderViewingOwnCredit branch (lines 445-479 in that file). */}
+                      <a
+                        href={`${window.location.origin}/#/claim-credit/${courtesyCreditCode}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Claim your $5 Greet-Me credit"
+                        style={{ display: 'block', textDecoration: 'none' }}
+                      >
+                        <div className="gc-qr-frame">
+                          <div className="gc-qr-code">
+                            <img
+                              src={courtesyQrUrl}
+                              alt="Scan to claim your $5 Greet-Me credit"
+                              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    </a>
-                    <p className="gc-gift-instruction">
-                      {isOwner ? 'Included with your greeting' : 'Scan or tap to claim your gift'}
-                    </p>
-                  </>
-                ) : (
-                  <>
+                      </a>
+                      <p className="gc-gift-instruction">
+                        {isOwner ? 'Included with your greeting' : 'Scan or tap to claim your gift'}
+                      </p>
+                    </>
+                  ) : (
+                    // TEAM 4 (growth-loops verification, 2026-09-29) — a real, backend-minted
+                    // courtesyCreditCode exists; only the QR image hasn't rendered yet (async
+                    // QRCode.toDataURL). Previously this text fallback linked to the legacy
+                    // `/#/courtesy-credit` page, which fabricates its "$5" entirely client-side
+                    // (a raw URL query param, stashed to localStorage with NO creditCode and NO
+                    // backend verification — see CourtesyCredit.jsx). That page is a parallel,
+                    // unverified path to the SAME real credit already minted here; a recipient
+                    // who tapped it during this brief window would see a false "credit could not
+                    // be applied" error at checkout later, because the backend never received a
+                    // real creditCode from that page. Point at the SAME authoritative claim route
+                    // the QR itself uses instead of duplicating a client-only promise.
                     <p className="gc-gift-instruction" style={{ marginBottom: '0.5em' }}>
-                      We've included $5 toward your first Greet-Me subscription.
+                      We've included $5 toward your first Greet-Me subscription.{' '}
+                      <a
+                        href={`/#/claim-credit/${courtesyCreditCode}`}
+                        style={{
+                          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                          color: '#10b981',
+                          textDecoration: 'underline',
+                        }}
+                      >
+                        Tap to claim your $5 credit
+                      </a>
                     </p>
-                    {/* D6-R1: text-link fallback is always clickable for all viewers.
-                        Sender-self-encounter is handled downstream at CourtesyCredit/CreditClaim. */}
-                    <a
-                      href="/#/courtesy-credit?amount=5&source=finale"
-                      style={{
-                        display: 'inline-block',
-                        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                        fontSize: '0.85em',
-                        color: '#10b981',
-                        textDecoration: 'underline',
-                        marginBottom: '0.5em',
-                      }}
-                    >
-                      Tap to claim your $5 credit
-                    </a>
-                  </>
+                  )
+                ) : (
+                  // TEAM 4 — no real courtesyCreditCode exists for this greeting (e.g. a rare
+                  // non-fatal mint failure in worker.js — see routes/creditRoutes.js
+                  // createCourtesyCredit call site). Rule 4/F: never promise a $5 credit that
+                  // has no authoritative backend record behind it. Show only the brand block
+                  // below, no unverifiable claim CTA.
+                  <p className="gc-gift-instruction">Sent especially for you.</p>
                 )}
               </>
             )}
