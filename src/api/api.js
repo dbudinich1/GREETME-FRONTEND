@@ -811,6 +811,10 @@ class ApiService {
         tone: data.tone || "warm",
         personalSentiment: data.script,
         sourceJobId: data.sourceJobId,
+        // TEAM 4 (growth-loops verification, 2026-09-29) — GATE B idempotency key so a retried
+        // thank-you send (e.g. after a dropped response) converges on the same backend job
+        // instead of creating a second one. See ThankYouFlow.jsx for how this id is minted.
+        sendRequestId: data.sendRequestId,
       }),
     });
   }
