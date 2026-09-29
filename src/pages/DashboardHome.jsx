@@ -17,6 +17,18 @@ import { shouldShowOnboarding, shouldShowWarmReentry } from '../utils/accountSta
 import { getHoverHandlers } from '../utils/hoverable';
 import QRCode from 'qrcode';
 
+// Status badge styling for the "Upcoming Occasions" card — mirrors the
+// scheduleStatus values returned by GET /api/dashboard/upcoming (see the
+// already-wired UpcomingGreetings.jsx reference for the same shape).
+const OCCASION_STATUS_LABELS = {
+  null: { text: 'Preparing', color: '#7F8C8D', bg: '#F4F6F7' },
+  scheduled: { text: 'Ready to send', color: '#2E86C1', bg: '#D6EAF8' },
+  queued: { text: 'Creating', color: '#E67E22', bg: '#FDEBD0' },
+  delivered: { text: 'Sent', color: '#27AE60', bg: '#D5F5E3' },
+  skipped: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9' },
+  failed: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9' },
+};
+
 export default function DashboardHome() {
   const navigate = useNavigate();
   const { user, getToken, refreshProfile } = useAuth();
@@ -1923,16 +1935,119 @@ export default function DashboardHome() {
           )}
         </div>
 
-        {/* Empty state — real upcoming-occasions data wiring deferred to a future slice */}
-        <div style={{
-          padding: '3rem 1.5rem',
-          textAlign: 'center',
-          color: 'var(--text-secondary)',
-          fontSize: '0.9375rem',
-          lineHeight: 1.6
-        }}>
-          Upcoming occasions will appear here as you add recipients.
-        </div>
+        {upcomingOccasions.length === 0 ? (
+          /* Empty state — only shown once the fetch has confirmed there are no upcoming occasions */
+          <div style={{
+            padding: '3rem 1.5rem',
+            textAlign: 'center',
+            color: 'var(--text-secondary)',
+            fontSize: '0.9375rem',
+            lineHeight: 1.6
+          }}>
+            <div>Upcoming occasions will appear here as you add recipients.</div>
+            <button
+              onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
+              style={{
+                marginTop: '1rem',
+                padding: '0.625rem 1.25rem',
+                background: '#667eea',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-lg)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit'
+              }}
+              {...getHoverHandlers({
+                onEnter: (e) => { e.currentTarget.style.background = '#5568d3'; },
+                onLeave: (e) => { e.currentTarget.style.background = '#667eea'; },
+              })}
+            >
+              <Plus size={16} />
+              Add Occasion
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {upcomingOccasions.map((occasion) => {
+              const status = OCCASION_STATUS_LABELS[occasion.scheduleStatus] || OCCASION_STATUS_LABELS[null];
+              const isUrgent = typeof occasion.daysUntil === 'number' && occasion.daysUntil <= 3;
+              return (
+                <div
+                  key={occasion.occasionId || `${occasion.contactId || occasion.contactName}-${occasion.occasionType}-${occasion.date}`}
+                  style={{
+                    padding: '0.75rem',
+                    borderRadius: 'var(--radius-lg)',
+                    background: 'var(--gray-50)',
+                    border: isUrgent ? '1px solid #E74C3C' : '1px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.75rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                    <span style={{ fontSize: '1.5rem' }}>{getOccasionIcon(occasion.occasionType)}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {occasion.contactName}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                        {(occasion.occasionType || '').replace(/_/g, ' ')}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: isUrgent ? '#E74C3C' : 'var(--text-primary)' }}>
+                        {occasion.daysUntil === 0 ? 'Today!' : occasion.daysUntil === 1 ? 'Tomorrow' : (occasion.daysUntil != null ? `${occasion.daysUntil} days` : '')}
+                      </div>
+                      {occasion.date && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                          {new Date(occasion.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </div>
+                      )}
+                    </div>
+                    <span style={{
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                      padding: '3px 8px',
+                      borderRadius: 'var(--radius-md)',
+                      color: status.color,
+                      background: status.bg,
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {status.text}
+                    </span>
+                    {occasion.contactId && (
+                      <button
+                        onClick={() => navigate('/dashboard/contacts', { state: { openEditRecipientId: occasion.contactId } })}
+                        title="Edit recipient"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '0.25rem',
+                          color: 'var(--text-tertiary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <Settings size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Mobile App QR Code - Subtle placement */}
