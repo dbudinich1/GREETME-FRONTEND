@@ -61,33 +61,40 @@ function Shell({ children }) {
   );
 }
 
-// Minimal create form — collects a required name and an optional free-text type. The backend
-// accepts both (`name`, `campaignType`) as optional free strings; no new endpoint, no enum, no
-// occasion/scheduling semantics implied. Inputs set explicit padding-free-safe styles inline.
-function CreateCampaignForm({ name, type, onName, onType, onSubmit, onCancel, creating }) {
+// TEAM 5 (2026-09-29) — a compact, permanently-visible row, not a toggled panel: no preliminary
+// modal/step to reach it, no Cancel (there is nothing to dismiss — it's always here). Same
+// state/validation/API contract as before (unchanged): a required name and an optional free-text
+// type, both accepted as-is by the backend (`name`, `campaignType`) — no new endpoint, no enum, no
+// occasion/scheduling semantics implied.
+function CreateCampaignForm({ name, type, onName, onType, onSubmit, creating, error }) {
   const canCreate = name.trim().length > 0 && !creating;
-  const input = { width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(27,24,48,.2)", fontSize: ".9rem" };
+  const input = {
+    boxSizing: "border-box", padding: "9px 12px", borderRadius: 10,
+    border: "1px solid rgba(27,24,48,.2)", fontSize: ".85rem",
+  };
   return (
     <form data-testid="create-form" onSubmit={(e) => { e.preventDefault(); if (canCreate) onSubmit(); }}
-      style={{ background: "#fff", border: "1px solid rgba(27,24,48,.12)", borderRadius: 16, padding: "20px 22px" }}>
-      <h2 style={{ fontFamily: "Georgia, serif", fontSize: "1.15rem", margin: "0 0 4px" }}>{TERMS.CREATE}</h2>
-      <p style={{ color: "#605c78", fontSize: ".82rem", margin: "0 0 16px" }}>Name your campaign and, optionally, add a type. {TERMS.YOU_DONT_NEED_EVERYTHING}</p>
-      <label htmlFor="cc-name" style={{ display: "block", fontSize: ".78rem", fontWeight: 700, color: "#1b1830", marginBottom: 5 }}>Campaign name</label>
-      <input id="cc-name" data-testid="create-name" value={name} onChange={(e) => onName(e.target.value)} autoFocus
-        placeholder="e.g. Q4 Client Appreciation" style={{ ...input, marginBottom: 14 }} />
-      <label htmlFor="cc-type" style={{ display: "block", fontSize: ".78rem", fontWeight: 700, color: "#1b1830", marginBottom: 5 }}>Type <span style={{ fontWeight: 400, color: "#928ea8" }}>(optional)</span></label>
+      style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+      <input id="cc-name" data-testid="create-name" value={name} onChange={(e) => onName(e.target.value)}
+        aria-label="Campaign name" placeholder="Campaign name"
+        style={{ ...input, flex: "1 1 180px", minWidth: 140 }} />
       <input id="cc-type" data-testid="create-type" value={type} onChange={(e) => onType(e.target.value)}
-        placeholder="e.g. Holiday, Milestone" style={{ ...input, marginBottom: 18 }} />
-      <div style={{ display: "flex", gap: 10 }}>
-        <button type="submit" data-testid="create-submit" disabled={!canCreate}
-          style={{ background: PURPLE, color: "#fff", border: "none", borderRadius: 11, padding: "10px 18px", fontWeight: 700, fontSize: ".85rem", cursor: canCreate ? "pointer" : "not-allowed", opacity: canCreate ? 1 : .55 }}>
-          {creating ? "Creating…" : TERMS.CREATE}
-        </button>
-        <button type="button" data-testid="create-cancel" onClick={onCancel}
-          style={{ background: "transparent", color: "#1b1830", border: "1px solid rgba(27,24,48,.15)", borderRadius: 11, padding: "10px 18px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer" }}>
-          Cancel
-        </button>
-      </div>
+        aria-label="Type (optional)" placeholder="Type (optional)"
+        style={{ ...input, flex: "0 1 140px", minWidth: 100 }} />
+      <button type="submit" data-testid="create-submit" disabled={!canCreate}
+        style={{
+          background: PURPLE, color: "#fff", border: "none", borderRadius: 11, padding: "9px 16px",
+          fontWeight: 700, fontSize: ".82rem", whiteSpace: "nowrap",
+          cursor: canCreate ? "pointer" : "not-allowed", opacity: canCreate ? 1 : .55,
+        }}>
+        {creating ? "Creating…" : TERMS.CREATE}
+      </button>
+      {error ? (
+        <p role="alert" data-testid="create-error"
+          style={{ flexBasis: "100%", margin: "4px 0 0", color: "#b3261e", fontSize: ".8rem" }}>
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }
@@ -155,9 +162,12 @@ export default function GreetingAutomationCampaigns({
   const [campaignAuthError, setCampaignAuthError] = useState(false);
   const [campaignDormant, setCampaignDormant] = useState(false);
   const [creating, setCreating] = useState(false);
+  // TEAM 5 (2026-09-29) — the create call had no error branch at all: on failure, `creating` reset
+  // but nothing told the reader anything went wrong (a real, pre-existing gap; not introduced by
+  // this pass). "Show a useful error" is an explicit requirement for this control.
+  const [createError, setCreateError] = useState(null);
   const [selectedCampaignId, setSelectedCampaignId] = useState(null);
   const [capabilityResult, setCapabilityResult] = useState(null); // server-derived, from the campaign list load
-  const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("");
   // SLICE D — the organisation contact pool.
@@ -664,15 +674,18 @@ export default function GreetingAutomationCampaigns({
     const campaignType = newType.trim();
     if (campaignType) body.campaignType = campaignType;
     setCreating(true);
+    setCreateError(null);
     const res = await client.createCampaign(effectiveOrgId, body);
     setCreating(false);
     if (res.ok) {
-      setShowCreateForm(false); setNewName(""); setNewType("");
+      setNewName(""); setNewType("");
       await loadCampaigns(effectiveOrgId);
+    } else {
+      setCreateError(
+        (res.error && typeof res.error === "string") ? res.error : "Couldn't create the campaign. Please try again."
+      );
     }
   }
-
-  function openCreate() { setNewName(""); setNewType(""); setShowCreateForm(true); }
 
   // Dormant (corporate capability off / caller not enrolled) → render the Founder-approved
   // read-only state (F3 Draft B) instead of a blank page. Truthful for personal users and
@@ -759,15 +772,6 @@ export default function GreetingAutomationCampaigns({
           <p className="gcd-sub">Set up organization-wide greetings once per campaign. {TERMS.YOU_DONT_NEED_EVERYTHING}</p>
         </header>
 
-        {showCreateForm ? (
-          <div className="gcd-panel" style={{ padding: 4 }}>
-            <CreateCampaignForm
-              name={newName} type={newType} onName={setNewName} onType={setNewType}
-              onSubmit={handleCreate} onCancel={() => setShowCreateForm(false)} creating={creating}
-            />
-          </div>
-        ) : null}
-
         {/* B — CONTACT TILES: Employees / Clients / Vendors. FOUNDER-APPROVED LAYOUT
             (2026-09-25) moves this ABOVE Campaigns — previously it sat below the campaigns
             section. Same component, same props/data, same "Manage" (inline roster) and
@@ -790,16 +794,22 @@ export default function GreetingAutomationCampaigns({
           <ContactsViewAll contacts={contacts} onClose={() => setViewAllContacts(false)} />
         ) : null}
 
-        {/* A — CAMPAIGNS: fixed-height internal scroll, sticky header + Add CTA. */}
+        {/* A — CAMPAIGNS: fixed-height internal scroll, sticky header + Add CTA.
+            TEAM 5 (2026-09-29) — campaign creation moved from a toggled panel floating above
+            Contacts into a compact, PERMANENTLY VISIBLE row inside this panel's own header,
+            reusing the same CreateCampaignForm component/state/validation/API call unchanged
+            (only its layout and always-on visibility changed). No preliminary modal, no
+            show/hide toggle. */}
         <section className="gcd-panel" data-testid="campaigns-panel" aria-labelledby="gcd-campaigns-head">
-          <div className="gcd-panel-head">
+          <div className="gcd-panel-head" style={{ flexWrap: "wrap", rowGap: 10 }}>
             <div>
               <h2 className="gcd-panel-title" id="gcd-campaigns-head">Campaigns</h2>
               <p className="gcd-panel-note">Every campaign shows the same sections, whatever its state.</p>
             </div>
-            <button type="button" className="gcd-btn gcd-btn--primary" data-testid="open-create" onClick={openCreate}>
-              + {TERMS.CREATE}
-            </button>
+            <CreateCampaignForm
+              name={newName} type={newType} onName={setNewName} onType={setNewType}
+              onSubmit={handleCreate} creating={creating} error={createError}
+            />
           </div>
 
           {/* SLICE E5 - OVERLAP WARNING. Names the people and the campaigns involved, then stops.
