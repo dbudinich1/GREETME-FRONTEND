@@ -236,6 +236,28 @@ test("F1 visibility: the panel appears only once a founder opens an organization
   assert.ok($("f1-economics"), "the panel renders inside the opened organization");
 });
 
+// TEAM 5 (2026-09-29) — the founder previously had no way to exit an opened organization's detail
+// view (Draft Economics + campaign status + lifecycle + partner admin + audit history) except
+// opening a DIFFERENT organization or navigating away entirely. Proves the fix: a real, visible
+// "Back to organizations" control that returns to a bare list with no side effect.
+test("F1 close: a visible Back control returns to the organization list, with no write and no leaked state", async () => {
+  await mount(baseRoutes());
+  await openOrgRow(ORG.legalName);
+  assert.ok($("f1-economics"), "the detail view is open");
+
+  const close = $("f1-close-org");
+  assert.ok(close, "a real Close/Back control exists");
+  const requestsBeforeClose = calls.length;
+  await click(close);
+
+  assert.equal($("f1-economics"), null, "Draft Economics is gone after closing");
+  assert.equal(calls.length, requestsBeforeClose, "closing makes no request of any kind");
+
+  // Reopening starts clean — no economics draft state survived the close/reopen cycle.
+  await openOrgRow(ORG.legalName);
+  assert.equal($("f1-initial-percent") ? $("f1-initial-percent").value : "", "", "no stale draft input carried across a close/reopen");
+});
+
 // ── 2 · ids come from server records ──────────────────────────────────────────────────────────
 
 test("F1 identity: the campaign is CHOSEN from server records, never typed", async () => {

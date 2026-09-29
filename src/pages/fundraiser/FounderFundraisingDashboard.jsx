@@ -1018,6 +1018,23 @@ export default function FounderFundraisingDashboard() {
     });
   }, [resetApproval]);
 
+  // TEAM 5 (2026-09-29) — no Close/Back/Return control existed anywhere for the org-detail region
+  // (Draft Economics + F4 campaign status + org lifecycle + partner admin + audit history all
+  // gated on the same `selected` value, `selected && detail && !detail.loading`). The only ways
+  // out were opening a DIFFERENT organization (still lands on a detail view, never a bare list)
+  // or navigating away entirely (browser back / a different nav item) — exactly the "founder
+  // cannot exit Draft Economics" defect this pass corrects. This reuses the SAME gate variable
+  // that already controls the whole detail region, so it closes the whole thing coherently
+  // (it's all "detail view for the selected org," not just economics) rather than adding new,
+  // narrower state that only some of these already-coupled sections would respect.
+  const closeOrg = useCallback(() => {
+    setSelected(null); setDetail(null);
+    setAdminEmail(""); setAdmin({ state: STATES.EMPTY, account: null, reason: null });
+    ecoCampaignRef.current = "";
+    setEcoCampaignId(""); setEcoErrors({}); setEcoResult(null); setEcoMessage(null);
+    resetApproval();
+  }, [resetApproval]);
+
   // F1 — when a campaign is chosen, read its economics history and surface the version that is
   // actually in force. Nothing here is editable: approved/active terms are immutable server-side,
   // and the only legitimate way to change them is a NEW draft version.
@@ -1266,7 +1283,14 @@ export default function FounderFundraisingDashboard() {
       </div>
 
       {selected && detail && !detail.loading ? (
-        <section style={box} data-testid="f1-economics">
+        <>
+          {/* TEAM 5 — the exit control for the whole org-detail region (this section, F4 campaign
+              status, org lifecycle, partner admin, and audit history below — all gated together).
+              Does not save, activate, or change anything; it only returns to the organization list. */}
+          <button type="button" style={btnGhost} onClick={closeOrg} data-testid="f1-close-org">
+            ← Back to organizations
+          </button>
+          <section style={box} data-testid="f1-economics">
           <h2 style={h}>Draft economics</h2>
 
           {/* Existing sealed terms are shown READ-ONLY. An approved or active version is immutable
@@ -1500,7 +1524,8 @@ export default function FounderFundraisingDashboard() {
               {" "}— not approved and not active.
             </p>
           ) : null}
-        </section>
+          </section>
+        </>
       ) : null}
 
       {/* F4 -- campaign status is its own section, deliberately OUTSIDE the economics panel: it
