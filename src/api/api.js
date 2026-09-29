@@ -849,6 +849,14 @@ class ApiService {
   }
 
   // --------------------
+  // Flower order visibility (Team 2) — honest, read-only. Never claims tracking, delivery or
+  // confirmation status this provider does not supply.
+  // --------------------
+  getFlowerOrders() {
+    return this.request("/api/gifts/flower-orders");
+  }
+
+  // --------------------
   // Hearts 1A — read-only server balance (GET /api/hearts/balance).
   // Consumers default to res?.balance ?? 0.
   // --------------------

@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Package, Truck, ArrowLeft, ExternalLink } from "lucide-react";
+import { Package, Truck, ArrowLeft, ExternalLink, Flower2 } from "lucide-react";
 import api from "../api/api";
 
 function formatDate(iso) {
@@ -50,6 +50,13 @@ export default function MerchOrders() {
   const [error, setError] = useState(null);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 640);
 
+  // Flower order visibility (Team 2) — fetched and rendered independently of the branded-goods
+  // list above: a flower-orders failure must never affect the existing merch order list, and the
+  // existing merch order list must never affect this one.
+  const [flowerOrders, setFlowerOrders] = useState([]);
+  const [flowerLoading, setFlowerLoading] = useState(true);
+  const [flowerError, setFlowerError] = useState(null);
+
   useEffect(() => {
     window.scrollTo(0, 0);
     const handleResize = () => setIsNarrow(window.innerWidth < 640);
@@ -69,6 +76,25 @@ export default function MerchOrders() {
         if (!cancelled) setError(e);
       } finally {
         if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.getFlowerOrders();
+        if (cancelled) return;
+        setFlowerOrders(res?.orders || []);
+        setFlowerError(null);
+      } catch (e) {
+        if (!cancelled) setFlowerError(e);
+      } finally {
+        if (!cancelled) setFlowerLoading(false);
       }
     })();
     return () => {
@@ -354,6 +380,159 @@ export default function MerchOrders() {
               <ArrowLeft size={14} />
               Back to Dashboard
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Flower Orders (Team 2, honest visibility correction) — rendered independently of the
+          branded-goods list above, so it appears even for a purchaser with no merch orders at
+          all. No tracking action is ever shown: this provider does not supply shipment tracking,
+          and this section never claims otherwise. */}
+      {!flowerLoading && flowerError && (
+        <div style={{ marginTop: "1.5rem", fontSize: "0.8125rem", color: "var(--text-tertiary)" }}>
+          We couldn&rsquo;t load your flower orders just now. Please try again shortly.
+        </div>
+      )}
+      {!flowerLoading && !flowerError && flowerOrders.length > 0 && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <h2
+            style={{
+              fontSize: "1.0625rem",
+              fontWeight: 700,
+              color: "var(--text-primary)",
+              margin: "0 0 0.875rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <Flower2 size={20} />
+            Flower Orders
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {flowerOrders.map((o) => (
+              <div
+                key={o.id}
+                style={{
+                  background: "var(--bg-primary)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-xl)",
+                  padding: isNarrow ? "1.25rem" : "1.5rem",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "0.75rem",
+                    marginBottom: "0.875rem",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: "0.25rem 0.75rem",
+                      borderRadius: "9999px",
+                      border: "1px solid #c7d2fe",
+                      background: "#eef2ff",
+                      color: "#4338ca",
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {o.status?.label || "Flower order submitted"}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>
+                    {formatDate(o.submittedAt)}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: "1rem",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: "0.9375rem",
+                        fontWeight: 600,
+                        color: "var(--text-primary)",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {o.itemSummary || "Flowers"}
+                      {o.recipientName ? ` for ${o.recipientName}` : ""}
+                    </p>
+                    <p
+                      style={{
+                        margin: "0.25rem 0 0",
+                        fontSize: "0.75rem",
+                        color: "var(--text-tertiary)",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {o.orderReference ? `Order Reference ${o.orderReference}` : `Order ${o.id.slice(0, 8)}`}
+                    </p>
+                  </div>
+                  {typeof o.amountCents === "number" && (
+                    <div
+                      style={{
+                        fontSize: "1rem",
+                        fontWeight: 700,
+                        color: "var(--text-primary)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatPrice(o.amountCents)}
+                    </div>
+                  )}
+                </div>
+
+                {/* Honest delivery/tracking copy — no tracking action is ever offered here. */}
+                <div
+                  style={{
+                    marginTop: "1rem",
+                    paddingTop: "1rem",
+                    borderTop: "1px solid var(--border)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "0.75rem",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+                    {o.requestedDeliveryDate
+                      ? `Requested delivery: ${formatDate(o.requestedDeliveryDate)}. `
+                      : ""}
+                    Shipment tracking is not available.
+                  </p>
+                  <a
+                    href={`mailto:support@greet-me.com?subject=${encodeURIComponent(
+                      `Flower order${o.orderReference ? ` ${o.orderReference}` : ""}`,
+                    )}`}
+                    style={{
+                      fontSize: "0.8125rem",
+                      fontWeight: 600,
+                      color: "#4338ca",
+                      textDecoration: "none",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Get Help with This Order
+                  </a>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
