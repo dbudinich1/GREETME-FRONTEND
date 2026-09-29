@@ -36,6 +36,16 @@ const F1_TREATMENTS = Object.freeze({
 });
 
 /** Percent text -> { ok, value } | { ok:false, error }. Never clamps; never coerces silently. */
+// TEAM 5 (2026-09-29) — the real, working partner-portal URL, for the founder to hand to a newly
+// assigned partner admin. `/dashboard/fundraiser` (App.jsx) is PartnerFundraisingHome, the actual
+// param-less entry point a partner admin lands on; safe-fallback origin resolution mirrors the
+// existing pattern in SalespersonControlCenter.jsx.
+function partnerPortalUrl() {
+  let base = "";
+  try { base = window.location.origin; } catch { base = ""; }
+  return `${base}/#/dashboard/fundraiser`;
+}
+
 function f1ParsePercent(raw) {
   const text = String(raw ?? "").trim();
   if (text === "") return { ok: false, error: "Enter a percentage." };
@@ -1626,6 +1636,30 @@ export default function FounderFundraisingDashboard() {
           {admin.state === STATES.ASSIGNED && admin.account && (
             <p style={{ color: "#5b4f42", fontSize: ".9rem", marginTop: 0 }} data-testid="admin-readback">
               Read-back: {isAssigned(selected, admin.account.userId) ? "present in adminUserIds ✓" : "not yet reflected"}
+            </p>
+          )}
+
+          {/* TEAM 5 (2026-09-29) — traced exhaustively: after a successful assignment, the founder
+              previously saw only "Administrator assigned." with no indication of what to actually
+              tell the new partner admin. Assignment is a pure backend authorization write (no
+              email, no notification — confirmed by reading orgService.js#assignPartnerAdmin in
+              full); the founder is the only channel that will ever tell this person anything, so
+              this gives them the exact, real, working URL to share — no new invitation/email
+              system invented, just the missing next-step text for what already exists. */}
+          {admin.state === STATES.ASSIGNED && admin.account && (
+            <p style={{ color: "#5b4f42", fontSize: ".85rem", marginTop: 0 }} data-testid="admin-next-step">
+              Direct them to the partner portal to get started:{" "}
+              <code data-testid="admin-partner-link">{partnerPortalUrl()}</code>
+              <button
+                type="button"
+                style={{ ...btnGhost, marginLeft: 8, padding: "2px 8px", fontSize: ".78rem" }}
+                data-testid="admin-copy-partner-link"
+                onClick={async () => {
+                  try { await navigator.clipboard.writeText(partnerPortalUrl()); } catch { /* clipboard unavailable — the visible URL above still works */ }
+                }}
+              >
+                Copy link
+              </button>
             </p>
           )}
 

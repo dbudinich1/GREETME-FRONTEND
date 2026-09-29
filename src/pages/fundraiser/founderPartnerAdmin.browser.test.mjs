@@ -195,6 +195,16 @@ test("P2 UI: ASSIGNING then ASSIGNED — success is shown and read-back reflects
   assert.equal(JSON.parse(assignCall.body).userId, ACCOUNT.userId, "the RESOLVED userId is forwarded, never invented");
   assert.ok($("admin-readback"), "read-back rendered");
   assert.match($("admin-readback").textContent, /present in adminUserIds/, "existing read-back behaviour reflects the assignment");
+
+  // TEAM 5 (2026-09-29) — previously "Administrator assigned." was the ONLY thing the founder
+  // saw; nothing told them what to actually give the new partner admin. Assignment is a pure
+  // backend authorization write with no email/notification of any kind, so the founder is the
+  // only channel that will ever tell this person anything.
+  assert.ok($("admin-next-step"), "next-step guidance is shown after a successful assignment");
+  const link = $("admin-partner-link");
+  assert.ok(link, "the real, working partner-portal URL is shown");
+  assert.match(link.textContent, /#\/dashboard\/fundraiser$/, "points at the real PartnerFundraisingHome route, not a fabricated one");
+  assert.ok($("admin-copy-partner-link"), "a copy action is offered");
 });
 
 test("P2 UI: ASSIGN_FAILED — each server rejection renders truthfully and claims no success", async () => {
