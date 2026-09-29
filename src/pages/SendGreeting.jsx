@@ -50,8 +50,8 @@ import cartService from '../services/cartService';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import draftService from '../services/draftService';
-import { pushInApp } from '../utils/notify';
-import { COMMS_EVENTS } from '../utils/commsCatalog';
+import { pushInApp, showManualToast } from '../utils/notify';
+import { COMMS_EVENTS, COMMS_CATEGORIES } from '../utils/commsCatalog';
 import { normalizeOccasionKey } from '../utils/normalizeOccasionKey';
 import { getErrorMessage } from '../utils/errorMessages';
 
@@ -145,12 +145,17 @@ export default function SendGreeting() {
     occasionType: 'Thinking of You',
     customOccasion: '',
     customMessage: '',
-    isRecurring: false,
     aiContext: '',
     giftAmount: '',
     tone: 'warm',
   });
   const [errors, setErrors] = useState({});
+  // Fix 1 (Team 3 WP-C): refs so a failed validate() can move focus to, and
+  // scroll, the first invalid field into view instead of leaving the sender
+  // to hunt for an inline error that may be off-screen.
+  const contactSelectRef = useRef(null);
+  const occasionSelectRef = useRef(null);
+  const photoErrorRef = useRef(null);
 
   // Gift modal state
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
@@ -312,7 +317,19 @@ export default function SendGreeting() {
 
   // Photo state
   const [defaultPhoto, setDefaultPhoto] = useState(null);
+  // Scoped strictly to "Add Photo for This Occasion" (Option 2 below) — local
+  // to this one greeting only.
   const [memoryPhotos, setMemoryPhotos] = useState([]);
+  // Fix 3 (Team 3 WP-C): a SEPARATE array for "add photo to memory album"
+  // uploads made from Option 1 ("[Contact]'s Photos"). Previously that tile
+  // wrote into `memoryPhotos`, so a photo meant for the recipient's permanent
+  // album visually leaked into Option 2's "this occasion" grid instead. There
+  // is no backend endpoint yet to actually persist a photo onto a contact's
+  // server-side memoryPhotos (building one is out of scope for this pass), so
+  // these stay local and are rendered ONLY inside Option 1, clearly marked as
+  // not yet saved — honest about what is actually happening, and no longer
+  // sharing state with Option 2.
+  const [contactAlbumPhotosToAdd, setContactAlbumPhotosToAdd] = useState([]);
   const [useMemoryPhotos, setUseMemoryPhotos] = useState(true); // Include memory photos by default
   const [excludedMemoryPhotos, setExcludedMemoryPhotos] = useState(new Set()); // Track deselected photos
   const MAX_MEMORY_PHOTOS = 8;
@@ -320,6 +337,9 @@ export default function SendGreeting() {
   const memoryPhotoInputRef = useRef(null);
   const addToMemoryInputRef = useRef(null);
   const hasRestoredStateRef = useRef(false); // Track if we've already restored state
+  // Fix 4 (Team 3 WP-C): guards for the draft-based media save/restore additions.
+  const draftSaveFailureNotifiedRef = useRef(false);
+  const mediaRestoredOnMountRef = useRef(false);
 
   // Phase 3D Batch A — A2.4: single-shot guard for the Stripe redirect resume
   // effect. Set synchronously before any state mutation or async work to
@@ -373,6 +393,25 @@ export default function SendGreeting() {
     setMemoryPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Fix 3 (Team 3 WP-C): handle a photo added via Option 1's "add to memory
+  // album" tile. Kept in its own state (contactAlbumPhotosToAdd) so it never
+  // renders inside Option 2's "this occasion" grid again.
+  const handleAddToContactAlbum = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setContactAlbumPhotosToAdd(prev => [...prev, reader.result].slice(0, MAX_MEMORY_PHOTOS));
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  };
+
+  const handleRemoveContactAlbumPhoto = (index) => {
+    setContactAlbumPhotosToAdd(prev => prev.filter((_, i) => i !== index));
+  };
+
   // Toggle memory photo selection
   const toggleMemoryPhotoSelection = (photoUrl) => {
     setExcludedMemoryPhotos(prev => {
@@ -406,7 +445,14 @@ export default function SendGreeting() {
     }
   }, [location.search]);
 
-  // Auto-save draft when form has meaningful content
+  // Auto-save draft when form has meaningful content.
+  // Fix 4 (Team 3 WP-C): also persists composer-local media state — the
+  // existing draft mechanism previously only carried `formData`, so ordinary
+  // navigation away and back (anything other than the two special-cased
+  // "Open Media Library"/"Browse marketplace" round trips) silently lost
+  // photos. `excludedMemoryPhotos` is a Set and localStorage/JSON can't
+  // serialize that directly, so it is converted to an array here and back on
+  // restore below.
   useEffect(() => {
     if (!formData.contactId || !formData.occasionType) return;
     const timer = setTimeout(() => {
@@ -415,12 +461,51 @@ export default function SendGreeting() {
           contactId: formData.contactId,
           occasionType: formData.occasionType,
           formData,
+          defaultPhoto,
+          memoryPhotos,
+          useMemoryPhotos,
+          excludedMemoryPhotos: Array.from(excludedMemoryPhotos),
+          contactAlbumPhotosToAdd,
           status: 'draft',
         });
-      } catch { /* localStorage full or unavailable — non-critical */ }
+        draftSaveFailureNotifiedRef.current = false;
+      } catch {
+        // localStorage full or unavailable. This used to be 100% silent —
+        // the sender would believe their changes (including any photos) were
+        // safe when they were not. Surface a lightweight, non-blocking toast
+        // via the existing manual-toast utility instead of inventing a new
+        // notification path. Shown at most once until a save succeeds again,
+        // so a persistently broken localStorage doesn't spam the sender.
+        if (!draftSaveFailureNotifiedRef.current) {
+          draftSaveFailureNotifiedRef.current = true;
+          showManualToast(
+            'Draft not saved',
+            "Your latest changes couldn't be saved on this device. If you navigate away now, some changes may be lost.",
+            COMMS_CATEGORIES.SYSTEM,
+          );
+        }
+      }
     }, 1000); // debounce 1s
     return () => clearTimeout(timer);
-  }, [formData]);
+  }, [formData, defaultPhoto, memoryPhotos, useMemoryPhotos, excludedMemoryPhotos, contactAlbumPhotosToAdd]);
+
+  // Restore a saved draft's fields onto current state, including the media
+  // fields Fix 4 (Team 3 WP-C) added to the draft above.
+  const restoreDraftIntoState = (saved) => {
+    if (!saved) return;
+    if (saved.formData) {
+      setFormData(prev => ({ ...prev, ...saved.formData }));
+    }
+    if (saved.defaultPhoto !== undefined) setDefaultPhoto(saved.defaultPhoto || null);
+    if (Array.isArray(saved.memoryPhotos)) setMemoryPhotos(saved.memoryPhotos);
+    if (saved.useMemoryPhotos !== undefined) setUseMemoryPhotos(saved.useMemoryPhotos);
+    if (Array.isArray(saved.excludedMemoryPhotos)) {
+      setExcludedMemoryPhotos(new Set(saved.excludedMemoryPhotos));
+    }
+    if (Array.isArray(saved.contactAlbumPhotosToAdd)) {
+      setContactAlbumPhotosToAdd(saved.contactAlbumPhotosToAdd);
+    }
+  };
 
   // Restore draft if navigating to send with a contact+occasion pre-selected
   useEffect(() => {
@@ -429,10 +514,41 @@ export default function SendGreeting() {
     const occasion = params.get('occasion');
     if (!contactId || !occasion) return;
     const saved = draftService.getDraft(contactId, occasion);
-    if (saved?.formData) {
-      setFormData(prev => ({ ...prev, ...saved.formData }));
-    }
+    restoreDraftIntoState(saved);
   }, [location.search]);
+
+  // Fix 4 (Team 3 WP-C): also restore on a plain revisit to /dashboard/send
+  // once a recipient + occasion are selected by any means (not only the
+  // URL-param path above) — e.g. picked directly in the form after a fresh
+  // remount. Runs at most once per mount, and only fills in media fields that
+  // are still empty, so it can't clobber anything the URL-param restore, the
+  // returnTo=send sessionStorage restore, or the sender's own fresh picks
+  // already set.
+  useEffect(() => {
+    if (mediaRestoredOnMountRef.current) return;
+    if (!formData.contactId || !formData.occasionType) return;
+    mediaRestoredOnMountRef.current = true;
+    const saved = draftService.getDraft(formData.contactId, formData.occasionType);
+    if (!saved) return;
+    if (saved.defaultPhoto && !defaultPhoto) setDefaultPhoto(saved.defaultPhoto);
+    if (Array.isArray(saved.memoryPhotos) && saved.memoryPhotos.length > 0 && memoryPhotos.length === 0) {
+      setMemoryPhotos(saved.memoryPhotos);
+    }
+    if (
+      Array.isArray(saved.excludedMemoryPhotos) &&
+      saved.excludedMemoryPhotos.length > 0 &&
+      excludedMemoryPhotos.size === 0
+    ) {
+      setExcludedMemoryPhotos(new Set(saved.excludedMemoryPhotos));
+    }
+    if (
+      Array.isArray(saved.contactAlbumPhotosToAdd) &&
+      saved.contactAlbumPhotosToAdd.length > 0 &&
+      contactAlbumPhotosToAdd.length === 0
+    ) {
+      setContactAlbumPhotosToAdd(saved.contactAlbumPhotosToAdd);
+    }
+  }, [formData.contactId, formData.occasionType]);
 
   // Pre-select recipient from contactId URL param (e.g., Contacts page "Send" button)
   useEffect(() => {
@@ -931,7 +1047,38 @@ export default function SendGreeting() {
     }
 
     setErrors(newErrors);
+
+    // Fix 1 (Team 3 WP-C): errors were previously shown only as inline text \u2014
+    // nothing brought an off-screen invalid field into view. Move focus to,
+    // and scroll to, the first invalid field, in the order the fields are
+    // rendered: recipient, then occasion, then the photo notice.
+    if (Object.keys(newErrors).length > 0) {
+      focusFirstInvalidField(newErrors);
+    }
+
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Fix 1 (Team 3 WP-C): scrolls the first invalid field into view and
+  // focuses it. Scroll first, then focus on the next tick \u2014 focusing
+  // immediately can cut a smooth scroll short in some browsers.
+  const focusFirstInvalidField = (fieldErrors) => {
+    const target = fieldErrors.contactId
+      ? contactSelectRef.current
+      : fieldErrors.occasionType
+        ? occasionSelectRef.current
+        : fieldErrors.photo
+          ? photoErrorRef.current
+          : null;
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => {
+      try {
+        target.focus({ preventScroll: true });
+      } catch {
+        target.focus();
+      }
+    }, 300);
   };
 
   /**
@@ -1635,7 +1782,6 @@ if (typeof window !== "undefined") {
       occasionType: 'Thinking of You',
       customOccasion: '',
       customMessage: '',
-      isRecurring: false,
       aiContext: '',
       giftAmount: '',
       tone: 'warm',
@@ -2447,7 +2593,11 @@ if (typeof window !== "undefined") {
             </button>
           </div>
         )}
-        {errors.photo && <Alert type="error" message={errors.photo} />}
+        {errors.photo && (
+          <div ref={photoErrorRef} tabIndex={-1} style={{ outline: 'none' }}>
+            <Alert type="error" message={errors.photo} />
+          </div>
+        )}
 
         {/* Recipient, Occasion, and Tone - Side by Side */}
         <div style={{
@@ -2472,6 +2622,7 @@ if (typeof window !== "undefined") {
             </div>
             <select
               name="contactId"
+              ref={contactSelectRef}
               value={formData.contactId}
               onChange={handleChange}
               disabled={contacts.length === 0}
@@ -2513,6 +2664,7 @@ if (typeof window !== "undefined") {
             </label>
             <select
               name="occasionType"
+              ref={occasionSelectRef}
               value={formData.occasionType}
               onChange={handleChange}
               style={{
@@ -2682,22 +2834,16 @@ if (typeof window !== "undefined") {
             </div>
           )}
 
-          {/* Hidden file input for adding to memory album */}
+          {/* Hidden file input for adding to memory album.
+              Fix 3 (Team 3 WP-C): routed to contactAlbumPhotosToAdd, NOT
+              memoryPhotos — memoryPhotos is Option 2's "this occasion" array,
+              and sharing it with this tile was the root cause of photos
+              added here visually appearing under "Add Photo for This
+              Occasion" instead. */}
           <input
             type="file"
             ref={addToMemoryInputRef}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  // Add to the local memoryPhotos array (for this session)
-                  setMemoryPhotos(prev => [...prev, reader.result]);
-                };
-                reader.readAsDataURL(file);
-              }
-              e.target.value = '';
-            }}
+            onChange={handleAddToContactAlbum}
             accept="image/*"
             style={{ display: 'none' }}
           />
@@ -2827,6 +2973,77 @@ if (typeof window !== "undefined") {
                       </div>
                     );
                   })}
+
+                  {/* Fix 3 (Team 3 WP-C): photos added via the "add to memory album" tile
+                      below, rendered HERE in Option 1 — not in Option 2's grid — and clearly
+                      marked as not yet saved, since there is no backend endpoint yet to
+                      actually persist them to the contact's permanent album. */}
+                  {contactAlbumPhotosToAdd.map((photoUrl, index) => (
+                    <div key={`pending-album-${index}`} style={{ position: 'relative' }}>
+                      <div
+                        style={{
+                          position: 'relative',
+                          paddingBottom: '100%',
+                          borderRadius: 'var(--radius-md)',
+                          overflow: 'hidden',
+                          border: '2px dashed #3b82f6',
+                          opacity: 0.85,
+                        }}
+                        title="Added on this device only — not yet saved to the permanent album"
+                      >
+                        <img
+                          src={photoUrl}
+                          alt={`Pending album photo ${index + 1}`}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                          }}
+                        />
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '2px',
+                          left: '2px',
+                          right: '2px',
+                          background: 'rgba(30, 64, 175, 0.85)',
+                          color: 'white',
+                          fontSize: '0.5rem',
+                          fontWeight: 700,
+                          padding: '2px 3px',
+                          borderRadius: '3px',
+                          textAlign: 'center',
+                        }}>
+                          Not yet saved
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleRemoveContactAlbumPhoto(index); }}
+                        style={{
+                          position: 'absolute',
+                          top: '4px',
+                          right: '4px',
+                          width: '18px',
+                          height: '18px',
+                          background: 'rgba(255, 255, 255, 0.95)',
+                          color: '#dc2626',
+                          border: 'none',
+                          borderRadius: '50%',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                        }}
+                        title="Remove"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
 
                   {/* Add Photo to Memory Album Placeholder */}
                   <div

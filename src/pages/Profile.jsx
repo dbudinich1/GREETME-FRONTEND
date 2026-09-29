@@ -34,6 +34,10 @@ export default function Profile() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoUrl, setPhotoUrl] = useState('');
   const [playingVoice, setPlayingVoice] = useState(null);
+  // Fix 5 (Team 3 WP-C): tracks photos whose <img> failed to load, so we can
+  // show an honest local "unavailable" state instead of fetching a random
+  // external placeholder image from a third-party service.
+  const [brokenPhotoIds, setBrokenPhotoIds] = useState(new Set());
   const { user } = useAuth();
 
   useEffect(() => {
@@ -161,8 +165,15 @@ export default function Profile() {
 
     try {
       setUploadingPhoto(true);
-      // In production, send URL to backend
-      showAlert('success', 'Photo URL added successfully!');
+      // Fix 5 (Team 3 WP-C): this never sent the URL to the backend — it only
+      // pushed into local `photoFiles` state — yet showed a "success" toast
+      // implying a durable save, so the "added" photo silently vanished on
+      // reload. There is no existing backend endpoint that accepts a bare
+      // photo URL (api.uploadPhoto posts multipart FormData for a file, not a
+      // URL) and wiring one is backend work outside this frontend-only pass,
+      // so the honest fix is accurate copy rather than a false success claim:
+      // this photo is added for the current session/device only.
+      showAlert('info', 'Photo URL added for this session. It will not be saved after you reload the page — upload a photo file above for a permanent default.');
       setPhotoFiles(prev => [...prev, {
         id: Date.now().toString(),
         url: photoUrl,
@@ -469,14 +480,23 @@ export default function Profile() {
                 className="relative group rounded-xl overflow-hidden border-2 border-gray-200 hover:border-blue-500 transition-all"
               >
                 <div className="aspect-square bg-gray-100">
-                  <img
-                    src={photo.url}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/300?text=Photo';
-                    }}
-                  />
+                  {brokenPhotoIds.has(photo.id) ? (
+                    // Fix 5 (Team 3 WP-C): local, honest broken-image state —
+                    // no network dependency, no unrelated fake imagery.
+                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                      <Camera size={28} />
+                      <span className="text-xs mt-1">Photo unavailable</span>
+                    </div>
+                  ) : (
+                    <img
+                      src={photo.url}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                      onError={() => {
+                        setBrokenPhotoIds(prev => new Set(prev).add(photo.id));
+                      }}
+                    />
+                  )}
                 </div>
 
                 {/* Default Badge */}
