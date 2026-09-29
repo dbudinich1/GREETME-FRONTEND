@@ -19,7 +19,6 @@ import CampaignDetail from "./CampaignDetail.jsx";
 // conformity lock (campaignSurface.teamA.test.mjs) that forbids it from importing anything
 // payment-, gift- or fundraising-shaped, and that lock is worth keeping. So the dashboard knows
 // only that there is a panel; everything about how a card is collected lives behind it.
-import SavedCardPanel from "./SavedCardPanel.jsx";
 // SLICE D — the consolidated premium surface.
 import CampaignCard from "./CampaignCard.jsx";
 import ContactTiles from "./ContactTiles.jsx";
@@ -877,21 +876,20 @@ export default function GreetingAutomationCampaigns({
                   expanded={expandedCampaignId === r.campaign.campaignId}
                   onToggleExpanded={(cid) => setExpandedCampaignId((cur) => (cur === cid ? null : cid))}
                   onAfterMutate={async () => { await loadCampaigns(effectiveOrgId); }}
+                  cardClient={cardClient}
+                  stripeOverride={stripeOverride}
                 />
               ))
             )}
           </div>
         </section>
 
-        {/* TEAM I (CONNECTION D) — PAYMENT METHOD. FOUNDER-APPROVED LAYOUT (2026-09-25) — the
-            account-level card panel moves BELOW Campaigns: Contacts must be the first functional
-            panel on the page. Same component, same props, same behavior — only its position on
-            the page changed. */}
-        <SavedCardPanel
-          orgId={effectiveOrgId}
-          client={cardClient}
-          stripeOverride={stripeOverride}
-        />
+        {/* TEAM 5 (2026-09-29) — the detached account-level payment panel that used to live here
+            is gone. Payment management now lives inside each campaign's own Schedule & Payment
+            tab (CampaignCard.jsx), per founder-approved layout rule #8/#9: "Payment management
+            belongs within the campaign's Schedule & Payment experience" / "do not leave a
+            detached account-level payment-management panel below Campaigns." Same
+            SavedCardPanel component, same props, same behavior — only where it mounts changed. */}
 
         {/* F1C ADDENDUM — the standing gift/payment note. Deliberately OUTSIDE the scroll
             viewport and outside every campaign card: one note for the surface, not one per tile.

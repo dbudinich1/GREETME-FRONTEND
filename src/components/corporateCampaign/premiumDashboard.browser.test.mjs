@@ -52,6 +52,14 @@ before(async () => {
     entryPoints: [ENTRY], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
     jsx: "automatic", loader: { ".js": "jsx", ".jsx": "jsx", ".css": "empty" },
     external: ["react", "react-dom", "react-dom/client", "react-router-dom"],
+    // TEAM 5 (2026-09-29) — CampaignCard.jsx now embeds SavedCardPanel (payment relocation into
+    // the Schedule & Payment tab), which transitively imports stripeProvider.js, which reads
+    // import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY. Real Vite injects import.meta.env at build
+    // time; this plain-Node esbuild bundle does not, so it must be defined explicitly (mirroring
+    // the same, already-working pattern in greetingAutomationCreate.browser.test.mjs) or the
+    // bundle throws on import with no publishable key configured — a test-harness gap this
+    // change exposed, not a defect in the relocated component itself.
+    define: { "import.meta.env": "{}" },
   });
   dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://app.test/" });
   globalThis.window = dom.window; globalThis.document = dom.window.document;

@@ -47,6 +47,7 @@ import { CategoryBubble, ChoiceBubble, BubbleGroup } from "./Bubbles.jsx";
 import CampaignFeaturedSpreadEditor from "../../corporateCampaign/CampaignFeaturedSpreadEditor.jsx";
 import { ANIMATION_IMAGE_SOURCE } from "../../corporateCampaign/constants.js";
 import IndividualContactPicker from "./IndividualContactPicker.jsx";
+import SavedCardPanel from "./SavedCardPanel.jsx";
 import "./premiumDashboard.css";
 
 // The four review tabs the approved reference names. Each renders EXISTING section content,
@@ -126,6 +127,11 @@ export default function CampaignCard({
   // configured on this card, so routing to CampaignDetail to read the same facts was exactly the
   // secondary-screen sequence this redesign removes.
   onAfterMutate,
+  // TEAM 5 (2026-09-29) — the same two props GreetingAutomationCampaigns.jsx already threaded to
+  // its OWN external SavedCardPanel mount; now handed one level further down so the payment panel
+  // can live inside this modal's Schedule & Payment tab instead (see below). Same component, same
+  // props, same behavior — only where it mounts changed.
+  cardClient, stripeOverride,
 }) {
   const status = deriveCampaignStatus(campaign);
   const actions = deriveActions(campaign, { isOwner, canAuthorizeRun });
@@ -967,51 +973,25 @@ export default function CampaignCard({
             </div>
           </div>
 
-          {/* ── PAYMENT METHOD — presentation only. No new fetch, no new client: the org's card is
-              managed exactly where it always was, in the EXISTING Payment method panel above the
-              dashboard's Contacts section (SavedCardPanel, untouched). This block only reserves
-              the space the approved reference calls for and shows whatever this card already
-              safely knows (its own computed "Est. total"); everything this card cannot know
-              honestly says so instead of guessing. */}
+          {/* ── PAYMENT METHOD — TEAM 5 (2026-09-29): the org's saved card now lives HERE, inside
+              this campaign's own Schedule & Payment tab, using the EXISTING SavedCardPanel
+              component/API/Stripe-Elements wiring completely unchanged — only where it mounts
+              changed. Previously this was a placeholder with mostly hardcoded "—" values, and its
+              "Manage payment method" button CLOSED this modal and scrolled to a separate panel
+              rendered below the Campaigns section on the main dashboard — founder-approved layout
+              rule #8/#9 explicitly calls for payment management to live inside Schedule & Payment
+              and for there to be no detached account-level panel. The estimated-total row (real,
+              computed from this card's own draft) is kept alongside it; SavedCardPanel itself
+              needs no route params or lifted context — it builds its own Stripe Elements provider
+              per mount, so nesting one per open campaign modal is safe. */}
           <div className="gcd-section" style={{ marginTop: 18 }}>
-            <p className="gcd-section-label">Payment method</p>
             <dl className="gcd-info" data-testid={`card-payment-summary-${campaign.campaignId}`}>
-              <div className="gcd-info-row">
-                <dt className="gcd-info-label">Card</dt>
-                <dd className="gcd-info-value" data-testid={`card-payment-card-${campaign.campaignId}`}>—</dd>
-              </div>
-              <div className="gcd-info-row">
-                <dt className="gcd-info-label">Funding status</dt>
-                <dd className="gcd-info-value" data-testid={`card-payment-funding-${campaign.campaignId}`}>—</dd>
-              </div>
               <div className="gcd-info-row">
                 <dt className="gcd-info-label">Estimated campaign total</dt>
                 <dd className="gcd-info-value" data-testid={`card-payment-total-${campaign.campaignId}`}>{metaEstTotal}</dd>
               </div>
-              <div className="gcd-info-row">
-                <dt className="gcd-info-label">Expected charge date</dt>
-                <dd className="gcd-info-value" data-testid={`card-payment-chargedate-${campaign.campaignId}`}>—</dd>
-              </div>
             </dl>
-            <p className="gcd-wcard-note" data-testid={`card-payment-placeholder-${campaign.campaignId}`}>
-              Payment method details will appear here.
-            </p>
-            {/* Opens the EXISTING Payment method panel above Contacts — same section, same
-                SavedCardPanel, same card. This closes the modal and scrolls; it calls nothing. */}
-            <button type="button" className="gcd-btn" data-testid={`card-manage-payment-${campaign.campaignId}`}
-              onClick={() => {
-                if (onToggleExpanded) onToggleExpanded(campaign.campaignId);
-                if (typeof window !== "undefined" && window.requestAnimationFrame) {
-                  window.requestAnimationFrame(() => {
-                    const el = document.getElementById("gcd-card-head");
-                    if (el && typeof el.scrollIntoView === "function") {
-                      el.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }
-                  });
-                }
-              }}>
-              Manage payment method
-            </button>
+            <SavedCardPanel orgId={orgId} client={cardClient} stripeOverride={stripeOverride} />
           </div>
           </div>
             </div>
