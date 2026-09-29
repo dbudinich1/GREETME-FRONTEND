@@ -97,7 +97,7 @@ test("exactly eight selectors, in the approved order", () => {
   assert.deepEqual(
     SELECTOR_ROW.map((s) => s.label),
     [
-      "Brandable Goods",
+      "Branded Goods",
       "Gift Cards",
       "Gift Baskets",
       "Flowers",
@@ -300,7 +300,7 @@ test("switching selection replaces the shared set rather than adding to it", () 
 });
 
 test("selection labels are display copy for the empty state", () => {
-  assert.equal(selectionLabel(BRANDABLE), "Brandable Goods");
+  assert.equal(selectionLabel(BRANDABLE), "Branded Goods");
   assert.equal(selectionLabel("faith_and_inspiration"), "Faith & Inspiration");
   assert.equal(selectionLabel(VIEW_ALL), "View All");
   assert.equal(selectionLabel("not_a_selector"), "");

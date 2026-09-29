@@ -178,7 +178,7 @@ export default function Cart() {
             maxWidth: '400px',
             margin: '0 auto 2rem'
           }}>
-            Browse our curated selection of gifts and merchandise to find the perfect items for your loved ones.
+            Browse the American Gift Place for a curated selection of gifts and Branded Goods to find the perfect items for your loved ones.
           </p>
           <div style={{
             display: 'flex',
@@ -240,7 +240,7 @@ export default function Cart() {
                 e.currentTarget.style.background = 'white';
               }}
             >
-              Shop Merch
+              Shop the American Gift Place
             </button>
           </div>
         </div>

@@ -90,7 +90,7 @@ export default function Pricing() {
     // Mixed-cart block (Phase 3C Stage 3): subscription/G1G1 cannot mix with merch
     if (cartService.hasMerch()) {
       alert(
-        'Your cart already contains merchandise. ' +
+        'Your cart already contains Branded Goods. ' +
         'Please complete that purchase or clear your cart before adding a subscription.'
       );
       return;
@@ -644,7 +644,7 @@ export default function Pricing() {
                     marginBottom: '0.75rem',
                     whiteSpace: 'nowrap'
                   }}>
-                    {plan.platformFee ? `+ $${plan.platformFee} Platform Fee` : ''}
+                    {plan.platformFee ? `+ $${plan.platformFee} One-Time Platform Fee` : ''}
                   </div>
                 )}
 

@@ -108,8 +108,16 @@ export default function Merch() {
       try {
         const res = await api.request('/api/merch/products');
         if (!cancelled) {
-          setProducts(res?.products || []);
-          setError(null);
+          // A network-level failure resolves rather than throws (see api.js), and must not be
+          // read as "zero products" — that reads to a shopper as an empty, not-yet-curated
+          // collection instead of a failed load with a retry path.
+          if (res?.networkError) {
+            setProducts([]);
+            setError(new Error('We could not reach Greet-Me. Please check your connection and try again.'));
+          } else {
+            setProducts(res?.products || []);
+            setError(null);
+          }
         }
       } catch (err) {
         if (!cancelled) setError(err);
@@ -130,8 +138,15 @@ export default function Merch() {
       try {
         const res = await api.getGiftCatalog();
         if (!cancelled) {
-          setCuratedProducts(Array.isArray(res?.products) ? res.products : []);
-          setCuratedError(null);
+          // Same network-failure guard as the Brandable Goods fetch above: a network-level
+          // failure must surface as a failed load, not as an empty, not-yet-curated category.
+          if (res?.networkError) {
+            setCuratedProducts([]);
+            setCuratedError(new Error('We could not reach Greet-Me. Please check your connection and try again.'));
+          } else {
+            setCuratedProducts(Array.isArray(res?.products) ? res.products : []);
+            setCuratedError(null);
+          }
         }
       } catch (err) {
         if (!cancelled) setCuratedError(err);
@@ -308,7 +323,12 @@ export default function Merch() {
     const chosen = providerProductsForCheckout.find(
       (p) => String(p.providerProductId) === String(card.providerProductId)
     );
-    if (!chosen) return;
+    if (!chosen) {
+      // This item still needs its own checkout catalog fetch to resolve — a click here must
+      // never look like a working button that silently did nothing.
+      alert('This item is still loading. Please try again in a moment.');
+      return;
+    }
     let saved = {};
     try {
       saved = JSON.parse(sessionStorage.getItem('sendGreetingState') || '{}');
@@ -364,7 +384,11 @@ export default function Merch() {
     const chosen = providerProductsForCheckout.find(
       (p) => String(p.providerProductId) === String(card.providerProductId)
     );
-    if (!chosen) return;
+    if (!chosen) {
+      // Same guard as selectProviderGiftForGreeting: never a silent no-op on a click.
+      alert('This item is still loading. Please try again in a moment.');
+      return;
+    }
     setPickerProduct(null);
     // Held for the checkout the shopper may or may not go on to open. Choosing a different
     // arrangement replaces it, exactly as a second merch selection replaces the first.
@@ -418,13 +442,14 @@ export default function Merch() {
     if (cartService.hasNonMerch()) {
       alert(
         'Your cart already contains a subscription or other item. ' +
-        'Please complete that purchase or clear your cart before adding merch.'
+        'Please complete that purchase or clear your cart before adding Branded Goods.'
       );
       return;
     }
 
     if (!Array.isArray(product.variants) || product.variants.length === 0) {
       console.warn('Merch product missing variants', product);
+      alert('This item is not available to add to your cart right now. Please try again shortly.');
       return;
     }
 

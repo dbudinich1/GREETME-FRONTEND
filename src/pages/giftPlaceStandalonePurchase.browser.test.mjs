@@ -626,8 +626,8 @@ test("16b. a flower chosen, then merch chosen, releases the arrangement — the 
 
       // Back to Brandable Goods, and add the merch product.
       const tile = [...m.host.querySelectorAll("button, div[role='button'], label")]
-        .find((el) => /Brandable/i.test(text(el)));
-      assert.ok(tile, "the Brandable Goods control must exist");
+        .find((el) => /Branded/i.test(text(el)));
+      assert.ok(tile, "the Branded Goods control must exist");
       await click(tile);
       const merchBtn = flowerActions(m.host).find((b) =>
         /MERCH-1/.test(b.getAttribute("data-testid") || ""));

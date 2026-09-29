@@ -176,7 +176,7 @@ test("no NEW bulk backend endpoint was added for multi-select publish — Publis
 
 test("the unified selector order and Brandable default are unchanged", () => {
   assert.deepEqual(SELECTOR_ROW.map((s) => s.label), [
-    "Brandable Goods", "Gift Cards", "Gift Baskets", "Flowers",
+    "Branded Goods", "Gift Cards", "Gift Baskets", "Flowers",
     "Americana", "Faith & Inspiration", "Tech", "View All",
   ]);
   assert.equal(DEFAULT_SELECTION, BRANDABLE);

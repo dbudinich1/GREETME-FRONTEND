@@ -88,44 +88,49 @@ export default function ProvidersStatusView({ client, onAddProducts }) {
         return (
           <li key={p.providerId} data-testid={`provider-status-${p.providerId}`} style={{
             border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '0.75rem 1rem',
-            display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap',
+            display: 'flex', flexDirection: 'column', gap: '0.5rem',
           }}>
-            <Building2 size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-            <span style={{ fontWeight: 700 }}>{p.label || p.providerId}</span>
-            <span data-testid={`provider-status-badge-${p.providerId}`} style={{
-              padding: '0.2rem 0.625rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
-              background: colors.bg, color: colors.fg,
-            }}>
-              {statusLabel(p)}
-            </span>
-            {p.enabled && p.refreshable !== false && (
+            {/* THE ACTION ROW — icon, name, status badge, Refresh, Add Products. Fixed-width
+                columns for the icon/name/badge so a long status label ("Active — no browsable
+                catalog" vs "Active") never shifts where Refresh/Add Products land on other rows. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
+              <Building2 size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+              <span style={{ fontWeight: 700, minWidth: '110px' }}>{p.label || p.providerId}</span>
+              <span data-testid={`provider-status-badge-${p.providerId}`} style={{
+                padding: '0.2rem 0.625rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
+                background: colors.bg, color: colors.fg, minWidth: '180px', textAlign: 'center',
+              }}>
+                {statusLabel(p)}
+              </span>
+              {p.enabled && p.refreshable !== false && (
+                <button
+                  type="button"
+                  data-testid={`provider-refresh-${p.providerId}`}
+                  onClick={() => runRefresh(p.providerId)}
+                  disabled={refreshingId === p.providerId}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.375rem',
+                    padding: '0.3rem 0.625rem', borderRadius: '0.375rem', border: '1px solid var(--border)',
+                    background: 'white', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'inherit',
+                  }}
+                >
+                  <RefreshCw size={12} /> Refresh
+                </button>
+              )}
               <button
                 type="button"
-                data-testid={`provider-refresh-${p.providerId}`}
-                onClick={() => runRefresh(p.providerId)}
-                disabled={refreshingId === p.providerId}
+                data-testid={`provider-add-${p.providerId}`}
+                onClick={() => onAddProducts(p.providerId)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: '0.375rem',
-                  padding: '0.3rem 0.625rem', borderRadius: '0.375rem', border: '1px solid var(--border)',
-                  background: 'white', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'inherit',
+                  marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.375rem',
+                  padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: 'none',
+                  background: 'var(--primary)', color: 'white', fontWeight: 700, cursor: 'pointer',
+                  fontSize: '0.75rem', fontFamily: 'inherit',
                 }}
               >
-                <RefreshCw size={12} /> Refresh
+                <Plus size={13} /> Add Products
               </button>
-            )}
-            <button
-              type="button"
-              data-testid={`provider-add-${p.providerId}`}
-              onClick={() => onAddProducts(p.providerId)}
-              style={{
-                marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.375rem',
-                padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: 'none',
-                background: 'var(--primary)', color: 'white', fontWeight: 700, cursor: 'pointer',
-                fontSize: '0.75rem', fontFamily: 'inherit',
-              }}
-            >
-              <Plus size={13} /> Add Products
-            </button>
+            </div>
             {p.reason && <p style={{ margin: 0, width: '100%', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{p.reason}</p>}
             {Array.isArray(p.launchBlockerIds) && p.launchBlockerIds.length > 0 && (
               <ul data-testid={`provider-blockers-${p.providerId}`} style={{ margin: 0, width: '100%', paddingLeft: '1.25rem', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>

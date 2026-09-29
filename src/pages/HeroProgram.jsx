@@ -553,7 +553,7 @@ const PARTICIPATION_GROUPS = [
         chip: 'available', cta: { kind: 'qrcash', label: 'Launch QR Cash' } },
       { key: 'gifted_bundles', title: 'Gifted Subscription Bundles', icon: Gift,
         desc: 'Gift Greet-Me memberships to your team, clients, or community.',
-        chip: 'available', cta: { kind: 'link', to: '/dashboard/gifts', label: 'Open Gifts' } },
+        chip: 'learn', cta: { kind: 'contact', label: 'Learn More' } },
       { key: 'animation_packs', title: 'Anytime Animation Packs', icon: Film,
         desc: 'Pre-purchase animation credits for birthdays, holidays, celebrations, appreciation, and everyday Greet-Me moments.',
         chip: 'available', cta: { kind: 'link', to: '/dashboard/animations', label: 'Purchase Packs' } },

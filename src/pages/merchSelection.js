@@ -45,7 +45,7 @@ export const BRANDABLE_TAGLINE = 'See it with our brand. Make it yours.';
 // The unified selector row, in render order. One array, so the order on screen and the order
 // asserted in tests cannot drift apart. `kind` drives presentation only — never selection.
 export const SELECTOR_ROW = [
-  { id: BRANDABLE, label: 'Brandable Goods', kind: 'collection' },
+  { id: BRANDABLE, label: 'Branded Goods', kind: 'collection' },
   ...GREET_ME_CATEGORIES.map((c) => ({ ...c, kind: 'category' })),
   { id: VIEW_ALL, label: 'View All', kind: 'utility' },
 ];

@@ -133,7 +133,7 @@ export default function MerchOrders() {
             fontSize: isNarrow ? "0.875rem" : "1rem",
           }}
         >
-          Status and shipment tracking for your Greet-Me merch.
+          Status and shipment tracking for your American Gift Place orders.
         </p>
       </div>
 
@@ -193,7 +193,7 @@ export default function MerchOrders() {
               lineHeight: 1.6,
             }}
           >
-            When you place a merch order, it will appear here with shipment tracking.
+            When you place an order, it will appear here with shipment tracking.
           </p>
           <button
             onClick={() => navigate("/dashboard/merch")}
@@ -213,7 +213,7 @@ export default function MerchOrders() {
               boxShadow: "0 4px 12px rgba(102, 126, 234, 0.3)",
             }}
           >
-            Browse Merch
+            Browse the American Gift Place
           </button>
         </div>
       ) : (
@@ -292,7 +292,7 @@ export default function MerchOrders() {
                         lineHeight: 1.5,
                       }}
                     >
-                      {o.itemSummary || "Greet-Me merch"}
+                      {o.itemSummary || "Greet-Me gift order"}
                     </p>
                     <p
                       style={{
