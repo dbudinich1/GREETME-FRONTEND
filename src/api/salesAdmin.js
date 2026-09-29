@@ -92,6 +92,26 @@ export const salesAdminApi = {
     req("PUT", `${one(salespersonId)}/referral-slug`, { referralSlug: null }),
 
   /**
+   * PUT …/linked-user — link, replace, or REMOVE the salesperson's own Greet-Me account.
+   *
+   * This is what makes the gift-claim sales-attribution source work: a recipient who claims a
+   * QR Cash gift sent by THIS account can be attributed to this salesperson. Same null/""-is-
+   * removal contract as the referral slug above, and touches `linkedUserId` and nothing else.
+   *
+   * The caller resolves an email to a userId FIRST (see fundraiserApi.founder.resolveUserByEmail,
+   * the same founder-only exact-match resolver already used for corporate partner-admin
+   * assignment) — this method takes the resolved userId, never a raw email.
+   *
+   * 200 → { ok, salesperson } · 400 → INVALID_LINKED_USER · 409 → USER_ALREADY_LINKED ·
+   * 404 → unknown salesperson
+   */
+  linkUser: (salespersonId, linkedUserId) =>
+    req("PUT", `${one(salespersonId)}/linked-user`, { linkedUserId }),
+
+  unlinkUser: (salespersonId) =>
+    req("PUT", `${one(salespersonId)}/linked-user`, { linkedUserId: null }),
+
+  /**
    * PUT …/compensation — set the terms that will apply to this salesperson's NEXT originated
    * customer.
    *
@@ -165,19 +185,21 @@ export function salesAdminErrorMessage(res, { context = "load" } = {}) {
     case 403: return "This area is limited to the founder account.";
     case 404: return context === "read" ? "That salesperson no longer exists." : "Not found.";
     case 409: {
-      // The slug conflict and the duplicate-id conflict share a status but mean different things,
-      // and the server distinguishes them with `reason`. Reported truthfully rather than merged.
+      // The slug conflict, the linked-user conflict and the duplicate-id conflict share a status
+      // but mean different things, and the server distinguishes them with `reason`. Reported
+      // truthfully rather than merged.
       const reason = res.data && res.data.reason;
       if (reason === "SLUG_TAKEN") return "That vanity URL is already taken. Try another.";
       if (reason === "slug_reserved") return "That vanity URL is reserved. Try another.";
+      if (reason === "USER_ALREADY_LINKED") return "That account is already linked to a different salesperson.";
       if (context === "slug") return "That vanity URL isn’t available. Try another.";
       return "A salesperson with that ID already exists. Choose a different ID.";
     }
     case 400:
-      // slug_* reasons are machine codes, never shown raw.
-      return context === "slug"
-        ? "That vanity URL isn’t valid. Use letters, numbers and hyphens."
-        : "Check the details and try again.";
+      // slug_*/INVALID_LINKED_USER reasons are machine codes, never shown raw.
+      if (context === "slug") return "That vanity URL isn’t valid. Use letters, numbers and hyphens.";
+      if (context === "linkedUser") return "Enter a valid email address.";
+      return "Check the details and try again.";
     default:  return "That didn’t go through. Please try again.";
   }
 }

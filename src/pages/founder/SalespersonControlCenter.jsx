@@ -17,7 +17,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { salesAdminApi, salesAdminErrorMessage } from "../../api/salesAdmin.js";
+import { fundraiserApi } from "../../api/fundraiserApi.js";
 import { isFounder } from "../../utils/accountState.js";
+import { STATES, resolveOutcome, LINK_STATES, linkOutcome, linkMessageFor, canLink } from "./salespersonLinkAssign.js";
 
 const card = {
   background: "var(--bg-primary)", border: "1px solid var(--border)",
@@ -109,7 +111,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
   const [detail, setDetail] = useState(null);
   const [detailBusy, setDetailBusy] = useState(false);
 
-  const [form, setForm] = useState({ salespersonId: "", displayName: "", email: "" });
+  const [form, setForm] = useState({ salespersonId: "", displayName: "", email: "", linkEmail: "" });
   const [creating, setCreating] = useState(false);
   // The show-once payload. Never persisted; cleared the moment it is dismissed.
   const [issued, setIssued] = useState(null);
@@ -129,6 +131,16 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
   // server response.
   const [confirm, setConfirm] = useState(null);
   const [busy, setBusy] = useState(null);
+
+  // ── LINKED GREET-ME ACCOUNT ── (sales gift-claim attribution source)
+  // `link.state` is one of STATES (resolve half) — RESOLVING/RESOLVED/etc — carrying the SAME
+  // shape the fundraiser partner-admin panel uses, since it hits the same resolver endpoint.
+  // Writing the link is a SEPARATE step and its own transient state (`linkWriteState`), so a
+  // resolve failure never gets confused with a link-write failure in the message shown.
+  const [linkEmail, setLinkEmail] = useState("");
+  const [link, setLink] = useState({ state: STATES.EMPTY, account: null });
+  const [linkWriteState, setLinkWriteState] = useState(null); // { state, reason } | null
+  const [linkBusy, setLinkBusy] = useState(false);
 
   // ── B3 read-only reporting ──
   // `null` means "not requested"; an object with `error` means the request FAILED; an object with
@@ -186,6 +198,9 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     setSlugDraft((sp && sp.referralSlug) || "");
     setCompDraft(compDraftFrom(sp));
     setReport(null); setPending(null); setPendingId(""); setShareCopied(false);
+    // Nothing carries across salespeople — a different account resolved for the previous row
+    // must never appear to belong to this one.
+    setLinkEmail(""); setLink({ state: STATES.EMPTY, account: null }); setLinkWriteState(null);
     if (sp) loadReport(sp.salespersonId);
   }
 
@@ -302,6 +317,43 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     setMessage("Terms saved. They apply to customers originated from now on.");
   }
 
+  /** Resolve the typed email to an account. Writes NOTHING — this is the fundraiser panel's own resolver. */
+  async function resolveLinkAccount(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!linkEmail.trim() || linkBusy) return;
+    setLinkBusy(true); setLinkWriteState(null);
+    setLink({ state: STATES.RESOLVING, account: null });
+    const res = await fundraiserApi.founder.resolveUserByEmail(linkEmail.trim());
+    setLinkBusy(false);
+    setLink(resolveOutcome(res));
+  }
+
+  /** Link the RESOLVED account. The client never invents a userId; it forwards only what resolved. */
+  async function confirmLinkAccount() {
+    if (!detail || !canLink(link.state, link.account) || linkBusy) return;
+    setLinkBusy(true); setLinkWriteState(null);
+    const res = await api.linkUser(detail.salespersonId, link.account.userId);
+    setLinkBusy(false);
+    const out = linkOutcome(res);
+    setLinkWriteState(out);
+    if (out.state === LINK_STATES.LINKED) {
+      adoptDetail(res);
+      setLinkEmail(""); setLink({ state: STATES.EMPTY, account: null });
+    }
+  }
+
+  async function unlinkAccount() {
+    if (!detail || linkBusy) return;
+    setLinkBusy(true); setLinkWriteState(null);
+    const res = await api.unlinkUser(detail.salespersonId);
+    setLinkBusy(false);
+    const out = linkOutcome(res);
+    // The backend's unlink is a plain 200; relabel it UNLINKED so the message reads correctly
+    // rather than reusing "Account linked." for a removal.
+    setLinkWriteState(out.state === LINK_STATES.LINKED ? { state: LINK_STATES.UNLINKED, reason: null } : out);
+    if (out.state === LINK_STATES.LINKED) adoptDetail(res);
+  }
+
   async function saveSlug(remove) {
     if (!detail || busy) return;
     setBusy(remove ? "slug-remove" : "slug-save"); setMessage(null);
@@ -357,8 +409,9 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     if (e && e.preventDefault) e.preventDefault();
     if (!canCreate) return;
     setCreating(true); setMessage(null); setCopied(false);
+    const newSalespersonId = form.salespersonId.trim();
     const res = await api.create({
-      salespersonId: form.salespersonId.trim(),
+      salespersonId: newSalespersonId,
       displayName: form.displayName.trim(),
       email: form.email,
     });
@@ -366,12 +419,35 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     if (!res.ok) { setMessage(salesAdminErrorMessage(res, { context: "create" })); return; }
     // Held in state only. This is the single moment the link exists on the client.
     setIssued({
-      salespersonId: (res.data && res.data.salesperson && res.data.salesperson.salespersonId) || form.salespersonId.trim(),
+      salespersonId: (res.data && res.data.salesperson && res.data.salesperson.salespersonId) || newSalespersonId,
       displayName: form.displayName.trim(),
       attributionLink: (res.data && res.data.attributionLink) || "",
     });
-    setForm({ salespersonId: "", displayName: "", email: "" });
+    const wantsLink = form.linkEmail.trim();
+    setForm({ salespersonId: "", displayName: "", email: "", linkEmail: "" });
     await load();
+
+    // OPTIONAL, additive step: creation has ALREADY succeeded above regardless of what happens
+    // here. A resolve or link failure at this point is reported as its own, separate sentence —
+    // never folded into (or allowed to look like) a creation failure.
+    if (wantsLink) {
+      const resolved = resolveOutcome(await fundraiserApi.founder.resolveUserByEmail(wantsLink));
+      if (resolved.state !== STATES.RESOLVED) {
+        setMessage(`Salesperson created. Could not link the account: ${
+          resolved.state === STATES.NOT_FOUND ? "no Greet-Me account matches that email."
+            : resolved.state === STATES.AMBIGUOUS ? "that email matches more than one account."
+              : resolved.state === STATES.INVALID_EMAIL ? "that email address is invalid."
+                : "the account service could not be reached."
+        } You can link it later from the salesperson's detail view.`);
+        return;
+      }
+      const linkRes = linkOutcome(await api.linkUser(newSalespersonId, resolved.account.userId));
+      if (linkRes.state !== LINK_STATES.LINKED) {
+        setMessage(`Salesperson created. Could not link the account: ${linkMessageFor(linkRes.state, linkRes.reason)} You can link it later from the salesperson's detail view.`);
+        return;
+      }
+      setMessage("Salesperson created and account linked.");
+    }
   }
 
   async function copyLink() {
@@ -461,10 +537,21 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
               <input id="fcc-name" data-testid="fcc-input-name" value={form.displayName}
                 onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))} />
             </div>
-            <div style={{ marginBottom: ".9rem" }}>
+            <div style={{ marginBottom: ".75rem" }}>
               <label style={label} htmlFor="fcc-email">Email (optional)</label>
               <input id="fcc-email" data-testid="fcc-input-email" value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+            </div>
+            <div style={{ marginBottom: ".9rem" }}>
+              <label style={label} htmlFor="fcc-link-email">
+                Greet-Me account to link (optional)
+              </label>
+              <p style={{ margin: "0 0 .35rem", color: "var(--text-secondary)", fontSize: ".78rem" }}>
+                If this salesperson has their own Greet-Me account, entering its email here links it
+                so gifts they send can be attributed to them. Leave blank to link it later.
+              </p>
+              <input id="fcc-link-email" data-testid="fcc-input-link-email" type="email" value={form.linkEmail}
+                onChange={(e) => setForm((f) => ({ ...f, linkEmail: e.target.value }))} />
             </div>
             <button type="submit" className="btn-primary" data-testid="fcc-create-submit" disabled={!canCreate}>
               {creating ? "Creating…" : "Create salesperson"}
@@ -517,6 +604,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                 ["Email", detail.email || "—"],
                 ["Status", detail.status || (detail.active === false ? "inactive" : "active")],
                 ["Vanity URL", detail.referralSlug || "—"],
+                ["Linked account", detail.linkedUserId || "—"],
               ].map(([k, v]) => (
                 <div key={k} style={{ display: "contents" }}>
                   <dt style={{ ...label, margin: 0 }}>{k}</dt>
@@ -563,6 +651,66 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                 {detail.referralSlug ? (
                   <button type="button" className="btn-secondary" data-testid="fcc-slug-remove"
                     disabled={busy !== null} onClick={() => saveSlug(true)}>Remove</button>
+                ) : null}
+              </div>
+
+              {/* ── LINKED GREET-ME ACCOUNT ──
+                  What makes the gift-claim sales-attribution source work: a recipient who claims a
+                  gift sent by THIS account can be attributed to this salesperson. Separate from the
+                  attribution link/vanity URL — this is a second, independent attribution source. */}
+              <div style={{ marginTop: "1.1rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+                <h3 style={{ fontSize: ".92rem", margin: "0 0 .5rem" }}>Linked Greet-Me account</h3>
+                <p style={{ margin: "0 0 .6rem", color: "var(--text-secondary)", fontSize: ".82rem" }}>
+                  When this salesperson sends a gift from their own Greet-Me account and the
+                  recipient claims it, that claim can also attribute them — even if the recipient
+                  never visited their referral link.
+                </p>
+
+                {detail.linkedUserId ? (
+                  <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
+                    <p data-testid="fcc-linked-current" style={{ ...mono, margin: 0 }}>{detail.linkedUserId}</p>
+                    <button type="button" className="btn-secondary" data-testid="fcc-link-remove"
+                      disabled={linkBusy} onClick={unlinkAccount}>Unlink</button>
+                  </div>
+                ) : (
+                  <form onSubmit={resolveLinkAccount} style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center" }}>
+                    <input data-testid="fcc-link-email" aria-label="Account email" type="email"
+                      value={linkEmail} onChange={(e) => { setLinkEmail(e.target.value); setLink({ state: STATES.EMPTY, account: null }); }}
+                      style={{ maxWidth: 260 }} />
+                    <button type="submit" className="btn-secondary" data-testid="fcc-link-resolve"
+                      disabled={linkBusy || !linkEmail.trim()}>
+                      {link.state === STATES.RESOLVING ? "Resolving…" : "Resolve"}
+                    </button>
+                  </form>
+                )}
+
+                {link.state === STATES.RESOLVED && link.account ? (
+                  <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: ".6rem .75rem", marginTop: ".6rem" }} data-testid="fcc-link-resolved">
+                    <p style={{ ...mono, margin: "0 0 .4rem" }}>
+                      {link.account.email} {"·"} {link.account.userId}
+                      {link.account.emailVerified ? "" : " · unverified"}
+                    </p>
+                    <button type="button" className="btn-primary" data-testid="fcc-link-confirm"
+                      disabled={!canLink(link.state, link.account) || linkBusy} onClick={confirmLinkAccount}>
+                      {linkBusy ? "Linking…" : "Link this account"}
+                    </button>
+                  </div>
+                ) : null}
+
+                {[STATES.INVALID_EMAIL, STATES.NOT_FOUND, STATES.AMBIGUOUS, STATES.SERVICE_FAILURE].includes(link.state) ? (
+                  <p data-testid="fcc-link-resolve-error" style={{ color: "var(--warning)", fontSize: ".84rem", marginTop: ".5rem" }}>
+                    {link.state === STATES.INVALID_EMAIL ? "Enter a valid email address."
+                      : link.state === STATES.NOT_FOUND ? "No Greet-Me account matches that email address."
+                        : link.state === STATES.AMBIGUOUS ? "That email matches more than one account."
+                          : "Could not reach the account service. Nothing was changed."}
+                  </p>
+                ) : null}
+
+                {linkWriteState ? (
+                  <p data-testid="fcc-link-write-message"
+                    style={{ color: linkWriteState.state === LINK_STATES.LINK_FAILED ? "var(--warning)" : "#2f6f4f", fontSize: ".84rem", marginTop: ".5rem" }}>
+                    {linkMessageFor(linkWriteState.state, linkWriteState.reason)}
+                  </p>
                 ) : null}
               </div>
 
