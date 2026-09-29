@@ -34,15 +34,26 @@ const block = (startNeedle, endNeedle, label) => {
   return SRC.slice(a, b);
 };
 
-test("the restore effect's contract: it only merges a NESTED formData key, gated on contactId+occasion params", () => {
+test("the restore effect's contract: gated on contactId+occasion params, delegates to restoreDraftIntoState", () => {
+  // Integration note (six-team merge, 2026-09-29): Team 3's WP-C composer-media-persistence
+  // commit extracted the inline restore logic this test originally asserted on into a shared
+  // restoreDraftIntoState(saved) helper, reused by both this URL-param effect and a second,
+  // plain-revisit restore effect Team 3 added below it. The guard this test exists to protect
+  // (only a record with a NESTED formData key is ever restored) still holds -- it just now lives
+  // in the shared helper (asserted in the next test) rather than inlined here.
   const restore = block("// Restore draft if navigating to send with a contact+occasion pre-selected", "}, [location.search]);", "restore effect");
   assert.match(restore, /const contactId = params\.get\('contactId'\);/);
   assert.match(restore, /const occasion = params\.get\('occasion'\);/);
   assert.match(restore, /if \(!contactId \|\| !occasion\) return;/);
   assert.match(restore, /draftService\.getDraft\(contactId, occasion\)/);
-  // THE GUARD THE BUG DEFEATED: only a record with a nested `formData` key is ever restored.
-  assert.match(restore, /if \(saved\?\.formData\) \{/);
-  assert.match(restore, /setFormData\(prev => \(\{ \.\.\.prev, \.\.\.saved\.formData \}\)\)/);
+  assert.match(restore, /restoreDraftIntoState\(saved\)/);
+});
+
+test("restoreDraftIntoState: THE GUARD THE BUG DEFEATED -- only a record with a nested formData key is ever merged", () => {
+  const helper = block("const restoreDraftIntoState = (saved) => {", "\n  };", "restoreDraftIntoState helper");
+  assert.match(helper, /if \(!saved\) return;/);
+  assert.match(helper, /if \(saved\.formData\) \{/);
+  assert.match(helper, /setFormData\(prev => \(\{ \.\.\.prev, \.\.\.saved\.formData \}\)\)/);
 });
 
 test("VoiceMissingModal's onSaveDraft writes a record the restore effect can actually read", () => {
