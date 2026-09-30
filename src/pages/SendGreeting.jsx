@@ -191,9 +191,25 @@ export default function SendGreeting() {
   // TEAM 1 — shared by every "go top up / upgrade, then come back to this draft" exit: the caution
   // modal's two remediation choices, and the post-separation recovery panel below. One snapshot
   // shape, one destination, so the draft that comes back on `?returnTo=send` is always the same one.
+  //
+  // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — this snapshot used to omit confirmedGiftPayload
+  // and giftSeparatedByEntitlement, so a sender who tops up/upgrades from the RECOVERY-AFTER-
+  // SEPARATION panel (their gift already charged, only the greeting failed for lack of a send) lost
+  // the confirmed gift's claim token the moment they left this page — the restored draft on return
+  // would have had a fresh, unconfirmed gift selection instead of the one already paid for. Both
+  // fields are `null`/`false` for the ordinary pre-purchase caution case (nothing charged yet), so
+  // this is purely additive for that path. Also sets a same-tab sessionStorage marker so
+  // PaymentSuccess.jsx knows to route back here instead of its generic payment-success screen,
+  // which previously had no way to know a send was paused — see PaymentSuccess.jsx's own comment.
   const saveDraftForPricingReturn = () => {
-    const stateToSave = { formData, giftSettings, defaultPhoto, memoryPhotos, useMemoryPhotos, excludedMemoryPhotos: Array.from(excludedMemoryPhotos) };
+    const stateToSave = {
+      formData, giftSettings, defaultPhoto, memoryPhotos, useMemoryPhotos,
+      excludedMemoryPhotos: Array.from(excludedMemoryPhotos),
+      confirmedGiftPayload: confirmedGiftPayload || null,
+      giftSeparatedByEntitlement: !!giftSeparatedByEntitlement,
+    };
     try { sessionStorage.setItem('sendGreetingState', JSON.stringify(stateToSave)); } catch {}
+    try { sessionStorage.setItem('greetme_post_checkout_return', 'send'); } catch {}
     // No dedicated top-up product exists yet (see completion report) — routed to the same Upgrade
     // destination as the interim, honest option rather than a dead link.
     navigate('/dashboard/pricing?view=personal&returnTo=send');
@@ -337,6 +353,13 @@ export default function SendGreeting() {
   const memoryPhotoInputRef = useRef(null);
   const addToMemoryInputRef = useRef(null);
   const hasRestoredStateRef = useRef(false); // Track if we've already restored state
+  // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — one-shot flag: set by the restore effect below
+  // ONLY when the restored snapshot carried an already-confirmed (already-charged) gift, meaning
+  // the sender left specifically from the recovery-after-separation panel to top up/upgrade. A
+  // plain pre-purchase caution restore never sets this, since nothing was charged yet. Consumed by
+  // exactly one dedicated effect, which is why this must be a ref rather than state: it must not
+  // itself trigger a re-render/re-check loop.
+  const autoRetryAfterReturnRef = useRef(false);
   // Fix 4 (Team 3 WP-C): guards for the draft-based media save/restore additions.
   const draftSaveFailureNotifiedRef = useRef(false);
   const mediaRestoredOnMountRef = useRef(false);
@@ -652,6 +675,15 @@ export default function SendGreeting() {
           }
           // Save restored memory photos to combine with new selections
           restoredMemoryPhotos = parsed.memoryPhotos || [];
+          // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — restore the confirmed-gift recovery
+          // state saveDraftForPricingReturn now preserves. Present only when the sender left from
+          // the recovery-after-separation panel (gift already charged); absent for an ordinary
+          // pre-purchase caution restore, so this is a no-op for that path.
+          if (parsed.confirmedGiftPayload) {
+            setConfirmedGiftPayload(parsed.confirmedGiftPayload);
+            setGiftSeparatedByEntitlement(!!parsed.giftSeparatedByEntitlement);
+            autoRetryAfterReturnRef.current = true;
+          }
         } catch (e) {
           // State restoration failed — non-critical, proceed with defaults
         }
@@ -1531,6 +1563,22 @@ export default function SendGreeting() {
     await executeGreetingSend(confirmedGiftPayload);
   };
 
+  // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — founder rules 3-5: after a successful Top Up or
+  // Upgrade reached from the recovery-after-separation panel, the sender must return to the exact
+  // paused send AND have entitlement rechecked authoritatively, proceeding only if it succeeds.
+  // Safe to do automatically here, unlike the ordinary pre-purchase caution case: the gift was
+  // ALREADY charged before the sender ever left this page (that is what put them in the recovery
+  // panel), so this replays only a plain, idempotent greeting-send — the exact same call
+  // handleRetryGreetingOnly already offers as a manual button — never a new charge or order. If
+  // entitlement is genuinely still insufficient, executeGreetingSend's own existing error handling
+  // re-shows this SAME recovery panel; nothing here second-guesses that authoritative answer.
+  useEffect(() => {
+    if (!autoRetryAfterReturnRef.current) return;
+    if (!confirmedGiftPayload) return;
+    autoRetryAfterReturnRef.current = false;
+    handleRetryGreetingOnly();
+  }, [confirmedGiftPayload]);
+
   // Closing or cancelling the flower checkout. NOTHING WAS ORDERED AND NOTHING IS SENT: the parked
   // greeting is released, and the DRAFT — formData, the chosen arrangement, the photos — is
   // untouched, so the sender can change or remove the gift and send without composing again.
@@ -1559,7 +1607,16 @@ export default function SendGreeting() {
   // executeGreetingSend remains the sole dispatcher; this handler only
   // initiates a checkout that will eventually route back into the resume
   // effect which calls executeGreetingSend itself.
-  const handleReviewMarketplaceCheckout = () => {
+  //
+  // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — founder rule 1: the caution must appear before
+  // ANY gift purchase or irreversible provider action. This marketplace/merch attachment path had
+  // NO entitlement check at all before proceeding straight to a real Stripe checkout for the gift
+  // (confirmed by trace: unlike QR Cash's /charge-now and Florist One's /provider-checkout/submit,
+  // neither this handler nor the backend's merch create-checkout branch ever called the existing
+  // preflight/gate). Reuses the SAME runGiftEntitlementPreflight the other two gift types already
+  // use — `uuid` (the id that becomes this checkout's sendDraftId) doubles as the giftAttemptId, so
+  // one id names this attempt end to end, exactly as it already does for QR Cash's giftRequestId.
+  const handleReviewMarketplaceCheckout = async () => {
     const selectedContact = contacts.find(c => c.id === formData.contactId);
     if (!selectedContact) return;
 
@@ -1568,6 +1625,10 @@ export default function SendGreeting() {
     if (marketplaceSnapshot.length === 0) return; // defensive — CTA is disabled in empty state
 
     const uuid = crypto.randomUUID();
+
+    const { proceed, giftOnlyToken } = await runGiftEntitlementPreflight(uuid);
+    if (!proceed) return; // caution modal handled Top Up / Upgrade / Cancel / Gift Only itself
+
     const ok = writeResumeDraft(uuid, {
       contactId: selectedContact.id,
       formData,
@@ -1579,6 +1640,10 @@ export default function SendGreeting() {
       referralCode,
       referralValue,
       marketplaceItemsSnapshot: marketplaceSnapshot,
+      // Kept in the SAME short-lived, localStorage-only recovery record as everything else here —
+      // never in the URL/query string, which would leak a single-use authorization credential into
+      // browser history and server access logs.
+      giftOnlyToken: giftOnlyToken || null,
     });
 
     if (!ok) {

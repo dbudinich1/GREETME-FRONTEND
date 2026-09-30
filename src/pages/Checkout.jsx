@@ -125,6 +125,25 @@ export default function Checkout() {
     }
   })();
 
+  // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — the single-use Gift Only authorization token
+  // SendGreeting.jsx's entitlement gate may have minted for this exact attempt (sendDraftId doubles
+  // as the giftAttemptId end to end). Read from the SAME short-lived, localStorage-only record as
+  // sendDraftContactId above — never the URL — and forwarded to the backend, which independently
+  // re-verifies it (or the sender's real current entitlement) before creating the Stripe session.
+  // Absent (null) for a standalone storefront purchase or a sender who had sends available, in
+  // which case the backend gate simply passes on entitlement alone.
+  const sendDraftGiftOnlyToken = (() => {
+    if (!sendDraftId) return null;
+    try {
+      const raw = localStorage.getItem(`greetme_send_resume_${sendDraftId}`);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return typeof parsed?.giftOnlyToken === 'string' && parsed.giftOnlyToken ? parsed.giftOnlyToken : null;
+    } catch {
+      return null;
+    }
+  })();
+
   // Credit: referral ($10 from gift) or courtesy ($5 from finale QR)
   const courtesyCredit = (() => {
     try {
@@ -289,6 +308,12 @@ export default function Checkout() {
           // Persisted on the order and carried through Stripe metadata, so the
           // binding survives the round trip and can be re-proved at send time.
           ...(sendDraftContactId && { contactId: sendDraftContactId }),
+          // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — giftAttemptId is the SAME sendDraftId
+          // (one id names this attempt end to end); giftOnlyToken is present only when the sender
+          // used the "Continue with Gift Only" escape hatch. The backend independently re-verifies
+          // both against the sender's real, current entitlement before creating the Stripe session.
+          ...(sendDraftId && { giftAttemptId: sendDraftId }),
+          ...(sendDraftGiftOnlyToken && { giftOnlyToken: sendDraftGiftOnlyToken }),
           // Dormant Fundraiser attribution — opaque token only, merch + flag-on only (else omitted).
           ...fundraiserCheckoutField({ purchaseType: 'merch', flagEnabled: isFundraiserUiEnabled() }),
         });

@@ -28,7 +28,8 @@ before(async () => {
   rmSync(ENTRY, { force: true });
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   globalThis.window = dom.window; globalThis.document = dom.window.document;
-  globalThis.navigator = dom.window.navigator; globalThis.HTMLElement = dom.window.HTMLElement;
+  try { globalThis.navigator = dom.window.navigator; } catch { /* already a read-only global */ }
+  globalThis.HTMLElement = dom.window.HTMLElement;
   globalThis.Event = dom.window.Event; globalThis.KeyboardEvent = dom.window.KeyboardEvent;
   globalThis.getComputedStyle = dom.window.getComputedStyle;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
