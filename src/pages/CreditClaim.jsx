@@ -38,6 +38,12 @@ export default function CreditClaim() {
   const [loading, setLoading] = useState(true);
   const [credit, setCredit] = useState(null);
   const [error, setError] = useState(null);
+  // CREDIT CONTRACT INTEGRITY (2026-09-29, follow-up correction) — CREDIT_SUBSCRIBER_INELIGIBLE
+  // and CREDIT_STATUS_UNVERIFIABLE are expected, restrained states (a deliberate eligibility
+  // rule and a transient lookup failure), not errors — kept separate from `error` so the generic
+  // "Something went wrong" path is untouched and these two get their own honest copy instead.
+  const [subscriberIneligible, setSubscriberIneligible] = useState(false);
+  const [statusUnverifiable, setStatusUnverifiable] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [autoClaimed, setAutoClaimed] = useState(null);
@@ -97,6 +103,10 @@ export default function CreditClaim() {
       return;
     }
     setClaiming(true);
+    // A retry (e.g. after CREDIT_STATUS_UNVERIFIABLE) starts from a clean slate — an expected
+    // state from a PRIOR attempt must not linger under a fresh one.
+    setSubscriberIneligible(false);
+    setStatusUnverifiable(false);
     try {
       const result = await api.request(`/api/credits/${creditCode}/claim`, {
         method: 'POST',
@@ -111,6 +121,10 @@ export default function CreditClaim() {
         }));
       } else if (result?.code === 'CREDIT_ALREADY_CLAIMED') {
         setClaimed(true);
+      } else if (result?.code === 'CREDIT_SUBSCRIBER_INELIGIBLE') {
+        setSubscriberIneligible(true);
+      } else if (result?.code === 'CREDIT_STATUS_UNVERIFIABLE') {
+        setStatusUnverifiable(true);
       } else if (result?.status === 401) {
         setError('Your session has expired. Please refresh and try again.');
       } else {
@@ -119,6 +133,10 @@ export default function CreditClaim() {
     } catch (err) {
       if (err?.code === 'CREDIT_ALREADY_CLAIMED' || err?.message?.includes('already been claimed')) {
         setClaimedByOther(true);
+      } else if (err?.code === 'CREDIT_SUBSCRIBER_INELIGIBLE') {
+        setSubscriberIneligible(true);
+      } else if (err?.code === 'CREDIT_STATUS_UNVERIFIABLE') {
+        setStatusUnverifiable(true);
       } else if (err?.status === 401) {
         setError('Your session has expired. Please refresh and try again.');
       } else {
@@ -384,6 +402,50 @@ export default function CreditClaim() {
               <a href="/#/pricing" style={{ color: '#10b981', textDecoration: 'underline' }}>View plans</a>
             </>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  // CREDIT CONTRACT INTEGRITY (2026-09-29, follow-up correction) — a current subscriber is a
+  // deliberate, expected eligibility rule, not a failure: the credit is untouched (still claimed,
+  // never consumed) and stays available under its existing expiration rules once the account is
+  // eligible again. Kept visually calm and separate from the generic error path above.
+  if (subscriberIneligible) {
+    return (
+      <div className="gm-min-h-screen" style={styles.page}>
+        <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>&#10003;</div>
+          <h2 style={{ color: '#10b981', marginBottom: '1rem', fontFamily: 'Georgia, serif' }}>Your Greet-Me Credit is saved</h2>
+          <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '1.5rem' }}>
+            This {displayAmount} credit is reserved for non-subscribers. Because your Greet-Me subscription is currently active, it cannot be applied right now.
+          </p>
+          <button onClick={() => navigate('/dashboard')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // A transient lookup failure, not a denial — the claim was never attempted server-side, so the
+  // credit code must stay live for a retry (no state is discarded, no button is disabled here).
+  if (statusUnverifiable) {
+    return (
+      <div className="gm-min-h-screen" style={styles.page}>
+        <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
+          <h2 style={{ color: '#fff', marginBottom: '1rem', fontFamily: 'Georgia, serif' }}>We couldn&rsquo;t verify your eligibility</h2>
+          <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '1.5rem' }}>
+            Your credit has not been used. Please try again shortly.
+          </p>
+          <button onClick={handleClaim} disabled={claiming} style={{
+            ...styles.cta,
+            background: claiming ? 'rgba(255,255,255,0.5)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            color: 'white',
+            cursor: claiming ? 'default' : 'pointer',
+          }}>
+            {claiming ? 'Trying again…' : 'Try Again'}
+          </button>
         </div>
       </div>
     );
