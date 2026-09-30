@@ -151,9 +151,14 @@ export default function Merch() {
   // gate as before checkout preservation requires; only WHEN it is called has changed.
   const { products: flowersProviderProducts } = useProviderCatalogue('flowers');
   const { products: giftBasketsProviderProducts } = useProviderCatalogue('gift_boxes');
+  // TAGGED BY ITS OWN CATEGORY, at the one point the two lists are merged. Once concatenated, a
+  // Goody gift box and a Florist One arrangement are otherwise indistinguishable — both project
+  // through the same six-field shape — so without this tag every provider-fulfilled selection
+  // downstream (the standalone checkout in particular) has no way to know which provider actually
+  // fulfils it and previously defaulted to 'flowers' for both.
   const providerProductsForCheckout = useMemo(() => [
-    ...(flowersProviderProducts || []),
-    ...(giftBasketsProviderProducts || []),
+    ...(flowersProviderProducts || []).map((p) => ({ ...p, giftType: 'flowers' })),
+    ...(giftBasketsProviderProducts || []).map((p) => ({ ...p, giftType: 'gift_boxes' })),
   ], [flowersProviderProducts, giftBasketsProviderProducts]);
 
   // Is the current selector one of the canonical-catalog-driven ones? Brandable Goods and Gift
@@ -377,7 +382,12 @@ export default function Merch() {
       // A NUMBER, like every merch price, so the shared surface formats one money format and not two.
       price: Number.isFinite(Number(chosen.priceMinor)) ? Number(chosen.priceMinor) / 100 : card.priceLabel,
       imageUrl: chosen.imageUrl || card.imageUrl || null,
-      giftType: 'flowers',
+      // THE ARRANGEMENT'S OWN CATEGORY, not a flower assumed for every provider-fulfilled pick. This
+      // used to be hardcoded 'flowers' unconditionally, which is what sent a Goody gift box through
+      // checkout as if it were a Florist One arrangement — the wrong provider entirely, with a
+      // product code it could never recognize. Falls back to 'flowers' only when the merged list
+      // above failed to tag it, which keeps every existing flower selection byte-identical.
+      giftType: chosen.giftType || 'flowers',
     });
     setShowCartModal(true);
   };
@@ -501,7 +511,13 @@ export default function Merch() {
     // Guarded on all three facts rather than on the flower alone: a held arrangement, a confirmation
     // that is actually showing one, and no greeting context. Any merch confirmation therefore keeps the
     // cart route it has always had, byte for byte.
-    if (standaloneFlower && lastAddedItem?.giftType === 'flowers' && !cameFromSendGreeting) {
+    //
+    // BOTH PROVIDER CATEGORIES, not flowers alone — a gift box is exactly as unable to ride the
+    // Printful-keyed cart as a flower is, and this used to check only 'flowers', which is fine for a
+    // flower and simply wrong for the other category the Gift Place already sells this way.
+    const isProviderStandaloneGiftType = lastAddedItem?.giftType === 'flowers'
+      || lastAddedItem?.giftType === 'gift_boxes';
+    if (standaloneFlower && isProviderStandaloneGiftType && !cameFromSendGreeting) {
       setIsFlowersCheckoutOpen(true);
       return;
     }
@@ -1117,7 +1133,12 @@ export default function Merch() {
         <ProviderCheckoutModal
           isOpen={isFlowersCheckoutOpen}
           onClose={() => setIsFlowersCheckoutOpen(false)}
-          giftType="flowers"
+          // THE ARRANGEMENT'S OWN CATEGORY. Hardcoding 'flowers' here routed every standalone
+          // provider purchase — including a Goody gift box — to Florist One with a product code it
+          // could never price, which is the defect this correction closes. Falls back to 'flowers'
+          // only if the product was somehow never tagged, so an untagged flower still checks out
+          // exactly as it always has.
+          giftType={standaloneFlower.giftType || 'flowers'}
           product={standaloneFlower}
           customer={user}
         />

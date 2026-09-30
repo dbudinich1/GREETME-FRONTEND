@@ -84,6 +84,17 @@ export const providerDisplayName = (providerId, giftType) => (
 export const categoryNoun = (giftType) => CATEGORY_NOUNS[giftType] || 'gift';
 
 /**
+ * The pre-payment review's OWN line-item label for the product line, by category.
+ *
+ * Kept separate from CATEGORY_NOUNS (which reads naturally inside a sentence — "your gift box
+ * order") because a line-item label is a short noun phrase on its own line, not a sentence — "Gift
+ * box" reads correctly there where "gift box order" would not. Falls back to a vendor-neutral
+ * "Item" for a category this build does not yet name, never to "Flowers": a gift box priced with no
+ * label at all is honest, and one labelled "Flowers" is not.
+ */
+const LINE_ITEM_PRODUCT_LABELS = Object.freeze({ flowers: 'Flowers', gift_boxes: 'Gift box' });
+
+/**
  * Words this surface may never use about an order.
  *
  * Each one asserts something the provider does not publish. "Completed" is here too: an accepted
@@ -395,8 +406,10 @@ export function toPrepareRequest(form, { giftType, product, contactId = null }) 
  * @param {object} prepared  the backend prepare response ({ quote, orderTotalMinor, currency, deliveryDate })
  * @param {object} chosen    the product selected from the picker (its catalog priceMinor)
  * @param {object} form      the delivery form — ONLY city and state are read
+ * @param {string} [giftType] the provider-backed category, for the product line's label ONLY —
+ *   never for a money value, which always comes from the provider's own quote above
  */
-export function reviewQuote({ prepared, chosen, form } = {}) {
+export function reviewQuote({ prepared, chosen, form, giftType } = {}) {
   const quote = prepared?.quote;
   const fail = (reason) => ({ ok: false, reason, canSubmit: false, priceChanged: null, lines: [] });
   if (!quote || typeof quote !== 'object') return fail('quote_missing');
@@ -429,7 +442,7 @@ export function reviewQuote({ prepared, chosen, form } = {}) {
     : null;
 
   const lines = [
-    { key: 'product', label: 'Flowers', minor: parts.productMinor },
+    { key: 'product', label: LINE_ITEM_PRODUCT_LABELS[giftType] || 'Item', minor: parts.productMinor },
     { key: 'delivery', label: 'Delivery', minor: parts.shippingMinor },
     { key: 'tax', label: 'Tax', minor: parts.taxMinor },
     ...(parts.feesMinor > 0 ? [{ key: 'fees', label: 'Fees', minor: parts.feesMinor }] : []),

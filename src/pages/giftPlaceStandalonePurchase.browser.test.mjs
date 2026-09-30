@@ -453,7 +453,16 @@ test("10 + 11. the standalone checkout is mounted WITHOUT contactId and WITHOUT 
     "no onAccepted may be passed — its absence is what selects the standalone terminal confirmation");
 
   // And what IS passed, so this is a positive statement about the wiring and not only a denial.
-  assert.match(el, /giftType="flowers"/, "the gift type is passed");
+  //
+  // THE GIFT TYPE IS THE ARRANGEMENT'S OWN, not a literal "flowers" for every provider-fulfilled
+  // category. It used to be a hardcoded string, which is what sent a Goody gift box through this
+  // exact checkout tagged as a flower order — the wrong provider, given a product code it could
+  // never price. The correction reads it off the chosen product (tagged by category where the two
+  // provider lists are merged, above), falling back to 'flowers' only if a product were somehow
+  // never tagged — so an ordinary flower selection, exercised by every other test in this file,
+  // resolves to exactly the same 'flowers' string it always has.
+  assert.match(el, /giftType=\{standaloneFlower\.giftType \|\| 'flowers'\}/,
+    "the gift type is read from the chosen arrangement's own category, not hardcoded to flowers");
   assert.match(el, /product=\{standaloneFlower\}/, "the chosen arrangement is passed");
   assert.match(el, /customer=\{user\}/, "the authenticated customer is passed");
 
