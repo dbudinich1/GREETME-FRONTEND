@@ -505,9 +505,14 @@ test("10. the send, retry, handoff and remount-recovery wiring is untouched by t
   // The attachment restore that carries the chosen gift back is still there, untouched.
   assert.match(src, /setGiftSettings\(\{\s*\.\.\.parsed\.giftSettings,\s*type:\s*giftType\s*\}\)/,
     "the Gift Place return still restores the selected gift");
-  // And the chooser has exactly the intentional open paths.
-  assert.equal((src.match(/setIsGiftModalOpen\(true\)/g) || []).length, 2,
-    "the chooser opens only from the Add/Edit Gift button and the Change Gift button");
+  // And the chooser has exactly the intentional open paths. Integration note (six-team merge,
+  // 2026-09-29): Team 1's gift/entitlement-safety pass added a third, equally intentional path --
+  // the canonical QR Cash entry effect (`?giftType=qrcash` in the URL) opens the same chooser
+  // pre-set to QR Cash, so a dashboard "Send QR Cash" button lands in the real, backend-wired
+  // flow instead of a client-only simulation. Pre-existing gap on Team 1's own branch: this count
+  // was never updated alongside that addition.
+  assert.equal((src.match(/setIsGiftModalOpen\(true\)/g) || []).length, 3,
+    "the chooser opens only from the Add/Edit Gift button, the Change Gift button, and the canonical QR Cash entry effect");
 });
 
 // ===========================================================================

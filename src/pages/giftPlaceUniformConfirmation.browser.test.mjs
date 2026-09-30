@@ -413,11 +413,16 @@ test("8 + 9 + 10. the Send page's corrected layout is not re-broken by this chan
   // quietly undo them. Their own mounted proofs live in sendGiftSummaryPlacement.browser.test.mjs.
   const send = readFileSync(join(__dirname, "SendGreeting.jsx"), "utf8");
 
-  // 8. returning does not reopen the chooser — there is no automatic open at all.
-  assert.equal((send.match(/setIsGiftModalOpen\(true\)/g) || []).length, 2,
-    "the chooser still opens only from the Add/Edit Gift and Change Gift controls");
+  // 8. returning from the Gift Place does not reopen the chooser via the old, generic
+  // "if (giftType) reopen" anti-pattern. Integration note (six-team merge, 2026-09-29): Team 1's
+  // gift/entitlement-safety pass added one narrow, intentional automatic open -- the canonical
+  // QR Cash entry effect, gated specifically on `?giftType=qrcash`, not the broad `giftType`
+  // check this test guards against -- so the chooser now has three intentional open paths, not
+  // two. Pre-existing gap on Team 1's own branch: this count was never updated alongside it.
+  assert.equal((send.match(/setIsGiftModalOpen\(true\)/g) || []).length, 3,
+    "the chooser opens only from the Add/Edit Gift control, the Change Gift control, and the canonical QR Cash entry effect");
   assert.ok(!/if \(giftType\) \{\s*setIsGiftModalOpen\(true\);/.test(send),
-    "no automatic reopen on the return from the Gift Place");
+    "no automatic reopen on the return from the Gift Place via the old generic giftType check");
 
   // 9 + 10. the top row is Recipient | Occasion | Tone, and the gift lives below it.
   const gridAt = send.indexOf("{/* Recipient, Occasion, and Tone - Side by Side */}");
