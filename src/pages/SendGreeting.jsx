@@ -190,7 +190,8 @@ export default function SendGreeting() {
    */
   // TEAM 1 — shared by every "go top up / upgrade, then come back to this draft" exit: the caution
   // modal's two remediation choices, and the post-separation recovery panel below. One snapshot
-  // shape, one destination, so the draft that comes back on `?returnTo=send` is always the same one.
+  // shape, so the draft that comes back on `?returnTo=send` is always the same one, whichever real
+  // destination the sender actually went to.
   //
   // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — this snapshot used to omit confirmedGiftPayload
   // and giftSeparatedByEntitlement, so a sender who tops up/upgrades from the RECOVERY-AFTER-
@@ -201,7 +202,9 @@ export default function SendGreeting() {
   // this is purely additive for that path. Also sets a same-tab sessionStorage marker so
   // PaymentSuccess.jsx knows to route back here instead of its generic payment-success screen,
   // which previously had no way to know a send was paused — see PaymentSuccess.jsx's own comment.
-  const saveDraftForPricingReturn = () => {
+  // The marker/snapshot are purchase-type-agnostic (PaymentSuccess.jsx never inspects what was
+  // bought), so the SAME pair works whichever destination below the sender is sent to.
+  const saveDraftAndNavigate = (destination) => {
     const stateToSave = {
       formData, giftSettings, defaultPhoto, memoryPhotos, useMemoryPhotos,
       excludedMemoryPhotos: Array.from(excludedMemoryPhotos),
@@ -210,9 +213,23 @@ export default function SendGreeting() {
     };
     try { sessionStorage.setItem('sendGreetingState', JSON.stringify(stateToSave)); } catch {}
     try { sessionStorage.setItem('greetme_post_checkout_return', 'send'); } catch {}
-    // No dedicated top-up product exists yet (see completion report) — routed to the same Upgrade
-    // destination as the interim, honest option rather than a dead link.
-    navigate('/dashboard/pricing?view=personal&returnTo=send');
+    navigate(destination);
+  };
+
+  // FINAL NARROW CORRECTION (2026-09-30) — was '/dashboard/pricing?...', a route that does not
+  // exist (Pricing is mounted at the top-level '/pricing', never nested under '/dashboard' — see
+  // App.jsx). Upgrade Plan has never actually reached the real Pricing page until this fix.
+  const saveDraftForPricingReturn = () => {
+    saveDraftAndNavigate('/pricing?view=personal&returnTo=send');
+  };
+
+  // FOUNDER-CONFIRMED (2026-09-30): the existing additional-send product is Animation Bank → Add
+  // More → Animation Packs. "Purchase Additional Sends" routes here unconditionally — no product
+  // to build, no tier gating to design. `?openPacks=true` auto-opens the existing packs modal
+  // (AnimationBank.jsx's own showPacksModal state) using the same URL-driven auto-open convention
+  // already used elsewhere in this file (see the `?giftType=qrcash` effect below).
+  const saveDraftForAnimationBankReturn = () => {
+    saveDraftAndNavigate('/dashboard/animations?openPacks=true&returnTo=send');
   };
 
   const runGiftEntitlementPreflight = async (giftAttemptId) => {
@@ -233,7 +250,7 @@ export default function SendGreeting() {
         onTopUp: () => {
           setEntitlementCaution(null);
           resolve({ proceed: false, giftOnlyToken: null });
-          saveDraftForPricingReturn();
+          saveDraftForAnimationBankReturn();
         },
         onUpgrade: () => {
           setEntitlementCaution(null);
@@ -2545,7 +2562,7 @@ if (typeof window !== "undefined") {
               <button
                 type="button"
                 data-testid="gift-separated-topup"
-                onClick={saveDraftForPricingReturn}
+                onClick={saveDraftForAnimationBankReturn}
                 style={{
                   padding: '0.6rem 1.1rem', borderRadius: '0.5rem', border: 'none',
                   background: '#b45309', color: '#fff', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',

@@ -53,17 +53,17 @@ const SUFFICIENT_PREFLIGHT = {
   sendsLimit: 3,
 };
 
-async function seedAuthAndCart(page, { cart = true } = {}) {
-  await page.addInitScript(([user, contact, cartItem, withCart]) => {
+async function seedAuthAndCart(page, { cart = true, user = FIXTURE_USER } = {}) {
+  await page.addInitScript(([u, contact, cartItem, withCart]) => {
     localStorage.setItem('token', 'fixture-token');
-    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('user', JSON.stringify(u));
     if (withCart) {
       localStorage.setItem('greetme_cart', JSON.stringify([cartItem]));
     }
-  }, [FIXTURE_USER, FIXTURE_CONTACT, FIXTURE_CART_ITEM, cart]);
+  }, [user, FIXTURE_CONTACT, FIXTURE_CART_ITEM, cart]);
 }
 
-async function mockApi(page, { preflight = INSUFFICIENT_PREFLIGHT } = {}) {
+async function mockApi(page, { preflight = INSUFFICIENT_PREFLIGHT, user = FIXTURE_USER } = {}) {
   // Playwright uses the LAST-registered matching route, so the safe catch-all is registered
   // FIRST — every specific handler registered after it takes priority for its own exact path.
   // (occasions, referral, job-status polling, etc. all fall through to this — never a real
@@ -80,9 +80,16 @@ async function mockApi(page, { preflight = INSUFFICIENT_PREFLIGHT } = {}) {
     return route.fulfill({ json: { contacts: [FIXTURE_CONTACT] } });
   });
   await page.route('http://127.0.0.1:8099/api/profile', (route) =>
-    route.fulfill({ json: { profile: { ...FIXTURE_USER } } })
+    route.fulfill({ json: { profile: { ...user } } })
   );
   await page.route('http://127.0.0.1:8099/api/hearts/balance', (route) => route.fulfill({ json: { balance: 0 } }));
+  await page.route('http://127.0.0.1:8099/api/wallet', (route) =>
+    route.fulfill({ json: { ok: true, wallet: {
+      unmetered: false, totalSpendableNow: 0,
+      monthly: { remaining: 0, cap: 3 }, anytime: { available: 0, includedCap: 0 },
+      banked: { available: 0, cap: 0 }, purchased: { animationCredits: 0, spendable: true },
+    } } })
+  );
 }
 
 async function goToSend(page, query = '') {
@@ -297,5 +304,94 @@ test.describe('Send-limit recovery — desktop visual evidence', () => {
     // complete — the paired Greet-Me and gift are both, finally, going out together.
     await expect(page.getByText(/Preparing your moment/i)).toBeVisible({ timeout: 15000 });
     await page.screenshot({ path: 'test-results/send-limit-recovery/08-paired-send-readiness.png' });
+  });
+});
+
+// ===========================================================================
+// FINAL NARROW CORRECTION (2026-09-30) — founder-confirmed: "Purchase Additional Sends" routes
+// unconditionally to the existing Animation Bank (no tier gating). Also captures the fixed Upgrade
+// destination (was a never-existent nested route before this correction).
+// ===========================================================================
+test.describe('Top-Up reconciliation — desktop visual evidence', () => {
+  test('13 - Purchase Additional Sends reaches the real Animation Bank page with the existing packs modal auto-opened', async ({ page }) => {
+    await seedAuthAndCart(page);
+    await mockApi(page, { preflight: INSUFFICIENT_PREFLIGHT });
+    await goToSend(page);
+    await selectContact(page);
+    await selectMarketplaceGift(page);
+    await page.getByRole('button', { name: /Done . Send/i }).click();
+    await page.getByRole('button', { name: 'Continue to Secure Checkout' }).click();
+    await expect(page.getByTestId('caution-triangle')).toBeVisible({ timeout: 10000 });
+    await page.getByTestId('caution-topup').click();
+    await expect(page).toHaveURL(/#\/dashboard\/animations\?openPacks=true/, { timeout: 10000 });
+    // The EXISTING packs modal (selection step) opened automatically — no click needed to find it.
+    await expect(page.getByText(/Starter|Celebration|Holiday/i).first()).toBeVisible({ timeout: 10000 });
+    await page.screenshot({ path: 'test-results/send-limit-recovery/13-purchase-additional-sends-destination.png' });
+  });
+
+  test('14 - Upgrade Plan reaches the real Pricing page (fixed: was a never-existent nested route before this correction)', async ({ page }) => {
+    await seedAuthAndCart(page);
+    await mockApi(page, { preflight: INSUFFICIENT_PREFLIGHT });
+    await goToSend(page);
+    await selectContact(page);
+    await selectMarketplaceGift(page);
+    await page.getByRole('button', { name: /Done . Send/i }).click();
+    await page.getByRole('button', { name: 'Continue to Secure Checkout' }).click();
+    await expect(page.getByTestId('caution-triangle')).toBeVisible({ timeout: 10000 });
+    await page.getByTestId('caution-upgrade').click();
+    await expect(page).toHaveURL(/#\/pricing\?view=personal&returnTo=send/, { timeout: 10000 });
+    await expect(page.getByTestId('pricing-return-to-send-banner')).toBeVisible({ timeout: 10000 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: 'test-results/send-limit-recovery/14-upgrade-pricing-destination.png' });
+  });
+
+  test('15 - successful Purchase Additional Sends return: draft preserved, entitlement refreshed, paired-send readiness', async ({ page }) => {
+    await seedAuthAndCart(page, { cart: false });
+    await mockApi(page, { preflight: SUFFICIENT_PREFLIGHT });
+    await page.route('http://127.0.0.1:8099/api/jobs/send-greeting', (route) =>
+      route.fulfill({ json: { jobId: 'fixture-job-topup-1' } })
+    );
+    await page.route('http://127.0.0.1:8099/api/jobs/fixture-job-topup-1', (route) =>
+      route.fulfill({ json: { status: 'completed' } })
+    );
+    // Simulates the state saveDraftForAnimationBankReturn leaves behind just before the sender was
+    // routed to the real Animation Pack purchase flow from the recovery-after-separation panel.
+    await page.addInitScript(([contact]) => {
+      sessionStorage.setItem('sendGreetingState', JSON.stringify({
+        formData: { contactId: contact.id, occasionType: 'Thinking of You', customMessage: 'So proud of you!' },
+        giftSettings: { type: 'marketplace' },
+        confirmedGiftPayload: { giftType: 'marketplace', claimToken: 'fixture-claim-token' },
+        giftSeparatedByEntitlement: true,
+      }));
+      sessionStorage.setItem('greetme_post_checkout_return', 'send');
+    }, [FIXTURE_CONTACT]);
+    // The SAME purchase-type-agnostic marker PaymentSuccess.jsx already reads for the Pricing/
+    // Upgrade path — proving the Purchase-Additional-Sends destination reconnects through the
+    // identical mechanism. Never infers success from the visit alone: this is the SAME
+    // authoritative-entitlement-then-resume path, not a shortcut for this specific destination.
+    await page.goto('/#/payment/success?session_id=cs_test_fixture_topup');
+    await expect(page.getByText(/Preparing your moment/i)).toBeVisible({ timeout: 15000 });
+    await page.screenshot({ path: 'test-results/send-limit-recovery/15-successful-purchase-return-and-resume.png' });
+  });
+
+  test('16 - failed/cancelled Purchase Additional Sends: recovery panel re-appears, gift preserved, nothing granted', async ({ page }) => {
+    await seedAuthAndCart(page, { cart: false });
+    // Preflight still insufficient — simulating an Animation Pack purchase that failed or was
+    // cancelled — so the auto-retry's send attempt fails again and the recovery panel returns.
+    await mockApi(page, { preflight: INSUFFICIENT_PREFLIGHT });
+    await page.route('http://127.0.0.1:8099/api/jobs/send-greeting', (route) =>
+      route.fulfill({ status: 403, json: { error: 'Generation cap reached', code: 'GENERATION_CAP' } })
+    );
+    await page.addInitScript(([contact]) => {
+      sessionStorage.setItem('sendGreetingState', JSON.stringify({
+        formData: { contactId: contact.id, occasionType: 'Thinking of You', customMessage: '' },
+        giftSettings: { type: 'marketplace' },
+        confirmedGiftPayload: { giftType: 'marketplace', claimToken: 'fixture-claim-token' },
+        giftSeparatedByEntitlement: true,
+      }));
+    }, [FIXTURE_CONTACT]);
+    await goToSend(page, '?returnTo=send');
+    await expect(page.getByTestId('gift-separated-recovery')).toBeVisible({ timeout: 10000 });
+    await page.screenshot({ path: 'test-results/send-limit-recovery/16-failed-purchase-recovery.png' });
   });
 });

@@ -1,7 +1,7 @@
 // Animation Bank Page
 // Shows user's animation credits with positive, asset-focused language
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Film, Plus, Gift, Calendar, Star, Sparkles, ShoppingCart, Check, ArrowRight } from 'lucide-react';
 import animationBankService from '../services/animationBankService';
@@ -10,6 +10,7 @@ import api from '../api/api';
 
 export default function AnimationBank() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   // Level 1 truth: plan inclusions come from live profile entitlements
   // (monthlyGreetMes / includedAnytime / rolloverCap), NOT the localStorage
@@ -34,6 +35,18 @@ export default function AnimationBank() {
   useEffect(() => {
     loadAnimationBank();
   }, []);
+
+  // SEND-LIMIT RECOVERY — FINAL NARROW CORRECTION (2026-09-30): a sender arriving here from the
+  // gift-entitlement caution's "Purchase Additional Sends" action lands with the packs already the
+  // reason they came — auto-open the existing Add More modal rather than making them find the
+  // button themselves. Same URL-driven auto-open convention already used by SendGreeting.jsx's own
+  // `?giftType=qrcash` effect. Fires once per arrival; never re-opens on an in-page state change.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('openPacks') !== 'true') return;
+    setShowPacksModal(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   // Mount-fetch the live wallet. Never fabricates: on failure we show a clearly
   // labeled "Plan Includes" cap fallback (entitlement caps), not a balance.

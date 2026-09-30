@@ -3,8 +3,8 @@
 // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — proves, against the real source of SendGreeting.jsx
 // and PaymentSuccess.jsx, the two frontend halves of "after a successful Top Up/Upgrade, return to
 // the exact paused send with the composed Greet-Me AND the already-confirmed gift preserved":
-//   - saveDraftForPricingReturn's snapshot now carries confirmedGiftPayload/giftSeparatedByEntitlement
-//     and sets the greetme_post_checkout_return session marker;
+//   - saveDraftAndNavigate's snapshot carries confirmedGiftPayload/giftSeparatedByEntitlement and
+//     sets the greetme_post_checkout_return session marker, whichever real destination it is given;
 //   - the returnTo==='send' restore effect rehydrates that same state and arms a one-shot auto-retry;
 //   - the auto-retry effect fires handleRetryGreetingOnly exactly once per arm, gated on both the ref
 //     and confirmedGiftPayload actually being present (never on an ordinary, gift-free return);
@@ -13,6 +13,13 @@
 // It also proves handleReviewMarketplaceCheckout (the previously-ungated merch/marketplace checkout
 // entry point) now runs the entitlement preflight before writing its resume draft, and forwards
 // whatever Gift Only token that preflight returns.
+//
+// FINAL NARROW CORRECTION (2026-09-30) — founder-confirmed: the existing additional-send product
+// is Animation Bank → Add More → Animation Packs. "Purchase Additional Sends" routes there
+// unconditionally (no product to build, no tier gating to design). Also fixes a pre-existing,
+// never-worked bug: saveDraftForPricingReturn navigated to '/dashboard/pricing', a route that has
+// never existed (Pricing is mounted at the top-level '/pricing' — see App.jsx) — Upgrade Plan could
+// never have reached the real Pricing page before this fix.
 //
 // WHY SOURCE-BASED. SendGreeting.jsx is a ~3,800-line page wired to auth/cart/router/draft services;
 // mounting it would require stubs of unproven fidelity for a purely structural/wiring claim. This
@@ -40,33 +47,48 @@ const block = (src, startNeedle, endNeedle, label) => {
 };
 
 // ===========================================================================
-// saveDraftForPricingReturn — the shared "go top up/upgrade, then come back" snapshot
+// saveDraftAndNavigate — the shared "go top up/upgrade, then come back" snapshot
 // ===========================================================================
 
-const SAVE_DRAFT_FN_END = "navigate('/dashboard/pricing?view=personal&returnTo=send');\n  };";
+const SAVE_DRAFT_AND_NAVIGATE_END = "navigate(destination);\n  };";
 
-test("saveDraftForPricingReturn's snapshot carries confirmedGiftPayload and giftSeparatedByEntitlement", () => {
-  const fn = block(SEND_SRC, "const saveDraftForPricingReturn = () => {", SAVE_DRAFT_FN_END, "saveDraftForPricingReturn");
+test("saveDraftAndNavigate's snapshot carries confirmedGiftPayload and giftSeparatedByEntitlement", () => {
+  const fn = block(SEND_SRC, "const saveDraftAndNavigate = (destination) => {", SAVE_DRAFT_AND_NAVIGATE_END, "saveDraftAndNavigate");
   assert.match(fn, /confirmedGiftPayload:\s*confirmedGiftPayload\s*\|\|\s*null/);
   assert.match(fn, /giftSeparatedByEntitlement:\s*!!giftSeparatedByEntitlement/);
 });
 
-test("saveDraftForPricingReturn sets the same-tab return marker PaymentSuccess.jsx reads, before navigating to pricing", () => {
-  const fn = block(SEND_SRC, "const saveDraftForPricingReturn = () => {", SAVE_DRAFT_FN_END, "saveDraftForPricingReturn") + SAVE_DRAFT_FN_END;
+test("saveDraftAndNavigate sets the same-tab return marker PaymentSuccess.jsx reads, before navigating away", () => {
+  const fn = block(SEND_SRC, "const saveDraftAndNavigate = (destination) => {", SAVE_DRAFT_AND_NAVIGATE_END, "saveDraftAndNavigate") + SAVE_DRAFT_AND_NAVIGATE_END;
   const markerIdx = fn.indexOf("greetme_post_checkout_return");
-  const navIdx = fn.indexOf("navigate('/dashboard/pricing");
+  const navIdx = fn.indexOf("navigate(destination)");
   assert.ok(markerIdx > -1, "marker must be set");
   assert.ok(navIdx > markerIdx, "marker must be set BEFORE navigating away, not after");
   assert.match(fn, /sessionStorage\.setItem\('greetme_post_checkout_return',\s*'send'\)/);
 });
 
-test("all four Top Up / Upgrade exit points (caution modal x2, recovery panel x2) still route through saveDraftForPricingReturn — no bypass was introduced", () => {
-  // The caution modal's onTopUp/onUpgrade invoke it directly; the recovery panel's buttons pass it
-  // as a bare onClick handler reference (no separate wrapper that could diverge from this snapshot).
+test("saveDraftForPricingReturn navigates to the REAL top-level Pricing route, not the never-existent nested one", () => {
+  assert.match(SEND_SRC, /const saveDraftForPricingReturn = \(\) => \{\s*saveDraftAndNavigate\('\/pricing\?view=personal&returnTo=send'\);\s*\};/);
+  assert.doesNotMatch(SEND_SRC, /saveDraftAndNavigate\('\/dashboard\/pricing/, "must never regress to the broken nested path");
+});
+
+test("saveDraftForAnimationBankReturn navigates to Animation Bank with openPacks=true, so the existing packs modal opens automatically", () => {
+  assert.match(SEND_SRC, /const saveDraftForAnimationBankReturn = \(\) => \{\s*saveDraftAndNavigate\('\/dashboard\/animations\?openPacks=true&returnTo=send'\);\s*\};/);
+});
+
+test("Upgrade's two exit points (caution modal, recovery panel) route through saveDraftForPricingReturn — unchanged", () => {
   const directCalls = (SEND_SRC.match(/saveDraftForPricingReturn\(\)/g) || []).length;
   const onClickRefs = (SEND_SRC.match(/onClick=\{saveDraftForPricingReturn\}/g) || []).length;
-  assert.equal(directCalls, 2, "caution modal onTopUp/onUpgrade");
-  assert.equal(onClickRefs, 2, "recovery panel Top Up/Upgrade buttons");
+  assert.equal(directCalls, 1, "caution modal onUpgrade");
+  assert.equal(onClickRefs, 1, "recovery panel Upgrade button");
+});
+
+test("Purchase Additional Sends' two exit points (caution modal, recovery panel) route DIRECTLY to saveDraftForAnimationBankReturn — unconditional, no tier gating", () => {
+  const directCalls = (SEND_SRC.match(/saveDraftForAnimationBankReturn\(\)/g) || []).length;
+  const onClickRefs = (SEND_SRC.match(/onClick=\{saveDraftForAnimationBankReturn\}/g) || []).length;
+  assert.equal(directCalls, 1, "caution modal onTopUp");
+  assert.equal(onClickRefs, 1, "recovery panel Top Up button");
+  assert.doesNotMatch(SEND_SRC, /WALLET_TIERS|isTopUpEligible|handleTopUp/, "no tier-gating logic — founder confirmed unconditional routing");
 });
 
 // ===========================================================================
@@ -184,4 +206,24 @@ test("an absent marker (ordinary payment-success visits, e.g. plain subscription
   assert.ok(guardIdx < setResumeIdx && setResumeIdx < navigateIdx, "guard must open before both calls, in this order");
   const navigateCallCount = (effectBlock.match(/navigate\(/g) || []).length;
   assert.equal(navigateCallCount, 1, "exactly one navigate call exists in this effect — it cannot also fire unconditionally");
+});
+
+// ===========================================================================
+// AnimationBank.jsx — auto-opening the existing Add More / Animation Packs modal
+// ===========================================================================
+
+const BANK_SRC = readFileSync(join(__dirname, "AnimationBank.jsx"), "utf8").replace(/\r\n/g, "\n");
+
+test("AnimationBank.jsx auto-opens the EXISTING showPacksModal state when arriving with ?openPacks=true — no new modal, no new purchase flow", () => {
+  const effectBlock = block(
+    BANK_SRC,
+    "useEffect(() => {\n    const params = new URLSearchParams(location.search);\n    if (params.get('openPacks')",
+    "}, [location.search]);",
+    "openPacks auto-open effect"
+  );
+  assert.match(effectBlock, /setShowPacksModal\(true\)/);
+});
+
+test("the openPacks effect fires on an EXPLICIT 'true' string only — an absent or different query value never force-opens the modal", () => {
+  assert.match(BANK_SRC, /if \(params\.get\('openPacks'\) !== 'true'\) return;/);
 });

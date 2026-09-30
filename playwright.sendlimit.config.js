@@ -4,7 +4,7 @@
 // worktree/session may already have running on the shared default port 5173.
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 5197;
+const PORT = 5219;
 
 export default defineConfig({
   testDir: './tests',
