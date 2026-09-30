@@ -133,7 +133,13 @@ export default function Checkout() {
     } catch { return null; }
   })();
   const courtesyCreditCode = courtesyCredit?.creditCode || null;
-  const creditAmount = referralCode ? 10 : (courtesyCredit?.amount || 0);
+  // CREDIT CONTRACT INTEGRITY (2026-09-30, display-honesty correction) — a stored courtesy
+  // {amount} must never be displayed or subtracted without its backend-issued creditCode
+  // alongside it (every real claim path — CreditClaim.jsx, ThankYouFlow.jsx — always writes
+  // both together; only the legacy /courtesy-credit?amount= page ever wrote amount alone).
+  // Referral credit is a separate, already-verified mechanism (referralCode itself is what
+  // the backend checks) and is unaffected.
+  const creditAmount = referralCode ? 10 : (courtesyCreditCode ? (courtesyCredit?.amount || 0) : 0);
 
   const [total, setTotal] = useState(0);
   // CREDIT CONTRACT INTEGRITY (2026-09-29, follow-up correction) — the order summary must never
