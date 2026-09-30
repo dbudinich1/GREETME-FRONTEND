@@ -48,7 +48,8 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: START_URL });
   window = dom.window;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ }
+  globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.CustomEvent = window.CustomEvent;
   globalThis.getComputedStyle = window.getComputedStyle;
   globalThis.localStorage = window.localStorage;
