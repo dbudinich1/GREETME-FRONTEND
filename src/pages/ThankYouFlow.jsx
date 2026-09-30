@@ -497,7 +497,7 @@ export default function ThankYouFlow() {
                 lineHeight: 1.5,
                 margin: '0 0 2.5rem',
               }}>
-                When you&rsquo;re ready, your $5 credit will be waiting for you at checkout.
+                Thank you for passing the feeling forward.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
@@ -556,17 +556,6 @@ export default function ThankYouFlow() {
               >
                 Share the Moment
               </button>
-              <p style={{
-                fontSize: '0.8125rem',
-                color: 'rgba(255,255,255,0.55)',
-                fontStyle: 'italic',
-                margin: '0 auto 1.5rem',
-                maxWidth: '320px',
-                lineHeight: 1.5,
-              }}>
-                We&rsquo;ll include a little surprise for the person you share it with.
-              </p>
-
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
                 {sentJobId && (
                   <button

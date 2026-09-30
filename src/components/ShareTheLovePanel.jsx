@@ -1,19 +1,26 @@
 // src/components/ShareTheLovePanel.jsx
 // "Share the Love" — ONE canonical Social Circuit share panel, two honest modalities.
 //
-//   Mode A — Invite by email: reuses the EXISTING reward path (POST /api/events/share-reward
-//            to mint the courtesy credit, then POST /api/events/share-invite to send the email
-//            — the server fires share_act +10 and mints the $5 credit). No new endpoint, no new
-//            reward behavior.
+//   Mode A — Invite by email: reuses the EXISTING reward path (POST /api/events/share-reward,
+//            then POST /api/events/share-invite to send the email — the server fires share_act
+//            and, for a gift-attached original greeting only, the separate QR-Cash-match/
+//            credit_double referral reward). No new endpoint.
 //   Mode B — Broadcast share: reuses the EXISTING <SocialShareTile> (SOCIAL-A tracked link +
 //            honest states). Attribution only — no second reward.
+//
+// CREDIT CONTRACT INTEGRITY (2026-09-29, founder rule 4 — sharing a Greet-Me must not create a
+// separate/additional $5 Greet-Me Credit): Mode A no longer mints or promises a $5 credit to the
+// invitee. /api/events/share-reward no longer returns a creditCode, and /api/events/share-invite
+// no longer requires or accepts one — see routes/eventRoutes.js for the removed mint. The
+// original gift-free-delivery credit (the one the RECIPIENT of the shared Greet-Me already
+// earned, if eligible) is completely unaffected by any of this.
 //
 // HONEST STATES ONLY: "Share started" / "Link copied" (local facts, via the tile); "Invite sent"
 // (Mode A local fact). "Viewed" / "Referral earned" render ONLY from backend-proven `verifiedStatus`.
 // There is NO "verified shared" anywhere. No fabricated verification.
 //
-// Mode A requires a jobId (the greeting the credit attaches to) AND an authed user (the two
-// endpoints are requireAuth). When no jobId is available, only Mode B is offered.
+// Mode A requires a jobId (the greeting being shared) AND an authed user (the two endpoints are
+// requireAuth). When no jobId is available, only Mode B is offered.
 
 import { useState, useCallback } from "react";
 import api from "../api/api";
@@ -56,24 +63,25 @@ export default function ShareTheLovePanel({
       if (!jobId || !name.trim() || !emailValid || inviteState === "sending") return;
       setInviteState("sending");
       try {
-        // 1) mint (or reuse) the courtesy credit for this greeting — EXISTING endpoint.
+        // 1) fire the share-act/reward hook for this greeting — EXISTING endpoint. No credit
+        // code is minted or returned here anymore (founder rule 4) — this step only records the
+        // share and applies the SEPARATE, gift-attached-only referral reward, if any.
         const reward = await api.request("/api/events/share-reward", {
           method: "POST",
           body: JSON.stringify({ sourceJobId: jobId }),
         });
-        const creditCode = reward?.creditCode || null;
-        if (!creditCode) {
+        if (!reward?.ok) {
           setInviteState("error");
           return;
         }
-        // 2) send the invite email — EXISTING endpoint (server fires share_act + stamps credit).
+        // 2) send the invite email — EXISTING endpoint (server fires share_act). No credit is
+        // promised to the invitee.
         const result = await api.request("/api/events/share-invite", {
           method: "POST",
           body: JSON.stringify({
             sourceJobId: jobId,
             recipientName: name.trim(),
             recipientEmail: email.trim().toLowerCase(),
-            creditCode,
           }),
         });
         if (result && result.ok) {
@@ -122,7 +130,7 @@ export default function ShareTheLovePanel({
         <form className="gm-stl-invite" onSubmit={handleEmailInvite}>
           {inviteState === "sent" ? (
             <p className="gm-stl-sent" role="status">
-              Invite sent — a $5 credit will be waiting for them at checkout.
+              Invite sent — they'll be able to view your Greet-Me.
             </p>
           ) : (
             <>

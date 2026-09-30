@@ -348,9 +348,28 @@ export default function Checkout() {
       });
       const creditEligible = item.planTier !== 'close_circle';
       if (creditAmount > 0 && creditEligible && !data.creditApplied) {
-        localStorage.removeItem('greetme_courtesy_credit');
-        localStorage.removeItem('greetme_referral_code');
-        setErrors({ submit: 'Your credit could not be applied. Please try again or continue at full price.' });
+        // CREDIT CONTRACT INTEGRITY (2026-09-29, founder rule 7, follow-up correction) — a
+        // subscriber-ineligibility (or unverifiable-status) refusal leaves the courtesy credit
+        // untouched and still valid once the account is eligible again (server-side; see
+        // services/checkout/courtesyCreditCheckout.js). This used to unconditionally strip
+        // greetme_courtesy_credit from storage on ANY !creditApplied result, which correctly
+        // reflected server state for a genuinely invalid/consumed credit but incorrectly
+        // discarded a perfectly good one that was only refused for being a current subscriber —
+        // the user would then have no way to retry it later without re-finding the original
+        // claim link. Only clear storage for reasons that mean the credit itself is actually
+        // gone; keep it, and say why, for the two reasons that mean "not yet, try again later."
+        const isTemporaryRefusal = data.creditFailureReason === 'subscriber_ineligible' || data.creditFailureReason === 'status_unverifiable';
+        if (!isTemporaryRefusal) {
+          localStorage.removeItem('greetme_courtesy_credit');
+          localStorage.removeItem('greetme_referral_code');
+        }
+        setErrors({
+          submit: data.creditFailureReason === 'subscriber_ineligible'
+            ? 'This $5 credit is for non-subscribers. It will be ready to use again once your plan ends — you can continue now at full price.'
+            : data.creditFailureReason === 'status_unverifiable'
+            ? "We couldn't confirm your account status just now. Please try again shortly, or continue at full price."
+            : 'Your credit could not be applied. Please try again or continue at full price.',
+        });
         setIsProcessing(false);
         return;   // credit could not be applied → retryable; preserve any fundraiser attribution token
       }
