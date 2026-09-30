@@ -869,7 +869,10 @@ export default function Cart() {
                 const planPrice = subscriptionItem?.price || total;
                 // Both referral ($10) and courtesy ($5) credits now create Stripe coupons
                 const courtesyCredit = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
-                const rawCredit = hasReferralCredit ? 10 : (courtesyCredit?.amount || 0);
+                // CREDIT CONTRACT INTEGRITY (2026-09-30, Cart/Pricing display-honesty correction) —
+                // same gate as Checkout.jsx: a stored courtesy amount with no backend-issued
+                // creditCode must never be displayed or subtracted here either.
+                const rawCredit = hasReferralCredit ? 10 : (courtesyCredit?.creditCode ? (courtesyCredit?.amount || 0) : 0);
                 const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                 const creditAmt = creditEligible ? rawCredit : 0;
                 const techFee = platformFeeFor(subscriptionItem);
@@ -941,7 +944,8 @@ export default function Cart() {
                 const subscriptionItem = cartItems.find(item => item.type === 'subscription');
                 const planPrice = subscriptionItem?.price || total;
                 const courtesyCredit2 = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
-                const rawCredit = hasReferralCredit ? 10 : (courtesyCredit2?.amount || 0);
+                // CREDIT CONTRACT INTEGRITY (2026-09-30) — same gate as the display block above.
+                const rawCredit = hasReferralCredit ? 10 : (courtesyCredit2?.creditCode ? (courtesyCredit2?.amount || 0) : 0);
                 const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                 const creditAmt = creditEligible ? rawCredit : 0;
                 const techFee = platformFeeFor(subscriptionItem);

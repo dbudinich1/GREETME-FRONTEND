@@ -297,3 +297,55 @@ test("8. the display-state correction itself triggers no additional /create-chec
     assert.equal(apiMod.__calls.length, 1, "still exactly one call after settling — no delayed second request either");
   } finally { await m.unmount(); }
 });
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// CREDIT CONTRACT INTEGRITY (2026-09-30, display-honesty correction) — 9/10/11: a stored
+// {amount} with no backend-issued creditCode (exactly the shape the legacy /courtesy-credit?amount=
+// page used to write, before it was corrected to never write anything) must never be displayed,
+// subtracted from the total, or forwarded to the backend.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+test("9. a stored courtesy amount with NO creditCode (e.g. amount=999) shows no discount and the full total", async () => {
+  window.localStorage.setItem("greetme_courtesy_credit", JSON.stringify({ amount: 999, source: "finale", appliedAt: new Date().toISOString() }));
+  const m = await mount();
+  try {
+    const body = text(m.host);
+    assert.doesNotMatch(body, /Credit Applied/, "no credit-applied line for an uncoded stored amount, however large");
+    assert.doesNotMatch(body, /–\$999\.00/);
+    assert.match(body, /\$29\.98/, "full, undiscounted total — the plan price plus platform fee, nothing subtracted");
+  } finally { await m.unmount(); }
+});
+
+test("10. no stored courtesy credit at all shows no discount and the full total (default no-amount case)", async () => {
+  window.localStorage.removeItem("greetme_courtesy_credit");
+  const m = await mount();
+  try {
+    const body = text(m.host);
+    assert.doesNotMatch(body, /Credit Applied/);
+    assert.match(body, /\$29\.98/, "full, undiscounted total");
+    assert.equal(apiMod.__calls.length, 0);
+  } finally { await m.unmount(); }
+});
+
+test("11. a stored courtesy amount with NO creditCode is never forwarded to the backend as courtesyCreditCode", async () => {
+  window.localStorage.setItem("greetme_courtesy_credit", JSON.stringify({ amount: 999, source: "finale", appliedAt: new Date().toISOString() }));
+  apiMod.__responses.post = { ok: true, creditApplied: false, url: null };
+  const m = await mount();
+  try {
+    await clickCompleteOrder(m.host);
+    assert.equal(apiMod.__calls.length, 1);
+    assert.equal(apiMod.__calls[0].body.courtesyCreditCode, undefined, "no creditCode exists to send — the backend must never see a fabricated one");
+  } finally { await m.unmount(); }
+});
+
+test("12. a valid backend-backed $5 credit (creditCode present) still displays and would apply — regression guard for the fix above", async () => {
+  // beforeEach already seeds COURTESY_CREDIT_FIXTURE (has a real creditCode) — this proves the
+  // gating added in test 9 didn't collaterally break the legitimate, coded case.
+  const m = await mount();
+  try {
+    const body = text(m.host);
+    assert.match(body, /Credit Applied/);
+    assert.match(body, /–\$5\.00/);
+    assert.match(body, /\$24\.98/, "discounted total shown pre-submission");
+  } finally { await m.unmount(); }
+});

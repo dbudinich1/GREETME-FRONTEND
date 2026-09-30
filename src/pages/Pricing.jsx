@@ -1290,7 +1290,10 @@ export default function Pricing() {
                   </div>
                   {(() => {
                     const cc = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
-                    const creditAmt = referralCode ? 10 : (cc?.amount || 0);
+                    // CREDIT CONTRACT INTEGRITY (2026-09-30, Cart/Pricing display-honesty correction) —
+                    // same gate as Checkout.jsx: a stored courtesy amount with no backend-issued
+                    // creditCode must never be displayed or subtracted here either.
+                    const creditAmt = referralCode ? 10 : (cc?.creditCode ? (cc?.amount || 0) : 0);
                     const isEligible = !CREDIT_INELIGIBLE_TIERS.has(lastAddedPlan.planTier);
                     const effectiveCredit = isEligible ? creditAmt : 0;
                     return (
