@@ -1441,7 +1441,11 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         </p>
       </div>
 
-      {/* Gift Reminder Banner - Moved below Memory Photos */}
+      {/* Gift Reminder Banner - Moved below Memory Photos - informational only, no CTA.
+          A "Add Gift" button used to sit here and open GiftSelectorModal, duplicating the
+          inline "Gift Add-On" picker already on every occasion card below (and offering a
+          narrower option set than that picker). Removed per founder-approved brief: this
+          banner should explain, not navigate. */}
       <div style={{
         marginTop: '1rem',
         padding: '0.875rem 1rem',
@@ -1450,48 +1454,26 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         border: '1px solid #fbbf24',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '1rem'
+        gap: '0.75rem'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Gift size={20} style={{ color: '#d97706', flexShrink: 0 }} />
-          <div>
-            <p style={{
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              color: '#78350f',
-              margin: 0
-            }}>
-              Don't forget to add a gift
-            </p>
-            <p style={{
-              fontSize: '0.75rem',
-              color: '#92400e',
-              margin: '0.125rem 0 0 0'
-            }}>
-              Make the moment complete.
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => setGiftModalOpen(true)}
-          style={{
-            padding: '0.5rem 1rem',
-            background: '#d97706',
-            color: 'white',
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            fontSize: '0.8125rem',
+        <Gift size={20} style={{ color: '#d97706', flexShrink: 0 }} />
+        <div>
+          <p style={{
+            fontSize: '0.875rem',
             fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            whiteSpace: 'nowrap',
-            flexShrink: 0
-          }}
-        >
-          Add Gift
-        </button>
+            color: '#78350f',
+            margin: 0
+          }}>
+            Gifts are configured per occasion
+          </p>
+          <p style={{
+            fontSize: '0.75rem',
+            color: '#92400e',
+            margin: '0.125rem 0 0 0'
+          }}>
+            Select an occasion below and use its "Gift Add-On" option to attach a gift — no separate step needed.
+          </p>
+        </div>
       </div>
 
       {/* Occasions */}
@@ -1596,7 +1578,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                           >
                             <option value="none">None</option>
                             <option value="qrcash">QR Cash™</option>
-                            <option value="merch">Merch</option>
+                            <option value="merch">Branded Goods</option>
                             <option value="curated">Let Greet-Me select a gift</option>
                             <option value="marketplace">Browse Marketplace</option>
                           </select>
@@ -1674,13 +1656,16 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                         )}
 
                         {/* Choose Item button for merch/subscription */}
-                        {(giftSetting.type === 'merch' || giftSetting.type === 'subscription') && (
+                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && (
                           <button
                             type="button"
                             onClick={() => {
                               saveScrollPosition();
                               const returnParam = contact?.id ? `&returnRecipientId=${contact.id}` : '';
-                              navigate(giftSetting.type === 'merch' ? `/dashboard/merch?category=merch${returnParam}` : `/dashboard/gifts?category=${giftSetting.type}${returnParam}`);
+                              // 'marketplace' routes through the same known-working merch/Gift Place
+                              // destination as 'merch' — Merch.jsx does not currently branch on the
+                              // `category` query param, so this mirrors 'merch' exactly.
+                              navigate((giftSetting.type === 'merch' || giftSetting.type === 'marketplace') ? `/dashboard/merch?category=merch${returnParam}` : `/dashboard/gifts?category=${giftSetting.type}${returnParam}`);
                             }}
                             style={{
                               padding: '0.375rem 0.75rem',
@@ -2121,7 +2106,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                           >
                             <option value="none">None</option>
                             <option value="qrcash">QR Cash™</option>
-                            <option value="merch">Merch</option>
+                            <option value="merch">Branded Goods</option>
                             <option value="curated">Let Greet-Me select a gift</option>
                             <option value="marketplace">Browse Marketplace</option>
                           </select>
@@ -2199,13 +2184,16 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                         )}
 
                         {/* Choose Item button for merch/subscription */}
-                        {(giftSetting.type === 'merch' || giftSetting.type === 'subscription') && (
+                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && (
                           <button
                             type="button"
                             onClick={() => {
                               saveScrollPosition();
                               const returnParam = contact?.id ? `&returnRecipientId=${contact.id}` : '';
-                              navigate(giftSetting.type === 'merch' ? `/dashboard/merch?category=merch${returnParam}` : `/dashboard/gifts?category=${giftSetting.type}${returnParam}`);
+                              // 'marketplace' routes through the same known-working merch/Gift Place
+                              // destination as 'merch' — Merch.jsx does not currently branch on the
+                              // `category` query param, so this mirrors 'merch' exactly.
+                              navigate((giftSetting.type === 'merch' || giftSetting.type === 'marketplace') ? `/dashboard/merch?category=merch${returnParam}` : `/dashboard/gifts?category=${giftSetting.type}${returnParam}`);
                             }}
                             style={{
                               padding: '0.375rem 0.75rem',
@@ -2604,6 +2592,418 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           </div>
         )}
 
+        {/* Faith-Based Occasion Gift Configuration — same Gift Add-On / Auto-Gift / Choose Item
+            pattern Personal and Secular occasions get, applied per currently-selected faith
+            holiday. Faith holidays are selected as a whole package (via FaithBasedOccasionSelector
+            above), not individually, so there is no per-occasion checkbox here — only the gift
+            configuration, listed once per holiday that is currently active in formData.occasions.
+            Reuses getOccasionGiftSetting/handleOccasionGiftChange unmodified; no religious labels,
+            dates, recurrence, or eligibility are touched. */}
+        {formData.occasions?.some(occ => {
+          const occasion = [...occasionCategories.christian, ...occasionCategories.jewish, ...occasionCategories.muslim].find(o => o.value === occ.type);
+          return occasion && ['christian', 'jewish', 'muslim'].includes(occasion.category);
+        }) && (
+          <div style={{ marginTop: 'var(--space-lg)' }}>
+            <h4 style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              marginBottom: 'var(--space-xs)'
+            }}>
+              Gifts for Faith-Based Holidays
+            </h4>
+            <p style={{
+              fontSize: '0.75rem',
+              color: 'var(--text-tertiary)',
+              marginBottom: 'var(--space-md)'
+            }}>
+              Configure an optional gift for each selected holiday, the same way you would for a birthday or anniversary.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {formData.occasions.filter(occ => {
+                const occasion = [...occasionCategories.christian, ...occasionCategories.jewish, ...occasionCategories.muslim].find(o => o.value === occ.type);
+                return occasion && ['christian', 'jewish', 'muslim'].includes(occasion.category);
+              }).map(occ => {
+                const occasion = [...occasionCategories.christian, ...occasionCategories.jewish, ...occasionCategories.muslim].find(o => o.value === occ.type);
+                if (!occasion) return null;
+                const giftSetting = getOccasionGiftSetting(occ.type);
+
+                return (
+                  <div
+                    key={occ.type}
+                    style={{
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-lg)',
+                      padding: '1rem',
+                      background: 'var(--gray-50)'
+                    }}
+                  >
+                    {/* Occasion header row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '1.5rem' }}>{occasion.icon}</span>
+                      <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{occasion.label}</span>
+                    </div>
+
+                    {/* Gift Add-On Section */}
+                    <div style={{
+                      marginTop: '0.75rem',
+                      paddingTop: '0.75rem',
+                      borderTop: '1px dashed var(--border)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                        {/* Gift Add-On dropdown */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Gift size={16} style={{ color: '#10b981' }} />
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Gift Add-On:</span>
+                          <select
+                            value={giftSetting.type}
+                            onChange={(e) => handleOccasionGiftChange(occ.type, 'type', e.target.value)}
+                            style={{
+                              padding: '0.375rem 0.625rem',
+                              border: '1px solid var(--border)',
+                              borderRadius: 'var(--radius-md)',
+                              fontSize: '0.8125rem',
+                              fontFamily: 'inherit',
+                              background: 'white',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <option value="none">None</option>
+                            <option value="qrcash">QR Cash™</option>
+                            <option value="merch">Branded Goods</option>
+                            <option value="curated">Let Greet-Me select a gift</option>
+                            <option value="marketplace">Browse Marketplace</option>
+                          </select>
+                        </div>
+
+                        {/* Curated gift max spend selector */}
+                        {giftSetting.type === 'curated' && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <DollarSign size={14} style={{ color: '#667eea' }} />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Max:</span>
+                            <select
+                              value={giftSetting.maxSpend || 50}
+                              onChange={(e) => handleOccasionGiftChange(occ.type, 'maxSpend', parseInt(e.target.value))}
+                              style={{
+                                padding: '0.375rem 0.625rem',
+                                border: '1px solid #667eea',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit',
+                                background: '#f0f4ff',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value={25}>$25</option>
+                              <option value={50}>$50</option>
+                              <option value={75}>$75</option>
+                              <option value={100}>$100</option>
+                              <option value={150}>$150</option>
+                            </select>
+                          </div>
+                        )}
+
+                        {/* QR Cash amount selector */}
+                        {giftSetting.type === 'qrcash' && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <DollarSign size={14} style={{ color: '#f59e0b' }} />
+                            <select
+                              value={giftSetting.amount || 25}
+                              onChange={(e) => handleOccasionGiftChange(occ.type, 'amount', parseInt(e.target.value))}
+                              style={{
+                                padding: '0.375rem 0.625rem',
+                                border: '1px solid #fbbf24',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit',
+                                background: '#fffbeb',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value={10}>$10</option>
+                              <option value={25}>$25</option>
+                              <option value={50}>$50</option>
+                              <option value={100}>$100</option>
+                              <option value={0}>Custom</option>
+                            </select>
+                            {giftSetting.amount === 0 && (
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="Amount"
+                                value={giftSetting.customAmount || ''}
+                                onChange={(e) => handleOccasionGiftChange(occ.type, 'customAmount', parseInt(e.target.value))}
+                                style={{
+                                  width: '80px',
+                                  padding: '0.375rem 0.625rem',
+                                  border: '1px solid #fbbf24',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit',
+                                  background: '#fffbeb'
+                                }}
+                              />
+                            )}
+                          </div>
+                        )}
+
+                        {/* Choose Item button for merch/marketplace/subscription */}
+                        {(giftSetting.type === 'merch' || giftSetting.type === 'marketplace' || giftSetting.type === 'subscription') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              saveScrollPosition();
+                              const returnParam = contact?.id ? `&returnRecipientId=${contact.id}` : '';
+                              navigate((giftSetting.type === 'merch' || giftSetting.type === 'marketplace') ? `/dashboard/merch?category=merch${returnParam}` : `/dashboard/gifts?category=${giftSetting.type}${returnParam}`);
+                            }}
+                            style={{
+                              padding: '0.375rem 0.75rem',
+                              background: '#10b981',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: 'var(--radius-md)',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.375rem',
+                              fontFamily: 'inherit'
+                            }}
+                          >
+                            <ExternalLink size={12} />
+                            Choose Item
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Auto-Gift toggle with badge - only when gift is selected */}
+                      {giftSetting.type !== 'none' && (
+                        <div style={{ marginTop: '0.625rem' }}>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '0.5rem'
+                          }}>
+                            <label style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              cursor: 'pointer'
+                            }}>
+                              <input
+                                type="checkbox"
+                                checked={giftSetting.autoGift === true}
+                                onChange={(e) => handleOccasionGiftChange(occ.type, 'autoGift', e.target.checked)}
+                                style={{ width: '0.875rem', height: '0.875rem', accentColor: '#667eea' }}
+                              />
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                Enable Auto-Gift
+                              </span>
+                            </label>
+                            <span style={{
+                              fontSize: '0.625rem',
+                              fontWeight: 600,
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '9999px',
+                              background: giftSetting.autoGift ? 'rgba(102, 126, 234, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                              color: giftSetting.autoGift ? '#667eea' : 'var(--text-tertiary)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.025em'
+                            }}>
+                              {giftSetting.autoGift ? 'Auto-Gift Enabled' : 'Manual Selection'}
+                            </span>
+                          </div>
+                          <p style={{
+                            fontSize: '0.6875rem',
+                            color: 'var(--text-tertiary)',
+                            marginTop: '0.375rem',
+                            marginLeft: '1.375rem'
+                          }}>
+                            {giftSetting.autoGift
+                              ? 'Gift will be sent automatically on the occasion date.'
+                              : 'You\'ll receive a reminder 10 days before to confirm.'}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Delivery details - for every gift type that ships a physical parcel */}
+                      {requiresDeliveryAddress(giftSetting.type) && (
+                        <div style={{
+                          marginTop: '1rem',
+                          padding: '1rem',
+                          background: 'rgba(102, 126, 234, 0.05)',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid rgba(102, 126, 234, 0.2)'
+                        }}>
+                          <h4 style={{
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            color: '#667eea',
+                            marginBottom: '0.75rem'
+                          }}>
+                            Delivery Details
+                          </h4>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                            A shipping label needs a first name. We never guess it from
+                            {formData.name ? ` “${formData.name}”` : ' the contact name'}, so please confirm it.
+                            A last name is optional.
+                          </p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <input
+                              type="text"
+                              placeholder="Recipient First Name *"
+                              value={formData.firstName || ''}
+                              onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                              autoComplete="off"
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit'
+                              }}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Recipient Last Name (optional)"
+                              value={formData.lastName || ''}
+                              onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                              autoComplete="off"
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit'
+                              }}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Address Line 1 *"
+                              value={formData.shippingAddress?.line1 || ''}
+                              onChange={(e) => setFormData(prev => ({
+                                ...prev,
+                                shippingAddress: { ...prev.shippingAddress, line1: e.target.value }
+                              }))}
+                              autoComplete="off"
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit'
+                              }}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Address Line 2"
+                              value={formData.shippingAddress?.line2 || ''}
+                              onChange={(e) => setFormData(prev => ({
+                                ...prev,
+                                shippingAddress: { ...prev.shippingAddress, line2: e.target.value }
+                              }))}
+                              autoComplete="off"
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                                fontFamily: 'inherit'
+                              }}
+                            />
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <input
+                                type="text"
+                                placeholder="City *"
+                                value={formData.shippingAddress?.city || ''}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  shippingAddress: { ...prev.shippingAddress, city: e.target.value }
+                                }))}
+                                autoComplete="off"
+                                style={{
+                                  flex: 2,
+                                  padding: '0.5rem',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit'
+                                }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="State *"
+                                value={formData.shippingAddress?.state || ''}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  shippingAddress: { ...prev.shippingAddress, state: e.target.value }
+                                }))}
+                                autoComplete="off"
+                                style={{
+                                  flex: 1,
+                                  padding: '0.5rem',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit'
+                                }}
+                              />
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <input
+                                type="text"
+                                placeholder="ZIP Code *"
+                                value={formData.shippingAddress?.zip || ''}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  shippingAddress: { ...prev.shippingAddress, zip: e.target.value }
+                                }))}
+                                autoComplete="off"
+                                style={{
+                                  flex: 1,
+                                  padding: '0.5rem',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit'
+                                }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Country *"
+                                value={formData.shippingAddress?.country || 'United States'}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  shippingAddress: { ...prev.shippingAddress, country: e.target.value }
+                                }))}
+                                autoComplete="off"
+                                style={{
+                                  flex: 1,
+                                  padding: '0.5rem',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 'var(--radius-md)',
+                                  fontSize: '0.8125rem',
+                                  fontFamily: 'inherit'
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {errors.occasions && <p className="mt-2 text-sm text-red-500">{errors.occasions}</p>}
       </div>
 
@@ -2633,6 +3033,11 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         occasions={formData.occasions}
         occasionGiftSettings={formData.occasionGiftSettings}
         onGiftChange={handleOccasionGiftChange}
+        onBrowse={() => {
+          saveScrollPosition();
+          const returnParam = contact?.id ? `&returnRecipientId=${contact.id}` : '';
+          navigate(`/dashboard/merch?category=merch${returnParam}`);
+        }}
         getOccasionLabel={(type) => {
           const allOccasions = [
             ...occasionCategories.personal,

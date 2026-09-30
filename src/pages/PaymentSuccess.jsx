@@ -61,6 +61,26 @@ export default function PaymentSuccess() {
   // 'fallback'   → unified "Payment received" generic state (token lost/expired/corrupt)
   const [resumeStatus, setResumeStatus] = useState(null);
 
+  // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — a Top Up / Upgrade purchase reached from the
+  // gift-entitlement caution modal (or its recovery-after-separation panel) leaves this same-tab
+  // sessionStorage marker via SendGreeting.jsx's saveDraftForPricingReturn, since a SUBSCRIPTION
+  // checkout has no equivalent to the sendDraftId/localStorage mechanism below (that one is
+  // deliberately scoped to the marketplace-gift-attachment Stripe path only — see its own header
+  // comment in SendGreeting.jsx). Without this check, PaymentSuccess.jsx had no way to know a send
+  // was paused, and fell through to the generic G1G1-status screen below — leaving the composed
+  // Greet-Me (still sitting harmlessly in sessionStorage) with no way back to it. Checked and
+  // cleared FIRST, before the sendDraftId branch, since the two purchase flows are mutually
+  // exclusive and this is the simpler, same-tab-only signal.
+  useEffect(() => {
+    let returnMarker = null;
+    try { returnMarker = sessionStorage.getItem('greetme_post_checkout_return'); } catch {}
+    if (returnMarker === 'send') {
+      try { sessionStorage.removeItem('greetme_post_checkout_return'); } catch {}
+      setResumeStatus('fast-resume');
+      navigate('/dashboard/send?returnTo=send', { replace: true });
+    }
+  }, []);
+
   // Phase 3D Batch A — A2.4: read sendDraftId from URL; if present and a valid
   // non-expired resume entry exists in localStorage, fast-redirect to
   // /dashboard/send so the resume effect there completes the dispatch.

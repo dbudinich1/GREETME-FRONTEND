@@ -118,6 +118,11 @@ const FounderFundraisingDashboard = lazy(() => import("./pages/fundraiser/Founde
 // TEAM B — SALES S1 founder control center. Lazy, exactly like the other founder surface, so it
 // never enters the main bundle for an ordinary user.
 const SalespersonControlCenter = lazy(() => import("./pages/founder/SalespersonControlCenter"));
+// TEAM 5 (2026-09-29) — Founder Central Command: a consolidated founder-only entry point that
+// SURFACES and LINKS TO the above founder pages plus catalog management. It does not replace or
+// duplicate any of them. Lazy, same pattern as the pages it links to.
+const FounderCentralCommand = lazy(() => import("./pages/founder/FounderCentralCommand"));
+const QrCashPayoutsReview = lazy(() => import("./pages/founder/QrCashPayoutsReview"));
 const PartnerFundraisingDashboard = lazy(() => import("./pages/fundraiser/PartnerFundraisingDashboard"));
 // NAV-02 — param-less Partner Admin home; the "Greet-Me Fundraise" primary-nav header points here.
 const PartnerFundraisingHome = lazy(() => import("./pages/fundraiser/PartnerFundraisingHome"));
@@ -236,6 +241,12 @@ export default function App() {
             {/* TEAM B — founder-only. The page itself re-checks isFounder and renders nothing
                 actionable otherwise, and every endpoint behind it is requireFounder server-side. */}
             <Route path="founder/salespeople" element={<Suspense fallback={null}><SalespersonControlCenter /></Suspense>} />
+            {/* TEAM 5 — founder-only, same posture as the routes above: the page re-checks
+                isFounder and renders nothing actionable otherwise, and every endpoint it reads
+                (founderCommandApi, fundraiserApi.founder, salesAdminApi, founderCatalogApi) is
+                independently requireFounder-gated server-side. */}
+            <Route path="founder/command" element={<Suspense fallback={null}><FounderCentralCommand /></Suspense>} />
+            <Route path="founder/qr-cash-payouts" element={<Suspense fallback={null}><QrCashPayoutsReview /></Suspense>} />
             <Route path="fundraiser/partner/:organizationId" element={<Suspense fallback={null}><PartnerFundraisingDashboard /></Suspense>} />
           </Route>
 

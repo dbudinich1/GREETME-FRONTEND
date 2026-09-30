@@ -28,13 +28,16 @@ const ROUTER_STUB = `export const useNavigate = () => (() => {});`;
 const ICONS_STUB = `
 import React from "react";
 const I = () => null;
-export const Package = I, Truck = I, ArrowLeft = I, ExternalLink = I;
+export const Package = I, Truck = I, ArrowLeft = I, ExternalLink = I, Flower2 = I;
 export default {};
 `;
-// The api client returns whatever the test places on globalThis.__orders.
+// The api client returns whatever the test places on globalThis.__orders. Flower orders
+// (Team 2's honest-visibility addition) default to none, matching this suite's pre-existing
+// scope — it covers only the branded-goods list.
 const API_STUB = `
 export default {
   getMerchOrders: async () => ({ ok: true, orders: globalThis.__orders || [] }),
+  getFlowerOrders: async () => ({ ok: true, orders: globalThis.__flowerOrders || [] }),
 };
 `;
 

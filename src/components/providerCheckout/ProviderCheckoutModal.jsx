@@ -46,6 +46,10 @@ export default function ProviderCheckoutModal({
   // The greeting's recipient, when this checkout is a step inside a send. Forwarded to prepare so the
   // accepted order can be bound to that greeting and to no other.
   contactId = null,
+  // TEAM 1 — gift/entitlement safety. `(attemptId) => Promise<{proceed, giftOnlyToken}>`. Owned by
+  // the caller so the SAME caution UI is used everywhere a gift can be purchased, not duplicated
+  // per checkout surface. Absent means no gate runs here (e.g. a context with no paired Greet-Me).
+  checkEntitlement = null,
 }) {
   // A caller that already knows the product (the marketplace, later) starts at the details step.
   // With no product in hand the customer picks one first, from the PROVIDER's live list.
@@ -160,7 +164,7 @@ export default function ProviderCheckoutModal({
 
   // The authoritative review, derived only from the backend's quote. Recomputed when the quote or
   // the chosen product changes, so an acknowledgement can never carry over to a different price.
-  const review = useMemo(() => reviewQuote({ prepared, chosen, form }), [prepared, chosen, form]);
+  const review = useMemo(() => reviewQuote({ prepared, chosen, form, giftType }), [prepared, chosen, form, giftType]);
   useEffect(() => { setPriceAcknowledged(false); }, [prepared?.quote?.quoteVersion]);
   const cardFilled = Boolean(
     String(card.cardNumber).trim() && String(card.expMonth).trim()
@@ -179,6 +183,21 @@ export default function ProviderCheckoutModal({
     submitting.current = true;
     setBusy(true);
     setFailure(null);
+    // TEAM 1 — gift/entitlement safety. Florist One has no cancellation once accepted, so this
+    // runs BEFORE the card is even tokenized — before any interaction with the provider at all.
+    // Silent when the sender has a send available; the caution modal (rendered by the parent,
+    // which owns this check so the same UI is used everywhere a gift can be purchased) otherwise
+    // pauses here until the sender resolves it.
+    let giftOnlyToken = null;
+    if (typeof checkEntitlement === 'function') {
+      const gate = await checkEntitlement(prepared.attemptId);
+      if (!gate.proceed) {
+        submitting.current = false;
+        setBusy(false);
+        return;
+      }
+      giftOnlyToken = gate.giftOnlyToken;
+    }
     try {
       // 1. The card goes to the PROVIDER's tokenizer, in this browser.
       const { token, issuedAt } = await tokenizeCard(card, tokenization);
@@ -189,6 +208,7 @@ export default function ProviderCheckoutModal({
         attemptId: prepared.attemptId,
         giftType,
         paymentToken: token,
+        giftOnlyToken,
         // THE FIELD NAME IS THE CONTRACT. The backend reads `paymentBinding.tokenizationKeyFingerprint`
         // and refuses anything it cannot prove was minted with Florist One's own publishable key.
         // Sending the same value under a shorter name meant the field arrived undefined and EVERY
@@ -236,6 +256,21 @@ export default function ProviderCheckoutModal({
         onAccepted(res);
       }
     } catch (err) {
+      // TEAM 1 — the frontend preflight was stale or skipped; the server's own gate on /submit is
+      // what actually refused this. Nothing was charged and no card token was sent for it (the
+      // gate runs before submitCheckout inside the backend route too). Clear the card fields (a
+      // tokenized-but-unused token is discarded either way) and let the caution modal run again
+      // with a fresh server answer, then retry once if the sender resolves it.
+      if (err?.code === 'SEND_ENTITLEMENT_AT_RISK' && typeof checkEntitlement === 'function') {
+        clearCardFields(setCard);
+        submitting.current = false;
+        setBusy(false);
+        const retry = await checkEntitlement(prepared.attemptId);
+        if (retry.proceed) {
+          onPay();
+        }
+        return;
+      }
       // Terminal failure: the fields are cleared here too, so a decline never leaves a card number
       // sitting in a form the browser might restore.
       clearCardFields(setCard);
@@ -244,7 +279,7 @@ export default function ProviderCheckoutModal({
     } finally {
       setBusy(false);
     }
-  }, [card, tokenization, prepared, giftType, payAllowed, provider, onAccepted]);
+  }, [card, tokenization, prepared, giftType, payAllowed, provider, onAccepted, checkEntitlement]);
 
   // EMBEDDED AND ACCEPTED. The order is real and the greeting it belongs to is now being sent by the
   // caller, so this checkout has no terminal state of its own to offer. "Done" would be a lie in the
@@ -415,7 +450,13 @@ export default function ProviderCheckoutModal({
                 {errors.recipientPhone
                   ? <small style={{ color: '#b91c1c' }}>{errors.recipientPhone}</small>
                   : <small style={{ color: 'var(--text-secondary, #64748b)' }}>
-                      The florist may need to call about the delivery.
+                      {/* CATEGORY-CONDITIONAL. This used to say "the florist" unconditionally, which
+                          is wrong for a gift box — no florist exists on that order at all. Flowers
+                          keeps its exact original wording; every other category gets a vendor-neutral
+                          equivalent, never a provider's name. */}
+                      {giftType === 'flowers'
+                        ? 'The florist may need to call about the delivery.'
+                        : 'The delivery partner may need to call about the delivery.'}
                     </small>}
               </div>
             </fieldset>
@@ -460,7 +501,12 @@ export default function ProviderCheckoutModal({
             <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.9rem' }}>
               <input type="checkbox" checked={form.allowSubstitutions}
                 onChange={(e) => setForm((f) => ({ ...f, allowSubstitutions: e.target.checked }))} />
-              Allow the florist to substitute flowers of equal or greater value
+              {/* CATEGORY-CONDITIONAL, same reason as the phone helper above: "the florist" and
+                  "flowers" are both wrong for a gift box, and this field is sent to the backend for
+                  either category regardless (see toPrepareRequest's allowSubstitutions). */}
+              {giftType === 'flowers'
+                ? 'Allow the florist to substitute flowers of equal or greater value'
+                : 'Allow a substitution of equal or greater value if an item becomes unavailable'}
             </label>
 
             {/* BILLING — the cardholder's own details, required by the provider for the charge.

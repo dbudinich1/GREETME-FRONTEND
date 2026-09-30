@@ -184,6 +184,11 @@ export default function DashboardLayout({ children }) {
     // the PARTNER home at founders only and left real partner administrators with no entry.
     // Display-only: it grants no route or backend authorization, and no client role is trusted.
     ...(isFundraiserUiEnabled() && isPartnerAdmin ? [{ name: 'Greet-Me Fundraise', path: '/dashboard/fundraiser', icon: null }] : []),
+    // TEAM 5 (2026-09-29) — Founder Central Command: the consolidated founder-only entry point.
+    // Added, not a replacement — the individual Fundraising/Salespeople entries below (and their
+    // routes) stay exactly as they are; existing deep links and bookmarks keep working. Same
+    // founder gate as every other founder-only entry here.
+    ...(isFounder(user) ? [{ name: 'Founder Central Command', path: '/dashboard/founder/command', icon: null }] : []),
     // TEAM B — Founder Admin fundraising access stays separate + hidden while the dark gate is false.
     // TEAM D FE-GATE-1 — same founder gate as above.
     ...(isFundraiserUiEnabled() && isFounder(user) ? [{ name: 'Fundraising', path: '/dashboard/fundraiser/admin', icon: null }] : []),

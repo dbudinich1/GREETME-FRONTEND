@@ -12,6 +12,15 @@ import { GreetingCard as GreetingCardProto } from '../components/GreetingCardPro
 import { buildCorporateViewerFacts } from '../components/GreetingCardProto/corporateDelivery';
 import { useAccountState } from '../hooks/useAccountState';
 import { shouldShowFirstTimeCTA, isSenderViewingOwnGreeting } from '../utils/accountState';
+// TEAM 4 (growth-loops verification pass, 2026-09-29) — reconnects two EXISTING, already-built
+// entry points that had no way to be reached from the live recipient card route (/#/g/:jobId):
+// the live Thank-You composer (ThankYouFlow.jsx, unchanged) and the canonical "Share the Love"
+// panel (ShareTheLovePanel.jsx, unchanged — covers both the email-invite loop and the honest,
+// untracked-while-dormant social broadcast tile). No new flow, no new endpoint, no new copy
+// beyond what these components already say. The $5 credit CTA is intentionally NOT duplicated
+// here — it already lives on the FinaleSpread back-of-card (see FinaleSpread.jsx) and Item A of
+// the growth-loops brief calls for avoiding duplicated CTAs across unrelated locations.
+import ShareTheLovePanel from '../components/ShareTheLovePanel';
 
 export default function PublicGreetingCard() {
   const { jobId } = useParams();
@@ -23,6 +32,7 @@ export default function PublicGreetingCard() {
   const [greeting, setGreeting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     loadGreeting();
@@ -291,6 +301,8 @@ export default function PublicGreetingCard() {
     );
   }
 
+  const isViewerTheSender = isSenderViewingOwnGreeting({ greeting, userId: accountState.userId });
+
   // Render the premium greeting card experience with wrapper
   return (
     <div className="gc-public-wrapper" style={{ minHeight: '100vh', background: '#f5f3f0' }}>
@@ -317,10 +329,108 @@ export default function PublicGreetingCard() {
           suppression of claim CTAs on the Finale spread. No layout/animation impact. */}
       <GreetingCardProto
         greeting={greeting}
-        isOwner={isSenderViewingOwnGreeting({ greeting, userId: accountState.userId })}
+        isOwner={isViewerTheSender}
       />
 
       {/* QR Cash™ claim lives inside the FinaleSpread (right page of the card) */}
+
+      {/* TEAM 4 — Recipient decision surface (growth-loops brief, Item A). Reconnects the
+          existing Thank-You composer and Share-the-Love panel to the live recipient card
+          route, which previously had no path to either. Recipient-only (the sender viewing
+          their own sent greeting doesn't need to "thank" themselves); the $5 credit CTA is
+          deliberately left where it already lives (FinaleSpread) rather than duplicated here. */}
+      {!isViewerTheSender && (
+        <div className="gc-public-chrome" style={{
+          maxWidth: '640px',
+          margin: '2rem auto 0',
+          padding: '0 1rem',
+        }}>
+          <div style={{
+            padding: '1.5rem',
+            background: '#fff',
+            borderRadius: '16px',
+            textAlign: 'center',
+            border: '1px solid #e5e7eb',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          }}>
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem', fontWeight: 700, color: '#1B2A4A' }}>
+              Enjoyed this Greet-Me?
+            </h3>
+            <p style={{ margin: '0 0 1.25rem', fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.5 }}>
+              Send a thank-you back to {greeting.senderName}, or share this moment with someone else.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <a href={`/#/thank-you?jobId=${greeting.jobId}`} style={{
+                display: 'inline-block',
+                padding: '10px 24px',
+                background: '#4F2D7F',
+                color: '#FFF',
+                borderRadius: '8px',
+                fontWeight: 600,
+                textDecoration: 'none',
+                fontSize: '0.9375rem',
+              }}>
+                Send a Thank-You
+              </a>
+              <button
+                type="button"
+                onClick={() => setShowShareModal(true)}
+                style={{
+                  display: 'inline-block',
+                  padding: '10px 24px',
+                  background: '#fff',
+                  color: '#4F2D7F',
+                  border: '1px solid #4F2D7F',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  fontSize: '0.9375rem',
+                  cursor: 'pointer',
+                }}
+              >
+                Share
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showShareModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Share"
+          onClick={() => setShowShareModal(false)}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.6)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: '1rem',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '480px', width: '100%', background: '#fffdf8',
+              borderRadius: '1rem', padding: '1.5rem',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+              maxHeight: '90dvh', overflowY: 'auto',
+            }}
+          >
+            <ShareTheLovePanel
+              jobId={accountState.isAuthenticated ? greeting.jobId : undefined}
+              shareUrl={`${window.location.origin}/#/g/${greeting.jobId}`}
+              shareText={`${greeting.senderName} sent me a Greet-Me — come see what I mean.`}
+              defaultMode={accountState.isAuthenticated ? 'invite' : 'broadcast'}
+            />
+            <button
+              onClick={() => setShowShareModal(false)}
+              style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.8125rem', cursor: 'pointer', marginTop: '0.75rem', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* "Send Your Own" CTA (Viral Loop) — hidden in landscape via CSS.
           Phase 3D Batch D Slice 3: first-time visitors only.

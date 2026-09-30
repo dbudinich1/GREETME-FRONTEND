@@ -1,7 +1,17 @@
-// src/components/corporateCampaign/savedCardDashboardMount.test.mjs — TEAM I (CONNECTION D).
+// src/components/corporateCampaign/savedCardDashboardMount.test.mjs — TEAM I (CONNECTION D),
+// relocated by TEAM 5 (2026-09-29).
 //
-// Proof that the saved-card panel lives in the EXISTING corporate dashboard rather than on a new
-// surface of its own, and that mounting it changed nothing else about that dashboard.
+// Proof that the saved-card panel lives inside the campaign's own Schedule & Payment experience
+// rather than on a detached surface of its own, and that mounting it there changed nothing else.
+//
+// TEAM 5 relocation: the panel used to mount directly in GreetingAutomationCampaigns.jsx, above
+// Campaigns, as its own detached account-level panel. Founder-approved layout rule #8/#9 calls
+// for payment management to live INSIDE the campaign's Schedule & Payment tab instead, and for
+// there to be no such detached panel — so it now mounts in CampaignCard.jsx, and
+// GreetingAutomationCampaigns.jsx only threads `cardClient`/`stripeOverride` one level further
+// down to it (same two props it always passed, just handed to a child instead of used directly).
+// W1/W2 below now assert the NEW mount point; W3-W7 test the panel's OWN source and are
+// unaffected by where it is mounted, so they are unchanged.
 //
 // This is a source assertion deliberately: the full dashboard needs memberships, campaigns,
 // contacts, readiness and ordering to render, and its behaviour is already covered by the browser
@@ -18,23 +28,32 @@ import { dirname, join } from "node:path";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DASH = readFileSync(join(HERE, "GreetingAutomationCampaigns.jsx"), "utf8");
+const CARD = readFileSync(join(HERE, "CampaignCard.jsx"), "utf8");
 const PANEL = readFileSync(join(HERE, "SavedCardPanel.jsx"), "utf8");
 
-test("W1 · the panel is mounted inside the existing dashboard, not on a new surface", () => {
-  assert.match(DASH, /import SavedCardPanel from "\.\/SavedCardPanel\.jsx";/);
-  assert.match(DASH, /<SavedCardPanel/);
-  // Inside the SAME shell as the campaigns panel — one dashboard, one layout.
-  const mountIdx = DASH.indexOf("<SavedCardPanel");
-  const campaignsIdx = DASH.indexOf('data-testid="campaigns-panel"');
-  const shellIdx = DASH.indexOf('data-testid="corporate-dashboard"');
-  assert.ok(shellIdx > -1 && mountIdx > shellIdx, "the panel is inside the dashboard shell");
-  assert.ok(mountIdx < campaignsIdx, "and above Campaigns, where the requirement is met first");
+test("W1 · the panel is mounted inside the campaign's own Schedule & Payment tab, not on a detached surface", () => {
+  assert.match(CARD, /import SavedCardPanel from "\.\/SavedCardPanel\.jsx";/);
+  assert.match(CARD, /<SavedCardPanel/);
+  // Inside the Schedule & Payment tab specifically, not floating loose in the card.
+  const mountIdx = CARD.indexOf("<SavedCardPanel");
+  const scheduleTabIdx = CARD.indexOf('data-testid={`tab-schedule-${campaign.campaignId}`}');
+  assert.ok(scheduleTabIdx > -1 && mountIdx > scheduleTabIdx, "the panel is inside the Schedule & Payment tab");
+  // And it is NOT mounted directly in the dashboard surface any more — no detached panel.
+  assert.doesNotMatch(DASH, /<SavedCardPanel/, "no detached account-level mount remains on the dashboard");
+  assert.doesNotMatch(DASH, /import SavedCardPanel/, "and the dashboard no longer imports it directly");
 });
 
 test("W2 · the panel receives the SERVER-derived organization id, never a user id", () => {
-  const mount = DASH.slice(DASH.indexOf("<SavedCardPanel"), DASH.indexOf("/>", DASH.indexOf("<SavedCardPanel")));
-  assert.match(mount, /orgId=\{effectiveOrgId\}/);
+  const mount = CARD.slice(CARD.indexOf("<SavedCardPanel"), CARD.indexOf("/>", CARD.indexOf("<SavedCardPanel")));
+  assert.match(mount, /orgId=\{orgId\}/);
   assert.doesNotMatch(mount, /user/i);
+  // CampaignCard's own `orgId` prop is, in turn, always the dashboard's server-derived
+  // effectiveOrgId — confirmed at the one place CampaignCard is mounted (a single self-closing
+  // JSX tag, so the next "/>" after it marks the end of its prop list).
+  const cardMountIdx = DASH.indexOf("<CampaignCard");
+  assert.ok(cardMountIdx > -1, "CampaignCard is mounted somewhere in the dashboard");
+  const cardMountBlock = DASH.slice(cardMountIdx, DASH.indexOf("/>", cardMountIdx) + 2);
+  assert.match(cardMountBlock, /orgId=\{effectiveOrgId\}/);
 });
 
 test("W3 · the PANEL owns the payments client, so the dashboard stays free of payment imports", () => {
@@ -57,7 +76,7 @@ test("W3 · the PANEL owns the payments client, so the dashboard stays free of p
 test("W4 · the dashboard's own campaign behaviour is unchanged by the mount", () => {
   // The existing panels, controls and testids the other suites rely on are all still present.
   for (const marker of [
-    'data-testid="campaigns-panel"', 'data-testid="open-create"', 'data-testid="campaign-viewport"',
+    'data-testid="campaigns-panel"', 'data-testid="create-form"', 'data-testid="campaign-viewport"',
     'data-testid="corporate-dormant"', 'data-testid="overlap-warning"', 'data-testid="reorder-live"',
   ]) {
     assert.ok(DASH.includes(marker), `${marker} must still exist`);

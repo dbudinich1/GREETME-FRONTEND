@@ -203,9 +203,20 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
         setGoodyHasMore(Boolean(traversal.nextCursor));
         setGoodyScannedTotal((prev) => (append ? prev + traversal.scanned : traversal.scanned));
         setGoodyExcludedTotal((prev) => (append ? prev + excludedThisPage : excludedThisPage));
-      } else {
+      } else if (provider.mode === 'printful') {
+        // Printful's own browse shape (syncProductId, thumbnailUrl, variantCount, ...) is not the
+        // shared toBrowseProduct projection browseProducts() filters on — unchanged from before
+        // this correction.
         const products = Array.isArray(res.products) ? res.products : [];
         setBrowseResults(products);
+      } else {
+        // FLORIST ONE CORRECTION (2026-09-24): use the shared fail-closed projection, exactly as
+        // the Goody branch above does. The real browse response shape (server-side, shared across
+        // every provider via toBrowseProduct) is {providerProductId, name, imageUrl, priceCents,
+        // currency, directSendEligible, alreadyInCatalog, ...} — a raw, unfiltered res.products
+        // could carry a malformed entry with no providerProductId at all, which is exactly the
+        // shape that collapsed every Goody tile into one shared selection before that fix.
+        setBrowseResults(browseProducts(res));
       }
     } catch (e) {
       if (!append) setBrowseResults([]);
@@ -353,27 +364,58 @@ export default function AddToCatalogPicker({ client, onClose, onPublished, locke
             )}
             {browsing && <p style={{ color: 'var(--text-secondary)' }}>Loading…</p>}
             {browseError && <p style={{ color: '#dc2626' }}>{browseError}</p>}
+            {/* FLORIST ONE CORRECTION (2026-09-24): the real browse item shape — shared across
+                every provider via the server's toBrowseProduct projection — is {providerProductId,
+                name, imageUrl, priceCents, currency, directSendEligible, alreadyInCatalog, ...}.
+                This block previously read p.externalProductId/p.id (neither exists on a real
+                product), so every tile computed the SAME "florist_one:undefined" key and collapsed
+                into one shared selection — the identical bug class the Goody branch above was
+                already corrected for. It also never read an image or a price field at all. This
+                block now uses the real field names, so each tile gets its own key, its own image,
+                its own price, and truthfully labels/disables a product that is already in the
+                catalog or not eligible for direct send. */}
             {!browsing && !browseError && provider.id !== 'goody' && (
               <div data-testid="provider-browse-results" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
                 {browseResults.map((p) => {
-                  const key = selectionKey(provider.id, p.externalProductId || p.id);
+                  const productId = p.providerProductId;
+                  const key = selectionKey(provider.id, productId);
                   const isSelected = Boolean(selected[key]);
                   const result = results[key];
+                  const eligible = p.directSendEligible !== false;
+                  const alreadyInCatalog = p.alreadyInCatalog === true;
+                  const disabled = alreadyInCatalog || !eligible;
+                  const statusLabel = alreadyInCatalog
+                    ? 'Already in catalog'
+                    : (!eligible ? 'Not eligible for direct send' : null);
                   return (
-                    <label key={key} data-testid={`browse-result-${key}`} style={{
+                    <div key={key} data-testid={`browse-result-${key}`} style={{
                       border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
-                      borderRadius: '0.5rem', padding: '0.625rem', display: 'flex', flexDirection: 'column', gap: '0.375rem', cursor: 'pointer',
+                      borderRadius: '0.5rem', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'white',
                     }}>
-                      <input
-                        type="checkbox"
-                        data-testid={`browse-checkbox-${key}`}
-                        checked={isSelected}
-                        onChange={() => toggleSelect(provider.id, p.externalProductId || p.id, p.title || p.name)}
-                      />
-                      <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{p.title || p.name || 'Untitled'}</span>
-                      {result && !result.ok && <span style={{ fontSize: '0.75rem', color: '#dc2626' }}>{result.error}</span>}
-                      {result && result.ok && <span style={{ fontSize: '0.75rem', color: '#059669', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Check size={12} /> Published</span>}
-                    </label>
+                      <div style={{ position: 'relative', aspectRatio: '4 / 3', background: '#f3f4f6' }}>
+                        {p.imageUrl ? (
+                          <img src={p.imageUrl} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>No image</div>
+                        )}
+                      </div>
+                      <label style={{ padding: '0.625rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', cursor: disabled ? 'not-allowed' : 'pointer' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <input
+                            type="checkbox"
+                            data-testid={`browse-checkbox-${key}`}
+                            checked={isSelected}
+                            disabled={disabled}
+                            onChange={() => toggleSelect(provider.id, productId, p.name)}
+                          />
+                          <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{p.name || 'Untitled'}</span>
+                        </span>
+                        <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{formatMoney(p.priceCents, p.currency)}</span>
+                        {statusLabel && <span data-testid={`browse-status-${key}`} style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{statusLabel}</span>}
+                        {result && !result.ok && <span style={{ fontSize: '0.75rem', color: '#dc2626' }}>{result.error}</span>}
+                        {result && result.ok && <span style={{ fontSize: '0.75rem', color: '#059669', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Check size={12} /> Published</span>}
+                      </label>
+                    </div>
                   );
                 })}
               </div>

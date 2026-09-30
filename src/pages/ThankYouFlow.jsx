@@ -114,6 +114,14 @@ export default function ThankYouFlow() {
   const [uploadWarning, setUploadWarning] = useState(null);
   const [shared, setShared] = useState(false);
   const [rewardResult, setRewardResult] = useState(null);
+  // TEAM 4 (growth-loops verification, 2026-09-29) — one stable id for the lifetime of this
+  // composed thank-you, reused on every retry of the SAME send so the backend's GATE B
+  // (services/send/sendRequestIdentity.js) derives one stable logical job instead of a new
+  // one per attempt. Deliberately its OWN key, not the shared sendGreetingState/pendingGiftLink
+  // record the main gift composer uses — that module's own docs warn against reusing its id for
+  // a different flow ("reusing one as a send key would tie the identity of a send to a thing
+  // that can legitimately change or repeat"). This flow has its own draft, so it gets its own id.
+  const [sendRequestId] = useState(() => crypto.randomUUID());
   const [heartsBurstKey] = useState(0); // H5: cosmetic burst dormant (no client triggers); re-wire to server-confirmed at issuance enablement
 
   useEffect(() => {
@@ -139,6 +147,7 @@ export default function ThankYouFlow() {
   }, [jobId]);
 
   const doSend = async () => {
+    if (sending) return; // same-tick double-click guard, ahead of the disabled-attribute repaint
     setSending(true);
     setError(null);
     try {
@@ -149,6 +158,7 @@ export default function ThankYouFlow() {
         tone: prefill.tone || 'warm',
         script,
         sourceJobId: jobId,
+        sendRequestId,
       });
       if (result?.status === 401) {
         setError('Session expired. Please refresh and try again.');
@@ -487,7 +497,7 @@ export default function ThankYouFlow() {
                 lineHeight: 1.5,
                 margin: '0 0 2.5rem',
               }}>
-                When you&rsquo;re ready, your $5 credit will be waiting for you at checkout.
+                Thank you for passing the feeling forward.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
@@ -546,17 +556,6 @@ export default function ThankYouFlow() {
               >
                 Share the Moment
               </button>
-              <p style={{
-                fontSize: '0.8125rem',
-                color: 'rgba(255,255,255,0.55)',
-                fontStyle: 'italic',
-                margin: '0 auto 1.5rem',
-                maxWidth: '320px',
-                lineHeight: 1.5,
-              }}>
-                We&rsquo;ll include a little surprise for the person you share it with.
-              </p>
-
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
                 {sentJobId && (
                   <button

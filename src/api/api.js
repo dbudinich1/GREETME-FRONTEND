@@ -634,6 +634,22 @@ class ApiService {
   }
 
   // --------------------
+  // TEAM 1 — gift/entitlement safety
+  // --------------------
+  /** Read-only. Never charges/orders/sends anything — only answers "would a send go through right now." */
+  getSendEntitlementPreflight() {
+    return this.request("/api/entitlements/send-preflight");
+  }
+
+  /** Mints a short-lived, single-use, gift-bound authorization AFTER the user's explicit second confirmation. */
+  requestGiftOnlyAuthorization(giftAttemptId) {
+    return this.request("/api/entitlements/gift-only-authorization", {
+      method: "POST",
+      body: JSON.stringify({ giftAttemptId }),
+    });
+  }
+
+  // --------------------
   // QR Cash™ Gifts
   // --------------------
   chargeGift(payload) {
@@ -795,6 +811,10 @@ class ApiService {
         tone: data.tone || "warm",
         personalSentiment: data.script,
         sourceJobId: data.sourceJobId,
+        // TEAM 4 (growth-loops verification, 2026-09-29) — GATE B idempotency key so a retried
+        // thank-you send (e.g. after a dropped response) converges on the same backend job
+        // instead of creating a second one. See ThankYouFlow.jsx for how this id is minted.
+        sendRequestId: data.sendRequestId,
       }),
     });
   }
@@ -830,6 +850,14 @@ class ApiService {
   // --------------------
   getMerchOrders() {
     return this.request("/api/merch/orders");
+  }
+
+  // --------------------
+  // Flower order visibility (Team 2) — honest, read-only. Never claims tracking, delivery or
+  // confirmation status this provider does not supply.
+  // --------------------
+  getFlowerOrders() {
+    return this.request("/api/gifts/flower-orders");
   }
 
   // --------------------

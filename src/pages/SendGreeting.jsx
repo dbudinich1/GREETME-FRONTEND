@@ -21,6 +21,7 @@ import Alert from '../components/Alert';
 import GiftSelectorModal from '../components/GiftSelectorModal';
 import ShareTheLovePanel from '../components/ShareTheLovePanel';
 import GiftConfirmationModal from '../components/GiftConfirmationModal';
+import GiftEntitlementCautionModal from '../components/GiftEntitlementCautionModal';
 import PreSendReviewModal from '../components/PreSendReviewModal';
 // The EXISTING provider checkout, reused verbatim. This flow adds no checkout and no payment path.
 // The catalogue is NOT here: products live in the Gift Place, which this page navigates to and back
@@ -49,8 +50,8 @@ import cartService from '../services/cartService';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import draftService from '../services/draftService';
-import { pushInApp } from '../utils/notify';
-import { COMMS_EVENTS } from '../utils/commsCatalog';
+import { pushInApp, showManualToast } from '../utils/notify';
+import { COMMS_EVENTS, COMMS_CATEGORIES } from '../utils/commsCatalog';
 import { normalizeOccasionKey } from '../utils/normalizeOccasionKey';
 import { getErrorMessage } from '../utils/errorMessages';
 
@@ -144,12 +145,17 @@ export default function SendGreeting() {
     occasionType: 'Thinking of You',
     customOccasion: '',
     customMessage: '',
-    isRecurring: false,
     aiContext: '',
     giftAmount: '',
     tone: 'warm',
   });
   const [errors, setErrors] = useState({});
+  // Fix 1 (Team 3 WP-C): refs so a failed validate() can move focus to, and
+  // scroll, the first invalid field into view instead of leaving the sender
+  // to hunt for an inline error that may be off-screen.
+  const contactSelectRef = useRef(null);
+  const occasionSelectRef = useRef(null);
+  const photoErrorRef = useRef(null);
 
   // Gift modal state
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
@@ -169,6 +175,113 @@ export default function SendGreeting() {
   const [giftRequestId, setGiftRequestId] = useState(null);
   const [giftConfirmed, setGiftConfirmed] = useState(false);
 
+  // TEAM 1 — gift/entitlement safety. Non-null only while the caution modal is genuinely open;
+  // `resolve` is the pending promise's resolver, called exactly once by whichever action the user
+  // takes (see runGiftEntitlementPreflight below). Never set from anything but a real, fresh
+  // server preflight result — this component never invents or infers its own value.
+  const [entitlementCaution, setEntitlementCaution] = useState(null);
+
+  /**
+   * Silent when sufficient, blocking (via the caution modal) when not. Returns
+   * { proceed: boolean, giftOnlyToken: string|null } — callers must NOT charge/order anything
+   * unless `proceed` is true, and must pass `giftOnlyToken` straight through to the actual
+   * charge/order call unchanged (the server re-verifies it independently; a stale or absent token
+   * here can only ever make the server MORE restrictive, never less).
+   */
+  // TEAM 1 — shared by every "go top up / upgrade, then come back to this draft" exit: the caution
+  // modal's two remediation choices, and the post-separation recovery panel below. One snapshot
+  // shape, so the draft that comes back on `?returnTo=send` is always the same one, whichever real
+  // destination the sender actually went to.
+  //
+  // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — this snapshot used to omit confirmedGiftPayload
+  // and giftSeparatedByEntitlement, so a sender who tops up/upgrades from the RECOVERY-AFTER-
+  // SEPARATION panel (their gift already charged, only the greeting failed for lack of a send) lost
+  // the confirmed gift's claim token the moment they left this page — the restored draft on return
+  // would have had a fresh, unconfirmed gift selection instead of the one already paid for. Both
+  // fields are `null`/`false` for the ordinary pre-purchase caution case (nothing charged yet), so
+  // this is purely additive for that path. Also sets a same-tab sessionStorage marker so
+  // PaymentSuccess.jsx knows to route back here instead of its generic payment-success screen,
+  // which previously had no way to know a send was paused — see PaymentSuccess.jsx's own comment.
+  // The marker/snapshot are purchase-type-agnostic (PaymentSuccess.jsx never inspects what was
+  // bought), so the SAME pair works whichever destination below the sender is sent to.
+  const saveDraftAndNavigate = (destination) => {
+    const stateToSave = {
+      formData, giftSettings, defaultPhoto, memoryPhotos, useMemoryPhotos,
+      excludedMemoryPhotos: Array.from(excludedMemoryPhotos),
+      confirmedGiftPayload: confirmedGiftPayload || null,
+      giftSeparatedByEntitlement: !!giftSeparatedByEntitlement,
+    };
+    try { sessionStorage.setItem('sendGreetingState', JSON.stringify(stateToSave)); } catch {}
+    try { sessionStorage.setItem('greetme_post_checkout_return', 'send'); } catch {}
+    navigate(destination);
+  };
+
+  // FINAL NARROW CORRECTION (2026-09-30) — was '/dashboard/pricing?...', a route that does not
+  // exist (Pricing is mounted at the top-level '/pricing', never nested under '/dashboard' — see
+  // App.jsx). Upgrade Plan has never actually reached the real Pricing page until this fix.
+  const saveDraftForPricingReturn = () => {
+    saveDraftAndNavigate('/pricing?view=personal&returnTo=send');
+  };
+
+  // FOUNDER-CONFIRMED (2026-09-30): the existing additional-send product is Animation Bank → Add
+  // More → Animation Packs. "Purchase Additional Sends" routes here unconditionally — no product
+  // to build, no tier gating to design. `?openPacks=true` auto-opens the existing packs modal
+  // (AnimationBank.jsx's own showPacksModal state) using the same URL-driven auto-open convention
+  // already used elsewhere in this file (see the `?giftType=qrcash` effect below).
+  const saveDraftForAnimationBankReturn = () => {
+    saveDraftAndNavigate('/dashboard/animations?openPacks=true&returnTo=send');
+  };
+
+  const runGiftEntitlementPreflight = async (giftAttemptId) => {
+    let preflight;
+    try {
+      preflight = await api.getSendEntitlementPreflight();
+    } catch {
+      // The read-only preflight itself failing must never block an otherwise-fine send — the
+      // authoritative server-side gate on the actual charge/order route still applies regardless.
+      return { proceed: true, giftOnlyToken: null };
+    }
+    if (preflight?.canSendGreeting) return { proceed: true, giftOnlyToken: null };
+
+    return new Promise((resolve) => {
+      setEntitlementCaution({
+        preflight,
+        giftAttemptId,
+        onTopUp: () => {
+          setEntitlementCaution(null);
+          resolve({ proceed: false, giftOnlyToken: null });
+          saveDraftForAnimationBankReturn();
+        },
+        onUpgrade: () => {
+          setEntitlementCaution(null);
+          resolve({ proceed: false, giftOnlyToken: null });
+          saveDraftForPricingReturn();
+        },
+        onContinueGiftOnly: async () => {
+          try {
+            const auth = await api.requestGiftOnlyAuthorization(giftAttemptId);
+            setEntitlementCaution(null);
+            if (auth?.ok && auth.giftOnlyToken) {
+              resolve({ proceed: true, giftOnlyToken: auth.giftOnlyToken });
+            } else {
+              // The server re-checked and disagreed (e.g. the user actually has a send now) —
+              // fail closed on the ESCAPE HATCH, not on the send: just don't proceed with a
+              // fabricated token. The charge/order route's own gate is authoritative either way.
+              resolve({ proceed: false, giftOnlyToken: null });
+            }
+          } catch {
+            setEntitlementCaution(null);
+            resolve({ proceed: false, giftOnlyToken: null });
+          }
+        },
+        onClose: () => {
+          setEntitlementCaution(null);
+          resolve({ proceed: false, giftOnlyToken: null });
+        },
+      });
+    });
+  };
+
   // ───────────────────────────────────────────────
   // Flowers — a provider-fulfilled gift, paid at the provider's own checkout, which runs as an
   // EMBEDDED STEP of this send rather than as an errand of its own.
@@ -186,6 +299,12 @@ export default function SendGreeting() {
   // same request — same gift claim token, same recipient, same surprise announcement. This is what
   // makes the retry in handleRetryGreetingOnly safe: it re-sends a greeting, never a gift.
   const [confirmedGiftPayload, setConfirmedGiftPayload] = useState(null);
+  // TEAM 1 — true only when the failed send in `confirmedGiftPayload`'s retry failed specifically
+  // because the sender ran out of send entitlement (not a generic transient failure). Distinguishes
+  // "recovery after separation" (this gift, no send available — offer Top Up/Upgrade) from the
+  // ordinary safe-retry panel (offer just Retry) so the sender is never told to blindly retry a send
+  // that will fail again for the same reason.
+  const [giftSeparatedByEntitlement, setGiftSeparatedByEntitlement] = useState(false);
   // EXACTLY ONE SEND PER ACCEPTED ORDER. A ref, not state: it must be true for the rest of the
   // dispatch's synchronous run, and a re-render must not be able to reopen the window.
   const flowerSendStarted = useRef(false);
@@ -231,7 +350,19 @@ export default function SendGreeting() {
 
   // Photo state
   const [defaultPhoto, setDefaultPhoto] = useState(null);
+  // Scoped strictly to "Add Photo for This Occasion" (Option 2 below) — local
+  // to this one greeting only.
   const [memoryPhotos, setMemoryPhotos] = useState([]);
+  // Fix 3 (Team 3 WP-C): a SEPARATE array for "add photo to memory album"
+  // uploads made from Option 1 ("[Contact]'s Photos"). Previously that tile
+  // wrote into `memoryPhotos`, so a photo meant for the recipient's permanent
+  // album visually leaked into Option 2's "this occasion" grid instead. There
+  // is no backend endpoint yet to actually persist a photo onto a contact's
+  // server-side memoryPhotos (building one is out of scope for this pass), so
+  // these stay local and are rendered ONLY inside Option 1, clearly marked as
+  // not yet saved — honest about what is actually happening, and no longer
+  // sharing state with Option 2.
+  const [contactAlbumPhotosToAdd, setContactAlbumPhotosToAdd] = useState([]);
   const [useMemoryPhotos, setUseMemoryPhotos] = useState(true); // Include memory photos by default
   const [excludedMemoryPhotos, setExcludedMemoryPhotos] = useState(new Set()); // Track deselected photos
   const MAX_MEMORY_PHOTOS = 8;
@@ -239,6 +370,16 @@ export default function SendGreeting() {
   const memoryPhotoInputRef = useRef(null);
   const addToMemoryInputRef = useRef(null);
   const hasRestoredStateRef = useRef(false); // Track if we've already restored state
+  // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — one-shot flag: set by the restore effect below
+  // ONLY when the restored snapshot carried an already-confirmed (already-charged) gift, meaning
+  // the sender left specifically from the recovery-after-separation panel to top up/upgrade. A
+  // plain pre-purchase caution restore never sets this, since nothing was charged yet. Consumed by
+  // exactly one dedicated effect, which is why this must be a ref rather than state: it must not
+  // itself trigger a re-render/re-check loop.
+  const autoRetryAfterReturnRef = useRef(false);
+  // Fix 4 (Team 3 WP-C): guards for the draft-based media save/restore additions.
+  const draftSaveFailureNotifiedRef = useRef(false);
+  const mediaRestoredOnMountRef = useRef(false);
 
   // Phase 3D Batch A — A2.4: single-shot guard for the Stripe redirect resume
   // effect. Set synchronously before any state mutation or async work to
@@ -292,6 +433,25 @@ export default function SendGreeting() {
     setMemoryPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Fix 3 (Team 3 WP-C): handle a photo added via Option 1's "add to memory
+  // album" tile. Kept in its own state (contactAlbumPhotosToAdd) so it never
+  // renders inside Option 2's "this occasion" grid again.
+  const handleAddToContactAlbum = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setContactAlbumPhotosToAdd(prev => [...prev, reader.result].slice(0, MAX_MEMORY_PHOTOS));
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  };
+
+  const handleRemoveContactAlbumPhoto = (index) => {
+    setContactAlbumPhotosToAdd(prev => prev.filter((_, i) => i !== index));
+  };
+
   // Toggle memory photo selection
   const toggleMemoryPhotoSelection = (photoUrl) => {
     setExcludedMemoryPhotos(prev => {
@@ -325,7 +485,14 @@ export default function SendGreeting() {
     }
   }, [location.search]);
 
-  // Auto-save draft when form has meaningful content
+  // Auto-save draft when form has meaningful content.
+  // Fix 4 (Team 3 WP-C): also persists composer-local media state — the
+  // existing draft mechanism previously only carried `formData`, so ordinary
+  // navigation away and back (anything other than the two special-cased
+  // "Open Media Library"/"Browse marketplace" round trips) silently lost
+  // photos. `excludedMemoryPhotos` is a Set and localStorage/JSON can't
+  // serialize that directly, so it is converted to an array here and back on
+  // restore below.
   useEffect(() => {
     if (!formData.contactId || !formData.occasionType) return;
     const timer = setTimeout(() => {
@@ -334,12 +501,51 @@ export default function SendGreeting() {
           contactId: formData.contactId,
           occasionType: formData.occasionType,
           formData,
+          defaultPhoto,
+          memoryPhotos,
+          useMemoryPhotos,
+          excludedMemoryPhotos: Array.from(excludedMemoryPhotos),
+          contactAlbumPhotosToAdd,
           status: 'draft',
         });
-      } catch { /* localStorage full or unavailable — non-critical */ }
+        draftSaveFailureNotifiedRef.current = false;
+      } catch {
+        // localStorage full or unavailable. This used to be 100% silent —
+        // the sender would believe their changes (including any photos) were
+        // safe when they were not. Surface a lightweight, non-blocking toast
+        // via the existing manual-toast utility instead of inventing a new
+        // notification path. Shown at most once until a save succeeds again,
+        // so a persistently broken localStorage doesn't spam the sender.
+        if (!draftSaveFailureNotifiedRef.current) {
+          draftSaveFailureNotifiedRef.current = true;
+          showManualToast(
+            'Draft not saved',
+            "Your latest changes couldn't be saved on this device. If you navigate away now, some changes may be lost.",
+            COMMS_CATEGORIES.SYSTEM,
+          );
+        }
+      }
     }, 1000); // debounce 1s
     return () => clearTimeout(timer);
-  }, [formData]);
+  }, [formData, defaultPhoto, memoryPhotos, useMemoryPhotos, excludedMemoryPhotos, contactAlbumPhotosToAdd]);
+
+  // Restore a saved draft's fields onto current state, including the media
+  // fields Fix 4 (Team 3 WP-C) added to the draft above.
+  const restoreDraftIntoState = (saved) => {
+    if (!saved) return;
+    if (saved.formData) {
+      setFormData(prev => ({ ...prev, ...saved.formData }));
+    }
+    if (saved.defaultPhoto !== undefined) setDefaultPhoto(saved.defaultPhoto || null);
+    if (Array.isArray(saved.memoryPhotos)) setMemoryPhotos(saved.memoryPhotos);
+    if (saved.useMemoryPhotos !== undefined) setUseMemoryPhotos(saved.useMemoryPhotos);
+    if (Array.isArray(saved.excludedMemoryPhotos)) {
+      setExcludedMemoryPhotos(new Set(saved.excludedMemoryPhotos));
+    }
+    if (Array.isArray(saved.contactAlbumPhotosToAdd)) {
+      setContactAlbumPhotosToAdd(saved.contactAlbumPhotosToAdd);
+    }
+  };
 
   // Restore draft if navigating to send with a contact+occasion pre-selected
   useEffect(() => {
@@ -348,10 +554,41 @@ export default function SendGreeting() {
     const occasion = params.get('occasion');
     if (!contactId || !occasion) return;
     const saved = draftService.getDraft(contactId, occasion);
-    if (saved?.formData) {
-      setFormData(prev => ({ ...prev, ...saved.formData }));
-    }
+    restoreDraftIntoState(saved);
   }, [location.search]);
+
+  // Fix 4 (Team 3 WP-C): also restore on a plain revisit to /dashboard/send
+  // once a recipient + occasion are selected by any means (not only the
+  // URL-param path above) — e.g. picked directly in the form after a fresh
+  // remount. Runs at most once per mount, and only fills in media fields that
+  // are still empty, so it can't clobber anything the URL-param restore, the
+  // returnTo=send sessionStorage restore, or the sender's own fresh picks
+  // already set.
+  useEffect(() => {
+    if (mediaRestoredOnMountRef.current) return;
+    if (!formData.contactId || !formData.occasionType) return;
+    mediaRestoredOnMountRef.current = true;
+    const saved = draftService.getDraft(formData.contactId, formData.occasionType);
+    if (!saved) return;
+    if (saved.defaultPhoto && !defaultPhoto) setDefaultPhoto(saved.defaultPhoto);
+    if (Array.isArray(saved.memoryPhotos) && saved.memoryPhotos.length > 0 && memoryPhotos.length === 0) {
+      setMemoryPhotos(saved.memoryPhotos);
+    }
+    if (
+      Array.isArray(saved.excludedMemoryPhotos) &&
+      saved.excludedMemoryPhotos.length > 0 &&
+      excludedMemoryPhotos.size === 0
+    ) {
+      setExcludedMemoryPhotos(new Set(saved.excludedMemoryPhotos));
+    }
+    if (
+      Array.isArray(saved.contactAlbumPhotosToAdd) &&
+      saved.contactAlbumPhotosToAdd.length > 0 &&
+      contactAlbumPhotosToAdd.length === 0
+    ) {
+      setContactAlbumPhotosToAdd(saved.contactAlbumPhotosToAdd);
+    }
+  }, [formData.contactId, formData.occasionType]);
 
   // Pre-select recipient from contactId URL param (e.g., Contacts page "Send" button)
   useEffect(() => {
@@ -371,6 +608,21 @@ export default function SendGreeting() {
     // Only prefill if no contact is also specified (draft restore handles that case)
     if (params.get('contactId')) return;
     setFormData(prev => ({ ...prev, occasionType: occasion }));
+  }, [location.search]);
+
+  // TEAM 1 — gift/entitlement safety, canonical QR Cash entry contract. Any "Send QR Cash" entry
+  // point elsewhere in the app (American Gift Place, Hero Program, the Gifts hub, Dashboard Home)
+  // now navigates here with ?giftType=qrcash instead of opening its own simulated modal, so every
+  // one of them enters the SAME real, backend-wired flow: this composer's own gift selector, which
+  // charges via /api/gifts/charge-now and is gated by the same entitlement check as an attached
+  // gift from a full greeting composition. Fires once per arrival; does not re-fire on an
+  // in-composer state change.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('giftType') !== 'qrcash') return;
+    setGiftSettings(prev => ({ ...prev, type: 'qrcash' }));
+    setIsGiftModalOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
   // Detect referral code from URL and validate
@@ -440,6 +692,15 @@ export default function SendGreeting() {
           }
           // Save restored memory photos to combine with new selections
           restoredMemoryPhotos = parsed.memoryPhotos || [];
+          // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — restore the confirmed-gift recovery
+          // state saveDraftForPricingReturn now preserves. Present only when the sender left from
+          // the recovery-after-separation panel (gift already charged); absent for an ordinary
+          // pre-purchase caution restore, so this is a no-op for that path.
+          if (parsed.confirmedGiftPayload) {
+            setConfirmedGiftPayload(parsed.confirmedGiftPayload);
+            setGiftSeparatedByEntitlement(!!parsed.giftSeparatedByEntitlement);
+            autoRetryAfterReturnRef.current = true;
+          }
         } catch (e) {
           // State restoration failed — non-critical, proceed with defaults
         }
@@ -835,7 +1096,38 @@ export default function SendGreeting() {
     }
 
     setErrors(newErrors);
+
+    // Fix 1 (Team 3 WP-C): errors were previously shown only as inline text \u2014
+    // nothing brought an off-screen invalid field into view. Move focus to,
+    // and scroll to, the first invalid field, in the order the fields are
+    // rendered: recipient, then occasion, then the photo notice.
+    if (Object.keys(newErrors).length > 0) {
+      focusFirstInvalidField(newErrors);
+    }
+
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Fix 1 (Team 3 WP-C): scrolls the first invalid field into view and
+  // focuses it. Scroll first, then focus on the next tick \u2014 focusing
+  // immediately can cut a smooth scroll short in some browsers.
+  const focusFirstInvalidField = (fieldErrors) => {
+    const target = fieldErrors.contactId
+      ? contactSelectRef.current
+      : fieldErrors.occasionType
+        ? occasionSelectRef.current
+        : fieldErrors.photo
+          ? photoErrorRef.current
+          : null;
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => {
+      try {
+        target.focus({ preventScroll: true });
+      } catch {
+        target.focus();
+      }
+    }, 300);
   };
 
   /**
@@ -976,6 +1268,17 @@ export default function SendGreeting() {
         setSending(false);
         return;
       }
+      // TEAM 1 — RECOVERY AFTER SEPARATION. These are the backend's own, pre-existing send-cap
+      // codes (index.js's cap-enforcement block — unrelated to the new gift-purchase gate): the
+      // gift already charged, but the paired Greet-Me hit the sender's real, current entitlement
+      // limit. Recorded only so the panel below can tell this apart from a generic send failure —
+      // it never changes what was charged or sent.
+      if (
+        confirmedGiftPayload
+        && (error?.code === 'GENERATION_CAP' || error?.code === 'LIMIT_EXCEEDED' || error?.code === 'TRIAL_EXPIRED')
+      ) {
+        setGiftSeparatedByEntitlement(true);
+      }
       setErrors({ submit: getErrorMessage(error) });
       setSending(false);
     }
@@ -1089,6 +1392,7 @@ export default function SendGreeting() {
     // from a previous attempt that a later failure could replay.
     setGiftConfirmedForSend(false);
     setConfirmedGiftPayload(null);
+    setGiftSeparatedByEntitlement(false);
     setPendingGiftLink(null);
     setIsPreSendReviewOpen(false);
     setIsFlowersCheckoutOpen(true);
@@ -1272,8 +1576,25 @@ export default function SendGreeting() {
     if (!confirmedGiftPayload) return;
     if (sending) return;
     setErrors({});
+    setGiftSeparatedByEntitlement(false);
     await executeGreetingSend(confirmedGiftPayload);
   };
+
+  // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — founder rules 3-5: after a successful Top Up or
+  // Upgrade reached from the recovery-after-separation panel, the sender must return to the exact
+  // paused send AND have entitlement rechecked authoritatively, proceeding only if it succeeds.
+  // Safe to do automatically here, unlike the ordinary pre-purchase caution case: the gift was
+  // ALREADY charged before the sender ever left this page (that is what put them in the recovery
+  // panel), so this replays only a plain, idempotent greeting-send — the exact same call
+  // handleRetryGreetingOnly already offers as a manual button — never a new charge or order. If
+  // entitlement is genuinely still insufficient, executeGreetingSend's own existing error handling
+  // re-shows this SAME recovery panel; nothing here second-guesses that authoritative answer.
+  useEffect(() => {
+    if (!autoRetryAfterReturnRef.current) return;
+    if (!confirmedGiftPayload) return;
+    autoRetryAfterReturnRef.current = false;
+    handleRetryGreetingOnly();
+  }, [confirmedGiftPayload]);
 
   // Closing or cancelling the flower checkout. NOTHING WAS ORDERED AND NOTHING IS SENT: the parked
   // greeting is released, and the DRAFT — formData, the chosen arrangement, the photos — is
@@ -1303,7 +1624,16 @@ export default function SendGreeting() {
   // executeGreetingSend remains the sole dispatcher; this handler only
   // initiates a checkout that will eventually route back into the resume
   // effect which calls executeGreetingSend itself.
-  const handleReviewMarketplaceCheckout = () => {
+  //
+  // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — founder rule 1: the caution must appear before
+  // ANY gift purchase or irreversible provider action. This marketplace/merch attachment path had
+  // NO entitlement check at all before proceeding straight to a real Stripe checkout for the gift
+  // (confirmed by trace: unlike QR Cash's /charge-now and Florist One's /provider-checkout/submit,
+  // neither this handler nor the backend's merch create-checkout branch ever called the existing
+  // preflight/gate). Reuses the SAME runGiftEntitlementPreflight the other two gift types already
+  // use — `uuid` (the id that becomes this checkout's sendDraftId) doubles as the giftAttemptId, so
+  // one id names this attempt end to end, exactly as it already does for QR Cash's giftRequestId.
+  const handleReviewMarketplaceCheckout = async () => {
     const selectedContact = contacts.find(c => c.id === formData.contactId);
     if (!selectedContact) return;
 
@@ -1312,6 +1642,10 @@ export default function SendGreeting() {
     if (marketplaceSnapshot.length === 0) return; // defensive — CTA is disabled in empty state
 
     const uuid = crypto.randomUUID();
+
+    const { proceed, giftOnlyToken } = await runGiftEntitlementPreflight(uuid);
+    if (!proceed) return; // caution modal handled Top Up / Upgrade / Cancel / Gift Only itself
+
     const ok = writeResumeDraft(uuid, {
       contactId: selectedContact.id,
       formData,
@@ -1323,6 +1657,10 @@ export default function SendGreeting() {
       referralCode,
       referralValue,
       marketplaceItemsSnapshot: marketplaceSnapshot,
+      // Kept in the SAME short-lived, localStorage-only recovery record as everything else here —
+      // never in the URL/query string, which would leak a single-use authorization credential into
+      // browser history and server access logs.
+      giftOnlyToken: giftOnlyToken || null,
     });
 
     if (!ok) {
@@ -1345,6 +1683,12 @@ export default function SendGreeting() {
       : (giftSettings.amount || 25);
     const giftAmountCents = Math.round(giftAmountDollars * 100);
 
+    // TEAM 1 — gift/entitlement safety. Silent when the sender has enough sends; blocks on the
+    // caution modal otherwise. The server's own gate on /charge-now is still authoritative — this
+    // is the UX layer, not the safety layer.
+    const { proceed, giftOnlyToken } = await runGiftEntitlementPreflight(giftRequestId);
+    if (!proceed) { setGiftCharging(false); return; }
+
     try {
       // Step 1: Charge for the QR Cash™ gift
       const chargeResult = await api.chargeGift({
@@ -1353,6 +1697,7 @@ export default function SendGreeting() {
         recipientName: pendingGreetingData.recipientName,
         paymentMethodId,
         giftRequestId,
+        giftOnlyToken,
       });
 
       let giftObj;
@@ -1416,8 +1761,29 @@ export default function SendGreeting() {
       await new Promise((r) => setTimeout(r, 2000));
       setGiftConfirmed(false);
       setPendingGreetingData(null);
+      // TEAM 1 — the gift is charged and real from this point on, exactly like the flowers path
+      // above. Kept verbatim (same claim token, same recipient) so that if the send itself fails —
+      // most importantly, if it fails because the "Continue with Gift Only" sender genuinely had no
+      // send available — the existing safe-retry panel can offer a greeting-only retry instead of a
+      // bare error, without ever reopening checkout or charging again.
+      setGiftSeparatedByEntitlement(false);
+      setConfirmedGiftPayload(greetingDataWithGift);
       await executeGreetingSend(greetingDataWithGift);
     } catch (error) {
+      // TEAM 1 — the frontend preflight was stale, skipped, or the user's entitlement changed
+      // between the preflight read and this charge attempt. The server's own gate is what
+      // actually stopped it (api.js throws with .code set from the response body on a non-2xx
+      // status) — nothing was charged. Re-show the SAME caution, now with a fresh server answer,
+      // and let the sender resolve it; the SAME giftRequestId is reused so a subsequent Gift Only
+      // authorization binds to the attempt that was actually blocked.
+      if (error?.code === 'SEND_ENTITLEMENT_AT_RISK') {
+        setGiftCharging(false);
+        const retry = await runGiftEntitlementPreflight(giftRequestId);
+        if (retry.proceed) {
+          return handleGiftConfirm(paymentMethodId, stripeInstance);
+        }
+        return;
+      }
       const msg = error?.message || error?.error || 'Failed to charge QR Cash™ gift. Please try again.';
       setGiftChargeError(msg);
       // Fresh idempotency key so the next attempt isn't blocked by Stripe
@@ -1498,7 +1864,6 @@ if (typeof window !== "undefined") {
       occasionType: 'Thinking of You',
       customOccasion: '',
       customMessage: '',
-      isRecurring: false,
       aiContext: '',
       giftAmount: '',
       tone: 'warm',
@@ -2171,7 +2536,67 @@ if (typeof window !== "undefined") {
             cannot submit, cannot recharge and cannot create a second gift, because it replays the one
             payload that already carries the confirmed gift's claim token. Shown instead of the bare
             error, so the sender is never left reading "send failed" while wondering about their money. */}
-        {confirmedGiftPayload && errors.submit ? (
+        {confirmedGiftPayload && errors.submit && giftSeparatedByEntitlement ? (
+          // TEAM 1 — RECOVERY AFTER SEPARATION. The gift is real and already on its way; what's
+          // missing is a send, not a fix a blind retry can produce. Exact founder-specified copy —
+          // do not paraphrase — plus the SAME Top Up / Upgrade destination as the caution modal,
+          // so the sender lands back on this exact draft (confirmedGiftPayload, still intact) once
+          // they've resolved it, and "Retry your Greet-Me" is still offered for after they do.
+          <div
+            data-testid="gift-separated-recovery"
+            role="alert"
+            style={{
+              padding: '0.875rem 1rem',
+              marginBottom: '1rem',
+              borderRadius: '0.625rem',
+              border: '1px solid #fcd34d',
+              background: '#fffbeb',
+            }}
+          >
+            <p style={{ margin: '0 0 0.5rem', fontWeight: 700, color: '#92400e' }}>
+              Your gift is on its way, but your Greet-Me could not be sent because you did not have a
+              send available. Not to worry—top up or upgrade, then send your saved Greet-Me as a
+              follow-up to your gift.
+            </p>
+            <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                data-testid="gift-separated-topup"
+                onClick={saveDraftForAnimationBankReturn}
+                style={{
+                  padding: '0.6rem 1.1rem', borderRadius: '0.5rem', border: 'none',
+                  background: '#b45309', color: '#fff', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                Top Up
+              </button>
+              <button
+                type="button"
+                data-testid="gift-separated-upgrade"
+                onClick={saveDraftForPricingReturn}
+                style={{
+                  padding: '0.6rem 1.1rem', borderRadius: '0.5rem', border: '1px solid #b45309',
+                  background: '#fff', color: '#92400e', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                Upgrade
+              </button>
+              <button
+                type="button"
+                data-testid="retry-greeting-only"
+                disabled={sending}
+                onClick={handleRetryGreetingOnly}
+                style={{
+                  padding: '0.6rem 1.1rem', borderRadius: '0.5rem', border: '1px solid #b45309',
+                  background: '#fff', color: '#92400e', fontWeight: 700, fontFamily: 'inherit',
+                  cursor: sending ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {sending ? 'Sending…' : 'I’ve topped up — send my Greet-Me'}
+              </button>
+            </div>
+          </div>
+        ) : confirmedGiftPayload && errors.submit ? (
           <div
             data-testid="gift-confirmed-send-failed"
             role="alert"
@@ -2250,7 +2675,11 @@ if (typeof window !== "undefined") {
             </button>
           </div>
         )}
-        {errors.photo && <Alert type="error" message={errors.photo} />}
+        {errors.photo && (
+          <div ref={photoErrorRef} tabIndex={-1} style={{ outline: 'none' }}>
+            <Alert type="error" message={errors.photo} />
+          </div>
+        )}
 
         {/* Recipient, Occasion, and Tone - Side by Side */}
         <div style={{
@@ -2275,6 +2704,7 @@ if (typeof window !== "undefined") {
             </div>
             <select
               name="contactId"
+              ref={contactSelectRef}
               value={formData.contactId}
               onChange={handleChange}
               disabled={contacts.length === 0}
@@ -2316,6 +2746,7 @@ if (typeof window !== "undefined") {
             </label>
             <select
               name="occasionType"
+              ref={occasionSelectRef}
               value={formData.occasionType}
               onChange={handleChange}
               style={{
@@ -2485,22 +2916,16 @@ if (typeof window !== "undefined") {
             </div>
           )}
 
-          {/* Hidden file input for adding to memory album */}
+          {/* Hidden file input for adding to memory album.
+              Fix 3 (Team 3 WP-C): routed to contactAlbumPhotosToAdd, NOT
+              memoryPhotos — memoryPhotos is Option 2's "this occasion" array,
+              and sharing it with this tile was the root cause of photos
+              added here visually appearing under "Add Photo for This
+              Occasion" instead. */}
           <input
             type="file"
             ref={addToMemoryInputRef}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  // Add to the local memoryPhotos array (for this session)
-                  setMemoryPhotos(prev => [...prev, reader.result]);
-                };
-                reader.readAsDataURL(file);
-              }
-              e.target.value = '';
-            }}
+            onChange={handleAddToContactAlbum}
             accept="image/*"
             style={{ display: 'none' }}
           />
@@ -2630,6 +3055,77 @@ if (typeof window !== "undefined") {
                       </div>
                     );
                   })}
+
+                  {/* Fix 3 (Team 3 WP-C): photos added via the "add to memory album" tile
+                      below, rendered HERE in Option 1 — not in Option 2's grid — and clearly
+                      marked as not yet saved, since there is no backend endpoint yet to
+                      actually persist them to the contact's permanent album. */}
+                  {contactAlbumPhotosToAdd.map((photoUrl, index) => (
+                    <div key={`pending-album-${index}`} style={{ position: 'relative' }}>
+                      <div
+                        style={{
+                          position: 'relative',
+                          paddingBottom: '100%',
+                          borderRadius: 'var(--radius-md)',
+                          overflow: 'hidden',
+                          border: '2px dashed #3b82f6',
+                          opacity: 0.85,
+                        }}
+                        title="Added on this device only — not yet saved to the permanent album"
+                      >
+                        <img
+                          src={photoUrl}
+                          alt={`Pending album photo ${index + 1}`}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                          }}
+                        />
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '2px',
+                          left: '2px',
+                          right: '2px',
+                          background: 'rgba(30, 64, 175, 0.85)',
+                          color: 'white',
+                          fontSize: '0.5rem',
+                          fontWeight: 700,
+                          padding: '2px 3px',
+                          borderRadius: '3px',
+                          textAlign: 'center',
+                        }}>
+                          Not yet saved
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleRemoveContactAlbumPhoto(index); }}
+                        style={{
+                          position: 'absolute',
+                          top: '4px',
+                          right: '4px',
+                          width: '18px',
+                          height: '18px',
+                          background: 'rgba(255, 255, 255, 0.95)',
+                          color: '#dc2626',
+                          border: 'none',
+                          borderRadius: '50%',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                        }}
+                        title="Remove"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
 
                   {/* Add Photo to Memory Album Placeholder */}
                   <div
@@ -3234,6 +3730,7 @@ if (typeof window !== "undefined") {
         // greeting and refuse it for any other — the same binding an attached merchandise order uses.
         contactId={formData.contactId || null}
         onAccepted={handleFlowerOrderAccepted}
+        checkEntitlement={runGiftEntitlementPreflight}
       />
 
       {/* QR Cash™ Confirmation Modal */}
@@ -3268,6 +3765,18 @@ if (typeof window !== "undefined") {
         chargeError={giftChargeError}
       />
 
+      {/* TEAM 1 — gift/entitlement safety caution. Only ever open while entitlementCaution is
+          non-null, which only happens from inside runGiftEntitlementPreflight when the server's
+          own preflight says this sender is genuinely at risk. */}
+      <GiftEntitlementCautionModal
+        isOpen={!!entitlementCaution}
+        preflight={entitlementCaution?.preflight}
+        onClose={() => entitlementCaution?.onClose?.()}
+        onTopUp={() => entitlementCaution?.onTopUp?.()}
+        onUpgrade={() => entitlementCaution?.onUpgrade?.()}
+        onContinueGiftOnly={() => entitlementCaution?.onContinueGiftOnly?.()}
+      />
+
       {/* Locked Voice Integrity — warm checkpoint when the user's voice is missing.
           Sibling-rendered to the send form; draft state in formData untouched. */}
       <VoiceMissingModal
@@ -3280,14 +3789,25 @@ if (typeof window !== "undefined") {
           await retryPendingSend();
         }}
         onSaveDraft={() => {
+          // TEAM 1 fix: this write previously spread `formData` flat onto the record instead of
+          // nesting it under a `formData` key, which is what the restoration reader (the effect a
+          // few hundred lines up in this same file) requires — `if (saved?.formData)` was always
+          // false for a draft saved here, so draftService.saveDraft() succeeded but the draft could
+          // never actually be restored. It also never navigated back with the contactId/occasion
+          // query params the restore effect gates on, so even a shape fix alone couldn't have
+          // resumed it. Both are fixed together here; nothing about draftService itself changed.
           if (formData.contactId && formData.occasionType) {
             try {
               draftService.saveDraft({
                 contactId: formData.contactId,
                 occasionType: formData.occasionType,
-                ...formData,
+                formData,
               });
             } catch {}
+            setShowVoiceMissingCheckpoint(false);
+            setVoiceMissingContext(null);
+            navigate(`/dashboard/send?contactId=${encodeURIComponent(formData.contactId)}&occasion=${encodeURIComponent(formData.occasionType)}`);
+            return;
           }
           setShowVoiceMissingCheckpoint(false);
           setVoiceMissingContext(null);

@@ -71,6 +71,11 @@ before(async () => {
     entryPoints: [ENTRY], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
     jsx: "automatic", loader: { ".js": "jsx", ".jsx": "jsx", ".css": "empty" },
     external: ["react", "react-dom", "react-dom/client", "react-router-dom"],
+    // TEAM 5 (2026-09-29) — see the identical note in premiumDashboard.browser.test.mjs: this
+    // entry point now transitively bundles CampaignCard.jsx's embedded SavedCardPanel (Stripe),
+    // which reads import.meta.env at import time. Real Vite injects it; plain Node/esbuild does
+    // not, so it must be defined here or the bundle throws on import.
+    define: { "import.meta.env": "{}" },
   });
   dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://app.test/" });
   globalThis.window = dom.window; globalThis.document = dom.window.document;

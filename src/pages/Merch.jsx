@@ -4,7 +4,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, Briefcase, Users, Check, ArrowLeft, Settings } from 'lucide-react';
 import cartService from '../services/cartService';
 import AddToCartModal from '../components/AddToCartModal';
-import QRCashGiftModal from '../components/QRCashGiftModal';
 import api from '../api/api';
 import greetmeFlags from '../assets/greetme-flags.jpg';
 // Founder-approved production artwork, supplied 2026-09-23 for the Greet-Me Smart eGift Card —
@@ -59,7 +58,6 @@ export default function Merch() {
   const { user } = useAuth();
   const founder = isFounder(user);
   const [catalogOpen, setCatalogOpen] = useState(false);
-  const [showQRCashModal, setShowQRCashModal] = useState(false); // AGP-02
   // GIFT CARDS — Manage Catalog Publish/Unpublish is the checkout authority (Team C, 2026-09-22).
   // "Coming later" is the honest DEFAULT, not a hardcoded permanent state: this asks the server —
   // the same GET the standalone Smart Card page itself asks — and only replaces the placeholder
@@ -110,8 +108,16 @@ export default function Merch() {
       try {
         const res = await api.request('/api/merch/products');
         if (!cancelled) {
-          setProducts(res?.products || []);
-          setError(null);
+          // A network-level failure resolves rather than throws (see api.js), and must not be
+          // read as "zero products" — that reads to a shopper as an empty, not-yet-curated
+          // collection instead of a failed load with a retry path.
+          if (res?.networkError) {
+            setProducts([]);
+            setError(new Error('We could not reach Greet-Me. Please check your connection and try again.'));
+          } else {
+            setProducts(res?.products || []);
+            setError(null);
+          }
         }
       } catch (err) {
         if (!cancelled) setError(err);
@@ -132,8 +138,15 @@ export default function Merch() {
       try {
         const res = await api.getGiftCatalog();
         if (!cancelled) {
-          setCuratedProducts(Array.isArray(res?.products) ? res.products : []);
-          setCuratedError(null);
+          // Same network-failure guard as the Brandable Goods fetch above: a network-level
+          // failure must surface as a failed load, not as an empty, not-yet-curated category.
+          if (res?.networkError) {
+            setCuratedProducts([]);
+            setCuratedError(new Error('We could not reach Greet-Me. Please check your connection and try again.'));
+          } else {
+            setCuratedProducts(Array.isArray(res?.products) ? res.products : []);
+            setCuratedError(null);
+          }
         }
       } catch (err) {
         if (!cancelled) setCuratedError(err);
@@ -151,9 +164,14 @@ export default function Merch() {
   // gate as before checkout preservation requires; only WHEN it is called has changed.
   const { products: flowersProviderProducts } = useProviderCatalogue('flowers');
   const { products: giftBasketsProviderProducts } = useProviderCatalogue('gift_boxes');
+  // TAGGED BY ITS OWN CATEGORY, at the one point the two lists are merged. Once concatenated, a
+  // Goody gift box and a Florist One arrangement are otherwise indistinguishable — both project
+  // through the same six-field shape — so without this tag every provider-fulfilled selection
+  // downstream (the standalone checkout in particular) has no way to know which provider actually
+  // fulfils it and previously defaulted to 'flowers' for both.
   const providerProductsForCheckout = useMemo(() => [
-    ...(flowersProviderProducts || []),
-    ...(giftBasketsProviderProducts || []),
+    ...(flowersProviderProducts || []).map((p) => ({ ...p, giftType: 'flowers' })),
+    ...(giftBasketsProviderProducts || []).map((p) => ({ ...p, giftType: 'gift_boxes' })),
   ], [flowersProviderProducts, giftBasketsProviderProducts]);
 
   // Is the current selector one of the canonical-catalog-driven ones? Brandable Goods and Gift
@@ -310,7 +328,12 @@ export default function Merch() {
     const chosen = providerProductsForCheckout.find(
       (p) => String(p.providerProductId) === String(card.providerProductId)
     );
-    if (!chosen) return;
+    if (!chosen) {
+      // This item still needs its own checkout catalog fetch to resolve — a click here must
+      // never look like a working button that silently did nothing.
+      alert('This item is still loading. Please try again in a moment.');
+      return;
+    }
     let saved = {};
     try {
       saved = JSON.parse(sessionStorage.getItem('sendGreetingState') || '{}');
@@ -366,7 +389,11 @@ export default function Merch() {
     const chosen = providerProductsForCheckout.find(
       (p) => String(p.providerProductId) === String(card.providerProductId)
     );
-    if (!chosen) return;
+    if (!chosen) {
+      // Same guard as selectProviderGiftForGreeting: never a silent no-op on a click.
+      alert('This item is still loading. Please try again in a moment.');
+      return;
+    }
     setPickerProduct(null);
     // Held for the checkout the shopper may or may not go on to open. Choosing a different
     // arrangement replaces it, exactly as a second merch selection replaces the first.
@@ -377,7 +404,12 @@ export default function Merch() {
       // A NUMBER, like every merch price, so the shared surface formats one money format and not two.
       price: Number.isFinite(Number(chosen.priceMinor)) ? Number(chosen.priceMinor) / 100 : card.priceLabel,
       imageUrl: chosen.imageUrl || card.imageUrl || null,
-      giftType: 'flowers',
+      // THE ARRANGEMENT'S OWN CATEGORY, not a flower assumed for every provider-fulfilled pick. This
+      // used to be hardcoded 'flowers' unconditionally, which is what sent a Goody gift box through
+      // checkout as if it were a Florist One arrangement — the wrong provider entirely, with a
+      // product code it could never recognize. Falls back to 'flowers' only when the merged list
+      // above failed to tag it, which keeps every existing flower selection byte-identical.
+      giftType: chosen.giftType || 'flowers',
     });
     setShowCartModal(true);
   };
@@ -420,13 +452,14 @@ export default function Merch() {
     if (cartService.hasNonMerch()) {
       alert(
         'Your cart already contains a subscription or other item. ' +
-        'Please complete that purchase or clear your cart before adding merch.'
+        'Please complete that purchase or clear your cart before adding Branded Goods.'
       );
       return;
     }
 
     if (!Array.isArray(product.variants) || product.variants.length === 0) {
       console.warn('Merch product missing variants', product);
+      alert('This item is not available to add to your cart right now. Please try again shortly.');
       return;
     }
 
@@ -501,7 +534,13 @@ export default function Merch() {
     // Guarded on all three facts rather than on the flower alone: a held arrangement, a confirmation
     // that is actually showing one, and no greeting context. Any merch confirmation therefore keeps the
     // cart route it has always had, byte for byte.
-    if (standaloneFlower && lastAddedItem?.giftType === 'flowers' && !cameFromSendGreeting) {
+    //
+    // BOTH PROVIDER CATEGORIES, not flowers alone — a gift box is exactly as unable to ride the
+    // Printful-keyed cart as a flower is, and this used to check only 'flowers', which is fine for a
+    // flower and simply wrong for the other category the Gift Place already sells this way.
+    const isProviderStandaloneGiftType = lastAddedItem?.giftType === 'flowers'
+      || lastAddedItem?.giftType === 'gift_boxes';
+    if (standaloneFlower && isProviderStandaloneGiftType && !cameFromSendGreeting) {
       setIsFlowersCheckoutOpen(true);
       return;
     }
@@ -720,7 +759,9 @@ export default function Merch() {
           </div>
         </div>
         <button
-          onClick={() => setShowQRCashModal(true)}
+          // TEAM 1 — canonical QR Cash entry contract. Was: opens the localStorage-only
+          // QRCashGiftModal simulation. Now: the real, backend-wired composer flow.
+          onClick={() => navigate('/dashboard/send?giftType=qrcash')}
           style={{
             marginTop: '0.75rem',
             width: '100%',
@@ -1062,11 +1103,8 @@ export default function Merch() {
       </div>
       {/* End Background Frame */}
 
-      {/* AGP-02 — QR Cash™ gift modal (mirrors dashboard usage) */}
-      <QRCashGiftModal
-        isOpen={showQRCashModal}
-        onClose={() => setShowQRCashModal(false)}
-      />
+      {/* TEAM 1 — the QRCashGiftModal simulation was removed from here; "Send QR Cash™" above now
+          navigates to the real composer flow instead. */}
 
 
       {/* A FLOWER RETURNS TO A GREETING ONLY WHEN THERE IS ONE.
@@ -1117,7 +1155,12 @@ export default function Merch() {
         <ProviderCheckoutModal
           isOpen={isFlowersCheckoutOpen}
           onClose={() => setIsFlowersCheckoutOpen(false)}
-          giftType="flowers"
+          // THE ARRANGEMENT'S OWN CATEGORY. Hardcoding 'flowers' here routed every standalone
+          // provider purchase — including a Goody gift box — to Florist One with a product code it
+          // could never price, which is the defect this correction closes. Falls back to 'flowers'
+          // only if the product was somehow never tagged, so an untagged flower still checks out
+          // exactly as it always has.
+          giftType={standaloneFlower.giftType || 'flowers'}
           product={standaloneFlower}
           customer={user}
         />

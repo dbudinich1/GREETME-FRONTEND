@@ -137,35 +137,36 @@ test("E5: a switched-off campaign raises no warning", async () => {
   assert.equal(tid("overlap-warning"), null, "an overlap that cannot send is not an overlap");
 });
 
-test("empty ready state offers Create; opening shows the form with submit disabled until a name is entered", async () => {
+// TEAM 5 (2026-09-29) — campaign creation moved from a toggled panel (an "open-create" button
+// revealing a modal-like form, with its own Cancel) to a compact, PERMANENTLY VISIBLE row inside
+// the Campaigns panel header. There is no "open" step any more and nothing to Cancel out of —
+// the row is simply always there, exactly like the mission's "no unnecessary preliminary modal
+// merely to enter a campaign name" requirement asks for.
+test("empty ready state shows the create row immediately, submit disabled until a name is entered", async () => {
   const c = fakeClient({ campaigns: [] });
   await mount({ client: c });
-  assert.ok(tid("open-create"), "Create action is offered");
-  assert.equal(tid("create-form"), null, "form is not shown until opened");
-  await click(tid("open-create"));
-  assert.ok(tid("create-form"), "form opens");
+  assert.ok(tid("create-form"), "the row is visible with no prior action");
   assert.equal(tid("create-submit").disabled, true, "submit disabled with empty name");
   assert.equal(c.calls.createCampaign.length, 0);
 });
 
-test("entering a name enables submit; create posts { name } (NOT empty {}) and reloads", async () => {
+test("entering a name enables submit; create posts { name } (NOT empty {}), reloads, and clears the row", async () => {
   const c = fakeClient({ campaigns: [] });
   await mount({ client: c });
-  await click(tid("open-create"));
   await act(async () => { setValue(tid("create-name"), "Q4 Client Appreciation"); }); await flush();
   assert.equal(tid("create-submit").disabled, false, "submit enabled once named");
   const listBefore = c.calls.listCampaigns;
   await submitForm();
   assert.equal(c.calls.createCampaign.length, 1, "exactly one create");
   assert.deepEqual(c.calls.createCampaign[0].body, { name: "Q4 Client Appreciation" }, "posts name only, no empty {}, no type");
-  assert.equal(tid("create-form"), null, "form closes after success");
+  assert.ok(tid("create-form"), "the row stays visible after success — it is permanent, not a step");
+  assert.equal(tid("create-name").value, "", "the name field clears after a successful create");
   assert.ok(c.calls.listCampaigns > listBefore, "list reloaded after create");
 });
 
 test("optional type is included when provided", async () => {
   const c = fakeClient({ campaigns: [] });
   await mount({ client: c });
-  await click(tid("open-create"));
   await act(async () => { setValue(tid("create-name"), "Winter Cards"); setValue(tid("create-type"), "Holiday"); }); await flush();
   await submitForm();
   assert.deepEqual(c.calls.createCampaign[0].body, { name: "Winter Cards", campaignType: "Holiday" });
@@ -174,20 +175,27 @@ test("optional type is included when provided", async () => {
 test("whitespace-only name keeps submit disabled and posts nothing", async () => {
   const c = fakeClient({ campaigns: [] });
   await mount({ client: c });
-  await click(tid("open-create"));
   await act(async () => { setValue(tid("create-name"), "   "); }); await flush();
   assert.equal(tid("create-submit").disabled, true);
   assert.equal(c.calls.createCampaign.length, 0);
 });
 
-test("cancel closes the form and makes no write", async () => {
+// TEAM 5 — a real, pre-existing gap this pass closed: the create call previously had no error
+// branch at all, so a failed create silently reset to an unlabelled, blank-looking state with no
+// explanation. Required behaviour for this control per this mission: "show a useful error."
+test("a failed create shows a useful, visible error and does not clear the entered name", async () => {
   const c = fakeClient({ campaigns: [] });
+  c.createCampaign = async (orgId, body) => {
+    c.calls.createCampaign.push({ orgId, body });
+    return { ok: false, status: 400, error: "A campaign named that already exists." };
+  };
   await mount({ client: c });
-  await click(tid("open-create"));
-  await act(async () => { setValue(tid("create-name"), "Discarded"); }); await flush();
-  await click(tid("create-cancel"));
-  assert.equal(tid("create-form"), null, "form closed");
-  assert.equal(c.calls.createCampaign.length, 0, "no write on cancel");
+  await act(async () => { setValue(tid("create-name"), "Duplicate Name"); }); await flush();
+  await submitForm();
+  const error = tid("create-error");
+  assert.ok(error, "an error is shown, not a silent failure");
+  assert.match(error.textContent, /A campaign named that already exists\./);
+  assert.equal(tid("create-name").value, "Duplicate Name", "the entered name is preserved so the reader can correct it, not lost");
 });
 
 test("existing campaign shows its type and expands INLINE (no detail navigation)", async () => {

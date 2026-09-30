@@ -88,15 +88,21 @@ test("the unclassified notice appears ONLY when the count is above zero, and nam
   assert.equal(unclassifiedNotice(bucketContactsByCategory([c("e1", "employee")])), null);
   assert.equal(unclassifiedNotice(bucketContactsByCategory([])), null);
 
+  // Integration note (six-team merge, 2026-09-29): Team 5's recipient-picker fix (4fba9f7)
+  // removed the global "Select Individual Contacts" button (it defaulted to an arbitrary first
+  // campaign) in favor of the per-campaign action inside each campaign's own Recipients tab, and
+  // updated this notice's copy to match. Team 5 updated the sibling assertion in
+  // premiumDashboard.browser.test.mjs but missed this second test asserting the same string --
+  // a pre-existing gap on Team 5's own branch, not something the merge introduced.
   const n = unclassifiedNotice(bucketContactsByCategory(POOL));
   assert.equal(n.count, 2);
-  assert.equal(n.text, "2 existing contacts are unclassified. They remain available through Select Individual Contacts.");
-  assert.match(n.text, /Select Individual Contacts/);
+  assert.equal(n.text, "2 existing contacts are unclassified. They remain available from within a campaign's Recipients tab.");
+  assert.match(n.text, /Recipients tab/);
   // It must not promise a capability that does not exist.
   assert.equal(/fix|reclassif|import wizard|update|migrat/i.test(n.text), false);
 
   const one = unclassifiedNotice(bucketContactsByCategory([c("u", null)]));
-  assert.equal(one.text, "1 existing contact is unclassified. They remain available through Select Individual Contacts.");
+  assert.equal(one.text, "1 existing contact is unclassified. They remain available from within a campaign's Recipients tab.");
 });
 
 test("there are exactly three categories — no fourth tile exists", () => {

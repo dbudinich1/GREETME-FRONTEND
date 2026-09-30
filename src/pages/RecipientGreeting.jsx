@@ -144,7 +144,6 @@ export default function RecipientGreeting() {
     const thankYouText = generateThankYouText(greeting.senderName, recipientNote);
 
     try {
-      // Try backend
       await api.sendThankYou(greetingId, {
         message: thankYouText,
         recipientNote: recipientNote.slice(0, 100),
@@ -155,25 +154,16 @@ export default function RecipientGreeting() {
       setThankYouSent(true);
       setShowThankYouPanel(false);
     } catch (err) {
-      // V1 fallback: simulate success, store locally
-      console.warn('Backend unavailable, storing locally:', err);
-
-      const log = JSON.parse(localStorage.getItem('greetme_thank_you_log') || '[]');
-      log.push({
-        greetingId,
-        to: greeting.senderEmail,
-        toName: greeting.senderName,
-        fromName: greeting.recipientName,
-        subject: 'You received a Thank You!',
-        body: thankYouText,
-        sentAt: new Date().toISOString(),
-      });
-      localStorage.setItem('greetme_thank_you_log', JSON.stringify(log));
-
-      // Mark as sent
-      markThankYouSent(greetingId);
-      setThankYouSent(true);
-      setShowThankYouPanel(false);
+      // TEAM 4 (growth-loops verification, 2026-09-29) — this used to simulate success on any
+      // backend failure (store to localStorage, show "sent" anyway) even though nothing was ever
+      // delivered to the sender. This page is not reachable from any live link today (confirmed:
+      // nothing in either repo ever generates a /greeting/:id URL), so the fix is scoped to
+      // honesty rather than to building the backend contract this page's api.sendThankYou call
+      // still names but that was never implemented (POST /api/greetings/:greetingId/thank-you
+      // does not exist) — that is a real decision (build the route, or retire this page) for a
+      // maintainer to make, not a narrow correction. Never claim success for a send that failed.
+      console.error('Thank-you send failed:', err);
+      setSendError(getErrorMessage(err) || 'Could not send your thank-you. Please try again.');
     } finally {
       setSending(false);
     }

@@ -1,7 +1,15 @@
 // src/pages/CourtesyCredit.jsx
-// Public landing page for courtesy $5 credit from greeting finale
-// Route: /courtesy-credit
-
+// Legacy informational landing page. Route: /courtesy-credit
+//
+// CREDIT CONTRACT INTEGRITY (2026-09-30, display-honesty correction) — this page used to read
+// an `amount` query parameter straight from the URL and stash it, unverified, into the same
+// `greetme_courtesy_credit` localStorage key Checkout.jsx reads for its order-summary display.
+// Every real claim path (CreditClaim.jsx, ThankYouFlow.jsx) always writes a backend-issued
+// `creditCode` alongside the amount; this page never had one to offer, so it could only ever
+// fabricate an apparent credit. Confirmed unreachable from any live in-app link today
+// (FinaleSpread.jsx no longer points here) — kept only as an honest landing point for anyone
+// who has bookmarked or directly visits the old URL. It no longer parses or displays any
+// dollar amount, and no longer writes to localStorage at all.
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAccountState } from '../hooks/useAccountState';
@@ -12,32 +20,10 @@ export default function CourtesyCredit() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  // Phase 3D Batch D Slice 2 — account-state gate. Subscribed users get
-  // subdued copy and route to /dashboard rather than /dashboard/send.
-  // Onboarding test-send path (isOnboardingClaim) takes precedence in the
-  // copy ternary so the demo flow is preserved.
   const accountState = useAccountState();
-  const amount = parseInt(searchParams.get('amount') || '5', 10);
-  const source = searchParams.get('source');
-  const displayAmount = `$${amount}`;
-
-  // Only suppress thank-you for onboarding test sends (test=1 param added by Finale for test greetings)
-  const isOnboardingClaim = source === 'finale' && searchParams.get('test') === '1';
-
-  // Stash credit in localStorage so it persists through registration
-  const stashCredit = () => {
-    localStorage.setItem('greetme_courtesy_credit', JSON.stringify({
-      amount,
-      source: 'finale',
-      appliedAt: new Date().toISOString(),
-    }));
-  };
 
   const handlePrimary = () => {
-    stashCredit();
     if (accountState.isSubscribed) {
-      // Phase 3D Batch D Slice 2 — subscribed users route to /dashboard
-      // (neutral landing) instead of /dashboard/send (action-oriented).
       navigate('/dashboard');
     } else if (isAuthenticated) {
       navigate('/dashboard/send');
@@ -47,7 +33,6 @@ export default function CourtesyCredit() {
   };
 
   const handleThankYou = () => {
-    stashCredit();
     // ThankYouFlow is public — handles its own auth
     const sourceJobId = searchParams.get('jobId');
     if (sourceJobId) {
@@ -107,7 +92,7 @@ export default function CourtesyCredit() {
           margin: '0 0 1rem',
           fontFamily: 'Georgia, serif',
         }}>
-          You&rsquo;ve received {displayAmount} toward your first Greet-Me subscription.
+          Thanks for stopping by Greet-Me.
         </h1>
 
         <p style={{
@@ -116,7 +101,9 @@ export default function CourtesyCredit() {
           lineHeight: 1.6,
           margin: '0 0 2.5rem',
         }}>
-          Apply your credit and start sending unforgettable greetings to the people who matter most.
+          Any Greet-Me Credit on your account is verified automatically and applied at checkout —
+          there&rsquo;s nothing to claim manually here. Go to your account to see your current
+          plan and credits.
         </p>
 
         {/* Primary CTA */}
@@ -139,38 +126,30 @@ export default function CourtesyCredit() {
             boxShadow: '0 4px 20px rgba(255,255,255,0.15)',
           }}
         >
-          {isOnboardingClaim
-            ? `Claim & Apply Your ${displayAmount} Credit`
-            : accountState.isSubscribed
-              ? `Apply ${displayAmount} to Your Account`
-              : isAuthenticated
-                ? `Use ${displayAmount} Now \u2014 Send a Greet-Me`
-                : `Claim Your ${displayAmount} \u2014 Create Your Account`}
+          {isAuthenticated ? 'Go to Your Account' : 'Create Your Account'}
         </button>
 
-        {/* Smart loop: Thank You — hidden during onboarding test flow */}
-        {!isOnboardingClaim && (
-          <button
-            onClick={handleThankYou}
-            style={{
-              display: 'block',
-              width: '100%',
-              maxWidth: '340px',
-              margin: '0 auto',
-              padding: '0.75rem 2rem',
-              background: 'rgba(255,255,255,0.12)',
-              color: '#fff',
-              border: '1px solid rgba(255,255,255,0.25)',
-              borderRadius: '2rem',
-              fontSize: '0.9375rem',
-              fontWeight: 600,
-              fontFamily: 'Georgia, serif',
-              cursor: 'pointer',
-            }}
-          >
-            Send a Thank You Greet-Me
-          </button>
-        )}
+        {/* Smart loop: Thank You */}
+        <button
+          onClick={handleThankYou}
+          style={{
+            display: 'block',
+            width: '100%',
+            maxWidth: '340px',
+            margin: '0 auto',
+            padding: '0.75rem 2rem',
+            background: 'rgba(255,255,255,0.12)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.25)',
+            borderRadius: '2rem',
+            fontSize: '0.9375rem',
+            fontWeight: 600,
+            fontFamily: 'Georgia, serif',
+            cursor: 'pointer',
+          }}
+        >
+          Send a Thank You Greet-Me
+        </button>
 
         <p style={{
           fontSize: '0.75rem',

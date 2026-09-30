@@ -97,7 +97,7 @@ test("exactly eight selectors, in the approved order", () => {
   assert.deepEqual(
     SELECTOR_ROW.map((s) => s.label),
     [
-      "Brandable Goods",
+      "Branded Goods",
       "Gift Cards",
       "Gift Baskets",
       "Flowers",
@@ -242,12 +242,17 @@ test("the American Gift Place branding is preserved", () => {
 // 4 — QR Cash is unchanged and still leads the page
 // ============================================================
 
-test("QR Cash renders above the selector row, with its wording and behaviour intact", () => {
+test("QR Cash renders above the selector row, with its wording intact and its behaviour now the canonical backend-wired flow", () => {
+  // Integration note (six-team merge, 2026-09-29): Team 1's gift/entitlement-safety pass replaced
+  // the client-only QRCashGiftModal simulation this test originally asserted on with real
+  // navigation into the composer's canonical, server-charged QR Cash flow (same fix applied
+  // identically to DashboardHome.jsx/HeroProgram.jsx/Gifts.jsx). The wording and position
+  // guarantees below are unchanged; only the button's action target is updated to match.
   assert.match(SRC, /QR Cash™/);
   assert.match(SRC, /Send • Spend • Gift/);
   assert.match(SRC, /Send QR Cash™/);
-  assert.match(SRC, /setShowQRCashModal\(true\)/);
-  assert.match(SRC, /<QRCashGiftModal/);
+  assert.match(SRC, /navigate\('\/dashboard\/send\?giftType=qrcash'\)/);
+  assert.equal(/<QRCashGiftModal/.test(SRC), false, "the client-only simulation must not be reintroduced");
   const qrIdx = SRC.indexOf("AGP-02 — QR Cash™ featured tile");
   const rowIdx = SRC.indexOf("SELECTOR_ROW.map(");
   assert.ok(qrIdx > -1 && rowIdx > qrIdx, "the selector row must sit BENEATH QR Cash");
@@ -300,7 +305,7 @@ test("switching selection replaces the shared set rather than adding to it", () 
 });
 
 test("selection labels are display copy for the empty state", () => {
-  assert.equal(selectionLabel(BRANDABLE), "Brandable Goods");
+  assert.equal(selectionLabel(BRANDABLE), "Branded Goods");
   assert.equal(selectionLabel("faith_and_inspiration"), "Faith & Inspiration");
   assert.equal(selectionLabel(VIEW_ALL), "View All");
   assert.equal(selectionLabel("not_a_selector"), "");

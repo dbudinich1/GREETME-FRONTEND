@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, Heart, Check, ArrowLeft, DollarSign, X } from 'lucide-react';
 import cartService from '../services/cartService';
-import QRCashGiftModal from '../components/QRCashGiftModal';
 import AddToCartModal from '../components/AddToCartModal';
 import greetmeFlags from '../assets/greetme-flags.jpg';
 
@@ -99,7 +98,6 @@ export default function Gifts() {
   const [addedItems, setAddedItems] = useState(new Set());
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 420);
-  const [showQRCashModal, setShowQRCashModal] = useState(false);
   const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
   const [showCartModal, setShowCartModal] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState(null);
@@ -429,7 +427,7 @@ export default function Gifts() {
           </p>
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
             <button
-              onClick={() => setShowQRCashModal(true)}
+              onClick={() => navigate('/dashboard/send?giftType=qrcash')}
               style={{
                 padding: '0.5rem 1rem',
                 background: 'white',
@@ -667,11 +665,8 @@ export default function Gifts() {
       </div>
       {/* End Background Frame */}
 
-      {/* QR Cash Gift Modal */}
-      <QRCashGiftModal
-        isOpen={showQRCashModal}
-        onClose={() => setShowQRCashModal(false)}
-      />
+      {/* TEAM 1 — the QRCashGiftModal simulation was removed from here; both "Send QR Cash" CTAs
+          above now navigate to the real composer flow instead. */}
 
       {/* Add to Cart Confirmation Modal */}
       <AddToCartModal
@@ -912,7 +907,7 @@ export default function Gifts() {
               <button
                 onClick={() => {
                   setShowHowItWorksModal(false);
-                  setShowQRCashModal(true);
+                  navigate('/dashboard/send?giftType=qrcash');
                 }}
                 style={{
                   width: '100%',

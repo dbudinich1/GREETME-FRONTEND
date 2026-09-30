@@ -36,6 +36,16 @@ const F1_TREATMENTS = Object.freeze({
 });
 
 /** Percent text -> { ok, value } | { ok:false, error }. Never clamps; never coerces silently. */
+// TEAM 5 (2026-09-29) — the real, working partner-portal URL, for the founder to hand to a newly
+// assigned partner admin. `/dashboard/fundraiser` (App.jsx) is PartnerFundraisingHome, the actual
+// param-less entry point a partner admin lands on; safe-fallback origin resolution mirrors the
+// existing pattern in SalespersonControlCenter.jsx.
+function partnerPortalUrl() {
+  let base = "";
+  try { base = window.location.origin; } catch { base = ""; }
+  return `${base}/#/dashboard/fundraiser`;
+}
+
 function f1ParsePercent(raw) {
   const text = String(raw ?? "").trim();
   if (text === "") return { ok: false, error: "Enter a percentage." };
@@ -1018,6 +1028,23 @@ export default function FounderFundraisingDashboard() {
     });
   }, [resetApproval]);
 
+  // TEAM 5 (2026-09-29) — no Close/Back/Return control existed anywhere for the org-detail region
+  // (Draft Economics + F4 campaign status + org lifecycle + partner admin + audit history all
+  // gated on the same `selected` value, `selected && detail && !detail.loading`). The only ways
+  // out were opening a DIFFERENT organization (still lands on a detail view, never a bare list)
+  // or navigating away entirely (browser back / a different nav item) — exactly the "founder
+  // cannot exit Draft Economics" defect this pass corrects. This reuses the SAME gate variable
+  // that already controls the whole detail region, so it closes the whole thing coherently
+  // (it's all "detail view for the selected org," not just economics) rather than adding new,
+  // narrower state that only some of these already-coupled sections would respect.
+  const closeOrg = useCallback(() => {
+    setSelected(null); setDetail(null);
+    setAdminEmail(""); setAdmin({ state: STATES.EMPTY, account: null, reason: null });
+    ecoCampaignRef.current = "";
+    setEcoCampaignId(""); setEcoErrors({}); setEcoResult(null); setEcoMessage(null);
+    resetApproval();
+  }, [resetApproval]);
+
   // F1 — when a campaign is chosen, read its economics history and surface the version that is
   // actually in force. Nothing here is editable: approved/active terms are immutable server-side,
   // and the only legitimate way to change them is a NEW draft version.
@@ -1266,7 +1293,14 @@ export default function FounderFundraisingDashboard() {
       </div>
 
       {selected && detail && !detail.loading ? (
-        <section style={box} data-testid="f1-economics">
+        <>
+          {/* TEAM 5 — the exit control for the whole org-detail region (this section, F4 campaign
+              status, org lifecycle, partner admin, and audit history below — all gated together).
+              Does not save, activate, or change anything; it only returns to the organization list. */}
+          <button type="button" style={btnGhost} onClick={closeOrg} data-testid="f1-close-org">
+            ← Back to organizations
+          </button>
+          <section style={box} data-testid="f1-economics">
           <h2 style={h}>Draft economics</h2>
 
           {/* Existing sealed terms are shown READ-ONLY. An approved or active version is immutable
@@ -1500,7 +1534,8 @@ export default function FounderFundraisingDashboard() {
               {" "}— not approved and not active.
             </p>
           ) : null}
-        </section>
+          </section>
+        </>
       ) : null}
 
       {/* F4 -- campaign status is its own section, deliberately OUTSIDE the economics panel: it
@@ -1601,6 +1636,30 @@ export default function FounderFundraisingDashboard() {
           {admin.state === STATES.ASSIGNED && admin.account && (
             <p style={{ color: "#5b4f42", fontSize: ".9rem", marginTop: 0 }} data-testid="admin-readback">
               Read-back: {isAssigned(selected, admin.account.userId) ? "present in adminUserIds ✓" : "not yet reflected"}
+            </p>
+          )}
+
+          {/* TEAM 5 (2026-09-29) — traced exhaustively: after a successful assignment, the founder
+              previously saw only "Administrator assigned." with no indication of what to actually
+              tell the new partner admin. Assignment is a pure backend authorization write (no
+              email, no notification — confirmed by reading orgService.js#assignPartnerAdmin in
+              full); the founder is the only channel that will ever tell this person anything, so
+              this gives them the exact, real, working URL to share — no new invitation/email
+              system invented, just the missing next-step text for what already exists. */}
+          {admin.state === STATES.ASSIGNED && admin.account && (
+            <p style={{ color: "#5b4f42", fontSize: ".85rem", marginTop: 0 }} data-testid="admin-next-step">
+              Direct them to the partner portal to get started:{" "}
+              <code data-testid="admin-partner-link">{partnerPortalUrl()}</code>
+              <button
+                type="button"
+                style={{ ...btnGhost, marginLeft: 8, padding: "2px 8px", fontSize: ".78rem" }}
+                data-testid="admin-copy-partner-link"
+                onClick={async () => {
+                  try { await navigator.clipboard.writeText(partnerPortalUrl()); } catch { /* clipboard unavailable — the visible URL above still works */ }
+                }}
+              >
+                Copy link
+              </button>
             </p>
           )}
 

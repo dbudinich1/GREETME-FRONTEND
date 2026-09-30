@@ -11,7 +11,6 @@ import { Heart, ShoppingCart, Check, ArrowRight, Award, Trophy, Clock, Star, Loc
   Building2, Gift, ShoppingBag, Sparkles, Megaphone, Layers, Briefcase, Users, DollarSign, Film } from 'lucide-react';
 import cartService from '../services/cartService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import QRCashGiftModal from '../components/QRCashGiftModal';
 import ContactSalesModal from '../components/ContactSalesModal';
 import api from '../api/api';
 
@@ -88,9 +87,6 @@ export default function HeroProgram() {
     })();
     return () => { active = false; };
   }, []);
-
-  // ---- QR Cash modal (REUSES the existing dashboard QRCashGiftModal — no duplicate flow) ----
-  const [showQRCashModal, setShowQRCashModal] = useState(false);
 
   // ---- Corporate contact modal — shared ContactSalesModal, opened OVER the Hero page
   // (no navigation; close/submit leaves the user on /dashboard/hero) ----
@@ -187,7 +183,9 @@ export default function HeroProgram() {
             <WaysToParticipateSection
               navigate={navigate}
               onOpenHeroHearts={() => setShowHeroHeartsModal(true)}
-              onOpenQRCash={() => setShowQRCashModal(true)}
+              // TEAM 1 — canonical QR Cash entry contract: the real composer flow, not the
+              // localStorage-only QRCashGiftModal simulation this used to open.
+              onOpenQRCash={() => navigate('/dashboard/send?giftType=qrcash')}
               onOpenContact={() => setShowContactModal(true)}
             />
             <LeaderboardSection />
@@ -213,8 +211,8 @@ export default function HeroProgram() {
         />
       )}
 
-      {/* ---- QR Cash modal — the SAME component the dashboard uses (no duplicate flow) ---- */}
-      <QRCashGiftModal isOpen={showQRCashModal} onClose={() => setShowQRCashModal(false)} />
+      {/* TEAM 1 — the QRCashGiftModal simulation was removed from here; "Launch QR Cash" above now
+          navigates to the real composer flow instead. */}
 
       {/* ---- Corporate "Learn More" → Contact Sales, opened in place on the Hero page ---- */}
       <ContactSalesModal
@@ -555,7 +553,7 @@ const PARTICIPATION_GROUPS = [
         chip: 'available', cta: { kind: 'qrcash', label: 'Launch QR Cash' } },
       { key: 'gifted_bundles', title: 'Gifted Subscription Bundles', icon: Gift,
         desc: 'Gift Greet-Me memberships to your team, clients, or community.',
-        chip: 'available', cta: { kind: 'link', to: '/dashboard/gifts', label: 'Open Gifts' } },
+        chip: 'learn', cta: { kind: 'contact', label: 'Learn More' } },
       { key: 'animation_packs', title: 'Anytime Animation Packs', icon: Film,
         desc: 'Pre-purchase animation credits for birthdays, holidays, celebrations, appreciation, and everyday Greet-Me moments.',
         chip: 'available', cta: { kind: 'link', to: '/dashboard/animations', label: 'Purchase Packs' } },

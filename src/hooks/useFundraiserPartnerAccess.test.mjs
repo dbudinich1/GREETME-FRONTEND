@@ -224,6 +224,11 @@ test("B3: existing personal navigation entries are unchanged in label and order"
     "For Business",
     "Corporate Campaign Dashboard", // nested child of For Business
     "Greet-Me Fundraise",
+    // TEAM 5 (six-team merge, 2026-09-29): Founder Central Command, the new consolidated
+    // founder-only entry point. Appended after the existing fundraiser entry, so every entry
+    // above it keeps its exact label and position. Pre-existing gap on Team 5's own branch: this
+    // test was not updated alongside the nav addition; still an exact deepEqual.
+    "Founder Central Command",
     "Fundraising",
     // TEAM B — SALES S1: the founder-gated Salesperson Control Center entry. Appended, so
     // every personal entry above keeps its exact label and position. Still an exact deepEqual.

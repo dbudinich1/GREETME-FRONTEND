@@ -125,6 +125,25 @@ export default function Checkout() {
     }
   })();
 
+  // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — the single-use Gift Only authorization token
+  // SendGreeting.jsx's entitlement gate may have minted for this exact attempt (sendDraftId doubles
+  // as the giftAttemptId end to end). Read from the SAME short-lived, localStorage-only record as
+  // sendDraftContactId above — never the URL — and forwarded to the backend, which independently
+  // re-verifies it (or the sender's real current entitlement) before creating the Stripe session.
+  // Absent (null) for a standalone storefront purchase or a sender who had sends available, in
+  // which case the backend gate simply passes on entitlement alone.
+  const sendDraftGiftOnlyToken = (() => {
+    if (!sendDraftId) return null;
+    try {
+      const raw = localStorage.getItem(`greetme_send_resume_${sendDraftId}`);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return typeof parsed?.giftOnlyToken === 'string' && parsed.giftOnlyToken ? parsed.giftOnlyToken : null;
+    } catch {
+      return null;
+    }
+  })();
+
   // Credit: referral ($10 from gift) or courtesy ($5 from finale QR)
   const courtesyCredit = (() => {
     try {
@@ -133,9 +152,23 @@ export default function Checkout() {
     } catch { return null; }
   })();
   const courtesyCreditCode = courtesyCredit?.creditCode || null;
-  const creditAmount = referralCode ? 10 : (courtesyCredit?.amount || 0);
+  // CREDIT CONTRACT INTEGRITY (2026-09-30, display-honesty correction) — a stored courtesy
+  // {amount} must never be displayed or subtracted without its backend-issued creditCode
+  // alongside it (every real claim path — CreditClaim.jsx, ThankYouFlow.jsx — always writes
+  // both together; only the legacy /courtesy-credit?amount= page ever wrote amount alone).
+  // Referral credit is a separate, already-verified mechanism (referralCode itself is what
+  // the backend checks) and is unaffected.
+  const creditAmount = referralCode ? 10 : (courtesyCreditCode ? (courtesyCredit?.amount || 0) : 0);
 
   const [total, setTotal] = useState(0);
+  // CREDIT CONTRACT INTEGRITY (2026-09-29, follow-up correction) — the order summary must never
+  // show "Credit Applied –$5.00" (and a discounted total) once the backend has told us the
+  // credit was refused. null = no override, display the credit normally (the pre-existing
+  // behavior for a successful application, or for any OTHER refusal reason this correction does
+  // not touch — see the required-tests note on "invalid or consumed credit retains its
+  // existing behavior"). Set ONLY for the two reasons that mean "temporarily blocked, not gone":
+  // subscriber_ineligible / status_unverifiable.
+  const [creditDisplayOverride, setCreditDisplayOverride] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [orderId, setOrderId] = useState(null);
@@ -281,6 +314,12 @@ export default function Checkout() {
           // Persisted on the order and carried through Stripe metadata, so the
           // binding survives the round trip and can be re-proved at send time.
           ...(sendDraftContactId && { contactId: sendDraftContactId }),
+          // SEND-LIMIT RECOVERY CORRECTION (2026-09-30) — giftAttemptId is the SAME sendDraftId
+          // (one id names this attempt end to end); giftOnlyToken is present only when the sender
+          // used the "Continue with Gift Only" escape hatch. The backend independently re-verifies
+          // both against the sender's real, current entitlement before creating the Stripe session.
+          ...(sendDraftId && { giftAttemptId: sendDraftId }),
+          ...(sendDraftGiftOnlyToken && { giftOnlyToken: sendDraftGiftOnlyToken }),
           // Dormant Fundraiser attribution — opaque token only, merch + flag-on only (else omitted).
           ...fundraiserCheckoutField({ purchaseType: 'merch', flagEnabled: isFundraiserUiEnabled() }),
         });
@@ -320,6 +359,9 @@ export default function Checkout() {
 
     setIsProcessing(true);
     setErrors({});
+    // A fresh submit attempt starts from a clean display slate — a prior attempt's override must
+    // not linger if this attempt reaches a different outcome (e.g. the account is now eligible).
+    setCreditDisplayOverride(null);
     try {
       // Read G1G1 data from sessionStorage (set by Cart)
       const g1g1Raw = (() => { try { return JSON.parse(sessionStorage.getItem('greetme_g1g1_checkout') || 'null'); } catch { return null; } })();
@@ -348,9 +390,35 @@ export default function Checkout() {
       });
       const creditEligible = item.planTier !== 'close_circle';
       if (creditAmount > 0 && creditEligible && !data.creditApplied) {
-        localStorage.removeItem('greetme_courtesy_credit');
-        localStorage.removeItem('greetme_referral_code');
-        setErrors({ submit: 'Your credit could not be applied. Please try again or continue at full price.' });
+        // CREDIT CONTRACT INTEGRITY (2026-09-29, founder rule 7, follow-up correction) — a
+        // subscriber-ineligibility (or unverifiable-status) refusal leaves the courtesy credit
+        // untouched and still valid once the account is eligible again (server-side; see
+        // services/checkout/courtesyCreditCheckout.js). This used to unconditionally strip
+        // greetme_courtesy_credit from storage on ANY !creditApplied result, which correctly
+        // reflected server state for a genuinely invalid/consumed credit but incorrectly
+        // discarded a perfectly good one that was only refused for being a current subscriber —
+        // the user would then have no way to retry it later without re-finding the original
+        // claim link. Only clear storage for reasons that mean the credit itself is actually
+        // gone; keep it, and say why, for the two reasons that mean "not yet, try again later."
+        const isTemporaryRefusal = data.creditFailureReason === 'subscriber_ineligible' || data.creditFailureReason === 'status_unverifiable';
+        if (!isTemporaryRefusal) {
+          localStorage.removeItem('greetme_courtesy_credit');
+          localStorage.removeItem('greetme_referral_code');
+        } else {
+          // CREDIT CONTRACT INTEGRITY (2026-09-29, final display correction) — the order summary
+          // must stop showing "Credit Applied –$5.00" and the discounted total the instant the
+          // backend reports this refusal; showing a discount the checkout will not actually honor
+          // is financially misleading. Scoped to exactly these two reasons — an invalid/consumed
+          // credit (any other reason) keeps its pre-existing summary behavior unchanged.
+          setCreditDisplayOverride(data.creditFailureReason);
+        }
+        setErrors({
+          submit: data.creditFailureReason === 'subscriber_ineligible'
+            ? 'This $5 credit is for non-subscribers. It will be ready to use again once your plan ends — you can continue now at full price.'
+            : data.creditFailureReason === 'status_unverifiable'
+            ? "We couldn't confirm your account status just now. Please try again shortly, or continue at full price."
+            : 'Your credit could not be applied. Please try again or continue at full price.',
+        });
         setIsProcessing(false);
         return;   // credit could not be applied → retryable; preserve any fundraiser attribution token
       }
@@ -835,7 +903,12 @@ export default function Checkout() {
                   const hasReferralCredit = !!referralCode;
                   const g1g1Eligible = !!subscriptionItem && !hasReferralCredit && G1G1_PERSONAL_TIERS.has(subscriptionItem?.planTier);
                   const creditEligible = subscriptionItem?.planTier !== 'close_circle';
-                  const effectiveCredit = creditEligible ? creditAmount : 0;
+                  // CREDIT CONTRACT INTEGRITY (2026-09-29, final display correction) — a
+                  // subscriber_ineligible / status_unverifiable refusal zeroes the credit here too,
+                  // so the total below is computed the same way it would be for a checkout that
+                  // never had a credit at all — never a discounted figure the backend already
+                  // refused to honor.
+                  const effectiveCredit = (creditEligible && !creditDisplayOverride) ? creditAmount : 0;
                   const techFee = platformFeeFor(subscriptionItem);
                   const finalTotal = Math.max(0, planPrice + techFee - effectiveCredit);
 
@@ -883,9 +956,13 @@ export default function Checkout() {
 
                       {/* Credit Applied */}
                       {creditAmount > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.625rem', fontSize: '1rem', color: creditEligible ? '#22c55e' : '#9ca3af', fontWeight: 500, fontStyle: creditEligible ? 'normal' : 'italic' }}>
-                          <span>Credit Applied</span>
-                          <span>{creditEligible ? `\u2013$${creditAmount.toFixed(2)}` : 'Not eligible for this plan'}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.625rem', fontSize: '1rem', color: (creditEligible && !creditDisplayOverride) ? '#22c55e' : '#9ca3af', fontWeight: 500, fontStyle: (creditEligible && !creditDisplayOverride) ? 'normal' : 'italic' }}>
+                          <span>{creditDisplayOverride ? 'Greet-Me Credit' : 'Credit Applied'}</span>
+                          <span>
+                            {creditDisplayOverride === 'subscriber_ineligible' ? 'Saved for later'
+                              : creditDisplayOverride === 'status_unverifiable' ? 'Not applied'
+                              : creditEligible ? `\u2013$${creditAmount.toFixed(2)}` : 'Not eligible for this plan'}
+                          </span>
                         </div>
                       )}
 

@@ -35,6 +35,14 @@ before(async () => {
     entryPoints: [ENTRY], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
     jsx: "automatic", jsxImportSource: "react", logLevel: "silent",
     external: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"],
+    // Team 5's payment relocation (six-team merge, 2026-09-29) made CampaignCard.jsx
+    // transitively import stripeProvider.js (reads import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY).
+    // Team 5 already added this same define to giftBoxPicker.browser.test.mjs and
+    // premiumDashboard.browser.test.mjs, the other two harnesses that bundle CampaignCard.jsx
+    // standalone, but missed this third one — a pre-existing gap on Team 5's own branch, not a
+    // new interaction from this merge. Real Vite builds inject import.meta.env for real; only
+    // this esbuild test harness needs the stub.
+    define: { "import.meta.env": "{}" },
   });
   const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://greet-me.com/" });
   window = dom.window;

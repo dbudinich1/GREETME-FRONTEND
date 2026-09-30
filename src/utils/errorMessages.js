@@ -30,6 +30,23 @@ export function getErrorMessage(error) {
   }
   if (error?.status === 429) return ERROR_MESSAGES.RATE_LIMIT_GENERAL;
   if (error?.status >= 500) return ERROR_MESSAGES.SERVER_ERROR;
+  // Fix 2 (Team 3 WP-C): nothing in the known-code/status map matched. Before
+  // falling back to the fully generic copy, surface a server- or
+  // caller-provided message when one is actually present and looks like real
+  // prose — e.g. api.js's `throw new Error(data?.error || ...)` sites pass
+  // through the backend's own text here when it sent one, which is more
+  // actionable than the generic default. Deliberately excludes the
+  // `HTTP ${status}` text those same call sites fall back to when the
+  // backend sent nothing, since that string is our own placeholder, not a
+  // real explanation.
+  const specific =
+    (typeof error?.message === 'string' && error.message.trim()) ||
+    (typeof error?.details === 'string' && error.details.trim()) ||
+    '';
+  const looksGeneric = !specific || /^HTTP \d+$/.test(specific) || specific.length > 300;
+  if (!looksGeneric) {
+    return specific;
+  }
   return ERROR_MESSAGES.DEFAULT;
 }
 

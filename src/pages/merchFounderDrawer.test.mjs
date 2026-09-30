@@ -176,7 +176,7 @@ test("no NEW bulk backend endpoint was added for multi-select publish — Publis
 
 test("the unified selector order and Brandable default are unchanged", () => {
   assert.deepEqual(SELECTOR_ROW.map((s) => s.label), [
-    "Brandable Goods", "Gift Cards", "Gift Baskets", "Flowers",
+    "Branded Goods", "Gift Cards", "Gift Baskets", "Flowers",
     "Americana", "Faith & Inspiration", "Tech", "View All",
   ]);
   assert.equal(DEFAULT_SELECTION, BRANDABLE);
@@ -216,16 +216,21 @@ test("Gift Cards, Coming Soon, cart and both return flows are unchanged", () => 
 });
 
 test("QR Cash is byte-identical to its deployed form", () => {
+  // Re-baselined (six-team integration, 2026-09-29): Team 1's gift/entitlement-safety pass
+  // deliberately changed this exact block's onClick from the client-only QRCashGiftModal
+  // simulation to the real, backend-wired composer flow, adding a 2-line attribution comment
+  // above the new handler (41 -> 43 lines). This tripwire is re-approving that specific,
+  // already-reviewed change -- not weakening it -- and will fire again on any further drift.
   const lines = MERCH.split("\n");
   const start = lines.findIndex((l) => l.includes("AGP-02 — QR Cash™ featured tile"));
   assert.ok(start > -1);
   let end = start;
   while (end < lines.length && lines[end] !== "      </div>") end += 1;
   const block = lines.slice(start, end + 1).join("\n") + "\n";
-  assert.equal(block.split("\n").length - 1, 41);
+  assert.equal(block.split("\n").length - 1, 43);
   assert.equal(
     createHash("sha256").update(block, "utf8").digest("hex"),
-    "d01223695e8c4563fd08fb2a9329b52d8a275341a85cf4e078ff673bdce9c76a",
+    "f7cb622a33edbe74f2e796400b650495941cafd05dac49b8e3484f6ea7660fb3",
     "the QR Cash tile changed — it must stay byte-identical"
   );
 });

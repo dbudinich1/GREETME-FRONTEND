@@ -45,22 +45,53 @@ import {
 import { EXECUTION_DORMANT_REASON } from "../../api/corporateCampaigns.js";
 import { CategoryBubble, ChoiceBubble, BubbleGroup } from "./Bubbles.jsx";
 import CampaignFeaturedSpreadEditor from "../../corporateCampaign/CampaignFeaturedSpreadEditor.jsx";
+import { ANIMATION_IMAGE_SOURCE } from "../../corporateCampaign/constants.js";
+import IndividualContactPicker from "./IndividualContactPicker.jsx";
+import SavedCardPanel from "./SavedCardPanel.jsx";
 import "./premiumDashboard.css";
 
 // The four review tabs the approved reference names. Each renders EXISTING section content,
 // unchanged — this only changes which sections are visible at once and where they render.
+//
+// TEAM 5 (2026-09-29) — the "gift" tab's label was "Message & gift", implying a real message-
+// composition surface exists alongside the gift options. It does not: this tab's content (below,
+// `hidden={activeTab !== "gift"}`) is Gift Options + Featured Spread only — no message/greeting-
+// copy field exists anywhere in this file, corporateDashboardModel.js, or the delivery-config wire
+// shape this campaign saves through. This is the narrow, honest correction (a truthful label for
+// content that already exists) rather than fabricating a second tab with nothing real to put in
+// it — per the mission's own instruction to stop and report a contract gap rather than construct
+// a speculative replacement. Building real message composition for corporate campaigns is
+// genuinely missing functionality, not a presentation defect; it is documented as such, not fixed
+// here. The `key` stays "gift" — every data-testid and hidden-tab check below keys off it.
 const CAMPAIGN_TABS = [
   { key: "overview", label: "Overview" },
   { key: "recipients", label: "Recipients" },
-  { key: "gift", label: "Message & gift" },
+  { key: "gift", label: "Gift" },
   { key: "schedule", label: "Schedule & Payment" },
 ];
 
+// TEAM 5 (2026-09-29) — "Saved Featured Spread" is removed: it had no backing functionality at
+// all (no picker, no list of saved spreads, nothing clickable — selecting it produced no further
+// UI), and the real backend contract (services/corporateCampaign/constants.js#ANIMATION_IMAGE_SOURCE
+// on the backend, mirrored at src/corporateCampaign/constants.js on this side) only recognizes two
+// source states — ORGANIZATION_DEFAULT and CAMPAIGN_OVERRIDE — with no third "saved spread" concept
+// anywhere in the model. Nothing depended on it, so it is removed rather than left as a dead-end.
 const SPREAD_SOURCES = [
   { value: "organization_default", label: "Organization Default", note: "Use the organization’s standard look." },
-  { value: "saved_spread", label: "Saved Featured Spread", note: "Reuse a spread you’ve already built." },
   { value: "customize", label: "Customize This Campaign", note: "Adjust the spread for this campaign only." },
 ];
+
+// TEAM 5 — `spreadSource` used to always start at "organization_default" and never read the
+// campaign's actual persisted config, so reopening a campaign that already had a customized spread
+// saved (via updateFeaturedSpread) silently misrepresented it as using the org default. Derived
+// from the same two-value contract the backend and CampaignFeaturedSpreadEditor already use.
+function deriveSpreadSource(config) {
+  if (!config) return "organization_default";
+  const usesOverride =
+    config.animationImageSource === ANIMATION_IMAGE_SOURCE.CAMPAIGN_OVERRIDE ||
+    config.additionalImagesEnabled === true;
+  return usesOverride ? "customize" : "organization_default";
+}
 
 // SLICE F1 — mirrors the server's founder-ratified cap. Used for `maxLength` and for the message
 // shown if a paste exceeds it; the SERVER remains the authority and refuses independently.
@@ -95,7 +126,12 @@ export default function CampaignCard({
   // `onOpenDetail` is deliberately gone: the title is a heading, not a link. A campaign is
   // configured on this card, so routing to CampaignDetail to read the same facts was exactly the
   // secondary-screen sequence this redesign removes.
-  onOpenIndividualPicker, onAfterMutate,
+  onAfterMutate,
+  // TEAM 5 (2026-09-29) — the same two props GreetingAutomationCampaigns.jsx already threaded to
+  // its OWN external SavedCardPanel mount; now handed one level further down so the payment panel
+  // can live inside this modal's Schedule & Payment tab instead (see below). Same component, same
+  // props, same behavior — only where it mounts changed.
+  cardClient, stripeOverride,
 }) {
   const status = deriveCampaignStatus(campaign);
   const actions = deriveActions(campaign, { isOwner, canAuthorizeRun });
@@ -112,6 +148,10 @@ export default function CampaignCard({
   const persistedKey = draftFingerprint(persisted);
   const [draft, setDraft] = useState(persisted);
   const [syncedKey, setSyncedKey] = useState(persistedKey);
+  // TEAM 5 — initialized from the campaign's REAL persisted config, not a hardcoded default (see
+  // deriveSpreadSource above), and resynced on the same trigger as `draft` below so reopening a
+  // campaign that already has a customized spread saved reflects that truthfully.
+  const [spreadSource, setSpreadSource] = useState(() => deriveSpreadSource(campaign.featuredSpreadConfig));
 
   // Resync on VALUE, not on object identity. A refetch hands down a new campaign object every
   // time, so an identity check would wipe unsaved edits whenever anything else on the card
@@ -119,6 +159,7 @@ export default function CampaignCard({
   if (syncedKey !== persistedKey) {
     setDraft(persisted);
     setSyncedKey(persistedKey);
+    setSpreadSource(deriveSpreadSource(campaign.featuredSpreadConfig));
   }
 
   // Inline rename.
@@ -126,6 +167,10 @@ export default function CampaignCard({
   // FOUNDER-APPROVED LAYOUT (2026-09-25) — which tab is showing inside the review/management
   // modal. Presentation state only; it decides nothing and gates no fetch.
   const [activeTab, setActiveTab] = useState("overview");
+  // TEAM 5 (2026-09-29) — whether the individual-contact picker is showing inside the Recipients
+  // tab. It is now part of THIS modal (no second overlay) and stages into the draft below, never
+  // writing to the server on its own.
+  const [pickerOpen, setPickerOpen] = useState(false);
   // TEAM A — removal is a TWO-STEP affordance. The first press only arms it; the second confirms.
   // A destructive action on a card sitting under the pointer during a drag-reorder must never be
   // one stray click away, and an inline confirm keeps the decision on the card being removed
@@ -133,7 +178,6 @@ export default function CampaignCard({
   const [removeArmed, setRemoveArmed] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
-  const [spreadSource, setSpreadSource] = useState("organization_default");
 
   // TEAM C - the Featured Spread editor's server-derived contract.
   //
@@ -633,7 +677,16 @@ export default function CampaignCard({
         <div className="gcd-modal-overlay" role="presentation"
           onClick={() => onToggleExpanded && onToggleExpanded(campaign.campaignId)}>
           <div className="gcd-modal" id={uid("body")} role="dialog" aria-modal="true" aria-labelledby={uid("modal-title")}
-            onClick={(e) => e.stopPropagation()}>
+            onClick={(e) => e.stopPropagation()}
+            /* TEAM 5 (2026-09-29) — Escape now closes this modal, matching the established pattern
+               elsewhere in this codebase (e.g. SalespersonControlCenter.jsx's inline onKeyDown on
+               its own dialog root). Escape behaves like the X button (close only) rather than like
+               Cancel (close AND discard): neither in-repo precedent discards on Escape, and closing
+               without discarding already preserves the unsaved draft for a later reopen — a reader
+               who wants to discard has the existing, explicit Cancel button for that. */
+            onKeyDown={(e) => {
+              if (e.key === "Escape") onToggleExpanded && onToggleExpanded(campaign.campaignId);
+            }}>
             <header className="gcd-modal-head">
               <div>
                 <h2 className="gcd-modal-title" id={uid("modal-title")}>{campaignLabel}</h2>
@@ -701,7 +754,7 @@ export default function CampaignCard({
                   choice that fits in a bubble. Its availability and count stay on the card. */}
               <div className="gcd-wcard-foot">
                 <button type="button" className="gcd-btn" data-testid={`card-individual-${campaign.campaignId}`}
-                  disabled={locked} onClick={() => onOpenIndividualPicker && onOpenIndividualPicker(campaign)}>
+                  disabled={locked} onClick={() => setPickerOpen(true)}>
                   Select Individual Contacts
                 </button>
                 <span className="gcd-wcard-note" data-testid={`card-audience-total-${campaign.campaignId}`}>
@@ -709,6 +762,16 @@ export default function CampaignCard({
                   {counts.unclassified > 0 ? ` \u00b7 ${counts.unclassified} unclassified` : ""}
                 </span>
               </div>
+              {pickerOpen ? (
+                <div className="gcd-wcard-foot" style={{ display: "block", marginTop: 12 }}>
+                  <IndividualContactPicker
+                    contacts={contacts}
+                    initialSelected={draft.individualRefs}
+                    onClose={() => setPickerOpen(false)}
+                    onSave={(ids) => { edit({ individualRefs: ids }); setPickerOpen(false); }}
+                  />
+                </div>
+              ) : null}
             </section>
           </div>
 
@@ -835,12 +898,7 @@ export default function CampaignCard({
                     onChange={(v) => setSpreadSource(v)} />
                 ))}
               </BubbleGroup>
-              {/* The three choices above stay visible while these secondary tools are in use. */}
-              {spreadSource === "saved_spread" ? (
-                <div className="gcd-wcard-foot" data-testid={`card-spread-saved-${campaign.campaignId}`}>
-                  <span className="gcd-wcard-note">Choose one of your saved spreads.</span>
-                </div>
-              ) : null}
+              {/* The two choices above stay visible while this secondary tool is in use. */}
               {spreadSource === "customize" ? (
                 <div className="gcd-wcard-foot" data-testid={`card-spread-editor-${campaign.campaignId}`}>
                   {/* TEAM C - the pre-existing INERT editor, corrected.
@@ -915,51 +973,25 @@ export default function CampaignCard({
             </div>
           </div>
 
-          {/* ── PAYMENT METHOD — presentation only. No new fetch, no new client: the org's card is
-              managed exactly where it always was, in the EXISTING Payment method panel above the
-              dashboard's Contacts section (SavedCardPanel, untouched). This block only reserves
-              the space the approved reference calls for and shows whatever this card already
-              safely knows (its own computed "Est. total"); everything this card cannot know
-              honestly says so instead of guessing. */}
+          {/* ── PAYMENT METHOD — TEAM 5 (2026-09-29): the org's saved card now lives HERE, inside
+              this campaign's own Schedule & Payment tab, using the EXISTING SavedCardPanel
+              component/API/Stripe-Elements wiring completely unchanged — only where it mounts
+              changed. Previously this was a placeholder with mostly hardcoded "—" values, and its
+              "Manage payment method" button CLOSED this modal and scrolled to a separate panel
+              rendered below the Campaigns section on the main dashboard — founder-approved layout
+              rule #8/#9 explicitly calls for payment management to live inside Schedule & Payment
+              and for there to be no detached account-level panel. The estimated-total row (real,
+              computed from this card's own draft) is kept alongside it; SavedCardPanel itself
+              needs no route params or lifted context — it builds its own Stripe Elements provider
+              per mount, so nesting one per open campaign modal is safe. */}
           <div className="gcd-section" style={{ marginTop: 18 }}>
-            <p className="gcd-section-label">Payment method</p>
             <dl className="gcd-info" data-testid={`card-payment-summary-${campaign.campaignId}`}>
-              <div className="gcd-info-row">
-                <dt className="gcd-info-label">Card</dt>
-                <dd className="gcd-info-value" data-testid={`card-payment-card-${campaign.campaignId}`}>—</dd>
-              </div>
-              <div className="gcd-info-row">
-                <dt className="gcd-info-label">Funding status</dt>
-                <dd className="gcd-info-value" data-testid={`card-payment-funding-${campaign.campaignId}`}>—</dd>
-              </div>
               <div className="gcd-info-row">
                 <dt className="gcd-info-label">Estimated campaign total</dt>
                 <dd className="gcd-info-value" data-testid={`card-payment-total-${campaign.campaignId}`}>{metaEstTotal}</dd>
               </div>
-              <div className="gcd-info-row">
-                <dt className="gcd-info-label">Expected charge date</dt>
-                <dd className="gcd-info-value" data-testid={`card-payment-chargedate-${campaign.campaignId}`}>—</dd>
-              </div>
             </dl>
-            <p className="gcd-wcard-note" data-testid={`card-payment-placeholder-${campaign.campaignId}`}>
-              Payment method details will appear here.
-            </p>
-            {/* Opens the EXISTING Payment method panel above Contacts — same section, same
-                SavedCardPanel, same card. This closes the modal and scrolls; it calls nothing. */}
-            <button type="button" className="gcd-btn" data-testid={`card-manage-payment-${campaign.campaignId}`}
-              onClick={() => {
-                if (onToggleExpanded) onToggleExpanded(campaign.campaignId);
-                if (typeof window !== "undefined" && window.requestAnimationFrame) {
-                  window.requestAnimationFrame(() => {
-                    const el = document.getElementById("gcd-card-head");
-                    if (el && typeof el.scrollIntoView === "function") {
-                      el.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }
-                  });
-                }
-              }}>
-              Manage payment method
-            </button>
+            <SavedCardPanel orgId={orgId} client={cardClient} stripeOverride={stripeOverride} />
           </div>
           </div>
             </div>

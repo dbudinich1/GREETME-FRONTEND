@@ -7,21 +7,21 @@
 // unreachable rather than merely uncategorised. Each row shows a small neutral descriptor
 // ("Unclassified"), never a guessed category.
 //
-// Selection is a set of ids, so a contact already chosen by a category and then chosen again here
-// stays a single ref. Saving PUTs the deduplicated list through the EXISTING audience endpoint.
+// TEAM 5 (2026-09-29) — this used to write straight to the server (client.setAudience) the moment
+// its own Save was clicked, independent of whatever the campaign's OWN edit buffer held. That let a
+// reader lose an unsaved category-checkbox change with no warning: the picker's write updated the
+// server, the dashboard refetched, and the campaign's local draft resynced to the new persisted
+// value, silently discarding anything not yet committed. Selection here now stages into the SAME
+// edit buffer everything else in the campaign modal already uses — `onSave` hands the id array back
+// to the caller (CampaignCard), which folds it into `draft.individualRefs`. Nothing is sent to the
+// server until the campaign modal's own Save is pressed, exactly like every other field on the card.
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { contactCategoryLabel, contactCategoryAbbr } from "./corporateDashboardModel.js";
 import "./premiumDashboard.css";
 
-export default function IndividualContactPicker({ contacts, orgId, campaign, client, onClose, onSaved }) {
-  const initial = useMemo(
-    () => new Set(Array.isArray(campaign && campaign.audienceRefs) ? campaign.audienceRefs : []),
-    [campaign]
-  );
-  const [selected, setSelected] = useState(initial);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState(null);
+export default function IndividualContactPicker({ contacts, initialSelected, onClose, onSave }) {
+  const [selected, setSelected] = useState(() => new Set(Array.isArray(initialSelected) ? initialSelected : []));
 
   const list = Array.isArray(contacts) ? contacts : [];
 
@@ -33,21 +33,14 @@ export default function IndividualContactPicker({ contacts, orgId, campaign, cli
     });
   }
 
-  async function save() {
-    if (!campaign) return;
-    setSaving(true); setMessage(null);
-    const res = await client.setAudience(orgId, campaign.campaignId, [...selected]);
-    setSaving(false);
-    // Never report success the server did not confirm.
-    if (!res || res.ok !== true) {
-      setMessage("That didn’t save. Please try again.");
-      return;
-    }
-    if (onSaved) await onSaved();
+  function save() {
+    onSave([...selected]);
   }
 
   return (
-    <div className="gcd-panel" data-testid="individual-picker" role="dialog" aria-label="Select individual contacts" aria-modal="false">
+    // TEAM 5 — no `role="dialog"`/`aria-modal`: this now renders in-flow inside the campaign
+    // modal's own Recipients tab, not as a second overlay, so it is not itself a dialog.
+    <div className="gcd-panel" data-testid="individual-picker" aria-label="Select individual contacts">
       <div className="gcd-panel-head">
         <div>
           <h2 className="gcd-panel-title">Select Individual Contacts</h2>
@@ -87,10 +80,12 @@ export default function IndividualContactPicker({ contacts, orgId, campaign, cli
       </div>
 
       <div className="gcd-footer" style={{ padding: "0 20px 18px", marginTop: 0 }}>
-        <button type="button" className="gcd-btn gcd-btn--primary" data-testid="picker-save" disabled={saving} onClick={save}>
-          {saving ? "Saving…" : `Save ${selected.size} selected`}
+        <button type="button" className="gcd-btn gcd-btn--primary" data-testid="picker-save" onClick={save}>
+          {`Use ${selected.size} selected`}
         </button>
-        {message ? <p className="gcd-msg" role="status" data-testid="picker-msg">{message}</p> : null}
+        <p className="gcd-wcard-note" data-testid="picker-stage-note">
+          Applied to this campaign's unsaved changes — press Save on the campaign to commit it.
+        </p>
       </div>
     </div>
   );

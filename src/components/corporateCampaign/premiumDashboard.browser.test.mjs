@@ -52,6 +52,14 @@ before(async () => {
     entryPoints: [ENTRY], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
     jsx: "automatic", loader: { ".js": "jsx", ".jsx": "jsx", ".css": "empty" },
     external: ["react", "react-dom", "react-dom/client", "react-router-dom"],
+    // TEAM 5 (2026-09-29) — CampaignCard.jsx now embeds SavedCardPanel (payment relocation into
+    // the Schedule & Payment tab), which transitively imports stripeProvider.js, which reads
+    // import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY. Real Vite injects import.meta.env at build
+    // time; this plain-Node esbuild bundle does not, so it must be defined explicitly (mirroring
+    // the same, already-working pattern in greetingAutomationCreate.browser.test.mjs) or the
+    // bundle throws on import with no publishable key configured — a test-harness gap this
+    // change exposed, not a defect in the relocated component itself.
+    define: { "import.meta.env": "{}" },
   });
   dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://app.test/" });
   globalThis.window = dom.window; globalThis.document = dom.window.document;
@@ -272,13 +280,17 @@ test("D: exactly three contact tiles, counted from the persisted classification"
   assert.equal(s.qa(".gcd-tile").length, 3);
 });
 
-test("D: the arithmetic is disclosed and the notice names Select Individual Contacts", async () => {
+// TEAM 5 (2026-09-29): the global "Select Individual Contacts" button on this panel used to
+// default to an arbitrary first campaign with no indication which one, and opened a picker that
+// mounted behind an already-open campaign modal. Removed entirely — unclassified contacts remain
+// reachable from within each campaign's own Recipients tab, which is what the notice now says.
+test("D: the arithmetic is disclosed, and the notice points to the per-campaign picker", async () => {
   const s = await mount(React.createElement(ContactTiles, { contacts: CONTACTS }));
   assert.equal(s.tid("contact-totals").textContent, "4 classified · 2 unclassified · 6 total");
   const notice = s.tid("unclassified-notice");
   assert.ok(notice, "the gap is disclosed, never hidden");
-  assert.match(notice.textContent, /2 existing contacts are unclassified\. They remain available through Select Individual Contacts\./);
-  assert.ok(s.tid("unclassified-select-individual"), "and offers the action that actually exists");
+  assert.match(notice.textContent, /2 existing contacts are unclassified\. They remain available from within a campaign's Recipients tab\./);
+  assert.equal(s.tid("unclassified-select-individual"), null, "the disorienting global action is gone");
   // No fabricated remedy.
   assert.equal(/fix classification|reclassify|migrate/i.test(notice.textContent), false);
 });
@@ -375,15 +387,20 @@ test("D: the Curated tier control persists CENTS and is described as private", a
   assert.equal(JSON.stringify(body).includes('"amount"'), false);
 });
 
+// TEAM 5 (2026-09-29): "saved_spread" is removed from the choice set entirely — it had no
+// backing functionality (no picker, no saved-spread list, nothing clickable), unlike the other
+// two options which correspond to the real, only-two-values backend contract
+// (ANIMATION_IMAGE_SOURCE.ORGANIZATION_DEFAULT / CAMPAIGN_OVERRIDE).
 test("F1C: every choice is a real checkbox or radio behind a substantial circle", async () => {
   const s = await mount(cardEl());
   for (const k of ["employee", "client", "vendor"]) assert.equal(s.q(`#c-cmp_1-aud-${k}`).type, "checkbox");
   for (const v of ["none", "curated", "qrcash", "marketplace"]) assert.equal(s.q(`#c-cmp_1-gift-${v}`).type, "radio");
-  for (const v of ["organization_default", "saved_spread", "customize"]) assert.equal(s.q(`#c-cmp_1-spread-${v}`).type, "radio");
+  for (const v of ["organization_default", "customize"]) assert.equal(s.q(`#c-cmp_1-spread-${v}`).type, "radio");
+  assert.equal(s.q("#c-cmp_1-spread-saved_spread"), null, "the non-functional third option is gone");
   // Radios in a group share one name → genuine single-select.
   assert.equal(s.q("#c-cmp_1-gift-none").name, s.q("#c-cmp_1-gift-curated").name);
   // The visual is a circle, and every control keeps its label.
-  assert.ok(s.qa(".gcd-wcard .gcd-dot").length >= 10, "a circle per choice");
+  assert.ok(s.qa(".gcd-wcard .gcd-dot").length >= 9, "a circle per choice");
   for (const el of s.qa(".gcd-wcard .gcd-bubble input")) {
     assert.ok(s.q(`label[for="${el.id}"]`), `${el.id} must have a label`);
   }
@@ -441,22 +458,30 @@ test("D: category bubbles call setAudience with a deduplicated, unclassified-fre
 });
 
 // ══ individual picker ═══════════════════════════════════════════════════════════════════════
+// TEAM 5 (2026-09-29): the picker no longer writes to the server itself (see
+// IndividualContactPicker.jsx's header comment) — opening it inside an already-open campaign
+// modal used to write to the server independently of that modal's own draft, which could
+// silently discard an unrelated unsaved edit the instant the dashboard refetched. It now stages
+// its selection into the caller's edit buffer via `onSave`, exactly like every other field on
+// the card, and is rendered in-place inside the modal rather than as a second overlay elsewhere
+// in the DOM — so this test now proves the STAGING contract, not a network call.
 test("D: an unclassified contact is selectable individually and labelled neutrally", async () => {
+  let staged = null;
+  calls.length = 0;
   const s = await mount(React.createElement(IndividualContactPicker, {
-    contacts: CONTACTS, orgId: "org1", campaign: campaign({ audienceRefs: ["e1"] }), client: fakeClient,
-    onClose: () => {}, onSaved: async () => {},
+    contacts: CONTACTS, initialSelected: ["e1"],
+    onClose: () => {}, onSave: (ids) => { staged = ids; },
   }));
   assert.ok(s.tid("pick-u1"), "unclassified contacts remain reachable");
   assert.equal(s.tid("pick-u1-category").textContent, "Unclassified");
   assert.equal(s.tid("pick-e1-category").textContent, "Employee");
 
-  calls.length = 0;
   const box = s.q("#pick-u1");
   await act(async () => { box.click(); });
   await click(s.tid("picker-save"));
-  const refs = calls.find((c) => c[0] === "setAudience")[3];
-  assert.deepEqual([...refs].sort(), ["e1", "u1"]);
-  assert.equal(new Set(refs).size, refs.length);
+  assert.deepEqual([...staged].sort(), ["e1", "u1"], "staged locally, not written to the server");
+  assert.equal(new Set(staged).size, staged.length);
+  assert.equal(calls.length, 0, "no network call — nothing is sent until the campaign's own Save");
 });
 
 
@@ -992,8 +1017,9 @@ test("F1B: all three configuration cards are COMPLETE and visible at once", asyn
   for (const v of ["none", "curated", "qrcash", "marketplace"]) {
     assert.ok(s.q(`#c-cmp_1-gift-${v}`), `${v} bubble visible without another click`);
   }
-  // Featured Spread: all three, immediately.
-  for (const v of ["organization_default", "saved_spread", "customize"]) {
+  // Featured Spread: both real options, immediately (TEAM 5, 2026-09-29 — the non-functional
+  // "saved_spread" third option was removed; see the F1C test above for why).
+  for (const v of ["organization_default", "customize"]) {
     assert.ok(s.q(`#c-cmp_1-spread-${v}`), `${v} bubble visible without another click`);
   }
 });
@@ -1033,15 +1059,16 @@ test("F1B: a disabled gift choice stays VISIBLE and disabled, with its reason", 
   }
 });
 
-test("F1B: the spread editor opens inline WITHOUT hiding the three spread choices", async () => {
+test("F1B: the spread editor opens inline WITHOUT hiding the spread choices", async () => {
   // The only secondary tools that still open on demand are the ones that cannot fit in a bubble.
   const s = await mount(cardEl({}, { isOwner: true }));
   assert.equal(s.tid("card-spread-editor-cmp_1"), null, "closed until Customize is chosen");
 
   await act(async () => { s.q("#c-cmp_1-spread-customize").click(); });
   assert.ok(s.tid("card-spread-editor-cmp_1"), "the existing editor opens inline");
-  // …and the three principal choices are still on screen.
-  for (const v of ["organization_default", "saved_spread", "customize"]) {
+  // …and both real choices are still on screen (TEAM 5, 2026-09-29 — the non-functional
+  // "saved_spread" third option was removed; see the F1C test above for why).
+  for (const v of ["organization_default", "customize"]) {
     assert.ok(s.q(`#c-cmp_1-spread-${v}`), `${v} still visible while the editor is in use`);
   }
   assert.equal(s.qa("[role='dialog']").length, 0, "no modal");

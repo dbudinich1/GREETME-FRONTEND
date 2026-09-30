@@ -347,16 +347,20 @@ test("both sources project into the ONE card shape, so the grid cannot go ragged
 });
 
 test("QR Cash is byte-identical to its deployed form", () => {
+  // Re-baselined (six-team integration, 2026-09-29): same reviewed change as
+  // merchFounderDrawer.test.mjs's identical tripwire -- Team 1's gift/entitlement-safety pass
+  // replaced this block's onClick with the real, backend-wired composer flow and added a 2-line
+  // attribution comment (41 -> 43 lines). Re-approving that specific change, not weakening it.
   const lines = SRC.split("\n");
   const start = lines.findIndex((l) => l.includes("AGP-02 — QR Cash™ featured tile"));
   assert.ok(start > -1, "the QR Cash block must exist");
   let end = start;
   while (end < lines.length && lines[end] !== "      </div>") end += 1;
   const block = lines.slice(start, end + 1).join("\n") + "\n";
-  assert.equal(block.split("\n").length - 1, 41, "the block must still be 41 lines");
+  assert.equal(block.split("\n").length - 1, 43, "the block must still be 43 lines");
   assert.equal(
     createHash("sha256").update(block, "utf8").digest("hex"),
-    "d01223695e8c4563fd08fb2a9329b52d8a275341a85cf4e078ff673bdce9c76a",
+    "f7cb622a33edbe74f2e796400b650495941cafd05dac49b8e3484f6ea7660fb3",
     "the QR Cash tile changed — it must stay byte-identical"
   );
 });
