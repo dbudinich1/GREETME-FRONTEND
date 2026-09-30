@@ -136,6 +136,14 @@ export default function Checkout() {
   const creditAmount = referralCode ? 10 : (courtesyCredit?.amount || 0);
 
   const [total, setTotal] = useState(0);
+  // CREDIT CONTRACT INTEGRITY (2026-09-29, follow-up correction) — the order summary must never
+  // show "Credit Applied –$5.00" (and a discounted total) once the backend has told us the
+  // credit was refused. null = no override, display the credit normally (the pre-existing
+  // behavior for a successful application, or for any OTHER refusal reason this correction does
+  // not touch — see the required-tests note on "invalid or consumed credit retains its
+  // existing behavior"). Set ONLY for the two reasons that mean "temporarily blocked, not gone":
+  // subscriber_ineligible / status_unverifiable.
+  const [creditDisplayOverride, setCreditDisplayOverride] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [orderId, setOrderId] = useState(null);
@@ -320,6 +328,9 @@ export default function Checkout() {
 
     setIsProcessing(true);
     setErrors({});
+    // A fresh submit attempt starts from a clean display slate — a prior attempt's override must
+    // not linger if this attempt reaches a different outcome (e.g. the account is now eligible).
+    setCreditDisplayOverride(null);
     try {
       // Read G1G1 data from sessionStorage (set by Cart)
       const g1g1Raw = (() => { try { return JSON.parse(sessionStorage.getItem('greetme_g1g1_checkout') || 'null'); } catch { return null; } })();
@@ -362,6 +373,13 @@ export default function Checkout() {
         if (!isTemporaryRefusal) {
           localStorage.removeItem('greetme_courtesy_credit');
           localStorage.removeItem('greetme_referral_code');
+        } else {
+          // CREDIT CONTRACT INTEGRITY (2026-09-29, final display correction) — the order summary
+          // must stop showing "Credit Applied –$5.00" and the discounted total the instant the
+          // backend reports this refusal; showing a discount the checkout will not actually honor
+          // is financially misleading. Scoped to exactly these two reasons — an invalid/consumed
+          // credit (any other reason) keeps its pre-existing summary behavior unchanged.
+          setCreditDisplayOverride(data.creditFailureReason);
         }
         setErrors({
           submit: data.creditFailureReason === 'subscriber_ineligible'
@@ -854,7 +872,12 @@ export default function Checkout() {
                   const hasReferralCredit = !!referralCode;
                   const g1g1Eligible = !!subscriptionItem && !hasReferralCredit && G1G1_PERSONAL_TIERS.has(subscriptionItem?.planTier);
                   const creditEligible = subscriptionItem?.planTier !== 'close_circle';
-                  const effectiveCredit = creditEligible ? creditAmount : 0;
+                  // CREDIT CONTRACT INTEGRITY (2026-09-29, final display correction) — a
+                  // subscriber_ineligible / status_unverifiable refusal zeroes the credit here too,
+                  // so the total below is computed the same way it would be for a checkout that
+                  // never had a credit at all — never a discounted figure the backend already
+                  // refused to honor.
+                  const effectiveCredit = (creditEligible && !creditDisplayOverride) ? creditAmount : 0;
                   const techFee = platformFeeFor(subscriptionItem);
                   const finalTotal = Math.max(0, planPrice + techFee - effectiveCredit);
 
@@ -902,9 +925,13 @@ export default function Checkout() {
 
                       {/* Credit Applied */}
                       {creditAmount > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.625rem', fontSize: '1rem', color: creditEligible ? '#22c55e' : '#9ca3af', fontWeight: 500, fontStyle: creditEligible ? 'normal' : 'italic' }}>
-                          <span>Credit Applied</span>
-                          <span>{creditEligible ? `\u2013$${creditAmount.toFixed(2)}` : 'Not eligible for this plan'}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.625rem', fontSize: '1rem', color: (creditEligible && !creditDisplayOverride) ? '#22c55e' : '#9ca3af', fontWeight: 500, fontStyle: (creditEligible && !creditDisplayOverride) ? 'normal' : 'italic' }}>
+                          <span>{creditDisplayOverride ? 'Greet-Me Credit' : 'Credit Applied'}</span>
+                          <span>
+                            {creditDisplayOverride === 'subscriber_ineligible' ? 'Saved for later'
+                              : creditDisplayOverride === 'status_unverifiable' ? 'Not applied'
+                              : creditEligible ? `\u2013$${creditAmount.toFixed(2)}` : 'Not eligible for this plan'}
+                          </span>
                         </div>
                       )}
 
