@@ -395,3 +395,38 @@ test.describe('Top-Up reconciliation — desktop visual evidence', () => {
     await page.screenshot({ path: 'test-results/send-limit-recovery/16-failed-purchase-recovery.png' });
   });
 });
+
+// ===========================================================================
+// FOUNDER-APPROVED LABEL CORRECTION (2026-09-30) — "Top Up" -> "Purchase Additional Sends",
+// "Upgrade" -> "Upgrade Plan" in the shared GiftEntitlementCautionModal. Copy only: same handlers,
+// same testids, same destinations, same layout.
+// ===========================================================================
+test.describe('Label correction — desktop visual evidence', () => {
+  test('label-correction-01 - caution modal shows both new labels, full page context', async ({ page }) => {
+    await seedAuthAndCart(page);
+    await mockApi(page, { preflight: INSUFFICIENT_PREFLIGHT });
+    await goToSend(page);
+    await selectContact(page);
+    await selectMarketplaceGift(page);
+    await page.getByRole('button', { name: /Done . Send/i }).click();
+    await page.getByRole('button', { name: 'Continue to Secure Checkout' }).click();
+    await expect(page.getByTestId('caution-triangle')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('caution-topup')).toHaveText(/Purchase Additional Sends/);
+    await expect(page.getByTestId('caution-upgrade')).toHaveText(/Upgrade Plan/);
+    await page.screenshot({ path: 'test-results/send-limit-recovery/label-correction-01-caution-modal-new-labels.png' });
+  });
+
+  test('label-correction-02 - caution modal close-up, both new labels legible', async ({ page }) => {
+    await seedAuthAndCart(page);
+    await mockApi(page, { preflight: INSUFFICIENT_PREFLIGHT });
+    await goToSend(page);
+    await selectContact(page);
+    await selectMarketplaceGift(page);
+    await page.getByRole('button', { name: /Done . Send/i }).click();
+    await page.getByRole('button', { name: 'Continue to Secure Checkout' }).click();
+    await expect(page.getByTestId('caution-triangle')).toBeVisible({ timeout: 10000 });
+    await page.getByTestId('gift-entitlement-caution').screenshot({
+      path: 'test-results/send-limit-recovery/label-correction-02-caution-modal-closeup.png',
+    });
+  });
+});

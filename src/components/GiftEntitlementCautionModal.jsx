@@ -122,11 +122,13 @@ export default function GiftEntitlementCautionModal({
             <p style={styles.remaining} data-testid="caution-remaining">{remainingCopy(preflight)}</p>
           ) : null}
 
+          {/* FOUNDER-APPROVED LABEL CORRECTION (2026-09-30) — was "Top Up"/"Upgrade". Same
+              handlers, same testids, same destinations; copy only. */}
           <button type="button" style={styles.choiceButton} data-testid="caution-topup" onClick={onTopUp}>
-            <Wallet size={18} /> Top Up
+            <Wallet size={18} /> Purchase Additional Sends
           </button>
           <button type="button" style={styles.choiceButton} data-testid="caution-upgrade" onClick={onUpgrade}>
-            <TrendingUp size={18} /> Upgrade
+            <TrendingUp size={18} /> Upgrade Plan
           </button>
           <button
             type="button" style={styles.giftOnlyButton} data-testid="caution-gift-only"
