@@ -164,7 +164,7 @@ export default function ProviderCheckoutModal({
 
   // The authoritative review, derived only from the backend's quote. Recomputed when the quote or
   // the chosen product changes, so an acknowledgement can never carry over to a different price.
-  const review = useMemo(() => reviewQuote({ prepared, chosen, form }), [prepared, chosen, form]);
+  const review = useMemo(() => reviewQuote({ prepared, chosen, form, giftType }), [prepared, chosen, form, giftType]);
   useEffect(() => { setPriceAcknowledged(false); }, [prepared?.quote?.quoteVersion]);
   const cardFilled = Boolean(
     String(card.cardNumber).trim() && String(card.expMonth).trim()
@@ -450,7 +450,13 @@ export default function ProviderCheckoutModal({
                 {errors.recipientPhone
                   ? <small style={{ color: '#b91c1c' }}>{errors.recipientPhone}</small>
                   : <small style={{ color: 'var(--text-secondary, #64748b)' }}>
-                      The florist may need to call about the delivery.
+                      {/* CATEGORY-CONDITIONAL. This used to say "the florist" unconditionally, which
+                          is wrong for a gift box — no florist exists on that order at all. Flowers
+                          keeps its exact original wording; every other category gets a vendor-neutral
+                          equivalent, never a provider's name. */}
+                      {giftType === 'flowers'
+                        ? 'The florist may need to call about the delivery.'
+                        : 'The delivery partner may need to call about the delivery.'}
                     </small>}
               </div>
             </fieldset>
@@ -495,7 +501,12 @@ export default function ProviderCheckoutModal({
             <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.9rem' }}>
               <input type="checkbox" checked={form.allowSubstitutions}
                 onChange={(e) => setForm((f) => ({ ...f, allowSubstitutions: e.target.checked }))} />
-              Allow the florist to substitute flowers of equal or greater value
+              {/* CATEGORY-CONDITIONAL, same reason as the phone helper above: "the florist" and
+                  "flowers" are both wrong for a gift box, and this field is sent to the backend for
+                  either category regardless (see toPrepareRequest's allowSubstitutions). */}
+              {giftType === 'flowers'
+                ? 'Allow the florist to substitute flowers of equal or greater value'
+                : 'Allow a substitution of equal or greater value if an item becomes unavailable'}
             </label>
 
             {/* BILLING — the cardholder's own details, required by the provider for the charge.
