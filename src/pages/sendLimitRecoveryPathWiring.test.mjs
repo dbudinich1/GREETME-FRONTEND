@@ -162,6 +162,12 @@ test("handleReviewMarketplaceCheckout forwards whatever giftOnlyToken the prefli
   assert.match(fn, /giftOnlyToken:\s*giftOnlyToken\s*\|\|\s*null/);
 });
 
+test("runGiftEntitlementPreflight accepts either giftOnlyToken or token from gift-only authorization responses", () => {
+  const fn = block(SEND_SRC, "const runGiftEntitlementPreflight = async (giftAttemptId) => {", "  };", "runGiftEntitlementPreflight");
+  assert.match(fn, /const giftOnlyToken = auth\?\.giftOnlyToken \|\| auth\?\.token \|\| null;/);
+  assert.match(fn, /if \(auth\?\.ok && giftOnlyToken\)/);
+});
+
 // ===========================================================================
 // PaymentSuccess.jsx — consuming the return marker
 // ===========================================================================

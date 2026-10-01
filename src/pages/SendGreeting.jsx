@@ -262,9 +262,10 @@ export default function SendGreeting() {
         onContinueGiftOnly: async () => {
           try {
             const auth = await api.requestGiftOnlyAuthorization(giftAttemptId);
+            const giftOnlyToken = auth?.giftOnlyToken || auth?.token || null;
             setEntitlementCaution(null);
-            if (auth?.ok && auth.giftOnlyToken) {
-              resolve({ proceed: true, giftOnlyToken: auth.giftOnlyToken });
+            if (auth?.ok && giftOnlyToken) {
+              resolve({ proceed: true, giftOnlyToken });
             } else {
               // The server re-checked and disagreed (e.g. the user actually has a send now) —
               // fail closed on the ESCAPE HATCH, not on the send: just don't proceed with a
