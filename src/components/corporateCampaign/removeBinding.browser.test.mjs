@@ -47,7 +47,7 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://greet-me.com/" });
   window = dom.window;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ } globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   React = (await import("react")).default;
   ({ createRoot } = await import("react-dom/client"));
   ({ act } = await import("react"));

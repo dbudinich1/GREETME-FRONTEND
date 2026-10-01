@@ -37,7 +37,7 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   const { window } = dom;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ } globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.sessionStorage = window.sessionStorage;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   // Trip-wire: any network call fails the "no private API" guarantee.
