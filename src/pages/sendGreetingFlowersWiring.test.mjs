@@ -323,7 +323,15 @@ test("closing the checkout releases the parked greeting and touches no draft sta
   const setters = [...CODE.matchAll(/setGiftConfirmedForSend\((.*?)\);/g)].map((m) => m[1]);
   assert.ok(setters.length >= 1, "the flag must be set somewhere");
   const truthy = setters.filter((a) => a !== "false");
-  assert.deepEqual(truthy, ["true"], "exactly one place turns the recipient announcement on");
+  // GIFT BOX DIRECT CHECKOUT (2026-09-30): one per category dispatch — dispatchFlowerGreeting and
+  // dispatchGiftBoxGreeting — each reached only from its own accepted handoff.
+  assert.deepEqual(truthy, ["true", "true"], "exactly one place per category turns the recipient announcement on");
+  for (const fn of ["const dispatchFlowerGreeting =", "const dispatchGiftBoxGreeting ="]) {
+    const a = CODE.indexOf(fn);
+    assert.ok(a > -1, `${fn} must exist`);
+    const body = CODE.slice(a, CODE.indexOf("\n  };", a));
+    assert.match(body, /setGiftConfirmedForSend\(true\)/, `${fn} is where its category's flag is set`);
+  }
   // And that one place is the dispatch, which is unreachable without a token the backend proved
   // linked — so the announcement cannot be shown for a gift that is not attached.
   const dispatch = block("const dispatchFlowerGreeting", "/**", "dispatch");
