@@ -40,6 +40,22 @@ const linkBtn = {
 };
 const severityColor = { normal: "#3a3552", attention: "#b3261e" };
 
+const PARTNER_LINKS_SHOWN = 5;
+
+/** A count the server stated, or an "unavailable" marker - never a guessed 0. */
+function overviewCount(section, key) {
+  const n = section && section[key];
+  return Number.isFinite(n) ? n : <span style={unavailable}>unavailable</span>;
+}
+/** { active: 2, draft: 1 } -> "Active 2 · Draft 1"; null when there is nothing to say. */
+function statusPairs(byStatus) {
+  if (!byStatus || typeof byStatus !== "object") return null;
+  const parts = Object.entries(byStatus)
+    .filter(([, n]) => Number.isFinite(n))
+    .map(([k, n]) => `${String(k).replace(/[_-]+/g, " ").replace(/^./, (c) => c.toUpperCase())} ${n}`);
+  return parts.length ? parts.join(" · ") : null;
+}
+
 function money(cents) {
   if (!Number.isFinite(cents)) return null;
   return `$${(cents / 100).toFixed(2)}`;
@@ -73,6 +89,7 @@ export default function FounderCentralCommand({
 
   const [qrCash, setQrCash] = useState({ loading: true, data: null, error: null });
   const [fundraising, setFundraising] = useState({ loading: true, data: null, error: null });
+  const [orgs, setOrgs] = useState({ loading: true, rows: [], error: null }); // W36 partner-portal entry links
   const [sales, setSales] = useState({ loading: true, activeCount: null, error: null });
   const [catalog, setCatalog] = useState({ loading: true, activeCount: null, totalCount: null, error: null });
 
@@ -96,6 +113,25 @@ export default function FounderCentralCommand({
       if (!alive) return;
       if (res.ok && res.data) setFundraising({ loading: false, data: res.data, error: null });
       else setFundraising({ loading: false, data: null, error: "Couldn't load the fundraising overview." });
+    })();
+    return () => { alive = false; };
+  }, [founder, fundraiserOverviewApi]);
+
+  // W36 - the EXISTING founder organizations read (GET /api/fundraiser/admin/organizations), used
+  // only to build links to the existing partner portal route. A founder passes
+  // requirePartnerAdminFor for any organization server-side, so the portal link resolves.
+  useEffect(() => {
+    if (!founder) return undefined;
+    let alive = true;
+    (async () => {
+      if (typeof fundraiserOverviewApi.organizations !== "function") {
+        setOrgs({ loading: false, rows: [], error: "Couldn't load partner organizations." });
+        return;
+      }
+      const res = await fundraiserOverviewApi.organizations();
+      if (!alive) return;
+      if (res && res.ok && Array.isArray(res.data)) setOrgs({ loading: false, rows: res.data, error: null });
+      else setOrgs({ loading: false, rows: [], error: "Couldn't load partner organizations." });
     })();
     return () => { alive = false; };
   }, [founder, fundraiserOverviewApi]);
@@ -273,6 +309,100 @@ export default function FounderCentralCommand({
           <a href="#/dashboard/fundraiser/admin" style={linkBtn} data-testid="fcc-fundraising-open">
             Open Fundraising Management
           </a>
+        </section>
+
+        {/* ── W36 (PROPOSED) · ENTRY POINTS to existing fundraiser surfaces ─────────────────────
+            Four separate cards: campaigns, participants, partner portal, activation state. Each
+            reads ONLY the founder overview this page already loads (counts + byStatus) and links to
+            an EXISTING route. No new endpoint, no mutation, no duplicate subsystem. The route and
+            permission trace is in reports/closeout-sprint/lane-reports/T1C.md (W36 trace). */}
+        <section style={card} data-testid="fcc-card-campaigns" aria-labelledby="fcc-campaigns-title">
+          <h2 id="fcc-campaigns-title" style={cardTitle}>Fundraiser Campaigns</h2>
+          {fundraising.loading ? <p style={unavailable}>Loading…</p>
+            : fundraising.error ? <p style={unavailable} data-testid="fcc-campaigns-error">{fundraising.error}</p>
+            : (
+              <>
+                <div style={statRow}>
+                  <span>Campaigns</span>
+                  <span style={statValue} data-testid="fcc-campaigns-total">{overviewCount(fundraising.data.campaigns, "total")}</span>
+                </div>
+                <p style={{ ...statRow, margin: 0 }} data-testid="fcc-campaigns-bystatus">
+                  {statusPairs(fundraising.data.campaigns && fundraising.data.campaigns.byStatus) || <span style={unavailable}>No campaigns yet</span>}
+                </p>
+              </>
+            )}
+          <a href="#/dashboard/fundraiser/admin" style={linkBtn} data-testid="fcc-campaigns-open">Open Campaigns</a>
+        </section>
+
+        <section style={card} data-testid="fcc-card-participants" aria-labelledby="fcc-participants-title">
+          <h2 id="fcc-participants-title" style={cardTitle}>Fundraiser Participants</h2>
+          {fundraising.loading ? <p style={unavailable}>Loading…</p>
+            : fundraising.error ? <p style={unavailable} data-testid="fcc-participants-error">{fundraising.error}</p>
+            : (
+              <>
+                <div style={statRow}>
+                  <span>Participants</span>
+                  <span style={statValue} data-testid="fcc-participants-total">{overviewCount(fundraising.data.participants, "total")}</span>
+                </div>
+                <div style={statRow}>
+                  <span>Active</span>
+                  <span style={statValue} data-testid="fcc-participants-active">{overviewCount(fundraising.data.participants, "active")}</span>
+                </div>
+              </>
+            )}
+          <a href="#/dashboard/fundraiser/admin" style={linkBtn} data-testid="fcc-participants-open">Open Participants</a>
+        </section>
+
+        <section style={card} data-testid="fcc-card-partner" aria-labelledby="fcc-partner-title">
+          <h2 id="fcc-partner-title" style={cardTitle}>Partner Portal</h2>
+          {orgs.loading ? <p style={unavailable}>Loading…</p>
+            : orgs.error ? <p style={unavailable} data-testid="fcc-partner-error">{orgs.error}</p>
+            : orgs.rows.length === 0 ? <p style={unavailable} data-testid="fcc-partner-empty">No partner organizations yet.</p>
+            : (
+              <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: ".85rem", color: "#3a3552" }} data-testid="fcc-partner-list">
+                {orgs.rows.slice(0, PARTNER_LINKS_SHOWN).map((o) => (
+                  <li key={o.organizationId}>
+                    <a href={`#/dashboard/fundraiser/partner/${encodeURIComponent(o.organizationId)}`}
+                      data-testid={`fcc-partner-org-${o.organizationId}`}>{o.legalName || o.organizationId}</a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          {orgs.rows.length > PARTNER_LINKS_SHOWN ? (
+            <p style={{ fontSize: ".75rem", color: "#928ea8", margin: 0 }} data-testid="fcc-partner-more">
+              and {orgs.rows.length - PARTNER_LINKS_SHOWN} more in Fundraising Management
+            </p>
+          ) : null}
+          <a href="#/dashboard/fundraiser/admin" style={linkBtn} data-testid="fcc-partner-open">Open Organizations</a>
+        </section>
+
+        <section style={card} data-testid="fcc-card-activation" aria-labelledby="fcc-activation-title">
+          <h2 id="fcc-activation-title" style={cardTitle}>Activation State</h2>
+          {fundraising.loading ? <p style={unavailable}>Loading…</p>
+            : fundraising.error ? <p style={unavailable} data-testid="fcc-activation-error">{fundraising.error}</p>
+            : (
+              <>
+                <div style={statRow}>
+                  <span>Organizations</span>
+                  <span style={statValue} data-testid="fcc-activation-orgs">
+                    {statusPairs(fundraising.data.organizations && fundraising.data.organizations.byStatus) || <span style={unavailable}>none</span>}
+                  </span>
+                </div>
+                <div style={statRow}>
+                  <span>Campaigns</span>
+                  <span style={statValue} data-testid="fcc-activation-campaigns">
+                    {statusPairs(fundraising.data.campaigns && fundraising.data.campaigns.byStatus) || <span style={unavailable}>none</span>}
+                  </span>
+                </div>
+                <div style={statRow}>
+                  <span>Active economics versions</span>
+                  <span style={statValue} data-testid="fcc-activation-economics">
+                    {overviewCount(fundraising.data.economics, "activeVersions")}
+                  </span>
+                </div>
+              </>
+            )}
+          <a href="#/dashboard/fundraiser/admin" style={linkBtn} data-testid="fcc-activation-open">Review Activation</a>
         </section>
       </div>
     </div>
