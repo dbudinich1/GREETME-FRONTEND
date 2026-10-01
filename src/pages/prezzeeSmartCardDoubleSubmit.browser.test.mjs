@@ -33,7 +33,7 @@ before(async () => {
     const calls = { getPrezzeeCardTiles: [], chargePrezzeeCard: [], finalizePrezzeeCard: [] };
     let responses = {
       getPrezzeeCardTiles: async () => ({ ok: true, product: { name: "Greet-Me Smart Card, powered by Prezzee", poweredBy: "Prezzee" }, tiles: [
-        { id: "prezzee_smart_card_1000", displayAmount: "$10", amountCents: 1000, sharedArtwork: true },
+        { id: "prezzee_smart_card_1000", displayAmount: "$10", amountCents: 1000, feeCents: 499, totalCents: 1499, sharedArtwork: true },
       ] }),
       chargePrezzeeCard: async () => ({ ok: true, gift: { claimToken: "t1", giftAmountCents: 1000, feeCents: 59, totalCents: 1059 } }),
       finalizePrezzeeCard: async () => ({ ok: true, gift: { claimToken: "t1", giftAmountCents: 1000, feeCents: 59, totalCents: 1059 } }),
