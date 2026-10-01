@@ -80,7 +80,7 @@ export default function HubHeroHearts({ setShowHeroHeartsModal }) {
           fontFamily: 'inherit'
         }}
       >
-        Open Hero Hearts
+        Buy Hero Hearts
       </button>
     </div>
   );
