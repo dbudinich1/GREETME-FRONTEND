@@ -1,0 +1,142 @@
+{
+  "generatedFrom": {
+    "backendDir": "C:\\1_GREET-ME\\cs-be-combined",
+    "backendHead": "897d8bb98495ac6cb731eed437f8a225a4766f43",
+    "node": "v20.20.2"
+  },
+  "smartCard": {
+    "tiles": {
+      "ok": true,
+      "product": {
+        "name": "Greet-Me Smart Card, powered by Prezzee",
+        "poweredBy": "Prezzee"
+      },
+      "tiles": [
+        {
+          "id": "prezzee_smart_card_1000",
+          "displayAmount": "$10",
+          "amountCents": 1000,
+          "feeCents": 499,
+          "totalCents": 1499,
+          "sharedArtwork": true
+        },
+        {
+          "id": "prezzee_smart_card_2500",
+          "displayAmount": "$25",
+          "amountCents": 2500,
+          "feeCents": 499,
+          "totalCents": 2999,
+          "sharedArtwork": true
+        },
+        {
+          "id": "prezzee_smart_card_5000",
+          "displayAmount": "$50",
+          "amountCents": 5000,
+          "feeCents": 499,
+          "totalCents": 5499,
+          "sharedArtwork": true
+        },
+        {
+          "id": "prezzee_smart_card_7500",
+          "displayAmount": "$75",
+          "amountCents": 7500,
+          "feeCents": 499,
+          "totalCents": 7999,
+          "sharedArtwork": true
+        },
+        {
+          "id": "prezzee_smart_card_10000",
+          "displayAmount": "$100",
+          "amountCents": 10000,
+          "feeCents": 499,
+          "totalCents": 10499,
+          "sharedArtwork": true
+        },
+        {
+          "id": "prezzee_smart_card_15000",
+          "displayAmount": "$150",
+          "amountCents": 15000,
+          "feeCents": 499,
+          "totalCents": 15499,
+          "sharedArtwork": true
+        },
+        {
+          "id": "prezzee_smart_card_20000",
+          "displayAmount": "$200",
+          "amountCents": 20000,
+          "feeCents": 499,
+          "totalCents": 20499,
+          "sharedArtwork": true
+        },
+        {
+          "id": "prezzee_smart_card_25000",
+          "displayAmount": "$250",
+          "amountCents": 25000,
+          "feeCents": 499,
+          "totalCents": 25499,
+          "sharedArtwork": true
+        }
+      ]
+    },
+    "calcFor1000": {
+      "giftAmountCents": 1000,
+      "feeCents": 499,
+      "totalCents": 1499
+    }
+  },
+  "giftBox": {
+    "feeRate": 0.05,
+    "rounding": [
+      {
+        "providerQuotedTotalCents": 1,
+        "feeCents": 0,
+        "quotedTotalCents": 1
+      },
+      {
+        "providerQuotedTotalCents": 3333,
+        "feeCents": 167,
+        "quotedTotalCents": 3500
+      },
+      {
+        "providerQuotedTotalCents": 4599,
+        "feeCents": 230,
+        "quotedTotalCents": 4829
+      },
+      {
+        "providerQuotedTotalCents": 12999,
+        "feeCents": 650,
+        "quotedTotalCents": 13649
+      }
+    ],
+    "quote": {
+      "ok": true,
+      "providerQuotedTotalCents": 5310,
+      "feeCents": 266,
+      "quotedTotalCents": 5576,
+      "currency": "usd",
+      "quotedAt": "2026-10-01T21:44:41.008Z",
+      "quoteValidForMs": 120000
+    },
+    "quoteAfter": {
+      "ok": true,
+      "providerQuotedTotalCents": 6286,
+      "feeCents": 314,
+      "quotedTotalCents": 6600,
+      "currency": "usd",
+      "quotedAt": "2026-10-01T21:44:41.009Z",
+      "quoteValidForMs": 120000
+    },
+    "charge409": {
+      "status": 409,
+      "body": {
+        "ok": false,
+        "code": "gift_box_quote_changed",
+        "error": "The price for this gift box has changed. Please review the updated price and try again.",
+        "providerQuotedTotalCents": 6286,
+        "feeCents": 314,
+        "quotedTotalCents": 6600,
+        "quotedAt": "2026-10-01T21:44:41.009Z"
+      }
+    }
+  }
+}

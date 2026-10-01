@@ -135,14 +135,14 @@ const setValue = async (el, v) => { await act(async () => {
 const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 
 const EIGHT_TILES = [
-  { id: "prezzee_smart_card_1000", displayAmount: "$10", amountCents: 1000, sharedArtwork: true },
-  { id: "prezzee_smart_card_2500", displayAmount: "$25", amountCents: 2500, sharedArtwork: true },
-  { id: "prezzee_smart_card_5000", displayAmount: "$50", amountCents: 5000, sharedArtwork: true },
-  { id: "prezzee_smart_card_7500", displayAmount: "$75", amountCents: 7500, sharedArtwork: true },
-  { id: "prezzee_smart_card_10000", displayAmount: "$100", amountCents: 10000, sharedArtwork: true },
-  { id: "prezzee_smart_card_15000", displayAmount: "$150", amountCents: 15000, sharedArtwork: true },
-  { id: "prezzee_smart_card_20000", displayAmount: "$200", amountCents: 20000, sharedArtwork: true },
-  { id: "prezzee_smart_card_25000", displayAmount: "$250", amountCents: 25000, sharedArtwork: true },
+  { id: "prezzee_smart_card_1000", displayAmount: "$10", amountCents: 1000, feeCents: 499, totalCents: 1499, sharedArtwork: true },
+  { id: "prezzee_smart_card_2500", displayAmount: "$25", amountCents: 2500, feeCents: 499, totalCents: 2999, sharedArtwork: true },
+  { id: "prezzee_smart_card_5000", displayAmount: "$50", amountCents: 5000, feeCents: 499, totalCents: 5499, sharedArtwork: true },
+  { id: "prezzee_smart_card_7500", displayAmount: "$75", amountCents: 7500, feeCents: 499, totalCents: 7999, sharedArtwork: true },
+  { id: "prezzee_smart_card_10000", displayAmount: "$100", amountCents: 10000, feeCents: 499, totalCents: 10499, sharedArtwork: true },
+  { id: "prezzee_smart_card_15000", displayAmount: "$150", amountCents: 15000, feeCents: 499, totalCents: 15499, sharedArtwork: true },
+  { id: "prezzee_smart_card_20000", displayAmount: "$200", amountCents: 20000, feeCents: 499, totalCents: 20499, sharedArtwork: true },
+  { id: "prezzee_smart_card_25000", displayAmount: "$250", amountCents: 25000, feeCents: 499, totalCents: 25499, sharedArtwork: true },
 ];
 
 // Wraps the page in the same Router context App.jsx always provides in production.
@@ -232,19 +232,35 @@ test("REQUIRED TEST 4/5: selecting a tile and confirming submits ONLY the tile I
 
 // ── 6/7. Fee and total math ──────────────────────────────────────────────────────────────────
 
-test("REQUIRED TEST 6/7: the processing fee and total display correctly for all eight tiles (2.9% + $0.30)", async () => {
+test("REQUIRED TEST 6/7: the disclosed $4.99 Convenience fee and total (face value + $4.99) display from the server tile fields for all eight tiles", async () => {
   const s = await mountReady();
   for (const tile of EIGHT_TILES) {
     await click(s.q(`[data-tile-id="${tile.id}"]`));
     await flush();
-    const expectedFee = Math.round(tile.amountCents * 0.029) + 30;
+    const expectedFee = 499; // flat, disclosed (fee policy 2026-10-01); the page has no formula of its own
     const expectedTotal = tile.amountCents + expectedFee;
     const fmt = (c) => `$${(c / 100).toFixed(2)}`;
     const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     assert.match(s.text(), new RegExp(escapeRegex(fmt(expectedFee))), `fee for ${tile.displayAmount}`);
     assert.match(s.text(), new RegExp(escapeRegex(fmt(expectedTotal))), `total for ${tile.displayAmount}`);
     assert.equal(expectedTotal, tile.amountCents + expectedFee, "total must equal face value plus fee");
+    assert.match(s.text(), /Convenience fee/);
+    assert.doesNotMatch(s.text(), /Processing fee/);
   }
+});
+
+test("fee policy: a tile WITHOUT server-stated fee fields asserts no amount and cannot be purchased", async () => {
+  const s = await mountReady([{ id: "prezzee_smart_card_1000", displayAmount: "$10", amountCents: 1000, sharedArtwork: true }]);
+  await click(s.q('[data-tile-id="prezzee_smart_card_1000"]'));
+  await setValue(s.q('input[type="email"]'), "r@example.com");
+  await setValue(s.qa("input").filter((i) => i.type !== "email")[0], "Dana");
+  await flush();
+  assert.match(s.text(), /Convenience fee/);
+  assert.match(s.text(), /Shown at checkout/);
+  assert.ok(s.q('[data-testid="smartcard-fee-unavailable"]'));
+  assert.doesNotMatch(s.text(), /\$4\.99|\$14\.99|2\.9|0\.30/, "no invented amount");
+  const cont = [...s.qa("button")].find((b) => /continue to payment/i.test(b.textContent));
+  assert.ok(cont.disabled, "cannot continue without a disclosed fee");
 });
 
 // ── 8. Server-returned values remain authoritative ──────────────────────────────────────────

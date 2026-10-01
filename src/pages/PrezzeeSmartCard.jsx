@@ -120,7 +120,8 @@ export default function PrezzeeSmartCard() {
     [selectedTile],
   );
 
-  const canContinue = Boolean(selectedTile) && recipientEmail.trim() && recipientName.trim() && !charging && !outcomeUnknown;
+  // Fail closed: a customer must see the disclosed fee before paying, so no server-stated fee = no Continue.
+  const canContinue = Boolean(selectedTile) && Boolean(preview) && recipientEmail.trim() && recipientName.trim() && !charging && !outcomeUnknown;
 
   const handleContinue = useCallback(() => {
     if (!canContinue) return;
@@ -378,6 +379,11 @@ export default function PrezzeeSmartCard() {
           <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0.5rem 0 0' }}>
             The convenience fee is added on top; the full Smart Card value is delivered. The exact total is confirmed at checkout.
           </p>
+          {!preview && (
+            <p data-testid="smartcard-fee-unavailable" role="status" style={{ fontSize: '0.8125rem', color: '#b45309', margin: '0.5rem 0 0' }}>
+              We can’t show this card’s price right now, so it can’t be purchased yet. Please try again later.
+            </p>
+          )}
         </div>
       )}
 
@@ -402,7 +408,7 @@ export default function PrezzeeSmartCard() {
         {charging ? 'Processing…' : 'Continue to payment'}
       </button>
 
-      {selectedTile && (
+      {selectedTile && preview && (
         <PrezzeeCardConfirmationModal
           isOpen={isConfirmOpen}
           onClose={() => { if (!charging) setIsConfirmOpen(false); }}
