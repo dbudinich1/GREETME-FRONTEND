@@ -29,9 +29,11 @@ export const checkoutSessionCreated = (data) => !!(data && typeof data.url === '
 // routes/paymentRoutes.js): $19.99 for business subscription tiers, $4.99 otherwise.
 // Prefer the cart item's platformFee if present, else fall back to the tier rule
 // (cart items currently omit platformFee).
+// W18: the CONSUMER fee ($4.99) is once per account — the backend decides (platform-fee-status) and a
+// null result means "do not assert an amount". Business tiers keep $19.99. See utils/platformFee.js.
 const BUSINESS_PLAN_TIERS = new Set(['small_business', 'medium_business', 'business_scale']);
-const platformFeeFor = (item) =>
-  item?.platformFee ?? (BUSINESS_PLAN_TIERS.has(item?.planTier) ? 19.99 : 4.99);
+const platformFeeFor = (item, feeState) =>
+  resolvePlatformFee(item, BUSINESS_PLAN_TIERS.has(item?.planTier), feeState);
 
 // G1G1 auto-mint is PERSONAL-only; business tiers use the annual-credit model.
 const G1G1_PERSONAL_TIERS = new Set(['close_circle', 'social_butterfly', 'unforgettable']);
@@ -87,8 +89,12 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
   : null;
 
+import { platformFeeFor as resolvePlatformFee, formatFeeAmount, FEE_CALCULATED_AT_CHECKOUT } from '../utils/platformFee';
+import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
+
 export default function Checkout() {
   const navigate = useNavigate();
+  const feeState = usePlatformFeeStatus();
   const location = useLocation();
   const { user } = useAuth();
   const [cartItems, setCartItems] = useState([]);
@@ -909,8 +915,8 @@ export default function Checkout() {
                   // never had a credit at all — never a discounted figure the backend already
                   // refused to honor.
                   const effectiveCredit = (creditEligible && !creditDisplayOverride) ? creditAmount : 0;
-                  const techFee = platformFeeFor(subscriptionItem);
-                  const finalTotal = Math.max(0, planPrice + techFee - effectiveCredit);
+                  const techFee = platformFeeFor(subscriptionItem, feeState);
+                  const finalTotal = Math.max(0, planPrice + (techFee ?? 0) - effectiveCredit);
 
                   return (
                     <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
@@ -966,22 +972,29 @@ export default function Checkout() {
                         </div>
                       )}
 
-                      {/* One-Time Platform Fee */}
-                      <div style={{ marginBottom: '0.75rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-secondary)' }}>
-                          <span>One-Time Platform Fee</span>
-                          <span>${techFee.toFixed(2)}</span>
+                      {/* One-Time Platform Fee — omitted when the account already paid it (W18). */}
+                      {techFee !== 0 && (
+                        <div data-testid="checkout-platform-fee" style={{ marginBottom: '0.75rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-secondary)' }}>
+                            <span>One-Time Platform Fee</span>
+                            <span>{formatFeeAmount(techFee)}</span>
+                          </div>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '0.25rem 0 0', fontStyle: 'italic' }}>
+                            Covers setup for you and your G1G1 recipient
+                          </p>
                         </div>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '0.25rem 0 0', fontStyle: 'italic' }}>
-                          Covers setup for you and your G1G1 recipient
-                        </p>
-                      </div>
+                      )}
 
                       {/* Total */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '2px solid var(--border)', fontSize: '1.25rem', fontWeight: 800 }}>
                         <span>Total</span>
                         <span style={{ color: '#667eea' }}>${finalTotal.toFixed(2)}</span>
                       </div>
+                      {techFee == null && (
+                        <div data-testid="checkout-total-fee-note" style={{ fontSize: '0.8rem', color: '#777', marginTop: '0.25rem' }}>
+                          Plus the one-time platform fee, {FEE_CALCULATED_AT_CHECKOUT.toLowerCase()}.
+                        </div>
+                      )}
                       <div style={{ fontSize: '0.85rem', color: '#555', marginTop: '0.25rem' }}>
                         Includes 2 Greet-Me experiences
                       </div>

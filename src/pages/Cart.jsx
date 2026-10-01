@@ -38,12 +38,18 @@ function businessG1g1GiftRow(item) {
 // routes/paymentRoutes.js): $19.99 for business subscription tiers, $4.99 otherwise.
 // Prefer the cart item's platformFee if present, else fall back to the tier rule
 // (cart items currently omit platformFee).
+// W18: the CONSUMER fee ($4.99) is once per account — the backend decides (platform-fee-status) and a
+// null result means "do not assert an amount". Business tiers keep $19.99. See utils/platformFee.js.
 const BUSINESS_PLAN_TIERS = new Set(['small_business', 'medium_business', 'business_scale']);
-const platformFeeFor = (item) =>
-  item?.platformFee ?? (BUSINESS_PLAN_TIERS.has(item?.planTier) ? 19.99 : 4.99);
+const platformFeeFor = (item, feeState) =>
+  resolvePlatformFee(item, BUSINESS_PLAN_TIERS.has(item?.planTier), feeState);
+
+import { platformFeeFor as resolvePlatformFee, formatFeeAmount, FEE_CALCULATED_AT_CHECKOUT } from '../utils/platformFee';
+import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
 
 export default function Cart() {
   const navigate = useNavigate();
+  const feeState = usePlatformFeeStatus();
   const [cartItems, setCartItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
@@ -868,7 +874,7 @@ export default function Cart() {
                 const rawCredit = hasReferralCredit ? 10 : (courtesyCredit?.creditCode ? (courtesyCredit?.amount || 0) : 0);
                 const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                 const creditAmt = creditEligible ? rawCredit : 0;
-                const techFee = platformFeeFor(subscriptionItem);
+                const techFee = platformFeeFor(subscriptionItem, feeState);
 
                 return (
                   <div style={{ marginBottom: '0.25rem' }}>
@@ -920,14 +926,18 @@ export default function Cart() {
                       </div>
                     )}
 
-                    {/* One-Time Platform Fee */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                      <span>One-Time Platform Fee</span>
-                      <span>${techFee.toFixed(2)}</span>
-                    </div>
-                    <p style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', margin: '0 0 0.5rem', fontStyle: 'italic' }}>
-                      Covers setup for you and your G1G1 recipient
-                    </p>
+                    {/* One-Time Platform Fee — omitted when the account already paid it (W18). */}
+                    {techFee !== 0 && (
+                      <>
+                        <div data-testid="cart-platform-fee" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                          <span>One-Time Platform Fee</span>
+                          <span>{formatFeeAmount(techFee)}</span>
+                        </div>
+                        <p style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', margin: '0 0 0.5rem', fontStyle: 'italic' }}>
+                          Covers setup for you and your G1G1 recipient
+                        </p>
+                      </>
+                    )}
                   </div>
                 );
               })()}
@@ -941,14 +951,19 @@ export default function Cart() {
                 const rawCredit = hasReferralCredit ? 10 : (courtesyCredit2?.creditCode ? (courtesyCredit2?.amount || 0) : 0);
                 const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                 const creditAmt = creditEligible ? rawCredit : 0;
-                const techFee = platformFeeFor(subscriptionItem);
-                const finalTotal = Math.max(0, planPrice + techFee - creditAmt);
+                const techFee = platformFeeFor(subscriptionItem, feeState);
+                const finalTotal = Math.max(0, planPrice + (techFee ?? 0) - creditAmt);
                 return (
                   <div style={{ borderTop: '2px solid var(--border)', paddingTop: '0.5rem', marginBottom: '0.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--text-primary)' }}>Total</span>
                       <span style={{ fontSize: '1rem', fontWeight: 800, color: '#667eea' }}>${finalTotal.toFixed(2)}</span>
                     </div>
+                    {techFee == null && (
+                      <p data-testid="cart-total-fee-note" style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', margin: '0.25rem 0 0' }}>
+                        Plus the one-time platform fee, {FEE_CALCULATED_AT_CHECKOUT.toLowerCase()}.
+                      </p>
+                    )}
                   </div>
                 );
               })()}
