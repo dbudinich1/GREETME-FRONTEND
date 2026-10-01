@@ -722,6 +722,31 @@ class ApiService {
   }
 
   // --------------------
+  // Gift Boxes — Greet-Me charges on its own Stripe rail; the order is placed server-side.
+  // --------------------
+  /** One authoritative, server-computed price for a gift-box selection shipped to a US address. */
+  quoteGiftBox(payload) {
+    return this.request("/api/gifts/gift-box/quote", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  chargeGiftBox(payload) {
+    return this.request("/api/gifts/gift-box", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  finalizeGiftBox(payload) {
+    return this.request("/api/gifts/gift-box/finalize", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  // --------------------
   // G1G1 Gift Membership
   // --------------------
   getG1G1Gift(giftCode) {

@@ -411,7 +411,11 @@ test("a provider category loads its catalogue on SELECTION, with no button and n
   assert.ok(selectFn.length > 0, "the selection function must be findable");
   assert.ok(!selectFn.includes("navigate("), "selecting a flower must not navigate");
   assert.match(selectFn, /setShowCartModal\(true\)/, "it opens the shared confirmation");
-  assert.match(selectFn, /giftType: 'flowers'/, "tagged so the return knows which category it is");
+  // GIFT BOX DIRECT CHECKOUT (2026-09-30): tagged with the pick's OWN category — a flower still
+  // reads 'flowers'; a gift box now reads 'gift_boxes' instead of being mis-tagged as a flower.
+  assert.match(selectFn, /chosen\.giftType === 'gift_boxes' \? 'gift_boxes' : 'flowers'/,
+    "tagged so the return knows which category it is");
+  assert.match(selectFn, /giftType: pickedGiftType/, "the confirmation carries that tag");
   // The return still exists — on the confirmation's own button, carrying the flower's gift type.
   assert.match(CODE, /navigate\(`\/dashboard\/send\?returnTo=send&giftType=\$\{giftType\}`\)/);
   assert.match(CODE, /lastAddedItem\?\.giftType === 'flowers' \? 'flowers' : 'merch'/);

@@ -50,6 +50,8 @@ import { useProviderCatalogue } from '../components/giftPlace/useProviderCatalog
 // Omitting `contactId` is what makes the order unattachable to any greeting, and omitting
 // `onAccepted` is what selects its own standalone terminal confirmation instead of a handoff.
 import ProviderCheckoutModal from '../components/providerCheckout/ProviderCheckoutModal';
+// A gift box's own checkout: Greet-Me is the merchant of record and places the order server-side.
+import GiftBoxCheckoutModal from '../components/providerCheckout/GiftBoxCheckoutModal';
 
 export default function Merch() {
   const navigate = useNavigate();
@@ -78,6 +80,10 @@ export default function Merch() {
   // can never route a merch confirmation into the provider's checkout.
   const [standaloneFlower, setStandaloneFlower] = useState(null);
   const [isFlowersCheckoutOpen, setIsFlowersCheckoutOpen] = useState(false);
+  // THE STANDALONE GIFT BOX CHECKOUT — parallel to the flowers pair above. A gift box is charged on
+  // Greet-Me's own Stripe rail (GiftBoxCheckoutModal), never through the flowers checkout.
+  const [giftBoxProduct, setGiftBoxProduct] = useState(null);
+  const [isGiftBoxCheckoutOpen, setIsGiftBoxCheckoutOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -340,13 +346,19 @@ export default function Merch() {
     } catch {
       saved = {};
     }
+    // THE PICK'S OWN CATEGORY, not 'flowers' for every provider-backed pick. This used to be
+    // hardcoded, which tagged a gift box as a flower order in the greeting draft and so sent it to
+    // the flowers checkout on Send Greet-Me. Mirrors selectProviderGiftStandalone's own
+    // `chosen.giftType || 'flowers'`; every flower selection stays byte-identical.
+    const pickedGiftType = chosen.giftType === 'gift_boxes' ? 'gift_boxes' : 'flowers';
     try {
       sessionStorage.setItem('sendGreetingState', JSON.stringify({
         ...saved,
         giftSettings: {
           ...(saved.giftSettings || {}),
-          type: 'flowers',
-          flowersProduct: chosen,
+          type: pickedGiftType,
+          // Each category keeps its own product slot, so SendGreeting opens the matching checkout.
+          ...(pickedGiftType === 'gift_boxes' ? { giftBoxProduct: chosen } : { flowersProduct: chosen }),
         },
       }));
     } catch {
@@ -362,7 +374,7 @@ export default function Merch() {
       name: chosen.name,
       price: Number.isFinite(Number(chosen.priceMinor)) ? Number(chosen.priceMinor) / 100 : card.priceLabel,
       imageUrl: chosen.imageUrl || card.imageUrl || null,
-      giftType: 'flowers',
+      giftType: pickedGiftType,
     });
     setShowCartModal(true);
   };
@@ -417,7 +429,9 @@ export default function Merch() {
   // AN ARRANGEMENT THAT BELONGS TO A GREETING, as opposed to one bought on its own. The confirmation's
   // return affordances key on this rather than on the flower itself: outside a greeting there is
   // nothing to return to, so offering "Return to Greeting" would strand the shopper.
-  const flowerForGreeting = lastAddedItem?.giftType === 'flowers' && cameFromSendGreeting;
+  // A gift box picked for a greeting is attached the same way, so it returns the same way.
+  const flowerForGreeting = (lastAddedItem?.giftType === 'flowers' || lastAddedItem?.giftType === 'gift_boxes')
+    && cameFromSendGreeting;
 
   /** One entry point for the one card action, whichever source the card came from. */
   const handleGiftCardAction = (card) => {
@@ -541,6 +555,13 @@ export default function Merch() {
     const isProviderStandaloneGiftType = lastAddedItem?.giftType === 'flowers'
       || lastAddedItem?.giftType === 'gift_boxes';
     if (standaloneFlower && isProviderStandaloneGiftType && !cameFromSendGreeting) {
+      // A GIFT BOX IS CHARGED BY GREET-ME, not by the partner, so it opens its own checkout — the
+      // flowers checkout (the partner's tokenizer) never sees it.
+      if (standaloneFlower.giftType === 'gift_boxes') {
+        setGiftBoxProduct(standaloneFlower);
+        setIsGiftBoxCheckoutOpen(true);
+        return;
+      }
       setIsFlowersCheckoutOpen(true);
       return;
     }
@@ -1162,6 +1183,19 @@ export default function Merch() {
           // exactly as it always has.
           giftType={standaloneFlower.giftType || 'flowers'}
           product={standaloneFlower}
+          customer={user}
+        />
+      )}
+
+      {/* THE STANDALONE GIFT BOX CHECKOUT — Greet-Me charges, then places the order server-side.
+             Same omissions as the flowers checkout above, for the same reasons: no `contactId` (the
+             order is unattachable to any greeting) and no `onAccepted` (it shows its own terminal
+             confirmation). No entitlement check either: a standalone purchase has no paired send. */}
+      {isGiftBoxCheckoutOpen && giftBoxProduct && (
+        <GiftBoxCheckoutModal
+          isOpen={isGiftBoxCheckoutOpen}
+          onClose={() => setIsGiftBoxCheckoutOpen(false)}
+          product={giftBoxProduct}
           customer={user}
         />
       )}
