@@ -106,6 +106,10 @@ function deleteResumeDraft(uuid) {
   try { localStorage.removeItem(SEND_RESUME_KEY_PREFIX + uuid); } catch { /* best-effort */ }
 }
 
+// W03: why a profile photo is required, and where to add one.
+const SENDER_PHOTO_REQUIRED_MESSAGE =
+  'Every Greet-Me includes your photo so the recipient knows it is from you. Add a profile photo to send \u2014 your greeting stays saved while you do.';
+
 export default function SendGreeting() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -1076,6 +1080,21 @@ export default function SendGreeting() {
     }
   };
 
+  // W03: a REAL profile photo URL (https://...) is required before the final send/checkout. Not a
+  // data URL or a placeholder domain. Computed every render so the notice below the form appears
+  // BEFORE the sender reaches "Done & Send", not as a surprise on the final click.
+  const senderPhotoMissing = (() => {
+    const photoUrl = user?.photoUrl || '';
+    return (
+      !photoUrl ||
+      photoUrl.startsWith('data:') ||
+      photoUrl.includes('placeholder.com') ||
+      photoUrl.includes('placehold.co') ||
+      photoUrl.includes('placekitten.com') ||
+      photoUrl.includes('dummyimage.com')
+    );
+  })();
+
   const validate = () => {
     const newErrors = {};
 
@@ -1087,20 +1106,9 @@ export default function SendGreeting() {
       newErrors.occasionType = 'Please select an occasion';
     }
 
-    // Validate user has a REAL photo URL (https://...), not a data URL or placeholder
-    // Order of preference: user.photoUrl from backend profile (real Azure Blob URL)
-    const photoUrl = user?.photoUrl || '';
-
-    // Reject if empty, is a data URL, or is a placeholder domain
-    const isDataUrl = photoUrl.startsWith('data:');
-    const isPlaceholder = !photoUrl ||
-      photoUrl.includes('placeholder.com') ||
-      photoUrl.includes('placehold.co') ||
-      photoUrl.includes('placekitten.com') ||
-      photoUrl.includes('dummyimage.com');
-
-    if (isDataUrl || isPlaceholder) {
-      newErrors.photo = 'Please upload your photo first \u2014 go to Dashboard \u2192 Personalization and add a profile photo.';
+    // W03: the same predicate drives the up-front notice (senderPhotoMissing) and this gate.
+    if (senderPhotoMissing) {
+      newErrors.photo = SENDER_PHOTO_REQUIRED_MESSAGE;
     }
 
     setErrors(newErrors);
@@ -2815,6 +2823,10 @@ if (typeof window !== "undefined") {
         {errors.photo && (
           <div ref={photoErrorRef} tabIndex={-1} style={{ outline: 'none' }}>
             <Alert type="error" message={errors.photo} />
+            <button type="button" data-testid="add-profile-photo-from-error" onClick={() => navigate('/dashboard/profile')}
+              style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer', padding: 0, marginBottom: '0.75rem', fontFamily: 'inherit' }}>
+              Add profile photo
+            </button>
           </div>
         )}
 
@@ -3720,6 +3732,33 @@ if (typeof window !== "undefined") {
             )}
           </div>
         </div>
+
+        {senderPhotoMissing && (
+          <div data-testid="sender-photo-required-notice" role="note" style={{
+            marginTop: isNarrow ? '1.25rem' : '2rem',
+            padding: '0.875rem 1rem',
+            background: '#fffbeb',
+            border: '1px solid #fde68a',
+            borderRadius: '0.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            flexWrap: 'wrap',
+          }}>
+            <span style={{ fontSize: '0.8125rem', color: '#92400e', lineHeight: 1.5, flex: '1 1 240px' }}>
+              {SENDER_PHOTO_REQUIRED_MESSAGE}
+            </span>
+            <button
+              type="button"
+              data-testid="add-profile-photo"
+              onClick={() => navigate('/dashboard/profile')}
+              style={{ background: '#fff', border: '1px solid #f59e0b', color: '#92400e', borderRadius: '0.5rem', padding: '0.5rem 0.875rem', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              Add profile photo
+            </button>
+          </div>
+        )}
 
         {/* Submit */}
         <div style={{
