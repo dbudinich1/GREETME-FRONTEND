@@ -47,7 +47,7 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/founder" });
   window = dom.window;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ } globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.MouseEvent = window.MouseEvent;
   globalThis.KeyboardEvent = window.KeyboardEvent;
   globalThis.localStorage = window.localStorage;
@@ -179,6 +179,7 @@ async function openRow(legalName) {
   const row = [...document.querySelectorAll("tr")].find((tr) => tr.textContent.includes(legalName));
   assert.ok(row, `the organization row for ${legalName} must render`);
   await click([...row.querySelectorAll("button")].find((b) => b.textContent.trim() === "Open"));
+  if ($("f1-toggle")) await click($("f1-toggle")); // W34: Draft Economics opens closed
 }
 
 /** Mount, open the fixture organization and select the campaign that owns the status panel. */
@@ -554,6 +555,7 @@ test("F4 revalidation: a transition that became illegal is refused locally, send
   routes["/campaigns"] = { status: 200, data: [campaignAt("closed")] };
   await click([...document.querySelectorAll("tr")].find((tr) => tr.textContent.includes(ORG.legalName))
     .querySelectorAll("button")[0]);
+  if ($("f1-toggle")) await click($("f1-toggle"));
   await setValue("f1-campaign", CID, window.HTMLSelectElement.prototype);
   assert.equal($("f4-confirm"), null, "the stale confirmation is gone");
   assert.equal($("f4-terminal") !== null, true, "and the panel reflects the closed campaign");

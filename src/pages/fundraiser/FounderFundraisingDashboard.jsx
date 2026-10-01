@@ -105,19 +105,74 @@ function f1BuildPayload({ organizationId, campaignId, initial, renewal, giftEnab
   return { ok: true, payload: { organizationId, campaignId, rules, treatments: { ...treatments } } };
 }
 
+// CLOSEOUT W35 - READABLE LABELS. Display only: every <option value>, every payload field and the
+// audit record keep the canonical backend values above. These maps only decide what the founder
+// READS. Definitions of ENSR / ENGP are quoted from the Team B economics release package; the
+// treatment wording restates the enum name and adds no commercial rule.
+const F1_SHARE_TYPE_LABELS = Object.freeze({
+  none: "No share",
+  percent_of_base: "Percentage of a base",
+  tiered: "Tiered percentage",
+  custom: "Custom terms",
+});
+const F1_BASIS_LABELS = Object.freeze({
+  ENSR: "Eligible Net Subscription Revenue (ENSR)",
+  ENGP: "Eligible Net Gift Proceeds (ENGP)",
+  gross: "Gross amount",
+  custom: "Custom base",
+});
+const F1_BASIS_DEFINITIONS = Object.freeze({
+  ENSR: "subscription price charged, minus the Stripe processing fee on the subscription line, taxes, and discounts/credits applied. The one-time Platform Fee is never part of ENSR.",
+  ENGP: "the platform-retained gift margin ($1.99 + 3% fee) minus the Stripe fee on the gift charge.",
+});
+const F1_TREATMENT_FIELD_LABELS = Object.freeze({
+  onboardingFeeTreatment: "Onboarding fee",
+  veteransContributionTreatment: "Veterans contribution",
+  discountTreatment: "Discounts",
+  taxTreatment: "Tax",
+  processorFeeTreatment: "Payment processor fees",
+});
+const F1_TREATMENT_VALUE_LABELS = Object.freeze({
+  excluded_retained: "Excluded from sharing; Greet-Me retains it",
+  excluded_waived: "Excluded from sharing; fee waived",
+  excluded: "Excluded",
+  contribute_from_platform_share_only: "Contributed from Greet-Me\u2019s share only",
+  ineligible: "Not eligible for sharing",
+  eligible_on_net: "Eligible, calculated on the net amount",
+  eligible_on_gross: "Eligible, calculated on the gross amount",
+  excluded_from_base: "Excluded from the base",
+  net_of_processor: "Deducted before sharing (net of processor fees)",
+  gross_absorbed_by_platform: "Not deducted; Greet-Me absorbs them (gross)",
+});
+const f1ShareTypeLabel = (t) => F1_SHARE_TYPE_LABELS[t] || String(t || "");
+const f1BasisLabel = (b) => F1_BASIS_LABELS[b] || String(b || "");
+const f1TreatmentFieldLabel = (k) => F1_TREATMENT_FIELD_LABELS[k] || String(k || "");
+const f1TreatmentValueLabel = (v) => (v ? F1_TREATMENT_VALUE_LABELS[v] || String(v) : "\u2014");
+/** "school" / "pending_review" -> "School" / "Pending review" (display only). */
+function humanizeEnum(v) {
+  const s = String(v ?? "").replace(/[_-]+/g, " ").trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "\u2014";
+}
+
+/** W35 preview line for a share being typed: readable when resolvable, plain prompt otherwise. */
+function f1PreviewShare(draft) {
+  const built = f1BuildShare(draft);
+  return built.ok ? f1DescribeShare(built.rule) : "Not set yet";
+}
+
 /** Read-only rendering of a stored share, including shapes F1 cannot create (e.g. tiered). */
 function f1DescribeShare(rule) {
   if (!rule || typeof rule !== "object") return "\u2014";
-  if (rule.type === "none") return "none";
-  if (rule.type === "custom") return `custom \u2014 ${rule.notes || "(no note)"}`;
-  if (rule.type === "percent_of_base") return `${rule.percent}% of ${rule.basis}`;
+  if (rule.type === "none") return "No share";
+  if (rule.type === "custom") return `Custom \u2014 ${rule.notes || "(no note)"}`;
+  if (rule.type === "percent_of_base") return `${rule.percent}% of ${f1BasisLabel(rule.basis)}`;
   if (rule.type === "tiered") {
     // F1 cannot CREATE a tiered share, but an existing one is valid and must read accurately
     // rather than as malformed.
     const tiers = Array.isArray(rule.tiers) ? rule.tiers : [];
-    return `tiered (${tiers.length} tier${tiers.length === 1 ? "" : "s"}) of ${rule.basis}`;
+    return `Tiered (${tiers.length} tier${tiers.length === 1 ? "" : "s"}) of ${f1BasisLabel(rule.basis)}`;
   }
-  return String(rule.type || "\u2014");
+  return humanizeEnum(rule.type);
 }
 
 // -- F2 . APPROVE ECONOMICS -------------------------------------------------------------------
@@ -353,7 +408,7 @@ function FounderEconomicsActivationPanel({ organizationId, organizationName, cam
           <div>Gift share: <span data-testid="f3-review-gift">{f1DescribeShare(rules.giftShare)}</span></div>
         ) : null}
         {version.treatments ? Object.entries(version.treatments).map(([k, v]) => (
-          <div key={k}>{k}: <span data-testid={`f3-review-${k}`}>{String(v)}</span></div>
+          <div key={k}>{f1TreatmentFieldLabel(k)}: <span data-testid={`f3-review-${k}`} data-raw={String(v)}>{f1TreatmentValueLabel(v)}</span></div>
         )) : null}
         <div>
           Currently active version:{" "}
@@ -911,6 +966,12 @@ export default function FounderFundraisingDashboard() {
   // Every field starts EMPTY. There is no preselected share type, basis, percentage or treatment,
   // because a prefilled commercial term is one nobody chose. Gift participation starts visibly off.
   const [ecoCampaignId, setEcoCampaignId] = useState("");
+  // CLOSEOUT W34 - Draft Economics is CLOSED by default every time an organization is opened.
+  // `ecoOpen` only gates what is rendered; Close/Cancel discards the unsaved form values and
+  // hands focus back to the opener. Saved drafts live on the server and are re-read on reopen.
+  const [ecoOpen, setEcoOpen] = useState(false);
+  const ecoToggleRef = useRef(null);
+  const ecoReturnFocusRef = useRef(false);
   // Guards against a slow economics read landing after the founder picked a different campaign.
   const ecoCampaignRef = useRef("");
   const [ecoInitial, setEcoInitial] = useState({ type: "", basis: "", percent: "", notes: "" });
@@ -999,6 +1060,7 @@ export default function FounderFundraisingDashboard() {
     setAdminEmail(""); setAdmin({ state: STATES.EMPTY, account: null, reason: null });
     // F1 — the draft form is emptied too, so no term or campaign choice leaks between organizations.
     ecoCampaignRef.current = "";
+    setEcoOpen(false);
     setEcoCampaignId(""); setEcoErrors({}); setEcoResult(null); setEcoMessage(null);
     resetApproval();
     setEcoInitial({ type: "", basis: "", percent: "", notes: "" });
@@ -1041,9 +1103,36 @@ export default function FounderFundraisingDashboard() {
     setSelected(null); setDetail(null);
     setAdminEmail(""); setAdmin({ state: STATES.EMPTY, account: null, reason: null });
     ecoCampaignRef.current = "";
+    setEcoOpen(false);
     setEcoCampaignId(""); setEcoErrors({}); setEcoResult(null); setEcoMessage(null);
     resetApproval();
   }, [resetApproval]);
+
+  // W34 - Close / Cancel: discard every UNSAVED edit (share fields, treatments, campaign choice,
+  // approval reason) and close. Nothing is sent. Saved drafts are untouched server-side and come
+  // back, read fresh, the next time the panel is opened and a campaign is chosen.
+  const closeEconomics = useCallback(() => {
+    ecoCampaignRef.current = "";
+    setEcoCampaignId(""); setEcoErrors({}); setEcoResult(null); setEcoMessage(null);
+    resetApproval();
+    setEcoInitial({ type: "", basis: "", percent: "", notes: "" });
+    setEcoRenewal({ type: "", basis: "", percent: "", notes: "" });
+    setEcoGiftEnabled(false); setEcoGift({ type: "", basis: "", percent: "", notes: "" });
+    setEcoTreatments({
+      onboardingFeeTreatment: "", veteransContributionTreatment: "",
+      discountTreatment: "", taxTreatment: "", processorFeeTreatment: "",
+    });
+    setDetail((d) => (d ? { ...d, economics: null, economicsDraft: null, economicsApproved: null, economicsActive: null } : d));
+    ecoReturnFocusRef.current = true;
+    setEcoOpen(false);
+  }, [resetApproval]);
+
+  useEffect(() => {
+    if (!ecoOpen && ecoReturnFocusRef.current) {
+      ecoReturnFocusRef.current = false;
+      if (ecoToggleRef.current) ecoToggleRef.current.focus();
+    }
+  }, [ecoOpen]);
 
   // F1 — when a campaign is chosen, read its economics history and surface the version that is
   // actually in force. Nothing here is editable: approved/active terms are immutable server-side,
@@ -1283,7 +1372,7 @@ export default function FounderFundraisingDashboard() {
             <tbody>
               {orgs.map((o) => (
                 <tr key={o.organizationId} style={{ borderTop: "1px solid #f0ebe3" }}>
-                  <td style={{ padding: "8px 0" }}>{o.legalName}</td><td>{o.orgType}</td><td>{o.status}</td>
+                  <td style={{ padding: "8px 0" }}>{o.legalName}</td><td>{humanizeEnum(o.orgType)}</td><td>{humanizeEnum(o.status)}</td>
                   <td style={{ textAlign: "right" }}><button style={btnGhost} onClick={() => openOrg(o)}>Open</button></td>
                 </tr>
               ))}
@@ -1302,6 +1391,18 @@ export default function FounderFundraisingDashboard() {
           </button>
           <section style={box} data-testid="f1-economics">
           <h2 style={h}>Draft economics</h2>
+          {!ecoOpen ? (
+            <button type="button" ref={ecoToggleRef} style={btnGhost} data-testid="f1-toggle"
+              aria-expanded="false" aria-controls="f1-body" onClick={() => setEcoOpen(true)}>
+              Open draft economics
+            </button>
+          ) : (
+          <div id="f1-body" data-testid="f1-body">
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: ".4rem" }}>
+            <button type="button" style={btnGhost} data-testid="f1-close" onClick={closeEconomics}>
+              Close
+            </button>
+          </div>
 
           {/* Existing sealed terms are shown READ-ONLY. An approved or active version is immutable
               server-side, so presenting it as an editable draft would be a lie the UI tells. A
@@ -1349,7 +1450,7 @@ export default function FounderFundraisingDashboard() {
                   <div>Gift share: <span data-testid="f2-review-gift">{f1DescribeShare(f2Rules.giftShare)}</span></div>
                 ) : null}
                 {Object.keys(F1_TREATMENTS).map((k) => (
-                  <div key={k}>{k}: <span data-testid={`f2-review-${k}`}>{(approvableDraft.treatments || {})[k] || "—"}</span></div>
+                  <div key={k}>{f1TreatmentFieldLabel(k)}: <span data-testid={`f2-review-${k}`} data-raw={(approvableDraft.treatments || {})[k] || ""}>{f1TreatmentValueLabel((approvableDraft.treatments || {})[k])}</span></div>
                 ))}
                 <div>Version: <span data-testid="f2-review-version">{approvableDraft.id}</span></div>
                 <div>Status: <span data-testid="f2-review-status">{approvableDraft.status}</span></div>
@@ -1446,14 +1547,14 @@ export default function FounderFundraisingDashboard() {
                 <select data-testid={`f1-${key}-type`} value={val.type}
                   onChange={(ev) => set({ ...val, type: ev.target.value })}>
                   <option value="">Choose a share type…</option>
-                  {F1_SHARE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  {F1_SHARE_TYPES.map((t) => <option key={t} value={t}>{f1ShareTypeLabel(t)}</option>)}
                 </select>
                 {val.type === "percent_of_base" ? (
                   <>
                     <select data-testid={`f1-${key}-basis`} value={val.basis}
                       onChange={(ev) => set({ ...val, basis: ev.target.value })}>
                       <option value="">Choose a basis…</option>
-                      {F1_BASES.map((b) => <option key={b} value={b}>{b}</option>)}
+                      {F1_BASES.map((b) => <option key={b} value={b}>{f1BasisLabel(b)}</option>)}
                     </select>
                     <label style={{ marginLeft: ".4rem" }}>
                       <input data-testid={`f1-${key}-percent`} value={val.percent} inputMode="decimal"
@@ -1482,14 +1583,14 @@ export default function FounderFundraisingDashboard() {
                   <select data-testid="f1-gift-type" value={ecoGift.type}
                     onChange={(ev) => setEcoGift({ ...ecoGift, type: ev.target.value })}>
                     <option value="">Choose a share type…</option>
-                    {F1_SHARE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                    {F1_SHARE_TYPES.map((t) => <option key={t} value={t}>{f1ShareTypeLabel(t)}</option>)}
                   </select>
                   {ecoGift.type === "percent_of_base" ? (
                     <>
                       <select data-testid="f1-gift-basis" value={ecoGift.basis}
                         onChange={(ev) => setEcoGift({ ...ecoGift, basis: ev.target.value })}>
                         <option value="">Choose a basis…</option>
-                        {F1_BASES.map((b) => <option key={b} value={b}>{b}</option>)}
+                        {F1_BASES.map((b) => <option key={b} value={b}>{f1BasisLabel(b)}</option>)}
                       </select>
                       <input data-testid="f1-gift-percent" value={ecoGift.percent} inputMode="decimal"
                         onChange={(ev) => setEcoGift({ ...ecoGift, percent: ev.target.value })} style={{ width: 90 }} />
@@ -1508,22 +1609,42 @@ export default function FounderFundraisingDashboard() {
               <legend style={{ fontSize: ".8rem", fontWeight: 700 }}>Treatments</legend>
               {Object.entries(F1_TREATMENTS).map(([key, allowed]) => (
                 <label key={key} style={{ display: "block", margin: ".3rem 0", fontSize: ".82rem" }}>
-                  {key}
+                  {f1TreatmentFieldLabel(key)}
                   {" "}
                   <select data-testid={`f1-${key}`} value={ecoTreatments[key]}
                     onChange={(ev) => setEcoTreatments({ ...ecoTreatments, [key]: ev.target.value })}>
                     {/* Even a single-valued treatment must be chosen, never inserted silently. */}
                     <option value="">Choose…</option>
-                    {allowed.map((a) => <option key={a} value={a}>{a}</option>)}
+                    {allowed.map((a) => <option key={a} value={a}>{f1TreatmentValueLabel(a)}</option>)}
                   </select>
                   {ecoErrors[key] ? <span data-testid={`f1-err-${key}`} style={{ color: "#b00" }}> {ecoErrors[key]}</span> : null}
                 </label>
               ))}
             </fieldset>
 
+            {/* W35 - what the founder has entered so far, in plain words. Built from the same
+                f1BuildShare the payload uses, so it can never disagree with what would be sent. */}
+            <div data-testid="f1-preview" style={{ fontSize: ".82rem", background: "#faf7f2", borderRadius: 8, padding: ".55rem", margin: ".6rem 0" }}>
+              <strong>Preview of these terms</strong>
+              <div>Initial subscription share: <span data-testid="f1-preview-initial">{f1PreviewShare(ecoInitial)}</span></div>
+              <div>Renewal share: <span data-testid="f1-preview-renewal">{f1PreviewShare(ecoRenewal)}</span></div>
+              <div>Gift participation: <span data-testid="f1-preview-gift-position">{ecoGiftEnabled ? "On" : "Off"}</span></div>
+              {ecoGiftEnabled ? (
+                <div>Gift share: <span data-testid="f1-preview-gift">{f1PreviewShare(ecoGift)}</span></div>
+              ) : null}
+            </div>
+
+            <dl data-testid="f1-definitions" style={{ fontSize: ".78rem", color: "#555", margin: ".4rem 0 .7rem" }}>
+              {Object.entries(F1_BASIS_DEFINITIONS).map(([k, d]) => (
+                <div key={k}><dt style={{ display: "inline", fontWeight: 700 }}>{f1BasisLabel(k)}: </dt><dd style={{ display: "inline", margin: 0 }}>{d}</dd></div>
+              ))}
+            </dl>
+
             <button type="submit" data-testid="f1-submit" disabled={ecoBusy}>
               {ecoBusy ? "Creating draft\u2026" : "Create draft economics"}
             </button>
+            {" "}
+            <button type="button" data-testid="f1-cancel" disabled={ecoBusy} onClick={closeEconomics}>Cancel</button>
           </form>
 
           {ecoMessage ? <p data-testid="f1-message" role="status" style={{ color: "#b00", fontSize: ".85rem" }}>{ecoMessage}</p> : null}
@@ -1534,6 +1655,8 @@ export default function FounderFundraisingDashboard() {
               {" "}— not approved and not active.
             </p>
           ) : null}
+          </div>
+          )}
           </section>
         </>
       ) : null}
