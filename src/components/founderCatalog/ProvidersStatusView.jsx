@@ -9,10 +9,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Building2, Plus } from 'lucide-react';
 
-function statusLabel(p) {
-  if (!p.enabled) return 'Dormant — not activated';
-  if (!p.browseAvailable) return 'Active — no browsable catalog';
-  return 'Active';
+// W11: three different facts must never collapse into one bare "Active".
+//   1. INTEGRATION — is the provider connection switched on (p.enabled)?
+//   2. CATALOG    — can we browse its products to publish (p.browseAvailable)?
+//   3. PURCHASABLE — customers can only buy products the founder has PUBLISHED to the catalog.
+// The badge states (1); the caption beneath states (2) and (3).
+export function statusLabel(p) {
+  return p.enabled ? 'Integration enabled' : 'Integration off';
+}
+
+export function catalogCaption(p) {
+  if (!p.enabled) return 'Nothing from this provider is purchasable by customers.';
+  if (!p.browseAvailable) return 'No browsable catalog — cannot publish new products. Customers can buy only products already published.';
+  return 'Browsable. Customers can buy only products you have published to the catalog.';
 }
 
 function statusColor(p) {
@@ -131,6 +140,9 @@ export default function ProvidersStatusView({ client, onAddProducts }) {
                 <Plus size={13} /> Add Products
               </button>
             </div>
+            <p data-testid={`provider-catalog-caption-${p.providerId}`} style={{ margin: 0, width: '100%', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              {catalogCaption(p)}
+            </p>
             {p.reason && <p style={{ margin: 0, width: '100%', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{p.reason}</p>}
             {Array.isArray(p.launchBlockerIds) && p.launchBlockerIds.length > 0 && (
               <ul data-testid={`provider-blockers-${p.providerId}`} style={{ margin: 0, width: '100%', paddingLeft: '1.25rem', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>

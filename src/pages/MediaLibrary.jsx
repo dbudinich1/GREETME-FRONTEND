@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 import { getMediaLibraryItems, removeFromMediaLibrary } from '../utils/mediaLibrary';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
-import TutorialVideo from '../components/TutorialVideo';
 import QRCode from 'qrcode';
 
 export default function MediaLibrary() {
@@ -301,31 +300,7 @@ export default function MediaLibrary() {
         </p>
       </div>
 
-      {/* Quick-action CTAs */}
-      {!isSelectionMode && (
-        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#22c55e',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              fontFamily: 'inherit',
-            }}
-          >
-            <Users size={14} />
-            Add Recipient
-          </button>
-        </div>
-      )}
+      {/* W40: the unrelated "Add Recipient" quick action was removed from Media Library. */}
 
       {/* Selection Mode Action Buttons */}
       {isSelectionMode && (
@@ -384,10 +359,7 @@ export default function MediaLibrary() {
         </div>
       )}
 
-      {/* Demo Video Section */}
-      <div style={{ marginBottom: '2rem' }}>
-        <TutorialVideo variant="full" />
-      </div>
+      {/* W41: the inert "Video coming soon" player was removed (Help/Quick Start content is held for a founder decision). */}
 
       {/* Mobile App QR Code */}
       <div style={{
@@ -422,12 +394,12 @@ export default function MediaLibrary() {
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.25rem'
-            }}>Download Greet-Me™ Mobile App</h3>
+            }}>Add Greet-Me™ to Your Home Screen</h3>
             <p style={{
               fontSize: '0.8125rem',
               color: 'var(--text-secondary)',
               margin: 0
-            }}>Send greetings on the go - scan QR code to download</p>
+            }}>Scan the QR code to open the install page. No app store needed.</p>
           </div>
         </div>
         <div style={{
@@ -452,7 +424,7 @@ export default function MediaLibrary() {
           e.currentTarget.style.transform = 'scale(1)';
           e.currentTarget.style.boxShadow = 'none';
         }}
-        title="Scan to install Greet-Me mobile app"
+        title="Scan to open the Greet-Me home-screen install page"
         >
           {appQrUrl
             ? <img src={appQrUrl} alt="Scan to install Greet-Me" style={{ width: '70%', height: '70%' }} />

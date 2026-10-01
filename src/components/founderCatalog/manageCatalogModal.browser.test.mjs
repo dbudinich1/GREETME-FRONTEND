@@ -196,14 +196,29 @@ test("2/3/4/5. Florist One, Goody, Prezzee and Printful all appear in the openin
 
 test("provider status is accurate existing state, not fabricated — an explicitly dormant provider is shown as dormant", async () => {
   const s = await mountOpen(fakeClient());
-  assert.match(s.tid("provider-status-badge-florist_one").textContent, /Active/);
-  assert.match(s.tid("provider-status-badge-goody").textContent, /Dormant/);
+  assert.match(s.tid("provider-status-badge-florist_one").textContent, /Integration enabled/);
+  assert.match(s.tid("provider-status-badge-goody").textContent, /Integration off/);
   assert.ok(s.tid("provider-blockers-goody"), "Goody's real launch blockers must still be shown");
+});
+
+test("W11. no bare 'Active'; every provider state separates integration / catalog-published / purchasable", async () => {
+  const s = await mountOpen(fakeClient());
+  for (const id of ["florist_one", "goody", "prezzee", "printful"]) {
+    const badge = s.tid(`provider-status-badge-${id}`).textContent;
+    assert.ok(!/^\s*Active\s*$/.test(badge), `${id} badge must not be a bare "Active"`);
+    assert.ok(!/Active|Dormant/.test(badge + s.tid(`provider-catalog-caption-${id}`).textContent), `${id} must not use ambiguous Active/Dormant`);
+  }
+  // browsable (florist_one), disabled (goody), enabled-but-unbrowsable (prezzee), live supplier (printful)
+  assert.match(s.tid("provider-catalog-caption-florist_one").textContent, /Browsable.*published/);
+  assert.match(s.tid("provider-catalog-caption-goody").textContent, /Nothing from this provider is purchasable/);
+  assert.match(s.tid("provider-status-badge-prezzee").textContent, /Integration enabled/);
+  assert.match(s.tid("provider-catalog-caption-prezzee").textContent, /No browsable catalog.*already published/);
+  assert.match(s.tid("provider-catalog-caption-printful").textContent, /published/);
 });
 
 test("Printful's status reflects its real existing state (a live, shipping supplier) truthfully labeled, without claiming a refresh capability the backend never granted it", async () => {
   const s = await mountOpen(fakeClient());
-  assert.match(s.tid("provider-status-badge-printful").textContent, /Active/);
+  assert.match(s.tid("provider-status-badge-printful").textContent, /Integration enabled/);
   assert.ok(!s.tid("provider-refresh-printful"), "no fabricated refresh action for a provider outside the refresh-capable registry");
 });
 
