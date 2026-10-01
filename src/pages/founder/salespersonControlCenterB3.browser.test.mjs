@@ -264,3 +264,45 @@ test("reporting is never logged or persisted, and no historical token is request
   }
   assert.equal(/rotate[^)]*token[^)]*get\(/i.test(client), false, "no token read path");
 });
+
+// == CLOSEOUT W37 / W38 (proposed) ==========================================================
+const REAL_HEALTH = {
+  salespersonId: "sp1",
+  totals: { no_referral: 0, referral_validated: 12, attributed: 3, gift_claim_validated: 0, carrier_unavailable: 0, window_expired: 2, unresolvable: 1, attribution_disabled: 0 },
+  byDay: { "2026-09-28": { referral_validated: 7, attributed: 2, window_expired: 2 }, "2026-09-29": { referral_validated: 5, attributed: 1 } },
+  validatedCount: 12, attributedCount: 3, carrierUnavailableCount: 7, expiredCount: 2, lossRateBps: 8333, consideredCount: 12,
+};
+test("W37: real-shape attribution health renders labeled metrics, totals table, by-day table and bars - no [object Object]", async () => {
+  const a = api({ attributionHealth: async () => ({ ok: true, status: 200, data: { ok: true, attributionHealth: REAL_HEALTH, controls: CONTROLS } }) });
+  await open(a);
+  const h = tid("fcc-health");
+  assert.ok(h);
+  assert.equal(h.getAttribute("data-state"), "ok");
+  assert.equal(/\[object Object\]/.test(document.body.textContent), false);
+  assert.match(tid("fcc-health-metric-lossRateBps").textContent, /83\.33%/);
+  assert.match(tid("fcc-health-totals").textContent, /Attributed to a purchase/);
+  assert.ok(tid("fcc-health-day-2026-09-28") && tid("fcc-health-day-2026-09-29"));
+  assert.ok(tid("fcc-health-bar-2026-09-28"));
+});
+test("W37: empty and malformed health payloads degrade honestly", async () => {
+  await open(api({ attributionHealth: async () => ({ ok: true, status: 200, data: { ok: true, attributionHealth: { totals: {}, byDay: {}, lossRateBps: null }, controls: CONTROLS } }) }));
+  assert.equal(tid("fcc-health").getAttribute("data-state"), "empty");
+  await open(api({ attributionHealth: async () => ({ ok: true, status: 200, data: { ok: true, attributionHealth: { totals: "x", byDay: [1], weird: { a: 1 } }, controls: CONTROLS } }) }));
+  assert.equal(/\[object Object\]/.test(document.body.textContent), false);
+});
+test("W38: one effective status joins stored status and the platform switches", async () => {
+  const a = api({ summary: async () => ({ ok: true, status: 200, data: { ok: true, summary: { ...SUMMARY, linkStatus: "active" } } }) });
+  await open(a);
+  assert.equal(tid("fcc-effective-status").getAttribute("data-state"), "active_paused", "CONTROLS has both switches off");
+  assert.match(tid("fcc-effective-status").textContent, /paused/);
+  const live = api({
+    summary: async () => ({ ok: true, status: 200, data: { ok: true, summary: { ...SUMMARY, linkStatus: "active" } } }),
+    attributionHealth: async () => ({ ok: true, status: 200, data: { ok: true, attributionHealth: HEALTH, controls: { referralPublicLive: true, attributionLive: true } } }),
+  });
+  await open(live);
+  assert.equal(tid("fcc-effective-status").getAttribute("data-state"), "active");
+  const off = api({ summary: async () => ({ ok: true, status: 200, data: { ok: true, summary: { ...SUMMARY, linkStatus: "inactive" } } }) });
+  await open(off);
+  assert.equal(tid("fcc-effective-status").getAttribute("data-state"), "inactive");
+  assert.equal(off.calls.filter((c) => /status|rotate|reactivate|disable/i.test(c[0])).length, 0, "no mutation call was made to show it");
+});
