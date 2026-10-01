@@ -157,6 +157,9 @@ test("entering a name enables submit; create posts { name } (NOT empty {}), relo
   assert.equal(tid("create-submit").disabled, false, "submit enabled once named");
   const listBefore = c.calls.listCampaigns;
   await submitForm();
+  assert.equal(c.calls.createCampaign.length, 0, "W32: Create only opens the details dialog; nothing is sent yet");
+  assert.ok(tid("create-dialog"), "the details dialog is open");
+  await click(tid("create-confirm"));
   assert.equal(c.calls.createCampaign.length, 1, "exactly one create");
   assert.deepEqual(c.calls.createCampaign[0].body, { name: "Q4 Client Appreciation" }, "posts name only, no empty {}, no type");
   assert.ok(tid("create-form"), "the row stays visible after success — it is permanent, not a step");
@@ -167,8 +170,11 @@ test("entering a name enables submit; create posts { name } (NOT empty {}), relo
 test("optional type is included when provided", async () => {
   const c = fakeClient({ campaigns: [] });
   await mount({ client: c });
-  await act(async () => { setValue(tid("create-name"), "Winter Cards"); setValue(tid("create-type"), "Holiday"); }); await flush();
+  await act(async () => { setValue(tid("create-name"), "Winter Cards"); }); await flush();
+  assert.equal(tid("create-type"), null, "W32: Type is no longer in the persistent row");
   await submitForm();
+  await act(async () => { setValue(tid("create-type"), "Holiday"); }); await flush();
+  await click(tid("create-confirm"));
   assert.deepEqual(c.calls.createCampaign[0].body, { name: "Winter Cards", campaignType: "Holiday" });
 });
 
@@ -192,10 +198,45 @@ test("a failed create shows a useful, visible error and does not clear the enter
   await mount({ client: c });
   await act(async () => { setValue(tid("create-name"), "Duplicate Name"); }); await flush();
   await submitForm();
+  await act(async () => { setValue(tid("create-type"), "Holiday"); }); await flush();
+  await click(tid("create-confirm"));
   const error = tid("create-error");
   assert.ok(error, "an error is shown, not a silent failure");
   assert.match(error.textContent, /A campaign named that already exists\./);
   assert.equal(tid("create-name").value, "Duplicate Name", "the entered name is preserved so the reader can correct it, not lost");
+  assert.ok(tid("create-dialog"), "the dialog stays open on failure");
+  assert.equal(tid("create-type").value, "Holiday", "and so does the type");
+  assert.equal(tid("create-confirm").disabled, false, "retry is possible");
+});
+
+test("W32: two confirms in the same tick send ONE create (duplicate-submit guard)", async () => {
+  const c = fakeClient({ campaigns: [] });
+  let release;
+  c.createCampaign = (orgId, body) => { c.calls.createCampaign.push({ orgId, body }); return new Promise((r) => { release = () => r({ ok: true, data: {} }); }); };
+  await mount({ client: c });
+  await act(async () => { setValue(tid("create-name"), "Once Only"); }); await flush();
+  await submitForm();
+  await act(async () => {
+    const b = tid("create-confirm");
+    b.dispatchEvent(new window.Event("click", { bubbles: true }));
+    b.dispatchEvent(new window.Event("click", { bubbles: true }));
+  });
+  assert.equal(c.calls.createCampaign.length, 1, "one request despite two clicks");
+  assert.equal(tid("create-confirm").disabled, true, "disabled while the request is out");
+  await act(async () => { release(); }); await flush();
+  assert.equal(tid("create-dialog"), null, "dialog closes on success");
+  assert.equal(tid("create-name").value, "", "name clears on success only");
+});
+
+test("W32: Cancel closes the dialog, sends nothing and keeps the name", async () => {
+  const c = fakeClient({ campaigns: [] });
+  await mount({ client: c });
+  await act(async () => { setValue(tid("create-name"), "Keep Me"); }); await flush();
+  await submitForm();
+  await click(tid("create-cancel"));
+  assert.equal(tid("create-dialog"), null);
+  assert.equal(c.calls.createCampaign.length, 0);
+  assert.equal(tid("create-name").value, "Keep Me");
 });
 
 test("existing campaign shows its type and expands INLINE (no detail navigation)", async () => {
