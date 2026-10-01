@@ -2083,12 +2083,12 @@ export default function DashboardHome() {
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.25rem'
-            }}>Download Greet-Me™ Mobile App</h3>
+            }}>Add Greet-Me™ to Your Home Screen</h3>
             <p style={{
               fontSize: '0.8125rem',
               color: 'var(--text-secondary)',
               margin: 0
-            }}>Send Greet-Me messages on the go - scan QR code to download</p>
+            }}>Scan the QR code to open the install page. No app store needed.</p>
           </div>
         </div>
         <div style={{
@@ -2115,7 +2115,7 @@ export default function DashboardHome() {
             e.currentTarget.style.boxShadow = 'none';
           },
         })}
-        title="Scan to install Greet-Me mobile app"
+        title="Scan to open the Greet-Me home-screen install page"
         >
           {appQrUrl
             ? <img src={appQrUrl} alt="Scan to install Greet-Me" style={{ width: '70%', height: '70%' }} />
