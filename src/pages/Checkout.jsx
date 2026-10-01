@@ -91,6 +91,9 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 
 import { platformFeeFor as resolvePlatformFee, formatFeeAmount, FEE_CALCULATED_AT_CHECKOUT } from '../utils/platformFee';
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
+import {
+  expectedMerchSubtotalCents, isMerchPriceConfirmationCode, applyMerchPriceChange, merchPriceNotice,
+} from '../utils/merchPriceGuard';
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -192,6 +195,9 @@ export default function Checkout() {
   });
 
   const [errors, setErrors] = useState({});
+  // Merch expected-price guard: set after a 409 (nothing was charged) so the customer can review the
+  // refreshed item prices before choosing to place the order again.
+  const [merchPriceNoticeText, setMerchPriceNoticeText] = useState(null);
 
   // ===== Phase 3C Stage 3 — merch shipping state =====
   const cartHasMerch = cartItems.some((it) => !!it.printfulSyncVariantId);
@@ -299,6 +305,7 @@ export default function Checkout() {
       }
       setIsProcessing(true);
       setErrors({});
+      setMerchPriceNoticeText(null);
       try {
         const items = cartItems
           .filter((i) => i.printfulSyncVariantId)
@@ -306,6 +313,9 @@ export default function Checkout() {
         const data = await api.post('/api/payments/create-checkout', {
           purchaseType: 'merch',
           items,
+          // The ITEM subtotal the customer is looking at right now (shipping excluded). The server
+          // compares it with its own and answers 409, charging nothing, if it differs.
+          expectedSubtotalCents: expectedMerchSubtotalCents(cartItems),
           recipientName: recipientName.trim(),
           shippingAddress: {
             address1: shipForm.address1.trim(),
@@ -337,6 +347,25 @@ export default function Checkout() {
         if (checkoutSessionCreated(data)) clearFundraiserToken();
         window.location.href = data.url;
       } catch (error) {
+        // PRICE GUARD (409, nothing charged): show the refreshed item prices and total and wait for the
+        // customer's own click. Never retried here, and no redirect to Stripe happens.
+        if (isMerchPriceConfirmationCode(error?.code)) {
+          const applied = applyMerchPriceChange(cartItems, error?.data);
+          if (applied) {
+            applied.items.forEach((it, idx) => {
+              const before = cartItems[idx];
+              if (before && it.priceCents !== before.priceCents) cartService.updateItem(before.id, { price: it.price, priceCents: it.priceCents });
+            });
+            setCartItems(applied.items);
+            setTotal(applied.items.reduce((s, i) => s + (typeof i.price === 'number' ? i.price : 0), 0));
+            setMerchPriceNoticeText(merchPriceNotice({ code: error.code, previousCents: applied.previousCents, subtotalCents: applied.subtotalCents }));
+            setErrors({});
+          } else {
+            setErrors({ submit: 'The prices in your cart may have changed. Nothing was charged. Please go back to your cart, review it, and try again.' });
+          }
+          setIsProcessing(false);
+          return;
+        }
         console.error('Stripe merch checkout error:', error);
         setErrors({ submit: getErrorMessage(error) });
         setIsProcessing(false);
@@ -795,6 +824,20 @@ export default function Checkout() {
                     {shipping.error}
                   </div>
                 )}
+              </div>
+            )}
+
+            {merchPriceNoticeText && (
+              <div data-testid="merch-price-notice" role="status" style={{
+                marginTop: '1rem',
+                padding: '1rem',
+                background: '#fffbeb',
+                border: '1px solid #fcd34d',
+                borderRadius: 'var(--radius-md)',
+                color: '#92400e',
+                fontSize: '0.875rem'
+              }}>
+                {merchPriceNoticeText}
               </div>
             )}
 

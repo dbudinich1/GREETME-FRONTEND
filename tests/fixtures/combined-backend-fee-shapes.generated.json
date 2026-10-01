@@ -1,7 +1,7 @@
 {
   "generatedFrom": {
     "backendDir": "C:\\1_GREET-ME\\cs-be-combined",
-    "backendHead": "897d8bb98495ac6cb731eed437f8a225a4766f43",
+    "backendHead": "ef62a73721af8a918ffd6662200109a27ac6ade4",
     "node": "v20.20.2"
   },
   "smartCard": {
@@ -84,6 +84,152 @@
       "totalCents": 1499
     }
   },
+  "merch": {
+    "productionRate": 0,
+    "pricesAtRate0": [
+      {
+        "syncVariantId": 5298288788,
+        "priceCents": 2900
+      },
+      {
+        "syncVariantId": 5298250656,
+        "priceCents": 1400
+      }
+    ],
+    "pricesAt5": [
+      {
+        "syncVariantId": 5298288788,
+        "priceCents": 3045
+      },
+      {
+        "syncVariantId": 5298250656,
+        "priceCents": 1470
+      }
+    ],
+    "heldAcrossRateChange": {
+      "action": "refuse",
+      "status": 409,
+      "body": {
+        "ok": false,
+        "code": "MERCH_PRICE_CHANGED",
+        "error": "The price of one or more items has changed. Please review the updated price and try again.",
+        "currency": "usd",
+        "subtotalCents": 4515,
+        "items": [
+          {
+            "syncVariantId": 5298288788,
+            "priceCents": 3045
+          },
+          {
+            "syncVariantId": 5298250656,
+            "priceCents": 1470
+          }
+        ]
+      }
+    },
+    "priceDecreased": {
+      "action": "refuse",
+      "status": 409,
+      "body": {
+        "ok": false,
+        "code": "MERCH_PRICE_CHANGED",
+        "error": "The price of one or more items has changed. Please review the updated price and try again.",
+        "currency": "usd",
+        "subtotalCents": 4300,
+        "items": [
+          {
+            "syncVariantId": 5298288788,
+            "priceCents": 2900
+          },
+          {
+            "syncVariantId": 5298250656,
+            "priceCents": 1400
+          }
+        ]
+      }
+    },
+    "legacyAtElevatedRate": {
+      "action": "refuse",
+      "status": 409,
+      "body": {
+        "ok": false,
+        "code": "MERCH_PRICE_CONFIRMATION_REQUIRED",
+        "error": "Please review the current price for your items and confirm to continue.",
+        "currency": "usd",
+        "subtotalCents": 4515,
+        "items": [
+          {
+            "syncVariantId": 5298288788,
+            "priceCents": 3045
+          },
+          {
+            "syncVariantId": 5298250656,
+            "priceCents": 1470
+          }
+        ]
+      }
+    },
+    "legacyAtElevatedRateNull": {
+      "action": "refuse",
+      "status": 409,
+      "body": {
+        "ok": false,
+        "code": "MERCH_PRICE_CONFIRMATION_REQUIRED",
+        "error": "Please review the current price for your items and confirm to continue.",
+        "currency": "usd",
+        "subtotalCents": 4515,
+        "items": [
+          {
+            "syncVariantId": 5298288788,
+            "priceCents": 3045
+          },
+          {
+            "syncVariantId": 5298250656,
+            "priceCents": 1470
+          }
+        ]
+      }
+    },
+    "legacyAtRate0": {
+      "action": "proceed",
+      "legacy": true
+    },
+    "matchingAtRate0": {
+      "action": "proceed",
+      "legacy": false
+    },
+    "matchingAtElevatedRate": {
+      "action": "proceed",
+      "legacy": false
+    },
+    "malformedFraction": {
+      "action": "invalid",
+      "status": 400,
+      "body": {
+        "ok": false,
+        "code": "INVALID_REQUEST",
+        "error": "expectedSubtotalCents must be a whole number of cents."
+      }
+    },
+    "malformedString": {
+      "action": "invalid",
+      "status": 400,
+      "body": {
+        "ok": false,
+        "code": "INVALID_REQUEST",
+        "error": "expectedSubtotalCents must be a whole number of cents."
+      }
+    },
+    "malformedNegative": {
+      "action": "invalid",
+      "status": 400,
+      "body": {
+        "ok": false,
+        "code": "INVALID_REQUEST",
+        "error": "expectedSubtotalCents must be a whole number of cents."
+      }
+    }
+  },
   "giftBox": {
     "feeRate": 0.05,
     "rounding": [
@@ -114,7 +260,7 @@
       "feeCents": 266,
       "quotedTotalCents": 5576,
       "currency": "usd",
-      "quotedAt": "2026-10-01T21:44:41.008Z",
+      "quotedAt": "2026-10-01T22:23:55.365Z",
       "quoteValidForMs": 120000
     },
     "quoteAfter": {
@@ -123,7 +269,7 @@
       "feeCents": 314,
       "quotedTotalCents": 6600,
       "currency": "usd",
-      "quotedAt": "2026-10-01T21:44:41.009Z",
+      "quotedAt": "2026-10-01T22:23:55.366Z",
       "quoteValidForMs": 120000
     },
     "charge409": {
@@ -135,7 +281,7 @@
         "providerQuotedTotalCents": 6286,
         "feeCents": 314,
         "quotedTotalCents": 6600,
-        "quotedAt": "2026-10-01T21:44:41.009Z"
+        "quotedAt": "2026-10-01T22:23:55.366Z"
       }
     }
   }

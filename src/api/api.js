@@ -232,6 +232,9 @@ class ApiService {
       const error = new Error(data?.error || `HTTP ${res.status}`);
       error.status = res.status;
       error.code = data?.code || undefined;
+      // Additive: the parsed error body, for callers that need structured fields (e.g. the merch
+      // expected-price 409 carries the new subtotalCents and per-item priceCents).
+      error.data = data;
       throw error;
     }
 
