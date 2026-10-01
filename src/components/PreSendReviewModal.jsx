@@ -209,7 +209,10 @@ export default function PreSendReviewModal({
             color: '#6b7280',
           }}>
             <Calendar size={14} />
-            {occasionLabel || 'Just Because'}
+            <span data-testid="review-occasion">{occasionLabel || 'Just Because'}</span>
+            {/* W04: occasion and cadence are separate facts. This review is only ever for the
+                immediate one-time composer, so say so; it must never read as scheduled or recurring. */}
+            <span data-testid="review-cadence"> &middot; One-time send</span>
           </div>
         </div>
 
