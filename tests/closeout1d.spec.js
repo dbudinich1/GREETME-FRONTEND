@@ -153,3 +153,39 @@ test.describe('W09 reset password', () => {
     await expect(page.locator('input[type="email"]')).toHaveValue('');
   });
 });
+
+// W39 banner contrast (Media Library). Worst case = min over the gradient's colour stops.
+test.describe('W39 banner contrast', () => {
+  for (const [name, vp] of [['desktop', DESKTOP], ['mobile', MOBILE]]) {
+    test(`media banner text contrast ${name}`, async ({ page }) => {
+      await page.setViewportSize(vp);
+      await setup(page);
+      await page.goto('/#/dashboard/media');
+      const h1 = page.getByRole('heading', { name: 'Media Library' });
+      await expect(h1).toBeVisible({ timeout: 15000 });
+      const m = await page.evaluate(() => {
+        const parse = (s) => (s.match(/rgba?\([^)]*\)/g) || []).map((c) => c.match(/[\d.]+/g).map(Number));
+        const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+        const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+        const h = document.querySelector('h1');
+        const banner = h.parentElement;
+        const stops = parse(getComputedStyle(banner).backgroundImage);
+        const out = {};
+        for (const [k, el] of [['h1', h], ['sub', h.nextElementSibling]]) {
+          const cs = getComputedStyle(el);
+          const [r, g, b, a = 1] = parse(cs.color)[0];
+          const eff = Math.min(1, a * parseFloat(cs.opacity));
+          const px = parseFloat(cs.fontSize); const bold = parseInt(cs.fontWeight, 10) >= 700;
+          const large = px >= 24 || (bold && px >= 18.66);
+          const ratios = stops.map((s) => ratio([r * eff + s[0] * (1 - eff), g * eff + s[1] * (1 - eff), b * eff + s[2] * (1 - eff)], s));
+          out[k] = { color: cs.color, opacity: cs.opacity, px, large, min: Math.min(...ratios), ratios };
+        }
+        return out;
+      });
+      console.log(`CONTRAST ${LABEL} ${name} ${JSON.stringify(m)}`);
+      await page.screenshot({ path: `${OUT}/${LABEL}-media-banner-${name}.png`, clip: { x: 0, y: 0, width: vp.width, height: Math.min(vp.height, 520) } });
+      expect(m.h1.min).toBeGreaterThanOrEqual(m.h1.large ? 3 : 4.5);
+      expect(m.sub.min).toBeGreaterThanOrEqual(m.sub.large ? 3 : 4.5);
+    });
+  }
+});
