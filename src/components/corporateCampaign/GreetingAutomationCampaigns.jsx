@@ -65,7 +65,11 @@ function Shell({ children }) {
 // state/validation/API contract as before (unchanged): a required name and an optional free-text
 // type, both accepted as-is by the backend (`name`, `campaignType`) — no new endpoint, no enum, no
 // occasion/scheduling semantics implied.
-function CreateCampaignForm({ name, type, onName, onType, onSubmit, creating, error }) {
+// CLOSEOUT W32 (PROPOSED) - the persistent row is now ONLY the campaign name and the Create button.
+// The optional Type moved into a small details dialog that Create opens; the single create request
+// is sent from that dialog (the backend has no endpoint to set `campaignType` after creation, so
+// the type has to travel with the one POST). The request body is unchanged: { name, campaignType? }.
+function CreateCampaignForm({ name, onName, onSubmit, creating, nameRef }) {
   const canCreate = name.trim().length > 0 && !creating;
   const input = {
     boxSizing: "border-box", padding: "9px 12px", borderRadius: 10,
@@ -74,27 +78,68 @@ function CreateCampaignForm({ name, type, onName, onType, onSubmit, creating, er
   return (
     <form data-testid="create-form" onSubmit={(e) => { e.preventDefault(); if (canCreate) onSubmit(); }}
       style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-      <input id="cc-name" data-testid="create-name" value={name} onChange={(e) => onName(e.target.value)}
+      <input id="cc-name" ref={nameRef} data-testid="create-name" value={name} onChange={(e) => onName(e.target.value)}
         aria-label="Campaign name" placeholder="Campaign name"
         style={{ ...input, flex: "1 1 180px", minWidth: 140 }} />
-      <input id="cc-type" data-testid="create-type" value={type} onChange={(e) => onType(e.target.value)}
-        aria-label="Type (optional)" placeholder="Type (optional)"
-        style={{ ...input, flex: "0 1 140px", minWidth: 100 }} />
       <button type="submit" data-testid="create-submit" disabled={!canCreate}
         style={{
           background: PURPLE, color: "#fff", border: "none", borderRadius: 11, padding: "9px 16px",
           fontWeight: 700, fontSize: ".82rem", whiteSpace: "nowrap",
           cursor: canCreate ? "pointer" : "not-allowed", opacity: canCreate ? 1 : .55,
         }}>
-        {creating ? "Creating…" : TERMS.CREATE}
+        {TERMS.CREATE}
       </button>
-      {error ? (
-        <p role="alert" data-testid="create-error"
-          style={{ flexBasis: "100%", margin: "4px 0 0", color: "#b3261e", fontSize: ".8rem" }}>
-          {error}
-        </p>
-      ) : null}
     </form>
+  );
+}
+
+// W32 - the details dialog. Name is shown (and kept) here; Type is optional. Submitting is guarded
+// twice: the button is disabled while a request is out, and handleCreate refuses a re-entry via a
+// ref (state alone cannot stop two submits fired in the same tick). A failed create leaves the
+// dialog open with the name and type exactly as entered, plus the reason.
+function CreateCampaignDialog({ name, type, onType, onConfirm, onCancel, creating, error }) {
+  const typeRef = useRef(null);
+  useEffect(() => { if (typeRef.current) typeRef.current.focus(); }, []);
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape" && !creating) onCancel(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [creating, onCancel]);
+  const input = {
+    boxSizing: "border-box", padding: "9px 12px", borderRadius: 10, width: "100%",
+    border: "1px solid rgba(27,24,48,.2)", fontSize: ".85rem",
+  };
+  return (
+    <div data-testid="create-dialog-backdrop"
+      style={{ position: "fixed", inset: 0, background: "rgba(27,24,48,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="cc-dialog-title" data-testid="create-dialog"
+        style={{ background: "#fff", borderRadius: 16, padding: "20px 22px", width: "min(440px, 100%)", boxSizing: "border-box" }}>
+        <h3 id="cc-dialog-title" style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>Create campaign</h3>
+        <p data-testid="create-dialog-name" style={{ margin: "0 0 12px", color: "#605c78", fontSize: ".85rem" }}>
+          Name: <strong>{name.trim()}</strong>
+        </p>
+        <label htmlFor="cc-type" style={{ display: "block", fontSize: ".8rem", fontWeight: 700, marginBottom: 4 }}>
+          Type <span style={{ fontWeight: 400, color: "#605c78" }}>(optional)</span>
+        </label>
+        <input id="cc-type" ref={typeRef} data-testid="create-type" value={type} onChange={(e) => onType(e.target.value)}
+          placeholder="For example: Holiday" style={input} disabled={creating} />
+        {error ? (
+          <p role="alert" data-testid="create-error" style={{ margin: "10px 0 0", color: "#b3261e", fontSize: ".8rem" }}>
+            {error}
+          </p>
+        ) : null}
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+          <button type="button" data-testid="create-cancel" onClick={onCancel} disabled={creating}
+            style={{ background: "transparent", border: "1px solid rgba(27,24,48,.2)", borderRadius: 11, padding: "9px 16px", fontWeight: 700, fontSize: ".82rem" }}>
+            Cancel
+          </button>
+          <button type="button" data-testid="create-confirm" onClick={onConfirm} disabled={creating}
+            style={{ background: PURPLE, color: "#fff", border: "none", borderRadius: 11, padding: "9px 16px", fontWeight: 700, fontSize: ".82rem", opacity: creating ? .55 : 1 }}>
+            {creating ? "Creating…" : "Create campaign"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -169,6 +214,9 @@ export default function GreetingAutomationCampaigns({
   const [capabilityResult, setCapabilityResult] = useState(null); // server-derived, from the campaign list load
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("");
+  const [createOpen, setCreateOpen] = useState(false); // W32 details dialog
+  const creatingRef = useRef(false);                   // W32 same-tick double-submit guard
+  const createNameRef = useRef(null);
   // SLICE D — the organisation contact pool.
   const [contacts, setContacts] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
@@ -665,23 +713,46 @@ export default function GreetingAutomationCampaigns({
     }
   }, [effectiveOrgId, loadCampaigns, loadContacts]);
 
+  // W32 - Create (row) only OPENS the details dialog; nothing is sent yet.
+  function requestCreate() {
+    if (!effectiveOrgId || creating || !newName.trim()) return;
+    setCreateError(null);
+    setCreateOpen(true);
+  }
+  function cancelCreate() {
+    if (creatingRef.current) return;
+    setCreateOpen(false); setCreateError(null); setNewType("");
+    // The name stays in the row; focus returns to where the founder was.
+    if (createNameRef.current) createNameRef.current.focus();
+  }
+
   async function handleCreate() {
-    if (!effectiveOrgId || creating) return;
+    // The ref closes the same-tick double-submit window that `creating` (state) cannot.
+    if (!effectiveOrgId || creating || creatingRef.current) return;
     const name = newName.trim();
     if (!name) return; // a campaign must be named (client-side only; backend still accepts null)
     const body = { name };
     const campaignType = newType.trim();
     if (campaignType) body.campaignType = campaignType;
+    creatingRef.current = true;
     setCreating(true);
     setCreateError(null);
-    const res = await client.createCampaign(effectiveOrgId, body);
-    setCreating(false);
-    if (res.ok) {
-      setNewName(""); setNewType("");
+    let res;
+    try {
+      res = await client.createCampaign(effectiveOrgId, body);
+    } catch {
+      res = { ok: false };
+    } finally {
+      creatingRef.current = false;
+      setCreating(false);
+    }
+    if (res && res.ok) {
+      setNewName(""); setNewType(""); setCreateOpen(false);
       await loadCampaigns(effectiveOrgId);
     } else {
+      // Dialog stays open; name and type are exactly as entered.
       setCreateError(
-        (res.error && typeof res.error === "string") ? res.error : "Couldn't create the campaign. Please try again."
+        (res && res.error && typeof res.error === "string") ? res.error : "Couldn't create the campaign. Please try again."
       );
     }
   }
@@ -806,10 +877,17 @@ export default function GreetingAutomationCampaigns({
               <p className="gcd-panel-note">Every campaign shows the same sections, whatever its state.</p>
             </div>
             <CreateCampaignForm
-              name={newName} type={newType} onName={setNewName} onType={setNewType}
-              onSubmit={handleCreate} creating={creating} error={createError}
+              name={newName} onName={setNewName}
+              onSubmit={requestCreate} creating={creating} nameRef={createNameRef}
             />
           </div>
+          {createOpen ? (
+            <CreateCampaignDialog
+              name={newName} type={newType} onType={setNewType}
+              onConfirm={handleCreate} onCancel={cancelCreate}
+              creating={creating} error={createError}
+            />
+          ) : null}
 
           {/* SLICE E5 - OVERLAP WARNING. Names the people and the campaigns involved, then stops.
               It blocks nothing and disables nothing: someone may genuinely belong in two

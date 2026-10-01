@@ -157,7 +157,7 @@ test("G3: with a published gift box, the option appears IMMEDIATELY AFTER the cu
   withCatalog([BOX_A, BOX_B]);
   const s = await mount(cardEl());
   const values = s.qa(`[data-testid="c-cmp_1-gift"] input[type="radio"]`).map((i) => i.value);
-  assert.deepEqual(values, ["none", "curated", "gift_boxes", "qrcash", "marketplace"]);
+  assert.deepEqual(values, ["none", "curated", "gift_boxes", "qrcash"]);
   assert.match(s.text(), /Gift Box/);
   assert.match(s.text(), /Choose one gift box for every recipient in this campaign\./);
 });
@@ -170,7 +170,7 @@ test("G3: the option is selectable, and the other four gifts keep their existing
   assert.equal(byValue("none").disabled, false, "No gift unchanged");
   assert.equal(byValue("curated").disabled, false, "Curated unchanged");
   assert.equal(byValue("qrcash").disabled, true, "QR Cash still visible and still not automatable");
-  assert.equal(byValue("marketplace").disabled, true, "Greet-Me Gifts still visible and still not automatable");
+  assert.equal(byValue("marketplace"), null, "W29: no Greet-Me Gifts (marketplace) class is offered");
 });
 
 // ══ SELECTION — exactly one product, and its published variants ═════════════════════════════

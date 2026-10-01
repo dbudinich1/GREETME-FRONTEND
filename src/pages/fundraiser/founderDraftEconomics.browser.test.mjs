@@ -48,7 +48,7 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   window = dom.window;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ } globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.MouseEvent = window.MouseEvent;
   globalThis.localStorage = window.localStorage;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -170,6 +170,13 @@ async function openOrgRow(legalName) {
   const open = [...row.querySelectorAll("button")].find((b) => b.textContent.trim() === "Open");
   assert.ok(open, "the organization row must offer Open");
   await click(open);
+  if ($("f1-toggle")) await click($("f1-toggle")); // W34: Draft Economics opens closed
+}
+
+async function mountAndOpenClosed(routes) {
+  await mount(routes);
+  const row = [...document.querySelectorAll("tr")].find((tr) => tr.textContent.includes(ORG.legalName));
+  await click([...row.querySelectorAll("button")].find((b) => b.textContent.trim() === "Open"));
 }
 
 async function mountAndOpen(routes) {
@@ -801,9 +808,9 @@ test("F1 existing: sealed terms are never loaded into the draft form", async () 
 test("F1 existing: a TIERED share reads accurately instead of looking malformed", async () => {
   await mountAndOpen(baseRoutes({ "/economics/history": { status: 200, data: [ACTIVE_TIERED] } }));
   await setSelect("f1-campaign", CAMPAIGNS[0].campaignId);
-  assert.equal($("f1-existing-initial").textContent, "tiered (2 tiers) of ENGP");
-  assert.equal($("f1-existing-renewal").textContent, "12.5% of ENSR");
-  assert.equal($("f1-existing-gift").textContent, "custom — negotiated per gift SKU");
+  assert.equal($("f1-existing-initial").textContent, "Tiered (2 tiers) of Eligible Net Gift Proceeds (ENGP)");
+  assert.equal($("f1-existing-renewal").textContent, "12.5% of Eligible Net Subscription Revenue (ENSR)");
+  assert.equal($("f1-existing-gift").textContent, "Custom — negotiated per gift SKU");
   // ...and reading one must not make drafting one possible.
   const values = [...$("f1-initial-type").querySelectorAll("option")].map((o) => o.value);
   assert.ok(!values.includes("tiered"), "reading a tiered share must not expose a tiered draft option");
@@ -814,7 +821,7 @@ test("F1 existing: a single-tier share is described in the singular", async () =
     initialSubscriptionShare: { type: "tiered", basis: "gross", tiers: [{ thresholdCents: 0, percent: 7 }] } } };
   await mountAndOpen(baseRoutes({ "/economics/history": { status: 200, data: [oneTier] } }));
   await setSelect("f1-campaign", CAMPAIGNS[0].campaignId);
-  assert.equal($("f1-existing-initial").textContent, "tiered (1 tier) of gross");
+  assert.equal($("f1-existing-initial").textContent, "Tiered (1 tier) of Gross amount");
 });
 
 test("F1 existing: an APPROVED version is preferred over a newer draft, and stays read-only", async () => {
@@ -887,7 +894,7 @@ test("F1 blast radius: the panel offers no approve/activate/publish control at a
   await mountAndOpen(baseRoutes({ "/economics/history": { status: 200, data: [ACTIVE_TIERED] } }));
   await setSelect("f1-campaign", CAMPAIGNS[0].campaignId);
   const labels = [...$("f1-economics").querySelectorAll("button")].map((b) => b.textContent.trim().toLowerCase());
-  assert.deepEqual(labels, ["create draft economics"]);
+  assert.deepEqual(labels, ["close", "create draft economics", "cancel"]);
   const panel = $("f1-economics").textContent.toLowerCase();
   for (const word of ["publish", "go live", "suspend", "activate economics now"]) {
     assert.ok(!panel.includes(word), `the panel must not offer or imply "${word}"`);
@@ -902,4 +909,70 @@ test("F1 blast radius: a successful draft neither retries nor auto-resubmits", a
   await settle();
   await settle();
   assert.equal(draftCalls().length, 1, "success must not retry, poll, or auto-resubmit");
+});
+
+// == CLOSEOUT W34 / W35 (proposed) ==========================================================
+test("W34: Draft Economics is CLOSED by default when an organization is opened", async () => {
+  await mountAndOpenClosed(baseRoutes());
+  assert.ok($("f1-toggle"), "an opener is offered");
+  assert.equal($("f1-toggle").getAttribute("aria-expanded"), "false");
+  assert.equal($("f1-form"), null, "the form is not rendered while closed");
+  assert.equal($("f1-body"), null);
+});
+
+test("W34: Close discards unsaved edits, sends nothing, and returns focus to the opener", async () => {
+  await mountAndOpenClosed(baseRoutes());
+  await click($("f1-toggle"));
+  assert.ok($("f1-form"));
+  await setSelect("f1-campaign", CAMPAIGNS[0].campaignId);
+  await setSelect("f1-initial-type", "percent_of_base");
+  await setSelect("f1-initial-basis", "ENSR");
+  await setInput("f1-initial-percent", "7");
+  const mark = calls.length;
+  await click($("f1-close"));
+  assert.equal($("f1-form"), null, "closed");
+  assert.equal(calls.slice(mark).filter((c) => c.method !== "GET").length, 0, "no write on close");
+  assert.equal(document.activeElement, $("f1-toggle"), "focus returns to the opener");
+  await click($("f1-toggle"));
+  assert.equal($("f1-initial-type").value, "", "the unsaved share type was discarded");
+  assert.equal($("f1-campaign").value, "", "and the campaign choice");
+  assert.equal(draftCalls().length, 0);
+});
+
+test("W34: Cancel behaves like Close; a SAVED draft is retained and re-read on reopen", async () => {
+  const SAVED = { id: "economics_saved_1", campaignId: CAMPAIGNS[0].campaignId, economicsVersion: 1, status: "draft",
+    rules: { initialSubscriptionShare: { type: "none" }, renewalShare: { type: "none" }, giftParticipationEnabled: false }, treatments: ACTIVE_TIERED.treatments };
+  await mountAndOpenClosed(baseRoutes({ "/economics/history": { status: 200, data: [SAVED] } }));
+  await click($("f1-toggle"));
+  await setSelect("f1-campaign", CAMPAIGNS[0].campaignId);
+  assert.ok($("f2-panel"), "the saved draft awaits approval");
+  await click($("f1-cancel"));
+  assert.equal($("f1-form"), null);
+  assert.equal(document.activeElement, $("f1-toggle"));
+  await click($("f1-toggle"));
+  await setSelect("f1-campaign", CAMPAIGNS[0].campaignId);
+  assert.ok($("f2-panel"), "the saved draft is still there after discarding edits");
+});
+
+test("W35: selects show readable labels while the values stay canonical", async () => {
+  await mountAndOpen(baseRoutes());
+  const opts = (id) => [...$(id).querySelectorAll("option")].map((o) => [o.value, o.textContent]);
+  assert.deepEqual(opts("f1-initial-type").slice(1), [["none", "No share"], ["percent_of_base", "Percentage of a base"], ["custom", "Custom terms"]]);
+  await setSelect("f1-initial-type", "percent_of_base");
+  assert.ok(opts("f1-initial-basis").some(([v, l]) => v === "ENSR" && /Eligible Net Subscription Revenue/.test(l)));
+  assert.ok(opts("f1-taxTreatment").some(([v, l]) => v === "excluded_from_base" && l === "Excluded from the base"));
+  assert.ok(!/_/.test($("f1-economics").textContent.replace(/f1-[a-z-]+/g, "")), "no snake_case enum text is shown");
+  assert.match($("f1-definitions").textContent, /Eligible Net Gift Proceeds \(ENGP\):/);
+});
+
+test("W35: the preview reads in plain words and the payload is unchanged", async () => {
+  await mountAndOpen(baseRoutes());
+  assert.equal($("f1-preview-initial").textContent, "Not set yet");
+  await fillComplete({ percent: "10" });
+  assert.equal($("f1-preview-initial").textContent, "10% of Eligible Net Subscription Revenue (ENSR)");
+  await submit();
+  const body = lastDraftBody();
+  assert.equal(body.rules.initialSubscriptionShare.basis, "ENSR", "canonical backend value is what is sent");
+  assert.equal(body.rules.initialSubscriptionShare.type, "percent_of_base");
+  assert.equal(body.treatments.taxTreatment, "excluded_from_base");
 });

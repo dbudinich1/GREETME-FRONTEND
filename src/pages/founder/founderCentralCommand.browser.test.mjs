@@ -132,3 +132,70 @@ test("a failed card fetch shows an honest error, not a fabricated value or a cra
   // The other three cards, unaffected by this one's failure, still render normally.
   assert.equal(tid("fcc-sales-active").textContent, "2");
 });
+
+// == CLOSEOUT W36 (proposed): entry points to existing fundraiser surfaces ==================
+const FULL_OVERVIEW = {
+  organizations: { total: 3, byStatus: { approved: 2, suspended: 1 } },
+  campaigns: { total: 5, byStatus: { active: 2, draft: 3 } },
+  participants: { total: 40, active: 37 },
+  economics: { activeVersions: 2 },
+};
+const fakeFundraiserFull = (data, orgs) => ({
+  calls: 0, orgCalls: 0, writes: 0,
+  overview() { this.calls++; return Promise.resolve({ ok: true, status: 200, data }); },
+  organizations() { this.orgCalls++; return Promise.resolve({ ok: true, status: 200, data: orgs }); },
+});
+const ORGS = [
+  { organizationId: "org_a", legalName: "Alpha School" }, { organizationId: "org_b", legalName: "Beta Club" },
+];
+
+test("W36: campaigns, participants, partner portal and activation each have a separate card", async () => {
+  const fr = fakeFundraiserFull(FULL_OVERVIEW, ORGS);
+  await mount(defaultProps({ user: { plan: "founder" }, fundraiserOverviewApi: fr }));
+  for (const id of ["campaigns", "participants", "partner", "activation"]) assert.ok(tid(`fcc-card-${id}`), id);
+  assert.equal(tid("fcc-campaigns-total").textContent, "5");
+  assert.match(tid("fcc-campaigns-bystatus").textContent, /Active 2/);
+  assert.equal(tid("fcc-participants-total").textContent, "40");
+  assert.equal(tid("fcc-participants-active").textContent, "37");
+  assert.match(tid("fcc-activation-orgs").textContent, /Approved 2 \u00b7 Suspended 1/);
+  assert.match(tid("fcc-activation-campaigns").textContent, /Draft 3/);
+  assert.equal(tid("fcc-activation-economics").textContent, "2");
+  // Links go ONLY to routes that already exist.
+  assert.equal(tid("fcc-campaigns-open").getAttribute("href"), "#/dashboard/fundraiser/admin");
+  assert.equal(tid("fcc-participants-open").getAttribute("href"), "#/dashboard/fundraiser/admin");
+  assert.equal(tid("fcc-activation-open").getAttribute("href"), "#/dashboard/fundraiser/admin");
+  assert.equal(tid("fcc-partner-org-org_a").getAttribute("href"), "#/dashboard/fundraiser/partner/org_a");
+  assert.equal(fr.orgCalls, 1, "the existing organizations read is used once");
+  assert.ok(!document.body.textContent.includes("[object Object]"));
+});
+
+test("W36: it is read-only - only anchors and no buttons or forms were added", async () => {
+  await mount(defaultProps({ user: { plan: "founder" }, fundraiserOverviewApi: fakeFundraiserFull(FULL_OVERVIEW, ORGS) }));
+  for (const id of ["campaigns", "participants", "partner", "activation"]) {
+    const card = tid(`fcc-card-${id}`);
+    assert.equal(card.querySelectorAll("button, form, input, select").length, 0, `${id} has no controls`);
+  }
+});
+
+test("W36: missing counts read 'unavailable', never 0; failed org read shows its own error", async () => {
+  const fr = { overview: () => Promise.resolve({ ok: true, status: 200, data: { organizations: { total: 1 }, campaigns: { total: 1 } } }), organizations: () => Promise.resolve({ ok: false, status: 403, data: null }) };
+  await mount(defaultProps({ user: { plan: "founder" }, fundraiserOverviewApi: fr }));
+  assert.match(tid("fcc-participants-total").textContent, /unavailable/);
+  assert.match(tid("fcc-activation-economics").textContent, /unavailable/);
+  assert.ok(tid("fcc-partner-error"));
+  assert.equal(tid("fcc-sales-active").textContent, "2", "other cards unaffected");
+});
+
+test("W36: a non-founder still triggers no organizations request", async () => {
+  const fr = fakeFundraiserFull(FULL_OVERVIEW, ORGS);
+  await mount(defaultProps({ user: { plan: "free" }, fundraiserOverviewApi: fr }));
+  assert.equal(fr.orgCalls, 0);
+  assert.equal(fr.calls, 0);
+});
+
+test("W36: more than five organizations shows five links and a pointer to the rest", async () => {
+  const many = Array.from({ length: 8 }, (_, i) => ({ organizationId: `o${i}`, legalName: `Org ${i}` }));
+  await mount(defaultProps({ user: { plan: "founder" }, fundraiserOverviewApi: fakeFundraiserFull(FULL_OVERVIEW, many) }));
+  assert.equal(tid("fcc-partner-list").querySelectorAll("a").length, 5);
+  assert.match(tid("fcc-partner-more").textContent, /3 more/);
+});

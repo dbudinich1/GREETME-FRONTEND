@@ -48,7 +48,7 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/founder" });
   window = dom.window;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ } globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.MouseEvent = window.MouseEvent;
   globalThis.KeyboardEvent = window.KeyboardEvent;
   globalThis.localStorage = window.localStorage;
@@ -203,6 +203,7 @@ async function openDraft(routes = baseRoutes(), campaign = CAMPAIGNS[0].campaign
   const row = [...document.querySelectorAll("tr")].find((tr) => tr.textContent.includes(ORG.legalName));
   assert.ok(row, "the organization row must render");
   await click([...row.querySelectorAll("button")].find((b) => b.textContent.trim() === "Open"));
+  if ($("f1-toggle")) await click($("f1-toggle")); // W34: Draft Economics opens closed
   await setSelect("f1-campaign", campaign);
   return routes;
 }
@@ -273,6 +274,7 @@ test("F2 eligibility: before a campaign is chosen there is no approval control",
   await mount(baseRoutes());
   const row = [...document.querySelectorAll("tr")].find((tr) => tr.textContent.includes(ORG.legalName));
   await click([...row.querySelectorAll("button")].find((b) => b.textContent.trim() === "Open"));
+  if ($("f1-toggle")) await click($("f1-toggle")); // W34: Draft Economics opens closed
   assert.equal($("f2-panel"), null, "no campaign selected means no draft and no approval");
   assert.equal(approveCalls().length, 0);
 });
@@ -284,12 +286,12 @@ test("F2 review: the entire draft is displayed read-only before approval", async
   assert.equal($("f2-review-org").textContent, ORG.legalName);
   assert.match($("f2-review-campaign").textContent, new RegExp(CAMPAIGNS[0].campaignId));
   assert.match($("f2-review-campaign").textContent, /Spring Drive/);
-  assert.equal($("f2-review-initial").textContent, "10% of ENSR");
-  assert.equal($("f2-review-renewal").textContent, "none");
+  assert.equal($("f2-review-initial").textContent, "10% of Eligible Net Subscription Revenue (ENSR)");
+  assert.equal($("f2-review-renewal").textContent, "No share");
   assert.equal($("f2-review-gift-position").textContent, "off");
   assert.equal($("f2-review-gift"), null, "no gift share is shown while participation is off");
   for (const [k, v] of Object.entries(TREATMENTS)) {
-    assert.equal($(`f2-review-${k}`).textContent, v, `${k} is shown`);
+    assert.equal($(`f2-review-${k}`).getAttribute("data-raw"), v, `${k} is shown (canonical value kept in data-raw; readable label displayed)`);
   }
   assert.equal($("f2-review-version").textContent, DRAFT.id);
   assert.equal($("f2-review-status").textContent, "draft");
@@ -301,9 +303,9 @@ test("F2 review: the entire draft is displayed read-only before approval", async
 test("F2 review: gift participation ON shows the position and the gift share", async () => {
   await openDraft(baseRoutes({ "/economics/history": { status: 200, data: [DRAFT_WITH_GIFT] } }));
   assert.equal($("f2-review-gift-position").textContent, "on");
-  assert.equal($("f2-review-gift").textContent, "3% of gross");
-  assert.equal($("f2-review-initial").textContent, "custom — flat $3 per conversion");
-  assert.equal($("f2-review-renewal").textContent, "12.5% of ENGP");
+  assert.equal($("f2-review-gift").textContent, "3% of Gross amount");
+  assert.equal($("f2-review-initial").textContent, "Custom — flat $3 per conversion");
+  assert.equal($("f2-review-renewal").textContent, "12.5% of Eligible Net Gift Proceeds (ENGP)");
   assert.equal($("f2-review-version").textContent, DRAFT_WITH_GIFT.id);
 });
 

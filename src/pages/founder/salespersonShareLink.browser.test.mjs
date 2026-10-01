@@ -1,9 +1,9 @@
-// src/pages/founder/salespersonShareLink.browser.test.mjs
+﻿// src/pages/founder/salespersonShareLink.browser.test.mjs
 //
-// TEAM B — the shareable salesperson link.
+// TEAM B â€” the shareable salesperson link.
 //
 // The production defect: the page showed only the slug-edit field, because the full URL was taken
-// from `publicReferralLink` — a field the API returns on two MUTATION responses and never on a
+// from `publicReferralLink` â€” a field the API returns on two MUTATION responses and never on a
 // page load. A founder who simply opened Rudy's record saw no link at all.
 //
 // The link is now RECONSTRUCTED from the stored slug plus the current origin, so it is present on
@@ -39,7 +39,7 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   window = dom.window;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ } globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.getComputedStyle = window.getComputedStyle;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   React = (await import("react")).default;
@@ -57,7 +57,7 @@ function api(over = {}) {
   const calls = [];
   const base = {
     list: async () => { calls.push(["list"]); return { ok: true, status: 200, data: { ok: true, salespeople: [{ salespersonId: "rudy", displayName: "Rudy" }] } }; },
-    // NOTE: no publicReferralLink anywhere in this response — that is the production shape.
+    // NOTE: no publicReferralLink anywhere in this response â€” that is the production shape.
     read: async (id) => { calls.push(["read", id]); return { ok: true, status: 200, data: { ok: true, salesperson: { salespersonId: id, displayName: "Rudy", status: "active", referralSlug: "rudy" } } }; },
     create: async () => ({ ok: true, status: 201, data: { ok: true } }),
     setReferralSlug: async (id, slug) => { calls.push(["setReferralSlug", id, slug]); return { ok: true, status: 200, data: { ok: true, salesperson: { salespersonId: id, displayName: "Rudy", status: "active", referralSlug: String(slug).trim() } } }; },
@@ -90,12 +90,12 @@ async function open(a, { user = FOUNDER, origin = ORIGIN, detail = true } = {}) 
   if (detail && tid("fcc-row-rudy")) { await click(tid("fcc-row-rudy")); await flush(); }
 }
 
-// ══ the defect itself ═══════════════════════════════════════════════════════════════════════
+// â•â• the defect itself â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 test("a stored slug displays the FULL link even though the API returned no publicReferralLink", async () => {
   const a = api();
   await open(a);
   const el = tid("fcc-public-link");
-  assert.ok(el, "the link is displayed at all — this is the production defect");
+  assert.ok(el, "the link is displayed at all â€” this is the production defect");
   assert.equal(el.textContent, "https://greet-me.com/rudy", "reconstructed exactly");
   assert.match(tid("fcc-detail").textContent, /Shareable salesperson link/, "under a clear heading");
   assert.ok(tid("fcc-copy-share"), "a Copy link control is offered");
@@ -107,7 +107,7 @@ test("the URL is selectable, and the slug-edit field is still present alongside 
   assert.ok(tid("fcc-slug-input"), "the edit field is not replaced by the display");
 });
 
-test("a REMOUNT reconstructs the link — nothing was remembered", async () => {
+test("a REMOUNT reconstructs the link â€” nothing was remembered", async () => {
   const a = api();
   await open(a);
   assert.equal(tid("fcc-public-link").textContent, "https://greet-me.com/rudy");
@@ -133,34 +133,34 @@ test("no slug means no link block at all", async () => {
   assert.equal(tid("fcc-copy-share"), null);
 });
 
-// ══ copy ════════════════════════════════════════════════════════════════════════════════════
+// â•â• copy â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 test("Copy link writes the EXACT displayed URL", async () => {
   let copied = null;
-  globalThis.navigator = { clipboard: { writeText: async (t) => { copied = t; } } };
+  Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText: async (t) => { copied = t; } } }, configurable: true, writable: true });
   await open(api());
   await click(tid("fcc-copy-share"));
   assert.equal(copied, "https://greet-me.com/rudy", "byte-for-byte what is on screen");
   assert.equal(tid("fcc-copy-share").textContent, "Copied");
-  globalThis.navigator = window.navigator;
+  Object.defineProperty(globalThis, "navigator", { value: window.navigator, configurable: true, writable: true });
 });
 
 test("a denied clipboard leaves the URL visible and says so", async () => {
-  globalThis.navigator = { clipboard: { writeText: async () => { throw new Error("denied"); } } };
+  Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText: async () => { throw new Error("denied"); } } }, configurable: true, writable: true });
   await open(api());
   await click(tid("fcc-copy-share"));
   assert.equal(tid("fcc-public-link").textContent, "https://greet-me.com/rudy", "still selectable on screen");
   assert.match(tid("fcc-message").textContent, /select the link above/i);
-  globalThis.navigator = window.navigator;
+  Object.defineProperty(globalThis, "navigator", { value: window.navigator, configurable: true, writable: true });
 });
 
-// ══ server is the only source of truth ══════════════════════════════════════════════════════
+// â•â• server is the only source of truth â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 test("replacement updates the link only AFTER the server confirms", async () => {
   const a = api();
   await open(a);
   setVal(tid("fcc-slug-input"), "rudy-2");
   await flush();
   assert.equal(tid("fcc-public-link").textContent, "https://greet-me.com/rudy",
-    "typing alone changes nothing — the link still shows the confirmed slug");
+    "typing alone changes nothing â€” the link still shows the confirmed slug");
   await click(tid("fcc-slug-save"));
   assert.equal(tid("fcc-public-link").textContent, "https://greet-me.com/rudy-2", "updated from the response");
 });
@@ -190,7 +190,7 @@ test("a FAILED removal preserves the link", async () => {
   assert.equal(tid("fcc-public-link").textContent, "https://greet-me.com/rudy");
 });
 
-// ══ security ════════════════════════════════════════════════════════════════════════════════
+// â•â• security â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 test("nothing is written to browser storage, and no opaque token appears", async () => {
   const store = new Map();
   globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
@@ -203,7 +203,7 @@ test("nothing is written to browser storage, and no opaque token appears", async
   delete globalThis.localStorage;
 });
 
-test("the ordinary-user gate is untouched — zero requests", async () => {
+test("the ordinary-user gate is untouched â€” zero requests", async () => {
   const a = api();
   await open(a, { user: ORDINARY, detail: false });
   assert.ok(tid("fcc-denied"));

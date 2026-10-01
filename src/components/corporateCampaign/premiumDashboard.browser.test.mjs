@@ -344,18 +344,18 @@ test("F1C: an expanded card shows three complete cards and its schedule, at ever
   }
 });
 
-test("D: gift bubbles — Curated and No gift selectable; QR Cash and Greet-Me Gifts visibly disabled", async () => {
+test("D: gift bubbles — Curated and No gift selectable; QR Cash visibly disabled (Greet-Me Gifts removed, W29)", async () => {
   const s = await mount(cardEl());
-  for (const v of ["none", "curated", "qrcash", "marketplace"]) {
+  for (const v of ["none", "curated", "qrcash"]) {
     assert.ok(s.tid(`bubble-c-cmp_1-gift-${v}`), `${v} must be VISIBLE`);
   }
   const input = (v) => s.q(`#c-cmp_1-gift-${v}`);
   assert.equal(input("none").disabled, false);
   assert.equal(input("curated").disabled, false);
   assert.equal(input("qrcash").disabled, true);
-  assert.equal(input("marketplace").disabled, true);
+  assert.equal(input("marketplace"), null, "W29: no marketplace gift class");
   // FINAL POLISH - the two keep their bubbles and their disabled state, and carry NO reason text.
-  for (const v of ["qrcash", "marketplace"]) {
+  for (const v of ["qrcash"]) {
     assert.equal(s.tid(`bubble-c-cmp_1-gift-${v}-reason`), null, `${v} prints no explanation`);
     assert.ok(s.tid(`bubble-c-cmp_1-gift-${v}`), `${v} is still on screen`);
   }
@@ -394,13 +394,13 @@ test("D: the Curated tier control persists CENTS and is described as private", a
 test("F1C: every choice is a real checkbox or radio behind a substantial circle", async () => {
   const s = await mount(cardEl());
   for (const k of ["employee", "client", "vendor"]) assert.equal(s.q(`#c-cmp_1-aud-${k}`).type, "checkbox");
-  for (const v of ["none", "curated", "qrcash", "marketplace"]) assert.equal(s.q(`#c-cmp_1-gift-${v}`).type, "radio");
+  for (const v of ["none", "curated", "qrcash"]) assert.equal(s.q(`#c-cmp_1-gift-${v}`).type, "radio");
   for (const v of ["organization_default", "customize"]) assert.equal(s.q(`#c-cmp_1-spread-${v}`).type, "radio");
   assert.equal(s.q("#c-cmp_1-spread-saved_spread"), null, "the non-functional third option is gone");
   // Radios in a group share one name → genuine single-select.
   assert.equal(s.q("#c-cmp_1-gift-none").name, s.q("#c-cmp_1-gift-curated").name);
   // The visual is a circle, and every control keeps its label.
-  assert.ok(s.qa(".gcd-wcard .gcd-dot").length >= 9, "a circle per choice");
+  assert.ok(s.qa(".gcd-wcard .gcd-dot").length >= 8, "a circle per choice");
   for (const el of s.qa(".gcd-wcard .gcd-bubble input")) {
     assert.ok(s.q(`label[for="${el.id}"]`), `${el.id} must have a label`);
   }
@@ -1014,7 +1014,7 @@ test("F1B: all three configuration cards are COMPLETE and visible at once", asyn
     assert.ok(s.q(`#c-cmp_1-aud-${k}`), `${k} bubble visible without another click`);
   }
   // Gift: all four, immediately — including the two that are disabled.
-  for (const v of ["none", "curated", "qrcash", "marketplace"]) {
+  for (const v of ["none", "curated", "qrcash"]) {
     assert.ok(s.q(`#c-cmp_1-gift-${v}`), `${v} bubble visible without another click`);
   }
   // Featured Spread: both real options, immediately (TEAM 5, 2026-09-29 — the non-functional
@@ -1046,14 +1046,14 @@ test("F1B: no Change/Choose/Done CTA stands between a reader and a primary optio
 test("F1B: a disabled gift choice stays VISIBLE and disabled, with its reason", async () => {
   // Removing an unavailable option would hide information a reader needs to understand the offer.
   const s = await mount(cardEl());
-  for (const v of ["qrcash", "marketplace"]) {
+  for (const v of ["qrcash"]) {
     const el = s.q(`#c-cmp_1-gift-${v}`);
     assert.ok(el, `${v} is rendered`);
     assert.equal(el.disabled, true, `${v} is disabled`);
   }
   // The names stay. Only the explanatory sentence went.
   assert.match(s.tid("selector-gift-cmp_1").textContent, /QR Cash/);
-  assert.match(s.tid("selector-gift-cmp_1").textContent, /Greet-Me Gifts/);
+  assert.doesNotMatch(s.tid("selector-gift-cmp_1").textContent, /Greet-Me Gifts/, "W29: no Greet-Me Gifts class");
   for (const v of ["none", "curated"]) {
     assert.equal(s.q(`#c-cmp_1-gift-${v}`).disabled, false, `${v} is selectable`);
   }
@@ -1218,8 +1218,8 @@ test("FINAL POLISH: no purchase-completion typography is rendered, in any permut
   assert.equal(banned.test(s.host.textContent), false, "no purchase-completion wording is rendered");
   // The two gifts are still named and still on screen - removal of the sentence removed nothing else.
   assert.match(s.tid("selector-gift-cmp_1").textContent, /QR Cash/);
-  assert.match(s.tid("selector-gift-cmp_1").textContent, /Greet-Me Gifts/);
-  for (const v of ["qrcash", "marketplace"]) {
+  assert.doesNotMatch(s.tid("selector-gift-cmp_1").textContent, /Greet-Me Gifts/, "W29: no Greet-Me Gifts class");
+  for (const v of ["qrcash"]) {
     assert.equal(s.q(`#c-cmp_1-gift-${v}`).disabled, true, `${v} still truthfully unavailable`);
     assert.ok(s.q(`#c-cmp_1-gift-${v}`), `${v} still visible`);
   }
@@ -1346,7 +1346,7 @@ test("FINAL POLISH 3: no purchase-completion wording survives anywhere in the ch
 
 test("FINAL POLISH 3: the two non-automatable gifts keep name, bubble and accessible disabled state", async () => {
   const s = await mount(cardEl());
-  for (const v of ["qrcash", "marketplace"]) {
+  for (const v of ["qrcash"]) {
     const input = s.q(`#c-cmp_1-gift-${v}`);
     assert.ok(input, `${v} bubble is present`);
     assert.equal(input.disabled, true, `${v} is truthfully non-operable`);
@@ -1356,7 +1356,7 @@ test("FINAL POLISH 3: the two non-automatable gifts keep name, bubble and access
   }
   // Their real names remain on screen.
   assert.match(s.host.textContent, /QR Cash/);
-  assert.match(s.host.textContent, /Greet-Me Gifts/);
+  assert.doesNotMatch(s.host.textContent, /Greet-Me Gifts/, "W29: no Greet-Me Gifts class");
   // And the selectable pair is genuinely operable, so nothing was disabled by accident.
   for (const v of ["none", "curated"]) {
     assert.equal(s.q(`#c-cmp_1-gift-${v}`).disabled, false, `${v} remains selectable`);

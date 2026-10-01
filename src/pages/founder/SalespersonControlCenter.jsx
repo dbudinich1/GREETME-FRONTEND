@@ -19,6 +19,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { salesAdminApi, salesAdminErrorMessage } from "../../api/salesAdmin.js";
 import { fundraiserApi } from "../../api/fundraiserApi.js";
 import { isFounder } from "../../utils/accountState.js";
+import AttributionHealthPanel from "./AttributionHealthPanel.jsx";
+import { effectiveSalesStatus } from "./effectiveSalesStatus.js";
 import { STATES, resolveOutcome, LINK_STATES, linkOutcome, linkMessageFor, canLink } from "./salespersonLinkAssign.js";
 
 const card = {
@@ -834,6 +836,18 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
             <div style={{ marginTop: "1.2rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }} data-testid="fcc-report">
               <h3 style={{ fontSize: ".92rem", margin: "0 0 .6rem" }}>Attribution and commission</h3>
 
+              {/* W38 - ONE effective status joining the stored status to the platform switches.
+                  Read-only; derived per contracts/T2-w38-effective-status.md. */}
+              {(() => {
+                const eff = effectiveSalesStatus((report.summary && report.summary.linkStatus) || detail.status, controls);
+                return (
+                  <p data-testid="fcc-effective-status" data-state={eff.key} style={{ fontSize: ".84rem", margin: "0 0 .8rem" }}>
+                    <strong>Effective status: {eff.label}.</strong>{" "}
+                    <span style={{ color: "var(--text-secondary)" }}>{eff.detail}</span>
+                  </p>
+                );
+              })()}
+
               {report.summaryError ? (
                 <p data-testid="fcc-summary-error" style={{ color: "var(--warning)", fontSize: ".84rem", margin: "0 0 .6rem" }}>{report.summaryError}</p>
               ) : report.summary ? (
@@ -861,9 +875,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
               {report.healthError ? (
                 <p data-testid="fcc-health-error" style={{ color: "var(--warning)", fontSize: ".84rem", margin: "0 0 .6rem" }}>{report.healthError}</p>
               ) : report.health ? (
-                <p data-testid="fcc-health" style={{ fontSize: ".84rem", margin: "0 0 .9rem", color: "var(--text-secondary)" }}>
-                  {Object.entries(report.health).map(([k, v]) => `${k}: ${String(v)}`).join(" \u00b7 ")}
-                </p>
+                <AttributionHealthPanel health={report.health} />
               ) : null}
 
               <h4 style={{ ...label, margin: "0 0 .4rem" }}>Commission ledger</h4>
