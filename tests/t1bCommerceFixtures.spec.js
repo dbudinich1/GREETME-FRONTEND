@@ -265,8 +265,8 @@ test.describe('T1B dependent tasks', () => {
     await expect(page.getByTestId('gift-order-row')).toHaveCount(gift.length);
     const statuses = await page.getByTestId('gift-order-status').allTextContents();
     expect(statuses.sort()).toEqual(gift.map((o) => o.status.label).sort());
-    expect(statuses.filter((t) => /^delivered$/i.test(t.trim()))).toHaveLength(1);
-    await expect(page.getByText('Status unavailable')).toHaveCount(0);
+    expect(statuses.filter((t) => /^delivered$/i.test(t.trim()))).toHaveLength(gift.filter((o) => o.status.kind === 'delivered').length);
+    await expect(page.getByText('Status unavailable - contact support').first()).toBeVisible();
     await page.screenshot({ path: path.join(SHOTS, 'w42-orders-real-shapes.png'), fullPage: true });
   });
 });

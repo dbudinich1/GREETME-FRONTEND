@@ -98,6 +98,7 @@ const merchRows = [
   { id: 'merch-bad', state: 'fulfillment_failed', totalCents: 900, items: [{ label: 'Hat' }], paidAt: iso(4) },
   { id: 'merch-can', state: 'canceled', totalCents: 900, items: [{ label: 'Bag' }], paidAt: iso(5) },
   { id: 'merch-ref', state: 'refunded', totalCents: 900, items: [{ label: 'Pen' }], paidAt: iso(6) },
+  { id: 'merch-odd', state: 'mystery_state', totalCents: 900, items: [{ label: 'Odd' }], paidAt: iso(7) },
 ];
 const flowerRows = [{ id: 'flower-1', createdAt: iso(1), deliveryDate: '2026-10-05', orderTotalMinor: 5500, currency: 'usd', orderReference: '559781630', recipientFirstName: 'A', recipientLastName: 'B' }];
 const giftRows = [
@@ -116,6 +117,8 @@ const giftRows = [
   gift(13, { giftType: GIFT_TYPES.GIFT_BOX, providerFulfillment: { provider: 'goody', providerOrderId: 'g5', status: 'refunded', refunded: true } }),
   gift(14, { giftType: GIFT_TYPES.GIFT_BOX, providerFulfillment: { provider: 'goody', providerOrderId: 'g6', status: 'placed', requiresHumanResolution: true } }),
   gift(15, { giftType: GIFT_TYPES.GIFT_BOX, providerFulfillment: { provider: 'goody', providerOrderId: 'g7', status: 'placed' } }),
+  gift(16, { giftType: 'weird_type' }),
+  gift(17, { giftType: GIFT_TYPES.QRCASH, status: 'mystery_status' }),
 ];
 
 const seen = [];

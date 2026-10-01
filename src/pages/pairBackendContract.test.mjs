@@ -74,7 +74,7 @@ t("orders/history: every row has the contract keys; query was scoped to the toke
   assert.equal(status, 200);
   assert.equal(body.ok, true);
   assert.equal(body.count, body.orders.length);
-  assert.equal(body.count, 6 + 1 + 15, "6 merch + 1 flower + 15 gift fixture rows all projected (none silently dropped)");
+  assert.equal(body.count, 7 + 1 + 17, "7 merch + 1 flower + 17 gift fixture rows all projected (none dropped, unknown types shown)");
   for (const o of body.orders) {
     assert.deepEqual(Object.keys(o).sort(), CONTRACT_KEYS);
     assert.deepEqual(Object.keys(o.status).sort(), ["kind", "label"]);
@@ -89,7 +89,7 @@ t("orders/history: every status.kind is one the FE knows (no unknown kind reache
     assert.ok(o.status.label && o.status.label.trim(), "every real row carries a label");
   }
   const kinds = new Set(shapes.orders.body.orders.map((o) => o.status.kind));
-  for (const k of ["processing", "submitted", "shipped", "delivered", "awaiting_recipient", "completed", "issue", "canceled", "expired"]) {
+  for (const k of ["processing", "submitted", "shipped", "delivered", "awaiting_recipient", "completed", "issue", "canceled", "refunded", "expired", "unknown"]) {
     assert.ok(kinds.has(k), `fixture exercises kind ${k}`);
   }
 });
@@ -100,22 +100,32 @@ t("orders/history: the FE never rewrites a real backend label (it only guards in
   }
   const labels = Object.fromEntries(shapes.orders.body.orders.filter((o) => o.source === "gift").map((o) => [o.status.label, o.status.kind]));
   assert.equal(labels["Cancelled"], "canceled");
-  assert.equal(labels["Refunded"], "canceled");
+  assert.equal(labels["Refunded"], "refunded");
   assert.equal(labels["Waiting for recipient to claim"], "awaiting_recipient");
   assert.equal(labels["Expired unclaimed"], "expired");
 });
 
-t("orders/history: 'delivered' appears exactly once, for the proven delivery only", () => {
+t("orders/history: 'delivered' only for provider-proven delivery (allDelivered); label passes through verbatim", () => {
   const delivered = shapes.orders.body.orders.filter((o) => o.status.kind === "delivered");
-  assert.equal(delivered.length, 1, "g2 shipment with deliveredAt is the only proof");
-  assert.equal(giftOrderStatusLabel(delivered[0].status), "Delivered");
-  // The fixture row whose shipment summary says allDelivered but has NO deliveredAt must not be delivered.
-  const unproven = shapes.orders.body.orders.find((o) => o.orderRef === refOf(shapes.rowKeys.giftTokens[10]));
-  assert.equal(unproven.status.kind, "shipped");
-  assert.equal(unproven.status.label, "On its way");
-  assert.ok(!shapes.orders.body.orders.some((o) => o.source === "merch" && o.status.kind === "delivered"));
+  assert.equal(delivered.length, 2, "the two gift-box fixtures whose shipment summary says allDelivered");
+  for (const o of delivered) { assert.equal(o.status.label, "Delivered"); assert.equal(giftOrderStatusLabel(o.status), "Delivered"); }
+  assert.ok(!shapes.orders.body.orders.some((o) => o.source !== "gift" && o.status.kind === "delivered"), "merch/flowers can never be delivered");
+  // In-transit, canceled and refunded provider records are never delivered.
+  const notDelivered = shapes.orders.body.orders.filter((o) => o.category === "gift_boxes" && o.status.kind !== "delivered");
+  assert.ok(notDelivered.length >= 5);
 });
 
+t("orders/history: refunded and unknown kinds are rendered verbatim with the support affordance", () => {
+  const refunded = shapes.orders.body.orders.filter((o) => o.status.kind === "refunded");
+  assert.ok(refunded.length >= 2, "merch and provider refunds");
+  for (const o of refunded) assert.equal(giftOrderStatusLabel(o.status), "Refunded");
+  const unknown = shapes.orders.body.orders.filter((o) => o.status.kind === "unknown");
+  assert.ok(unknown.length >= 3, "unrecognised merch state, gift type and QR status");
+  for (const o of unknown) {
+    assert.equal(giftOrderStatusLabel(o.status), "Status unavailable - contact support");
+    assert.equal(o.support, true, "unknown always offers support");
+  }
+});
 t("orders/history: tracking is capability-aware (gift = carrier+number only, merch = https link)", () => {
   const gift = shapes.orders.body.orders.filter((o) => o.source === "gift");
   for (const o of gift) assert.equal(giftOrderTrackingHref(o.tracking), null, "gift rows never carry a link");
@@ -137,5 +147,5 @@ t("CONTRACT MISMATCH CHECK: gift-box category value is 'gift_boxes' in code (con
   const cats = new Set(shapes.orders.body.orders.map((o) => o.category));
   assert.ok(cats.has("gift_boxes"));
   assert.ok(!cats.has("gift_box"));
-  assert.deepEqual([...cats].sort(), ["curated", "flowers", "gift_boxes", "gift_cards", "merch", "qrcash"]);
+  assert.deepEqual([...cats].sort(), ["curated", "flowers", "gift_boxes", "gift_cards", "merch", "qrcash", "weird_type"]);
 });

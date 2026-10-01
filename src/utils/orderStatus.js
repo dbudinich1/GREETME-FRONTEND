@@ -2,12 +2,13 @@
 //
 // W42 gift-order status presentation (contract: T2-w42-combined-orders.md, `status.kind` set).
 //
-// The backend owns status meaning. This layer must never INVENT a state:
-//   * a known kind keeps the backend's own label;
+// The backend owns status meaning (contract: T2-w42-status-semantics.md): every row carries a
+// non-empty kind and label, and the label is rendered VERBATIM. kind only picks the badge colour.
+// The guards below are DEFENSIVE ONLY and can never invent a state:
+//   * a missing/blank label, or a kind outside the documented set, shows "Status unavailable";
 //   * a label asserting PAST-TENSE delivery ("delivered") under any kind other than "delivered" is
-//     not trusted, and is replaced by that kind's own plain text (never "Processing" unless the
-//     kind IS processing);
-//   * an unknown kind, or a missing label, is "Status unavailable";
+//     not trusted and is replaced by that kind's own plain text (never "Processing" unless the kind IS
+//     processing) - the backend only emits "delivered" with provider proof, so this should not fire;
 //   * "Delivered" is shown only for kind "delivered".
 
 /** The plain text for each documented kind, used only when a label must be rewritten. */
@@ -20,7 +21,9 @@ export const GIFT_KIND_TEXT = Object.freeze({
   completed: 'Completed',
   issue: 'Needs attention',
   canceled: 'Canceled',
+  refunded: 'Refunded',
   expired: 'Expired',
+  unknown: 'Status unavailable',
 });
 
 export const STATUS_UNAVAILABLE = 'Status unavailable';
@@ -56,7 +59,9 @@ const GIFT_BADGE = {
   awaiting_recipient: { background: '#fffbeb', color: '#92400e', borderColor: '#fcd34d' },
   issue: { background: '#fef2f2', color: '#b91c1c', borderColor: '#fecaca' },
   canceled: NEUTRAL,
+  refunded: { background: '#faf5ff', color: '#6b21a8', borderColor: '#e9d5ff' },
   expired: NEUTRAL,
+  unknown: NEUTRAL,
 };
 
 /** Badge colors by kind; an unknown kind gets the neutral style (never a "processing" look). */

@@ -1,7 +1,7 @@
 {
   "generatedFrom": {
     "backendDir": "C:\\1_GREET-ME\\cs-be-pair",
-    "backendHead": "5e58a86f16860a9055977d10f607f33760ba528f",
+    "backendHead": "64c918b28d133392f39df0fca201cf58762d9c07",
     "node": "v20.20.2"
   },
   "rowKeys": {
@@ -11,7 +11,8 @@
       "merch-ship",
       "merch-bad",
       "merch-can",
-      "merch-ref"
+      "merch-ref",
+      "merch-odd"
     ],
     "giftTokens": [
       "00000001-aaaa-bbbb-cccc-eeeeeeeeeeee",
@@ -28,7 +29,9 @@
       "000000012-aaaa-bbbb-cccc-eeeeeeeeeeee",
       "000000013-aaaa-bbbb-cccc-eeeeeeeeeeee",
       "000000014-aaaa-bbbb-cccc-eeeeeeeeeeee",
-      "000000015-aaaa-bbbb-cccc-eeeeeeeeeeee"
+      "000000015-aaaa-bbbb-cccc-eeeeeeeeeeee",
+      "000000016-aaaa-bbbb-cccc-eeeeeeeeeeee",
+      "000000017-aaaa-bbbb-cccc-eeeeeeeeeeee"
     ],
     "queryUsers": [
       "u1"
@@ -85,14 +88,14 @@
     "status": 200,
     "body": {
       "ok": true,
-      "count": 22,
+      "count": 25,
       "truncated": false,
       "orders": [
         {
           "orderRef": "merch-pre",
           "source": "merch",
           "category": "merch",
-          "createdAt": "2026-09-30T18:52:23.140Z",
+          "createdAt": "2026-09-30T20:26:58.049Z",
           "itemSummary": "Tee",
           "recipientName": "",
           "amountCents": 900,
@@ -114,7 +117,7 @@
           "orderRef": "ord_00282c88fa75133f",
           "source": "flowers",
           "category": "flowers",
-          "createdAt": "2026-09-30T18:52:23.140Z",
+          "createdAt": "2026-09-30T20:26:58.049Z",
           "itemSummary": "Flowers",
           "recipientName": "A B",
           "amountCents": 5500,
@@ -136,7 +139,7 @@
           "orderRef": "ord_32d511fe9a6e2c13",
           "source": "gift",
           "category": "qrcash",
-          "createdAt": "2026-09-30T18:52:23.140Z",
+          "createdAt": "2026-09-30T20:26:58.049Z",
           "itemSummary": "QR Cash",
           "recipientName": "R1",
           "amountCents": 1001,
@@ -158,7 +161,7 @@
           "orderRef": "merch-prod",
           "source": "merch",
           "category": "merch",
-          "createdAt": "2026-09-29T18:52:23.140Z",
+          "createdAt": "2026-09-29T20:26:58.049Z",
           "itemSummary": "Mug",
           "recipientName": "",
           "amountCents": 900,
@@ -180,7 +183,7 @@
           "orderRef": "merch-ship",
           "source": "merch",
           "category": "merch",
-          "createdAt": "2026-09-28T18:52:23.140Z",
+          "createdAt": "2026-09-28T20:26:58.049Z",
           "itemSummary": "Cap",
           "recipientName": "",
           "amountCents": 900,
@@ -202,7 +205,7 @@
           "orderRef": "ord_da79da36665cb790",
           "source": "gift",
           "category": "qrcash",
-          "createdAt": "2026-09-28T18:52:23.140Z",
+          "createdAt": "2026-09-28T20:26:58.049Z",
           "itemSummary": "QR Cash",
           "recipientName": "R3",
           "amountCents": 1003,
@@ -224,7 +227,7 @@
           "orderRef": "merch-bad",
           "source": "merch",
           "category": "merch",
-          "createdAt": "2026-09-27T18:52:23.140Z",
+          "createdAt": "2026-09-27T20:26:58.049Z",
           "itemSummary": "Hat",
           "recipientName": "",
           "amountCents": 900,
@@ -246,7 +249,7 @@
           "orderRef": "ord_00d7435672c72cfa",
           "source": "gift",
           "category": "qrcash",
-          "createdAt": "2026-09-27T18:52:23.140Z",
+          "createdAt": "2026-09-27T20:26:58.049Z",
           "itemSummary": "QR Cash",
           "recipientName": "R4",
           "amountCents": 1004,
@@ -268,7 +271,7 @@
           "orderRef": "merch-can",
           "source": "merch",
           "category": "merch",
-          "createdAt": "2026-09-26T18:52:23.140Z",
+          "createdAt": "2026-09-26T20:26:58.049Z",
           "itemSummary": "Bag",
           "recipientName": "",
           "amountCents": 900,
@@ -290,7 +293,7 @@
           "orderRef": "ord_4efe83fddf0cbcea",
           "source": "gift",
           "category": "gift_cards",
-          "createdAt": "2026-09-26T18:52:23.140Z",
+          "createdAt": "2026-09-26T20:26:58.049Z",
           "itemSummary": "Gift card",
           "recipientName": "R5",
           "amountCents": 1005,
@@ -312,12 +315,12 @@
           "orderRef": "merch-ref",
           "source": "merch",
           "category": "merch",
-          "createdAt": "2026-09-25T18:52:23.140Z",
+          "createdAt": "2026-09-25T20:26:58.049Z",
           "itemSummary": "Pen",
           "recipientName": "",
           "amountCents": 900,
           "status": {
-            "kind": "canceled",
+            "kind": "refunded",
             "label": "Refunded"
           },
           "tracking": {
@@ -334,7 +337,7 @@
           "orderRef": "ord_45cd654c3886ff51",
           "source": "gift",
           "category": "gift_cards",
-          "createdAt": "2026-09-25T18:52:23.140Z",
+          "createdAt": "2026-09-25T20:26:58.049Z",
           "itemSummary": "Gift card",
           "recipientName": "R6",
           "amountCents": 1006,
@@ -353,10 +356,32 @@
           "support": false
         },
         {
+          "orderRef": "merch-odd",
+          "source": "merch",
+          "category": "merch",
+          "createdAt": "2026-09-24T20:26:58.049Z",
+          "itemSummary": "Odd",
+          "recipientName": "",
+          "amountCents": 900,
+          "status": {
+            "kind": "unknown",
+            "label": "Status unavailable - contact support"
+          },
+          "tracking": {
+            "available": false,
+            "carrier": null,
+            "trackingNumber": null,
+            "trackingUrl": null
+          },
+          "requestedDeliveryDate": null,
+          "providerReference": null,
+          "support": true
+        },
+        {
           "orderRef": "ord_6d09dade317874f6",
           "source": "gift",
           "category": "curated",
-          "createdAt": "2026-09-24T18:52:23.140Z",
+          "createdAt": "2026-09-24T20:26:58.049Z",
           "itemSummary": "Curated gift",
           "recipientName": "R7",
           "amountCents": 1007,
@@ -378,7 +403,7 @@
           "orderRef": "ord_541b5324a44a30b9",
           "source": "gift",
           "category": "gift_boxes",
-          "createdAt": "2026-09-23T18:52:23.140Z",
+          "createdAt": "2026-09-23T20:26:58.049Z",
           "itemSummary": "Box confirmed",
           "recipientName": "R8",
           "amountCents": 1008,
@@ -400,7 +425,7 @@
           "orderRef": "ord_51c495413dd8f4d6",
           "source": "gift",
           "category": "gift_boxes",
-          "createdAt": "2026-09-22T18:52:23.140Z",
+          "createdAt": "2026-09-22T20:26:58.049Z",
           "itemSummary": "Gift box",
           "recipientName": "R9",
           "amountCents": 1009,
@@ -422,7 +447,7 @@
           "orderRef": "ord_a4a437aafc06aec4",
           "source": "gift",
           "category": "gift_boxes",
-          "createdAt": "2026-09-21T18:52:23.140Z",
+          "createdAt": "2026-09-21T20:26:58.049Z",
           "itemSummary": "Gift box",
           "recipientName": "R10",
           "amountCents": 1010,
@@ -444,13 +469,13 @@
           "orderRef": "ord_175fa117eebf5acd",
           "source": "gift",
           "category": "gift_boxes",
-          "createdAt": "2026-09-20T18:52:23.140Z",
+          "createdAt": "2026-09-20T20:26:58.049Z",
           "itemSummary": "Gift box",
           "recipientName": "R11",
           "amountCents": 1011,
           "status": {
-            "kind": "shipped",
-            "label": "On its way"
+            "kind": "delivered",
+            "label": "Delivered"
           },
           "tracking": {
             "available": true,
@@ -466,7 +491,7 @@
           "orderRef": "ord_a9503a4576e612ce",
           "source": "gift",
           "category": "gift_boxes",
-          "createdAt": "2026-09-19T18:52:23.140Z",
+          "createdAt": "2026-09-19T20:26:58.049Z",
           "itemSummary": "Gift box",
           "recipientName": "R12",
           "amountCents": 1012,
@@ -488,12 +513,12 @@
           "orderRef": "ord_78073123da7f6bbe",
           "source": "gift",
           "category": "gift_boxes",
-          "createdAt": "2026-09-18T18:52:23.140Z",
+          "createdAt": "2026-09-18T20:26:58.049Z",
           "itemSummary": "Gift box",
           "recipientName": "R13",
           "amountCents": 1013,
           "status": {
-            "kind": "canceled",
+            "kind": "refunded",
             "label": "Refunded"
           },
           "tracking": {
@@ -510,7 +535,7 @@
           "orderRef": "ord_7b687c11e51556ae",
           "source": "gift",
           "category": "gift_boxes",
-          "createdAt": "2026-09-17T18:52:23.140Z",
+          "createdAt": "2026-09-17T20:26:58.049Z",
           "itemSummary": "Gift box",
           "recipientName": "R14",
           "amountCents": 1014,
@@ -532,7 +557,7 @@
           "orderRef": "ord_a9a1a697d2bc091b",
           "source": "gift",
           "category": "gift_boxes",
-          "createdAt": "2026-09-16T18:52:23.140Z",
+          "createdAt": "2026-09-16T20:26:58.049Z",
           "itemSummary": "Gift box",
           "recipientName": "R15",
           "amountCents": 1015,
@@ -551,10 +576,54 @@
           "support": false
         },
         {
+          "orderRef": "ord_1777a56cf8af0ba0",
+          "source": "gift",
+          "category": "weird_type",
+          "createdAt": "2026-09-15T20:26:58.049Z",
+          "itemSummary": "Gift",
+          "recipientName": "R16",
+          "amountCents": 1016,
+          "status": {
+            "kind": "unknown",
+            "label": "Status unavailable - contact support"
+          },
+          "tracking": {
+            "available": false,
+            "carrier": null,
+            "trackingNumber": null,
+            "trackingUrl": null
+          },
+          "requestedDeliveryDate": null,
+          "providerReference": null,
+          "support": true
+        },
+        {
+          "orderRef": "ord_4bc855bf13d31682",
+          "source": "gift",
+          "category": "qrcash",
+          "createdAt": "2026-09-14T20:26:58.049Z",
+          "itemSummary": "QR Cash",
+          "recipientName": "R17",
+          "amountCents": 1017,
+          "status": {
+            "kind": "unknown",
+            "label": "Status unavailable - contact support"
+          },
+          "tracking": {
+            "available": false,
+            "carrier": null,
+            "trackingNumber": null,
+            "trackingUrl": null
+          },
+          "requestedDeliveryDate": null,
+          "providerReference": null,
+          "support": true
+        },
+        {
           "orderRef": "ord_e2e323a2bbb9dc8d",
           "source": "gift",
           "category": "qrcash",
-          "createdAt": "2026-08-02T18:52:23.140Z",
+          "createdAt": "2026-08-02T20:26:58.049Z",
           "itemSummary": "QR Cash",
           "recipientName": "R2",
           "amountCents": 1002,

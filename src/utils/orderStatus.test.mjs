@@ -16,6 +16,8 @@ test("every documented kind keeps the authoritative backend label", () => {
     issue: "We hit a snag - we're on it",
     canceled: "Cancelled",
     expired: "Expired unclaimed",
+    refunded: "Refunded",
+    unknown: "Status unavailable - contact support",
     delivered: "Delivered",
   };
   for (const [kind, label] of Object.entries(labels)) assert.equal(giftOrderStatusLabel(S(kind, label)), label, kind);
@@ -30,7 +32,7 @@ test("canceled/expired/awaiting_recipient with a 'delivery' label keep the label
 
 test("a label asserting past-tense delivery under another kind becomes that kind's own plain text, never 'Processing'", () => {
   const cases = {
-    shipped: "Shipped", canceled: "Canceled", expired: "Expired", issue: "Needs attention", completed: "Completed",
+    shipped: "Shipped", canceled: "Canceled", expired: "Expired", refunded: "Refunded", unknown: "Status unavailable", issue: "Needs attention", completed: "Completed",
     awaiting_recipient: "Waiting for recipient", submitted: "Submitted", processing: "Processing",
   };
   for (const [kind, text] of Object.entries(cases)) {
@@ -50,7 +52,7 @@ test("'Delivered' is shown only for kind delivered", () => {
 
 test("unknown kind or missing/blank label is 'Status unavailable' (no invented state)", () => {
   assert.equal(STATUS_UNAVAILABLE, "Status unavailable");
-  for (const status of [S("teleported", "Arrived"), S("", "Something"), S(undefined, "Something"), S("processing", ""), S("processing", "   "), S("processing", undefined), S("shipped", null), {}, null, undefined]) {
+  for (const status of [S("teleported", "Arrived"), S("Delivered", "Delivered"), S("", "Something"), S(undefined, "Something"), S("processing", ""), S("processing", "   "), S("processing", undefined), S("shipped", null), {}, null, undefined]) {
     assert.equal(giftOrderStatusLabel(status), STATUS_UNAVAILABLE, JSON.stringify(status));
   }
   assert.equal(giftOrderStatusLabel(S("__proto__", "x")), STATUS_UNAVAILABLE);
@@ -62,7 +64,8 @@ test("badge styles: documented kinds are distinct from neutral where meaningful;
   assert.deepEqual(giftStatusBadgeStyle(undefined), neutral);
   assert.deepEqual(giftStatusBadgeStyle("canceled"), neutral);
   assert.deepEqual(giftStatusBadgeStyle("expired"), neutral);
-  for (const k of ["processing", "submitted", "shipped", "delivered", "completed", "awaiting_recipient", "issue"]) {
+  assert.deepEqual(giftStatusBadgeStyle("unknown"), neutral);
+  for (const k of ["processing", "submitted", "shipped", "delivered", "completed", "awaiting_recipient", "issue", "refunded"]) {
     assert.notDeepEqual(giftStatusBadgeStyle(k), neutral, k);
   }
   assert.notDeepEqual(giftStatusBadgeStyle("awaiting_recipient"), giftStatusBadgeStyle("processing"));

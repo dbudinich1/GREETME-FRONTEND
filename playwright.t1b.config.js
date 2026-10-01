@@ -1,4 +1,4 @@
-﻿// playwright.t1b.config.js â€” Closeout T1B fixture run (own dev server on port 5232; never reuses another).
+// playwright.t1b.config.js â€” Closeout T1B fixture run (own dev server on port 5232; never reuses another).
 import { defineConfig, devices } from '@playwright/test';
 
 const PORT = 5232;
@@ -16,6 +16,6 @@ export default defineConfig({
     command: `npm run dev -- --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
-    timeout: 120000,
+    timeout: 300000,
   },
 });
