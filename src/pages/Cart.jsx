@@ -182,11 +182,12 @@ export default function Cart() {
           </p>
           <div style={{
             display: 'flex',
+            flexDirection: 'column',
             gap: '1rem',
-            justifyContent: 'center',
-            flexWrap: 'wrap'
+            alignItems: 'center'
           }}>
             <button
+              data-testid="cart-empty-browse-agp"
               onClick={() => navigate('/dashboard/gifts')}
               style={{
                 padding: '0.875rem 1.5rem',
@@ -214,33 +215,25 @@ export default function Cart() {
               }}
             >
               <ShoppingBag size={18} />
-              Browse Gifts
+              Browse American Gift Place&#8482;
             </button>
             <button
-              onClick={() => navigate('/dashboard/merch')}
+              type="button"
+              data-testid="cart-empty-back-home"
+              onClick={() => navigate('/dashboard')}
               style={{
-                padding: '0.875rem 1.5rem',
-                background: 'white',
-                color: '#667eea',
-                border: '2px solid #667eea',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '0.9375rem',
-                fontWeight: 600,
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                color: 'var(--text-secondary)',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                textDecoration: 'underline',
                 cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#f5f3ff';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'white';
+                fontFamily: 'inherit'
               }}
             >
-              Shop the American Gift Place
+              Back Home
             </button>
           </div>
         </div>

@@ -151,7 +151,7 @@ export default function HeroProgram() {
             Greet-Me™ Hero™
           </h1>
           <p style={{ fontSize: '0.9375rem', lineHeight: 1.5, color: '#ffffff', maxWidth: '640px', margin: '0 auto 1rem' }}>
-            Appreciation with a purpose — recognition for the businesses making an impact through Greet-Me.
+            Appreciation with a purpose — participation by the businesses making an impact through Greet-Me.
           </p>
           <button
             onClick={() => setShowHeroHeartsModal(true)}
@@ -188,12 +188,19 @@ export default function HeroProgram() {
               onOpenQRCash={() => navigate('/dashboard/send?giftType=qrcash')}
               onOpenContact={() => setShowContactModal(true)}
             />
-            <LeaderboardSection />
-            <StatusSection status={data.status} />
+            {/* W20 / W23 — the LOWER recognition & ranking area (Community Leaderboard, Hero Status,
+                Recognition badges) is DORMANT until a verified corporate-only contract exists:
+                individuals must never be ranked or badged. When dormant, none of these sections
+                mounts, so GET /api/hero/leaderboard is not even requested. The upper participation
+                area (Ways to Participate) and the participation activity/impact sections stay live. */}
+            {HERO_RECOGNITION_RANKING_LIVE && <LeaderboardSection />}
+            {HERO_RECOGNITION_RANKING_LIVE && <StatusSection status={data.status} />}
             <ActivitySection items={data.recentActivity} />
             <HistorySection items={data.history} />
             <ImpactSection impact={data.impact} />
-            <RecognitionSection recognition={data.recognition} />
+            {HERO_RECOGNITION_RANKING_LIVE
+              ? <RecognitionSection recognition={data.recognition} />
+              : <RecognitionDormantNotice />}
           </>
         )}
       </div>
@@ -222,6 +229,24 @@ export default function HeroProgram() {
         subtitle="Tell us about your corporate Greet-Me Hero participation"
       />
     </div>
+  );
+}
+
+// W20 / W23 — settled founder decision: the upper Hero participation area is live; the lower
+// recognition/ranking area stays dormant (no Hero Status badge, no leaderboard, no recognition
+// badges) until a verified corporate-only contract exists. Flip ONLY with that contract.
+const HERO_RECOGNITION_RANKING_LIVE = false;
+
+function RecognitionDormantNotice() {
+  return (
+    <section style={{ marginBottom: '0.5rem' }} data-testid="hero-recognition-dormant">
+      <h2 style={sectionTitle}>Hero Status &amp; Recognition</h2>
+      <div style={{ ...card, padding: '1.25rem' }}>
+        <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', margin: 0 }}>
+          Hero Status, recognition, and the community leaderboard are not live yet. Your participation above is live and counts toward the Hero mission.
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -558,7 +583,7 @@ const PARTICIPATION_GROUPS = [
         desc: 'Pre-purchase animation credits for birthdays, holidays, celebrations, appreciation, and everyday Greet-Me moments.',
         chip: 'available', cta: { kind: 'link', to: '/dashboard/animations', label: 'Purchase Packs' } },
       { key: 'marketplace', title: 'Greet-Me Gifts & Marketplace', icon: ShoppingBag,
-        desc: 'Send curated gifts and branded merch through Greet-Me.',
+        desc: 'Send curated gifts and Branded Goods through Greet-Me.',
         chip: 'available', cta: { kind: 'link', to: '/dashboard/gifts', label: 'Browse' } },
     ],
   },
