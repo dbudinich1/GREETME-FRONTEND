@@ -29,12 +29,13 @@ const ROUTER_STUB = `export const useNavigate = () => (() => {});`;
 const ICONS_STUB = `
 import React from "react";
 const I = () => null;
-export const Package = I, Truck = I, ArrowLeft = I, ExternalLink = I, Flower2 = I;
+export const Package = I, Truck = I, ArrowLeft = I, ExternalLink = I, Flower2 = I, Gift = I;
 export default {};
 `;
 const API_STUB = `
 export default {
   getMerchOrders: async () => ({ ok: true, orders: globalThis.__orders || [] }),
+  getOrderHistory: async () => ({ ok: true, orders: globalThis.__orderHistory || [] }),
   getFlowerOrders: async () => {
     if (globalThis.__flowerOrdersError) throw new Error("network down");
     return { ok: true, orders: globalThis.__flowerOrders || [] };
@@ -70,6 +71,8 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   const { window } = dom;
   globalThis.window = window; globalThis.document = window.document;
+  // React reads a global `navigator`; Node < 21 has none (harness fix, mirrors hubW17Coverage).
+  if (typeof globalThis.navigator === "undefined") Object.defineProperty(globalThis, "navigator", { value: window.navigator, configurable: true });
   globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.CustomEvent = window.CustomEvent;
   globalThis.localStorage = window.localStorage;

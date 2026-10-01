@@ -5,7 +5,7 @@ const PORT = 5232;
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: 't1bCommerceFixtures.spec.js',
+  testMatch: ['t1bCommerceFixtures.spec.js', 't1bMerchGuard.spec.js'],
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
