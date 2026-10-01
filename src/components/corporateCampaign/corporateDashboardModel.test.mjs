@@ -215,11 +215,11 @@ test("D-close: the capability drives the owner-only actions end to end", () => {
 });
 
 // ══ gift capability ═════════════════════════════════════════════════════════════════════════
-test("No gift and Let Greet-Me Select are selectable; QR Cash and Greet-Me Gifts are visible but not", () => {
-  assert.deepEqual(CORPORATE_GIFT_OPTIONS.map((o) => o.value), ["none", "curated", "qrcash", "marketplace"]);
+test("No gift and Let Greet-Me Select are selectable; QR Cash is visible but not", () => {
+  assert.deepEqual(CORPORATE_GIFT_OPTIONS.map((o) => o.value), ["none", "curated", "qrcash"]);
   assert.equal(giftOptionState("none").selectable, true);
   assert.equal(giftOptionState("curated").selectable, true);
-  for (const v of ["qrcash", "marketplace"]) {
+  for (const v of ["qrcash"]) {
     const s = giftOptionState(v);
     assert.equal(s.selectable, false, v);
     // FINAL POLISH - non-selectable, and NO reason text published for it. The founder's direction
@@ -935,13 +935,13 @@ test("G3: the option carries the founder-decided label and description, exactly"
 
 test("G3: with nothing published the option is absent — not disabled, not greyed, absent", () => {
   const shown = corporateGiftOptions({ catalogItemCount: 0, currentGiftType: "none" });
-  assert.deepEqual(shown.map((o) => o.value), ["none", "curated", "qrcash", "marketplace"]);
+  assert.deepEqual(shown.map((o) => o.value), ["none", "curated", "qrcash"]);
   assert.equal(shown, CORPORATE_GIFT_OPTIONS, "the standing list is returned unchanged");
 });
 
 test("G3: with a published item the option sits IMMEDIATELY AFTER curated", () => {
   const shown = corporateGiftOptions({ catalogItemCount: 1 });
-  assert.deepEqual(shown.map((o) => o.value), ["none", "curated", "gift_boxes", "qrcash", "marketplace"]);
+  assert.deepEqual(shown.map((o) => o.value), ["none", "curated", "gift_boxes", "qrcash"]);
   assert.equal(shown[2], PROVIDER_GIFT_OPTION);
 });
 

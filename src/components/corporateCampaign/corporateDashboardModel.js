@@ -198,7 +198,14 @@ export const CORPORATE_GIFT_OPTIONS = Object.freeze([
   { value: "none", label: "No gift", description: "A greeting on its own.", automatable: true },
   { value: "curated", label: "Let Greet-Me™ Select", description: "We choose something thoughtful within your limit.", automatable: true },
   { value: "qrcash", label: "QR Cash™", description: "Cash they can scan and spend.", automatable: false },
-  { value: "marketplace", label: "Greet-Me Gifts", description: "Made-in-USA gifts.", automatable: false },
+  // CLOSEOUT W29 (PROPOSED): the "Greet-Me Gifts" (marketplace) option is REMOVED from the campaign
+  // gift options. It named a gift class that does not exist for a campaign: the backend lists
+  // "marketplace" only among the types a campaign can NOT run (deliveryConfig.js), no catalog,
+  // product picker or fulfilment path backs it, and the personal selector's marketplace is a
+  // browse-and-buy flow, which a scheduled campaign cannot perform. A permanently disabled, unexplained
+  // option implied a capability. QR Cash stays visible and non-selectable (a campaign
+  // cannot fund it today). Every SELECTABLE option below maps to a
+  // real path: none, curated (CORPORATE_AUTOMATABLE_GIFT_TYPES) and gift_boxes (provider registry).
 ]);
 
 // The existing approved Curated tiers, in CENTS. The frontend never handles dollars for this: a
