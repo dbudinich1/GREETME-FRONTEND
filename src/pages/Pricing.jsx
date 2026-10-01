@@ -6,12 +6,17 @@ import { Check, CheckCircle, ShoppingCart, X, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import cartService from '../services/cartService';
 import { personalPlans, businessPlans } from '../config/plans';
+import { platformFeeFor, formatFeeAmount } from '../utils/platformFee';
+import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
 
 // Plan tiers ineligible for referral credit
 const CREDIT_INELIGIBLE_TIERS = new Set(['close_circle']);
 
 export default function Pricing() {
   const navigate = useNavigate();
+  // W18: the consumer $4.99 fee is once per account; the backend decides (see utils/platformFee.js).
+  const feeState = usePlatformFeeStatus();
+  const feeFor = (plan) => platformFeeFor(plan, plan?.platformFee != null, feeState);
   const location = useLocation();
   const { user } = useAuth();
   const planKey = user?.tier || user?.plan || 'free';
@@ -1109,6 +1114,7 @@ export default function Pricing() {
                     <span style={{ color: 'var(--text-secondary)' }}>{selectedPlan.name}</span>
                     <span style={{ fontWeight: 600 }}>${selectedPlan.price}/{selectedPlan.period}</span>
                   </div>
+                  {feeFor(selectedPlan) !== 0 && (
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -1118,8 +1124,9 @@ export default function Pricing() {
                     color: 'var(--text-secondary)'
                   }}>
                     <span>One-Time Platform Fee</span>
-                    <span>${(selectedPlan.platformFee ?? 4.99).toFixed(2)}</span>
+                    <span data-testid="pricing-platform-fee">{formatFeeAmount(feeFor(selectedPlan))}</span>
                   </div>
+                  )}
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -1129,7 +1136,7 @@ export default function Pricing() {
                     marginTop: '0.5rem'
                   }}>
                     <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Total</span>
-                    <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--primary)' }}>${(selectedPlan.price + (selectedPlan.platformFee ?? 4.99)).toFixed(2)}</span>
+                    <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--primary)' }}>${(selectedPlan.price + (feeFor(selectedPlan) ?? 0)).toFixed(2)}</span>
                   </div>
                   {pricingMode === 'founders' && (
                     <div style={{
@@ -1278,6 +1285,7 @@ export default function Pricing() {
                     <span style={{ color: 'var(--text-secondary)' }}>{lastAddedPlan.name}</span>
                     <span style={{ fontWeight: 600, color: 'var(--primary)' }}>${lastAddedPlan.price}/{lastAddedPlan.period}</span>
                   </div>
+                  {feeFor(lastAddedPlan) !== 0 && (
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -1286,8 +1294,9 @@ export default function Pricing() {
                     color: 'var(--text-secondary)'
                   }}>
                     <span>One-Time Platform Fee</span>
-                    <span>${(lastAddedPlan.platformFee ?? 4.99).toFixed(2)}</span>
+                    <span data-testid="pricing-added-platform-fee">{formatFeeAmount(feeFor(lastAddedPlan))}</span>
                   </div>
+                  )}
                   {(() => {
                     const cc = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
                     // CREDIT CONTRACT INTEGRITY (2026-09-30, Cart/Pricing display-honesty correction) —
@@ -1320,7 +1329,7 @@ export default function Pricing() {
                           fontSize: '1.0625rem',
                         }}>
                           <span>Total</span>
-                          <span style={{ color: 'var(--primary)' }}>${Math.max(0, lastAddedPlan.price + (lastAddedPlan.platformFee ?? 4.99) - effectiveCredit).toFixed(2)}</span>
+                          <span style={{ color: 'var(--primary)' }}>${Math.max(0, lastAddedPlan.price + (feeFor(lastAddedPlan) ?? 0) - effectiveCredit).toFixed(2)}</span>
                         </div>
                       </>
                     );

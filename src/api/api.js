@@ -988,6 +988,19 @@ class ApiService {
   // H7 B5 — spend Hearts for an in-kind reward. `redemptionRequestId` is generated once per
   // redemption intent on the client and reused across retries (idempotency). Server is
   // authoritative; no localStorage is used for balance/redemption/history.
+  // W18 — one-time consumer platform fee status (T2 contract T2-w18-fee-once.md). Authenticated.
+  // 200 { ok, consumer:{feeCents,applies,reason}, business:{feeCents,applies} }; 503 throws
+  // (FEE_HISTORY_UNAVAILABLE) and callers must then assert NO fee amount.
+  getPlatformFeeStatus() {
+    return this.request("/api/payments/platform-fee-status");
+  }
+
+  // W42 — provider-neutral combined order history (T2 contract T2-w42-combined-orders.md).
+  // Additive: /api/merch/orders is unchanged. Returns { ok, count, truncated, orders[] }.
+  getOrderHistory() {
+    return this.request("/api/orders/history");
+  }
+
   redeemHearts(optionId, redemptionRequestId) {
     return this.request("/api/hearts/redeem", {
       method: "POST",

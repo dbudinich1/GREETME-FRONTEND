@@ -8,8 +8,9 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Package, Truck, ArrowLeft, ExternalLink, Flower2 } from "lucide-react";
+import { Package, Truck, ArrowLeft, ExternalLink, Flower2, Gift } from "lucide-react";
 import api from "../api/api";
+import { giftOrderStatusLabel, giftOrderTrackingHref, giftStatusBadgeStyle } from "../utils/orderStatus";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -28,6 +29,17 @@ function formatPrice(cents) {
   const n = typeof cents === "number" ? cents : 0;
   return `$${(n / 100).toFixed(2)}`;
 }
+
+// W42 — provider-neutral gift orders (GET /api/orders/history, source "gift": QR Cash, gift box,
+// gift card, curated). Merch and Flower rows keep their own sections above/below, so they are
+// never duplicated here. The backend owns status meaning; this layer only refuses to INVENT one.
+const GIFT_CATEGORY_LABEL = {
+  qrcash: "QR Cash",
+  gift_boxes: "Gift box", // the backend's real category value (the contract doc says gift_box)
+  gift_box: "Gift box",
+  gift_cards: "Gift card",
+  curated: "Curated gift",
+};
 
 function statusBadgeStyle(kind) {
   switch (kind) {
@@ -56,6 +68,12 @@ export default function MerchOrders() {
   const [flowerOrders, setFlowerOrders] = useState([]);
   const [flowerLoading, setFlowerLoading] = useState(true);
   const [flowerError, setFlowerError] = useState(null);
+
+  // Gift orders (W42) — fetched independently from the combined history endpoint; a failure here
+  // never affects the merch or flower sections, and vice versa.
+  const [giftOrders, setGiftOrders] = useState([]);
+  const [giftLoading, setGiftLoading] = useState(true);
+  const [giftError, setGiftError] = useState(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -101,6 +119,28 @@ export default function MerchOrders() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.getOrderHistory();
+        if (cancelled) return;
+        if (!res || res.ok !== true || !Array.isArray(res.orders)) throw new Error("order history unavailable");
+        setGiftOrders(res.orders.filter((o) => o && o.source === "gift"));
+        setGiftError(null);
+      } catch (e) {
+        if (!cancelled) setGiftError(e);
+      } finally {
+        if (!cancelled) setGiftLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const hasGiftOrders = !giftLoading && !giftError && giftOrders.length > 0;
 
   return (
     <div style={{ maxWidth: "100%", overflowX: "hidden" }}>
@@ -163,7 +203,7 @@ export default function MerchOrders() {
         >
           We couldn&rsquo;t load your orders just now. Please try again shortly.
         </div>
-      ) : orders.length === 0 ? (
+      ) : orders.length === 0 && hasGiftOrders ? null : orders.length === 0 ? (
         <div
           style={{
             background: "var(--bg-primary)",
@@ -380,6 +420,152 @@ export default function MerchOrders() {
               <ArrowLeft size={14} />
               Back to Dashboard
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Gift Orders (W42) — QR Cash, gift boxes, gift cards and curated gifts from the combined
+          history endpoint. Status text is the backend's; "Delivered" appears only with backend
+          proof. Tracking is shown only when the backend supplies it. */}
+      {!giftLoading && giftError && (
+        <div style={{ marginTop: "1.5rem", fontSize: "0.8125rem", color: "var(--text-tertiary)" }}>
+          We couldn&rsquo;t load your gift orders just now. Please try again shortly.
+        </div>
+      )}
+      {hasGiftOrders && (
+        <div data-testid="gift-orders-section" style={{ marginTop: "1.5rem" }}>
+          <h2
+            style={{
+              fontSize: "1.0625rem",
+              fontWeight: 700,
+              color: "var(--text-primary)",
+              margin: "0 0 0.875rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <Gift size={20} />
+            Gift Orders
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {giftOrders.map((o) => {
+              const kind = o.status?.kind;
+              const badge = giftStatusBadgeStyle(kind);
+              const trackHref = giftOrderTrackingHref(o.tracking);
+              const showCarrier = o.tracking?.available === true && (o.tracking.carrier || o.tracking.trackingNumber);
+              return (
+                <div
+                  key={o.orderRef}
+                  data-testid="gift-order-row"
+                  style={{
+                    background: "var(--bg-primary)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius-xl)",
+                    padding: isNarrow ? "1.25rem" : "1.5rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "0.75rem",
+                      marginBottom: "0.875rem",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div
+                      data-testid="gift-order-status"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        padding: "0.25rem 0.75rem",
+                        borderRadius: "9999px",
+                        border: `1px solid ${badge.borderColor}`,
+                        background: badge.background,
+                        color: badge.color,
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {giftOrderStatusLabel(o.status)}
+                    </div>
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>
+                      {GIFT_CATEGORY_LABEL[o.category] ? `${GIFT_CATEGORY_LABEL[o.category]} · ` : ""}
+                      {formatDate(o.createdAt)}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: "1rem",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: "0.9375rem", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.5 }}>
+                        {o.itemSummary || "Greet-Me gift"}
+                        {o.recipientName ? ` for ${o.recipientName}` : ""}
+                      </p>
+                      <p style={{ margin: "0.25rem 0 0", fontSize: "0.75rem", color: "var(--text-tertiary)", fontFamily: "monospace" }}>
+                        Order {String(o.orderRef || "").slice(-8)}
+                      </p>
+                    </div>
+                    {typeof o.amountCents === "number" && (
+                      <div style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
+                        {formatPrice(o.amountCents)}
+                      </div>
+                    )}
+                  </div>
+
+                  {(trackHref || showCarrier || o.support) && (
+                    <div
+                      style={{
+                        marginTop: "1rem",
+                        paddingTop: "1rem",
+                        borderTop: "1px solid var(--border)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "0.75rem",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {trackHref ? (
+                        <a
+                          href={trackHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", fontWeight: 600, color: "#4338ca", textDecoration: "none" }}
+                        >
+                          <Truck size={16} />
+                          Track {o.tracking.carrier ? `with ${o.tracking.carrier}` : "shipment"}
+                          <ExternalLink size={14} />
+                        </a>
+                      ) : showCarrier ? (
+                        <p style={{ margin: 0, fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+                          {[o.tracking.carrier, o.tracking.trackingNumber].filter(Boolean).join(" ")}
+                        </p>
+                      ) : (
+                        <span />
+                      )}
+                      {o.support && (
+                        <a
+                          href={`mailto:support@greet-me.com?subject=${encodeURIComponent(`Gift order ${String(o.orderRef || "").slice(-8)}`)}`}
+                          style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#4338ca", textDecoration: "none", whiteSpace: "nowrap" }}
+                        >
+                          Get Help with This Order
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

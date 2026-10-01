@@ -116,6 +116,14 @@ export const SOCIAL_CIRCUIT_ENABLED = false;
 // Flip true only after founder review AND the backend flag is on. Founder-controlled.
 export const POST_VERIFICATION_ENABLED = false;
 
+// W16 — share-based Hearts rewards are DORMANT: social attribution is disabled and no share award
+// (amount / event / window / duplicate rule) is proven end to end. Behaviors listed here render a
+// "Not live yet" label instead of a Hearts amount in Ways to Earn, and the Share the Love panel
+// says plainly that sharing does not earn Hearts yet. Flip SHARE_HEARTS_REWARD_LIVE to true ONLY
+// when share attribution is proven and the founder activates it; the label then disappears.
+export const SHARE_HEARTS_REWARD_LIVE = false;
+export const DORMANT_SHARE_EARN_BEHAVIORS = Object.freeze(['share_act', 'share_converted']);
+
 // Hero Hearts Bundles - price tiers with bonus hearts
 export const HERO_HEARTS_BUNDLES = [
   {

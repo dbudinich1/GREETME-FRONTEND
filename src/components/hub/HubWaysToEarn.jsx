@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
-import { BEHAVIOR_LABELS, humanize } from './hubConfig';
+import { BEHAVIOR_LABELS, humanize, SHARE_HEARTS_REWARD_LIVE, DORMANT_SHARE_EARN_BEHAVIORS } from './hubConfig';
 
 // How many earn options the calm, collapsed default shows before "View all".
 const COLLAPSED_COUNT = 4;
@@ -105,7 +105,9 @@ export default function HubWaysToEarn({ amounts = [] }) {
                   borderRadius: '999px',
                   padding: '0.25rem 0.625rem'
                 }}>
-                  {amount} ❤️
+                  {!SHARE_HEARTS_REWARD_LIVE && DORMANT_SHARE_EARN_BEHAVIORS.includes(behavior)
+                    ? 'Not live yet'
+                    : <>{amount} ❤️</>}
                 </span>
               </div>
             ))}

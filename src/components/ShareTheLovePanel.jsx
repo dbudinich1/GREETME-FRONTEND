@@ -25,6 +25,7 @@
 import { useState, useCallback } from "react";
 import api from "../api/api";
 import SocialShareTile from "./SocialShareTile";
+import { SHARE_HEARTS_REWARD_LIVE } from "./hub/hubConfig";
 import "./ShareTheLovePanel.css";
 
 /**
@@ -102,6 +103,12 @@ export default function ShareTheLovePanel({
       <div className="gm-stl-head">
         <h3 className="gm-stl-title">{heading}</h3>
       </div>
+      {/* W16 — honest award copy: share rewards are dormant, so never imply Hearts for sharing. */}
+      {!SHARE_HEARTS_REWARD_LIVE && (
+        <p className="gm-stl-dormant" data-testid="share-reward-dormant" style={{ fontSize: "0.8125rem", margin: "0 0 0.75rem", opacity: 0.8 }}>
+          Sharing doesn’t earn Hearts yet. We’ll only show “Viewed” or “Referral earned” once Greet-Me has confirmed it.
+        </p>
+      )}
 
       {canInvite && (
         <div className="gm-stl-tabs" role="tablist" aria-label="Share options">

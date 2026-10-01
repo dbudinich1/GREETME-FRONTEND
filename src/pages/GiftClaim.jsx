@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { useAccountState } from '../hooks/useAccountState';
 import { isSenderViewingOwnGift } from '../utils/accountState';
+import GiftCardVoucherPanel from '../components/GiftCardVoucherPanel';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -119,11 +120,35 @@ export default function GiftClaim() {
       const status = err?.status || err?.response?.status;
       if (status === 404) {
         setError('not_found');
+      } else if (status === 410 || err?.code === 'GIFT_EXPIRED') {
+        // Expired gifts (any type) return 410 GIFT_EXPIRED — never a voucher area.
+        setGift(null);
+        setError('expired');
       } else {
         setError(err?.message || 'Failed to load gift');
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Quiet re-read for the gift-card Check again control: updates the gift in place WITHOUT the
+  // full-page loading state. The response (which may hold a voucher/PIN) is never logged.
+  const refreshGift = async () => {
+    try {
+      const res = await api.getGiftClaim(claimToken);
+      if (res?.ok && res?.gift) {
+        setGift(res.gift);
+        return 'ok';
+      }
+      return 'error';
+    } catch (err) {
+      if (err?.status === 410 || err?.code === 'GIFT_EXPIRED') {
+        setGift(null); // drop the previously loaded gift (and its voucher) from state
+        setError('expired');
+        return 'expired';
+      }
+      return 'error';
     }
   };
 
@@ -297,7 +322,11 @@ export default function GiftClaim() {
 
           {/* Fulfilment, resolved live on every load. The message is composed
               server-side so this page can never invent a status of its own. */}
-          {gift.statusMessage && (
+          {gift.giftType === 'gift_cards' && !isOwnerView ? (
+            /* Prezzee gift card: the voucher / PIN panel owns the status line and the redeem
+               controls. The sender (isOwnerView) never sees the recipient's secret. */
+            <GiftCardVoucherPanel gift={gift} onRefresh={refreshGift} />
+          ) : gift.statusMessage && (
             <p style={{
               fontSize: '0.95rem',
               color: '#6b7280',
@@ -370,12 +399,14 @@ export default function GiftClaim() {
         <div style={styles.card}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎁</div>
           <h1 style={styles.title}>
-            {error === 'not_found' ? 'Gift Not Found' : 'Something Went Wrong'}
+            {error === 'not_found' ? 'Gift Not Found' : error === 'expired' ? 'Gift Expired' : 'Something Went Wrong'}
           </h1>
           <p style={styles.subtitle}>
             {error === 'not_found'
               ? 'This gift link may be invalid or has already expired.'
-              : typeof error === 'string' ? error : 'Please try again later.'}
+              : error === 'expired'
+                ? 'This gift is no longer available. Please contact support if you need help.'
+                : typeof error === 'string' ? error : 'Please try again later.'}
           </p>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
           {trustLinks}
