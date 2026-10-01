@@ -173,6 +173,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          {/* W44 — legacy localStorage deposit route retired: forwards to the canonical /gift/:claimToken claim flow. */}
           <Route path="/redeem/qr-cash/:id" element={<RedeemQRCash />} />
           <Route path="/greeting/:greetingId" element={<RecipientGreeting />} />
           <Route path="/g/:jobId" element={<PublicGreetingCard />} />
