@@ -1,12 +1,17 @@
 // src/pages/ForgotPassword.jsx
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import GreetMeLogo from '../components/GreetMeLogo';
 import api from '../api/api';
 
 export const ForgotPassword = () => {
-  const [email, setEmail] = useState('');
+  // W09: Settings → Reset password passes the signed-in email via router state (prefill only;
+  // guests arriving from Login get the same empty field as before).
+  const location = useLocation();
+  const [email, setEmail] = useState(
+    typeof location?.state?.email === 'string' ? location.state.email : ''
+  );
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
