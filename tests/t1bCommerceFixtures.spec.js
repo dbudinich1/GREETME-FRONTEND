@@ -252,4 +252,21 @@ test.describe('T1B dependent tasks', () => {
     await expect(page.getByText('Fixture mug')).toBeVisible({ timeout: 20000 });
     await expect(page.getByText(/couldn.t load your gift orders/)).toBeVisible();
   });
+
+  test('W42 Orders: renders REAL backend response shapes (generated from the pair backend code)', async ({ page }) => {
+    const shapesPath = path.resolve('tests', 'fixtures', 'pair-backend-shapes.generated.json');
+    test.skip(!fs.existsSync(shapesPath), 'run src/pages/pairBackendContract.test.mjs first to generate the shapes');
+    const shapes = JSON.parse(fs.readFileSync(shapesPath, 'utf8'));
+    await setup(page);
+    await page.route(`${API}/api/orders/history`, (r) => r.fulfill({ status: shapes.orders.status, json: shapes.orders.body }));
+    await page.goto('/#/dashboard/merch/orders', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('gift-orders-section')).toBeVisible({ timeout: 20000 });
+    const gift = shapes.orders.body.orders.filter((o) => o.source === 'gift');
+    await expect(page.getByTestId('gift-order-row')).toHaveCount(gift.length);
+    const statuses = await page.getByTestId('gift-order-status').allTextContents();
+    expect(statuses.sort()).toEqual(gift.map((o) => o.status.label).sort());
+    expect(statuses.filter((t) => /^delivered$/i.test(t.trim()))).toHaveLength(1);
+    await expect(page.getByText('Status unavailable')).toHaveCount(0);
+    await page.screenshot({ path: path.join(SHOTS, 'w42-orders-real-shapes.png'), fullPage: true });
+  });
 });

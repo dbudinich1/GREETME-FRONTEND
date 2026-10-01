@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Package, Truck, ArrowLeft, ExternalLink, Flower2, Gift } from "lucide-react";
 import api from "../api/api";
+import { giftOrderStatusLabel, giftOrderTrackingHref, giftStatusBadgeStyle } from "../utils/orderStatus";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -34,42 +35,15 @@ function formatPrice(cents) {
 // never duplicated here. The backend owns status meaning; this layer only refuses to INVENT one.
 const GIFT_CATEGORY_LABEL = {
   qrcash: "QR Cash",
+  gift_boxes: "Gift box", // the backend's real category value (the contract doc says gift_box)
   gift_box: "Gift box",
   gift_cards: "Gift card",
   curated: "Curated gift",
 };
 
-/**
- * Status text for a gift-order row. "Delivered" is shown ONLY when the backend sent kind
- * "delivered" (it does so only with a proven deliveredAt). A label that claims delivery under any
- * other kind is not trusted and falls back to a neutral label.
- */
-// eslint-disable-next-line react-refresh/only-export-components -- pure helper exported for unit testing
-export function giftOrderStatusLabel(status) {
-  const kind = typeof status?.kind === "string" ? status.kind : "";
-  const label = typeof status?.label === "string" ? status.label.trim() : "";
-  if (kind === "delivered") return label || "Delivered";
-  if (!label || /\bdeliver(ed|y)\b/i.test(label)) return "Processing";
-  return label;
-}
-
-/** Only an https tracking URL is ever linked, and only when the backend marks tracking available. */
-// eslint-disable-next-line react-refresh/only-export-components -- pure helper exported for unit testing
-export function giftOrderTrackingHref(tracking) {
-  if (!tracking || tracking.available !== true) return null;
-  try {
-    const u = new URL(String(tracking.trackingUrl || ""));
-    return u.protocol === "https:" ? u.href : null;
-  } catch {
-    return null;
-  }
-}
-
 function statusBadgeStyle(kind) {
   switch (kind) {
     case "shipped":
-    case "delivered":
-    case "completed":
       return { background: "#ecfdf5", color: "#047857", borderColor: "#a7f3d0" };
     case "issue":
       return { background: "#fef2f2", color: "#b91c1c", borderColor: "#fecaca" };
@@ -477,7 +451,7 @@ export default function MerchOrders() {
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {giftOrders.map((o) => {
               const kind = o.status?.kind;
-              const badge = statusBadgeStyle(kind);
+              const badge = giftStatusBadgeStyle(kind);
               const trackHref = giftOrderTrackingHref(o.tracking);
               const showCarrier = o.tracking?.available === true && (o.tracking.carrier || o.tracking.trackingNumber);
               return (
