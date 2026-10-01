@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { salesAdminApi, salesAdminErrorMessage } from "../../api/salesAdmin.js";
 import { fundraiserApi } from "../../api/fundraiserApi.js";
 import { isFounder } from "../../utils/accountState.js";
+import AttributionHealthPanel from "./AttributionHealthPanel.jsx";
 import { STATES, resolveOutcome, LINK_STATES, linkOutcome, linkMessageFor, canLink } from "./salespersonLinkAssign.js";
 
 const card = {
@@ -861,9 +862,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
               {report.healthError ? (
                 <p data-testid="fcc-health-error" style={{ color: "var(--warning)", fontSize: ".84rem", margin: "0 0 .6rem" }}>{report.healthError}</p>
               ) : report.health ? (
-                <p data-testid="fcc-health" style={{ fontSize: ".84rem", margin: "0 0 .9rem", color: "var(--text-secondary)" }}>
-                  {Object.entries(report.health).map(([k, v]) => `${k}: ${String(v)}`).join(" \u00b7 ")}
-                </p>
+                <AttributionHealthPanel health={report.health} />
               ) : null}
 
               <h4 style={{ ...label, margin: "0 0 .4rem" }}>Commission ledger</h4>
