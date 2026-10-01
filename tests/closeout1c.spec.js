@@ -243,3 +243,25 @@ test('proposed W38: effective status for an inactive salesperson, no mutation', 
   await expect(page.getByTestId('fcc-effective-status')).toContainText('Inactive');
   expect(writes).toEqual([]);
 });
+
+// ---- HELD items W24-W28 / W30: CURRENT-STATE captures only (nothing implemented) ----------------
+test('capture held-item current state (W24/W25/W26/W27/W28/W30)', async ({ page }) => {
+  await page.setViewportSize(DESKTOP);
+  await corporateSetup(page);
+  await page.goto('/#/dashboard/campaigns');
+  await expect(page.getByTestId('contact-tiles-panel')).toBeVisible({ timeout: 20000 });
+  await page.locator('[data-testid$="-manage"]').first().click();
+  await page.getByTestId('contact-tiles-panel').screenshot({ path: `${OUT}/held-w24-tiles-manage-open.png` });
+  await page.getByTestId('card-open-c1').click();
+  await page.getByTestId('card-tab-recipients-c1').click();
+  await page.screenshot({ path: `${OUT}/held-w25-recipients-tab.png` });
+  await page.getByTestId('card-individual-c1').click();
+  await page.screenshot({ path: `${OUT}/held-w26-picker-open.png` });
+  await page.keyboard.press('Escape');
+  await page.screenshot({ path: `${OUT}/held-w26-after-escape.png` });
+  // Escape with the picker open may close the WHOLE campaign dialog (evidence for W26); reopen if so.
+  if (!(await page.getByTestId('card-tab-gift-c1').isVisible())) await page.getByTestId('card-open-c1').click();
+  await page.getByTestId('card-tab-gift-c1').click();
+  await page.screenshot({ path: `${OUT}/held-w28-w30-gift-tab.png`, fullPage: true });
+  expect(writes).toEqual([]);
+});
