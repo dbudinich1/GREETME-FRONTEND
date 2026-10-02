@@ -4,6 +4,7 @@ import { DollarSign } from 'lucide-react';
 import {
   validateQrCashDollars, qrCashQuote, centsToDollarString, QR_CASH_MIN_DOLLARS, QR_CASH_MAX_DOLLARS,
 } from '../utils/qrCashAmount';
+import { SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY } from '../config/scheduledQrCash';
 
 // The QR Cash amount a gift setting currently stands for, validated against the server's limits
 // ($5 to $100 whole dollars). Presets are always valid; Custom must be typed.
@@ -409,8 +410,13 @@ export default function GiftSelectorModal({
                       QR Cash remains available as a first-class choice above. */}
 
                   {/* Auto-Gift Toggle - Only show in recipient context (not one-off) */}
-                  {context !== 'oneoff' && giftSetting.type !== 'none' && (
-                    <div style={{
+                  {context !== 'oneoff' && giftSetting.type !== 'none' && (() => {
+                    // The "sent automatically" claim is only true for gift types that really auto-send.
+                    // QR Cash has no automatic send until the scheduled charge is live (config/scheduledQrCash.js).
+                    const autoSendClaimApplies = (giftSetting.type !== 'none' && giftSetting.type !== 'qrcash') || SCHEDULED_QRCASH_AVAILABLE;
+                    const autoOn = autoSendClaimApplies && giftSetting.autoGift === true;
+                    return (
+                    <div data-testid="auto-gift-block" style={{
                       marginTop: '1.25rem',
                       paddingTop: '1rem',
                       borderTop: '1px dashed var(--border, #e5e7eb)'
@@ -424,7 +430,8 @@ export default function GiftSelectorModal({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                           <input
                             type="checkbox"
-                            checked={giftSetting.autoGift === true}
+                            checked={autoOn}
+                            disabled={!autoSendClaimApplies}
                             onChange={(e) => onGiftChange(occ.type, 'autoGift', e.target.checked)}
                             style={{
                               width: '1.125rem',
@@ -446,28 +453,29 @@ export default function GiftSelectorModal({
                           fontWeight: 600,
                           padding: '0.3125rem 0.625rem',
                           borderRadius: '9999px',
-                          background: giftSetting.autoGift
+                          background: autoOn
                             ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(102, 126, 234, 0.1) 100%)'
                             : 'rgba(107, 114, 128, 0.1)',
-                          color: giftSetting.autoGift ? '#667eea' : 'var(--text-tertiary, #9ca3af)',
+                          color: autoOn ? '#667eea' : 'var(--text-tertiary, #9ca3af)',
                           textTransform: 'uppercase',
                           letterSpacing: '0.03em'
                         }}>
-                          {giftSetting.autoGift ? 'Auto' : 'Manual'}
+                          {autoOn ? 'Auto' : 'Manual'}
                         </span>
                       </label>
-                      <p style={{
+                      <p data-testid="auto-gift-copy" style={{
                         fontSize: '0.8125rem',
                         color: 'var(--text-tertiary, #9ca3af)',
                         margin: '0.625rem 0 0 1.75rem',
                         lineHeight: 1.4
                       }}>
-                        {giftSetting.autoGift
+                        {!autoSendClaimApplies ? SCHEDULED_QRCASH_UNAVAILABLE_COPY : giftSetting.autoGift
                           ? 'Gift will be sent automatically on the occasion date.'
                           : 'You\'ll receive a reminder 10 days before to confirm.'}
                       </p>
                     </div>
-                  )}
+                    );
+                  })()}
                 </div>
               );
             })}
