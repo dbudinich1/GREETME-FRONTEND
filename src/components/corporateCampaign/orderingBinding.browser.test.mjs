@@ -136,7 +136,7 @@ test("2/3: a MISSING list version disables ordering and issues zero writes", asy
   assert.equal(handles().length, 0);
   assert.equal(h.reorders.length, 0);
   // Everything else on the surface remains usable.
-  assert.ok(tid("card-expand-cmp_1"), "expansion still offered");
+  assert.ok(tid("card-open-cmp_1"), "the open-campaign control (successor of the PR#22 expander) is still offered");
   assert.ok(tid("card-rename-cmp_1"), "rename still offered");
   assert.ok(tid("card-toggle-cmp_1"), "the enable switch still offered");
   assert.ok(tid("campaign-viewport"), "the campaign list still renders");
@@ -247,7 +247,7 @@ test("15: a 404 marks ordering unavailable, restores authority and does not retr
   assert.deepEqual(ids(), ["cmp_1", "cmp_2", "cmp_3", "cmp_4"], "authoritative order restored");
   assert.match(tid("reorder-live").textContent, /isn.t available yet/i, "calm, not alarming");
   // Everything else still works.
-  assert.ok(tid("card-expand-cmp_1"));
+  assert.ok(tid("card-open-cmp_1"), "the open-campaign control is still offered");
   assert.ok(tid("card-toggle-cmp_1"));
 });
 
