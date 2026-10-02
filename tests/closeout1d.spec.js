@@ -239,3 +239,54 @@ test.describe('W39 sampled gradient contrast', () => {
     });
   }
 });
+
+// QA D2 (2026-10-02): the refresh icon must never overlap "+ Add Products" at any width from 320px up.
+test.describe('W12/W13 geometry: refresh icon vs Add Products', () => {
+  for (const w of [320, 340, 358, 360, 375, 390, 414, 1440]) {
+    test(`no overlap, gap >= 8px, rows aligned at ${w}px`, async ({ page }) => {
+      await page.setViewportSize({ width: w, height: 900 });
+      await setup(page, FOUNDER);
+      await page.goto('/#/dashboard/gifts');
+      await page.getByRole('button', { name: /Manage Catalog/ }).click();
+      await expect(page.getByTestId('providers-status-list')).toBeVisible({ timeout: 15000 });
+      const ids = ['florist_one', 'goody', 'prezzee', 'printful'];
+      const box = async (tid) => page.getByTestId(tid).boundingBox();
+      const rows = {};
+      for (const id of ids) {
+        rows[id] = {
+          li: await box(`provider-status-${id}`), add: await box(`provider-add-${id}`), badge: await box(`provider-status-badge-${id}`),
+          slot: await box(`provider-refresh-slot-${id}`), refresh: (await page.getByTestId(`provider-refresh-${id}`).count()) ? await box(`provider-refresh-${id}`) : null,
+        };
+      }
+      const HIT = 8; // invisible hit-area expansion around the icon
+      for (const id of ids) {
+        const r = rows[id];
+        // nothing pokes out of its card
+        expect(r.add.x + r.add.width).toBeLessThanOrEqual(r.li.x + r.li.width + 0.5);
+        expect(r.add.x).toBeGreaterThanOrEqual(r.li.x - 0.5);
+        expect(r.badge.x + r.badge.width).toBeLessThanOrEqual(r.li.x + r.li.width + 0.5);
+        if (r.refresh) {
+          const a = { l: r.refresh.x, t: r.refresh.y, r: r.refresh.x + r.refresh.width, b: r.refresh.y + r.refresh.height };
+          const b = { l: r.add.x, t: r.add.y, r: r.add.x + r.add.width, b: r.add.y + r.add.height };
+          const gapX = Math.max(b.l - a.r, a.l - b.r), gapY = Math.max(b.t - a.b, a.t - b.b);
+          const gap = Math.max(gapX, gapY);               // separation along the axis they are separated on
+          expect(gap, `${id} icon to Add Products gap at ${w}px`).toBeGreaterThanOrEqual(8);
+          // hit area (icon expanded by HIT) must not overlap the Add Products button either
+          const hitGap = Math.max(b.l - (a.r + HIT), (a.l - HIT) - b.r, b.t - (a.b + HIT), (a.t - HIT) - b.b);
+          expect(hitGap, `${id} hit area vs Add Products at ${w}px`).toBeGreaterThanOrEqual(0);
+          expect(r.refresh.width).toBeLessThanOrEqual(32);
+        }
+      }
+      // all four providers aligned: same x for badge, add button and refresh slot
+      for (const k of ['badge', 'add', 'slot']) {
+        for (const id of ids) {
+          expect(Math.abs(rows[id][k].x - rows.florist_one[k].x), `${k} x alignment ${id} at ${w}px`).toBeLessThan(1.5);
+          expect(Math.abs(rows[id][k].width - rows.florist_one[k].width), `${k} width ${id} at ${w}px`).toBeLessThan(1.5);
+        }
+      }
+      // the Manage Catalog dialog itself must not scroll sideways (the page behind it is not this view's concern)
+      expect(await page.evaluate(() => { const m = document.querySelector('[data-testid="manage-catalog-modal"]'); return Math.max(...[m, ...m.querySelectorAll('*')].filter((e) => getComputedStyle(e).overflowX !== 'visible').map((e) => e.scrollWidth - e.clientWidth), 0); })).toBeLessThanOrEqual(0);
+      await page.screenshot({ path: `${OUT}/${LABEL}-catalog-geometry-${w}.png` });
+    });
+  }
+});

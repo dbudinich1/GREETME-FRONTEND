@@ -54,7 +54,8 @@ const PRINTFUL_STATUS_ENTRY = Object.freeze({
 const ROW_CSS = `
 .gm-psv-row{display:grid;align-items:center;gap:.5rem .75rem;grid-template-columns:16px 190px 190px 1fr;grid-template-areas:"ic nm st ad"}
 @container (max-width:520px){.gm-psv-row{grid-template-columns:16px 1fr auto;grid-template-areas:"ic nm ad" "st st st"}}
-[data-testid^="provider-status-"]{container-type:inline-size}
+@container (max-width:330px){.gm-psv-row{grid-template-columns:16px 1fr;grid-template-areas:"ic nm" "st st" "ad ad";row-gap:.75rem}}
+li[data-testid^="provider-status-"]{container-type:inline-size}
 .gm-psv-refresh-slot{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:0 0 28px}
 .gm-psv-refresh{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:var(--text-secondary);cursor:pointer}
 .gm-psv-refresh{position:relative}
