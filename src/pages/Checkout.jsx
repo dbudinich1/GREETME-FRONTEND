@@ -25,12 +25,9 @@ import { isFundraiserUiEnabled } from '../config/fundraiserGate.js';
 // eslint-disable-next-line react-refresh/only-export-components -- pure predicate exported for unit testing (not a component)
 export const checkoutSessionCreated = (data) => !!(data && typeof data.url === 'string' && data.url.length > 0);
 
-// Platform fee mirrors the backend rule (BUSINESS_SUBSCRIPTION_PRICE_IDS in
-// routes/paymentRoutes.js): $19.99 for business subscription tiers, $4.99 otherwise.
-// Prefer the cart item's platformFee if present, else fall back to the tier rule
-// (cart items currently omit platformFee).
-// W18: the CONSUMER fee ($4.99) is once per account — the backend decides (platform-fee-status) and a
-// null result means "do not assert an amount". Business tiers keep $19.99. See utils/platformFee.js.
+// Platform fee: ONE per account, EVER, for BOTH tiers. The amount comes ONLY from the server's platform-fee-status answer
+// (consumer or business entry by the item's tier); 0 means already paid (no fee line) and null means "do not assert an
+// amount" (calculated at checkout). Never a fixed figure. See utils/platformFee.js.
 const BUSINESS_PLAN_TIERS = new Set(['small_business', 'medium_business', 'business_scale']);
 const platformFeeFor = (item, feeState) =>
   resolvePlatformFee(item, BUSINESS_PLAN_TIERS.has(item?.planTier), feeState);

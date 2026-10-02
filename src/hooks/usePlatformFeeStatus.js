@@ -1,5 +1,6 @@
 // src/hooks/usePlatformFeeStatus.js
-// Reads GET /api/payments/platform-fee-status once per mount (see utils/platformFee.js for the rules).
+// Reads GET /api/payments/platform-fee-status once per mount (see utils/platformFee.js for the rules). The answer covers BOTH
+// tiers (one platform fee per account, ever): state = { status, consumerFee, applies, businessFee, businessApplies }.
 import { useEffect, useState } from 'react';
 import api from '../api/api';
 import { FEE_STATE_PENDING, FEE_STATE_UNKNOWN, interpretPlatformFeeStatus } from '../utils/platformFee';

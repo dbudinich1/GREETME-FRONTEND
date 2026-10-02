@@ -12,32 +12,56 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => fs.readFileSync(path.join(here, "..", rel), "utf8").replace(/\r\n/g, "\n");
 
-test("W18: first activation shows $4.99", () => {
-  const st = interpretPlatformFeeStatus({ ok: true, consumer: { feeCents: 499, applies: true, reason: "initial_activation" }, business: { feeCents: 1999, applies: true } }, { authenticated: true });
-  assert.deepEqual(st, { status: "known", consumerFee: 4.99, applies: true });
+const NEW = { ok: true, policy: "one_per_account", consumer: { feeCents: 499, applies: true, reason: "initial_activation", listFeeCents: 499 }, business: { feeCents: 1999, applies: true, reason: "initial_activation", listFeeCents: 1999 } };
+const RETURNING = { ok: true, policy: "one_per_account", consumer: { feeCents: 0, applies: false, reason: "already_authorized", listFeeCents: 499 }, business: { feeCents: 0, applies: false, reason: "already_authorized", listFeeCents: 1999 } };
+
+test("one fee per account: a first-time account sees $4.99 (Personal) and $19.99 (Business), both from the server", () => {
+  const st = interpretPlatformFeeStatus(NEW, { authenticated: true });
+  assert.deepEqual(st, { status: "known", consumerFee: 4.99, applies: true, businessFee: 19.99, businessApplies: true });
   assert.equal(formatFeeAmount(platformFeeFor({}, false, st)), "$4.99");
+  assert.equal(formatFeeAmount(platformFeeFor({}, true, st)), "$19.99");
 });
 
-test("W18: returning subscriber has fee 0 so the row is omitted and the total is plan-only", () => {
-  const st = interpretPlatformFeeStatus({ ok: true, consumer: { feeCents: 0, applies: false, reason: "already_authorized" } }, { authenticated: true });
+test("one fee per account: a returning account has fee 0 on BOTH tiers (no fee line, plan-only total), including Personal then Business", () => {
+  const st = interpretPlatformFeeStatus(RETURNING, { authenticated: true });
   assert.equal(platformFeeFor({}, false, st), 0);
+  assert.equal(platformFeeFor({}, true, st), 0, "Business is waived too: never a fixed $19.99");
 });
 
-test("W18: 503 / network error / malformed response asserts NO amount", () => {
-  for (const res of [null, undefined, { ok: false, status: 0, networkError: true }, { ok: false, code: "FEE_HISTORY_UNAVAILABLE" }, { ok: true }, { ok: true, consumer: { applies: "yes" } }]) {
+test("the Business amount is the server's, not a constant: a different feeCents flows through untouched", () => {
+  const st = interpretPlatformFeeStatus({ ok: true, consumer: { feeCents: 499, applies: true }, business: { feeCents: 2500, applies: true } }, { authenticated: true });
+  assert.equal(platformFeeFor({ platformFee: 19.99 }, true, st), 25, "plan.platformFee is ignored");
+});
+
+test("an older backend answer (business without policy fields) still reads; a missing/invalid tier asserts nothing for that tier only", () => {
+  const old = interpretPlatformFeeStatus({ ok: true, consumer: { feeCents: 0, applies: false, reason: "already_authorized" }, business: { feeCents: 1999, applies: true } }, { authenticated: true });
+  assert.equal(platformFeeFor({}, false, old), 0);
+  assert.equal(platformFeeFor({}, true, old), 19.99);
+  const noBiz = interpretPlatformFeeStatus({ ok: true, consumer: { feeCents: 499, applies: true } }, { authenticated: true });
+  assert.equal(platformFeeFor({}, false, noBiz), 4.99);
+  assert.equal(platformFeeFor({}, true, noBiz), null, "no business answer: no amount");
+  const applyZero = interpretPlatformFeeStatus({ ok: true, consumer: { feeCents: 499, applies: true }, business: { feeCents: 0, applies: true } }, { authenticated: true });
+  assert.equal(platformFeeFor({}, true, applyZero), null, "applies:true with no amount is malformed");
+});
+
+test("503 / network error / malformed response asserts NO amount on either tier", () => {
+  for (const res of [null, undefined, { ok: false, status: 0, networkError: true }, { ok: false, code: "FEE_HISTORY_UNAVAILABLE" }, { ok: true }, { ok: true, consumer: { applies: "yes" }, business: { applies: "yes" } }]) {
     const st = interpretPlatformFeeStatus(res, { authenticated: true });
     assert.equal(st.status, "unknown");
     assert.equal(platformFeeFor({}, false, st), null);
+    assert.equal(platformFeeFor({}, true, st), null, "Business too: never a stale fixed figure");
   }
   assert.equal(formatFeeAmount(null), "Calculated at checkout");
-  assert.equal(platformFeeFor({}, false, FEE_STATE_PENDING), null, "no amount while the read is in flight");
-  assert.equal(platformFeeFor({}, false, FEE_STATE_UNKNOWN), null);
+  for (const pending of [FEE_STATE_PENDING, FEE_STATE_UNKNOWN]) {
+    assert.equal(platformFeeFor({}, false, pending), null);
+    assert.equal(platformFeeFor({}, true, pending), null);
+  }
 });
 
-test("W18: guests are shown as a new account; business keeps $19.99 regardless of consumer state", () => {
-  assert.equal(platformFeeFor({}, false, interpretPlatformFeeStatus(null, { authenticated: false })), 4.99);
-  assert.equal(platformFeeFor({}, true, FEE_STATE_UNKNOWN), 19.99);
-  assert.equal(platformFeeFor({}, true, { status: "known", consumerFee: 0, applies: false }), 19.99);
+test("guests are shown as a new account on both tiers (re-decided at authenticated checkout)", () => {
+  const g = interpretPlatformFeeStatus(null, { authenticated: false });
+  assert.equal(platformFeeFor({}, false, g), 4.99);
+  assert.equal(platformFeeFor({}, true, g), 19.99);
 });
 
 test("W18: Cart, Checkout and Pricing no longer hard-code a 4.99 fallback", () => {

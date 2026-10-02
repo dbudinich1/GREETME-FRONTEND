@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import cartService from '../services/cartService';
 import { personalPlans, businessPlans } from '../config/plans';
 import { SUBSCRIPTION_RENEWAL_NOTICE, PLATFORM_FEE_ONE_TIME_NOTICE } from '../utils/subscriptionTerms';
-import { platformFeeFor, formatFeeAmount } from '../utils/platformFee';
+import { platformFeeFor, formatFeeAmount, isBusinessPlanTier } from '../utils/platformFee';
 import ContactSalesModal from '../components/ContactSalesModal';
 import { PRICING_ENTERPRISE_ENTRY } from '../utils/contactSales';
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
@@ -18,9 +18,9 @@ const CREDIT_INELIGIBLE_TIERS = new Set(['close_circle']);
 
 export default function Pricing() {
   const navigate = useNavigate();
-  // W18: the consumer $4.99 fee is once per account; the backend decides (see utils/platformFee.js).
+  // One platform fee per account, ever, for both tiers; the amount is the server's (see utils/platformFee.js). Never plan.platformFee.
   const feeState = usePlatformFeeStatus();
-  const feeFor = (plan) => platformFeeFor(plan, plan?.platformFee != null, feeState);
+  const feeFor = (plan) => platformFeeFor(plan, isBusinessPlanTier(plan?.planTier), feeState);
   const location = useLocation();
   const { user } = useAuth();
   const planKey = user?.tier || user?.plan || 'free';
@@ -624,7 +624,8 @@ export default function Pricing() {
 
                 {/* Platform-fee pricing note (business cards) — subtle support text.
                     Always reserves the row on business so the CTA/divider planes align;
-                    Enterprise (no platformFee) renders an empty fixed-height spacer. */}
+                    Enterprise (no priceId) renders an empty fixed-height spacer. The text follows the server's answer:
+                    amount when it applies, nothing when already paid, "calculated at checkout" when unknown. */}
                 {isBiz && (
                   <div style={{
                     fontSize: '0.6875rem',
@@ -635,7 +636,11 @@ export default function Pricing() {
                     marginBottom: '0.75rem',
                     whiteSpace: 'nowrap'
                   }}>
-                    {plan.platformFee ? `+ $${plan.platformFee} One-Time Platform Fee` : ''}
+                    {plan.priceId ? (() => {
+                      const f = feeFor(plan);
+                      if (f === 0) return '';
+                      return <span data-testid="pricing-card-platform-fee">{f == null ? '+ One-Time Platform Fee, calculated at checkout' : `+ $${f.toFixed(2)} One-Time Platform Fee`}</span>;
+                    })() : ''}
                   </div>
                 )}
 

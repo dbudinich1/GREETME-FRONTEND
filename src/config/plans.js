@@ -145,7 +145,7 @@ export const businessPlans = {
       purchaseType: 'subscription',
       planTier: 'small_business',
       billingPeriod: 'yearly',
-      platformFee: 19.99,
+      platformFee: 19.99, // DISPLAY-ONLY reference of the list fee; no screen reads it for an amount (server answer only)
       description: 'For businesses getting started with appreciation.',
       featureGroups: [
         { section: 'Membership', features: [
@@ -166,7 +166,7 @@ export const businessPlans = {
       purchaseType: 'subscription',
       planTier: 'medium_business',
       billingPeriod: 'yearly',
-      platformFee: 19.99,
+      platformFee: 19.99, // DISPLAY-ONLY reference of the list fee; no screen reads it for an amount (server answer only)
       description: 'For organizations growing a culture of appreciation.',
       featureGroups: [
         { section: 'Membership', features: [
@@ -192,7 +192,7 @@ export const businessPlans = {
       purchaseType: 'subscription',
       planTier: 'business_scale',
       billingPeriod: 'yearly',
-      platformFee: 19.99,
+      platformFee: 19.99, // DISPLAY-ONLY reference of the list fee; no screen reads it for an amount (server answer only)
       description: 'For organizations creating appreciation-driven impact.',
       featureGroups: [
         { section: 'Membership', features: [
@@ -237,7 +237,7 @@ export const businessPlans = {
       purchaseType: 'subscription',
       planTier: 'small_business',
       billingPeriod: 'yearly',
-      platformFee: 19.99,
+      platformFee: 19.99, // DISPLAY-ONLY reference of the list fee; no screen reads it for an amount (server answer only)
       description: 'For businesses getting started with appreciation.',
       featureGroups: [
         { section: 'Membership', features: [
@@ -258,7 +258,7 @@ export const businessPlans = {
       purchaseType: 'subscription',
       planTier: 'medium_business',
       billingPeriod: 'yearly',
-      platformFee: 19.99,
+      platformFee: 19.99, // DISPLAY-ONLY reference of the list fee; no screen reads it for an amount (server answer only)
       description: 'For organizations growing a culture of appreciation.',
       featureGroups: [
         { section: 'Membership', features: [
@@ -284,7 +284,7 @@ export const businessPlans = {
       purchaseType: 'subscription',
       planTier: 'business_scale',
       billingPeriod: 'yearly',
-      platformFee: 19.99,
+      platformFee: 19.99, // DISPLAY-ONLY reference of the list fee; no screen reads it for an amount (server answer only)
       description: 'For organizations creating appreciation-driven impact.',
       featureGroups: [
         { section: 'Membership', features: [
