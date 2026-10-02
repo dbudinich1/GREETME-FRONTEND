@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Play } from 'lucide-react';
 import ContactSalesModal from '../components/ContactSalesModal';
+import { FOR_BUSINESS_ENTRY } from '../utils/contactSales';
 
 export default function ForBusiness() {
   const navigate = useNavigate();
@@ -488,7 +489,7 @@ export default function ForBusiness() {
       {/* End Background Frame */}
 
       {/* Contact Sales Form Modal — shared component; opens in place, no navigation */}
-      <ContactSalesModal isOpen={showContactForm} onClose={() => setShowContactForm(false)} />
+      <ContactSalesModal isOpen={showContactForm} onClose={() => setShowContactForm(false)} {...FOR_BUSINESS_ENTRY} />
     </div>
   );
 }

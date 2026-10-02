@@ -8,6 +8,8 @@ import cartService from '../services/cartService';
 import { personalPlans, businessPlans } from '../config/plans';
 import { SUBSCRIPTION_RENEWAL_NOTICE, PLATFORM_FEE_ONE_TIME_NOTICE } from '../utils/subscriptionTerms';
 import { platformFeeFor, formatFeeAmount } from '../utils/platformFee';
+import ContactSalesModal from '../components/ContactSalesModal';
+import { PRICING_ENTERPRISE_ENTRY } from '../utils/contactSales';
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
 import useReferralCreditCents from '../hooks/useReferralCreditCents';
 
@@ -58,14 +60,6 @@ export default function Pricing() {
   }, []);
 
   const [showEnterpriseForm, setShowEnterpriseForm] = useState(false);
-  const [enterpriseFormData, setEnterpriseFormData] = useState({
-    companyName: '',
-    contactName: '',
-    email: '',
-    phone: '',
-    employeeCount: '',
-    message: ''
-  });
   // Pricing Modal State (Cart-based two-state flow)
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -81,20 +75,6 @@ export default function Pricing() {
       handleAddPlanToCart(plan);
       setShowPricingModal(true);
     }
-  };
-
-  const handleEnterpriseSubmit = (e) => {
-    e.preventDefault();
-    alert('Thank you! Our sales team will contact you within 24 hours.');
-    setShowEnterpriseForm(false);
-    setEnterpriseFormData({
-      companyName: '',
-      contactName: '',
-      email: '',
-      phone: '',
-      employeeCount: '',
-      message: ''
-    });
   };
 
   const handleAddPlanToCart = (plan) => {
@@ -841,200 +821,13 @@ export default function Pricing() {
       {/* End Background Frame */}
 
       {/* Enterprise Contact Form Modal */}
-      {showEnterpriseForm && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '2rem'
-        }}>
-          <div style={{
-            background: 'white',
-            borderRadius: 'var(--radius-xl)',
-            padding: '2rem',
-            maxWidth: '500px',
-            width: '100%',
-            maxHeight: '90vh',
-            overflow: 'auto',
-            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1.5rem'
-            }}>
-              <h2 style={{
-                fontSize: '1.5rem',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                margin: 0
-              }}>Let&apos;s Build Your Appreciation Program</h2>
-              <button
-                onClick={() => setShowEnterpriseForm(false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer',
-                  color: 'var(--text-secondary)'
-                }}
-              >×</button>
-            </div>
-            <p style={{
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)',
-              marginBottom: '1.5rem'
-            }}>
-              Tell us about your business and we'll create a custom enterprise solution for you.
-            </p>
-            <form onSubmit={handleEnterpriseSubmit}>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-                  Company Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={enterpriseFormData.companyName}
-                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, companyName: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-                  Contact Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={enterpriseFormData.contactName}
-                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, contactName: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={enterpriseFormData.email}
-                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, email: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  value={enterpriseFormData.phone}
-                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, phone: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-                  Number of Employees *
-                </label>
-                <select
-                  required
-                  value={enterpriseFormData.employeeCount}
-                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, employeeCount: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontFamily: 'inherit',
-                    background: 'white'
-                  }}
-                >
-                  <option value="">Select...</option>
-                  <option value="51-100">51-100</option>
-                  <option value="101-250">101-250</option>
-                  <option value="251-500">251-500</option>
-                  <option value="501-1000">501-1000</option>
-                  <option value="1000+">1000+</option>
-                </select>
-              </div>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-                  Tell us about your needs
-                </label>
-                <textarea
-                  value={enterpriseFormData.message}
-                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, message: e.target.value})}
-                  rows={4}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontFamily: 'inherit',
-                    resize: 'vertical'
-                  }}
-                  placeholder="What features are most important? Any specific integrations needed?"
-                />
-              </div>
-              <button
-                type="submit"
-                style={{
-                  width: '100%',
-                  padding: '0.875rem',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 'var(--radius-lg)',
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit'
-                }}
-              >
-                Submit Request
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Enterprise "Talk With Our Team": the shared, REAL Contact Sales form (source business, context Pricing: Enterprise). */}
+      <ContactSalesModal
+        isOpen={showEnterpriseForm}
+        onClose={() => setShowEnterpriseForm(false)}
+        subtitle="Tell us about your business and we will build a custom enterprise solution with you"
+        {...PRICING_ENTERPRISE_ENTRY}
+      />
 
       {/* Pricing Modal (Cart-based two-state flow) */}
       {showPricingModal && selectedPlan && createPortal(

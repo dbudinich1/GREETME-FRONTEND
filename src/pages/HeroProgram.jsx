@@ -12,6 +12,7 @@ import { Heart, ShoppingCart, Check, ArrowRight, Award, Trophy, Clock, Star, Loc
 import cartService from '../services/cartService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ContactSalesModal from '../components/ContactSalesModal';
+import { contactEntryForHeroCard, GIFTED_BUNDLES_INTRO } from '../utils/contactSales';
 import api from '../api/api';
 
 // Display labels for the impact bySource breakdown (the backend supplies labels for
@@ -91,6 +92,8 @@ export default function HeroProgram() {
   // ---- Corporate contact modal — shared ContactSalesModal, opened OVER the Hero page
   // (no navigation; close/submit leaves the user on /dashboard/hero) ----
   const [showContactModal, setShowContactModal] = useState(false);
+  // Which card opened it: sets the request's `source` and `pageContext` (W22) and, for bundles, the interim wording (W21).
+  const [contactCard, setContactCard] = useState(null);
 
   // ---- Hero Hearts purchase modal (retained; cart path unchanged) ----
   const [showHeroHeartsModal, setShowHeroHeartsModal] = useState(false);
@@ -186,7 +189,7 @@ export default function HeroProgram() {
               // TEAM 1 — canonical QR Cash entry contract: the real composer flow, not the
               // localStorage-only QRCashGiftModal simulation this used to open.
               onOpenQRCash={() => navigate('/dashboard/send?giftType=qrcash')}
-              onOpenContact={() => setShowContactModal(true)}
+              onOpenContact={(card) => { setContactCard(card || null); setShowContactModal(true); }}
             />
             {/* W20 / W23 — the LOWER recognition & ranking area (Community Leaderboard, Hero Status,
                 Recognition badges) is DORMANT until a verified corporate-only contract exists:
@@ -225,8 +228,10 @@ export default function HeroProgram() {
       <ContactSalesModal
         isOpen={showContactModal}
         onClose={() => setShowContactModal(false)}
-        title="Contact Sales"
-        subtitle="Tell us about your corporate Greet-Me Hero participation"
+        title={contactCard?.key === 'gifted_bundles' ? 'Gifted Subscription Bundles' : 'Contact Sales'}
+        subtitle={contactCard?.key === 'gifted_bundles' ? 'Tell us who you would like to gift' : 'Tell us about your corporate Greet-Me Hero participation'}
+        intro={contactCard?.key === 'gifted_bundles' ? GIFTED_BUNDLES_INTRO : null}
+        {...contactEntryForHeroCard(contactCard)}
       />
     </div>
   );
@@ -628,11 +633,11 @@ const CHIP_STYLE = {
 };
 
 function WaysToParticipateSection({ navigate, onOpenHeroHearts, onOpenQRCash, onOpenContact }) {
-  const onCta = (cta) => {
+  const onCta = (cta, item) => {
     if (!cta) return;
     if (cta.kind === 'modal') return onOpenHeroHearts();
     if (cta.kind === 'qrcash') return onOpenQRCash();
-    if (cta.kind === 'contact') return onOpenContact();
+    if (cta.kind === 'contact') return onOpenContact(item);
     if (cta.kind === 'link' || cta.kind === 'learn') return navigate(cta.to);
   };
   return (
@@ -646,6 +651,14 @@ function WaysToParticipateSection({ navigate, onOpenHeroHearts, onOpenQRCash, on
           }}>
             {group.heading}
           </div>
+          {group.heading === 'Corporate & managed programs' && (
+            <p data-testid="hero-for-business-link" style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: '0 0 0.75rem' }}>
+              Running a business?{' '}
+              <button type="button" onClick={() => navigate('/business')} style={{ background: 'none', border: 'none', padding: 0, color: '#667eea', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit', textDecoration: 'underline' }}>
+                See how For Business works with Hero
+              </button>
+            </p>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
             {group.cards.map((c) => <ParticipationCard key={c.key} item={c} onCta={onCta} />)}
           </div>
@@ -685,7 +698,7 @@ function ParticipationCard({ item, onCta }) {
       </div>
       {hasCta && (
         <button
-          onClick={() => onCta(item.cta)}
+          onClick={() => onCta(item.cta, item)}
           style={{
             marginTop: 'auto', alignSelf: 'flex-start', padding: '0.5rem 0.875rem',
             background: ['learn', 'contact'].includes(item.cta.kind) ? 'transparent' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
