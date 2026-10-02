@@ -281,9 +281,32 @@ test("Gift Cards stays dormant, non-purchasable, and is not price-filtered", () 
     return CODE.slice(start, end);
   })();
   assert.match(branch, /Greet-Me Smart eGift Card/);
-  for (const forbidden of ["handleAddToCart", "Add to Cart", "denomination", "checkout", "Buy"]) {
+  // REWRITTEN, NOT RELAXED (2026-10-01). The probe used to forbid the WORD "denomination", a proxy that
+  // stopped meaning "purchase path" once the server-decided Smart Card tiles (test ids
+  // gift-card-denomination-<id>) were added to this branch. The invariant is: no cart, checkout or
+  // charge path is live from this page's gift-cards branch, and tiles exist only when the server says so.
+  // (a) No cart / checkout / charge / purchase vocabulary or handler anywhere in the branch.
+  for (const forbidden of ["handleAddToCart", "Add to Cart", "cartService", "checkout", "Checkout", "Buy",
+    "ProviderCheckoutModal", "chargePrezzee", "api.post", "createCheckout", "standaloneFlower"]) {
     assert.ok(!branch.includes(forbidden), `the dormant panel must not offer "${forbidden}"`);
   }
+  // (b) EVERY click path in the branch is the one navigation to the (separately server-gated) Smart Card
+  //     page, preselecting a tile. Nothing else is clickable.
+  const clicks = branch.match(/onClick=\{[^\n]*\}/g) || [];
+  assert.ok(clicks.length >= 1, "the available state has a tile click path");
+  for (const c of clicks) {
+    assert.ok(/^onClick=\{\(\) => navigate\('\/dashboard\/gifts\/smart-card', \{ state: \{ presetTileId: tile\.id \} \}\)\}/.test(c),
+      `the only permitted click path is navigation to the Smart Card page, got ${c}`);
+  }
+  assert.equal((branch.match(/\bonClick=/g) || []).length, clicks.length, "no onClick is hidden on a continuation line");
+  assert.equal(/onSubmit=|onChange=|<form\b/.test(branch), false, "no form or submit path");
+  // (c) Fail-closed: tiles render only when the server-reported list exists; the default is the dormant
+  //     placeholder, and any error or empty answer returns to it.
+  assert.match(branch, /giftCardTiles \? \(/, "tiles are gated on the server-reported list");
+  assert.match(branch, /data-testid="gift-cards-coming-later"/, "the dormant placeholder is the else branch");
+  assert.match(CODE, /const \[giftCardTiles, setGiftCardTiles\] = useState\(null\);/, "default is null, not an optimistic list");
+  assert.match(CODE, /setGiftCardTiles\(res\?\.ok === true && Array\.isArray\(res\.tiles\) && res\.tiles\.length > 0 \? res\.tiles : null\)/);
+  assert.match(CODE, /catch \{\s*if \(!cancelled\) setGiftCardTiles\(null\);/, "an error leaves the dormant placeholder");
   // The control is hidden for this selection rather than rendered inertly.
   assert.match(CODE, /selectedCategory !== 'gift_cards' && bounds &&/);
 });

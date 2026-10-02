@@ -511,7 +511,24 @@ test('the marketplace never hands its own product to a provider checkout', () =>
     'the checkout receives the held arrangement and nothing else');
 
   // And that arrangement can only ever have come from the PROVIDER's own live list.
-  assert.match(merch, /providerProducts\.find\(/);
+  // THE INVARIANT, asserted structurally (not by the name of a variable, which this test used to pin and
+  // which was renamed to providerProductsForCheckout when the two provider catalogues were merged):
+  //  (a) the provider-only list is built from the provider catalogue hooks and from nothing else;
+  const listDef = merch.match(/const (\w+) = useMemo\(\(\) => \[([\s\S]*?)\], \[([^\]]*)\]\);/);
+  assert.ok(listDef, 'the provider-only checkout list must be a single useMemo of provider catalogue products');
+  const [, listName, listBody, listDeps] = listDef;
+  const providerHooks = [...merch.matchAll(/const \{ products: (\w+) \} = useProviderCatalogue\(/g)].map((m) => m[1]);
+  assert.ok(providerHooks.length >= 1, 'provider products come from useProviderCatalogue');
+  const spread = [...listBody.matchAll(/\.\.\.\(\s*(\w+)\s*\|\|\s*\[\]\)/g)].map((m) => m[1]);
+  assert.deepEqual([...spread].sort(), [...providerHooks].sort(), 'the list spreads exactly the provider catalogue results');
+  assert.equal(/visibleProducts|selectProducts|marketplace|curated|printful/i.test(listBody + listDeps), false,
+    'no marketplace/curated/merch source may feed the provider-only list');
+  //  (b) every product handed to a provider order is resolved from THAT list;
+  const resolvers = [...merch.matchAll(/const chosen = (\w+)\.find\(/g)].map((m) => m[1]);
+  assert.ok(resolvers.length >= 2, 'both the greeting path and the standalone path resolve a product');
+  assert.ok(resolvers.every((n) => n === listName), `every provider selection resolves from ${listName}, got ${resolvers}`);
+  //  (c) nothing else can be bound to chosen.
+  assert.equal((merch.match(/\b(?:const|let|var) chosen\b/g) || []).length, resolvers.length, 'no other source defines chosen');
   const setters = merch.match(/setStandaloneFlower\([^)]*\)/g) || [];
   assert.ok(setters.length >= 1, 'the arrangement must be set somewhere');
   for (const s of setters) {
