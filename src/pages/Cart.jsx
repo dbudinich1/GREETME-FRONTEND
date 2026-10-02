@@ -871,7 +871,7 @@ export default function Cart() {
               {(() => {
                 const subscriptionItem = cartItems.find(item => item.type === 'subscription');
                 const planPrice = subscriptionItem?.price || total;
-                // Both referral ($10) and courtesy ($5) credits now create Stripe coupons
+                // Both referral and courtesy credits create Stripe coupons; the referral amount is the server-reported value (never a literal)
                 const courtesyCredit = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
                 // CREDIT CONTRACT INTEGRITY (2026-09-30, Cart/Pricing display-honesty correction) —
                 // same gate as Checkout.jsx: a stored courtesy amount with no backend-issued

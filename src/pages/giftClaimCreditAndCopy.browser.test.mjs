@@ -82,8 +82,8 @@ const referralCalls = () => M.__calls.filter((c) => c.name === "getReferral");
 
 // ---------------------------------------------------------------- credit
 // Real response shape: GET /api/gifts/claim/:token adds referralCode + referralGiftValueCents ONLY when the
-// gift is fulfilled and the code unused (routes/giftRoutes.js 2306-2310). "Cap new, honor old": the value
-// can be 500 (new mint), 300 (a smaller gift) or, for credits issued earlier, up to 1000.
+// gift is fulfilled and the code unused (routes/giftRoutes.js 2306-2310). Founder rule: no credit above $5;
+// Team 2 returns the EFFECTIVE redeemable value (min(stored, $5)). The page shows exactly the server value.
 test("credit: the displayed amount is exactly what the server issued, never a literal", async () => {
   for (const [serverCents, shown] of [[500, "$5"], [300, "$3"], [250, "$2.50"], [1000, "$10"]]) {
     M.__calls.length = 0;
@@ -96,6 +96,21 @@ test("credit: the displayed amount is exactly what the server issued, never a li
     assert.ok(credits.every((c) => c === shown), `every credit figure is ${shown}, got ${credits}`);
     assert.ok(t.includes(`Apply your ${shown} credit toward a Greet-Me subscription.`));
     assert.equal(M.__calls.filter((c) => c.name === "getReferral").length, 0, "no extra lookup: the claim response carries the amount");
+  }
+});
+
+test("credit: effective value 5 when the stored value was 10 shows $5, and the display never exceeds what the server returned", async () => {
+  // The API returns the EFFECTIVE value in referralGiftValueCents; any stored/legacy field is ignored by the page.
+  M.__responses.getGiftClaim = { ok: true, gift: gift({ status: "fulfilled", referralCode: "REF-OLD", referralGiftValueCents: 500, storedReferralGiftValueCents: 1000 }) };
+  const t = text(await mount());
+  assert.ok(t.includes("You've unlocked a $5 credit"), t);
+  assert.doesNotMatch(t, /\$10\b/);
+  for (const cents of [100, 200, 300, 400, 500, 600, 1000]) {
+    M.__responses.getGiftClaim = { ok: true, gift: gift({ status: "fulfilled", referralCode: "R", referralGiftValueCents: cents }) };
+    const figs = [...text(await mount()).matchAll(/(?:unlocked a|Apply your|Unlock Your) \$(\d+(?:\.\d+)?) [Cc]redit/g)].map((m) => Number(m[1]) * 100);
+    assert.equal(figs.length, 3);
+    assert.ok(figs.every((f) => f <= cents), `no displayed figure exceeds the server value ${cents}: ${figs}`);
+    assert.ok(figs.every((f) => f === cents), `and it equals it: ${figs}`);
   }
 });
 
@@ -124,7 +139,7 @@ test("credit: no other screen of the claim page shows a credit, and none shows a
     M.__responses.getGiftClaim = { ok: true, gift: gift({ status, referralCode: "R", referralGiftValueCents: 500 }) };
     const t = text(await mount());
     assert.doesNotMatch(t, /unlocked a|Apply your|Unlock Your/, status);
-    assert.doesNotMatch(t, /$10/, status);
+    assert.doesNotMatch(t, /\$10\b/, status);
   }
 });
 

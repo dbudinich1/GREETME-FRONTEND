@@ -3,9 +3,9 @@
 // QR Cash REFERRAL CREDIT DISPLAY, mounted against the REAL Cart and Pricing pages (jsdom; only the
 // auth edge is stubbed and `fetch` answers the real GET /api/gifts/referral/:code response shape).
 //
-// Founder decision "cap new, honor old": new credits are minted at up to $5 while credits issued earlier
-// (up to $10) stay valid. So no surface may show a literal amount: it shows what the server issued
-// (referralCreditCents), and shows no credit at all when there is no real amount.
+// Founder rule: no referral or courtesy credit above $5, for any reason. Team 2 returns the EFFECTIVE
+// redeemable value (min(stored, $5)) as referralCreditCents. So no surface may show a literal amount: it
+// shows exactly what the server returns (never more), and no credit at all when there is no real amount.
 //
 // Response shape (routes/giftRoutes.js GET /referral/:referralCode):
 //   200 { ok: true, referralCreditCents: <int>, referralCode }
@@ -120,7 +120,7 @@ async function pricingConfirmation() {
 const CASES = [
   ["new mint, $5", 500, "$5.00", "$24.98", "$5"],
   ["new mint, $3 (a $3 gift)", 300, "$3.00", "$26.98", "$3"],
-  ["legacy credit issued at $10 is honored and shown as the server says", 1000, "$10.00", "$19.98", "$10"],
+  ["server reports $10 (display follows the server exactly, never a literal)", 1000, "$10.00", "$19.98", "$10"],
 ];
 
 for (const [name, cents, line, total, label] of CASES) {
@@ -178,6 +178,24 @@ for (const [name, resp] of NO_AMOUNT) {
     } finally { await p.unmount(); }
   });
 }
+
+test("effective value 5 while the stored value is 10: Cart and Pricing show $5 and never more than the server returned", async () => {
+  // GET /referral returns the EFFECTIVE value in referralCreditCents; a stored/legacy field must not leak into the display.
+  referralResponse = { status: 200, body: { ok: true, referralCreditCents: 500, referralCode: CODE, referralGiftValueCents: 1000 } };
+  const c = await mount("/dashboard/cart", Cart);
+  try {
+    const body = text(c.host);
+    assert.ok(body.includes("–$5.00") && body.includes("$24.98"), body);
+    assert.doesNotMatch(body, /–\$10\.00|\$19\.98/);
+  } finally { await c.unmount(); }
+  window.document.body.innerHTML = "";
+  const p = await pricingConfirmation();
+  try {
+    assert.ok(p.banner.includes("$5 credit applies"), p.banner);
+    assert.doesNotMatch(p.banner + text(p.host), /\$10 credit|–\$10\.00/);
+    assert.ok(text(p.host).includes("–$5.00"));
+  } finally { await p.unmount(); }
+});
 
 test("no hard-coded referral credit literal remains in Cart, Checkout, Pricing or GiftClaim", () => {
   for (const f of ["Cart.jsx", "Checkout.jsx", "Pricing.jsx", "GiftClaim.jsx"]) {
