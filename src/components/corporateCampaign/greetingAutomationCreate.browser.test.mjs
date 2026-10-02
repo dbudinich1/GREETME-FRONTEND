@@ -239,7 +239,7 @@ test("W32: Cancel closes the dialog, sends nothing and keeps the name", async ()
   assert.equal(tid("create-name").value, "Keep Me");
 });
 
-test("existing campaign shows its type and expands INLINE (no detail navigation)", async () => {
+test("existing campaign: heading not link; Open campaign opens the campaign IN PLACE (modal, no detail navigation) with its three selectors", async () => {
   // SLICE F1 - the title is a heading now, not a link. A campaign is configured on its own tile,
   // so routing to CampaignDetail to read the same facts was the secondary-screen sequence this
   // redesign removes. Expansion happens in place instead.
@@ -253,12 +253,20 @@ test("existing campaign shows its type and expands INLINE (no detail navigation)
   const title = tid("card-title-camp_1");
   assert.equal(title.tagName, "H3", "a heading, not a link");
   assert.equal(title.querySelector("a, button"), null, "nothing inside it navigates");
-  const expand = tid("card-expand-camp_1");
+  // PR#22 (founder-approved): the inline accordion became a compact row + pop-out dialog. The
+  // invariant is unchanged - the campaign opens IN PLACE on this surface and never routes to a
+  // detail screen - so the proof is: the open control toggles aria-expanded, the dialog shows the
+  // three selectors (audience, gift, spread), and no navigation/read-detail call happens.
+  const hashBefore = window.location.hash;
+  const expand = tid("card-open-camp_1");
   assert.equal(expand.getAttribute("aria-expanded"), "false");
+  assert.equal(document.querySelector('[role="dialog"]'), null, "closed: no dialog yet");
   await click(expand);
-  assert.equal(tid("card-expand-camp_1").getAttribute("aria-expanded"), "true", "it expands in place");
-  assert.ok(tid("card-selectors-camp_1"), "the three selectors appear inline");
+  assert.equal(tid("card-open-camp_1").getAttribute("aria-expanded"), "true", "it opens in place");
+  assert.ok(document.querySelector('[role="dialog"]'), "the campaign dialog is open on this surface");
+  for (const sel of ["audience", "gift", "spread"]) assert.ok(tid(`selector-${sel}-camp_1`), `the ${sel} selector is part of the opened campaign`);
   assert.equal(c.calls.readCampaign.length, 0, "and nothing navigated away");
+  assert.equal(window.location.hash, hashBefore, "the route did not change");
 });
 
 
@@ -315,10 +323,17 @@ test("F1C-ADD: the disclosure is NOT inside campaign tiles - two campaigns, stil
   await mount({ client: ownerClient({ campaigns: [GIFT_CAMPAIGN, PLAIN_CAMPAIGN] }) });
   assert.equal(notes().length, 1, "two tiles do not produce two notes");
   for (const cid of ["c1", "c2"]) {
-    const anchor = document.querySelector(`[data-testid="card-expand-${cid}"]`);
+    const anchor = document.querySelector(`[data-testid="card-open-${cid}"]`);
     assert.ok(anchor, `tile ${cid} rendered`);
-    const card = anchor.closest("article, .gcd-tile, li, div");
+    const card = anchor.closest("article");
     assert.equal(card.querySelector('[data-testid="gift-payment-note"]'), null, `no note inside tile ${cid}`);
+    // Stronger than the accordion-era check: it is not inside the campaign dialog either.
+    await click(anchor);
+    const dialog = card.querySelector('[role="dialog"]');
+    assert.ok(dialog, `tile ${cid} opens its dialog`);
+    assert.equal(dialog.querySelector('[data-testid="gift-payment-note"]'), null, `no note inside the ${cid} dialog`);
+    assert.equal(notes().length, 1, "still exactly one note while a dialog is open");
+    await click(tid(`card-close-${cid}`));
   }
 });
 
@@ -384,7 +399,7 @@ test("F1C-ADD: the disclosure does not block Save Changes", async () => {
   await mount({ client: c });
   assert.equal(notes().length, 1, "the note is present throughout");
 
-  await click(tid("card-expand-c2"));
+  await click(tid("card-open-c2"));
   const save = tid("act-save-c2");
   assert.ok(save, "Save is offered");
   assert.equal(save.disabled, true, "nothing to save yet");

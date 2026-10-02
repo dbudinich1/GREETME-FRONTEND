@@ -187,7 +187,7 @@ test("5/6: no campaign duplicates and none disappears, across many gestures", as
 test("7: the expanded campaign stays attached to its ID, not its position", async () => {
   const h = harness();
   await mount(h);
-  await act(async () => { tid("card-expand-cmp_1").dispatchEvent(new window.Event("click", { bubbles: true })); });
+  await act(async () => { tid("card-open-cmp_1").dispatchEvent(new window.Event("click", { bubbles: true })); });
   await flush();
   assert.ok(document.querySelector('[data-testid="campaign-card-cmp_1"].gcd-card--expanded'), "cmp_1 expanded");
 
