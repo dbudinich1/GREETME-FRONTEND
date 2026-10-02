@@ -272,8 +272,7 @@ export default function MediaLibrary() {
       }}>
         {/* Banner Header */}
         <div style={{
-        // W39: left stop deepened from #667eea to #5a67d8 so white 15px subtitle reaches >=4.5:1
-        background: 'linear-gradient(135deg, #5a67d8 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         borderRadius: 'var(--radius-lg)',
         padding: isNarrow ? '1rem' : '1.5rem 1.5rem',
         marginBottom: '1.5rem',
@@ -289,10 +288,13 @@ export default function MediaLibrary() {
           color: 'inherit' // W39: global index.css h1 colour otherwise beats the banner's white
         }}>{isSelectionMode ? 'Select Photos for Your Greeting' : 'Media Library'}</h1>
         <p style={{
-          fontSize: '0.9375rem',
+          // W39 (founder Option C): brand gradient kept; white subtitle at LARGE-text size (20px bold,
+          // WCAG large-text bar 3:1) rather than 15px normal text, which would need 4.5:1 here.
+          fontSize: '1.25rem',
+          fontWeight: 700,
           fontStyle: 'italic',
           margin: 0,
-          color: 'inherit' // W39: global index.css p colour otherwise beats the banner's white
+          color: 'inherit' // global index.css p colour otherwise beats the banner's white
         }}>
           {isSelectionMode
             ? (selectedPhotos.length === 0

@@ -1,4 +1,4 @@
-﻿// tests/closeout1d.spec.js â€” Team 1D (Settings / Media / Catalog) fixture specs.
+// tests/closeout1d.spec.js â€” Team 1D (Settings / Media / Catalog) fixture specs.
 // Fully isolated: every /api/** call is answered from fixtures. No real DSAR, deletion, upload,
 // password-reset email or catalog mutation is ever sent.
 //
@@ -208,7 +208,7 @@ test.describe('W39 sampled gradient contrast', () => {
         const rect = (x) => ({ x: x.x, y: x.y, w: x.width, h: x.height });
         const cs = getComputedStyle(sub);
         return { banner: rect(banner.getBoundingClientRect()), subBox: rect(sub.getBoundingClientRect()), subText: rect(r.getBoundingClientRect()),
-          color: cs.color, px: parseFloat(cs.fontSize), h1color: getComputedStyle(h).color };
+          color: cs.color, px: parseFloat(cs.fontSize), weight: parseInt(cs.fontWeight, 10), h1color: getComputedStyle(h).color };
       });
       await page.addStyleTag({ content: 'h1, h1 + p { color: transparent !important; }' });
       const bn = info.banner;
@@ -232,8 +232,10 @@ test.describe('W39 sampled gradient contrast', () => {
       }, { b64: buf.toString('base64'), info });
       console.log(`SAMPLED ${LABEL} ${name} textColor=${info.color} ${JSON.stringify(res)}`);
       expect(info.color).toBe('rgb(255, 255, 255)');
-      expect(res.subText.whiteVsLightest).toBeGreaterThanOrEqual(4.5);
-      expect(res.subBox.whiteVsLightest).toBeGreaterThanOrEqual(4.5);
+      const bar = info.px >= 24 || (info.weight >= 700 && info.px >= 18.66) ? 3 : 4.5;
+      expect(bar).toBe(3);
+      expect(res.subText.whiteVsLightest).toBeGreaterThanOrEqual(bar);
+      expect(res.subBox.whiteVsLightest).toBeGreaterThanOrEqual(bar);
     });
   }
 });
