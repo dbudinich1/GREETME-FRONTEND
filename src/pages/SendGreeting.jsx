@@ -47,6 +47,7 @@ import EmailVerificationModal from '../components/EmailVerificationModal';
 import VoiceMissingModal from '../components/VoiceMissingModal';
 import '../styles/ceremony.css';
 import AttachmentIndicator from '../components/AttachmentIndicator';
+import { qrCashQuote, centsToDollarString } from '../utils/qrCashAmount';
 import HeartsBurst from '../components/HeartsBurst';
 import cartService from '../services/cartService';
 import { useAuth } from '../context/AuthContext';
@@ -104,6 +105,14 @@ function readResumeDraft(uuid) {
 
 function deleteResumeDraft(uuid) {
   try { localStorage.removeItem(SEND_RESUME_KEY_PREFIX + uuid); } catch { /* best-effort */ }
+}
+
+// Referral-credit display: the amount is ALWAYS the server-issued one (referralCreditCents from the
+// referral lookup), never a literal. "Cap new, honor old": new credits are up to $5, older ones up to $10,
+// so only the server's figure is truthful. Returns '' when no real amount is known.
+function formatReferralCreditCents(cents) {
+  if (!Number.isSafeInteger(cents) || cents <= 0) return '';
+  return cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`;
 }
 
 // W03: why a profile photo is required, and where to add one.
@@ -2554,10 +2563,10 @@ if (typeof window !== "undefined") {
             <span style={{ fontSize: '1.5rem' }}>🎁</span>
             <div>
               <p style={{ margin: 0, fontWeight: 600, color: '#065f46', fontSize: '0.9375rem' }}>
-                ${(referralValue / 100).toFixed(0)} Greet-Me Credit Applied
+                {formatReferralCreditCents(referralValue) ? `${formatReferralCreditCents(referralValue)} ` : ''}Greet-Me Credit Applied
               </p>
               <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: '#047857' }}>
-                Your $10 credit has been applied toward this Greet-Me subscription. Terms and conditions apply.
+                {formatReferralCreditCents(referralValue) ? `Your ${formatReferralCreditCents(referralValue)} credit` : 'Your credit'} has been applied toward this Greet-Me subscription. Terms and conditions apply.
               </p>
             </div>
           </div>
@@ -3704,7 +3713,20 @@ if (typeof window !== "undefined") {
                   color: '#16a34a'
                 }}>
                   {giftSettings.type === 'qrcash' && (
-                    <>Gift: QR Cash (${giftSettings.amount === 0 ? giftSettings.customAmount || '0' : giftSettings.amount})</>
+                    <>
+                      <span data-testid="qrcash-summary-line">Gift: QR Cash (${giftSettings.amount === 0 ? giftSettings.customAmount || '0' : giftSettings.amount})</span>
+                      {(() => {
+                        // Display only: the single parity-tested QR Cash quote (src/utils/qrCashAmount.js, proven equal
+                        // to the backend calcGiftFees). A referral credit is not charged, so it gets no pay line.
+                        const dollars = giftSettings.amount === 0 ? Number(giftSettings.customAmount) || 0 : Number(giftSettings.amount) || 0;
+                        if (referralCode || !(dollars > 0)) return null;
+                        return (
+                          <span data-testid="qrcash-summary-pay" style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#14532d' }}>
+                            You pay {centsToDollarString(qrCashQuote(dollars).totalCents)}. Nothing is charged until you confirm.
+                          </span>
+                        );
+                      })()}
+                    </>
                   )}
                   {giftSettings.type === 'curated' && (
                     <>Gift: Curated (Max ${giftSettings.maxSpend}){giftSettings.qrCashAddOn && ` + QR Cash ($${giftSettings.qrCashAddOnAmount === 0 ? giftSettings.qrCashAddOnCustomAmount || '0' : giftSettings.qrCashAddOnAmount || 25})`}</>
