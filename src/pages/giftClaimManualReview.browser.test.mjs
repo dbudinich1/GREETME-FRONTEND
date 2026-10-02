@@ -198,7 +198,10 @@ test("1. `submitted: true` opens the EXISTING claimed screen", async () => {
     // The existing claimed screen, identified by its own existing copy.
     assert.match(body, /You.{0,3}re all set\./, "the claimed screen's heading renders");
     assert.match(body, /gift request has been submitted/i, "and its submitted wording");
-    assert.match(body, /confirmation once it.{0,3}s on the way/i, "and its follow-up promise");
+    // Founder-approved Surface 3 wording: manual payout, no stated window, no automated-payout promise.
+    assert.match(body, /A person at Greet-Me sends this by hand using the method you chose/i, "and its manual-payout wording");
+    assert.match(body, /We will email you when it has been sent/i, "and its follow-up promise");
+    assert.doesNotMatch(body, /shortly|on the way|business days|instantly|automatically/i, "with no stated window and no automated-payout language");
     // NOT a dead end any more: something actually rendered for the recipient.
     assert.ok(body.length > 40, "the recipient sees a real screen, not a silent no-op");
   } finally { await m.unmount(); }
@@ -283,7 +286,8 @@ test("4. `fulfilled` and `alreadyFulfilled` still show the paid screen, unchange
     try {
       const body = text(m.host);
       assert.match(body, /Gift Received!/, `the paid screen still renders for ${JSON.stringify(res)}`);
-      assert.match(body, /has been sent to your account/i, "with its existing copy");
+      assert.match(body, /has been paid out by the Greet-Me team using the method you chose/i, "with the honest manual-payout copy");
+      assert.doesNotMatch(body, /business days|debit card|instantly|sent to your account|automatically/i, "and no automated-payout language");
       assert.doesNotMatch(body, /gift request has been submitted/i,
         "and a paid gift is not reported as merely submitted");
     } finally { await m.unmount(); }

@@ -8,6 +8,7 @@ import cartService from '../services/cartService';
 import { personalPlans, businessPlans } from '../config/plans';
 import { platformFeeFor, formatFeeAmount } from '../utils/platformFee';
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
+import useReferralCreditCents from '../hooks/useReferralCreditCents';
 
 // Plan tiers ineligible for referral credit
 const CREDIT_INELIGIBLE_TIERS = new Set(['close_circle']);
@@ -26,6 +27,10 @@ export default function Pricing() {
 
   // Referral credit from URL or localStorage
   const [referralCode, setReferralCode] = useState(null);
+  // The REAL referral credit as the server issued it ("cap new, honor old"): null until known, never a literal.
+  const referralCreditCents = useReferralCreditCents(referralCode);
+  const referralCreditDollars = referralCreditCents ? referralCreditCents / 100 : 0;
+  const referralCreditLabel = referralCreditCents ? (referralCreditCents % 100 === 0 ? `$${referralCreditCents / 100}` : `$${(referralCreditCents / 100).toFixed(2)}`) : null;
   // TEAM 1 — gift/entitlement safety. Set when the user arrived here FROM the gift-entitlement
   // caution modal (Top Up / Upgrade), via /dashboard/send's own snapshot-before-navigate contract
   // (the same one Browse Media Library / Browse the Gift Place already use). Purely additive: it
@@ -654,7 +659,7 @@ export default function Pricing() {
                 )}
 
                 {/* Credit eligibility badge */}
-                {isCreditEligible && (
+                {isCreditEligible && referralCreditLabel && (
                   <div style={{
                     padding: '0.5rem 0.75rem',
                     background: '#ecfdf5',
@@ -665,7 +670,7 @@ export default function Pricing() {
                     color: '#065f46',
                     fontWeight: 600,
                   }}>
-                    $10 credit applies &mdash; pay ${(plan.price - 10).toFixed(2)}/{plan.period}
+                    {referralCreditLabel} credit applies &mdash; pay ${Math.max(0, plan.price - referralCreditDollars).toFixed(2)}/{plan.period}
                   </div>
                 )}
                 {isCreditIneligible && (
@@ -1302,7 +1307,7 @@ export default function Pricing() {
                     // CREDIT CONTRACT INTEGRITY (2026-09-30, Cart/Pricing display-honesty correction) —
                     // same gate as Checkout.jsx: a stored courtesy amount with no backend-issued
                     // creditCode must never be displayed or subtracted here either.
-                    const creditAmt = referralCode ? 10 : (cc?.creditCode ? (cc?.amount || 0) : 0);
+                    const creditAmt = referralCode ? referralCreditDollars : (cc?.creditCode ? (cc?.amount || 0) : 0);
                     const isEligible = !CREDIT_INELIGIBLE_TIERS.has(lastAddedPlan.planTier);
                     const effectiveCredit = isEligible ? creditAmt : 0;
                     return (

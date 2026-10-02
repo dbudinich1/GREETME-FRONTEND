@@ -46,6 +46,7 @@ const platformFeeFor = (item, feeState) =>
 
 import { platformFeeFor as resolvePlatformFee, formatFeeAmount, FEE_CALCULATED_AT_CHECKOUT } from '../utils/platformFee';
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
+import useReferralCreditCents from '../hooks/useReferralCreditCents';
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -64,7 +65,11 @@ export default function Cart() {
   const hasSubscription = !!subscriptionItem;
 
   // Referral credit disqualifies G1G1; business tiers are excluded (annual-credit model).
-  const hasReferralCredit = !!(localStorage.getItem('greetme_referral_code'));
+  const referralCodeStored = localStorage.getItem('greetme_referral_code');
+  const hasReferralCredit = !!referralCodeStored;
+  // The REAL referral credit amount as the server issued it (null until known; never a literal).
+  const referralCreditCents = useReferralCreditCents(referralCodeStored);
+  const referralCreditDollars = referralCreditCents ? referralCreditCents / 100 : 0;
   const g1g1Eligible = hasSubscription && !hasReferralCredit && G1G1_PERSONAL_TIERS.has(subscriptionItem?.planTier);
 
   // Business annual-credit gift: same checkout recipient UX, credit-funded post-payment.
@@ -871,7 +876,7 @@ export default function Cart() {
                 // CREDIT CONTRACT INTEGRITY (2026-09-30, Cart/Pricing display-honesty correction) —
                 // same gate as Checkout.jsx: a stored courtesy amount with no backend-issued
                 // creditCode must never be displayed or subtracted here either.
-                const rawCredit = hasReferralCredit ? 10 : (courtesyCredit?.creditCode ? (courtesyCredit?.amount || 0) : 0);
+                const rawCredit = hasReferralCredit ? referralCreditDollars : (courtesyCredit?.creditCode ? (courtesyCredit?.amount || 0) : 0);
                 const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                 const creditAmt = creditEligible ? rawCredit : 0;
                 const techFee = platformFeeFor(subscriptionItem, feeState);
@@ -948,7 +953,7 @@ export default function Cart() {
                 const planPrice = subscriptionItem?.price || total;
                 const courtesyCredit2 = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
                 // CREDIT CONTRACT INTEGRITY (2026-09-30) — same gate as the display block above.
-                const rawCredit = hasReferralCredit ? 10 : (courtesyCredit2?.creditCode ? (courtesyCredit2?.amount || 0) : 0);
+                const rawCredit = hasReferralCredit ? referralCreditDollars : (courtesyCredit2?.creditCode ? (courtesyCredit2?.amount || 0) : 0);
                 const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                 const creditAmt = creditEligible ? rawCredit : 0;
                 const techFee = platformFeeFor(subscriptionItem, feeState);

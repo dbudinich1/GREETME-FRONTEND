@@ -10,6 +10,11 @@ import { useAccountState } from '../hooks/useAccountState';
 import { isSenderViewingOwnGift } from '../utils/accountState';
 import GiftCardVoucherPanel from '../components/GiftCardVoucherPanel';
 
+// CREDIT AMOUNT (founder: "cap new, honor old"): the credit toward a Greet-Me subscription shown after a
+// payout is the amount the SERVER issued for this gift (referralGiftValueCents on the claim response).
+// New credits are minted at up to $5 (Team 2), credits issued earlier (up to $10) stay valid, so this page
+// shows exactly what the server says and never a literal. With no real amount, no credit block is shown.
+
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
 // Payout method definitions — simple preference capture
@@ -250,6 +255,12 @@ export default function GiftClaim() {
   };
 
   const fmt = (cents) => `$${(cents / 100).toFixed(2)}`;
+  // The server-issued referral credit for the fulfilled screen; null (show nothing) when absent or malformed.
+  const creditCents = (Number.isSafeInteger(gift?.referralGiftValueCents) && gift.referralGiftValueCents > 0)
+    ? gift.referralGiftValueCents
+    : null;
+  // Whole-dollar credits read as "$5", not "$5.00" (same value, matching how the credit is described elsewhere).
+  const creditLabel = (cents) => (cents % 100 === 0 ? `$${cents / 100}` : fmt(cents));
 
   const currentMethod = PAYOUT_METHODS.find((m) => m.id === selectedMethod);
 
@@ -423,15 +434,15 @@ export default function GiftClaim() {
           <div style={styles.successIcon}>&#10003;</div>
           <h1 style={styles.title}>Gift Received!</h1>
           <p style={{ ...styles.subtitle, marginBottom: '0.5rem' }}>
-            Your {fmt(gift.giftAmountCents)} QR Cash&trade; gift has been sent to your account.
+            Your {fmt(gift.giftAmountCents)} QR Cash&trade; gift has been paid out by the Greet-Me team using the method you chose.
           </p>
           <p style={{ fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
-            Funds typically arrive within 1-2 business days to your bank account, or instantly to a debit card.
+            It arrives on that service&rsquo;s usual timing.
           </p>
 
           {/* Referral credit CTA */}
-          {gift.referralCode && (
-            <div style={{
+          {gift.referralCode && creditCents && (
+            <div data-testid="claim-credit-block" style={{
               padding: '1.25rem',
               background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
               borderRadius: '0.75rem',
@@ -440,7 +451,7 @@ export default function GiftClaim() {
               textAlign: 'center',
             }}>
               <p style={{ fontSize: '1.25rem', margin: '0 0 0.5rem', fontWeight: 700, color: '#065f46' }}>
-                You've unlocked a $10 credit
+                {`You've unlocked a ${creditLabel(creditCents)} credit`}
               </p>
               <p style={{
                 fontSize: '0.9rem',
@@ -448,7 +459,7 @@ export default function GiftClaim() {
                 lineHeight: 1.5,
                 margin: '0 0 1rem',
               }}>
-                Apply your $10 credit toward a Greet-Me subscription.
+                {`Apply your ${creditLabel(creditCents)} credit toward a Greet-Me subscription.`}
                 <br />
                 <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>Valid toward Social Butterfly or higher plans. Terms apply.</span>
               </p>
@@ -467,7 +478,7 @@ export default function GiftClaim() {
                   boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)',
                 }}
               >
-                Unlock Your $10 Credit
+                {`Unlock Your ${creditLabel(creditCents)} Credit`}
               </a>
             </div>
           )}
@@ -491,8 +502,8 @@ export default function GiftClaim() {
             Your {fmt(gift.giftAmountCents)} QR Cash&trade; gift request has been submitted.
           </p>
           <p style={{ fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
-            We&rsquo;ll send your gift using your selected method shortly.
-            You&rsquo;ll receive a confirmation once it&rsquo;s on the way.
+            A person at Greet-Me sends this by hand using the method you chose.
+            We will email you when it has been sent.
           </p>
 
           {/* Forward-motion CTAs — no dead ends */}
