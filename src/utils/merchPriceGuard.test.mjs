@@ -29,6 +29,8 @@ if (!skip) {
   if (r.status !== 0) throw new Error(`generator failed (${r.status}):\n${r.stdout}\n${r.stderr}`);
   S = JSON.parse(fs.readFileSync(OUT, "utf8"));
 }
+if (skip) console.warn(`SKIPPED merchPriceGuard: ${skip}. Set PAIR_BE_DIR to the combined backend worktree to run these tests.`);
+else console.log(`merchPriceGuard validated against backend ${S.generatedFrom.backendDir} @ ${S.generatedFrom.backendHead}`);
 const t = (name, fn) => test(name, { skip }, fn);
 
 // A cart exactly as Merch.jsx builds it, priced BEFORE the rate change (base prices).

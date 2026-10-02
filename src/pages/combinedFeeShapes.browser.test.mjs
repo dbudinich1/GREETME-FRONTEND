@@ -7,12 +7,17 @@
 //
 // Proves: Smart Card shows a DISCLOSED flat "Convenience fee" of $4.99 from the tile's own
 // feeCents/totalCents (total = face value + $4.99, no local formula) on the page and in the real
-// confirmation modal; the Goody gift-box modal shows ONLY the final quotedTotalCents with no
-// markup/fee line, echoes quotedTotalCents + providerQuotedTotalCents on charge, and on the real
-// 409 gift_box_quote_changed shows the new total, requires a new click, and charges nothing first.
+// confirmation modal; the Goody gift-box modal shows ONLY the server display lines with no
+// markup/fee wording. CONTRACT T2 section 1A (hidden 5% on the PRODUCT price only): the server's quote carries
+// `display` {productCents, shippingHandlingCents, taxCents, totalCents} summing exactly to the charge; the modal renders
+// ONLY those lines (Product, S/H, Tax, Total), never feeCents / providerQuotedTotalCents / markup wording; the charge
+// echoes quotedTotalCents + providerQuotedTotalCents; the real 409 gift_box_quote_changed carries the fresh display, the
+// modal shows it, requires a new click, and charges nothing first.
 //
 // Run (Node 20): node --test src/pages/combinedFeeShapes.browser.test.mjs
-//   (PAIR_BE_DIR defaults to C:\1_GREET-ME\cs-be-combined; the backend is read-only here)
+//   PAIR_BE_DIR pins the backend worktree (default C:\1_GREET-ME\cs-be-combined; read-only here). If it is missing the
+//   tests are SKIPPED with a printed message (never a silent pass). The backend HEAD the fixtures were generated from is
+//   printed and recorded in tests/fixtures/combined-backend-fee-shapes.generated.json (generatedFrom.backendHead).
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -28,6 +33,7 @@ const BE = process.env.PAIR_BE_DIR || "C:/1_GREET-ME/cs-be-combined";
 const SHAPES = join(feRoot, "tests", "fixtures", "combined-backend-fee-shapes.generated.json");
 const skip = existsSync(join(BE, "routes", "giftRoutes.js")) ? false : `combined backend not found at ${BE}`;
 
+if (skip) console.warn(`SKIPPED combinedFeeShapes: ${skip}. Set PAIR_BE_DIR to the combined backend worktree to run these tests.`);
 const T_ = (name, fn) => test(name, { skip }, fn);
 const ENTRY = join(__dirname, ".__cfs.entry.jsx");
 const API_STUB = join(__dirname, ".__cfs.api.js");
@@ -44,6 +50,7 @@ before(async () => {
   const r = spawnSync(process.execPath, [join(feRoot, "scripts", "gen-combined-fee-shapes.mjs"), SHAPES], { encoding: "utf8", env, cwd: feRoot });
   if (r.status !== 0) throw new Error(`generator failed (${r.status}):\n${r.stdout}\n${r.stderr}`);
   S = JSON.parse(readFileSync(SHAPES, "utf8"));
+  console.log(`combinedFeeShapes validated against backend ${S.generatedFrom.backendDir} @ ${S.generatedFrom.backendHead}`);
 
   writeFileSync(API_STUB, `
     export const __calls = []; export const __responses = {};
@@ -134,14 +141,27 @@ T_("backend: every Smart Card tile carries feeCents 499 and totalCents = amount 
   assert.deepEqual(S.smartCard.calcFor1000, { giftAmountCents: 1000, feeCents: 499, totalCents: 1499 });
 });
 
-T_("backend: gift-box quote/409 carry the 5% breakdown and the 409 total equals a fresh quote", () => {
-  assert.equal(S.giftBox.feeRate, 0.05);
-  assert.deepEqual(S.giftBox.rounding.map((r) => [r.providerQuotedTotalCents, r.feeCents, r.quotedTotalCents]),
-    [[1, 0, 1], [3333, 167, 3500], [4599, 230, 4829], [12999, 650, 13649]]);
-  assert.equal(S.giftBox.charge409.status, 409);
-  assert.equal(S.giftBox.charge409.body.code, "gift_box_quote_changed");
-  assert.equal(S.giftBox.charge409.body.quotedTotalCents, S.giftBox.quoteAfter.quotedTotalCents);
-  assert.equal(S.giftBox.charge409.body.providerQuotedTotalCents, S.giftBox.quoteAfter.providerQuotedTotalCents);
+T_("backend: gift-box quote and 409 carry display lines that sum exactly to the charge (5% on the product only)", () => {
+  const G = S.giftBox;
+  assert.equal(G.markupRate, 0.05);
+  assert.equal(G.markupBasis, "product");
+  // unit markup = round(unit x 5%), times quantity; $10.10 x3 = $31.83 product line (contract worked example)
+  assert.deepEqual(G.rounding.map((r) => [r.unitCents, r.quantity, r.feeCents]), [[1010, 1, 51], [4500, 1, 225], [999, 1, 50], [1010, 2, 102], [1010, 3, 153]]);
+  assert.equal(G.rounding[4].productLineCents + G.rounding[4].feeCents, 3183);
+  for (const q of [G.quote, G.quoteQty2, G.quoteAfter, G.charge409.body]) {
+    const d = q.display;
+    assert.equal(d.productCents + d.shippingHandlingCents + d.taxCents, d.totalCents, "lines sum to the total");
+    assert.equal(d.totalCents, q.quotedTotalCents, "the total is the charge");
+    assert.equal(q.quotedTotalCents, q.providerQuotedTotalCents + q.feeCents);
+  }
+  // product line carries the markup; shipping and tax are untouched
+  assert.deepEqual(G.quote.display, { productCents: 4725, shippingHandlingCents: 1000, taxCents: 330, totalCents: 6055 });
+  assert.deepEqual(G.quoteQty2.display, { productCents: 2122, shippingHandlingCents: 1100, taxCents: 187, totalCents: 3409 });
+  assert.equal(G.charge409.status, 409);
+  assert.equal(G.charge409.body.code, "gift_box_quote_changed");
+  assert.deepEqual(G.charge409.body.display, G.quoteAfter.display);
+  assert.equal(G.charge409.body.quotedTotalCents, G.quoteAfter.quotedTotalCents);
+  assert.equal(G.charge409.body.providerQuotedTotalCents, G.quoteAfter.providerQuotedTotalCents);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -205,32 +225,59 @@ async function reachReview() {
   await click(tid("fake-card-complete"));
 }
 
-T_("gift box: shows ONLY the final quotedTotalCents - no markup, fee line, percentage or provider price", async () => {
-  const q = S.giftBox.quote;
-  T.responses.quoteGiftBox = q;
-  await mountGiftBox(); await reachReview();
-  assert.equal(tid("gift-box-total").textContent.replace(/\s+/g, " "), `Total, shipping and tax included${fmt(q.quotedTotalCents)}`);
-  const t = text();
-  assert.ok(t.includes(`Pay ${fmt(q.quotedTotalCents)}`));
-  assert.ok(!t.includes(fmt(q.feeCents)), "the fee amount is never displayed");
-  assert.ok(!t.includes(fmt(q.providerQuotedTotalCents)), "the pre-markup partner price is never displayed");
-  assert.doesNotMatch(t, /markup|mark-up|5%|service fee|processing fee|convenience fee|Greet-Me fee/i);
-  assert.match(t, /you authorize Greet-Me to charge the total shown/i, "payment disclosure still accurate");
+T_("gift box: renders ONLY quote.display (Product, S/H, Tax, Total); never feeCents, the partner price or markup wording", async () => {
+  for (const q of [S.giftBox.quote, S.giftBox.quoteQty2]) {
+    T.responses.quoteGiftBox = q;
+    await mountGiftBox(); await reachReview();
+    const d = q.display;
+    assert.equal(tid("gift-box-line-product").textContent, `Product${fmt(d.productCents)}`);
+    assert.equal(tid("gift-box-line-sh").textContent, `S/H${fmt(d.shippingHandlingCents)}`);
+    assert.equal(tid("gift-box-line-tax").textContent, `Tax${fmt(d.taxCents)}`);
+    // the Total row wording is unchanged here (P2 copy is the founder's decision); only the amount comes from display
+    assert.equal(tid("gift-box-total").textContent.replace(/\s+/g, " "), `Total, shipping and tax included${fmt(d.totalCents)}`);
+    assert.equal(d.productCents + d.shippingHandlingCents + d.taxCents, d.totalCents, "the three lines shown add up to the total shown");
+    const t = text();
+    assert.ok(t.includes(`Pay ${fmt(d.totalCents)}`));
+    assert.ok(!t.includes(fmt(q.feeCents)), "the fee amount is never displayed");
+    assert.ok(!t.includes(fmt(q.providerQuotedTotalCents)), "the pre-markup partner price is never displayed");
+    assert.doesNotMatch(t, /markup|mark-up|5%|at cost|service fee|processing fee|convenience fee|Greet-Me fee/i);
+    assert.match(t, /you authorize Greet-Me to charge the total shown/i, "payment disclosure still accurate");
+  }
 });
 
-T_("gift box: the charge echoes quotedTotalCents and providerQuotedTotalCents exactly as quoted", async () => {
+T_("gift box: a quote without display lines, or whose lines do not add up to the charge, is refused (nothing to pay)", async () => {
+  const good = S.giftBox.quote;
+  const bads = [
+    { ...good, display: undefined },
+    { ...good, display: { ...good.display, taxCents: good.display.taxCents + 1 } },
+    { ...good, display: { ...good.display, totalCents: good.display.totalCents + 1 } },
+  ];
+  for (const bad of bads) {
+    T.responses.quoteGiftBox = bad;
+    await mountGiftBox();
+    await act(async () => {
+      for (const [id, v] of Object.entries({ "gb-first": "Dana", "gb-address1": "12 Elm St", "gb-city": "Newark", "gb-state": "nj", "gb-zip": "07102" })) setVal(document.getElementById(id), v);
+    });
+    await click(tid("gift-box-get-price"));
+    assert.equal(tid("gift-box-checkout-review"), null, "no review step, so no pay button");
+    assert.equal(tid("gift-box-pay"), null);
+  }
+});
+
+T_("gift box: the charge echoes quotedTotalCents (= display.totalCents), providerQuotedTotalCents and quotedAt exactly as quoted", async () => {
   const q = S.giftBox.quote;
   T.responses.quoteGiftBox = q;
   T.responses.chargeGiftBox = { ok: true, fulfillmentStatus: "confirmed", gift: { claimToken: "c1", totalCents: q.quotedTotalCents } };
   await mountGiftBox(); await reachReview();
   await click(tid("gift-box-pay"));
   const [call] = T.calls.filter((c) => c.name === "chargeGiftBox");
-  assert.equal(call.body.quotedTotalCents, q.quotedTotalCents);
+  assert.equal(call.body.quotedTotalCents, q.display.totalCents);
   assert.equal(call.body.providerQuotedTotalCents, q.providerQuotedTotalCents);
   assert.equal(call.body.quotedAt, q.quotedAt);
+  assert.ok(!("display" in call.body) && !("feeCents" in call.body), "the request carries no display or fee field");
 });
 
-T_("gift box: the real 409 gift_box_quote_changed shows the NEW total, requires a new click, and the first click charged nothing", async () => {
+T_("gift box: the real 409 gift_box_quote_changed shows the fresh display lines, requires a new click, and the first click charged nothing", async () => {
   const before = S.giftBox.quote, after = S.giftBox.quoteAfter, body409 = S.giftBox.charge409.body;
   T.responses.quoteGiftBox = (_b, n) => (n === 1 ? before : after);
   let n = 0;
@@ -244,13 +291,16 @@ T_("gift box: the real 409 gift_box_quote_changed shows the NEW total, requires 
   assert.equal(T.calls.filter((c) => c.name === "chargeGiftBox").length, 1, "no automatic resubmission");
   const notice = tid("gift-box-price-changed");
   assert.ok(notice, "price change is shown");
-  assert.ok(notice.textContent.includes(fmt(before.quotedTotalCents)) && notice.textContent.includes(fmt(body409.quotedTotalCents)));
-  assert.equal(body409.quotedTotalCents, after.quotedTotalCents);
-  assert.ok(tid("gift-box-total").textContent.includes(fmt(after.quotedTotalCents)));
+  assert.ok(notice.textContent.includes(fmt(before.display.totalCents)) && notice.textContent.includes(fmt(body409.display.totalCents)));
+  assert.deepEqual(body409.display, after.display, "the 409 carries the same fresh lines a re-quote returns");
+  assert.equal(tid("gift-box-line-product").textContent, `Product${fmt(body409.display.productCents)}`);
+  assert.equal(tid("gift-box-line-sh").textContent, `S/H${fmt(body409.display.shippingHandlingCents)}`);
+  assert.equal(tid("gift-box-line-tax").textContent, `Tax${fmt(body409.display.taxCents)}`);
+  assert.ok(tid("gift-box-total").textContent.includes(fmt(body409.display.totalCents)));
   assert.ok(!text().includes(fmt(body409.feeCents)), "new fee amount still not displayed");
   await click(tid("gift-box-pay"));
   const second = T.calls.filter((c) => c.name === "chargeGiftBox")[1].body;
-  assert.equal(second.quotedTotalCents, after.quotedTotalCents, "reconfirmed figure");
+  assert.equal(second.quotedTotalCents, after.display.totalCents, "reconfirmed figure");
   assert.equal(second.providerQuotedTotalCents, after.providerQuotedTotalCents);
 });
 

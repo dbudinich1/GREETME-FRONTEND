@@ -199,7 +199,7 @@ function GiftBoxCheckoutForm({
   const [errors, setErrors] = useState({});
   // 'details' -> 'review' -> 'processing' (paid, order still resolving) | 'done'
   const [step, setStep] = useState('details');
-  // { quotedTotalCents (fee-inclusive), providerQuotedTotalCents, feeCents, quotedAt, validForMs, receivedAt }
+  // { display{product,S/H,tax,total}, quotedTotalCents (fee-inclusive), providerQuotedTotalCents, feeCents, quotedAt, validForMs, receivedAt }
   const [quote, setQuote] = useState(null);
   const [priceNotice, setPriceNotice] = useState(null);
   const [failure, setFailure] = useState(null);
@@ -246,7 +246,17 @@ function GiftBoxCheckoutForm({
         : giftBoxErrorCopy(res));
       return null;
     }
+    // The server's four display lines are the ONLY price breakdown the customer is shown. They must add up to the
+    // charge exactly; a quote without them (or that does not add up) cannot be shown honestly, so it fails closed.
+    const d = res.display;
+    const lines = d && [d.productCents, d.shippingHandlingCents, d.taxCents, d.totalCents];
+    if (!lines || !lines.every(Number.isSafeInteger) || d.productCents <= 0 || d.shippingHandlingCents < 0 || d.taxCents < 0
+        || d.productCents + d.shippingHandlingCents + d.taxCents !== d.totalCents || d.totalCents !== res.quotedTotalCents) {
+      setFailure(giftBoxErrorCopy(res));
+      return null;
+    }
     const next = {
+      display: { productCents: d.productCents, shippingHandlingCents: d.shippingHandlingCents, taxCents: d.taxCents, totalCents: d.totalCents },
       quotedTotalCents: res.quotedTotalCents,
       providerQuotedTotalCents: res.providerQuotedTotalCents,
       feeCents: Number.isSafeInteger(res.feeCents) ? res.feeCents : null,
@@ -610,6 +620,12 @@ function GiftBoxCheckoutForm({
             <small style={{ color: 'var(--text-secondary, #64748b)' }}>
               {Number(form.quantity) > 1 ? `${form.quantity} × ` : ''}{productName} · to {trimmed(form.city)}, {trimmed(form.state).toUpperCase()}
             </small>
+            {[['product', 'Product', quote.display.productCents], ['sh', 'S/H', quote.display.shippingHandlingCents], ['tax', 'Tax', quote.display.taxCents]].map(([k, l, c]) => (
+              <div key={k} data-testid={`gift-box-line-${k}`} style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.3rem' }}>
+                <span>{l}</span>
+                <span>{fmt(c)}</span>
+              </div>
+            ))}
             <div data-testid="gift-box-total"
               style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, marginTop: '0.4rem' }}>
               <span>Total, shipping and tax included</span>
