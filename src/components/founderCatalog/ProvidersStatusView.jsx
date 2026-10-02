@@ -57,6 +57,8 @@ const ROW_CSS = `
 [data-testid^="provider-status-"]{container-type:inline-size}
 .gm-psv-refresh-slot{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:0 0 28px}
 .gm-psv-refresh{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:var(--text-secondary);cursor:pointer}
+.gm-psv-refresh{position:relative}
+.gm-psv-refresh::after{content:'';position:absolute;inset:-8px}
 .gm-psv-refresh:hover:not(:disabled){background:#f1f5f9;color:var(--text-primary)}
 .gm-psv-refresh:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .gm-psv-refresh:disabled{cursor:default;opacity:.6}
@@ -135,7 +137,7 @@ export default function ProvidersStatusView({ client, onAddProducts }) {
                       onClick={() => runRefresh(p.providerId)}
                       disabled={refreshingId === p.providerId}
                       className="gm-psv-refresh"
-                      style={{ padding: 0 }}
+                      style={{ padding: 0, minWidth: 0, minHeight: 0, width: 28, height: 28 }}
                     >
                       <RefreshCw size={14} className={refreshingId === p.providerId ? 'gm-psv-spin' : undefined} />
                     </button>
