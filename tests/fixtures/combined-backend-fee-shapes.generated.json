@@ -1,7 +1,7 @@
 {
   "generatedFrom": {
     "backendDir": "C:\\1_GREET-ME\\cs-be-combined",
-    "backendHead": "ef62a73721af8a918ffd6662200109a27ac6ade4",
+    "backendHead": "c441290d976b5f726dd10e035598ee7d7358d7b4",
     "node": "v20.20.2"
   },
   "smartCard": {
@@ -231,45 +231,93 @@
     }
   },
   "giftBox": {
-    "feeRate": 0.05,
+    "markupRate": 0.05,
+    "markupBasis": "product",
     "rounding": [
       {
-        "providerQuotedTotalCents": 1,
-        "feeCents": 0,
-        "quotedTotalCents": 1
+        "unitCents": 1010,
+        "productLineCents": 1010,
+        "quantity": 1,
+        "feeCents": 51,
+        "quotedTotalCents": 2261,
+        "providerQuotedTotalCents": 2210
       },
       {
-        "providerQuotedTotalCents": 3333,
-        "feeCents": 167,
-        "quotedTotalCents": 3500
+        "unitCents": 4500,
+        "productLineCents": 4500,
+        "quantity": 1,
+        "feeCents": 225,
+        "quotedTotalCents": 5925,
+        "providerQuotedTotalCents": 5700
       },
       {
-        "providerQuotedTotalCents": 4599,
-        "feeCents": 230,
-        "quotedTotalCents": 4829
+        "unitCents": 999,
+        "productLineCents": 999,
+        "quantity": 1,
+        "feeCents": 50,
+        "quotedTotalCents": 2249,
+        "providerQuotedTotalCents": 2199
       },
       {
-        "providerQuotedTotalCents": 12999,
-        "feeCents": 650,
-        "quotedTotalCents": 13649
+        "unitCents": 1010,
+        "productLineCents": 2020,
+        "quantity": 2,
+        "feeCents": 102,
+        "quotedTotalCents": 3322,
+        "providerQuotedTotalCents": 3220
+      },
+      {
+        "unitCents": 1010,
+        "productLineCents": 3030,
+        "quantity": 3,
+        "feeCents": 153,
+        "quotedTotalCents": 4383,
+        "providerQuotedTotalCents": 4230
       }
     ],
     "quote": {
       "ok": true,
-      "providerQuotedTotalCents": 5310,
-      "feeCents": 266,
-      "quotedTotalCents": 5576,
+      "providerQuotedTotalCents": 5830,
+      "feeCents": 225,
+      "quotedTotalCents": 6055,
+      "display": {
+        "productCents": 4725,
+        "shippingHandlingCents": 1000,
+        "taxCents": 330,
+        "totalCents": 6055
+      },
       "currency": "usd",
-      "quotedAt": "2026-10-01T22:23:55.365Z",
+      "quotedAt": "2026-10-02T10:47:53.549Z",
+      "quoteValidForMs": 120000
+    },
+    "quoteQty2": {
+      "ok": true,
+      "providerQuotedTotalCents": 3307,
+      "feeCents": 102,
+      "quotedTotalCents": 3409,
+      "display": {
+        "productCents": 2122,
+        "shippingHandlingCents": 1100,
+        "taxCents": 187,
+        "totalCents": 3409
+      },
+      "currency": "usd",
+      "quotedAt": "2026-10-02T10:47:53.550Z",
       "quoteValidForMs": 120000
     },
     "quoteAfter": {
       "ok": true,
-      "providerQuotedTotalCents": 6286,
-      "feeCents": 314,
-      "quotedTotalCents": 6600,
+      "providerQuotedTotalCents": 6896,
+      "feeCents": 275,
+      "quotedTotalCents": 7171,
+      "display": {
+        "productCents": 5775,
+        "shippingHandlingCents": 1000,
+        "taxCents": 396,
+        "totalCents": 7171
+      },
       "currency": "usd",
-      "quotedAt": "2026-10-01T22:23:55.366Z",
+      "quotedAt": "2026-10-02T10:47:53.551Z",
       "quoteValidForMs": 120000
     },
     "charge409": {
@@ -278,10 +326,16 @@
         "ok": false,
         "code": "gift_box_quote_changed",
         "error": "The price for this gift box has changed. Please review the updated price and try again.",
-        "providerQuotedTotalCents": 6286,
-        "feeCents": 314,
-        "quotedTotalCents": 6600,
-        "quotedAt": "2026-10-01T22:23:55.366Z"
+        "providerQuotedTotalCents": 6896,
+        "feeCents": 275,
+        "quotedTotalCents": 7171,
+        "display": {
+          "productCents": 5775,
+          "shippingHandlingCents": 1000,
+          "taxCents": 396,
+          "totalCents": 7171
+        },
+        "quotedAt": "2026-10-02T10:47:53.558Z"
       }
     }
   }

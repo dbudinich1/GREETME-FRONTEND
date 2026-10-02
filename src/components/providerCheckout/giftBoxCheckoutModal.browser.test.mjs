@@ -176,7 +176,7 @@ async function reachReview() {
 beforeEach(() => {
   T.calls.length = 0;
   for (const k of Object.keys(T.responses)) delete T.responses[k];
-  T.responses.quoteGiftBox = { ok: true, quotedTotalCents: 5499, providerQuotedTotalCents: 5310, feeCents: 189, currency: "usd", quotedAt: QUOTED_AT, quoteValidForMs: 120000 };
+  T.responses.quoteGiftBox = { ok: true, display: { productCents: 4000, shippingHandlingCents: 1000, taxCents: 499, totalCents: 5499 }, quotedTotalCents: 5499, providerQuotedTotalCents: 5310, feeCents: 189, currency: "usd", quotedAt: QUOTED_AT, quoteValidForMs: 120000 };
   installStripe();
 });
 
@@ -285,8 +285,8 @@ test("charge: a changed server price is SHOWN, never silently charged — the ne
     return { ok: true, fulfillmentStatus: "confirmed", gift: { claimToken: "claim-2", totalCents: 6499 } };
   };
   T.responses.quoteGiftBox = (_b, n) => (n === 1
-    ? { ok: true, quotedTotalCents: 5499, providerQuotedTotalCents: 5310, feeCents: 189, quotedAt: QUOTED_AT, quoteValidForMs: 120000 }
-    : { ok: true, quotedTotalCents: 6499, providerQuotedTotalCents: 6286, feeCents: 213, quotedAt: "2026-09-30T12:01:00.000Z", quoteValidForMs: 120000 });
+    ? { ok: true, display: { productCents: 4000, shippingHandlingCents: 1000, taxCents: 499, totalCents: 5499 }, quotedTotalCents: 5499, providerQuotedTotalCents: 5310, feeCents: 189, quotedAt: QUOTED_AT, quoteValidForMs: 120000 }
+    : { ok: true, display: { productCents: 5000, shippingHandlingCents: 1000, taxCents: 499, totalCents: 6499 }, quotedTotalCents: 6499, providerQuotedTotalCents: 6286, feeCents: 213, quotedAt: "2026-09-30T12:01:00.000Z", quoteValidForMs: 120000 });
 
   await mount({});
   await reachReview();
