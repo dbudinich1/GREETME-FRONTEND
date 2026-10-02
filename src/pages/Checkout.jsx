@@ -154,7 +154,7 @@ export default function Checkout() {
     }
   })();
 
-  // Credit: referral ($10 from gift) or courtesy ($5 from finale QR)
+  // Credit: referral (the server-reported amount from a gift claim) or courtesy ($5 from finale QR)
   const courtesyCredit = (() => {
     try {
       const stored = localStorage.getItem('greetme_courtesy_credit');

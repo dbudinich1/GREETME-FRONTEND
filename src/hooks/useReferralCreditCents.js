@@ -1,8 +1,9 @@
 // src/hooks/useReferralCreditCents.js
 //
-// The REAL amount of a QR Cash referral credit, as the server issued it (GET /api/gifts/referral/:code ->
-// referralCreditCents). Founder decision "cap new, honor old": new credits are minted at up to $5 while
-// credits issued earlier (up to $10) stay valid, so the only truthful figure is the server's own. This hook
+// The REAL amount of a QR Cash referral credit: the EFFECTIVE redeemable value the server reports (GET
+// /api/gifts/referral/:code -> referralCreditCents). The founder's rule is no referral credit above $5; the
+// server enforces it and returns what will actually be honored, so the only truthful figure is the server's
+// own. This hook
 // never substitutes a literal: with no code, a failed lookup, a used code or a malformed value it returns
 // null, and every surface then shows no credit amount at all (the earlier courtesy-credit honesty rule).
 import { useEffect, useState } from 'react';

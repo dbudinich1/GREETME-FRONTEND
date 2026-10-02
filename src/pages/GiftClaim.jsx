@@ -10,10 +10,11 @@ import { useAccountState } from '../hooks/useAccountState';
 import { isSenderViewingOwnGift } from '../utils/accountState';
 import GiftCardVoucherPanel from '../components/GiftCardVoucherPanel';
 
-// CREDIT AMOUNT (founder: "cap new, honor old"): the credit toward a Greet-Me subscription shown after a
-// payout is the amount the SERVER issued for this gift (referralGiftValueCents on the claim response).
-// New credits are minted at up to $5 (Team 2), credits issued earlier (up to $10) stay valid, so this page
-// shows exactly what the server says and never a literal. With no real amount, no credit block is shown.
+// CREDIT AMOUNT (founder: no referral or courtesy credit above $5, for any reason): the credit toward a
+// Greet-Me subscription shown after a payout is the EFFECTIVE redeemable value the SERVER reports for this
+// gift (referralGiftValueCents on the claim response; Team 2 caps it). This page shows exactly what the
+// server says, never a literal, and never more than the server returns. With no real amount, no credit
+// block is shown.
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
