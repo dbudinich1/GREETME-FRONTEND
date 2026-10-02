@@ -145,3 +145,18 @@ test("payout wording: claimed screen says a person sends it by hand, with no sta
   assert.match(t, /We will email you when it has been sent\./);
   assert.doesNotMatch(t, /shortly|within|business days|hours|\bdays?\b.*(send|payout)|on the way|instantly|automatically/i);
 });
+
+// ---------------------------------------------------------------- claimed-screen account button
+const accountButton = (h) => [...h.querySelectorAll("button")].map((b) => (b.textContent || "").trim()).find((t) => /Create Your Account/.test(t));
+test("claimed screen: the account button names the server-issued credit, or drops the figure when none is known", async () => {
+  for (const [cents, label] of [[300, "Claim Your $3 \u2014 Create Your Account"], [500, "Claim Your $5 \u2014 Create Your Account"], [1000, "Claim Your $10 \u2014 Create Your Account"]]) {
+    M.__responses.getGiftClaim = { ok: true, gift: gift({ status: "claimed", referralGiftValueCents: cents }) };
+    assert.equal(accountButton(await mount()), label, `legacy/new ${cents}`);
+  }
+  for (const [name, extra] of [["missing", {}], ["null", { referralGiftValueCents: null }], ["zero", { referralGiftValueCents: 0 }], ["string", { referralGiftValueCents: "500" }], ["fractional", { referralGiftValueCents: 12.5 }]]) {
+    M.__responses.getGiftClaim = { ok: true, gift: gift({ status: "claimed", ...extra }) };
+    const h = await mount();
+    assert.equal(accountButton(h), "Create Your Account", name);
+    assert.doesNotMatch(text(h), /Claim Your \$/, `${name}: no literal figure`);
+  }
+});

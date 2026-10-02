@@ -534,7 +534,9 @@ export default function GiftClaim() {
                     boxShadow: '0 4px 14px rgba(99, 102, 241, 0.3)',
                   }}
                 >
-                  {isAuthenticated ? 'Send a Greet-Me' : 'Claim Your $5 \u2014 Create Your Account'}
+                  {isAuthenticated
+                    ? 'Send a Greet-Me'
+                    : (creditCents ? `Claim Your ${creditLabel(creditCents)} \u2014 Create Your Account` : 'Create Your Account')}
                 </button>
 
                 {/* Smart loop: Thank You (only when sourceGreetingJobId exists) */}
