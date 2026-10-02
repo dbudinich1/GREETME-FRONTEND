@@ -404,7 +404,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
             <option value="marketplace">Browse Marketplace</option>
           </select>
         </div>
-        {checked && repeatsAnnually(occ) && (
+        {/* No repeat claim for QR Cash while scheduled QR Cash is unavailable: it would imply an automatic send and contradict the "not available yet" sentence. */}
+        {checked && repeatsAnnually(occ) && !qrCashManualOnly(gs) && (
           <small data-testid={`add-gift-repeat-${occ}`} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
             Your gift selection will automatically repeat annually until changed.
           </small>

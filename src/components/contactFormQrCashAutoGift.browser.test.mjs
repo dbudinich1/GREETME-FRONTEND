@@ -175,3 +175,23 @@ test("the availability constant is imported from the single module, not duplicat
   assert.match(src, /import \{ SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY \} from '\.\.\/config\/scheduledQrCash';/);
   assert.doesNotMatch(src, /const SCHEDULED_QRCASH_AVAILABLE\s*=/);
 });
+
+test("annual-repeat sentence: absent for QR Cash while scheduled QR Cash is unavailable; present for marketplace and curated on a yearly occasion; absent on a one-time occasion", async () => {
+  const SENTENCE = /Your gift selection will automatically repeat annually until changed\./;
+  await mount(); await openScheduler(); await tick("occasion-birthday"); await tick("occasion-graduation");
+  await click(tid("add-gift-birthday"));
+  await act(async () => setValue(tid("gift-selector-birthday"), "qrcash"));
+  assert.equal(tid("add-gift-repeat-birthday"), null, "QR Cash: no repeat claim");
+  assert.doesNotMatch(txt(), SENTENCE);
+  assert.match(txt(), /Scheduled QR Cash is not available yet\./);
+  await act(async () => setValue(tid("gift-selector-birthday"), "marketplace"));
+  assert.match(tid("add-gift-repeat-birthday").textContent, SENTENCE, "marketplace on a yearly occasion: present");
+  await act(async () => setValue(tid("gift-selector-birthday"), "curated"));
+  assert.match(tid("add-gift-repeat-birthday").textContent, SENTENCE, "curated on a yearly occasion: present");
+  await act(async () => setValue(tid("gift-selector-birthday"), "qrcash"));
+  assert.equal(tid("add-gift-repeat-birthday"), null, "switching back to QR Cash removes it again");
+  // one-time occasion (Graduation): absent whatever the type
+  await click(tid("add-gift-graduation"));
+  await act(async () => setValue(tid("gift-selector-graduation"), "marketplace"));
+  assert.equal(tid("add-gift-repeat-graduation"), null, "one-time occasion: absent");
+});

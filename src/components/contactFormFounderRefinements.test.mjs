@@ -163,7 +163,8 @@ test("round 4: selector keeps every current mode, disabled until Add gift is tic
 
 test("round 4: the annual-repeat sentence appears only for yearly-repeating occasions (recurring !== false)", () => {
   assert.match(CODE, /const repeatsAnnually = \(occ\) => getOccasionCadenceLabel\(occ\) === 'Repeats yearly'/);
-  assert.match(CODE, /\{checked && repeatsAnnually\(occ\) && \(\s*<small[^>]*>\s*Your gift selection will automatically repeat annually until changed\./);
+  // QR Cash fix (Team 1A): additionally suppressed for QR Cash while scheduled QR Cash is unavailable (proved on the real component in contactFormQrCashAutoGift.browser.test.mjs).
+  assert.match(CODE, /\{checked && repeatsAnnually\(occ\) && !qrCashManualOnly\(gs\) && \(\s*<small[^>]*>\s*Your gift selection will automatically repeat annually until changed\./);
   assert.equal((CODE.match(/Your gift selection will automatically repeat annually until changed\./g) || []).length, 1);
   // data source: only graduation and getwell carry recurring:false in helpers
   const H = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "utils", "helpers.js"), "utf8");
