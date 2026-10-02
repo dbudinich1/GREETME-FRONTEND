@@ -62,6 +62,8 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   const { window } = dom;
   globalThis.window = window; globalThis.document = window.document;
+  // React reads a global `navigator`; Node < 21 has none (harness fix, same guard as hubW17Coverage).
+  if (typeof globalThis.navigator === "undefined") Object.defineProperty(globalThis, "navigator", { value: window.navigator, configurable: true });
   globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.CustomEvent = window.CustomEvent;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
