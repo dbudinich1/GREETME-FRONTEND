@@ -15,7 +15,10 @@ import esbuild from "esbuild";
 import { FUNDRAISER_ATTRIBUTION_KEY } from "./attributionCarrier.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLE = join(__dirname, ".__referral.bundle.mjs");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const BUNDLE = join(__dirname, `.__referral.${process.pid}.bundle.mjs`);
 let React, createRoot, Landing, act;
 
 // react-router-dom stub: useParams returns globalThis.__params; useNavigate records to globalThis.__nav.
@@ -27,13 +30,13 @@ before(async () => {
     b.onResolve({ filter: /^react-router-dom$/ }, (a) => ({ path: a.path, namespace: "stub" }));
     b.onLoad({ filter: /.*/, namespace: "stub" }, () => ({ contents: ROUTER_STUB, loader: "js" }));
   } };
-  writeFileSync(join(__dirname, ".__rl.jsx"), `export { default as Landing } from "./FundraiserReferralLanding.jsx";\n`);
+  writeFileSync(join(__dirname, `.__rl.${process.pid}.jsx`), `export { default as Landing } from "./FundraiserReferralLanding.jsx";\n`);
   await esbuild.build({
-    entryPoints: [join(__dirname, ".__rl.jsx")], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
+    entryPoints: [join(__dirname, `.__rl.${process.pid}.jsx`)], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
     jsx: "automatic", jsxImportSource: "react", external: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"],
     define: { "import.meta.env": "{}", "process.env.NODE_ENV": '"production"' }, plugins: [stub], logLevel: "silent",
   });
-  rmSync(join(__dirname, ".__rl.jsx"), { force: true });
+  rmSync(join(__dirname, `.__rl.${process.pid}.jsx`), { force: true });
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   const { window } = dom;
   globalThis.window = window; globalThis.document = window.document;
