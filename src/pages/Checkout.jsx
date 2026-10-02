@@ -91,6 +91,7 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 
 import { platformFeeFor as resolvePlatformFee, formatFeeAmount, FEE_CALCULATED_AT_CHECKOUT } from '../utils/platformFee';
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
+import useReferralCreditCents from '../hooks/useReferralCreditCents';
 import {
   expectedMerchSubtotalCents, isMerchPriceConfirmationCode, applyMerchPriceChange, merchPriceNotice,
 } from '../utils/merchPriceGuard';
@@ -167,7 +168,9 @@ export default function Checkout() {
   // both together; only the legacy /courtesy-credit?amount= page ever wrote amount alone).
   // Referral credit is a separate, already-verified mechanism (referralCode itself is what
   // the backend checks) and is unaffected.
-  const creditAmount = referralCode ? 10 : (courtesyCreditCode ? (courtesyCredit?.amount || 0) : 0);
+  // The REAL referral credit as the server issued it; null (nothing shown or subtracted) until known.
+  const referralCreditCents = useReferralCreditCents(referralCode);
+  const creditAmount = referralCode ? (referralCreditCents ? referralCreditCents / 100 : 0) : (courtesyCreditCode ? (courtesyCredit?.amount || 0) : 0);
 
   const [total, setTotal] = useState(0);
   // CREDIT CONTRACT INTEGRITY (2026-09-29, follow-up correction) — the order summary must never
