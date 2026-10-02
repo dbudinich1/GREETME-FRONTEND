@@ -2,11 +2,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { validateEmail, getOccasionsByCategory, calculateVaryingOccasionDate, occasionTypes } from '../utils/helpers';
+import { getOccasionCadenceLabel } from '../utils/occasionCadence';
 import { getPhotoSrc } from '../utils/getPhotoSrc';
 import Alert from './Alert';
 import FaithBasedOccasionSelector from './FaithBasedOccasionSelector';
 import GiftSelectorModal from './GiftSelectorModal';
-import { Heart, User, Mail, Info, Plus, Camera, X, Gift, ChevronDown, ChevronUp, DollarSign, ExternalLink, Trash2, Loader2 } from 'lucide-react';
+import { Heart, User, Mail, Info, Plus, Camera, X, Gift, ChevronDown, ChevronUp, DollarSign, ExternalLink, Trash2, Loader2, Calendar, PartyPopper } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { showManualToast } from '../utils/notify';
 import { COMMS_CATEGORIES } from '../utils/commsCatalog';
@@ -69,6 +70,15 @@ const getInitialFormData = () => ({
   },
 });
 
+// "Cinematic" gift mark: the existing lucide Gift in a brand-gradient disc with a soft glow.
+function CinematicGiftIcon() {
+  return (
+    <span aria-hidden="true" data-testid="cinematic-gift-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, flexShrink: 0, borderRadius: '50%', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', boxShadow: '0 0 0 4px rgba(102,126,234,0.14), 0 6px 18px rgba(118,75,162,0.45)' }}>
+      <Gift size={22} style={{ color: '#fff' }} strokeWidth={2} />
+    </span>
+  );
+}
+
 export default function ContactForm({ contact, onSubmit, onCancel }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -76,11 +86,21 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
   const [selectedFaiths, setSelectedFaiths] = useState([]);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [culturalSectionExpanded, setCulturalSectionExpanded] = useState(false);
   const [secularExpanded, setSecularExpanded] = useState(false);
   const [faithSectionExpanded, setFaithSectionExpanded] = useState(false);
   const [giftModalOpen, setGiftModalOpen] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(0); // Track number of photos currently uploading
+  // SURFACE 2 (founder-approved — W05 progressive disclosure): Memory Photos and the per-occasion
+  // Gift & Delivery block were the two sections still always-expanded, crowding the basic
+  // add-contact task. Collapsed by default, same pattern as culturalSectionExpanded/secularExpanded/
+  // faithSectionExpanded above. No field removed — only disclosure timing changes.
+  const [memoryPhotosExpanded, setMemoryPhotosExpanded] = useState(false);
+  // FOUNDER 2026-10-01 (PROPOSED): the Special Occasions section is collapsed by default.
+  const [occasionsExpanded, setOccasionsExpanded] = useState(false);
+  useEffect(() => { if (errors && errors.occasions) setOccasionsExpanded(true); }, [errors]);
+  // FOUNDER round 4 (PROPOSED): the "Add gift" checkbox is a view of the SAME occasionGiftSettings data
+  // (checked <=> type !== 'none'); this map only remembers a just-ticked box whose mode is not chosen yet.
+  const [addGiftOn, setAddGiftOn] = useState({});
 
   // Phase 3D Batch B — B.4: three inline `window.innerWidth > 600` reads
   // (gridTemplateColumns at lines 445/525/590) recomputed on render but never
@@ -342,6 +362,56 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
     return formData.occasionGiftSettings?.[occasionValue] || { type: 'none', autoGift: false };
   };
 
+  const isAddGiftChecked = (occ) => (addGiftOn[occ] !== undefined ? addGiftOn[occ] : getOccasionGiftSetting(occ).type !== 'none');
+  // Unticking == choosing "None" in the old dropdown: the very same handleOccasionGiftChange(type, 'none').
+  const handleAddGiftToggle = (occ, on) => {
+    setAddGiftOn((prev) => ({ ...prev, [occ]: on }));
+    if (!on) handleOccasionGiftChange(occ, 'type', 'none');
+  };
+  // Annual-repeat claim only for occasions flagged yearly-repeating (helpers.js occasionTypes: every occasion
+  // repeats unless `recurring: false`, i.e. Graduation / Get Well are one-time).
+  const repeatsAnnually = (occ) => getOccasionCadenceLabel(occ) === 'Repeats yearly';
+  const renderAddGiftRow = (occ) => {
+    const gs = getOccasionGiftSetting(occ);
+    const checked = isAddGiftChecked(occ);
+    return (
+      <div data-testid={`add-gift-row-${occ}`} style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            <input
+              type="checkbox"
+              data-testid={`add-gift-${occ}`}
+              checked={checked}
+              onChange={(e) => handleAddGiftToggle(occ, e.target.checked)}
+              style={{ width: '1.125rem', height: '1.125rem', accentColor: '#8b5cf6' }}
+            />
+            <Gift size={16} style={{ color: '#059669' }} />
+            Add gift
+          </label>
+          <select
+            aria-label="Gift selector"
+            data-testid={`gift-selector-${occ}`}
+            disabled={!checked}
+            value={gs.type === 'none' ? '' : gs.type}
+            onChange={(e) => handleOccasionGiftChange(occ, 'type', e.target.value)}
+            style={{ flex: '1 1 10rem', minWidth: 0, maxWidth: '16rem', padding: '0.375rem 0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', fontSize: '0.8125rem', fontFamily: 'inherit', background: checked ? 'white' : 'var(--gray-100)', cursor: checked ? 'pointer' : 'not-allowed' }}
+          >
+            <option value="" disabled>Choose a gift...</option>
+            <option value="qrcash">QR Cash{'\u2122'}</option>
+            <option value="merch">Branded Goods</option>
+            <option value="curated">Let Greet-Me select a gift</option>
+            <option value="marketplace">Browse Marketplace</option>
+          </select>
+        </div>
+        {checked && repeatsAnnually(occ) && (
+          <small data-testid={`add-gift-repeat-${occ}`} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            Your gift selection will automatically repeat annually until changed.
+          </small>
+        )}
+      </div>
+    );
+  };
+
   const handleOccasionGiftChange = (occasionValue, field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -454,7 +524,16 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
 
   return (
     <>
-    <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+    <form ref={formRef} onSubmit={handleSubmit} className="gm-cf" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--gm-section-gap)', '--gm-section-gap': '1.5rem', '--gm-inner-gap': '1rem' }}>
+      {/* FOUNDER round 3 (PROPOSED): ONE section gap (1.5rem) and ONE inner gap (1rem), identical on desktop
+          and mobile. Child margins are neutralised so the rhythm is uniform; cards get a brand-token border
+          and depth. */}
+      <style>{`
+        .gm-cf > * { margin-top: 0 !important; margin-bottom: 0 !important; }
+        .gm-cf > div { border: 1px solid rgba(99,102,241,0.30) !important; box-shadow: 0 12px 28px -16px rgba(79,70,229,0.50), var(--shadow-sm) !important; }
+        .gm-cf > div[data-testid="gift-banner"] { border: 1px solid #d97706 !important; box-shadow: 0 10px 24px -14px rgba(180,83,9,0.55) !important; }
+        .gm-cf > div[data-testid="contact-form-footer"] { border: none !important; box-shadow: none !important; border-top: 1px solid rgba(99,102,241,0.30) !important; }
+      `}</style>
       {errors.submit && <Alert type="error" message={errors.submit} />}
 
       {/* Contact Information */}
@@ -622,7 +701,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           marginBottom: '1.25rem'
         }}>
           <Heart size={18} style={{ color: '#ec4899' }} fill="#ec4899" />
-          <span>Relation</span>
+          <span>Relationship Context</span>
         </h3>
 
         {/* 3 Cascading Relationship Dropdowns */}
@@ -742,6 +821,10 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               )}
               {formData.relationshipCategory === 'friend' && (
                 <>
+                  {/* W06 (PROPOSED, NOT APPLIED): "Friend" under Type=Friend duplicates the Type. Removing it must be
+                      done TOGETHER with completionModel.js (taxonomyLock.test.mjs requires ContactForm and the
+                      Import Wizard vocabularies to match exactly), so the option is kept here until the
+                      paired change is approved - see requests/T1A-completionModel.md. */}
                   <option value="best_friend">Best Friend</option>
                   <option value="close_friend">Close Friend</option>
                   <option value="friend">Friend</option>
@@ -826,21 +909,26 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         )}
       </div>
 
-      {/* Cultural & Personal Context - Collapsible Section */}
+      {/* FOUNDER 2026-10-01 (PROPOSED): the "Cultural & Personal Context" section is removed from the form.
+          NOT removed: formData.culturalContext (heritage, faith, preferCulturalGifts) is still initialised,
+          restored from drafts, loaded from the contact and submitted unchanged, because the backend PUT
+          writes `culturalContext || {}` and would blank stored values if the field were omitted. */}
+
+      {/* Memory Photos - Media Library Style - Collapsible (W05 progressive disclosure) */}
       <div style={{
-        marginTop: 'var(--space-lg)',
-        border: '2px solid #8b5cf6',
-        borderRadius: 'var(--radius-lg)',
-        overflow: 'hidden'
+        borderRadius: 'var(--radius-xl)',
+        border: '1px solid var(--border)',
+        overflow: 'hidden',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
       }}>
         {/* Header - Always Visible */}
         <button
           type="button"
-          onClick={() => setCulturalSectionExpanded(!culturalSectionExpanded)}
+          onClick={() => setMemoryPhotosExpanded(!memoryPhotosExpanded)}
           style={{
             width: '100%',
-            padding: 'var(--space-md)',
-            background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+            padding: '1.25rem 1.5rem',
+            background: 'linear-gradient(135deg, #eef2ff 0%, #fdf2f8 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -848,244 +936,44 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
             cursor: 'pointer',
             transition: 'all 0.2s'
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)';
-          }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Heart size={20} style={{ color: 'white' }} />
-            <div style={{ textAlign: 'left' }}>
-              <h3 style={{
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+            <Camera size={18} style={{ color: 'var(--primary-dark)', flexShrink: 0 }} />
+            <div style={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
+              <h3 data-testid="moments-heading" style={{
                 fontSize: '1rem',
                 fontWeight: 700,
-                color: 'white',
-                margin: 0
+                color: 'var(--gray-900)',
+                margin: 0,
+                whiteSpace: 'normal',
+                overflowWrap: 'anywhere',
+                wordBreak: 'normal'
               }}>
-                Cultural & Personal Context
+                MOMENTS : ADD IMAGES TO MAKE YOUR GREET-ME UNFORGETTABLE
               </h3>
-              <p style={{
-                fontSize: '0.75rem',
-                color: 'rgba(255, 255, 255, 0.9)',
-                margin: 0
-              }}>
-                Helps personalize messages and gift suggestions more thoughtfully
-              </p>
             </div>
           </div>
-          {culturalSectionExpanded ? (
-            <ChevronUp size={20} style={{ color: 'white' }} />
+          {memoryPhotosExpanded ? (
+            <ChevronUp size={20} style={{ color: 'var(--primary-dark)', flexShrink: 0 }} />
           ) : (
-            <ChevronDown size={20} style={{ color: 'white' }} />
+            <ChevronDown size={20} style={{ color: 'var(--primary-dark)', flexShrink: 0 }} />
           )}
         </button>
 
         {/* Collapsible Content */}
-        {culturalSectionExpanded && (
-          <div style={{
-            padding: 'var(--space-lg)',
-            background: 'var(--bg-primary)',
-            borderTop: '1px solid rgba(139, 92, 246, 0.2)'
-          }}>
-            {/* Cultural / Heritage */}
-            <div style={{ marginBottom: 'var(--space-lg)' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                marginBottom: 'var(--space-xs)'
-              }}>
-                Cultural / Heritage (Optional)
-              </label>
-              <p style={{
-                fontSize: '0.75rem',
-                color: 'var(--text-secondary)',
-                marginBottom: 'var(--space-sm)'
-              }}>
-                Select cultural backgrounds that are meaningful to this person
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                {['Italian', 'Jewish', 'Hispanic', 'Indian', 'Chinese', 'Irish', 'German', 'African', 'Korean', 'Japanese', 'Polish', 'Greek', 'Vietnamese', 'Filipino', 'Other'].map(heritage => {
-                  const isSelected = formData.culturalContext?.heritage?.includes(heritage);
-                  return (
-                    <button
-                      key={heritage}
-                      type="button"
-                      onClick={() => {
-                        setFormData(prev => ({
-                          ...prev,
-                          culturalContext: {
-                            ...prev.culturalContext,
-                            heritage: isSelected
-                              ? prev.culturalContext.heritage.filter(h => h !== heritage)
-                              : [...prev.culturalContext.heritage, heritage]
-                          }
-                        }));
-                      }}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        borderRadius: '9999px',
-                        border: isSelected ? '2px solid #8b5cf6' : '2px solid #e5e7eb',
-                        background: isSelected ? '#f3e8ff' : 'white',
-                        color: isSelected ? '#7c3aed' : '#6b7280',
-                        fontSize: '0.875rem',
-                        fontWeight: isSelected ? 600 : 500,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.borderColor = '#d1d5db';
-                          e.currentTarget.style.background = '#f9fafb';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.borderColor = '#e5e7eb';
-                          e.currentTarget.style.background = 'white';
-                        }
-                      }}
-                    >
-                      {heritage}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Faith / Observance */}
-            <div style={{ marginBottom: 'var(--space-lg)' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                marginBottom: 'var(--space-xs)'
-              }}>
-                Faith / Observance (Optional)
-              </label>
-              <p style={{
-                fontSize: '0.75rem',
-                color: 'var(--text-secondary)',
-                marginBottom: 'var(--space-sm)'
-              }}>
-                Helps us respect traditions and suggest appropriate occasions
-              </p>
-              <select
-                value={formData.culturalContext?.faith || ''}
-                onChange={(e) => {
-                  setFormData(prev => ({
-                    ...prev,
-                    culturalContext: {
-                      ...prev.culturalContext,
-                      faith: e.target.value || null
-                    }
-                  }));
-                }}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 1rem',
-                  fontSize: '1rem',
-                  border: '2px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'white',
-                  fontFamily: 'inherit'
-                }}
-              >
-                <option value="">Prefer not to say</option>
-                <option value="christian">Christian</option>
-                <option value="jewish">Jewish</option>
-                <option value="muslim">Muslim</option>
-                <option value="hindu">Hindu</option>
-                <option value="buddhist">Buddhist</option>
-                <option value="secular">Secular / Non-religious</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-
-            {/* Prefer Culturally-Inspired Gifts */}
-            <div style={{
-              padding: 'var(--space-md)',
-              background: '#faf5ff',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid #e9d5ff'
-            }}>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                cursor: 'pointer',
-                gap: '0.75rem'
-              }}>
-                <input
-                  type="checkbox"
-                  checked={formData.culturalContext?.preferCulturalGifts || false}
-                  onChange={(e) => {
-                    setFormData(prev => ({
-                      ...prev,
-                      culturalContext: {
-                        ...prev.culturalContext,
-                        preferCulturalGifts: e.target.checked
-                      }
-                    }));
-                  }}
-                  style={{
-                    width: '1.125rem',
-                    height: '1.125rem',
-                    accentColor: '#8b5cf6',
-                    cursor: 'pointer'
-                  }}
-                />
-                <div>
-                  <span style={{
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    color: 'var(--text-primary)'
-                  }}>
-                    Prefer culturally-inspired gifts when available
-                  </span>
-                  <p style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--text-secondary)',
-                    margin: '0.25rem 0 0 0'
-                  }}>
-                    We'll prioritize gifts that honor their cultural background
-                  </p>
-                </div>
-              </label>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Memory Photos - Media Library Style */}
-      <div style={{
-        background: 'var(--bg-primary)',
-        borderRadius: 'var(--radius-xl)',
-        border: '1px solid var(--border)',
-        padding: '1.25rem 1.5rem',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-      }}>
-        <h3 style={{
-          fontSize: '1rem',
-          fontWeight: 600,
-          color: 'var(--text-primary)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          marginBottom: '0.5rem'
+        {memoryPhotosExpanded && (
+        <div style={{
+          padding: '1.25rem 1.5rem',
+          background: 'var(--bg-primary)',
+          borderTop: '1px solid var(--border)',
+          overflowWrap: 'anywhere'
         }}>
-          <Camera size={18} style={{ color: '#3b82f6' }} />
-          <span>Photos</span>
-        </h3>
         <p style={{
           fontSize: '0.8125rem',
           color: 'var(--text-secondary)',
           marginBottom: '1rem'
         }}>
-          Add photos for this recipient. The first photo becomes the default.
+          Add images below. These images will be presented inside your sent Greet-Me.
         </p>
 
         {/* Default Photo (user's greeting photo) */}
@@ -1102,7 +990,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           {user?.photoUrl ? (
             <img
               src={user.photoUrl}
-              alt="Default Photo"
+              alt="Profile Photo"
               style={{
                 width: '48px',
                 height: '48px',
@@ -1128,7 +1016,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           )}
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-              Default Photo
+              Profile Photo
             </p>
             {user?.photoUrl ? (
               <p style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '0.125rem 0 0 0' }}>
@@ -1178,7 +1066,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
               }}>
                 <img
                   src={formData.avatar}
-                  alt="Default Photo"
+                  alt="Profile Photo"
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -1189,7 +1077,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                     cursor: 'pointer'
                   }}
                   onClick={() => window.open(formData.avatar, '_blank')}
-                  title="Default photo - Click to enlarge"
+                  title="Profile photo - Click to enlarge"
                 />
                 {/* Default badge */}
                 <div style={{
@@ -1439,46 +1327,32 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         }}>
           {(formData.avatar ? 1 : 0) + formData.memoryPhotos.length} photo{((formData.avatar ? 1 : 0) + formData.memoryPhotos.length) !== 1 ? 's' : ''} • Max 5MB each • Click to enlarge
         </p>
-      </div>
-
-      {/* Gift Reminder Banner - Moved below Memory Photos - informational only, no CTA.
-          A "Add Gift" button used to sit here and open GiftSelectorModal, duplicating the
-          inline "Gift Add-On" picker already on every occasion card below (and offering a
-          narrower option set than that picker). Removed per founder-approved brief: this
-          banner should explain, not navigate. */}
-      <div style={{
-        marginTop: '1rem',
-        padding: '0.875rem 1rem',
-        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-        borderRadius: 'var(--radius-lg)',
-        border: '1px solid #fbbf24',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem'
-      }}>
-        <Gift size={20} style={{ color: '#d97706', flexShrink: 0 }} />
-        <div>
-          <p style={{
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            color: '#78350f',
-            margin: 0
-          }}>
-            Gifts are configured per occasion
-          </p>
-          <p style={{
-            fontSize: '0.75rem',
-            color: '#92400e',
-            margin: '0.125rem 0 0 0'
-          }}>
-            Select an occasion below and use its "Gift Add-On" option to attach a gift — no separate step needed.
-          </p>
         </div>
+        )}
       </div>
 
       {/* Occasions */}
       <div className="card space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Special Occasions</h3>
+        {/* FOUNDER 2026-10-01 round 2 (PROPOSED): header renamed "Occasion Scheduler"; typography centred;
+            "GIFTS ARE CONFIGURED" shown, with a gift icon on both sides, ONLY when at least one selected
+            occasion has a gift configured (assumption stated in render-review/surface2.md). */}
+        <button
+          type="button"
+          data-testid="special-occasions-toggle"
+          aria-expanded={occasionsExpanded}
+          onClick={() => setOccasionsExpanded((v) => !v)}
+          style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #eef2ff 0%, #fdf2f8 100%)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 'var(--radius-lg)', cursor: 'pointer', padding: 'var(--gm-inner-gap, 1rem)', fontFamily: 'inherit' }}
+        >
+          <span aria-hidden="true" data-testid="scheduler-festive-icons" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: 'var(--primary-dark)' }}>
+            <Calendar size={22} /><PartyPopper size={26} style={{ color: 'var(--accent)' }} /><Heart size={22} fill="currentColor" style={{ color: 'var(--accent)' }} />
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+            <h3 data-testid="special-occasions-heading" className="text-lg font-semibold" style={{ textAlign: 'center', margin: 0, color: 'var(--gray-900)' }}>Occasion Scheduler</h3>
+            {occasionsExpanded ? <ChevronUp size={20} style={{ color: 'var(--primary-dark)', flexShrink: 0 }} /> : <ChevronDown size={20} style={{ color: 'var(--primary-dark)', flexShrink: 0 }} />}
+          </span>
+          <span data-testid="scheduler-subtext" style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--primary-dark)', textAlign: 'center' }}>Schedule the love!</span>
+        </button>
+        {occasionsExpanded && (<>
 
         {/* Guardrail text */}
         <p style={{
@@ -1529,7 +1403,15 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                         style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
                       >
                         <span style={{ fontSize: '1.5rem' }}>{occasion.icon}</span>
-                        <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{occasion.label}</span>
+                        <span style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{occasion.label}</span>
+                          {/* SURFACE 2 W04/W06 — occasion distinct from cadence, e.g. "Repeats yearly"
+                              vs "One-time". Reads the real `recurring` flag already on occasionTypes
+                              instead of leaving cadence implicit. */}
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>
+                            {getOccasionCadenceLabel(occasion.value)}
+                          </span>
+                        </span>
                       </label>
                     </div>
 
@@ -1551,38 +1433,20 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                     )}
                   </div>
 
-                  {/* Gift Add-On Section - only show when occasion is selected */}
+                  {/* FOUNDER round 4: the "Gift & Delivery" label and its icon were removed. The section is just the
+                      "Add gift" row (checkbox + selector + repeat note) plus the existing Delivery Details block that
+                      appears below it for gift types that ship a parcel. */}
+
+                  {isSelected && (
+                    <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--border)' }}>
+
                   {isSelected && (
                     <div style={{
-                      marginTop: '0.75rem',
-                      paddingTop: '0.75rem',
-                      borderTop: '1px dashed var(--border)'
+                      marginTop: '0.75rem'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-                        {/* Gift Add-On dropdown */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <Gift size={16} style={{ color: '#10b981' }} />
-                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Gift Add-On:</span>
-                          <select
-                            value={giftSetting.type}
-                            onChange={(e) => handleOccasionGiftChange(occasion.value, 'type', e.target.value)}
-                            style={{
-                              padding: '0.375rem 0.625rem',
-                              border: '1px solid var(--border)',
-                              borderRadius: 'var(--radius-md)',
-                              fontSize: '0.8125rem',
-                              fontFamily: 'inherit',
-                              background: 'white',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <option value="none">None</option>
-                            <option value="qrcash">QR Cash™</option>
-                            <option value="merch">Branded Goods</option>
-                            <option value="curated">Let Greet-Me select a gift</option>
-                            <option value="marketplace">Browse Marketplace</option>
-                          </select>
-                        </div>
+                        {/* FOUNDER round 4: "Add gift" checkbox + the existing gift selector (replaces the Gift Add-On: None dropdown) */}
+                        {renderAddGiftRow(occasion.value)}
 
                         {/* Curated gift max spend selector */}
                         {giftSetting.type === 'curated' && (
@@ -1909,6 +1773,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                       )}
                     </div>
                   )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -2087,30 +1953,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                       borderTop: '1px dashed var(--border)'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-                        {/* Gift Add-On dropdown */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <Gift size={16} style={{ color: '#10b981' }} />
-                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Gift Add-On:</span>
-                          <select
-                            value={giftSetting.type}
-                            onChange={(e) => handleOccasionGiftChange(occasion.value, 'type', e.target.value)}
-                            style={{
-                              padding: '0.375rem 0.625rem',
-                              border: '1px solid var(--border)',
-                              borderRadius: 'var(--radius-md)',
-                              fontSize: '0.8125rem',
-                              fontFamily: 'inherit',
-                              background: 'white',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <option value="none">None</option>
-                            <option value="qrcash">QR Cash™</option>
-                            <option value="merch">Branded Goods</option>
-                            <option value="curated">Let Greet-Me select a gift</option>
-                            <option value="marketplace">Browse Marketplace</option>
-                          </select>
-                        </div>
+                        {/* FOUNDER round 4: "Add gift" checkbox + the existing gift selector (replaces the Gift Add-On: None dropdown) */}
+                        {renderAddGiftRow(occasion.value)}
 
                         {/* Curated gift max spend selector */}
                         {giftSetting.type === 'curated' && (
@@ -3004,11 +2848,55 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           </div>
         )}
 
+        </>)}
+
         {errors.occasions && <p className="mt-2 text-sm text-red-500">{errors.occasions}</p>}
       </div>
 
+      {/* Gift Reminder Banner - FOUNDER round 3: now BELOW the Occasion Scheduler; copy changed - informational only, no CTA.
+          A "Add Gift" button used to sit here and open GiftSelectorModal, duplicating the
+          inline "Gift Add-On" picker already on every occasion card below (and offering a
+          narrower option set than that picker). Removed per founder-approved brief: this
+          banner should explain, not navigate.
+          Claims in the copy verified in this file: "Greet-Me Gift Place" = the per-occasion "Choose Item" button
+          (navigate to /dashboard/merch, which redirects to /dashboard/gifts); "let Greet-Me select one for you
+          within your budget" = the "Let Greet-Me select a gift" option with its $25/$50/$75/$100/$150 Max selector. */}
+      <div data-testid="gift-banner" style={{
+        padding: 'var(--gm-inner-gap, 1rem)',
+        background: 'linear-gradient(135deg, #fffbeb 0%, #fde68a 100%)',
+        borderRadius: 'var(--radius-lg)',
+        border: '1px solid #d97706',
+        boxShadow: '0 10px 24px -14px rgba(180,83,9,0.55)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 'var(--gm-inner-gap, 1rem)'
+      }}>
+        <CinematicGiftIcon />
+        <div style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', overflowWrap: 'anywhere' }}>
+          <p style={{
+            fontSize: '0.9375rem',
+            fontWeight: 700,
+            color: '#78350f',
+            margin: 0,
+            textAlign: 'center'
+          }}>
+            Remember to Include a gift
+          </p>
+          <p style={{
+            fontSize: '0.8125rem',
+            color: '#78350f',
+            margin: '0.25rem 0 0 0',
+            textAlign: 'center'
+          }}>
+            Complete the moment with the thoughtful gift from the Greet-Me Gift Place. OR let Greet-Me select one for you within your budget.
+          </p>
+        </div>
+        <CinematicGiftIcon />
+      </div>
+
       {/* Actions */}
-      <div className="flex justify-end space-x-3 pt-4">
+      <div data-testid="contact-form-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', paddingTop: 'var(--gm-section-gap)', paddingBottom: '0.5rem' }}>
         <button
           type="button"
           onClick={onCancel}
@@ -3019,9 +2907,10 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
         <button
           type="submit"
           className="btn-primary px-8 py-3 font-semibold disabled:opacity-50"
+          style={{ background: 'var(--primary-dark)', color: '#fff', boxShadow: '0 8px 20px -8px rgba(79,70,229,0.7)' }}
           disabled={submitting || uploadingPhotos > 0}
         >
-          {submitting ? 'Saving...' : uploadingPhotos > 0 ? 'Uploading photos...' : contact ? 'Update Recipient' : 'Add Recipient'}
+          {submitting ? 'Saving...' : uploadingPhotos > 0 ? 'Uploading photos...' : contact ? 'Update Recipient' : 'Save'}
         </button>
       </div>
     </form>

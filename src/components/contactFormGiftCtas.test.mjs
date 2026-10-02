@@ -31,9 +31,12 @@ const slice = (startNeedle, endNeedle, label) => {
 // 1. The gift reminder banner: informational only, no competing CTA
 // ===========================================================================
 
+// FOUNDER round 3 (Surface 2 proposal): the banner moved BELOW the Occasion Scheduler card, so its slice now
+// ends at the footer ("{/* Actions */}") instead of the start of the Occasions card. The "no button / no
+// Add Gift / no modal" assertions below are unchanged and still run against the real banner markup.
 const BANNER = slice(
   "{/* Gift Reminder Banner",
-  "{/* Occasions */}",
+  "{/* Actions */}",
   "gift reminder banner",
 );
 
@@ -46,9 +49,16 @@ test("the banner no longer opens GiftSelectorModal or any 'Add Gift' button", ()
   assert.equal(/<button/i.test(bannerCode), false, "the banner renders no button at all — purely informational");
 });
 
-test("the banner's copy is informational and points at the inline per-occasion Gift Add-On picker", () => {
-  assert.match(BANNER, /Gifts are configured per occasion/);
-  assert.match(BANNER, /Gift Add-On/, "must name the actual control the sender should use instead");
+test("the banner's copy is informational and points at the real gift routes (Gift Place or Greet-Me select)", () => {
+  // Copy replaced by the founder (2026-10-01). Intent kept: informational, and it must point at controls that exist.
+  assert.match(BANNER, /Remember to Include a gift/);
+  assert.match(BANNER, /Greet-Me Gift Place/, "names the Gift Place route (per-occasion Choose Item -> /dashboard/gifts)");
+  assert.match(BANNER, /let Greet-Me select one for you within your budget/, "names the curated-select route (Max $25-$150)");
+  assert.match(CF, /<option value="curated">Let Greet-Me select a gift<\/option>/, "the control the copy refers to exists");
+});
+test("the banner now sits after the Occasions card and before the footer", () => {
+  assert.ok(CF.indexOf("{/* Gift Reminder Banner") > CF.indexOf("{/* Occasions */}"));
+  assert.ok(CF.indexOf("{/* Gift Reminder Banner") < CF.indexOf("{/* Actions */}"));
 });
 
 test("giftModalOpen state and the GiftSelectorModal instantiation still exist elsewhere (not deleted, just disconnected from the banner)", () => {
@@ -151,4 +161,17 @@ test("getOccasionGiftSetting/handleOccasionGiftChange contain no category allowl
   // Confirms the actual lookup shape: a plain bracket-keyed read/write, nothing more.
   assert.match(fns, /formData\.occasionGiftSettings\?\.\[occasionValue\]/);
   assert.match(fns, /occasionGiftSettings: \{[\s\S]*?\[occasionValue\]: \{/);
+});
+
+// ===========================================================================
+// FOUNDER round 4 (Surface 2 proposal): per-card "Add gift" checkbox replaces the None dropdown. It is the
+// card's OWN gift control - it must not become a second "Add Gift" button.
+// ===========================================================================
+test("the per-card 'Add gift' control is a checkbox, not a button; still no Add Gift CTA anywhere", () => {
+  const code = codeOnly(CF);
+  const row = code.slice(code.indexOf("const renderAddGiftRow"), code.indexOf("const handleOccasionGiftChange"));
+  assert.match(row, /type="checkbox"/);
+  assert.equal(/<button/i.test(row), false, "no button inside the Add gift row");
+  assert.equal(/>\s*Add Gift\s*</.test(code), false, "no Add Gift button label anywhere");
+  assert.equal(/setGiftModalOpen\(true\)/.test(code), false, "GiftSelectorModal still never opened from a CTA");
 });
