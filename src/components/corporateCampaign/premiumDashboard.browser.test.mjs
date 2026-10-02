@@ -103,22 +103,32 @@ test("E5: the info control reveals what the campaign will do, and hides it again
     { audienceRefs: ["e1", "e2"], deliveryConfig: { scheduleMode: "contact_saved_date", occasionType: "birthday" } },
     { isOwner: true },
   ));
-  assert.equal(s.tid("card-info-panel-cmp_1"), null, "closed until asked for");
+  // INVARIANT (original): the "what will this campaign do" panel is NOT on screen until asked for,
+  // it answers the recurrence question outright, and it can be put away again.
+  // PR#22 (founder-approved) replaced the (i) toggle with the Overview tab of the campaign dialog:
+  // "asked for" = opening the campaign, "put away" = leaving the Overview tab / closing it.
+  const closed = await mount(cardEl(
+    { audienceRefs: ["e1", "e2"], deliveryConfig: { scheduleMode: "contact_saved_date", occasionType: "birthday" } },
+    { isOwner: true, expanded: false },
+  ));
+  assert.equal(closed.tid("card-info-panel-cmp_1"), null, "closed until the campaign is opened");
 
-  await click(s.tid("card-info-cmp_1"));
   const panel = s.tid("card-info-panel-cmp_1");
-  assert.ok(panel, "the panel opened");
-  assert.equal(s.tid("card-info-cmp_1").getAttribute("aria-expanded"), "true");
+  assert.ok(panel, "the panel is there once the campaign is open");
+  assert.equal(s.tid("tab-overview-cmp_1").hidden, false, "and visible on the Overview tab");
+  assert.equal(s.tid("card-tab-overview-cmp_1").getAttribute("aria-selected"), "true");
   assert.match(panel.textContent, /every year/i, "the recurrence question is answered outright");
   assert.match(panel.textContent, /2 contacts/);
 
-  await click(s.tid("card-info-cmp_1"));
-  assert.equal(s.tid("card-info-panel-cmp_1"), null, "and closes again");
+  await click(s.tid("card-tab-recipients-cmp_1"));
+  assert.equal(s.tid("tab-overview-cmp_1").hidden, true, "and put away again when another tab is chosen");
+  await click(s.tid("card-tab-overview-cmp_1"));
+  assert.equal(s.tid("tab-overview-cmp_1").hidden, false, "and back on demand");
 });
 
 test("E5: the panel describes the DRAFT, so it answers what saving would do", async () => {
   const s = await mount(cardEl({ audienceRefs: [], deliveryConfig: { scheduleMode: "campaign_date" } }, { isOwner: true }));
-  await click(s.tid("card-info-cmp_1"));
+  // (the panel is always present in the open campaign's Overview tab; no toggle to click any more)
   assert.match(s.tid("card-info-who-cmp_1").textContent, /nobody yet/i);
 
   // Tick a category — nothing is saved, but the summary must already reflect the intent.
@@ -129,12 +139,20 @@ test("E5: the panel describes the DRAFT, so it answers what saving would do", as
 test("E5: the info control is a fixed circle the global button rule cannot inflate", async () => {
   // src/index.css sets padding on the `button` ELEMENT and a 48px min-height on mobile. A
   // fixed-size icon button has to override that inline or it becomes an oval, then a block.
-  const s = await mount(cardEl());
-  assert.equal(s.tid("card-info-cmp_1").style.padding, "0px", "padding is neutralised inline");
+  // INVARIANT (original): a FIXED-SIZE ICON button on this surface neutralises the global button
+  // padding inline and gets its fixed size from the stylesheet, so it stays a circle/square.
+  // The (i) button no longer exists (PR#22); the fixed-size icon buttons that remain on the card
+  // are the rename pencil and the remove (bin) control. The text buttons (Open campaign, Save,
+  // Cancel) are intentionally padded and are not icon controls.
+  const s = await mount(cardEl({}, { isOwner: true, expanded: false }));
+  for (const t of ["card-rename-cmp_1", "card-remove-cmp_1"]) {
+    assert.equal(s.tid(t).style.padding, "0px", `${t}: padding is neutralised inline`);
+  }
   const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
-  const block = css.slice(css.indexOf(".gcd-info-btn {"), css.indexOf("}", css.indexOf(".gcd-info-btn {")));
-  assert.match(block, /width:\s*26px/);
-  assert.match(block, /height:\s*26px/);
+  const block = css.slice(css.indexOf(".gcd-pencil, .gcd-expand {"), css.indexOf("}", css.indexOf(".gcd-pencil, .gcd-expand {")));
+  assert.match(block, /width:\s*30px/);
+  assert.match(block, /height:\s*30px/);
+  for (const t of ["card-rename-cmp_1", "card-remove-cmp_1"]) assert.match(s.tid(t).className, /\bgcd-pencil\b/, `${t} takes its size from the fixed-size rule`);
 });
 
 // ══ SLICE E5 — the seasonal nudge ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -535,12 +553,18 @@ test("F1: the actions follow the configuration, and there is exactly one rail", 
   const s = await mount(cardEl());
   const rail = s.tid("card-footer-cmp_1");
   assert.ok(rail, "the rail exists");
+  // PR#22: the rail is the dialog's sticky footer (`.gcd-modal-foot`, testid card-footer-*), the
+  // banner is the dialog's sticky head (`.gcd-modal-head`), and the three selectors live in tabs.
   const order = (el) => [...s.host.querySelectorAll("*")].indexOf(el);
-  assert.ok(order(s.q(".gcd-tile-head")) < order(rail), "after the header/banner");
-  assert.ok(order(s.tid("card-selectors-cmp_1")) < order(rail), "after the three selectors");
+  assert.ok(order(s.q(".gcd-modal-head")) < order(rail), "after the header/banner");
+  for (const k of ["audience", "gift", "spread"]) {
+    assert.ok(order(s.tid(`selector-${k}-cmp_1`)) < order(rail), `after the ${k} selector`);
+  }
   assert.ok(order(s.tid("c-cmp_1-schedule")) < order(rail), "after the schedule");
-  assert.equal(s.qa(".gcd-actions").length, 1, "one rail per card");
+  assert.equal(s.qa("[data-testid^='card-footer-']").length, 1, "one rail per card");
+  assert.equal(s.qa(".gcd-modal-foot").length, 1, "one rail element per card");
   assert.equal(s.qa(".gcd-footer").length, 0, "no duplicate footer");
+  assert.equal(rail.parentElement.lastElementChild, rail, "the rail is the last thing in the dialog");
 });
 
 
@@ -607,23 +631,30 @@ test("R: mobile wraps the six actions compactly, with no horizontal scrolling st
 // ══ SLICE D — sticky rail identity ══════════════════════════════════════════════════════════
 test("F1C: the rail names its campaign, and no longer prints a lifecycle word", async () => {
   const s = await mount(cardEl({ name: "Season’s Greetings", approvalStatus: "approved" }));
-  const ctx = s.tid("rail-context-cmp_1");
+  // INVARIANT (original): while a reader acts (Save/Cancel), the surface NAMES the campaign being
+  // acted on, and that identity carries no lifecycle word. PR#22: the identity is the dialog's
+  // sticky head title (h2), tied to the dialog by aria-labelledby, and the action rail's accessible
+  // group name repeats it.
+  const ctx = s.q(".gcd-modal-head .gcd-modal-title");
   assert.equal(ctx.textContent.replace(/\s+/g, " ").trim(), "Season’s Greetings");
-  assert.equal(ctx.getAttribute("title"), "Season’s Greetings");
-  assert.equal(/Approved|Locked|Scheduled/.test(ctx.textContent), false, "no lifecycle word");
+  assert.equal(s.q('[role="dialog"]').getAttribute("aria-labelledby"), ctx.id, "the dialog is named by that title");
+  assert.match(s.tid("card-footer-cmp_1").getAttribute("aria-label"), /^Actions for Season’s Greetings/);
+  assert.equal(/Approved|Locked|Scheduled/.test(ctx.textContent), false, "no lifecycle word in the identity");
 });
 
 
 test("F1C: two campaigns produce two DISTINCT rail identities", async () => {
   const a = await mount(cardEl({ name: "Season’s Greetings" }));
-  assert.equal(a.tid("rail-context-cmp_1").textContent.trim(), "Season’s Greetings");
+  assert.equal(a.q(".gcd-modal-title").textContent.trim(), "Season’s Greetings");
   const other = { ...campaign({ name: "Client Birthdays" }), campaignId: "cmp_2" };
   const b = await mount(React.createElement(CampaignCard, {
     campaign: other, contacts: CONTACTS, orgId: "org1", client: fakeClient, isOwner: false, busy: false,
     onOpenIndividualPicker: () => {}, onAfterMutate: async () => {}, expanded: true, onToggleExpanded: () => {},
   }));
-  assert.equal(b.tid("rail-context-cmp_2").textContent.trim(), "Client Birthdays");
-  assert.equal(a.tid("rail-context-cmp_2"), null, "keyed by campaign id");
+  assert.equal(b.q(".gcd-modal-title").textContent.trim(), "Client Birthdays");
+  assert.equal(b.tid("card-footer-cmp_2").getAttribute("aria-label").startsWith("Actions for Client Birthdays"), true, "the rail follows its own campaign");
+  assert.equal(a.tid("card-footer-cmp_2"), null, "keyed by campaign id");
+  assert.notEqual(a.q(".gcd-modal-title").textContent.trim(), b.q(".gcd-modal-title").textContent.trim(), "two distinct identities");
 });
 
 
@@ -632,9 +663,11 @@ test("F1: the rail identity is not itself an action", async () => {
   const rail = s.tid("card-footer-cmp_1");
   const acts = s.qa("[data-testid^='act-']");
   assert.ok(acts.length >= 2, "at least Save and Cancel");
-  assert.equal(rail.querySelectorAll("button").length, acts.length, "the identity is not a button");
-  assert.equal(s.tid("rail-context-cmp_1").tagName, "SPAN");
-  assert.equal(s.qa("[data-testid^='rail-context-']").length, 1, "one identity per rail");
+  assert.equal(rail.querySelectorAll("button").length, acts.length, "the rail has no button besides its actions (no identity button)");
+  const title = s.q(".gcd-modal-head .gcd-modal-title");
+  assert.equal(title.tagName, "H2", "the identity is a heading");
+  assert.equal(title.querySelector("a, button"), null, "the identity is not itself an action");
+  assert.equal(s.qa(".gcd-modal-title").length, 1, "one identity per dialog");
   assert.equal(s.tid("card-toggle-cmp_1").tagName, "INPUT", "the switch is a checkbox, not a button");
 });
 
@@ -805,11 +838,20 @@ test("E5: No gift is the default and the first option offered", async () => {
 test("F1C: a very long name truncates rather than overflowing", async () => {
   const long = "Q4 Global Client Appreciation and Partner Recognition Programme for the Americas Region";
   const s = await mount(cardEl({ name: long }));
-  assert.equal(s.tid("rail-context-cmp_1").getAttribute("title"), long, "the full name stays accessible");
+  // INVARIANT (original): a very long name TRUNCATES in the compact place it is shown rather than
+  // overflowing, and the FULL name stays accessible. PR#22: the compact place is the row heading;
+  // the full name is the complete text of that heading (for assistive tech) and of the dialog title.
+  const rowTitle = s.tid("card-title-cmp_1");
+  assert.equal(rowTitle.textContent, long, "the full name stays in the row heading's text");
+  assert.equal(s.q(".gcd-modal-title").textContent, long, "and the dialog title shows it in full");
   const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
-  const name = css.slice(css.indexOf(".gcd-actions-id-name {"), css.indexOf("}", css.indexOf(".gcd-actions-id-name {")));
+  // every top-level rule for exactly this selector (line-anchored, so descendant rules do not match)
+  const ruleOf = (sel) => [...css.matchAll(new RegExp(`^${sel.replace(/\./g, "\\.")} \\{[^}]*\\}`, "gm"))].map((m) => m[0]).join("\n");
+  const name = ruleOf(".gcd-card-name");
   assert.match(name, /text-overflow:\s*ellipsis/);
   assert.match(name, /white-space:\s*nowrap/);
+  assert.match(name, /min-width:\s*0/);
+  assert.doesNotMatch(ruleOf(".gcd-modal-title"), /nowrap|ellipsis/, "the dialog title never truncates");
 });
 
 test("I: the identity changed nothing about state, APIs, models, or scroll height", () => {
@@ -957,7 +999,7 @@ test("F1C: a collapsed tile shows its title and controls, and none of the config
   assert.equal(s.tid("card-title-cmp_1").textContent, "Season\u2019s Greetings");
   assert.ok(s.tid("card-next-cmp_1"), "concise next-step guidance");
   assert.ok(s.tid("card-rename-cmp_1"), "edit pencil beside the title");
-  assert.ok(s.tid("card-expand-cmp_1"), "expansion control");
+  assert.ok(s.tid("card-open-cmp_1"), "open-campaign control (PR#22 successor of the expander)");
   assert.ok(s.tid("card-toggle-cmp_1"), "one enable toggle");
   // SLICE F1C — the lifecycle ceremony is no longer on the surface.
   assert.equal(s.tid("card-status-cmp_1"), null, "no Approved chip");
@@ -965,8 +1007,10 @@ test("F1C: a collapsed tile shows its title and controls, and none of the config
   assert.equal(s.tid("card-toggle-label-cmp_1"), null, "no visible On/Off text");
   // Collapsed means collapsed.
   assert.equal(s.tid("card-selectors-cmp_1"), null);
+  for (const k of ["audience", "gift", "spread"]) assert.equal(s.tid(`selector-${k}-cmp_1`), null, `${k} selector is not rendered while collapsed`);
   assert.equal(s.tid("c-cmp_1-schedule"), null);
   assert.equal(s.tid("card-footer-cmp_1"), null);
+  assert.equal(s.qa('[role="dialog"]').length, 0, "no dialog while collapsed");
 });
 
 test("F1: the title is a HEADING, not a link to another screen", async () => {
@@ -981,18 +1025,32 @@ test("F1: the title is a HEADING, not a link to another screen", async () => {
 
 test("F1: the expand control is accessible and names its campaign", async () => {
   const s = await mount(collapsed({ name: "Client Appreciation" }));
-  const btn = s.tid("card-expand-cmp_1");
+  // INVARIANT (original): the control that opens a campaign is a native, keyboard-operable button,
+  // announces its open/closed state, names its campaign, and is not distorted by the global
+  // button rule. PR#22: it is a labelled TEXT button ("Open campaign") that opens a dialog, so
+  // aria-haspopup="dialog" + aria-expanded replace aria-controls (the dialog does not exist while
+  // closed, so an aria-controls pointing at it would dangle), and its padding comes from the
+  // intended .gcd-btn rule rather than being an inline reset for a fixed-size icon.
+  const btn = s.tid("card-open-cmp_1");
   assert.equal(btn.getAttribute("aria-expanded"), "false");
-  assert.equal(btn.getAttribute("aria-controls"), "c-cmp_1-body");
-  assert.match(btn.getAttribute("aria-label"), /Expand Client Appreciation/);
+  assert.equal(btn.getAttribute("aria-haspopup"), "dialog");
+  assert.equal(btn.hasAttribute("aria-controls"), false);
+  assert.match(btn.getAttribute("aria-label"), /Open Client Appreciation/);
   assert.equal(btn.tagName, "BUTTON", "keyboard-operable natively");
-  assert.equal(btn.style.padding, "0px", "the global button padding is neutralised inline");
+  const css = readFileSync(new URL("./premiumDashboard.css", import.meta.url), "utf8");
+  const at = css.indexOf(".gcd-btn {");
+  assert.match(css.slice(at, css.indexOf("}", at)), /padding:/, "its padding is defined by the surface's own rule");
+  const open = await mount(cardEl({ name: "Client Appreciation" }));
+  assert.equal(open.tid("card-open-cmp_1").getAttribute("aria-expanded"), "true", "announces the open state");
+  assert.ok(open.q('[role="dialog"]'), "and the dialog it controls exists only while open");
 });
 
 test("F1C: expanding shows the banner and three complete cards", async () => {
   const s = await mount(cardEl({ name: "Vendor Appreciation" }));
-  assert.ok(s.q(".gcd-tile-head--banner"), "the header becomes a full-width banner");
-  assert.equal(s.tid("card-expand-cmp_1").getAttribute("aria-expanded"), "true");
+  // PR#22: the full-width "banner" is the dialog's sticky head naming the campaign.
+  assert.ok(s.q(".gcd-modal-head"), "the dialog has a full-width head/banner");
+  assert.equal(s.q(".gcd-modal-head .gcd-modal-title").textContent, "Vendor Appreciation");
+  assert.equal(s.tid("card-open-cmp_1").getAttribute("aria-expanded"), "true");
   assert.equal(s.tid("card-title-cmp_1").textContent, "Vendor Appreciation");
   assert.equal(s.qa("[data-testid^='card-rename-cmp_1']").length, 1, "exactly one pencil");
   for (const k of ["audience", "gift", "spread"]) assert.ok(s.tid(`selector-${k}-cmp_1`), k);
@@ -1032,8 +1090,8 @@ test("F1B: no Change/Choose/Done CTA stands between a reader and a primary optio
     assert.equal(s.tid(`detail-${k}-cmp_1`), null, `${k} has no hidden detail panel`);
   }
   // And no button inside the workspace merely reveals options.
-  const ws = s.tid("card-selectors-cmp_1");
-  const labels = [...ws.querySelectorAll("button")].map((b) => b.textContent.trim());
+  // (the three selectors are now sections inside the dialog's tabs; the same rule applies to each)
+  const labels = ["audience", "gift", "spread"].flatMap((k) => [...s.tid(`selector-${k}-cmp_1`).querySelectorAll("button")].map((b) => b.textContent.trim()));
   for (const l of labels) {
     assert.equal(/^(Change|Choose|Open|Configure|Done)$/i.test(l), false, `"${l}" must not gate options`);
   }
@@ -1062,25 +1120,33 @@ test("F1B: a disabled gift choice stays VISIBLE and disabled, with its reason", 
 test("F1B: the spread editor opens inline WITHOUT hiding the spread choices", async () => {
   // The only secondary tools that still open on demand are the ones that cannot fit in a bubble.
   const s = await mount(cardEl({}, { isOwner: true }));
+  // PR#22: the CAMPAIGN is itself a dialog now, so "no modal" means: the spread editor adds no
+  // second dialog on top of it, and opens inside the same one.
   assert.equal(s.tid("card-spread-editor-cmp_1"), null, "closed until Customize is chosen");
+  const dialogsBefore = s.qa("[role='dialog']").length;
+  assert.equal(dialogsBefore, 1, "just the campaign dialog");
 
   await act(async () => { s.q("#c-cmp_1-spread-customize").click(); });
   assert.ok(s.tid("card-spread-editor-cmp_1"), "the existing editor opens inline");
+  assert.ok(s.q("[role='dialog']").contains(s.tid("card-spread-editor-cmp_1")), "inside the same dialog, not a new surface");
   // …and both real choices are still on screen (TEAM 5, 2026-09-29 — the non-functional
   // "saved_spread" third option was removed; see the F1C test above for why).
   for (const v of ["organization_default", "customize"]) {
     assert.ok(s.q(`#c-cmp_1-spread-${v}`), `${v} still visible while the editor is in use`);
   }
-  assert.equal(s.qa("[role='dialog']").length, 0, "no modal");
+  assert.equal(s.qa("[role='dialog']").length, dialogsBefore, "no additional modal");
 });
 
 // ── inline rename ──────────────────────────────────────────────────────────────────────────────
 test("F1: the pencil opens an inline editor seeded with the persisted name", async () => {
-  const s = await mount(cardEl({ name: "Employee Milestones" }, { isOwner: true }));
+  // Mounted COLLAPSED: renaming is a tile-level edit; since the campaign itself is now a dialog,
+  // "never a modal" is proven where it matters - on the tile, with no dialog open at all.
+  const s = await mount(cardEl({ name: "Employee Milestones" }, { isOwner: true, expanded: false }));
   assert.equal(s.tid("card-rename-form-cmp_1"), null, "closed until asked for");
   await click(s.tid("card-rename-cmp_1"));
   const input = s.tid("card-rename-input-cmp_1");
   assert.ok(input, "an inline editor, in the same tile");
+  assert.ok(s.q("article").contains(input), "inside the tile");
   assert.equal(input.value, "Employee Milestones");
   assert.equal(input.maxLength, 120, "mirrors the server's cap");
   assert.equal(s.qa("[role='dialog']").length, 0, "never a modal");
