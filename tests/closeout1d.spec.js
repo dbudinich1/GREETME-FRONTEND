@@ -1,4 +1,4 @@
-// tests/closeout1d.spec.js — Team 1D (Settings / Media / Catalog) fixture specs.
+// tests/closeout1d.spec.js â€” Team 1D (Settings / Media / Catalog) fixture specs.
 // Fully isolated: every /api/** call is answered from fixtures. No real DSAR, deletion, upload,
 // password-reset email or catalog mutation is ever sent.
 //
@@ -50,7 +50,7 @@ for (const [name, vp] of [['desktop', DESKTOP], ['mobile', MOBILE]]) {
     await page.goto('/#/dashboard/media');
     await expect(page.getByRole('heading', { name: 'Media Library' })).toBeVisible({ timeout: 15000 });
     await page.screenshot({ path: `${OUT}/${LABEL}-media-${name}.png`, fullPage: true });
-    // W39: only a demonstrated defect is fixed — record the facts.
+    // W39: only a demonstrated defect is fixed â€” record the facts.
     expect(await overflowX(page)).toBeLessThanOrEqual(0);
     if (LABEL === 'proposed') {
       // W40
@@ -186,6 +186,56 @@ test.describe('W39 banner contrast', () => {
       await page.screenshot({ path: `${OUT}/${LABEL}-media-banner-${name}.png`, clip: { x: 0, y: 0, width: vp.width, height: Math.min(vp.height, 520) } });
       expect(m.h1.min).toBeGreaterThanOrEqual(m.h1.large ? 3 : 4.5);
       expect(m.sub.min).toBeGreaterThanOrEqual(m.sub.large ? 3 : 4.5);
+    });
+  }
+});
+
+// W39 pixel-sampled contrast: render the banner with text hidden, then sample the REAL gradient
+// pixels under the subtitle's text extent (Range rect) and under its whole box; contrast is white
+// text vs the lightest sampled pixel (worst case for white text).
+test.describe('W39 sampled gradient contrast', () => {
+  for (const [name, vp] of [['desktop', DESKTOP], ['mobile', MOBILE]]) {
+    test(`media subtitle sampled contrast ${name}`, async ({ page }) => {
+      await page.setViewportSize(vp);
+      await setup(page);
+      await page.goto('/#/dashboard/media');
+      const h1 = page.getByRole('heading', { name: 'Media Library' });
+      await expect(h1).toBeVisible({ timeout: 15000 });
+      await page.waitForTimeout(500);
+      const info = await page.evaluate(() => {
+        const h = document.querySelector('h1'); const sub = h.nextElementSibling; const banner = h.parentElement;
+        const r = document.createRange(); r.selectNodeContents(sub);
+        const rect = (x) => ({ x: x.x, y: x.y, w: x.width, h: x.height });
+        const cs = getComputedStyle(sub);
+        return { banner: rect(banner.getBoundingClientRect()), subBox: rect(sub.getBoundingClientRect()), subText: rect(r.getBoundingClientRect()),
+          color: cs.color, px: parseFloat(cs.fontSize), weight: parseInt(cs.fontWeight, 10), h1color: getComputedStyle(h).color };
+      });
+      await page.addStyleTag({ content: 'h1, h1 + p { color: transparent !important; }' });
+      const bn = info.banner;
+      const buf = await page.screenshot({ clip: { x: bn.x, y: bn.y, width: bn.w, height: bn.h } });
+      const res = await page.evaluate(async ({ b64, info }) => {
+        const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+        const sc = img.width / info.banner.w;
+        const lum = (r, gg, b) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(gg) + 0.0722 * f(b); };
+        const scan = (box) => {
+          const x0 = Math.floor((box.x - info.banner.x) * sc), y0 = Math.floor((box.y - info.banner.y) * sc);
+          const w = Math.max(1, Math.floor(box.w * sc)), h = Math.max(1, Math.floor(box.h * sc));
+          const d = g.getImageData(Math.max(0, x0), Math.max(0, y0), w, h).data;
+          let lo = 2, hi = -1, loPx, hiPx;
+          for (let i = 0; i < d.length; i += 4) { const L = lum(d[i], d[i + 1], d[i + 2]); if (L < lo) { lo = L; loPx = [d[i], d[i + 1], d[i + 2]]; } if (L > hi) { hi = L; hiPx = [d[i], d[i + 1], d[i + 2]]; } }
+          // white text (L=1): ratio = 1.05/(L+0.05); worst = lightest pixel
+          return { lightest: hiPx, darkest: loPx, whiteVsLightest: 1.05 / (hi + 0.05), whiteVsDarkest: 1.05 / (lo + 0.05) };
+        };
+        return { subText: scan(info.subText), subBox: scan(info.subBox), banner: scan({ ...info.banner }) };
+      }, { b64: buf.toString('base64'), info });
+      console.log(`SAMPLED ${LABEL} ${name} textColor=${info.color} ${JSON.stringify(res)}`);
+      expect(info.color).toBe('rgb(255, 255, 255)');
+      const bar = info.px >= 24 || (info.weight >= 700 && info.px >= 18.66) ? 3 : 4.5;
+      expect(bar).toBe(3);
+      expect(res.subText.whiteVsLightest).toBeGreaterThanOrEqual(bar);
+      expect(res.subBox.whiteVsLightest).toBeGreaterThanOrEqual(bar);
     });
   }
 });

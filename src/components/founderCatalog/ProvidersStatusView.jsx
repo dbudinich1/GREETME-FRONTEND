@@ -49,6 +49,23 @@ const PRINTFUL_STATUS_ENTRY = Object.freeze({
   refreshable: false,
 });
 
+// W12/W13 Option B styles. Container query keyed to each provider card, so the narrow layout also applies
+// inside a narrow drawer, not just a narrow viewport.
+const ROW_CSS = `
+.gm-psv-row{display:grid;align-items:center;gap:.5rem .75rem;grid-template-columns:16px 190px 190px 1fr;grid-template-areas:"ic nm st ad"}
+@container (max-width:520px){.gm-psv-row{grid-template-columns:16px 1fr auto;grid-template-areas:"ic nm ad" "st st st"}}
+[data-testid^="provider-status-"]{container-type:inline-size}
+.gm-psv-refresh-slot{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:0 0 28px}
+.gm-psv-refresh{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:var(--text-secondary);cursor:pointer}
+.gm-psv-refresh{position:relative}
+.gm-psv-refresh::after{content:'';position:absolute;inset:-8px}
+.gm-psv-refresh:hover:not(:disabled){background:#f1f5f9;color:var(--text-primary)}
+.gm-psv-refresh:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.gm-psv-refresh:disabled{cursor:default;opacity:.6}
+.gm-psv-spin{animation:gm-psv-spin 0.9s linear infinite}
+@keyframes gm-psv-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.gm-psv-spin{animation-duration:2.5s}}
+`;
 export default function ProvidersStatusView({ client, onAddProducts }) {
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +108,8 @@ export default function ProvidersStatusView({ client, onAddProducts }) {
   const allProviders = [...providers, PRINTFUL_STATUS_ENTRY];
 
   return (
+    <>
+    <style>{ROW_CSS}</style>
     <ul data-testid="providers-status-list" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
       {allProviders.map((p) => {
         const colors = statusColor(p);
@@ -99,39 +118,44 @@ export default function ProvidersStatusView({ client, onAddProducts }) {
             border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '0.75rem 1rem',
             display: 'flex', flexDirection: 'column', gap: '0.5rem',
           }}>
-            {/* THE ACTION ROW — icon, name, status badge, Refresh, Add Products. Fixed-width
-                columns for the icon/name/badge so a long status label ("Active — no browsable
-                catalog" vs "Active") never shifts where Refresh/Add Products land on other rows. */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
-              <Building2 size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-              <span style={{ fontWeight: 700, minWidth: '110px' }}>{p.label || p.providerId}</span>
+            {/* THE ACTION ROW (W12/W13 Option B): a fixed grid - icon | name + reserved refresh-icon slot |
+                status badge | Add Products. The refresh slot is ALWAYS rendered (empty for Goody/Printful),
+                so the badge and Add Products land in the same place on every row; below ~520px the badge
+                moves to its own full-width line, again identical on every row. */}
+            <div className="gm-psv-row">
+              <Building2 size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0, gridArea: 'ic' }} />
+              <span style={{ gridArea: 'nm', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.375rem', minWidth: 0 }}>
+                <span style={{ fontWeight: 700 }}>{p.label || p.providerId}</span>
+                <span className="gm-psv-refresh-slot" data-testid={`provider-refresh-slot-${p.providerId}`}>
+                  {p.enabled && p.refreshable !== false && (
+                    <button
+                      type="button"
+                      data-testid={`provider-refresh-${p.providerId}`}
+                      aria-label={`Refresh ${p.label || p.providerId}`}
+                      title={`Refresh ${p.label || p.providerId} catalog`}
+                      aria-busy={refreshingId === p.providerId}
+                      onClick={() => runRefresh(p.providerId)}
+                      disabled={refreshingId === p.providerId}
+                      className="gm-psv-refresh"
+                      style={{ padding: 0, minWidth: 0, minHeight: 0, width: 28, height: 28 }}
+                    >
+                      <RefreshCw size={14} className={refreshingId === p.providerId ? 'gm-psv-spin' : undefined} />
+                    </button>
+                  )}
+                </span>
+              </span>
               <span data-testid={`provider-status-badge-${p.providerId}`} style={{
-                padding: '0.2rem 0.625rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
-                background: colors.bg, color: colors.fg, minWidth: '180px', textAlign: 'center',
+                gridArea: 'st', padding: '0.2rem 0.625rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
+                background: colors.bg, color: colors.fg, textAlign: 'center',
               }}>
                 {statusLabel(p)}
               </span>
-              {p.enabled && p.refreshable !== false && (
-                <button
-                  type="button"
-                  data-testid={`provider-refresh-${p.providerId}`}
-                  onClick={() => runRefresh(p.providerId)}
-                  disabled={refreshingId === p.providerId}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.375rem',
-                    padding: '0.3rem 0.625rem', borderRadius: '0.375rem', border: '1px solid var(--border)',
-                    background: 'white', cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'inherit',
-                  }}
-                >
-                  <RefreshCw size={12} /> Refresh
-                </button>
-              )}
               <button
                 type="button"
                 data-testid={`provider-add-${p.providerId}`}
                 onClick={() => onAddProducts(p.providerId)}
                 style={{
-                  marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.375rem',
+                  gridArea: 'ad', justifySelf: 'end', display: 'flex', alignItems: 'center', gap: '0.375rem',
                   padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: 'none',
                   background: 'var(--primary)', color: 'white', fontWeight: 700, cursor: 'pointer',
                   fontSize: '0.75rem', fontFamily: 'inherit',
@@ -139,8 +163,7 @@ export default function ProvidersStatusView({ client, onAddProducts }) {
               >
                 <Plus size={13} /> Add Products
               </button>
-            </div>
-            <p data-testid={`provider-catalog-caption-${p.providerId}`} style={{ margin: 0, width: '100%', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            </div>            <p data-testid={`provider-catalog-caption-${p.providerId}`} style={{ margin: 0, width: '100%', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
               {catalogCaption(p)}
             </p>
             {p.reason && <p style={{ margin: 0, width: '100%', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{p.reason}</p>}
@@ -156,5 +179,6 @@ export default function ProvidersStatusView({ client, onAddProducts }) {
         );
       })}
     </ul>
+    </>
   );
 }

@@ -216,6 +216,22 @@ test("W11. no bare 'Active'; every provider state separates integration / catalo
   assert.match(s.tid("provider-catalog-caption-printful").textContent, /published/);
 });
 
+test("W12/W13 Option B: refresh is a small icon beside the provider name, in a reserved slot on every row, with name/tooltip/disabled-while-running", async () => {
+  const s = await mountOpen(fakeClient());
+  for (const id of ["florist_one", "goody", "prezzee", "printful"]) {
+    assert.ok(s.tid(`provider-refresh-slot-${id}`), `reserved refresh slot must exist on "${id}" even when it has no button`);
+  }
+  const btn = s.tid("provider-refresh-florist_one");
+  assert.equal(btn.getAttribute("aria-label"), "Refresh Florist One");
+  assert.match(btn.getAttribute("title"), /Refresh Florist One/);
+  assert.ok(!/Refresh$/.test(btn.textContent.trim()), "icon-only: no visible 'Refresh' text button");
+  assert.equal(btn.disabled, false);
+  assert.ok(!s.tid("provider-refresh-goody"), "disabled provider keeps no refresh action (same rule as before)");
+  assert.ok(s.tid("provider-refresh-prezzee"), "enabled provider without browse still refreshable (same rule as before)");
+  assert.ok(!s.tid("provider-refresh-printful"), "Printful keeps no refresh action");
+  // the status badge and slot live in the same grid row as the name (fixed-column layout class)
+  assert.ok(s.tid("provider-status-florist_one").querySelector(".gm-psv-row"));
+});
 test("Printful's status reflects its real existing state (a live, shipping supplier) truthfully labeled, without claiming a refresh capability the backend never granted it", async () => {
   const s = await mountOpen(fakeClient());
   assert.match(s.tid("provider-status-badge-printful").textContent, /Integration enabled/);
