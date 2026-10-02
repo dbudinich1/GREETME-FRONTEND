@@ -463,8 +463,8 @@ export default function HubRedeemMarketplace({
       border: '1px solid var(--border)'
     }}>
       {/* Header: title/subtitle (left) + "All Rewards" catalog affordance (top-right). */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.25rem' }}>
-        <div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.25rem' }}>
+        <div style={{ minWidth: 0 }}>
           <h2 style={{
             fontSize: '1.375rem',
             fontWeight: 700,
@@ -485,10 +485,16 @@ export default function HubRedeemMarketplace({
             compact overview. No backend, no reward logic. Native select for robust accessibility. */}
         <select
           aria-label="Filter marketplace by category"
+          data-testid="hub-category-filter"
           value={categoryKey}
           onChange={(e) => setCategoryKey(e.target.value)}
           style={{
-            flexShrink: 0,
+            // Appearance only: the global `select{width:100%}` made this fill the whole row and run off the page.
+            width: 'auto',
+            maxWidth: '100%',
+            minWidth: 0,
+            boxSizing: 'border-box',
+            flexShrink: 1,
             padding: '0.5rem 0.875rem',
             background: 'var(--bg-primary)',
             color: 'var(--text-primary)',
