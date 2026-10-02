@@ -22,8 +22,11 @@ import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ENTRY = join(__dirname, ".__gb.entry.jsx");
-const BUNDLE = join(__dirname, ".__gb.bundle.mjs");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const ENTRY = join(__dirname, `.__gb.${process.pid}.entry.jsx`);
+const BUNDLE = join(__dirname, `.__gb.${process.pid}.bundle.mjs`);
 // Rendered evidence lands OUTSIDE the repository, beside the other closeout reports.
 const EVIDENCE_DIR = "C:\\1_GREET-ME\\reports\\g4-evidence";
 

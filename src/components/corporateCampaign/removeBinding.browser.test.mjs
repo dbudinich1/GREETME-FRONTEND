@@ -22,8 +22,11 @@ import esbuild from "esbuild";
 import { createCorporateCampaignsClient } from "../../api/corporateCampaigns.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLE = join(__dirname, ".__remove.bundle.mjs");
-const ENTRY = join(__dirname, ".__remove.entry.jsx");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const BUNDLE = join(__dirname, `.__remove.${process.pid}.bundle.mjs`);
+const ENTRY = join(__dirname, `.__remove.${process.pid}.entry.jsx`);
 const ORG = "corp_org_11111111-1111-4111-8111-111111111111";
 const CID = "campaign_22222222-2222-4222-8222-222222222222";
 

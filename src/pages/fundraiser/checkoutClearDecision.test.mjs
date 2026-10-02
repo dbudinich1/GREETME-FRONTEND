@@ -13,7 +13,10 @@ import { writeFileSync, rmSync } from "node:fs";
 import esbuild from "esbuild";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLE = join(__dirname, ".__clear.bundle.mjs");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const BUNDLE = join(__dirname, `.__clear.${process.pid}.bundle.mjs`);
 let checkoutSessionCreated;
 
 before(async () => {
@@ -29,13 +32,13 @@ before(async () => {
     });
     b.onLoad({ filter: /.*/, namespace: "stub" }, () => ({ contents: STUB, loader: "js" }));
   } };
-  writeFileSync(join(__dirname, ".__clear.entry.mjs"), `export { checkoutSessionCreated } from "../../pages/Checkout.jsx";\n`);
+  writeFileSync(join(__dirname, `.__clear.${process.pid}.entry.mjs`), `export { checkoutSessionCreated } from "../../pages/Checkout.jsx";\n`);
   await esbuild.build({
-    entryPoints: [join(__dirname, ".__clear.entry.mjs")], outfile: BUNDLE, bundle: true, format: "esm", platform: "node",
+    entryPoints: [join(__dirname, `.__clear.${process.pid}.entry.mjs`)], outfile: BUNDLE, bundle: true, format: "esm", platform: "node",
     jsx: "automatic", jsxImportSource: "react",
     define: { "import.meta.env": "{}", "process.env.NODE_ENV": '"production"' }, plugins: [stub], logLevel: "silent",
   });
-  rmSync(join(__dirname, ".__clear.entry.mjs"), { force: true });
+  rmSync(join(__dirname, `.__clear.${process.pid}.entry.mjs`), { force: true });
   ({ checkoutSessionCreated } = await import(pathToFileURL(BUNDLE).href));
 });
 after(() => { try { rmSync(BUNDLE, { force: true }); } catch { /* ignore */ } });

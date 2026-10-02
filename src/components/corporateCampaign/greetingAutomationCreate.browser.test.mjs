@@ -17,20 +17,23 @@ import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLE = join(__dirname, ".__gac_create.bundle.mjs");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const BUNDLE = join(__dirname, `.__gac_create.${process.pid}.bundle.mjs`);
 let React, createRoot, Surface, act, window;
 
 before(async () => {
-  writeFileSync(join(__dirname, ".__gacc.jsx"), `export { default as Surface } from "./GreetingAutomationCampaigns.jsx";\n`);
+  writeFileSync(join(__dirname, `.__gacc.${process.pid}.jsx`), `export { default as Surface } from "./GreetingAutomationCampaigns.jsx";\n`);
   await esbuild.build({
-    entryPoints: [join(__dirname, ".__gacc.jsx")],
+    entryPoints: [join(__dirname, `.__gacc.${process.pid}.jsx`)],
     outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
     jsx: "automatic", jsxImportSource: "react",
     external: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"],
     define: { "import.meta.env": "{}", "process.env.NODE_ENV": '"production"' },
     logLevel: "silent",
   });
-  rmSync(join(__dirname, ".__gacc.jsx"), { force: true });
+  rmSync(join(__dirname, `.__gacc.${process.pid}.jsx`), { force: true });
 
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   window = dom.window;
@@ -44,7 +47,7 @@ before(async () => {
   ({ createRoot } = await import("react-dom/client"));
   ({ Surface } = await import(pathToFileURL(BUNDLE).href));
 });
-after(() => { try { rmSync(BUNDLE, { force: true }); rmSync(BUNDLE.replace(/\.mjs$/, ".css"), { force: true }); rmSync(join(__dirname, ".__gacc.jsx"), { force: true }); } catch { /* ignore */ } });
+after(() => { try { rmSync(BUNDLE, { force: true }); rmSync(BUNDLE.replace(/\.mjs$/, ".css"), { force: true }); rmSync(join(__dirname, `.__gacc.${process.pid}.jsx`), { force: true }); } catch { /* ignore */ } });
 
 const flush = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 0)); }); };
 const tid = (t) => document.querySelector(`[data-testid="${t}"]`);
