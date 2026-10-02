@@ -90,6 +90,7 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
   : null;
 
 import { platformFeeFor as resolvePlatformFee, formatFeeAmount, FEE_CALCULATED_AT_CHECKOUT } from '../utils/platformFee';
+import { SUBSCRIPTION_RENEWAL_NOTICE, PLATFORM_FEE_ONE_TIME_NOTICE } from '../utils/subscriptionTerms';
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
 import useReferralCreditCents from '../hooks/useReferralCreditCents';
 import {
@@ -1044,6 +1045,11 @@ export default function Checkout() {
                       <div style={{ fontSize: '0.85rem', color: '#555', marginTop: '0.25rem' }}>
                         Includes 2 Greet-Me experiences
                       </div>
+                      {subscriptionItem && (
+                        <div data-testid="checkout-subscription-terms" style={{ fontSize: '0.8rem', color: '#555', marginTop: '0.5rem', lineHeight: 1.4 }}>
+                          {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE}
+                        </div>
+                      )}
                       <div style={{ fontSize: '0.8rem', color: '#777', marginTop: '0.5rem' }}>
                         🔒 Secure checkout • Cancel anytime
                       </div>

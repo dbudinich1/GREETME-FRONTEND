@@ -45,6 +45,7 @@ const platformFeeFor = (item, feeState) =>
   resolvePlatformFee(item, BUSINESS_PLAN_TIERS.has(item?.planTier), feeState);
 
 import { platformFeeFor as resolvePlatformFee, formatFeeAmount, FEE_CALCULATED_AT_CHECKOUT } from '../utils/platformFee';
+import { SUBSCRIPTION_RENEWAL_NOTICE, PLATFORM_FEE_ONE_TIME_NOTICE } from '../utils/subscriptionTerms';
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
 import useReferralCreditCents from '../hooks/useReferralCreditCents';
 
@@ -972,6 +973,12 @@ export default function Cart() {
                   </div>
                 );
               })()}
+
+              {cartItems.some((item) => item.type === 'subscription') && (
+                <p data-testid="cart-subscription-terms" style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', margin: '0 0 0.5rem', lineHeight: 1.4 }}>
+                  {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE}
+                </p>
+              )}
 
               {/* Checkout Button */}
               <button

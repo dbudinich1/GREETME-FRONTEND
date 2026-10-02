@@ -6,6 +6,7 @@ import { Check, CheckCircle, ShoppingCart, X, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import cartService from '../services/cartService';
 import { personalPlans, businessPlans } from '../config/plans';
+import { SUBSCRIPTION_RENEWAL_NOTICE, PLATFORM_FEE_ONE_TIME_NOTICE } from '../utils/subscriptionTerms';
 import { platformFeeFor, formatFeeAmount } from '../utils/platformFee';
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
 import useReferralCreditCents from '../hooks/useReferralCreditCents';
@@ -794,6 +795,11 @@ export default function Pricing() {
           })}
           </div>
 
+          {/* Founder-required subscription terms (2026-10-02), shown with the prices. */}
+          <p data-testid="pricing-subscription-terms" style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', textAlign: 'center', margin: isNarrow ? '1rem 0 0' : '1.5rem 0 0', lineHeight: 1.5 }}>
+            {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE}
+          </p>
+
           {/* Universal Benefits — personal view only, below the grid */}
           {viewMode === 'personal' && (
             <div style={{
@@ -1232,7 +1238,7 @@ export default function Pricing() {
                   textAlign: 'center',
                   marginTop: '1rem'
                 }}>
-                  Secure checkout powered by Stripe. Cancel anytime.
+                  {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE} Secure checkout powered by Stripe. Cancel anytime.
                 </p>
               </>
             )}
@@ -1340,6 +1346,10 @@ export default function Pricing() {
                     );
                   })()}
                 </div>
+
+                <p data-testid="pricing-added-terms" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5, maxWidth: '340px', margin: '0 auto 1rem' }}>
+                  {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE}
+                </p>
 
                 {/* Action Buttons */}
                 <div style={{
