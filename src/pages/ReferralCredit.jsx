@@ -1,5 +1,9 @@
 // src/pages/ReferralCredit.jsx
 // Public landing page for referral credit redemption
+//
+// CREDIT AMOUNT: only the EFFECTIVE redeemable value the server reports (referralCreditCents) is ever shown;
+// there is no literal fallback. A response without a real positive whole-cent amount is treated as an
+// unavailable credit (the "no longer valid" screen), never as a guessed figure.
 // Route: /credit/:referralCode
 
 import { useState, useEffect } from 'react';
@@ -31,7 +35,7 @@ export default function ReferralCredit() {
 
     api.getReferral(referralCode)
       .then((res) => {
-        if (res?.ok && res.referralCreditCents) {
+        if (res?.ok && Number.isSafeInteger(res.referralCreditCents) && res.referralCreditCents > 0) {
           setValid(true);
           setCreditCents(res.referralCreditCents);
         } else {
@@ -55,7 +59,8 @@ export default function ReferralCredit() {
     }
   }, [isAuthenticated, valid, referralCode, navigate]);
 
-  const fmt = (cents) => `$${(cents / 100).toFixed(0)}`;
+  // Whole-dollar credits read "$5"; anything else keeps its cents (a $2.50 credit is never shown as "$3").
+  const fmt = (cents) => (cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`);
 
   if (loading) {
     return (
@@ -89,7 +94,7 @@ export default function ReferralCredit() {
         <div style={styles.successIcon}>&#127873;</div>
 
         <h1 style={{ ...styles.title, fontSize: '1.625rem' }}>
-          You've unlocked a {creditCents ? fmt(creditCents) : '$10'} credit
+          {creditCents ? `You've unlocked a ${fmt(creditCents)} credit` : "You've unlocked a credit"}
         </h1>
 
         <p style={{
@@ -98,7 +103,7 @@ export default function ReferralCredit() {
           lineHeight: 1.6,
           margin: '0 0 0.5rem',
         }}>
-          Apply your {creditCents ? fmt(creditCents) : '$10'} credit toward a Greet-Me subscription.
+          {creditCents ? `Apply your ${fmt(creditCents)} credit` : 'Apply your credit'} toward a Greet-Me subscription.
         </p>
         <p style={{
           fontSize: '0.8125rem',
