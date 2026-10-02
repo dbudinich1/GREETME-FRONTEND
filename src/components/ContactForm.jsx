@@ -15,6 +15,7 @@ import { relationshipErrors, sanitizeRelationshipForSave } from './contactFormVa
 import { getErrorMessage } from '../utils/errorMessages';
 import { formatPersonName } from '../utils/formatPersonName';
 import api from '../api/api';
+import { SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY } from '../config/scheduledQrCash';
 import { deterministicStructuredForContact } from '../import/completionModel.js';
 
 // Session storage key for preserving form data during gift selection navigation
@@ -403,7 +404,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
             <option value="marketplace">Browse Marketplace</option>
           </select>
         </div>
-        {checked && repeatsAnnually(occ) && (
+        {/* No repeat claim for QR Cash while scheduled QR Cash is unavailable: it would imply an automatic send and contradict the "not available yet" sentence. */}
+        {checked && repeatsAnnually(occ) && !qrCashManualOnly(gs) && (
           <small data-testid={`add-gift-repeat-${occ}`} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
             Your gift selection will automatically repeat annually until changed.
           </small>
@@ -412,17 +414,43 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
     );
   };
 
+  // Scheduled QR Cash is not live (src/config/scheduledQrCash.js): a QR Cash gift is sent when the sender sends the
+  // Greet-Me, never automatically on the occasion date. The inline Auto-Gift toggle must therefore be off/disabled.
+  const qrCashManualOnly = (gs) => gs?.type === 'qrcash' && !SCHEDULED_QRCASH_AVAILABLE;
+  // The amount <select> DISPLAYS $25 when no amount is stored; write that default so the form never shows a
+  // figure it does not send.
+  const QRCASH_DEFAULT_DOLLARS = 25;
+
   const handleOccasionGiftChange = (occasionValue, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      occasionGiftSettings: {
-        ...prev.occasionGiftSettings,
-        [occasionValue]: {
-          ...getOccasionGiftSetting(occasionValue),
-          [field]: value
-        }
+    setFormData(prev => {
+      const current = getOccasionGiftSetting(occasionValue);
+      const next = { ...current, [field]: value };
+      if (field === 'type' && value === 'qrcash' && (next.amount === undefined || next.amount === null)) {
+        next.amount = QRCASH_DEFAULT_DOLLARS;
       }
-    }));
+      return {
+        ...prev,
+        occasionGiftSettings: {
+          ...prev.occasionGiftSettings,
+          [occasionValue]: next
+        }
+      };
+    });
+  };
+
+  // Save-path normalisation (see qrCashManualOnly): every qrcash entry saves with autoGift:false while scheduled QR Cash
+  // is unavailable, and with the amount the form displays. Other gift types are passed through untouched.
+  const normalizeGiftSettingsForSave = (settings) => {
+    if (!settings || typeof settings !== 'object') return settings;
+    const out = {};
+    for (const [key, gs] of Object.entries(settings)) {
+      if (gs && gs.type === 'qrcash' && !SCHEDULED_QRCASH_AVAILABLE) {
+        out[key] = { ...gs, autoGift: false, amount: gs.amount === undefined || gs.amount === null ? QRCASH_DEFAULT_DOLLARS : gs.amount };
+      } else {
+        out[key] = gs;
+      }
+    }
+    return out;
   };
 
   const handleFaithSelectionChange = (newSelectedFaiths) => {
@@ -508,7 +536,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
 
     setSubmitting(true);
     try {
-      await onSubmit(sanitizeRelationshipForSave(formData));
+      const toSave = sanitizeRelationshipForSave(formData);
+      await onSubmit({ ...toSave, occasionGiftSettings: normalizeGiftSettingsForSave(toSave.occasionGiftSettings) });
       // Clear draft on successful submission
       clearFormDraft();
       // Show saved toast
@@ -1569,7 +1598,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                             }}>
                               <input
                                 type="checkbox"
-                                checked={giftSetting.autoGift === true}
+                                checked={!qrCashManualOnly(giftSetting) && giftSetting.autoGift === true}
+                                disabled={qrCashManualOnly(giftSetting)}
                                 onChange={(e) => handleOccasionGiftChange(occasion.value, 'autoGift', e.target.checked)}
                                 style={{ width: '0.875rem', height: '0.875rem', accentColor: '#667eea' }}
                               />
@@ -1582,12 +1612,12 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                               fontWeight: 600,
                               padding: '0.25rem 0.5rem',
                               borderRadius: '9999px',
-                              background: giftSetting.autoGift ? 'rgba(102, 126, 234, 0.1)' : 'rgba(107, 114, 128, 0.1)',
-                              color: giftSetting.autoGift ? '#667eea' : 'var(--text-tertiary)',
+                              background: (giftSetting.autoGift && !qrCashManualOnly(giftSetting)) ? 'rgba(102, 126, 234, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                              color: (giftSetting.autoGift && !qrCashManualOnly(giftSetting)) ? '#667eea' : 'var(--text-tertiary)',
                               textTransform: 'uppercase',
                               letterSpacing: '0.025em'
                             }}>
-                              {giftSetting.autoGift ? 'Auto-Gift Enabled' : 'Manual Selection'}
+                              {(giftSetting.autoGift && !qrCashManualOnly(giftSetting)) ? 'Auto-Gift Enabled' : 'Manual Selection'}
                             </span>
                           </div>
                           <p style={{
@@ -1596,7 +1626,9 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                             marginTop: '0.375rem',
                             marginLeft: '1.375rem'
                           }}>
-                            {giftSetting.autoGift
+                            {qrCashManualOnly(giftSetting)
+                              ? SCHEDULED_QRCASH_UNAVAILABLE_COPY
+                              : giftSetting.autoGift
                               ? 'Gift will be sent automatically on the occasion date.'
                               : 'You\'ll receive a reminder 10 days before to confirm.'}
                           </p>
@@ -2077,7 +2109,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                             }}>
                               <input
                                 type="checkbox"
-                                checked={giftSetting.autoGift === true}
+                                checked={!qrCashManualOnly(giftSetting) && giftSetting.autoGift === true}
+                                disabled={qrCashManualOnly(giftSetting)}
                                 onChange={(e) => handleOccasionGiftChange(occasion.value, 'autoGift', e.target.checked)}
                                 style={{ width: '0.875rem', height: '0.875rem', accentColor: '#667eea' }}
                               />
@@ -2090,12 +2123,12 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                               fontWeight: 600,
                               padding: '0.25rem 0.5rem',
                               borderRadius: '9999px',
-                              background: giftSetting.autoGift ? 'rgba(102, 126, 234, 0.1)' : 'rgba(107, 114, 128, 0.1)',
-                              color: giftSetting.autoGift ? '#667eea' : 'var(--text-tertiary)',
+                              background: (giftSetting.autoGift && !qrCashManualOnly(giftSetting)) ? 'rgba(102, 126, 234, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                              color: (giftSetting.autoGift && !qrCashManualOnly(giftSetting)) ? '#667eea' : 'var(--text-tertiary)',
                               textTransform: 'uppercase',
                               letterSpacing: '0.025em'
                             }}>
-                              {giftSetting.autoGift ? 'Auto-Gift Enabled' : 'Manual Selection'}
+                              {(giftSetting.autoGift && !qrCashManualOnly(giftSetting)) ? 'Auto-Gift Enabled' : 'Manual Selection'}
                             </span>
                           </div>
                           <p style={{
@@ -2104,7 +2137,9 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                             marginTop: '0.375rem',
                             marginLeft: '1.375rem'
                           }}>
-                            {giftSetting.autoGift
+                            {qrCashManualOnly(giftSetting)
+                              ? SCHEDULED_QRCASH_UNAVAILABLE_COPY
+                              : giftSetting.autoGift
                               ? 'Gift will be sent automatically on the occasion date.'
                               : 'You\'ll receive a reminder 10 days before to confirm.'}
                           </p>
@@ -2638,7 +2673,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                             }}>
                               <input
                                 type="checkbox"
-                                checked={giftSetting.autoGift === true}
+                                checked={!qrCashManualOnly(giftSetting) && giftSetting.autoGift === true}
+                                disabled={qrCashManualOnly(giftSetting)}
                                 onChange={(e) => handleOccasionGiftChange(occ.type, 'autoGift', e.target.checked)}
                                 style={{ width: '0.875rem', height: '0.875rem', accentColor: '#667eea' }}
                               />
@@ -2651,12 +2687,12 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                               fontWeight: 600,
                               padding: '0.25rem 0.5rem',
                               borderRadius: '9999px',
-                              background: giftSetting.autoGift ? 'rgba(102, 126, 234, 0.1)' : 'rgba(107, 114, 128, 0.1)',
-                              color: giftSetting.autoGift ? '#667eea' : 'var(--text-tertiary)',
+                              background: (giftSetting.autoGift && !qrCashManualOnly(giftSetting)) ? 'rgba(102, 126, 234, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                              color: (giftSetting.autoGift && !qrCashManualOnly(giftSetting)) ? '#667eea' : 'var(--text-tertiary)',
                               textTransform: 'uppercase',
                               letterSpacing: '0.025em'
                             }}>
-                              {giftSetting.autoGift ? 'Auto-Gift Enabled' : 'Manual Selection'}
+                              {(giftSetting.autoGift && !qrCashManualOnly(giftSetting)) ? 'Auto-Gift Enabled' : 'Manual Selection'}
                             </span>
                           </div>
                           <p style={{
@@ -2665,7 +2701,9 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                             marginTop: '0.375rem',
                             marginLeft: '1.375rem'
                           }}>
-                            {giftSetting.autoGift
+                            {qrCashManualOnly(giftSetting)
+                              ? SCHEDULED_QRCASH_UNAVAILABLE_COPY
+                              : giftSetting.autoGift
                               ? 'Gift will be sent automatically on the occasion date.'
                               : 'You\'ll receive a reminder 10 days before to confirm.'}
                           </p>

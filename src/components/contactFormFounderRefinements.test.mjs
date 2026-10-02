@@ -25,7 +25,9 @@ test("culturalContext is still carried: initial state, draft restore, edit load,
   assert.match(CODE, /culturalContext: \{\s*heritage: \[\],\s*faith: null,\s*preferCulturalGifts: false/);
   assert.match(CODE, /\.\.\.\(draft\.formData\.culturalContext \|\| \{\}\)/);
   assert.match(CODE, /culturalContext: contact\.culturalContext \|\|/);
-  assert.match(CODE, /onSubmit\(sanitizeRelationshipForSave\(formData\)\)/);
+  assert.match(CODE, /sanitizeRelationshipForSave\(formData\)/);
+  // QR Cash fix (Team 1A): the saved payload is {...sanitized, occasionGiftSettings: normalised}; culturalContext rides in the spread
+  assert.match(CODE, /await onSubmit\(\{ \.\.\.toSave, occasionGiftSettings: normalizeGiftSettingsForSave/);
   // the sanitizer passes stored cultural data through untouched (backend PUT writes `culturalContext || {}`)
   const stored = { heritage: ["Irish"], faith: "Catholic", preferCulturalGifts: true };
   const out = sanitizeRelationshipForSave({ relationshipCategory: "", relationship: "", culturalContext: stored });
@@ -114,7 +116,9 @@ test("round 3: brand tokens for gradients and accents (existing variables only)"
 test("round 2 keeps behaviour: still collapsed, caret, auto-open on error, controls and data pass-through", () => {
   assert.match(CODE, /useState\(false\)/);
   assert.match(CODE, /setOccasionsExpanded\(true\)/);
-  assert.match(CODE, /onSubmit\(sanitizeRelationshipForSave\(formData\)\)/);
+  assert.match(CODE, /sanitizeRelationshipForSave\(formData\)/);
+  // QR Cash fix (Team 1A): the saved payload is {...sanitized, occasionGiftSettings: normalised}; culturalContext rides in the spread
+  assert.match(CODE, /await onSubmit\(\{ \.\.\.toSave, occasionGiftSettings: normalizeGiftSettingsForSave/);
 });
 
 test("round 3: Moments heading wraps (normal white-space, shrinkable flex children), text unchanged", () => {
@@ -159,7 +163,8 @@ test("round 4: selector keeps every current mode, disabled until Add gift is tic
 
 test("round 4: the annual-repeat sentence appears only for yearly-repeating occasions (recurring !== false)", () => {
   assert.match(CODE, /const repeatsAnnually = \(occ\) => getOccasionCadenceLabel\(occ\) === 'Repeats yearly'/);
-  assert.match(CODE, /\{checked && repeatsAnnually\(occ\) && \(\s*<small[^>]*>\s*Your gift selection will automatically repeat annually until changed\./);
+  // QR Cash fix (Team 1A): additionally suppressed for QR Cash while scheduled QR Cash is unavailable (proved on the real component in contactFormQrCashAutoGift.browser.test.mjs).
+  assert.match(CODE, /\{checked && repeatsAnnually\(occ\) && !qrCashManualOnly\(gs\) && \(\s*<small[^>]*>\s*Your gift selection will automatically repeat annually until changed\./);
   assert.equal((CODE.match(/Your gift selection will automatically repeat annually until changed\./g) || []).length, 1);
   // data source: only graduation and getwell carry recurring:false in helpers
   const H = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "utils", "helpers.js"), "utf8");

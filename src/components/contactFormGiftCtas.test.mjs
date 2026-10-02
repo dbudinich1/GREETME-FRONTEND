@@ -160,7 +160,9 @@ test("getOccasionGiftSetting/handleOccasionGiftChange contain no category allowl
   }
   // Confirms the actual lookup shape: a plain bracket-keyed read/write, nothing more.
   assert.match(fns, /formData\.occasionGiftSettings\?\.\[occasionValue\]/);
-  assert.match(fns, /occasionGiftSettings: \{[\s\S]*?\[occasionValue\]: \{/);
+  // QR Cash fix (Team 1A): the handler now builds `next` (to write the displayed $25 default when the type becomes qrcash)
+  // and assigns it at the same bracket key; the lookup shape is otherwise unchanged.
+  assert.match(fns, /occasionGiftSettings: \{[\s\S]*?\[occasionValue\]: next/);
 });
 
 // ===========================================================================
