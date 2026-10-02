@@ -25,7 +25,9 @@ test("culturalContext is still carried: initial state, draft restore, edit load,
   assert.match(CODE, /culturalContext: \{\s*heritage: \[\],\s*faith: null,\s*preferCulturalGifts: false/);
   assert.match(CODE, /\.\.\.\(draft\.formData\.culturalContext \|\| \{\}\)/);
   assert.match(CODE, /culturalContext: contact\.culturalContext \|\|/);
-  assert.match(CODE, /onSubmit\(sanitizeRelationshipForSave\(formData\)\)/);
+  assert.match(CODE, /sanitizeRelationshipForSave\(formData\)/);
+  // QR Cash fix (Team 1A): the saved payload is {...sanitized, occasionGiftSettings: normalised}; culturalContext rides in the spread
+  assert.match(CODE, /await onSubmit\(\{ \.\.\.toSave, occasionGiftSettings: normalizeGiftSettingsForSave/);
   // the sanitizer passes stored cultural data through untouched (backend PUT writes `culturalContext || {}`)
   const stored = { heritage: ["Irish"], faith: "Catholic", preferCulturalGifts: true };
   const out = sanitizeRelationshipForSave({ relationshipCategory: "", relationship: "", culturalContext: stored });
@@ -114,7 +116,9 @@ test("round 3: brand tokens for gradients and accents (existing variables only)"
 test("round 2 keeps behaviour: still collapsed, caret, auto-open on error, controls and data pass-through", () => {
   assert.match(CODE, /useState\(false\)/);
   assert.match(CODE, /setOccasionsExpanded\(true\)/);
-  assert.match(CODE, /onSubmit\(sanitizeRelationshipForSave\(formData\)\)/);
+  assert.match(CODE, /sanitizeRelationshipForSave\(formData\)/);
+  // QR Cash fix (Team 1A): the saved payload is {...sanitized, occasionGiftSettings: normalised}; culturalContext rides in the spread
+  assert.match(CODE, /await onSubmit\(\{ \.\.\.toSave, occasionGiftSettings: normalizeGiftSettingsForSave/);
 });
 
 test("round 3: Moments heading wraps (normal white-space, shrinkable flex children), text unchanged", () => {
