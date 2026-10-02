@@ -1028,6 +1028,25 @@ class ApiService {
   getHeroLeaderboard() {
     return this.request("/api/hero/leaderboard");
   }
+
+  // --------------------
+  // CONTACT SALES (public, no login: POST /api/contact-sales). Deliberately NOT this.request: that helper adds the
+  // auth token and clears it on a 401, and a prospect has no account. Returns { status, body } for ANY HTTP answer
+  // (the caller decides what it means; success is only a real 200 with received:true) or { networkError: true }.
+  async contactSales(payload) {
+    try {
+      const res = await fetch(`${API_BASE}/api/contact-sales`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      let body = null;
+      try { body = await res.json(); } catch { /* non-JSON body */ }
+      return { status: res.status, body };
+    } catch {
+      return { networkError: true };
+    }
+  }
 }
 
 const api = new ApiService();
