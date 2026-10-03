@@ -1,4 +1,4 @@
-﻿// Run: node --test src/pages/sendGreetingW03PhotoNotice.test.mjs
+// Run: node --test src/pages/sendGreetingW03PhotoNotice.test.mjs
 // W03: the required sender profile photo is explained BEFORE the final send/checkout, with a direct
 // remediation action, and nothing dispatches until the requirement is met. Source-structure test
 // (SendGreeting is not mountable under node --test); predicate is extracted and evaluated.

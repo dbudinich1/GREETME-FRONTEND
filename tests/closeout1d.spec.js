@@ -1,4 +1,4 @@
-// tests/closeout1d.spec.js â€” Team 1D (Settings / Media / Catalog) fixture specs.
+// tests/closeout1d.spec.js — Team 1D (Settings / Media / Catalog) fixture specs.
 // Fully isolated: every /api/** call is answered from fixtures. No real DSAR, deletion, upload,
 // password-reset email or catalog mutation is ever sent.
 //
@@ -50,7 +50,7 @@ for (const [name, vp] of [['desktop', DESKTOP], ['mobile', MOBILE]]) {
     await page.goto('/#/dashboard/media');
     await expect(page.getByRole('heading', { name: 'Media Library' })).toBeVisible({ timeout: 15000 });
     await page.screenshot({ path: `${OUT}/${LABEL}-media-${name}.png`, fullPage: true });
-    // W39: only a demonstrated defect is fixed â€” record the facts.
+    // W39: only a demonstrated defect is fixed — record the facts.
     expect(await overflowX(page)).toBeLessThanOrEqual(0);
     if (LABEL === 'proposed') {
       // W40

@@ -1,18 +1,18 @@
-﻿// src/components/corporateCampaign/IndividualContactPicker.jsx
+// src/components/corporateCampaign/IndividualContactPicker.jsx
 //
-// TEAM A â€” SLICE D: individual contact selection, on top of whatever the category bubbles chose.
+// TEAM A — SLICE D: individual contact selection, on top of whatever the category bubbles chose.
 //
 // This is the ONLY route by which an unclassified contact can enter an audience. A category bubble
-// cannot reach one â€” that is the point â€” so without this surface those contacts would be
+// cannot reach one — that is the point — so without this surface those contacts would be
 // unreachable rather than merely uncategorised. Each row shows a small neutral descriptor
 // ("Unclassified"), never a guessed category.
 //
-// TEAM 5 (2026-09-29) â€” this used to write straight to the server (client.setAudience) the moment
+// TEAM 5 (2026-09-29) — this used to write straight to the server (client.setAudience) the moment
 // its own Save was clicked, independent of whatever the campaign's OWN edit buffer held. That let a
 // reader lose an unsaved category-checkbox change with no warning: the picker's write updated the
 // server, the dashboard refetched, and the campaign's local draft resynced to the new persisted
 // value, silently discarding anything not yet committed. Selection here now stages into the SAME
-// edit buffer everything else in the campaign modal already uses â€” `onSave` hands the id array back
+// edit buffer everything else in the campaign modal already uses — `onSave` hands the id array back
 // to the caller (CampaignCard), which folds it into `draft.individualRefs`. Nothing is sent to the
 // server until the campaign modal's own Save is pressed, exactly like every other field on the card.
 
@@ -43,7 +43,7 @@ export default function IndividualContactPicker({ contacts, initialSelected, onC
   }
 
   return (
-    // TEAM 5 â€” no `role="dialog"`/`aria-modal`: this now renders in-flow inside the campaign
+    // TEAM 5 — no `role="dialog"`/`aria-modal`: this now renders in-flow inside the campaign
     // modal's own Recipients tab, not as a second overlay, so it is not itself a dialog.
     <div className="gcd-panel" data-testid="individual-picker" aria-label="Select individual contacts">
       <div className="gcd-panel-head">
@@ -95,7 +95,7 @@ export default function IndividualContactPicker({ contacts, initialSelected, onC
           {`Use ${selected.size} selected`}
         </button>
         <p className="gcd-wcard-note" data-testid="picker-stage-note">
-          Applied to this campaign's unsaved changes â€” press Save on the campaign to commit it.
+          Applied to this campaign's unsaved changes — press Save on the campaign to commit it.
         </p>
       </div>
     </div>
