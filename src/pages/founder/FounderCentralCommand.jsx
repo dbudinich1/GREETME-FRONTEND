@@ -20,6 +20,7 @@ import { founderCommandApi } from "../../api/founderCommand.js";
 import { fundraiserApi } from "../../api/fundraiserApi.js";
 import { salesAdminApi, salesAdminErrorMessage } from "../../api/salesAdmin.js";
 import { founderCatalogApi } from "../../api/founderCatalog.js";
+import { founderContactsApi } from "../../api/founderContacts.js";
 
 function readUser() {
   try { return JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; }
@@ -32,6 +33,9 @@ const card = {
 const cardTitle = { margin: 0, fontSize: "1rem", fontWeight: 700, color: "#1b1830" };
 const statRow = { display: "flex", justifyContent: "space-between", fontSize: ".85rem", color: "#3a3552" };
 const statValue = { fontWeight: 700, color: "#1b1830" };
+const sectionLabel = { fontSize: ".78rem", fontWeight: 700, color: "#928ea8", textTransform: "uppercase", margin: "0 0 8px" };
+const gridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 };
+const hubNote = { fontSize: ".8rem", color: "#605c78", margin: 0 };
 const unavailable = { color: "#928ea8", fontStyle: "italic" };
 const linkBtn = {
   marginTop: "auto", alignSelf: "flex-start", background: "#4F2D7F", color: "#fff",
@@ -94,6 +98,10 @@ export default function FounderCentralCommand({
   fundraiserOverviewApi = fundraiserApi.founder,
   salesApi = salesAdminApi,
   catalogApi = founderCatalogApi,
+  contactsApi = founderContactsApi,
+  // W51 (Command Center hubs): "home" = hub entry points + tiles no hub absorbs; "gift" | "sales" | "fundraiser" = the tiles that
+  // live inside that hub (identical cards, same data, same test ids); "all" = every card at once (the pre-hub layout).
+  view = "home",
 } = {}) {
   const user = injectedUser !== undefined ? injectedUser : readUser();
   const founder = isFounder(user);
@@ -103,6 +111,7 @@ export default function FounderCentralCommand({
   const [orgs, setOrgs] = useState({ loading: true, rows: [], error: null }); // W36 partner-portal entry links
   const [sales, setSales] = useState({ loading: true, activeCount: null, error: null });
   const [catalog, setCatalog] = useState({ loading: true, activeCount: null, totalCount: null, error: null });
+  const [contacts, setContacts] = useState({ loading: true, total: null, followUpDue: null, error: null });
 
   useEffect(() => {
     if (!founder) return undefined;
@@ -184,6 +193,19 @@ export default function FounderCentralCommand({
     return () => { alive = false; };
   }, [founder, catalogApi]);
 
+  // W46 contact book: count only. A missing or failing read leaves the tile (and its link) in place with no number.
+  useEffect(() => {
+    if (!founder || !contactsApi || typeof contactsApi.list !== "function") return undefined;
+    let alive = true;
+    (async () => {
+      const res = await contactsApi.list({ limit: 1 });
+      if (!alive) return;
+      if (res.ok && res.data && res.data.counts) setContacts({ loading: false, total: res.data.counts.total, followUpDue: res.data.counts.followUpDue, error: null });
+      else setContacts({ loading: false, total: null, followUpDue: null, error: "Couldn't load the contact count." });
+    })();
+    return () => { alive = false; };
+  }, [founder, contactsApi]);
+
   // ── ORDINARY USERS SEE NOTHING ── same pattern as SalespersonControlCenter.jsx: rendered
   // before any request is issued, so a non-founder never triggers a call that would 403 anyway.
   if (!founder) {
@@ -195,10 +217,12 @@ export default function FounderCentralCommand({
     );
   }
 
+  const show = (g) => view === "all" || view === g;
   const qrSeverity = qrCash.data && qrCash.data.unresolvedCount > 0 ? "attention" : "normal";
 
   return (
     <div style={{ padding: "1.5rem", maxWidth: 1100, margin: "0 auto" }} data-testid="founder-central-command">
+      {view === "home" || view === "all" ? (
       <header style={{ marginBottom: "1.25rem" }}>
         <p style={{ fontSize: ".78rem", fontWeight: 700, color: "#928ea8", textTransform: "uppercase", margin: "0 0 4px" }}>
           Founder
@@ -208,9 +232,45 @@ export default function FounderCentralCommand({
           One place to see what needs attention, and reach the existing management screen for it.
         </p>
       </header>
+      ) : null}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+      {view === "home" ? (
+        <>
+          <h2 style={sectionLabel}>Management areas</h2>
+          <div style={{ ...gridStyle, marginBottom: 22 }} data-testid="fcc-hubs">
+            <section style={card} data-testid="fcc-card-hub-gift" aria-labelledby="fcc-hub-gift-title">
+              <h2 id="fcc-hub-gift-title" style={cardTitle}>Gift Place</h2>
+              {catalog.activeCount != null ? (
+                <div style={statRow}><span>Active providers</span><span style={statValue} data-testid="fcc-hub-gift-providers">{catalog.activeCount} of {catalog.totalCount}</span></div>
+              ) : null}
+              <p style={hubNote}>Catalog management, provider status and the customer Gift Place.</p>
+              <a href="#/dashboard/founder/gift-place" style={linkBtn} data-testid="fcc-hub-gift-open">Open Gift Place</a>
+            </section>
+            <section style={card} data-testid="fcc-card-hub-sales" aria-labelledby="fcc-hub-sales-title">
+              <h2 id="fcc-hub-sales-title" style={cardTitle}>Sales</h2>
+              {sales.activeCount != null ? (
+                <div style={statRow}><span>Active salespeople</span><span style={statValue} data-testid="fcc-hub-sales-active">{sales.activeCount}</span></div>
+              ) : null}
+              <p style={hubNote}>Salespeople, their links, performance and gift sales.</p>
+              <a href="#/dashboard/founder/sales" style={linkBtn} data-testid="fcc-hub-sales-open">Open Sales</a>
+            </section>
+            <section style={card} data-testid="fcc-card-hub-fundraiser" aria-labelledby="fcc-hub-fund-title">
+              <h2 id="fcc-hub-fund-title" style={cardTitle}>Fundraiser</h2>
+              {fundraising.data ? (
+                <div style={statRow}><span>Organizations</span><span style={statValue} data-testid="fcc-hub-fund-orgs">{overviewCount(fundraising.data.organizations, "total")}</span></div>
+              ) : null}
+              <PayoutsNote testId="fcc-hub-fund-payouts" />
+              <p style={hubNote}>Organizations, campaigns, participants, partners and activation.</p>
+              <a href="#/dashboard/founder/fundraising" style={linkBtn} data-testid="fcc-hub-fund-open">Open Fundraiser</a>
+            </section>
+          </div>
+          <h2 style={sectionLabel}>Alerts and utilities</h2>
+        </>
+      ) : null}
+
+      <div style={gridStyle}>
         {/* ── OPERATIONAL ALERTS: unresolved QR Cash payouts ─────────────────────────────────── */}
+        {show("home") ? (
         <section style={card} data-testid="fcc-card-qrcash" aria-labelledby="fcc-qrcash-title">
           <h2 id="fcc-qrcash-title" style={cardTitle}>Operational Alerts</h2>
           {qrCash.loading ? (
@@ -257,8 +317,10 @@ export default function FounderCentralCommand({
             </p>
           ) : null}
         </section>
+        ) : null}
 
         {/* ── CATALOG MANAGEMENT ──────────────────────────────────────────────────────────────── */}
+        {show("gift") ? (
         <section style={card} data-testid="fcc-card-catalog" aria-labelledby="fcc-catalog-title">
           <h2 id="fcc-catalog-title" style={cardTitle}>Catalog Management</h2>
           {catalog.loading ? (
@@ -275,8 +337,10 @@ export default function FounderCentralCommand({
           )}
           <a href="#/dashboard/gifts" style={linkBtn} data-testid="fcc-catalog-open">Open Catalog Management</a>
         </section>
+        ) : null}
 
         {/* ── SALESPEOPLE ──────────────────────────────────────────────────────────────────────── */}
+        {show("sales") ? (
         <section style={card} data-testid="fcc-card-sales" aria-labelledby="fcc-sales-title">
           <h2 id="fcc-sales-title" style={cardTitle}>Salespeople</h2>
           {sales.loading ? (
@@ -293,8 +357,10 @@ export default function FounderCentralCommand({
             Open Salesperson Management
           </a>
         </section>
+        ) : null}
 
         {/* ── FUNDRAISING ──────────────────────────────────────────────────────────────────────── */}
+        {show("fundraiser") ? (
         <section style={card} data-testid="fcc-card-fundraising" aria-labelledby="fcc-fundraising-title">
           <h2 id="fcc-fundraising-title" style={cardTitle}>Fundraising</h2>
           <PayoutsNote testId="fcc-fundraising-payouts" />
@@ -322,12 +388,14 @@ export default function FounderCentralCommand({
             Open Fundraising Management
           </a>
         </section>
+        ) : null}
 
         {/* ── W36 · ENTRY POINTS to existing fundraiser surfaces ─────────────────────
             Four separate cards: campaigns, participants, partner portal, activation state. Each
             reads ONLY the founder overview this page already loads (counts + byStatus) and links to
             an EXISTING route. No new endpoint, no mutation, no duplicate subsystem. The route and
             permission trace is in reports/closeout-sprint/lane-reports/T1C.md (W36 trace). */}
+        {show("fundraiser") ? (
         <section style={card} data-testid="fcc-card-campaigns" aria-labelledby="fcc-campaigns-title">
           <h2 id="fcc-campaigns-title" style={cardTitle}>Fundraiser Campaigns</h2>
           {fundraising.loading ? <p style={unavailable}>Loading…</p>
@@ -345,7 +413,9 @@ export default function FounderCentralCommand({
             )}
           <a href="#/dashboard/fundraiser/admin" style={linkBtn} data-testid="fcc-campaigns-open">Open Campaigns</a>
         </section>
+        ) : null}
 
+        {show("fundraiser") ? (
         <section style={card} data-testid="fcc-card-participants" aria-labelledby="fcc-participants-title">
           <h2 id="fcc-participants-title" style={cardTitle}>Fundraiser Participants</h2>
           {fundraising.loading ? <p style={unavailable}>Loading…</p>
@@ -364,7 +434,9 @@ export default function FounderCentralCommand({
             )}
           <a href="#/dashboard/fundraiser/admin" style={linkBtn} data-testid="fcc-participants-open">Open Participants</a>
         </section>
+        ) : null}
 
+        {show("fundraiser") ? (
         <section style={card} data-testid="fcc-card-partner" aria-labelledby="fcc-partner-title">
           <h2 id="fcc-partner-title" style={cardTitle}>Partner Portal</h2>
           {orgs.loading ? <p style={unavailable}>Loading…</p>
@@ -387,7 +459,9 @@ export default function FounderCentralCommand({
           ) : null}
           <a href="#/dashboard/fundraiser/admin" style={linkBtn} data-testid="fcc-partner-open">Open Organizations</a>
         </section>
+        ) : null}
 
+        {show("fundraiser") ? (
         <section style={card} data-testid="fcc-card-activation" aria-labelledby="fcc-activation-title">
           <h2 id="fcc-activation-title" style={cardTitle}>Activation State</h2>
           <PayoutsNote testId="fcc-activation-payouts" />
@@ -417,6 +491,19 @@ export default function FounderCentralCommand({
             )}
           <a href="#/dashboard/fundraiser/admin" style={linkBtn} data-testid="fcc-activation-open">Review Activation</a>
         </section>
+        ) : null}
+        {view === "home" ? (
+          <section style={card} data-testid="fcc-card-contacts" aria-labelledby="fcc-contacts-title">
+            <h2 id="fcc-contacts-title" style={cardTitle}>Contacts</h2>
+            {contacts.total != null ? (
+              <>
+                <div style={statRow}><span>Contacts</span><span style={statValue} data-testid="fcc-contacts-total">{contacts.total}</span></div>
+                <div style={statRow}><span>Follow-ups due</span><span style={statValue} data-testid="fcc-contacts-due">{contacts.followUpDue}</span></div>
+              </>
+            ) : contacts.error ? <p style={unavailable} data-testid="fcc-contacts-error">{contacts.error}</p> : null}
+            <a href="#/dashboard/founder/contacts" style={linkBtn} data-testid="fcc-contacts-open">Open Contacts</a>
+          </section>
+        ) : null}
       </div>
     </div>
   );
