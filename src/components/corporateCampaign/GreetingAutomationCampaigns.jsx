@@ -8,6 +8,9 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createCorporateCampaignsClient, isOrderVersion, ORDERING_UNAVAILABLE } from "../../api/corporateCampaigns.js";
+import { createCorporateContactsClient } from "../../api/corporateContacts.js";
+import { createOneTimeSendClient } from "../../api/corporateOneTimeSend.js";
+import SendNowFlow from "./SendNowFlow.jsx";
 import {
   activeMemberships, resolveOrganizationContext, deriveCampaignSummary, interpretCapability, TERMS,
 } from "./campaignSurfaceModel.js";
@@ -197,8 +200,17 @@ export default function GreetingAutomationCampaigns({
   // TEAM I — the same injection seam, for the saved-card surface. Both unset in the app: the panel
   // builds its own client and resolves the shared Stripe instance itself.
   cardClient, stripeOverride,
+  // SURFACE 8 - the contact writes + the full-record management read (Manage, Add, Edit, Remove). Injectable like the rest.
+  contactsClient: injectedContactsClient,
+  // SURFACE 8 - the owner-only one-time send ("Send a Greet-Me now"). Injectable like the rest.
+  oneTimeClient: injectedOneTimeClient,
 } = {}) {
   const client = useMemo(() => injectedClient || createCorporateCampaignsClient(), [injectedClient]);
+  // An injected campaigns client (tests, Test Drive) means a fully faked surface: the real contacts client is not built behind it.
+  const contactsClient = useMemo(() => injectedContactsClient || (injectedClient ? null : createCorporateContactsClient()), [injectedContactsClient, injectedClient]);
+  const oneTimeClient = useMemo(() => injectedOneTimeClient || (injectedClient ? null : createOneTimeSendClient()), [injectedOneTimeClient, injectedClient]);
+  // null = the management read is not available (older/dormant server): Manage stays the read-only roster.
+  const [managedContacts, setManagedContacts] = useState(null);
   const [membershipResult, setMembershipResult] = useState(null);
   const [selectedOrgId, setSelectedOrgId] = useState(null); // explicit multi-org selection only
   const [rows, setRows] = useState([]);
@@ -607,6 +619,16 @@ export default function GreetingAutomationCampaigns({
     setLoadingContacts(false);
   }, [client]);
 
+  const loadManaged = useCallback(async (orgId) => {
+    if (!contactsClient || typeof contactsClient.listManaged !== "function") { setManagedContacts(null); return; }
+    try {
+      const res = await contactsClient.listManaged(orgId);
+      setManagedContacts(res && res.ok === true && Array.isArray(res.contacts) ? res.contacts : null);
+    } catch {
+      setManagedContacts(null);
+    }
+  }, [contactsClient]);
+
   const loadMemberships = useCallback(async () => {
     const res = await client.listMemberships();
     setMembershipResult(res);
@@ -707,11 +729,12 @@ export default function GreetingAutomationCampaigns({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       loadCampaigns(effectiveOrgId);
       loadContacts(effectiveOrgId);
+      loadManaged(effectiveOrgId);
     } else {
       setRows([]);
       setContacts([]);
     }
-  }, [effectiveOrgId, loadCampaigns, loadContacts]);
+  }, [effectiveOrgId, loadCampaigns, loadContacts, loadManaged]);
 
   // W32 - Create (row) only OPENS the details dialog; nothing is sent yet.
   function requestCreate() {
@@ -852,6 +875,11 @@ export default function GreetingAutomationCampaigns({
         <ContactTiles
           contacts={contacts}
           loading={loadingContacts}
+          manager={managedContacts ? {
+            contacts: managedContacts, orgId: effectiveOrgId, writes: contactsClient,
+            campaigns: rows.map((r) => r.campaign), canWrite: isOwner,
+            reload: async () => { await loadContacts(effectiveOrgId); await loadManaged(effectiveOrgId); },
+          } : null}
           onAddCategory={(key) => {
             // The EXISTING import wizard route, with this category carried in the URL.
             goTo(`/dashboard/import-wizard?mode=corporate&category=${encodeURIComponent(key)}`);
@@ -862,6 +890,14 @@ export default function GreetingAutomationCampaigns({
 
         {viewAllContacts ? (
           <ContactsViewAll contacts={contacts} onClose={() => setViewAllContacts(false)} />
+        ) : null}
+
+        {/* SURFACE 8 - "Send a Greet-Me now": one time, unscheduled, OWNER ONLY, on this dashboard only. */}
+        {isOwner && oneTimeClient ? (
+          <SendNowFlow
+            orgId={effectiveOrgId} contacts={managedContacts || contacts} client={oneTimeClient}
+            cardClient={cardClient} stripeOverride={stripeOverride}
+          />
         ) : null}
 
         {/* A — CAMPAIGNS: fixed-height internal scroll, sticky header + Add CTA.
@@ -943,6 +979,7 @@ export default function GreetingAutomationCampaigns({
                   onReorderKeyDown={onReorderKeyDown}
                   campaign={r.campaign}
                   contacts={contacts}
+                  managedContacts={managedContacts}
                   orgId={effectiveOrgId}
                   client={client}
                   isOwner={isOwner}

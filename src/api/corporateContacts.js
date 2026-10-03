@@ -132,9 +132,11 @@ export function createCorporateContactsClient({
     const early = classifyStatus(res.status);
     if (early) return early;
     if (res.status === 404) return { ok: false, notFound: true, status: 404 };
-    if (res.status === 409) return { ok: false, conflict: true, status: 409 };
     let data = null;
     try { data = await res.json(); } catch { /* tolerate empty body */ }
+    // 409 keeps its reason: email_already_exists (an active contact has it) vs email_archived (a removed one does,
+    // and contactId says which, so the reader can be offered Restore instead of a second record).
+    if (res.status === 409) return { ok: false, conflict: true, status: 409, error: (data && data.error) || null, contactId: (data && data.contactId) || null };
     if (!res.ok) return { ok: false, status: res.status, error: (data && (data.error || data.reason)) || `HTTP ${res.status}` };
     return { ok: true, status: res.status, data: (data && data.data) || data };
   }
@@ -156,7 +158,35 @@ export function createCorporateContactsClient({
       ? Promise.resolve({ ok: false, status: 400, error: "missing_org" })
       : writeContact("DELETE", `${contactsPath(orgId)}/${encodeURIComponent(contactId)}`, null);
 
-  return { listOrganizations, importContacts, createContact, updateContact, deleteContact };
+  // SURFACE 8 - the management read: the FULL stored records (email, phone, company, department, notes, full-date
+  // occasions, delivery address) for the owner, so Manage can show readiness and Edit can be pre-filled. This is
+  // NOT the campaign audience read (that one deliberately returns only id, name, category and month-day dates).
+  // Any failure - including a server that does not have the endpoint yet (404/405) - is "not available", and the
+  // caller falls back to the read-only roster. It never throws.
+  async function listManaged(orgId) {
+    if (!orgId || typeof orgId !== "string") return { ok: false, status: 400, error: "missing_org" };
+    let res;
+    try {
+      res = await fetchImpl(`${apiBase}/api/corporate-contacts${contactsPath(orgId)}`, { method: "GET", headers: headers() });
+    } catch {
+      return { ok: false, networkError: true, status: 0 };
+    }
+    const early = classifyStatus(res.status);
+    if (early) return early;
+    if (!res.ok) return { ok: false, unavailable: true, status: res.status };
+    let data = null;
+    try { data = await res.json(); } catch { /* tolerate */ }
+    const body = (data && data.data) || data;
+    const contacts = body && Array.isArray(body.contacts) ? body.contacts : null;
+    return contacts ? { ok: true, status: res.status, contacts } : { ok: false, malformed: true, status: res.status };
+  }
+
+  const restoreContact = (orgId, contactId) =>
+    (!orgId || typeof orgId !== "string" || !contactId)
+      ? Promise.resolve({ ok: false, status: 400, error: "missing_org" })
+      : writeContact("POST", `${contactsPath(orgId)}/${encodeURIComponent(contactId)}/restore`, {});
+
+  return { listOrganizations, importContacts, createContact, updateContact, deleteContact, listManaged, restoreContact };
 }
 
 /**
