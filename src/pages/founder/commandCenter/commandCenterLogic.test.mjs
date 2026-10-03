@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { money, toRow, filterSort, showRank, inactivePeriodsText, readGiftSales, sumGiftSales, STAGE_LABELS } from "./commandCenterLogic.js";
+import { money, toRow, filterSort, showRank, inactivePeriodsText, readGiftSales, sumGiftSales, STAGE_LABELS, GIFT_SALES_LABEL, giftTypeLabel, giftTruncationNote } from "./commandCenterLogic.js";
 
 const sp = (id, name, status, rev, direct = 0, override = 0) => ({ salespersonId: id, displayName: name, status, customers: { newInPeriod: 1, total: 2 }, newSubscribers: 1, renewals: 2, revenueMinor: rev, commission: { directMinor: direct, overrideMinor: override } });
 
@@ -31,4 +31,13 @@ test("gift sales envelope: only a well-formed informational result is accepted",
 test("plain-words stage labels carry no internal state names and no Paid stage", () => {
   assert.deepEqual(Object.values(STAGE_LABELS), ["Waiting for approval", "Approved (not paid out)", "Reversed (refund)"]);
   assert.equal(inactivePeriodsText([{ from: "2026-08-01T00:00:00Z", to: null }])[0], "2026-08-01 to now");
+});
+test("label is accurate (gift AND store), type labels are plain, truncation note only when partial", () => {
+  assert.equal(GIFT_SALES_LABEL, "Gift & store sales");
+  assert.equal(giftTypeLabel("qr_cash"), "QR Cash"); assert.equal(giftTypeLabel(""), "Other");
+  const full = readGiftSales({ ok: true, data: { attributedCustomersConsidered: 5, resolvedAccounts: 5, giftSales: { count: 1, grossGiftVolumeMinor: 1, byType: [] } } });
+  assert.equal(giftTruncationNote(full), "");
+  const part = readGiftSales({ ok: true, data: { truncated: true, attributedCustomersConsidered: 250, resolvedAccounts: 200, giftSales: { count: 1, grossGiftVolumeMinor: 1, byType: [] } } });
+  assert.match(giftTruncationNote(part), /200 of 250/);
+  assert.match(giftTruncationNote(readGiftSales({ ok: true, data: { truncated: true, giftSales: { count: 1, grossGiftVolumeMinor: 1 } } })), /may be incomplete\./);
 });

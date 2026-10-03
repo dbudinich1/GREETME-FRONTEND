@@ -63,5 +63,26 @@ export function sumGiftSales(results) {
 export function readGiftSales(res) {
   const g = res && res.ok && res.data && res.data.giftSales;
   if (!g || !Number.isFinite(g.count) || !Number.isFinite(g.grossGiftVolumeMinor)) return { ok: false };
-  return { ok: true, count: g.count, grossGiftVolumeMinor: g.grossGiftVolumeMinor, byType: Array.isArray(g.byType) ? g.byType : [], truncated: !!res.data.truncated };
+  return {
+    ok: true, count: g.count, grossGiftVolumeMinor: g.grossGiftVolumeMinor,
+    byType: Array.isArray(g.byType) ? g.byType.filter((t) => t && Number.isFinite(t.count)) : [],
+    truncated: !!res.data.truncated,
+    considered: Number.isFinite(res.data.attributedCustomersConsidered) ? res.data.attributedCustomersConsidered : null,
+    resolved: Number.isFinite(res.data.resolvedAccounts) ? res.data.resolvedAccounts : null,
+  };
+}
+/** Accurate label: the backend counts gift orders AND store (merch / marketplace) orders. */
+export const GIFT_SALES_LABEL = "Gift & store sales";
+export const GIFT_SALES_NOTE = "Gift and store orders placed by customers this salesperson brought in, including merch and marketplace orders. For information only: no commission is calculated on them and nothing here is paid out.";
+export function giftTypeLabel(t) {
+  const v = String(t || "").replace(/[_-]+/g, " ").trim();
+  return v ? v.split(" ").map((w) => (w.toLowerCase() === "qr" ? "QR" : w.charAt(0).toUpperCase() + w.slice(1))).join(" ") : "Other";
+}
+/** One plain sentence when the figure may be incomplete, else an empty string. */
+export function giftTruncationNote(g) {
+  if (!g || !g.ok) return "";
+  const partial = g.truncated || (g.considered != null && g.resolved != null && g.resolved < g.considered);
+  if (!partial) return "";
+  const of = g.considered != null && g.resolved != null ? ` (${g.resolved} of ${g.considered} customer accounts counted)` : "";
+  return `This figure may be incomplete${of}.`;
 }

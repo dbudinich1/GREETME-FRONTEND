@@ -201,7 +201,7 @@ export default function FounderCentralCommand({
       const res = await contactsApi.list({ limit: 1 });
       if (!alive) return;
       if (res.ok && res.data && res.data.counts) setContacts({ loading: false, total: res.data.counts.total, followUpDue: res.data.counts.followUpDue, error: null });
-      else setContacts({ loading: false, total: null, followUpDue: null, error: "Couldn't load the contact count." });
+      else setContacts({ loading: false, total: null, followUpDue: null, error: res.status === 403 ? null : "Couldn't load the contact count.", forbidden: res.status === 403 });
     })();
     return () => { alive = false; };
   }, [founder, contactsApi]);
@@ -500,8 +500,9 @@ export default function FounderCentralCommand({
                 <div style={statRow}><span>Contacts</span><span style={statValue} data-testid="fcc-contacts-total">{contacts.total}</span></div>
                 <div style={statRow}><span>Follow-ups due</span><span style={statValue} data-testid="fcc-contacts-due">{contacts.followUpDue}</span></div>
               </>
-            ) : contacts.error ? <p style={unavailable} data-testid="fcc-contacts-error">{contacts.error}</p> : null}
-            <a href="#/dashboard/founder/contacts" style={linkBtn} data-testid="fcc-contacts-open">Open Contacts</a>
+            ) : contacts.forbidden ? <p style={unavailable} data-testid="fcc-contacts-unavailable">The contact book is not available on this account.</p>
+              : contacts.error ? <p style={unavailable} data-testid="fcc-contacts-error">{contacts.error}</p> : null}
+            {contacts.forbidden ? null : <a href="#/dashboard/founder/contacts" style={linkBtn} data-testid="fcc-contacts-open">Open Contacts</a>}
           </section>
         ) : null}
       </div>

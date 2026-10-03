@@ -6,7 +6,7 @@ import FounderCentralCommand from "../FounderCentralCommand.jsx";
 import { isFounder } from "../../../utils/accountState.js";
 import { salesAdminApi } from "../../../api/salesAdmin.js";
 import { Page, LinkList, ui, gridStyle } from "./commandCenterUi.jsx";
-import { money, readGiftSales, sumGiftSales } from "./commandCenterLogic.js";
+import { money, readGiftSales, sumGiftSales, GIFT_SALES_LABEL, GIFT_SALES_NOTE } from "./commandCenterLogic.js";
 
 function readUser() {
   try { return JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; }
@@ -53,9 +53,9 @@ export function SalesHub({ commandProps = {}, api = salesAdminApi, period = "30"
         </section>
         {gift.total ? (
           <section style={ui.card} data-testid="cc-card-gift-sales" aria-labelledby="cc-gs-title">
-            <h2 id="cc-gs-title" style={ui.title}>Gift sales</h2>
+            <h2 id="cc-gs-title" style={ui.title}>{GIFT_SALES_LABEL}</h2>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: ".85rem" }}><span>Last 30 days</span><strong data-testid="cc-gift-sales-30">{gift.total.count} orders ({money(gift.total.gross)})</strong></div>
-            <p style={ui.note}>Gift orders placed by customers the salespeople brought in. For information only: no commission is calculated on gifts and nothing here is paid out.</p>
+            <p style={ui.note}>{GIFT_SALES_NOTE}</p>
           </section>
         ) : null}
       </div>

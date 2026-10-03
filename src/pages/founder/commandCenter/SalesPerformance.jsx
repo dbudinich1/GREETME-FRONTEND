@@ -7,7 +7,7 @@ import { salesAdminApi, salesAdminErrorMessage } from "../../../api/salesAdmin.j
 import { Page, ui } from "./commandCenterUi.jsx";
 import {
   PERIODS, PAYOUTS_OFF_LINE, STAGE_LABELS, COMMISSION_YEAR_WORDS, CUSTOMER_TYPE_WORDS,
-  money, statusWord, toRow, filterSort, showRank, inactivePeriodsText, readGiftSales,
+  money, statusWord, toRow, filterSort, showRank, inactivePeriodsText, readGiftSales, GIFT_SALES_LABEL, GIFT_SALES_NOTE, giftTypeLabel, giftTruncationNote,
 } from "./commandCenterLogic.js";
 
 function readUser() {
@@ -106,7 +106,7 @@ function Detail({ api, id, period, onBack, onPeriod }) {
               <Tile testid="tile-subscribers" label="New subscribers" value={d.tiles.newSubscribers} sub="First paid month" />
               <Tile testid="tile-renewals" label="Renewals" value={d.tiles.renewals} sub="Later paid months" />
               <Tile testid="tile-revenue" label="Subscription revenue" value={money(d.tiles.revenueMinor)} sub="Attributed, after refunds" />
-              {gift.data ? <Tile testid="tile-gifts" label="Gift sales" value={`${gift.data.count} (${money(gift.data.grossGiftVolumeMinor)})`} sub="Gift orders, information only: no commission" /> : null}
+              {gift.data ? <Tile testid="tile-gifts" label={GIFT_SALES_LABEL} value={`${gift.data.count} (${money(gift.data.grossGiftVolumeMinor)})`} sub="Information only: no commission" /> : null}
               <Tile testid="tile-commission" label="Commission earned" value={money((d.commissionByStage.directMinor || 0) + (d.commissionByStage.overrideMinor || 0))} sub="Not paid out" />
             </div>
             <section style={ui.card} data-testid="cc-section-chart">
@@ -139,7 +139,19 @@ function Detail({ api, id, period, onBack, onPeriod }) {
           </>
         )}
       </Panel>
-      {!gift.loading && gift.error ? <p data-testid="cc-gift-unavailable" style={ui.note}>Gift sales are not available right now.</p> : null}
+      {!gift.loading && gift.error ? <p data-testid="cc-gift-unavailable" style={ui.note}>{GIFT_SALES_LABEL} are not available right now.</p> : null}
+      {gift.data ? (
+        <section style={ui.card} data-testid="cc-section-gifts">
+          <h3 style={ui.title}>{GIFT_SALES_LABEL} by type</h3>
+          {gift.data.byType.length === 0 ? <p style={ui.note} data-testid="cc-gifts-none">None in this period.</p> : (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 4 }} data-testid="cc-gift-types">
+              {gift.data.byType.map((t) => <li key={t.giftType} data-testid={`cc-gift-type-${t.giftType}`} style={{ display: "flex", justifyContent: "space-between", fontSize: ".86rem" }}><span>{giftTypeLabel(t.giftType)}</span><strong>{t.count} ({money(t.grossGiftVolumeMinor)})</strong></li>)}
+            </ul>
+          )}
+          {giftTruncationNote(gift.data) ? <p style={ui.note} data-testid="cc-gifts-truncated">{giftTruncationNote(gift.data)}</p> : null}
+          <p style={ui.note}>{GIFT_SALES_NOTE}</p>
+        </section>
+      ) : null}
       <section style={ui.card} data-testid="cc-section-customers">
         <h3 style={ui.title}>Customers</h3>
         <Panel state={cust} testid="cc-customers" errorText="The customer list is not available right now.">
@@ -225,7 +237,7 @@ export default function SalesPerformance({ api = salesAdminApi, user: injectedUs
           shown.length === 0 ? <p data-testid="cc-no-match" style={ui.note}>No salespeople match these filters.</p> : (
             <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12 }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }} data-testid="cc-perf-table">
-                <thead><tr>{rank ? <th style={ui.th}>Rank</th> : null}{head("name", "Salesperson")}<th style={ui.th}>Status</th>{head("customers", "Customers", true)}{head("newSubscribers", "New subscribers", true)}{head("revenue", "Revenue", true)}{head("gifts", "Gift sales", true)}{head("commission", "Commission earned", true)}<th style={ui.th} /></tr></thead>
+                <thead><tr>{rank ? <th style={ui.th}>Rank</th> : null}{head("name", "Salesperson")}<th style={ui.th}>Status</th>{head("customers", "Customers", true)}{head("newSubscribers", "New subscribers", true)}{head("revenue", "Revenue", true)}{head("gifts", GIFT_SALES_LABEL, true)}{head("commission", "Commission earned", true)}<th style={ui.th} /></tr></thead>
                 <tbody>{shown.map((r, i) => (
                   <tr key={r.salespersonId} data-testid={`cc-row-${r.salespersonId}`}>
                     {rank ? <td style={ui.td} data-testid={`cc-rank-${r.salespersonId}`}>{i + 1}</td> : null}
@@ -241,7 +253,7 @@ export default function SalesPerformance({ api = salesAdminApi, user: injectedUs
               </table>
             </div>)
         ) : null}
-        <p style={ui.note}>Revenue is subscription revenue attributed to the salesperson, after refunds. Commission earned includes override earnings and is not paid out. Gift sales are the gift orders customers attributed to the salesperson placed (count and total value); they are for information only and carry no commission. Dollar amounts are in US dollars.</p>
+        <p style={ui.note}>Revenue is subscription revenue attributed to the salesperson, after refunds. Commission earned includes override earnings and is not paid out. Gift & store sales are the gift and store orders (including merch and marketplace) that customers attributed to the salesperson placed, as a count and total value; they are for information only and carry no commission. Dollar amounts are in US dollars.</p>
       </div>
     </Page>
   );

@@ -98,7 +98,7 @@ function salesApi(over = {}) {
       byDay: [{ date: "2026-10-01", revenueMinor: 1200, commissionMinor: 300, newSubscribers: 1, renewals: 0 }, { date: "2026-10-02", revenueMinor: 0, commissionMinor: 0, newSubscribers: 0, renewals: 0 }],
     }), calls),
     customers: counter("customers", () => ok({ ok: true, truncated: false, customers: [{ customerRef: "abc123", label: "Customer 1", type: "customer", originatedAt: "2026-06-01T00:00:00.000Z", commissionYear: 1, stillPaying: true, revenueMinor: 3600, commissionMinor: 900 }, { customerRef: "def456", label: "Customer 2", type: "fundraiser_partner", originatedAt: "2025-01-01T00:00:00.000Z", commissionYear: 2, stillPaying: false, revenueMinor: 0, commissionMinor: 0 }] }), calls),
-    giftSales: counter("giftSales", (id) => ok({ ok: true, informationalOnly: true, giftSales: id === "sp_a" ? { count: 9, grossGiftVolumeMinor: 40600, byType: [] } : { count: 2, grossGiftVolumeMinor: 6500, byType: [] } }), calls),
+    giftSales: counter("giftSales", (id) => ok({ ok: true, informationalOnly: true, truncated: id === "sp_b", attributedCustomersConsidered: id === "sp_b" ? 250 : 11, resolvedAccounts: id === "sp_b" ? 200 : 11, giftSales: id === "sp_a" ? { count: 9, grossGiftVolumeMinor: 40600, byType: [{ giftType: "qr_cash", count: 6, grossGiftVolumeMinor: 30000 }, { giftType: "merch", count: 3, grossGiftVolumeMinor: 10600 }] } : { count: 2, grossGiftVolumeMinor: 6500, byType: [{ giftType: "flowers", count: 2, grossGiftVolumeMinor: 6500 }] } }), calls),
     assignedLinks: counter("assignedLinks", () => ok({ ok: true, referralPublicEnabled: true, links: [
       { type: "share_link", label: "Share link", active: true, tokenVersion: 2, urlAvailable: false, destination: "Greet-Me sign-up, credited to this salesperson", note: "The link is shown once when issued or rotated; only a hash is stored, so it cannot be shown again. Rotate to issue a new one." },
       { type: "vanity_alias", label: "Vanity referral link", active: true, assigned: true, slug: "alex", url: "https://greet-me.com/alex", destination: "Same hand-off as the share link, via the short address" },
@@ -176,7 +176,9 @@ test("hub pages list their existing destinations and the Sales hub shows the gif
   await mount(M.SalesHub, { commandProps: cmdProps(), api: salesApi() });
   assert.ok(tid("fcc-card-sales")); assert.ok(tid("cc-card-performance"));
   assert.match(tid("cc-gift-sales-30").textContent, /11 orders \(\$471\.00\)/);
-  assert.match(tid("cc-card-gift-sales").textContent, /no commission is calculated on gifts/);
+  assert.match(tid("cc-card-gift-sales").textContent, /Gift & store sales/);
+  assert.match(tid("cc-card-gift-sales").textContent, /including merch and marketplace/);
+  assert.match(tid("cc-card-gift-sales").textContent, /no commission is calculated/);
   assert.ok(tid("cc-link-people") && tid("cc-link-performance"));
   await mount(M.FundraiserHub, { commandProps: cmdProps() });
   for (const c of ["fundraising", "campaigns", "participants", "partner", "activation"]) assert.ok(tid(`fcc-card-${c}`));
@@ -207,7 +209,11 @@ test("performance list: sort, filters, rank, gift sales column; detail has tiles
   assert.equal(tid("cc-detail-name").textContent, "Alex Sample");
   assert.equal(tid("tile-customers-value").textContent, "3");
   assert.match(tid("tile-gifts-value").textContent, /9 \(\$406\.00\)/);
+  assert.match(tid("tile-gifts").textContent, /Gift & store sales/);
   assert.match(tid("tile-gifts").textContent, /no commission/);
+  assert.match(tid("cc-gift-type-qr_cash").textContent, /QR Cash.*6 \(\$300\.00\)/);
+  assert.match(tid("cc-gift-type-merch").textContent, /Merch.*3 \(\$106\.00\)/);
+  assert.equal(tid("cc-gifts-truncated"), null, "complete figure: no truncation note");
   assert.ok(tid("chart-revenueMinor") && tid("chart-commissionMinor"));
   assert.match(tid("cc-stage-waitingApprovalMinor").textContent, /Waiting for approval.*\$10\.00/);
   assert.match(tid("cc-stage-approvedMinor").textContent, /Approved \(not paid out\)/);
@@ -222,7 +228,7 @@ test("gift sales are NEVER shown as commission; no payout / approve / export con
   await mount(M.SalesPerformance, { user: FOUNDER, api: salesApi() });
   await click(tid("cc-open-sp_a"));
   const text = document.body.textContent;
-  assert.doesNotMatch(text, /gift commission|commission on gift|gift earnings/i);
+  assert.doesNotMatch(text, /gift commission|commission on gift|gift earnings|store commission/i);
   assert.match(text, /carry no commission|no commission/);
   for (const b of document.querySelectorAll("button")) assert.doesNotMatch(b.textContent, /approve|\bpay\b|export|download|mark paid/i);
   assert.doesNotMatch(text, /\bPaid\b(?! out)/);
@@ -254,16 +260,23 @@ test("salesperson profile: assigned links (vanity link + copy + state + destinat
   assert.equal(tid("cc-link-vanity-url").textContent, "https://greet-me.com/alex");
   assert.equal(tid("cc-link-vanity-state").textContent, "Active");
   assert.match(tid("cc-link-vanity").textContent, /Opens: Same hand-off/);
-  assert.ok(tid("cc-link-qr"));
+  assert.equal(tid("cc-link-qr"), null, "no separate salesperson QR exists, so none is drawn");
+  assert.equal(document.querySelector("img"), null);
   assert.match(tid("cc-link-share").textContent, /version 2/);
   assert.match(tid("cc-link-share").textContent, /cannot be shown again/);
   assert.doesNotMatch(tid("cc-link-share").textContent, /https?:\/\//, "the private link is never displayed");
+  assert.match(tid("cc-link-share-rotate").textContent, /Rotate/);
   assert.equal(tid("cc-link-claim-state").textContent, "Active");
   await click(tid("cc-link-vanity-copy"));
   assert.deepEqual(written, ["https://greet-me.com/alex"]);
   await mount(M.GiftSalesPanel, { api, salespersonId: "sp_a" });
   assert.match(tid("cc-profile-gifts-30").textContent, /9 orders \(\$406\.00\)/);
-  assert.match(tid("cc-profile-gifts").textContent, /no commission is calculated on gifts/);
+  assert.match(tid("cc-profile-gifts").textContent, /Gift & store sales/);
+  assert.match(tid("cc-profile-gifts").textContent, /no commission is calculated/);
+  assert.match(tid("cc-gift-type-merch").textContent, /Merch/);
+  assert.equal(tid("cc-profile-gifts-truncated"), null);
+  await mount(M.GiftSalesPanel, { api, salespersonId: "sp_b" });
+  assert.match(tid("cc-profile-gifts-truncated").textContent, /may be incomplete \(200 of 250 customer accounts counted\)/);
   // paused + gated
   const paused = salesApi({ assignedLinks: () => ok({ ok: true, referralPublicEnabled: false, links: [{ type: "vanity_alias", active: false, assigned: true, slug: "bo", url: "https://greet-me.com/bo", destination: "x" }] }) });
   await mount(M.AssignedLinksPanel, { api: paused, salespersonId: "sp_b" });
@@ -322,6 +335,20 @@ test("contacts: list, add (arrays), follow-up filter, and PERMANENT delete alway
   assert.deepEqual(calls.filter((c) => c[0] === "remove"), [["remove", "c1"]]);
   assert.equal(tid("notice").textContent, "Contact deleted.");
   await click(tid("filter-due")); assert.ok(calls.some((c) => c[0] === "list" && c[1] && c[1].followUpDue === true));
+});
+
+test("contact book 403 (restricted by ops setting): plain 'not available', no link; page shows the same plain message", async () => {
+  await mount(M.Command, cmdProps({ contactsApi: { list: () => Promise.resolve({ ok: false, status: 403, data: { ok: false } }) } }));
+  assert.match(tid("fcc-contacts-unavailable").textContent, /not available on this account/);
+  assert.equal(tid("fcc-contacts-open"), null);
+  await mount(M.ContactsPage, { user: FOUNDER, api: { list: () => Promise.resolve({ ok: false, status: 403, data: null }) } });
+  assert.match(tid("error").textContent, /not available on this account/);
+});
+
+test("performance detail: truncated gift figure shows a plain note", async () => {
+  await mount(M.SalesPerformance, { user: FOUNDER, api: salesApi() });
+  await click(tid("cc-open-sp_b"));
+  assert.match(tid("cc-gifts-truncated").textContent, /200 of 250/);
 });
 
 test("Central Command home keeps working when the contacts read is missing or fails (tile and link stay, no number)", async () => {

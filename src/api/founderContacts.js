@@ -43,7 +43,7 @@ export function founderContactsErrorMessage(res) {
   if (!res) return "That didn't go through. Please try again.";
   if (res.networkError) return "Couldn't reach the server. Check your connection and try again.";
   if (res.status === 401) return "Your session has expired. Sign in again to continue.";
-  if (res.status === 403) return "This area is limited to the founder account.";
+  if (res.status === 403) return "The contact book is not available on this account.";
   if (res.status === 404) return "That contact no longer exists.";
   if (res.status === 400) return "Some details aren't valid. Check the highlighted fields.";
   if (res.status === 429) return "Too many requests. Wait a moment and try again.";

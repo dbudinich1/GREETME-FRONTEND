@@ -2,8 +2,7 @@
 // when the client has no such read (or the read fails) the panel renders nothing or one plain sentence, and the rest of the
 // profile is untouched. No token or hash is ever shown; the private link is only ever reported as a state.
 import { useEffect, useState } from "react";
-import QRCode from "qrcode";
-import { money, readGiftSales } from "./commandCenterLogic.js";
+import { money, readGiftSales, GIFT_SALES_LABEL, GIFT_SALES_NOTE, giftTypeLabel, giftTruncationNote } from "./commandCenterLogic.js";
 
 const box = { border: "1px solid var(--border, #e5e7eb)", borderRadius: 12, padding: "12px 14px", display: "grid", gap: 6, background: "#fff" };
 const small = { margin: 0, fontSize: ".8rem", color: "#475569", lineHeight: 1.45 };
@@ -16,16 +15,6 @@ function CopyButton({ text, testid }) {
   }
   return <button type="button" className="btn-secondary" style={{ padding: ".3rem .7rem", fontSize: ".78rem" }} data-testid={testid} onClick={copy}>{done ? "Copied" : "Copy link"}</button>;
 }
-function QrImage({ text }) {
-  const [src, setSrc] = useState("");
-  useEffect(() => {
-    let live = true;
-    QRCode.toDataURL(text, { margin: 1, width: 160 }).then((u) => { if (live) setSrc(u); }).catch(() => { if (live) setSrc(""); });
-    return () => { live = false; };
-  }, [text]);
-  return src ? <img src={src} width="120" height="120" alt={`QR code for ${text}`} data-testid="cc-link-qr-img" /> : null;
-}
-
 export function AssignedLinksPanel({ api, salespersonId }) {
   const [state, setState] = useState({ loading: true });
   const has = typeof api.assignedLinks === "function";
@@ -53,7 +42,6 @@ export function AssignedLinksPanel({ api, salespersonId }) {
               <code data-testid="cc-link-vanity-url" style={{ wordBreak: "break-all", userSelect: "all" }}>{vanity.url}</code>
               <p style={small}>Opens: {vanity.destination}.{vanity.active ? "" : " This salesperson is inactive, so new visitors are not credited to them."}</p>
               <div><CopyButton text={vanity.url} testid="cc-link-vanity-copy" /></div>
-              <div data-testid="cc-link-qr"><QrImage text={vanity.url} /><p style={small}>QR code made from the shareable link above.</p></div>
             </>
           ) : <p style={small} data-testid="cc-link-vanity-none">No shareable link assigned yet. Assign one below.</p>}
         </div>
@@ -62,6 +50,7 @@ export function AssignedLinksPanel({ api, salespersonId }) {
         <div style={box} data-testid="cc-link-share">
           <div style={head}><span>Private tracking link</span><span data-testid="cc-link-share-state">{share.active ? "Active" : "Paused"}, version {share.tokenVersion}</span></div>
           <p style={small}>Opens: {share.destination}. {share.note}</p>
+          <p style={small} data-testid="cc-link-share-rotate">To get a new link, use Rotate on this profile; the new link is shown once.</p>
         </div>
       ) : null}
       {claim ? (
@@ -93,10 +82,16 @@ export function GiftSalesPanel({ api, salespersonId }) {
   if (state.error) return <p style={small} data-testid="cc-gifts-error">Gift sales are not available right now.</p>;
   return (
     <section data-testid="cc-profile-gifts" style={box}>
-      <div style={head}><span>Gift sales</span></div>
+      <div style={head}><span>{GIFT_SALES_LABEL}</span></div>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: ".86rem" }}><span>Last 30 days</span><strong data-testid="cc-profile-gifts-30">{state.g30.count} orders ({money(state.g30.grossGiftVolumeMinor)})</strong></div>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: ".86rem" }}><span>All time</span><strong data-testid="cc-profile-gifts-all">{state.gAll.count} orders ({money(state.gAll.grossGiftVolumeMinor)})</strong></div>
-      <p style={small}>Gift orders placed by customers this salesperson brought in. For information only: no commission is calculated on gifts and nothing here is paid out.</p>
+      {state.gAll.byType.length ? (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 2 }} data-testid="cc-profile-gifts-types">
+          {state.gAll.byType.map((t) => <li key={t.giftType} data-testid={`cc-gift-type-${t.giftType}`} style={{ display: "flex", justifyContent: "space-between", fontSize: ".82rem" }}><span>{giftTypeLabel(t.giftType)} (all time)</span><span>{t.count} ({money(t.grossGiftVolumeMinor)})</span></li>)}
+        </ul>
+      ) : null}
+      {giftTruncationNote(state.gAll) || giftTruncationNote(state.g30) ? <p style={small} data-testid="cc-profile-gifts-truncated">{giftTruncationNote(state.gAll) || giftTruncationNote(state.g30)}</p> : null}
+      <p style={small}>{GIFT_SALES_NOTE}</p>
       <a href="#/dashboard/founder/sales/performance" data-testid="cc-profile-to-performance" style={{ fontSize: ".82rem", color: "#4F2D7F", fontWeight: 700 }}>Open the performance tracker</a>
     </section>
   );
