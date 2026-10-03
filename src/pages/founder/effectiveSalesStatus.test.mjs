@@ -24,3 +24,10 @@ test("unreadable controls / status are not guessed", () => {
   assert.equal(effectiveSalesStatus(undefined, LIVE).key, "unknown");
   assert.equal(effectiveSalesStatus("weird", LIVE).key, "unknown");
 });
+
+test("inactive salesperson: commission stops accruing; accrued stays and needs approval before payout", () => {
+  const d = effectiveSalesStatus("inactive", LIVE).detail;
+  assert.match(d, /Commission stops accruing for an inactive salesperson/);
+  assert.match(d, /already accrued stays, and needs approval before any payout/);
+  assert.doesNotMatch(d, /unchanged/);
+});
