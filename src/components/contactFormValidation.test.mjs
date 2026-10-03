@@ -81,7 +81,8 @@ test("ContactForm delegates to the guarded validator and sanitizes on save", () 
   // QR Cash fix (Team 1A): the sanitized payload is still what is saved; only occasionGiftSettings is passed through
   // normalizeGiftSettingsForSave (qrcash entries save autoGift:false + displayed amount while scheduled QR Cash is off).
   assert.match(CF, /const toSave = sanitizeRelationshipForSave\(formData\);/);
-  assert.match(CF, /await onSubmit\(\{ \.\.\.toSave, occasionGiftSettings: normalizeGiftSettingsForSave\(toSave\.occasionGiftSettings\) \}\)/);
+  // W07: the one hand-off to the parent is commitSave (same spread + normalised settings, plus the optional occasionGiftConsents).
+  assert.match(CF, /await onSubmit\(\{\s*\.\.\.toSave,\s*occasionGiftSettings: normalizeGiftSettingsForSave\(toSave\.occasionGiftSettings\),/);
   // the old hard-coded "always required" relationship errors are gone
   assert.ok(!/Please select a relationship category/.test(CF));
   assert.ok(!/Please select relationship closeness/.test(CF));

@@ -16,6 +16,10 @@ import { getErrorMessage } from '../utils/errorMessages';
 import { formatPersonName } from '../utils/formatPersonName';
 import api from '../api/api';
 import { SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY } from '../config/scheduledQrCash';
+// W07 SAVE-time authorization (DORMANT: every use below is behind SCHEDULED_QRCASH_AVAILABLE, which is false until activation).
+import SaveAuthorizationModal from './w07Auth/SaveAuthorizationModal';
+import PaymentInfoTriangle from './w07Auth/PaymentInfoTriangle';
+import { planAuthorization } from '../utils/scheduledQrCashConsent';
 import { deterministicStructuredForContact } from '../import/completionModel.js';
 
 // Session storage key for preserving form data during gift selection navigation
@@ -80,13 +84,15 @@ function CinematicGiftIcon() {
   );
 }
 
-export default function ContactForm({ contact, onSubmit, onCancel }) {
+export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion = null }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [formData, setFormData] = useState(getInitialFormData());
   const [selectedFaiths, setSelectedFaiths] = useState([]);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  // W07: the SAVE-time authorization plan ({ items, cardState, need }) and the card summary, while the modal is open. Null otherwise.
+  const [authModal, setAuthModal] = useState(null);
   const [secularExpanded, setSecularExpanded] = useState(false);
   const [faithSectionExpanded, setFaithSectionExpanded] = useState(false);
   const [giftModalOpen, setGiftModalOpen] = useState(false);
@@ -99,6 +105,22 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
   // FOUNDER 2026-10-01 (PROPOSED): the Special Occasions section is collapsed by default.
   const [occasionsExpanded, setOccasionsExpanded] = useState(false);
   useEffect(() => { if (errors && errors.occasions) setOccasionsExpanded(true); }, [errors]);
+  // Deep link (the "Review your Auto-Gift" email link and the 10-day reminder link open this recipient's edit form with
+  // ?contactId=...&occasion=<type>): open the occasion scheduler, reveal the section that holds that occasion and bring its card
+  // into view. An unknown or absent occasion changes nothing - the form just opens as usual.
+  useEffect(() => {
+    if (!contact || !focusOccasion) return undefined;
+    const def = occasionTypes.find((o) => o.value === focusOccasion);
+    if (!def) return undefined;
+    setOccasionsExpanded(true);
+    if (def.category === 'secular') setSecularExpanded(true);
+    if (['christian', 'jewish', 'muslim'].includes(def.category)) setFaithSectionExpanded(true);
+    const t = setTimeout(() => {
+      const el = document.getElementById(`occasion-${focusOccasion}`) || document.querySelector(`[data-occasion="${focusOccasion}"]`);
+      if (el) { try { el.scrollIntoView({ block: 'center' }); } catch { /* old browser */ } try { el.focus({ preventScroll: true }); } catch { /* not focusable */ } }
+    }, 60);
+    return () => clearTimeout(t);
+  }, [contact && contact.id, focusOccasion]);
   // FOUNDER round 4 (PROPOSED): the "Add gift" checkbox is a view of the SAME occasionGiftSettings data
   // (checked <=> type !== 'none'); this map only remembers a just-ticked box whose mode is not chosen yet.
   const [addGiftOn, setAddGiftOn] = useState({});
@@ -404,12 +426,6 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
             <option value="marketplace">Browse Marketplace</option>
           </select>
         </div>
-        {/* No repeat claim for QR Cash while scheduled QR Cash is unavailable: it would imply an automatic send and contradict the "not available yet" sentence. */}
-        {checked && repeatsAnnually(occ) && !qrCashManualOnly(gs) && (
-          <small data-testid={`add-gift-repeat-${occ}`} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            Your gift selection will automatically repeat annually until changed.
-          </small>
-        )}
       </div>
     );
   };
@@ -446,6 +462,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
     for (const [key, gs] of Object.entries(settings)) {
       if (gs && gs.type === 'qrcash' && !SCHEDULED_QRCASH_AVAILABLE) {
         out[key] = { ...gs, autoGift: false, amount: gs.amount === undefined || gs.amount === null ? QRCASH_DEFAULT_DOLLARS : gs.amount };
+      } else if (gs && gs.type === 'qrcash' && gs.autoGift === true && (gs.amount === undefined || gs.amount === null)) {
+        out[key] = { ...gs, amount: QRCASH_DEFAULT_DOLLARS }; // an Auto-Gift QR Cash entry is never sent without the amount it shows
       } else {
         out[key] = gs;
       }
@@ -529,6 +547,19 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
     return Object.keys(newErrors).length === 0;
   };
 
+  // The one place a recipient is actually handed to the parent. `consents` is the W07 occasionGiftConsents array (empty otherwise).
+  const commitSave = async (toSave, consents = []) => {
+    await onSubmit({
+      ...toSave,
+      occasionGiftSettings: normalizeGiftSettingsForSave(toSave.occasionGiftSettings),
+      ...(consents.length > 0 ? { occasionGiftConsents: consents } : {}),
+    });
+    // Clear draft on successful submission
+    clearFormDraft();
+    // Show saved toast
+    showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -537,11 +568,28 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
     setSubmitting(true);
     try {
       const toSave = sanitizeRelationshipForSave(formData);
-      await onSubmit({ ...toSave, occasionGiftSettings: normalizeGiftSettingsForSave(toSave.occasionGiftSettings) });
-      // Clear draft on successful submission
-      clearFormDraft();
-      // Show saved toast
-      showManualToast('Saved ✓', 'Recipient settings have been saved.', COMMS_CATEGORIES.PROFILE);
+      const settings = normalizeGiftSettingsForSave(toSave.occasionGiftSettings);
+      if (SCHEDULED_QRCASH_AVAILABLE) {
+        // W07: before saving, work out what the sender still has to give us (consent per new or changed QR Cash Auto-Gift, a card
+        // when none usable is on file, the mailing address of a shipped gift). Nothing is requested when no QR Cash Auto-Gift exists.
+        let card = null;
+        if (Object.values(settings || {}).some((g) => g && g.type === 'qrcash' && g.autoGift === true)) {
+          try {
+            const res = await api.getQrCashCardStatus();
+            card = (res && res.card) || null;
+          } catch (statusErr) {
+            setErrors({ submit: 'We couldn’t check the card on file just now. Please try again.' });
+            return;
+          }
+        }
+        const plan = planAuthorization({
+          settings, initialSettings: contact && contact.occasionGiftSettings, occasions: toSave.occasions, card, formData: toSave,
+          labelFor: (type) => (occasionTypes.find((o) => o.value === type) || {}).label,
+          requiresDelivery: requiresDeliveryAddress,
+        });
+        if (plan.need.consent || plan.need.address) { setAuthModal({ plan, card }); return; }
+      }
+      await commitSave(toSave);
     } catch (error) {
       setErrors({ submit: getErrorMessage(error) });
     } finally {
@@ -1607,7 +1655,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                 Enable Auto-Gift
                               </span>
                             </label>
-                            <span style={{
+                            {(giftSetting.autoGift && !qrCashManualOnly(giftSetting)) && (<span style={{
                               fontSize: '0.625rem',
                               fontWeight: 600,
                               padding: '0.25rem 0.5rem',
@@ -1617,9 +1665,15 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                               textTransform: 'uppercase',
                               letterSpacing: '0.025em'
                             }}>
-                              {(giftSetting.autoGift && !qrCashManualOnly(giftSetting)) ? 'Auto-Gift Enabled' : 'Manual Selection'}
-                            </span>
+                              Auto-Gift Enabled
+                            </span>)}
                           </div>
+                          {giftSetting.autoGift === true && !qrCashManualOnly(giftSetting) && (repeatsAnnually(occasion.value) || (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash')) && (
+                            <p data-testid={`add-gift-repeat-${occasion.value}`} style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 1.375rem' }}>
+                              {repeatsAnnually(occasion.value) ? 'Your gift selection will automatically repeat annually until changed.' : ''}
+                              {SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' && <PaymentInfoTriangle />}
+                            </p>
+                          )}
                           <p style={{
                             fontSize: '0.6875rem',
                             color: 'var(--text-tertiary)',
@@ -1636,7 +1690,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                       )}
 
                       {/* Delivery details - for every gift type that ships a physical parcel */}
-                      {requiresDeliveryAddress(giftSetting.type) && (
+                      {!SCHEDULED_QRCASH_AVAILABLE && requiresDeliveryAddress(giftSetting.type) && (
                         <div style={{
                           marginTop: '1rem',
                           padding: '1rem',
@@ -2118,7 +2172,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                 Enable Auto-Gift
                               </span>
                             </label>
-                            <span style={{
+                            {(giftSetting.autoGift && !qrCashManualOnly(giftSetting)) && (<span style={{
                               fontSize: '0.625rem',
                               fontWeight: 600,
                               padding: '0.25rem 0.5rem',
@@ -2128,9 +2182,15 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                               textTransform: 'uppercase',
                               letterSpacing: '0.025em'
                             }}>
-                              {(giftSetting.autoGift && !qrCashManualOnly(giftSetting)) ? 'Auto-Gift Enabled' : 'Manual Selection'}
-                            </span>
+                              Auto-Gift Enabled
+                            </span>)}
                           </div>
+                          {giftSetting.autoGift === true && !qrCashManualOnly(giftSetting) && (repeatsAnnually(occasion.value) || (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash')) && (
+                            <p data-testid={`add-gift-repeat-${occasion.value}`} style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 1.375rem' }}>
+                              {repeatsAnnually(occasion.value) ? 'Your gift selection will automatically repeat annually until changed.' : ''}
+                              {SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' && <PaymentInfoTriangle />}
+                            </p>
+                          )}
                           <p style={{
                             fontSize: '0.6875rem',
                             color: 'var(--text-tertiary)',
@@ -2147,7 +2207,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                       )}
 
                       {/* Delivery details - for every gift type that ships a physical parcel */}
-                      {requiresDeliveryAddress(giftSetting.type) && (
+                      {!SCHEDULED_QRCASH_AVAILABLE && requiresDeliveryAddress(giftSetting.type) && (
                         <div style={{
                           marginTop: '1rem',
                           padding: '1rem',
@@ -2510,6 +2570,8 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                 return (
                   <div
                     key={occ.type}
+                    data-occasion={occ.type}
+                    tabIndex={-1}
                     style={{
                       border: '1px solid var(--border)',
                       borderRadius: 'var(--radius-lg)',
@@ -2682,7 +2744,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                                 Enable Auto-Gift
                               </span>
                             </label>
-                            <span style={{
+                            {(giftSetting.autoGift && !qrCashManualOnly(giftSetting)) && (<span style={{
                               fontSize: '0.625rem',
                               fontWeight: 600,
                               padding: '0.25rem 0.5rem',
@@ -2692,9 +2754,15 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                               textTransform: 'uppercase',
                               letterSpacing: '0.025em'
                             }}>
-                              {(giftSetting.autoGift && !qrCashManualOnly(giftSetting)) ? 'Auto-Gift Enabled' : 'Manual Selection'}
-                            </span>
+                              Auto-Gift Enabled
+                            </span>)}
                           </div>
+                          {giftSetting.autoGift === true && !qrCashManualOnly(giftSetting) && (repeatsAnnually(occasion.value) || (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash')) && (
+                            <p data-testid={`add-gift-repeat-${occasion.value}`} style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 1.375rem' }}>
+                              {repeatsAnnually(occasion.value) ? 'Your gift selection will automatically repeat annually until changed.' : ''}
+                              {SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' && <PaymentInfoTriangle />}
+                            </p>
+                          )}
                           <p style={{
                             fontSize: '0.6875rem',
                             color: 'var(--text-tertiary)',
@@ -2711,7 +2779,7 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
                       )}
 
                       {/* Delivery details - for every gift type that ships a physical parcel */}
-                      {requiresDeliveryAddress(giftSetting.type) && (
+                      {!SCHEDULED_QRCASH_AVAILABLE && requiresDeliveryAddress(giftSetting.type) && (
                         <div style={{
                           marginTop: '1rem',
                           padding: '1rem',
@@ -2948,10 +3016,23 @@ export default function ContactForm({ contact, onSubmit, onCancel }) {
           style={{ background: 'var(--primary-dark)', color: '#fff', boxShadow: '0 8px 20px -8px rgba(79,70,229,0.7)' }}
           disabled={submitting || uploadingPhotos > 0}
         >
-          {submitting ? 'Saving...' : uploadingPhotos > 0 ? 'Uploading photos...' : contact ? 'Update Recipient' : 'Save'}
+          {submitting ? 'Saving...' : uploadingPhotos > 0 ? 'Uploading photos...' : 'SAVE'}
         </button>
       </div>
     </form>
+
+      {/* W07 SAVE-time authorization (dormant: authModal is only ever set when SCHEDULED_QRCASH_AVAILABLE) */}
+      {SCHEDULED_QRCASH_AVAILABLE && authModal && (
+        <SaveAuthorizationModal
+          plan={authModal.plan} card={authModal.card}
+          formData={formData} setFormData={setFormData}
+          onCancel={() => setAuthModal(null)}
+          onSave={async (consents) => {
+            await commitSave(sanitizeRelationshipForSave(formData), consents);
+            setAuthModal(null);
+          }}
+        />
+      )}
 
       {/* Gift Selector Modal */}
       <GiftSelectorModal

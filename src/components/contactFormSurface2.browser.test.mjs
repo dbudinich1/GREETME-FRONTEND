@@ -177,12 +177,20 @@ test("no-gift data parity: never ticking, or ticking then unticking, yields exac
   assert.deepEqual(Object.keys(entry).filter((k) => !["type", "autoGift", "maxSpend", "qrAmount", "amount", "customAmount"].includes(k)), [], "shape unchanged: only existing keys");
 });
 
-test("annual-repeat subscript: only when Add gift is ticked and the occasion repeats yearly (Graduation is one-time)", async () => {
+test("annual-repeat subscript: now under Enable Auto-Gift - only when a gift is added, Auto-Gift is ticked and the occasion repeats yearly (Graduation is one-time)", async () => {
+  const autoBoxes = () => [...document.querySelectorAll("label")].filter((l) => /Enable Auto-Gift/.test(l.textContent)).map((l) => l.querySelector('input[type="checkbox"]'));
   await mount(); await openScheduler(); await tick("occasion-birthday"); await tick("occasion-graduation");
   assert.equal(tid("add-gift-repeat-birthday"), null, "no claim until a gift is added");
   await click(tid("add-gift-birthday"));
+  await act(async () => setValue(tid("gift-selector-birthday"), "marketplace")); // the Enable Auto-Gift control appears once a gift type is chosen
+  assert.equal(tid("add-gift-repeat-birthday"), null, "a gift alone is not enough: the sentence belongs to Auto-Gift");
+  const [birthdayBox] = autoBoxes();
+  await click(birthdayBox);
   assert.equal(tid("add-gift-repeat-birthday").textContent, "Your gift selection will automatically repeat annually until changed.");
+  assert.ok(tid("add-gift-repeat-birthday").closest("div").textContent.includes("Enable Auto-Gift"), "it sits with the Enable Auto-Gift control");
   await click(tid("add-gift-graduation"));
+  await act(async () => setValue(tid("gift-selector-graduation"), "marketplace"));
+  await click(autoBoxes()[1]);
   assert.equal(tid("add-gift-repeat-graduation"), null, "one-time occasion makes no repeat claim");
   await click(tid("add-gift-birthday"));
   assert.equal(tid("add-gift-repeat-birthday"), null, "unticked: claim gone");
@@ -201,16 +209,16 @@ test("banner: new copy, centered with an icon on each side, informational (no bu
   assert.ok(![...document.querySelectorAll("button")].some((x) => /^\s*Add Gift\s*$/i.test(x.textContent)), "no second Add Gift button");
 });
 
-test("footer: outside the cards, Cancel left / Save right; add says Save, edit keeps Update Recipient", async () => {
+test("footer: outside the cards, Cancel left / SAVE right; add and edit both say SAVE (W07 revision: no \"Update Recipient\")", async () => {
   await mount();
   const foot = tid("contact-form-footer");
   const btns = [...foot.querySelectorAll("button")].map((x) => x.textContent.trim());
-  assert.deepEqual(btns, ["Cancel", "Save"]);
+  assert.deepEqual(btns, ["Cancel", "SAVE"]);
   assert.equal(foot.parentElement.tagName, "FORM");
   await click([...foot.querySelectorAll("button")][0]);
   assert.equal(globalThis.__cancelled, true);
   await mount({ id: "c1", name: "Edit Me", email: "edit@example.test", occasions: [], occasionGiftSettings: {} });
-  assert.deepEqual([...tid("contact-form-footer").querySelectorAll("button")].map((x) => x.textContent.trim()), ["Cancel", "Update Recipient"]);
+  assert.deepEqual([...tid("contact-form-footer").querySelectorAll("button")].map((x) => x.textContent.trim()), ["Cancel", "SAVE"]);
 });
 
 test("cultural context passes through unchanged on update (stored values never blanked)", async () => {

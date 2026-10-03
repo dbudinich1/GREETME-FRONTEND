@@ -194,6 +194,8 @@ export default function Recipients() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
+  // Deep link from the "Review your Auto-Gift" / 10-day reminder emails: #/dashboard/contacts?contactId=<id>&occasion=<type>.
+  const [focusOccasion, setFocusOccasion] = useState(null);
   const [alert, setAlert] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [viewMode, setViewMode] = useState('recipients');
@@ -266,6 +268,26 @@ export default function Recipients() {
       }
     }
   }, [recipients, location.state, navigate, location.pathname]);
+
+  // Deep link from the emails: ?contactId=<id>&occasion=<type> (read from the HashRouter search params) opens that recipient's edit form
+  // at that occasion, once. The params are consumed (replace) so a refresh or Back does not reopen it. An unknown or missing id, or a
+  // list that fails to load, degrades to the plain list with no error; a missing or unknown occasion just opens the form.
+  const hasOpenedDeepLinkRef = useRef(false);
+  useEffect(() => {
+    if (hasOpenedDeepLinkRef.current || practiceActive || isBusiness || loading) return;
+    const params = new URLSearchParams(location.search || '');
+    const contactId = (params.get('contactId') || '').trim();
+    if (!contactId) return;
+    hasOpenedDeepLinkRef.current = true;
+    const occasion = (params.get('occasion') || '').trim();
+    const target = recipients.find((r) => r && (String(r.id) === contactId || String(r._id) === contactId));
+    if (target) {
+      setEditingContact(target);
+      setFocusOccasion(/^[a-z0-9_]{1,40}$/.test(occasion) ? occasion : null);
+      setShowEditModal(true);
+    }
+    navigate(location.pathname, { replace: true, state: {} });   // consume the params either way
+  }, [loading, recipients, location.search, location.pathname, navigate, practiceActive, isBusiness]);
 
   // Handle deep link from Dashboard to auto-open Add Recipient modal
   useEffect(() => {
@@ -394,6 +416,12 @@ export default function Recipients() {
         return;
       }
 
+      // W07 — a save that carries Auto-Gift consents is never "stored locally": a refused or failed consent must be seen, not hidden.
+      if (Array.isArray(contactData?.occasionGiftConsents) && contactData.occasionGiftConsents.length > 0) {
+        showAlertMessage('error', getErrorMessage(error));
+        return;
+      }
+
       const newRecipient = {
         id: Date.now(),
         ...contactData,
@@ -493,6 +521,7 @@ export default function Recipients() {
   };
 
   const openEditModal = (contact) => {
+    setFocusOccasion(null);
     setEditingContact(contact);
     setShowEditModal(true);
     setTimeout(() => {
@@ -1235,16 +1264,19 @@ export default function Recipients() {
         onClose={() => {
           setShowEditModal(false);
           setEditingContact(null);
+          setFocusOccasion(null);
         }}
         title="Edit Recipient"
         size="lg"
       >
         <ContactForm
           contact={editingContact}
+          focusOccasion={focusOccasion}
           onSubmit={handleEditRecipient}
           onCancel={() => {
             setShowEditModal(false);
             setEditingContact(null);
+            setFocusOccasion(null);
           }}
         />
       </Modal>

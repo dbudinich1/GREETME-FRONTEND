@@ -27,7 +27,7 @@ test("culturalContext is still carried: initial state, draft restore, edit load,
   assert.match(CODE, /culturalContext: contact\.culturalContext \|\|/);
   assert.match(CODE, /sanitizeRelationshipForSave\(formData\)/);
   // QR Cash fix (Team 1A): the saved payload is {...sanitized, occasionGiftSettings: normalised}; culturalContext rides in the spread
-  assert.match(CODE, /await onSubmit\(\{ \.\.\.toSave, occasionGiftSettings: normalizeGiftSettingsForSave/);
+  assert.match(CODE, /await onSubmit\(\{\s*\.\.\.toSave,\s*occasionGiftSettings: normalizeGiftSettingsForSave\(toSave\.occasionGiftSettings\)/);
   // the sanitizer passes stored cultural data through untouched (backend PUT writes `culturalContext || {}`)
   const stored = { heritage: ["Irish"], faith: "Catholic", preferCulturalGifts: true };
   const out = sanitizeRelationshipForSave({ relationshipCategory: "", relationship: "", culturalContext: stored });
@@ -57,8 +57,10 @@ test("footer: outside the cards, Cancel on the left and Save on the right, Save 
   assert.ok(i > CODE.indexOf("{errors.occasions && <p"), "footer follows (is outside) the occasions card");
   const foot = CODE.slice(i, CODE.indexOf("</form>", i));
   assert.match(foot, /justifyContent: 'space-between'/);
-  assert.ok(foot.indexOf("Cancel") < foot.indexOf("'Save'"), "Cancel precedes Save (left to right)");
-  assert.match(foot, /contact \? 'Update Recipient' : 'Save'/);
+  assert.ok(foot.indexOf("Cancel") < foot.indexOf("'SAVE'"), "Cancel precedes SAVE (left to right)");
+  // W07 revision: the button reads SAVE for a new and an existing recipient ("Update Recipient" is gone)
+  assert.match(foot, /: 'SAVE'\}/);
+  assert.doesNotMatch(foot, /Update Recipient/);
   assert.doesNotMatch(foot, /'Add Recipient'/);
 });
 
@@ -118,7 +120,7 @@ test("round 2 keeps behaviour: still collapsed, caret, auto-open on error, contr
   assert.match(CODE, /setOccasionsExpanded\(true\)/);
   assert.match(CODE, /sanitizeRelationshipForSave\(formData\)/);
   // QR Cash fix (Team 1A): the saved payload is {...sanitized, occasionGiftSettings: normalised}; culturalContext rides in the spread
-  assert.match(CODE, /await onSubmit\(\{ \.\.\.toSave, occasionGiftSettings: normalizeGiftSettingsForSave/);
+  assert.match(CODE, /await onSubmit\(\{\s*\.\.\.toSave,\s*occasionGiftSettings: normalizeGiftSettingsForSave\(toSave\.occasionGiftSettings\)/);
 });
 
 test("round 3: Moments heading wraps (normal white-space, shrinkable flex children), text unchanged", () => {
@@ -164,8 +166,11 @@ test("round 4: selector keeps every current mode, disabled until Add gift is tic
 test("round 4: the annual-repeat sentence appears only for yearly-repeating occasions (recurring !== false)", () => {
   assert.match(CODE, /const repeatsAnnually = \(occ\) => getOccasionCadenceLabel\(occ\) === 'Repeats yearly'/);
   // QR Cash fix (Team 1A): additionally suppressed for QR Cash while scheduled QR Cash is unavailable (proved on the real component in contactFormQrCashAutoGift.browser.test.mjs).
-  assert.match(CODE, /\{checked && repeatsAnnually\(occ\) && !qrCashManualOnly\(gs\) && \(\s*<small[^>]*>\s*Your gift selection will automatically repeat annually until changed\./);
-  assert.equal((CODE.match(/Your gift selection will automatically repeat annually until changed\./g) || []).length, 1);
+  // W07 revision (founder 2026-10-02): the sentence moved down, under each card's "Enable Auto-Gift" control (three cards), shown
+  // only while Auto-Gift is on and the occasion repeats yearly; it is no longer in the "Add gift" row.
+  assert.doesNotMatch(CODE, /add-gift-repeat-\$\{occ\}/, "no longer in the Add gift row");
+  assert.match(CODE, /giftSetting\.autoGift === true && !qrCashManualOnly\(giftSetting\) && \(repeatsAnnually\(occasion\.value\)/);
+  assert.equal((CODE.match(/Your gift selection will automatically repeat annually until changed\./g) || []).length, 3, "one per card (personal, secular, faith)");
   // data source: only graduation and getwell carry recurring:false in helpers
   const H = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "utils", "helpers.js"), "utf8");
   const oneTime = [...H.matchAll(/value: '([a-z_]+)'[^\n]*recurring: false/g)].map((m) => m[1]);

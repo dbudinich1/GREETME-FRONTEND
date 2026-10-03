@@ -118,14 +118,15 @@ test("A. a stale {qrcash, autoGift:true, no amount} entry saves with autoGift:fa
   assert.deepEqual(globalThis.__submitted.occasionGiftSettings.birthday, { type: "qrcash", autoGift: false, amount: 25 });
 });
 
-test("B. the inline toggle for QR Cash is disabled and off, reads Manual Selection, and never claims 'sent automatically'", async () => {
+test("B. the inline toggle for QR Cash is disabled and off, shows no status pill (the Manual Selection pill is gone), and never claims 'sent automatically'", async () => {
   await mount(staleContact());
   await openScheduler();
   const box = autoGiftCheckbox();
   assert.ok(box, "the toggle still renders (appearance unchanged)");
   assert.equal(box.disabled, true);
   assert.equal(box.checked, false, "a stale autoGift:true is not shown as on");
-  assert.match(txt(), /Manual Selection/);
+  assert.doesNotMatch(txt(), /Manual Selection/, "W07 revision: the Manual Selection / Card needed indicator is removed");
+  assert.doesNotMatch(txt(), /Card needed/);
   assert.doesNotMatch(txt(), /Auto-Gift Enabled/);
   assert.doesNotMatch(txt(), /Gift will be sent automatically on the occasion date\./);
   assert.match(txt(), /QR Cash is sent when you send the Greet-Me\. Scheduled QR Cash is not available yet\./);
@@ -176,7 +177,7 @@ test("the availability constant is imported from the single module, not duplicat
   assert.doesNotMatch(src, /const SCHEDULED_QRCASH_AVAILABLE\s*=/);
 });
 
-test("annual-repeat sentence: absent for QR Cash while scheduled QR Cash is unavailable; present for marketplace and curated on a yearly occasion; absent on a one-time occasion", async () => {
+test("annual-repeat sentence (now under Enable Auto-Gift): absent for QR Cash while scheduled QR Cash is unavailable; present for marketplace and curated once Auto-Gift is on, on a yearly occasion; absent on a one-time occasion", async () => {
   const SENTENCE = /Your gift selection will automatically repeat annually until changed\./;
   await mount(); await openScheduler(); await tick("occasion-birthday"); await tick("occasion-graduation");
   await click(tid("add-gift-birthday"));
@@ -185,9 +186,12 @@ test("annual-repeat sentence: absent for QR Cash while scheduled QR Cash is unav
   assert.doesNotMatch(txt(), SENTENCE);
   assert.match(txt(), /Scheduled QR Cash is not available yet\./);
   await act(async () => setValue(tid("gift-selector-birthday"), "marketplace"));
-  assert.match(tid("add-gift-repeat-birthday").textContent, SENTENCE, "marketplace on a yearly occasion: present");
+  assert.equal(tid("add-gift-repeat-birthday"), null, "marketplace with Auto-Gift off: the sentence belongs to Auto-Gift");
+  await click(autoGiftCheckbox());
+  assert.match(tid("add-gift-repeat-birthday").textContent, SENTENCE, "marketplace on a yearly occasion, Auto-Gift on: present");
   await act(async () => setValue(tid("gift-selector-birthday"), "curated"));
-  assert.match(tid("add-gift-repeat-birthday").textContent, SENTENCE, "curated on a yearly occasion: present");
+  assert.match(tid("add-gift-repeat-birthday").textContent, SENTENCE, "curated on a yearly occasion, Auto-Gift on: present");
+  assert.equal(document.querySelector('[data-testid="payment-info-triangle"]'), null, "no payment triangle while scheduled QR Cash is unavailable (and never for a shipped gift)");
   await act(async () => setValue(tid("gift-selector-birthday"), "qrcash"));
   assert.equal(tid("add-gift-repeat-birthday"), null, "switching back to QR Cash removes it again");
   // one-time occasion (Graduation): absent whatever the type
