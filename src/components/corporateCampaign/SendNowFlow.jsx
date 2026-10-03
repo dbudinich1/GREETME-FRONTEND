@@ -14,7 +14,7 @@ import { BubbleGroup, ChoiceBubble } from "./Bubbles.jsx";
 import SavedCardPanel from "./SavedCardPanel.jsx";
 import {
   buildPreviewRequest, buildSendRequest, newIdempotencyKey, planLine, blockerText, notReadyText, giftPayload, totalLine, canConfirm,
-  FINAL_BUTTON_LABEL, FINAL_NOTE, TOP_UP_HREF, UPGRADE_HREF, money,
+  FINAL_BUTTON_LABEL, FINAL_NOTE, TOP_UP_HREF, UPGRADE_HREF, money, OCCASIONS, isOccasion, linkHref,
 } from "./oneTimeSendModel.js";
 import "./premiumDashboard.css";
 
@@ -26,6 +26,7 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
   const [who, setWho] = useState("category");
   const [category, setCategory] = useState("client");
   const [contactId, setContactId] = useState("");
+  const [occasionType, setOccasionType] = useState("");
   const [giftType, setGiftType] = useState("none");
   const [tier, setTier] = useState(CURATED_TIERS_CENTS[0]);
   const [excludeSpread, setExcludeSpread] = useState(false);
@@ -42,8 +43,8 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
   const giftOptions = corporateGiftOptions({ catalogItemCount: 0, currentGiftType: giftType });
 
   const previewBody = useMemo(() => buildPreviewRequest({
-    who, category, contactId, gift: giftPayload(giftType, tier), excludeFeaturedSpread: excludeSpread, skipNotReady,
-  }), [who, category, contactId, giftType, tier, excludeSpread, skipNotReady]);
+    who, category, contactId, occasionType, gift: giftPayload(giftType, tier), excludeFeaturedSpread: excludeSpread, skipNotReady,
+  }), [who, category, contactId, occasionType, giftType, tier, excludeSpread, skipNotReady]);
   const previewKey = JSON.stringify(previewBody);
 
   // A new review (new inputs) is a new send: a fresh idempotency key, so two different sends can never collide.
@@ -58,7 +59,7 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
     else setReview({ state: "failed", preview: null, error: res || {} });
   };
   useEffect(() => {
-    if (!open || step !== 3) return undefined;
+    if (!open || step !== 3 || !isOccasion(occasionType)) return undefined;
     let alive = true;
     (async () => { if (alive) await loadReview(); })();
     return () => { alive = false; };
@@ -79,6 +80,9 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
         setOutcome({ kind: "unsure" });
       } else if (res && res.dormant) {
         setOutcome({ kind: "error", text: blockerText("corporate_campaign_execution_disabled") });
+      } else if (res && res.error === "recipients_not_ready") {
+        setOutcome({ kind: "notready", details: res.details || {} });
+        await loadReview();
       } else if (res && res.error === "plan_shortfall") {
         setOutcome({ kind: "short", details: res.details || {} });
         await loadReview();
@@ -115,6 +119,9 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
 
   const pv = review.preview;
   const plan = pv ? planLine(pv.plan) : null;
+  const planLinks = (pv && pv.plan && pv.plan.links) || (outcome && outcome.kind === "short" && outcome.details.links) || {};
+  const topUpHref = linkHref(planLinks.topUp, TOP_UP_HREF);
+  const upgradeHref = linkHref(planLinks.upgrade, UPGRADE_HREF);
   const sent = outcome && outcome.kind === "sent";
 
   return (
@@ -198,7 +205,16 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
 
         {!sent && step === 3 ? (
           <div data-testid="sendnow-review">
-            {review.state === "loading" ? <p data-testid="sendnow-loading" className="gcd-empty">Checking everything…</p> : null}
+            <label style={{ display: "block", fontSize: ".88rem", margin: "0 0 10px" }}>
+              Occasion{" "}
+              <select data-testid="sendnow-occasion" aria-label="Occasion" value={occasionType} onChange={(e) => setOccasionType(e.target.value)} style={{ padding: 6, borderRadius: 6 }}>
+                <option value="">Choose an occasion…</option>
+                {OCCASIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              <span style={{ display: "block", color: "#605c78", fontSize: ".8rem" }}>Greet-Me writes the wording for the occasion.</span>
+            </label>
+            {!isOccasion(occasionType) ? <p data-testid="sendnow-need-occasion" className="gcd-empty">Choose an occasion to see the review.</p> : null}
+            {isOccasion(occasionType) && review.state === "loading" ? <p data-testid="sendnow-loading" className="gcd-empty">Checking everything…</p> : null}
             {review.state === "failed" ? (
               <p role="alert" data-testid="sendnow-review-error" style={{ color: "#b3261e", fontSize: ".88rem" }}>
                 {review.error && review.error.dormant ? blockerText("corporate_campaign_execution_disabled")
@@ -207,7 +223,7 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
                   : "We couldn’t prepare the review. Please try again."}
               </p>
             ) : null}
-            {pv ? (
+            {pv && isOccasion(occasionType) ? (
               <>
                 <dl className="gcd-info" style={{ margin: 0 }}>
                   <div className="gcd-info-row"><dt className="gcd-info-label">Sending to</dt>
@@ -222,7 +238,7 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
                   <div className="gcd-info-row"><dt className="gcd-info-label">Featured Spread</dt>
                     <dd className="gcd-info-value" data-testid="sendnow-review-spread">{pv.featuredSpread && pv.featuredSpread.included ? "Included" : "Excluded"}</dd></div>
                   <div className="gcd-info-row"><dt className="gcd-info-label">From</dt>
-                    <dd className="gcd-info-value" data-testid="sendnow-review-sender">Your own photo and voice{pv.sender && pv.sender.senderName ? ` (${pv.sender.senderName})` : ""}</dd></div>
+                    <dd className="gcd-info-value" data-testid="sendnow-review-sender">{pv.sender && pv.sender.senderName ? `${pv.sender.senderName}, with your own photo and voice` : "Your own photo and voice"}</dd></div>
                 </dl>
 
                 {pv.recipients.blocked.length > 0 ? (
@@ -232,7 +248,7 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
                       {pv.recipients.blocked.slice(0, SHOWN_NAMES).map((b) => `${b.name || "Unnamed"} (${notReadyText(b)})`).join(", ")}
                     </p>
                     <label>
-                      <input type="checkbox" data-testid="sendnow-skip-notready" checked={skipNotReady} onChange={(e) => setSkipNotReady(e.target.checked)} /> Send to everyone else
+                      <input type="checkbox" data-testid="sendnow-skip-notready" checked={skipNotReady} onChange={(e) => setSkipNotReady(e.target.checked)} /> Send to the ready ones only
                     </label>
                   </div>
                 ) : null}
@@ -242,8 +258,8 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
                     {plan.text}
                     {plan.short ? (
                       <span style={{ display: "inline-flex", gap: 8, marginLeft: 8 }}>
-                        <a className="gcd-btn" data-testid="sendnow-topup" href={TOP_UP_HREF}>Top up</a>
-                        <a className="gcd-btn" data-testid="sendnow-upgrade" href={UPGRADE_HREF}>Upgrade</a>
+                        <a className="gcd-btn" data-testid="sendnow-topup" href={topUpHref}>Top up</a>
+                        <a className="gcd-btn" data-testid="sendnow-upgrade" href={upgradeHref}>Upgrade</a>
                       </span>
                     ) : null}
                   </p>
@@ -268,6 +284,14 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
             {outcome && outcome.kind === "short" ? (
               <p role="alert" data-testid="sendnow-short" style={{ color: "#b3261e", fontSize: ".88rem" }}>
                 {`You are ${outcome.details.shortfall ?? "some"} short, so nothing was sent.`}
+              </p>
+            ) : null}
+            {outcome && outcome.kind === "notready" ? (
+              <p role="alert" data-testid="sendnow-notready-refused" style={{ color: "#92400e", fontSize: ".88rem" }}>
+                Nothing was sent: some people are missing details
+                {Array.isArray(outcome.details.blocked) && outcome.details.blocked.length
+                  ? ` (${outcome.details.blocked.slice(0, SHOWN_NAMES).map((b) => `${b.name || "Unnamed"}: ${notReadyText(b)}`).join(", ")})` : ""}.
+                Tick “Send to the ready ones only” to send to everyone else.
               </p>
             ) : null}
             {outcome && outcome.kind === "unsure" ? (

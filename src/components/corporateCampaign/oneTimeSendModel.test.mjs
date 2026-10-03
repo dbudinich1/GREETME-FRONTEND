@@ -12,7 +12,7 @@ test("recipients are exactly ONE of a category or a single contact", () => {
 });
 
 test("the send body carries what the owner reviewed: the count and, for a paid gift, the exact total", () => {
-  const req = buildPreviewRequest({ who: "category", category: "vendor", gift: { type: "curated", maxSpendCents: 5000 }, excludeFeaturedSpread: true });
+  const req = buildPreviewRequest({ who: "category", category: "vendor", occasionType: "easter", gift: { type: "curated", maxSpendCents: 5000 }, excludeFeaturedSpread: true });
   const free = buildSendRequest(req, { recipients: { count: 3 }, gift: { requiresPayment: false, totalCents: null } }, "key-1");
   assert.equal(free.expectedRecipientCount, 3);
   assert.equal("expectedTotalCents" in free, false);
@@ -23,8 +23,8 @@ test("the send body carries what the owner reviewed: the count and, for a paid g
 });
 
 test("no approve / lock / schedule field exists in any request", () => {
-  const body = buildSendRequest(buildPreviewRequest({ who: "category", category: "client" }), { recipients: { count: 1 }, gift: {} }, "k");
-  for (const k of Object.keys(body)) assert.ok(["recipients", "gift", "excludeFeaturedSpread", "skipNotReady", "idempotencyKey", "expectedRecipientCount"].includes(k), k);
+  const body = buildSendRequest(buildPreviewRequest({ who: "category", category: "client", occasionType: "easter" }), { recipients: { count: 1 }, gift: {} }, "k");
+  for (const k of Object.keys(body)) assert.ok(["recipients", "occasionType", "gift", "excludeFeaturedSpread", "skipNotReady", "idempotencyKey", "expectedRecipientCount"].includes(k), k);
 });
 
 test("plan line: one Greet-Me per person; when short it says how many and that nothing is sent", () => {
@@ -64,4 +64,13 @@ test("blocker and not-ready wording, with a generic fallback and a unique idempo
   const a = newIdempotencyKey(); const b = newIdempotencyKey();
   assert.notEqual(a, b);
   assert.match(a, /^onetime-[A-Za-z0-9._:-]{8,}$/);
+});
+
+test("OCCASIONS is the 17-value list and linkHref prefers the backend path", async () => {
+  const m = await import("./oneTimeSendModel.js");
+  assert.equal(m.OCCASIONS.length, 17);
+  assert.ok(m.isOccasion("ramadan") && !m.isOccasion("campaign") && !m.isOccasion(""));
+  assert.equal(m.linkHref({ path: "/pricing?view=business" }, "#/pricing"), "#/pricing?view=business");
+  assert.equal(m.linkHref(null, "#/pricing"), "#/pricing");
+  assert.equal(m.buildPreviewRequest({ who: "category", category: "client", occasionType: "easter" }).occasionType, "easter");
 });

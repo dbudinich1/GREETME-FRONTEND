@@ -58,11 +58,12 @@ const CONTACTS = [
   { id: "c2", name: "Marcus Hall", corporateContactType: "client" },
   { id: "e1", name: "Bob Smith", corporateContactType: "employee" },
 ];
+const LINKS = { topUp: { path: "/dashboard/animations?openPacks=true", url: "https://x/#/dashboard/animations?openPacks=true" }, upgrade: { path: "/pricing?view=business", url: "https://x/#/pricing?view=business" } };
 const PREVIEW = (over = {}) => ({
   recipients: { selector: { category: "client" }, count: 2, selected: 2, list: [{ contactId: "c1", name: "Dana Lee" }, { contactId: "c2", name: "Marcus Hall" }], blocked: [] },
-  plan: { required: 2, available: 10, shortfall: 0, planTier: "small_business", sufficient: true },
+  plan: { required: 2, available: 10, shortfall: 0, planTier: "small_business", sufficient: true, links: LINKS },
   gift: { type: "none", maxSpendCents: null, requiresPayment: false, totalCents: null, perRecipient: null, currency: "usd" },
-  featuredSpread: { included: true }, sender: { senderName: "Fixture Co", photoReady: true, voiceReady: true },
+  featuredSpread: { included: true }, sender: { senderName: "Jane Smith, Fixture Co.", photoReady: true, voiceReady: true },
   timing: { when: "immediately_on_confirm", scheduled: false, repeats: false }, canSend: true, blockers: [], ...over,
 });
 function fakeClient({ previews = [PREVIEW()], send = null } = {}) {
@@ -75,11 +76,12 @@ function fakeClient({ previews = [PREVIEW()], send = null } = {}) {
   };
 }
 const flow = (client, props = {}) => React.createElement(SendNowFlow, { orgId: "org1", contacts: CONTACTS, client, ...props });
-async function toReview(s, { gift = "none" } = {}) {
+async function toReview(s, { gift = "none", occasion = "birthday" } = {}) {
   await click(s.tid("sendnow-open"));
   await click(s.tid("sendnow-next-1"));
   if (gift !== "none") await click(s.host.querySelector(`#sendnow-gift-${gift}`));
   await click(s.tid("sendnow-next-2"));
+  if (occasion) await choose(s.tid("sendnow-occasion"), occasion);
 }
 
 test("steps: who (category or one person), what (gift, Exclude Featured Spread), review - and QR Cash is not selectable", async () => {
@@ -101,10 +103,10 @@ test("steps: who (category or one person), what (gift, Exclude Featured Spread),
 test("review: the server's own answer, once and unscheduled, from the owner's photo and voice, with a FINAL button and no cancel", async () => {
   const c = fakeClient(); const s = await mount(flow(c));
   await toReview(s);
-  assert.deepEqual(c.calls.preview[0][1], { recipients: { category: "client" }, gift: null, excludeFeaturedSpread: false, skipNotReady: false });
+  assert.deepEqual(c.calls.preview[0][1], { recipients: { category: "client" }, occasionType: "birthday", gift: null, excludeFeaturedSpread: false, skipNotReady: false });
   assert.match(s.tid("sendnow-review-to").textContent, /2 people: Dana Lee, Marcus Hall/);
   assert.match(s.tid("sendnow-review-when").textContent, /Once, right after you confirm\. No schedule and no repeat\./);
-  assert.match(s.tid("sendnow-review-sender").textContent, /Your own photo and voice/);
+  assert.match(s.tid("sendnow-review-sender").textContent, /^Jane Smith, Fixture Co\., with your own photo and voice/);
   assert.equal(s.tid("sendnow-review-spread").textContent, "Included");
   assert.match(s.tid("sendnow-plan").textContent, /uses 2 Greet-Mes from your plan \(one per person\)\. You have 10\./);
   assert.equal(s.tid("sendnow-confirm").textContent, "Send now — this is final");
@@ -117,18 +119,19 @@ test("Exclude Featured Spread is carried to the server and shown on the review",
   const c = fakeClient({ previews: [PREVIEW({ featuredSpread: { included: false } })] }); const s = await mount(flow(c));
   await click(s.tid("sendnow-open")); await click(s.tid("sendnow-next-1"));
   await click(s.tid("sendnow-exclude-spread")); await click(s.tid("sendnow-next-2"));
+  await choose(s.tid("sendnow-occasion"), "christmas");
   assert.equal(c.calls.preview[0][1].excludeFeaturedSpread, true);
   assert.equal(s.tid("sendnow-review-spread").textContent, "Excluded");
 });
 
 test("a short plan: 'you are N short', top-up and upgrade links, the button is disabled and NOTHING is sent", async () => {
-  const c = fakeClient({ previews: [PREVIEW({ plan: { required: 5, available: 3, shortfall: 2, planTier: "small_business", sufficient: false }, canSend: false, blockers: ["plan_shortfall"] })] });
+  const c = fakeClient({ previews: [PREVIEW({ plan: { required: 5, available: 3, shortfall: 2, planTier: "small_business", sufficient: false, links: LINKS }, canSend: false, blockers: ["plan_shortfall"] })] });
   const s = await mount(flow(c));
   await toReview(s);
   assert.equal(s.tid("sendnow-plan").dataset.short, "yes");
   assert.match(s.tid("sendnow-plan").textContent, /You are 2 short, so nothing will be sent\./);
-  assert.equal(s.tid("sendnow-topup").getAttribute("href"), "#/dashboard/animations");
-  assert.equal(s.tid("sendnow-upgrade").getAttribute("href"), "#/pricing");
+  assert.equal(s.tid("sendnow-topup").getAttribute("href"), "#/dashboard/animations?openPacks=true");
+  assert.equal(s.tid("sendnow-upgrade").getAttribute("href"), "#/pricing?view=business");
   assert.equal(s.tid("sendnow-confirm").disabled, true);
   await click(s.tid("sendnow-confirm"));
   assert.equal(c.calls.send.length, 0, "nothing was sent");
@@ -157,7 +160,7 @@ test("a paid gift shows the quoted total and that it is charged to the saved car
   assert.equal(c.calls.send[0][1].expectedTotalCents, 10950);
 });
 
-test("people who are not ready are named; 'Send to everyone else' asks the server again with skipNotReady", async () => {
+test("people who are not ready are named; 'Send to the ready ones only' asks the server again with skipNotReady", async () => {
   const blocked = PREVIEW({
     recipients: { selector: { category: "client" }, count: 1, selected: 2, list: [{ contactId: "c1", name: "Dana Lee" }], blocked: [{ contactId: "c2", name: "Marcus Hall", reason: "missing_recipient_email", field: "email" }] },
     canSend: false, blockers: ["recipients_not_ready"],
@@ -185,7 +188,7 @@ test("a lost response is 'unsure', and pressing again reuses the SAME key so it 
 });
 
 test("a server-side shortfall at send time is shown as 'you are N short' and the review refreshes", async () => {
-  const c = fakeClient({ send: () => ({ ok: false, status: 409, error: "plan_shortfall", details: { required: 2, available: 1, shortfall: 1 } }) });
+  const c = fakeClient({ send: () => ({ ok: false, status: 409, error: "plan_shortfall", details: { required: 2, available: 1, shortfall: 1, links: LINKS } }) });
   const s = await mount(flow(c));
   await toReview(s);
   await click(s.tid("sendnow-confirm"));
@@ -230,4 +233,45 @@ test("owner only: the dashboard shows the entry to the owner and hides it from a
   assert.ok(owner.tid("sendnow-panel"), "the owner sees it");
   const other = await mount(React.createElement(Dashboard, { client: mk(false), oneTimeClient: one, navigate: () => {} }));
   assert.equal(other.tid("sendnow-panel"), null, "a non-owner does not");
+});
+
+test("the occasion is required: no review is requested until one is chosen, and it is sent with the preview and the send", async () => {
+  const c = fakeClient(); const s = await mount(flow(c));
+  await toReview(s, { occasion: null });
+  assert.equal(c.calls.preview.length, 0, "no preview without an occasion");
+  assert.ok(s.tid("sendnow-need-occasion"));
+  assert.equal(s.tid("sendnow-confirm").disabled, true);
+  assert.equal(s.tid("sendnow-occasion").querySelectorAll("option").length, 18, "17 occasions plus the prompt");
+  await choose(s.tid("sendnow-occasion"), "graduation");
+  assert.equal(c.calls.preview[0][1].occasionType, "graduation");
+  await click(s.tid("sendnow-confirm"));
+  assert.equal(c.calls.send[0][1].occasionType, "graduation");
+});
+
+test("needs_owner_name blocks the review with a plain message", async () => {
+  const c = fakeClient({ previews: [PREVIEW({ canSend: false, blockers: ["needs_owner_name"], sender: { senderName: null, photoReady: true, voiceReady: true, blocker: "needs_owner_name" } })] });
+  const s = await mount(flow(c));
+  await toReview(s);
+  assert.match(s.tid("sendnow-blockers").textContent, /Add your name to your profile first/);
+  assert.equal(s.tid("sendnow-confirm").disabled, true);
+});
+
+test("a server-side recipients_not_ready names who is missing and points to the explicit opt-in; nothing sent", async () => {
+  const c = fakeClient({ send: () => ({ ok: false, status: 409, error: "recipients_not_ready", details: { blocked: [{ contactId: "c2", name: "Marcus Hall", reason: "missing_recipient_email" }] } }) });
+  const s = await mount(flow(c));
+  await toReview(s);
+  await click(s.tid("sendnow-confirm"));
+  assert.match(s.tid("sendnow-notready-refused").textContent, /Marcus Hall: no email address/);
+  assert.match(s.tid("sendnow-notready-refused").textContent, /Send to the ready ones only/);
+  assert.equal(c.calls.send.length, 1);
+  assert.ok(c.calls.preview.length >= 2);
+});
+
+test("a paid review shows only the returned total, with no fee wording", async () => {
+  const c = fakeClient({ previews: [PREVIEW({ gift: { type: "curated", maxSpendCents: 5000, requiresPayment: true, totalCents: 10950, perRecipient: { c1: { totalCents: 5475 }, c2: { totalCents: 5475 } }, currency: "usd", cardOnFile: true } })] });
+  const s = await mount(flow(c));
+  await toReview(s, { gift: "curated" });
+  assert.doesNotMatch(s.tid("sendnow-review").textContent, /fee|markup|service charge/i);
+  await click(s.tid("sendnow-confirm"));
+  assert.equal(c.calls.send[0][1].expectedTotalCents, 10950);
 });

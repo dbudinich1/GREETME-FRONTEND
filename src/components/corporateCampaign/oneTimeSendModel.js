@@ -18,14 +18,29 @@ const money = (cents) => `$${(cents / 100).toFixed(2)}`;
 export { money };
 export const TOP_UP_HREF = "#/dashboard/animations";
 export const UPGRADE_HREF = "#/pricing";
+export const OCCASIONS = Object.freeze([
+  ["birthday", "Birthday"], ["anniversary", "Anniversary"], ["graduation", "Graduation"], ["getwell", "Get well"],
+  ["new_year", "New Year"], ["valentines", "Valentine’s Day"], ["mothers_day", "Mother’s Day"], ["fathers_day", "Father’s Day"],
+  ["thanksgiving", "Thanksgiving"], ["christmas", "Christmas"], ["easter", "Easter"], ["rosh_hashanah", "Rosh Hashanah"],
+  ["hanukkah", "Hanukkah"], ["passover", "Passover"], ["eid_al_fitr", "Eid al-Fitr"], ["eid_al_adha", "Eid al-Adha"], ["ramadan", "Ramadan"],
+].map(([value, label]) => Object.freeze({ value, label })));
+export const isOccasion = (v) => OCCASIONS.some((o) => o.value === v);
+
+/** In-app (HashRouter) href for a backend link { path, url }; falls back to the known route. */
+export function linkHref(link, fallback) {
+  const path = link && typeof link.path === "string" && link.path.startsWith("/") ? link.path : null;
+  return path ? `#${path}` : fallback;
+}
+
 export const FINAL_BUTTON_LABEL = "Send now — this is final";
 export const FINAL_NOTE = "This sends right away and cannot be cancelled once you confirm.";
 
 /** The review request body. `gift`: null for no gift, else the canonical { type, maxSpendCents }. */
-export function buildPreviewRequest({ who, category, contactId, gift, excludeFeaturedSpread, skipNotReady }) {
+export function buildPreviewRequest({ who, category, contactId, occasionType, gift, excludeFeaturedSpread, skipNotReady }) {
   const recipients = who === "single" ? { contactId } : { category };
   return {
     recipients,
+    occasionType,
     gift: gift || null,
     excludeFeaturedSpread: excludeFeaturedSpread === true,
     skipNotReady: skipNotReady === true,
@@ -71,6 +86,7 @@ const BLOCKER_TEXT = Object.freeze({
   saved_card_required: "A saved card is needed for this gift. Add one below.",
   no_business_plan: "Your account doesn\u2019t have a business plan that can send.",
   corporate_plan_unmetered: "We can\u2019t count Greet-Mes on this plan, so it can\u2019t send from here yet.",
+  needs_owner_name: "Add your name to your profile first: it appears in the sender line, for example “Jane Smith, Acme Co.”",
   needs_organization_name: "Add your organization\u2019s name first: it appears as the sender.",
   provider_quote_unavailable: "We can\u2019t get a price for that gift right now. Please try again shortly.",
   quote_not_authoritative: "We can\u2019t confirm the price for that gift right now. Nothing was charged.",
@@ -79,6 +95,8 @@ const BLOCKER_TEXT = Object.freeze({
   funding_declined: "Your card was declined. Nothing was sent.",
   funding_authentication_required: "Your bank needs to confirm this card. Nothing was sent.",
   funding_incomplete: "The payment didn\u2019t complete. Nothing was sent.",
+  occasion_required: "Choose the occasion first.",
+  invalid_occasion_type: "Choose one of the listed occasions.",
   contact_not_found: "That person is no longer in your contacts.",
   review_out_of_date: "Things changed since you reviewed. Please review again.",
 });
