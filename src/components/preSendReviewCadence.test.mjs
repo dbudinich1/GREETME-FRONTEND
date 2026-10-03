@@ -1,4 +1,4 @@
-﻿// Run: node --test src/components/preSendReviewCadence.test.mjs
+// Run: node --test src/components/preSendReviewCadence.test.mjs
 // W04: the review shows the occasion separately from the cadence ("Birthday · One-time send")
 // and never implies the immediate composer is scheduled or recurring. Source-structure test
 // (the modal is not mountable under node --test in this codebase).

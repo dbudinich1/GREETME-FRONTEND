@@ -1,6 +1,6 @@
 // tests/t1bCommerceFixtures.spec.js
 //
-// Closeout T1B (W16/W17/W19/W20/W23/W44) â€” fixture-backed render evidence. Every /api/** call is
+// Closeout T1B (W16/W17/W19/W20/W23/W44) — fixture-backed render evidence. Every /api/** call is
 // answered from memory; nothing reaches a real backend. No charge, order, post, claim or submission.
 // Run: npx playwright test --config=playwright.t1b.config.js --project=Desktop
 import { test, expect } from '@playwright/test';
@@ -104,7 +104,7 @@ test.describe('T1B fixtures', () => {
     const earn = page.getByText('Share the Love').first();
     await expect(earn).toBeVisible();
     await expect(page.getByText('Not live yet').first()).toBeVisible();
-    await expect(page.getByText('25 â¤ï¸')).toHaveCount(0);
+    await expect(page.getByText('25 ❤️')).toHaveCount(0);
     // Insufficient balance: no AVAILABLE badge on a reward the user cannot redeem; click explains.
     const need = page.getByRole('button', { name: /Need .* more Hearts/ }).first();
     await expect(need).toBeVisible();

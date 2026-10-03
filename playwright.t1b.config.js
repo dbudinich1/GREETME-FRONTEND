@@ -1,4 +1,4 @@
-// playwright.t1b.config.js â€” Closeout T1B fixture run (own dev server on port 5232; never reuses another).
+// playwright.t1b.config.js — Closeout T1B fixture run (own dev server on port 5232; never reuses another).
 import { defineConfig, devices } from '@playwright/test';
 
 const PORT = 5232;
