@@ -998,6 +998,21 @@ class ApiService {
     return this.request("/api/payments/platform-fee-status");
   }
 
+  // W07 (DORMANT until scheduled QR Cash is activated; the routes answer 503 SCHEDULED_QRCASH_DISABLED before then): the
+  // personal card used for scheduled QR Cash. Only the ContactForm SAVE modal calls these, behind SCHEDULED_QRCASH_AVAILABLE.
+  //   status   -> { ok, card: { present, brand, last4, expMonth, expYear, expired, ... } }  (a SAFE summary, never an id or secret)
+  //   setup    -> { ok, clientSecret, setupIntentId, consentWordingVersion }  (off_session SetupIntent)
+  //   complete -> { ok, card }  body { setupIntentId, consentAccepted: true, consentWordingVersion }
+  getQrCashCardStatus() {
+    return this.request("/api/payments/qrcash-card/status");
+  }
+  setupQrCashCard() {
+    return this.request("/api/payments/qrcash-card/setup", { method: "POST", body: JSON.stringify({}) });
+  }
+  completeQrCashCard(body) {
+    return this.request("/api/payments/qrcash-card/complete", { method: "POST", body: JSON.stringify(body) });
+  }
+
   // W42 — provider-neutral combined order history (T2 contract T2-w42-combined-orders.md).
   // Additive: /api/merch/orders is unchanged. Returns { ok, count, truncated, orders[] }.
   getOrderHistory() {
