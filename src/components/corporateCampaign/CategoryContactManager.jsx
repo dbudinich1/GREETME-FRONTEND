@@ -10,6 +10,7 @@ import ContactFields from "./ContactFields.jsx";
 import {
   EMPTY_FORM, fromContact, validateContact, toPayload, hasAddress, readinessOf, deleteCopy, writeFailureMessage,
 } from "./contactManageModel.js";
+import { sanitizeDeletionEntry } from "../../api/corporateContacts.js";
 import "./premiumDashboard.css";
 
 export default function CategoryContactManager({
@@ -46,7 +47,7 @@ export default function CategoryContactManager({
     (async () => {
       try {
         const res = await writes.listDeletionLog(orgId);
-        if (alive) setHistory(res && res.ok === true && Array.isArray(res.entries) ? res.entries : null);
+        if (alive) setHistory(res && res.ok === true && Array.isArray(res.entries) ? res.entries.map(sanitizeDeletionEntry).filter(Boolean) : null);
       } catch { if (alive) setHistory(null); }
     })();
     return () => { alive = false; };
