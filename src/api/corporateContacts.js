@@ -188,7 +188,7 @@ export function createCorporateContactsClient({
     if (!orgId || typeof orgId !== "string") return { ok: false, status: 400, error: "missing_org" };
     let res;
     try {
-      res = await fetchImpl(`${apiBase}/api/corporate-contacts${contactsPath(orgId)}/deletion-log`, { method: "GET", headers: headers() });
+      res = await fetchImpl(`${apiBase}/api/corporate-contacts/organizations/${encodeURIComponent(orgId)}/deletion-log`, { method: "GET", headers: headers() });
     } catch {
       return { ok: false, networkError: true, status: 0 };
     }
@@ -198,7 +198,7 @@ export function createCorporateContactsClient({
     let data = null;
     try { data = await res.json(); } catch { /* tolerate */ }
     const body = (data && data.data) || data;
-    const raw = Array.isArray(body) ? body : body && (Array.isArray(body.entries) ? body.entries : Array.isArray(body.deletions) ? body.deletions : Array.isArray(body.log) ? body.log : null);
+    const raw = Array.isArray(body) ? body : body && (Array.isArray(body.entries) ? body.entries : null);
     if (!raw) return { ok: false, malformed: true, status: res.status };
     return { ok: true, status: res.status, entries: raw.map(sanitizeDeletionEntry).filter(Boolean) };
   }

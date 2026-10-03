@@ -213,7 +213,7 @@ test("listDeletionLog GETs .../deletion-log and keeps ONLY date, category and co
   let seen = null;
   const c = client(async (url, opts) => { seen = { url, opts }; return jsonRes(200, { ok: true, data: { entries: [{ deletedAt: "2026-10-02T10:00:00Z", category: "vendor", count: 3, name: "X", email: "x@y.co", contactId: "c1" }] } }); });
   const r = await c.listDeletionLog("o1");
-  assert.match(seen.url, /\/api\/corporate-contacts\/organizations\/o1\/contacts\/deletion-log$/);
+  assert.match(seen.url, /\/api\/corporate-contacts\/organizations\/o1\/deletion-log$/);
   assert.equal(seen.opts.method, "GET");
   assert.deepEqual(r.entries, [{ date: "2026-10-02", category: "vendor", count: 3 }]);
 });
