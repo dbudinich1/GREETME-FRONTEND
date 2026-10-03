@@ -9,6 +9,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createCorporateCampaignsClient, isOrderVersion, ORDERING_UNAVAILABLE } from "../../api/corporateCampaigns.js";
 import { createCorporateContactsClient } from "../../api/corporateContacts.js";
+import { createOneTimeSendClient } from "../../api/corporateOneTimeSend.js";
+import SendNowFlow from "./SendNowFlow.jsx";
 import {
   activeMemberships, resolveOrganizationContext, deriveCampaignSummary, interpretCapability, TERMS,
 } from "./campaignSurfaceModel.js";
@@ -200,10 +202,13 @@ export default function GreetingAutomationCampaigns({
   cardClient, stripeOverride,
   // SURFACE 8 - the contact writes + the full-record management read (Manage, Add, Edit, Remove). Injectable like the rest.
   contactsClient: injectedContactsClient,
+  // SURFACE 8 - the owner-only one-time send ("Send a Greet-Me now"). Injectable like the rest.
+  oneTimeClient: injectedOneTimeClient,
 } = {}) {
   const client = useMemo(() => injectedClient || createCorporateCampaignsClient(), [injectedClient]);
   // An injected campaigns client (tests, Test Drive) means a fully faked surface: the real contacts client is not built behind it.
   const contactsClient = useMemo(() => injectedContactsClient || (injectedClient ? null : createCorporateContactsClient()), [injectedContactsClient, injectedClient]);
+  const oneTimeClient = useMemo(() => injectedOneTimeClient || (injectedClient ? null : createOneTimeSendClient()), [injectedOneTimeClient, injectedClient]);
   // null = the management read is not available (older/dormant server): Manage stays the read-only roster.
   const [managedContacts, setManagedContacts] = useState(null);
   const [membershipResult, setMembershipResult] = useState(null);
@@ -885,6 +890,14 @@ export default function GreetingAutomationCampaigns({
 
         {viewAllContacts ? (
           <ContactsViewAll contacts={contacts} onClose={() => setViewAllContacts(false)} />
+        ) : null}
+
+        {/* SURFACE 8 - "Send a Greet-Me now": one time, unscheduled, OWNER ONLY, on this dashboard only. */}
+        {isOwner && oneTimeClient ? (
+          <SendNowFlow
+            orgId={effectiveOrgId} contacts={managedContacts || contacts} client={oneTimeClient}
+            cardClient={cardClient} stripeOverride={stripeOverride}
+          />
         ) : null}
 
         {/* A — CAMPAIGNS: fixed-height internal scroll, sticky header + Add CTA.
