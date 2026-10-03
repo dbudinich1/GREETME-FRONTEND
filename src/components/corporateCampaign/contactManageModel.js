@@ -1,7 +1,7 @@
 // src/components/corporateCampaign/contactManageModel.js
 //
 // SURFACE 8 (founder-approved 2026-10-03) - the pure model behind "Manage" on a corporate category tile:
-// add ONE contact, edit it with the SAME field set, and archive ("Remove") it.
+// add ONE contact, edit it with the SAME field set, and permanently delete ("Remove") it.
 //
 // Founder decisions encoded here, and nowhere else:
 //   * READY = a name and a valid email. That is all. A birthday only matters for a birthday send and an
@@ -126,12 +126,12 @@ export function toPayload(draft, { category, existing = null } = {}) {
   return body;
 }
 
-/** The archive confirmation copy: what Remove does, plus the campaigns that currently include the contact. */
-export function archiveCopy(contact, campaigns) {
+/** The permanent-delete confirmation copy, plus the campaigns that currently include the contact. */
+export function deleteCopy(contact, campaigns) {
   const names = campaignsContainingContact(campaigns, contact && contact.id);
   return {
-    question: `Remove ${contact && contact.name ? contact.name : "this contact"}?`,
-    detail: "This archives the contact: they are taken out of your lists and will not receive future sends.",
+    question: "Continuing will delete this contact permanently. Are you sure you want to delete this contact?",
+    detail: "This cannot be undone. The contact is removed for good and will not receive future sends.",
     warning: deleteWarningLine(contact && contact.name, names),
     scheduledWarning: names.length > 0
       ? "They will be left out of those campaigns from now on."
@@ -145,7 +145,6 @@ export function writeFailureMessage(res) {
   if (res && res.error === "invalid_shipping_address") return "That address doesn\u2019t look right. Check it and try again.";
   if (res && res.error === "shipping_address_field_too_long") return "One of the address lines is too long.";
   if (res && res.error === "invalid_contact_type") return "That category isn\u2019t valid.";
-  if (res && res.conflict && res.error === "email_archived") return "A contact you removed earlier has that email. You can restore them instead.";
   if (res && res.conflict) return "Someone with that email is already here.";
   if (res && res.dormant) return "Business contacts aren’t available yet.";
   if (res && res.unauthorized) return "You don’t have access to change business contacts.";

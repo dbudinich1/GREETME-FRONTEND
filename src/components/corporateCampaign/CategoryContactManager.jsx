@@ -2,13 +2,13 @@
 //
 // SURFACE 8 - what "Manage" opens on a category tile: that category's own contact list with search, a
 // Ready / Needs-info badge (name + email only), a quiet "Address on file / No address yet" note, Add, Edit
-// and Remove (which ARCHIVES the contact). Reads come from the management read (full records), writes use the
+// and Remove (a PERMANENT delete, only after an explicit confirmation). Reads come from the management read (full records), writes use the
 // existing corporate contact endpoints through the injected `writes` client. Nothing here decides anything
 // about campaigns; it only warns, at the moment of removal, which campaigns currently include the contact.
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import ContactFields from "./ContactFields.jsx";
 import {
-  EMPTY_FORM, fromContact, validateContact, toPayload, hasAddress, readinessOf, archiveCopy, writeFailureMessage,
+  EMPTY_FORM, fromContact, validateContact, toPayload, hasAddress, readinessOf, deleteCopy, writeFailureMessage,
 } from "./contactManageModel.js";
 import "./premiumDashboard.css";
 
@@ -24,7 +24,9 @@ export default function CategoryContactManager({
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
-  const [restorable, setRestorable] = useState(null); // id of a removed contact that holds the typed email
+  const [history, setHistory] = useState(null); // null = unavailable / not loaded; else [{date, category, count}]
+  const [showHistory, setShowHistory] = useState(false);
+  const cancelRef = useRef(null);
 
   const inCategory = (Array.isArray(contacts) ? contacts : []).filter((c) => c.corporateContactType === category);
   const shown = inCategory.filter((c) => String(c.name || "").toLowerCase().includes(q.trim().toLowerCase()));
@@ -34,6 +36,24 @@ export default function CategoryContactManager({
   function closeForms() { setAdding(false); setEditingId(null); setErrors({}); }
   function beginAdd() { closeForms(); setDraft(EMPTY_FORM); setAdding(true); setRemovingId(null); setMessage(null); }
   function beginEdit(c) { closeForms(); setDraft(fromContact(c)); setEditingId(c.id); setRemovingId(null); setMessage(null); }
+
+  // Deletion history: owner-only, read-only, date + category + count. Shown only when the server answers; any
+  // failure (or a server without the endpoint) simply leaves it hidden.
+  const canReadHistory = canWrite && writes && typeof writes.listDeletionLog === "function";
+  useEffect(() => {
+    if (!canReadHistory) return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await writes.listDeletionLog(orgId);
+        if (alive) setHistory(res && res.ok === true && Array.isArray(res.entries) ? res.entries : null);
+      } catch { if (alive) setHistory(null); }
+    })();
+    return () => { alive = false; };
+  }, [canReadHistory, writes, orgId, contacts]);
+
+  // The confirmation opens with focus on Cancel, so Enter/Space can never delete by accident.
+  useEffect(() => { if (removingId && cancelRef.current) cancelRef.current.focus(); }, [removingId]);
 
   async function run(fn) {
     if (busy) return false;
@@ -50,10 +70,8 @@ export default function CategoryContactManager({
       const res = await writes.createContact(orgId, toPayload(draft, { category }));
       if (!res || res.ok !== true) {
         setMessage({ kind: "error", text: writeFailureMessage(res) });
-        setRestorable(res && res.conflict && res.error === "email_archived" ? res.contactId : null);
         return;
       }
-      setRestorable(null);
       await reload();
       setMessage({ kind: "ok", text: "Contact added." });
       closeForms();
@@ -79,18 +97,6 @@ export default function CategoryContactManager({
     });
   }
 
-  async function restoreRemoved() {
-    if (!restorable || typeof writes.restoreContact !== "function") return;
-    await run(async () => {
-      const res = await writes.restoreContact(orgId, restorable);
-      if (!res || res.ok !== true) { setMessage({ kind: "error", text: writeFailureMessage(res) }); return; }
-      setRestorable(null);
-      await reload();
-      closeForms();
-      setMessage({ kind: "ok", text: "Contact restored." });
-    });
-  }
-
   async function confirmRemove() {
     if (!removing) return;
     await run(async () => {
@@ -98,11 +104,11 @@ export default function CategoryContactManager({
       if (!res || (res.ok !== true && !res.notFound)) { setMessage({ kind: "error", text: writeFailureMessage(res) }); return; }
       await reload();
       setRemovingId(null);
-      setMessage({ kind: "ok", text: "Contact removed." });
+      setMessage({ kind: "ok", text: "Contact deleted permanently." });
     });
   }
 
-  const copy = removing ? archiveCopy(removing, campaigns) : null;
+  const copy = removing ? deleteCopy(removing, campaigns) : null;
 
   return (
     <div data-testid={`manage-${category}`} style={{ marginTop: 14 }}>
@@ -115,7 +121,7 @@ export default function CategoryContactManager({
       </div>
 
       {message ? (
-        <p role="status" data-testid="manage-message" style={{ fontSize: ".82rem", margin: "0 0 8px", color: message.kind === "error" ? "#b3261e" : "#166534" }}>{message.text}{restorable && typeof writes.restoreContact === "function" ? <> <button type="button" className="gcd-btn" data-testid="manage-restore" onClick={restoreRemoved} disabled={busy}>Restore</button></> : null}</p>
+        <p role="status" data-testid="manage-message" style={{ fontSize: ".82rem", margin: "0 0 8px", color: message.kind === "error" ? "#b3261e" : "#166534" }}>{message.text}</p>
       ) : null}
 
       {adding ? (
@@ -144,14 +150,15 @@ export default function CategoryContactManager({
       ) : null}
 
       {removing ? (
-        <div role="alertdialog" aria-labelledby="manage-remove-title" data-testid="manage-remove-confirm"
+        <div role="alertdialog" aria-modal="true" aria-labelledby="manage-remove-title" data-testid="manage-remove-confirm"
+          onKeyDown={(e) => { if (e.key === "Escape" && !busy) { e.stopPropagation(); setRemovingId(null); } }}
           style={{ border: "1px solid #b3261e", borderRadius: 10, padding: 12, marginBottom: 10 }}>
           <strong id="manage-remove-title">{copy.question}</strong>
           <p style={{ margin: "6px 0", fontSize: ".85rem" }}>{copy.detail}</p>
           {copy.warning ? <p data-testid="manage-remove-warning" style={{ margin: "6px 0", fontSize: ".85rem", color: "#92400e" }}>{copy.warning} {copy.scheduledWarning}</p> : null}
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="gcd-btn" style={{ color: "#a3241a" }} data-testid="manage-remove-yes" onClick={confirmRemove} disabled={busy}>{busy ? "Removing…" : "Yes, remove"}</button>
-            <button type="button" className="gcd-btn" data-testid="manage-remove-no" onClick={() => setRemovingId(null)} disabled={busy}>Keep</button>
+            <button type="button" className="gcd-btn" ref={cancelRef} data-testid="manage-remove-no" onClick={() => setRemovingId(null)} disabled={busy}>Cancel</button>
+            <button type="button" className="gcd-btn" style={{ background: "#b3261e", borderColor: "#b3261e", color: "#fff" }} data-testid="manage-remove-yes" onClick={confirmRemove} disabled={busy}>{busy ? "Deleting…" : "Delete permanently"}</button>
           </div>
         </div>
       ) : null}
@@ -186,6 +193,31 @@ export default function CategoryContactManager({
           })}
         </ul>
       )}
+
+      {history ? (
+        <div style={{ marginTop: 14 }}>
+          <button type="button" className="gcd-btn" data-testid="manage-history-toggle" aria-expanded={showHistory} onClick={() => setShowHistory((v) => !v)}>
+            {showHistory ? "Hide deletion history" : "Deletion history"}
+          </button>
+          {showHistory ? (
+            history.length === 0 ? (
+              <p data-testid="manage-history-empty" style={{ fontSize: ".8rem", color: "#475569" }}>No contacts have been deleted.</p>
+            ) : (
+              <table data-testid="manage-history" style={{ fontSize: ".8rem", marginTop: 8, borderCollapse: "collapse" }}>
+                <caption style={{ textAlign: "left", color: "#475569", paddingBottom: 4 }}>Date, category and number of contacts deleted. No personal details are kept here.</caption>
+                <thead><tr><th scope="col" style={{ textAlign: "left", paddingRight: 16 }}>Date</th><th scope="col" style={{ textAlign: "left", paddingRight: 16 }}>Category</th><th scope="col" style={{ textAlign: "left" }}>Deleted</th></tr></thead>
+                <tbody>
+                  {history.map((h, i) => (
+                    <tr key={`${h.date}-${h.category}-${i}`} data-testid="manage-history-row">
+                      <td style={{ paddingRight: 16 }}>{h.date}</td><td style={{ paddingRight: 16 }}>{h.category || "-"}</td><td>{h.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

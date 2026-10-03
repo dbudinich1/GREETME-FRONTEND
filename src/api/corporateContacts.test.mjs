@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createCorporateContactsClient, sanitizeOrganizations, isRecognizedOrganizationsBody,
-  campaignsContainingContact, deleteWarningLine } from "./corporateContacts.js";
+  campaignsContainingContact, deleteWarningLine, sanitizeDeletionEntry } from "./corporateContacts.js";
 
 const jsonRes = (status, body) => ({ status, ok: status >= 200 && status < 300, json: async () => body });
 const client = (fetchImpl) => createCorporateContactsClient({ fetchImpl, getToken: () => "tok", apiBase: "" });
@@ -206,4 +206,27 @@ test("E7: the warning reads as a sentence at one, two and three campaigns", () =
 test("E7: no campaigns, no warning — one that always warns teaches nothing", () => {
   assert.equal(deleteWarningLine("Ada", []), null);
   assert.equal(deleteWarningLine("Ada", null), null);
+});
+
+// ---------- deletion history (owner-only, read-only) ----------
+test("listDeletionLog GETs .../deletion-log and keeps ONLY date, category and count from each entry", async () => {
+  let seen = null;
+  const c = client(async (url, opts) => { seen = { url, opts }; return jsonRes(200, { ok: true, data: { entries: [{ deletedAt: "2026-10-02T10:00:00Z", category: "vendor", count: 3, name: "X", email: "x@y.co", contactId: "c1" }] } }); });
+  const r = await c.listDeletionLog("o1");
+  assert.match(seen.url, /\/api\/corporate-contacts\/organizations\/o1\/contacts\/deletion-log$/);
+  assert.equal(seen.opts.method, "GET");
+  assert.deepEqual(r.entries, [{ date: "2026-10-02", category: "vendor", count: 3 }]);
+});
+test("listDeletionLog: a missing endpoint, a bad body or a network failure is 'not available', never a throw", async () => {
+  assert.equal((await client(async () => jsonRes(404, {})).listDeletionLog("o1")).ok, false);
+  assert.equal((await client(async () => jsonRes(200, { data: {} })).listDeletionLog("o1")).malformed, true);
+  assert.equal((await client(async () => { throw new Error("x"); }).listDeletionLog("o1")).networkError, true);
+  assert.equal((await client(async () => jsonRes(200, {})).listDeletionLog("")).error, "missing_org");
+  assert.equal(sanitizeDeletionEntry({ category: "x" }), null, "an entry without a date is dropped");
+});
+test("the client no longer exposes a restore call, and a 409 carries no contact id", async () => {
+  const c = client(async () => jsonRes(409, { error: "email_already_exists", contactId: "other" }));
+  assert.equal(c.restoreContact, undefined);
+  const r = await c.createContact("o1", {});
+  assert.equal(r.contactId, undefined);
 });

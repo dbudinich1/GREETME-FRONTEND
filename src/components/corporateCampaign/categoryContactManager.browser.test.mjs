@@ -55,14 +55,14 @@ const FULL = () => [
   { id: "v1", name: "Ana Ruiz", email: "ana@nw.co", corporateContactType: "vendor", occasions: [], shippingAddress: null },
 ];
 
-function setup({ canWrite = true, campaigns = [], failWith = null } = {}) {
+function setup({ canWrite = true, campaigns = [], failWith = null, log = undefined } = {}) {
   const store = { contacts: FULL() };
   const calls = [];
   const writes = {
     createContact: async (org, body) => { calls.push(["create", org, body]); if (failWith) return failWith; store.contacts.push({ id: `n${store.contacts.length}`, ...body, shippingAddress: body.shippingAddress }); return { ok: true }; },
     updateContact: async (org, id, body) => { calls.push(["update", org, id, body]); if (failWith) return failWith; store.contacts = store.contacts.map((c) => (c.id === id ? { ...c, ...body } : c)); return { ok: true }; },
     deleteContact: async (org, id) => { calls.push(["delete", org, id]); store.contacts = store.contacts.filter((c) => c.id !== id); return { ok: true }; },
-    restoreContact: async (org, id) => { calls.push(["restore", org, id]); return { ok: true }; },
+    ...(log === undefined ? {} : { listDeletionLog: async (org) => { calls.push(["log", org]); return log; } }),
   };
   return { store, calls, writes, campaigns, canWrite };
 }
@@ -162,30 +162,72 @@ test("Edit shows the SAME field set as Add, pre-filled from the full record, and
   assert.equal(upd[3].occasions[0].date, "1988-06-12");
 });
 
-test("Remove archives: the confirmation says so, warns about campaigns that include the contact, then one DELETE", async () => {
+const dlg = (s) => s.tid("manage-remove-confirm");
+const keydown = async (el, key) => { await act(async () => { el.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key, bubbles: true })); }); await flush(); };
+
+test("Remove is a permanent delete: nothing is sent until 'Delete permanently'; the dialog warns about campaigns; Cancel has focus", async () => {
   const h = setup({ campaigns: [{ name: "Birthdays", enabled: true, audienceRefs: ["e1"] }] }); const s = await mount(h);
   await click(s.tid("tile-employee-manage"));
   await click(s.tid("manage-remove-e1"));
-  assert.match(s.tid("manage-remove-confirm").textContent, /archives the contact/);
+  assert.ok(dlg(s), "a confirmation dialog opens");
+  assert.equal(h.calls.filter((c) => c[0] === "delete").length, 0, "opening the dialog sends nothing");
+  const text = dlg(s).textContent;
+  assert.match(text, /Continuing will delete this contact permanently\. Are you sure you want to delete this contact\?/);
+  assert.doesNotMatch(text, /archiv|restore/i);
   assert.match(s.tid("manage-remove-warning").textContent, /Bob Smith is in Birthdays\./);
-  await click(s.tid("manage-remove-no"));
-  assert.equal(h.calls.filter((c) => c[0] === "delete").length, 0, "Keep sends nothing");
-  await click(s.tid("manage-remove-e1"));
+  assert.equal(s.tid("manage-remove-no").textContent.trim(), "Cancel");
+  assert.equal(s.tid("manage-remove-yes").textContent.trim(), "Delete permanently");
+  assert.equal(document.activeElement, s.tid("manage-remove-no"), "Cancel is the default focus");
   await click(s.tid("manage-remove-yes"));
   assert.deepEqual(h.calls.filter((c) => c[0] === "delete"), [["delete", "org1", "e1"]]);
   assert.equal(s.tid("manage-row-e1"), null);
+  assert.match(s.tid("manage-message").textContent, /deleted permanently/);
 });
 
-test("a removed contact's email offers Restore instead of a second record", async () => {
+test("Cancel and Escape send no DELETE and close the dialog", async () => {
+  const h = setup(); const s = await mount(h);
+  await click(s.tid("tile-employee-manage"));
+  await click(s.tid("manage-remove-e1"));
+  await click(s.tid("manage-remove-no"));
+  assert.equal(dlg(s), null);
+  await click(s.tid("manage-remove-e1"));
+  await keydown(dlg(s), "Escape");
+  assert.equal(dlg(s), null, "Escape closes");
+  assert.equal(h.calls.filter((c) => c[0] === "delete").length, 0, "Cancel/Escape never send a DELETE");
+  assert.ok(s.tid("manage-row-e1"), "the contact is still there");
+});
+
+test("an 'email_archived' answer from an older server is just a generic failure: no Restore offer exists", async () => {
   const h = setup({ failWith: { ok: false, conflict: true, status: 409, error: "email_archived", contactId: "gone1" } }); const s = await mount(h);
   await click(s.tid("tile-vendor-manage"));
   await click(s.tid("manage-vendor-add"));
   await setValue(s.tid("manage-add-name"), "Old Friend");
   await setValue(s.tid("manage-add-email"), "old@friend.co");
   await submit(s.tid("manage-add-form"));
-  assert.match(s.tid("manage-message").textContent, /removed earlier/);
-  await click(s.tid("manage-restore"));
-  assert.deepEqual(h.calls.filter((c) => c[0] === "restore"), [["restore", "org1", "gone1"]]);
+  assert.equal(s.tid("manage-restore"), null);
+  assert.doesNotMatch(s.tid("manage-message").textContent, /restore|archiv|removed earlier/i);
+});
+
+test("Deletion history shows only date, category and count - never personal data - and stays hidden without the endpoint", async () => {
+  const log = { ok: true, entries: [
+    { deletedAt: "2026-10-02T14:00:00.000Z", category: "employee", count: 2, name: "Bob Smith", email: "bob@x.co", contactId: "e1", deletedByUserId: "u9" },
+    { date: "2026-09-30", corporateContactType: "client", name: "Dana Lee", email: "dana@acme.co" },
+  ] };
+  const h = setup({ log }); const s = await mount(h);
+  await click(s.tid("tile-employee-manage"));
+  assert.ok(s.tid("manage-history-toggle"));
+  assert.equal(s.tid("manage-history"), null, "collapsed until asked");
+  await click(s.tid("manage-history-toggle"));
+  const rows = s.qa('[data-testid="manage-history-row"]').map((r) => [...r.querySelectorAll("td")].map((t) => t.textContent));
+  assert.deepEqual(rows, [["2026-10-02", "employee", "2"], ["2026-09-30", "client", "1"]]);
+  const html = s.tid("manage-history").outerHTML;
+  for (const pii of ["Bob", "bob@x.co", "Dana", "dana@acme.co", "e1", "u9"]) assert.ok(!html.includes(pii), `history must not render ${pii}`);
+  const none = await mount(setup({ log: { ok: false, unavailable: true, status: 404 } }));
+  await click(none.tid("tile-employee-manage"));
+  assert.equal(none.tid("manage-history-toggle"), null, "gated behind the response");
+  const noFn = await mount(setup());
+  await click(noFn.tid("tile-employee-manage"));
+  assert.equal(noFn.tid("manage-history-toggle"), null);
 });
 
 test("without the management read (a non-owner), the tiles still show Ready / Needs info from the roster\u2019s own ready flag - never the email", async () => {
