@@ -132,6 +132,8 @@ export function deleteCopy(contact, campaigns) {
   return {
     question: "Continuing will delete this contact permanently. Are you sure you want to delete this contact?",
     detail: "This cannot be undone. The contact is removed for good and will not receive future sends.",
+    // PROPOSED WORDING (founder approval pending, report 44): trivial to change, it is only this string.
+    recordsNote: "Records of gifts already sent keep the delivery details they were fulfilled with.",
     warning: deleteWarningLine(contact && contact.name, names),
     scheduledWarning: names.length > 0
       ? "They will be left out of those campaigns from now on."

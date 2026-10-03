@@ -174,6 +174,7 @@ test("Remove is a permanent delete: nothing is sent until 'Delete permanently'; 
   const text = dlg(s).textContent;
   assert.match(text, /Continuing will delete this contact permanently\. Are you sure you want to delete this contact\?/);
   assert.doesNotMatch(text, /archiv|restore/i);
+  assert.match(s.tid("manage-remove-records-note").textContent, /Records of gifts already sent keep the delivery details they were fulfilled with./);
   assert.match(s.tid("manage-remove-warning").textContent, /Bob Smith is in Birthdays\./);
   assert.equal(s.tid("manage-remove-no").textContent.trim(), "Cancel");
   assert.equal(s.tid("manage-remove-yes").textContent.trim(), "Delete permanently");

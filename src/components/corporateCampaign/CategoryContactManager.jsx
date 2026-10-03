@@ -156,6 +156,7 @@ export default function CategoryContactManager({
           style={{ border: "1px solid #b3261e", borderRadius: 10, padding: 12, marginBottom: 10 }}>
           <strong id="manage-remove-title">{copy.question}</strong>
           <p style={{ margin: "6px 0", fontSize: ".85rem" }}>{copy.detail}</p>
+          <p data-testid="manage-remove-records-note" style={{ margin: "6px 0", fontSize: ".8rem", color: "#475569" }}>{copy.recordsNote}</p>
           {copy.warning ? <p data-testid="manage-remove-warning" style={{ margin: "6px 0", fontSize: ".85rem", color: "#92400e" }}>{copy.warning} {copy.scheduledWarning}</p> : null}
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="gcd-btn" ref={cancelRef} data-testid="manage-remove-no" onClick={() => setRemovingId(null)} disabled={busy}>Cancel</button>
