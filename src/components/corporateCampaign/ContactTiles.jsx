@@ -21,6 +21,8 @@ import {
   contactTotalsLabel,
   unclassifiedNotice,
 } from "./corporateDashboardModel.js";
+import CategoryContactManager from "./CategoryContactManager.jsx";
+import { readinessCounts } from "./contactManageModel.js";
 import "./premiumDashboard.css";
 
 // Presentation only — a small glyph per category, matching the approved reference. No model
@@ -45,13 +47,18 @@ const TILE_ICONS = {
   ),
 };
 
-export default function ContactTiles({ contacts, loading = false, onManage, onAddCategory, onImportAll, onViewAll }) {
+// SURFACE 8: `manager` (optional) turns Manage into a real category-scoped list. Shape:
+//   { contacts, orgId, writes, campaigns, reload, canWrite } - `contacts` is the full management read.
+// Without it (read not available) the tile behaves exactly as before: a read-only roster and an import "Add".
+export default function ContactTiles({ contacts, loading = false, onManage, onAddCategory, onImportAll, onViewAll, manager = null }) {
   const bucket = bucketContactsByCategory(contacts);
   const notice = unclassifiedNotice(bucket);
 
   // SLICE E5 - which category has its roster open. One at a time: three open lists would push the
   // campaigns panel off-screen, which is the thing the tiles sit beneath in the first place.
   const [openCategory, setOpenCategory] = useState(null);
+  const [addFirst, setAddFirst] = useState(false); // opened through the tile\u2019s Add button
+  const managed = Boolean(manager && Array.isArray(manager.contacts));
 
   return (
     <section className="gcd-panel" data-testid="contact-tiles-panel" aria-labelledby="gcd-contacts-head">
@@ -105,11 +112,15 @@ export default function ContactTiles({ contacts, loading = false, onManage, onAd
                     <span className="gcd-tile-stat-label">Total</span>
                   </div>
                   <div className="gcd-tile-stat">
-                    <span className="gcd-tile-stat-value gcd-tile-stat-value--muted" data-testid={`tile-${cat.key}-ready`}>—</span>
+                    <span className={`gcd-tile-stat-value${managed ? "" : " gcd-tile-stat-value--muted"}`} data-testid={`tile-${cat.key}-ready`}>
+                      {managed ? readinessCounts(manager.contacts.filter((c) => c.corporateContactType === cat.key)).ready : "—"}
+                    </span>
                     <span className="gcd-tile-stat-label">Ready</span>
                   </div>
                   <div className="gcd-tile-stat">
-                    <span className="gcd-tile-stat-value gcd-tile-stat-value--muted" data-testid={`tile-${cat.key}-needs-info`}>—</span>
+                    <span className={`gcd-tile-stat-value${managed ? "" : " gcd-tile-stat-value--muted"}`} data-testid={`tile-${cat.key}-needs-info`}>
+                      {managed ? readinessCounts(manager.contacts.filter((c) => c.corporateContactType === cat.key)).needs : "—"}
+                    </span>
                     <span className="gcd-tile-stat-label">Needs info</span>
                   </div>
                 </div>
@@ -124,7 +135,7 @@ export default function ContactTiles({ contacts, loading = false, onManage, onAd
                       exists, the honest thing this button can do is show the list it already has. */}
                   <button type="button" className="gcd-btn gcd-btn--primary gcd-btn--block" data-testid={`tile-${cat.key}-manage`}
                     aria-expanded={open} aria-controls={`tile-${cat.key}-roster`}
-                    onClick={() => { setOpenCategory(open ? null : cat.key); if (onManage) onManage(cat.key); }}>
+                    onClick={() => { setAddFirst(false); setOpenCategory(open ? null : cat.key); if (onManage) onManage(cat.key); }}>
                     {open ? "Hide" : "Manage"}
                   </button>
                   {/* Opens the EXISTING import wizard with this category preselected — never a second form.
@@ -132,12 +143,27 @@ export default function ContactTiles({ contacts, loading = false, onManage, onAd
                       route with the same mode and category: two controls, one capability, and a
                       reader left to guess at a difference that did not exist. */}
                   <button type="button" className="gcd-btn gcd-btn--block" data-testid={`tile-${cat.key}-add`}
-                    onClick={() => onAddCategory && onAddCategory(cat.key)}>
+                    onClick={() => {
+                      // SURFACE 8: with the management read available, Add adds ONE contact right here (no import);
+                      // importing stays one click away inside Manage and in the panel header.
+                      if (managed && manager.canWrite) { setAddFirst(true); setOpenCategory(cat.key); return; }
+                      if (onAddCategory) onAddCategory(cat.key);
+                    }}>
                     {`Add ${cat.label.replace(/s$/, "")}`}
                   </button>
                 </div>
 
-                {open ? (
+                {open && managed ? (
+                  <CategoryContactManager
+                    key={`${cat.key}-${addFirst ? "add" : "list"}`}
+                    category={cat.key} label={cat.label} contacts={manager.contacts} orgId={manager.orgId}
+                    writes={manager.writes} campaigns={manager.campaigns} reload={manager.reload}
+                    canWrite={manager.canWrite} startWithAdd={addFirst}
+                    onImport={onAddCategory ? () => onAddCategory(cat.key) : null}
+                  />
+                ) : null}
+
+                {open && !managed ? (
                   <ul className="gcd-roster" id={`tile-${cat.key}-roster`} data-testid={`tile-${cat.key}-roster`}>
                     {rows.length === 0 ? (
                       <li className="gcd-roster-empty">Nobody in this category yet. Add or import to get started.</li>

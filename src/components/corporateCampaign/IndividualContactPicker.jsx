@@ -1,18 +1,18 @@
-// src/components/corporateCampaign/IndividualContactPicker.jsx
+﻿// src/components/corporateCampaign/IndividualContactPicker.jsx
 //
-// TEAM A — SLICE D: individual contact selection, on top of whatever the category bubbles chose.
+// TEAM A â€” SLICE D: individual contact selection, on top of whatever the category bubbles chose.
 //
 // This is the ONLY route by which an unclassified contact can enter an audience. A category bubble
-// cannot reach one — that is the point — so without this surface those contacts would be
+// cannot reach one â€” that is the point â€” so without this surface those contacts would be
 // unreachable rather than merely uncategorised. Each row shows a small neutral descriptor
 // ("Unclassified"), never a guessed category.
 //
-// TEAM 5 (2026-09-29) — this used to write straight to the server (client.setAudience) the moment
+// TEAM 5 (2026-09-29) â€” this used to write straight to the server (client.setAudience) the moment
 // its own Save was clicked, independent of whatever the campaign's OWN edit buffer held. That let a
 // reader lose an unsaved category-checkbox change with no warning: the picker's write updated the
 // server, the dashboard refetched, and the campaign's local draft resynced to the new persisted
 // value, silently discarding anything not yet committed. Selection here now stages into the SAME
-// edit buffer everything else in the campaign modal already uses — `onSave` hands the id array back
+// edit buffer everything else in the campaign modal already uses â€” `onSave` hands the id array back
 // to the caller (CampaignCard), which folds it into `draft.individualRefs`. Nothing is sent to the
 // server until the campaign modal's own Save is pressed, exactly like every other field on the card.
 
@@ -20,10 +20,15 @@ import { useState } from "react";
 import { contactCategoryLabel, contactCategoryAbbr } from "./corporateDashboardModel.js";
 import "./premiumDashboard.css";
 
-export default function IndividualContactPicker({ contacts, initialSelected, onClose, onSave }) {
+// SURFACE 8 (W25): the same picker also serves a CATEGORY-scoped choice. Optional props: `title`/`note` to name it,
+// `searchable` for a name filter, and `readiness(contact)` -> { ready, label } | null to show the Ready badge. All
+// default to the picker's original behaviour, and opening/closing it never changes the campaign draft by itself.
+export default function IndividualContactPicker({ contacts, initialSelected, onClose, onSave, title = "Select Individual Contacts", note = "Add or remove specific people, on top of any categories you chose.", searchable = false, readiness = null }) {
   const [selected, setSelected] = useState(() => new Set(Array.isArray(initialSelected) ? initialSelected : []));
+  const [q, setQ] = useState("");
 
-  const list = Array.isArray(contacts) ? contacts : [];
+  const all = Array.isArray(contacts) ? contacts : [];
+  const list = searchable && q.trim() ? all.filter((c) => String(c.name || "").toLowerCase().includes(q.trim().toLowerCase())) : all;
 
   function toggle(id) {
     setSelected((prev) => {
@@ -38,13 +43,16 @@ export default function IndividualContactPicker({ contacts, initialSelected, onC
   }
 
   return (
-    // TEAM 5 — no `role="dialog"`/`aria-modal`: this now renders in-flow inside the campaign
+    // TEAM 5 â€” no `role="dialog"`/`aria-modal`: this now renders in-flow inside the campaign
     // modal's own Recipients tab, not as a second overlay, so it is not itself a dialog.
     <div className="gcd-panel" data-testid="individual-picker" aria-label="Select individual contacts">
       <div className="gcd-panel-head">
         <div>
-          <h2 className="gcd-panel-title">Select Individual Contacts</h2>
-          <p className="gcd-panel-note">Add or remove specific people, on top of any categories you chose.</p>
+          <h2 className="gcd-panel-title">{title}</h2>
+          <p className="gcd-panel-note">{note}</p>
+          {searchable ? (
+            <label style={{ fontSize: ".78rem", fontWeight: 700 }}>Search <input data-testid="picker-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name" style={{ padding: "5px 8px", borderRadius: 8, border: "1px solid #cbd5e1", marginLeft: 6 }} /></label>
+          ) : null}
         </div>
         <button type="button" className="gcd-btn" data-testid="picker-close" onClick={onClose}>Close</button>
       </div>
@@ -72,6 +80,9 @@ export default function IndividualContactPicker({ contacts, initialSelected, onC
                   </span>
                   {/* Neutral descriptor. An unclassified contact is never labelled Employee. */}
                   <span className="gcd-bubble-note" data-testid={`pick-${c.id}-category`}>{contactCategoryLabel(c)}</span>
+                  {readiness && readiness(c) ? (
+                    <span className="gcd-bubble-note" data-testid={`pick-${c.id}-ready`} data-ready={readiness(c).ready ? "yes" : "no"}>{readiness(c).label}</span>
+                  ) : null}
                 </span>
               </label>
             ))}
@@ -84,7 +95,7 @@ export default function IndividualContactPicker({ contacts, initialSelected, onC
           {`Use ${selected.size} selected`}
         </button>
         <p className="gcd-wcard-note" data-testid="picker-stage-note">
-          Applied to this campaign's unsaved changes — press Save on the campaign to commit it.
+          Applied to this campaign's unsaved changes â€” press Save on the campaign to commit it.
         </p>
       </div>
     </div>

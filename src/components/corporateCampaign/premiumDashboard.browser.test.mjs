@@ -740,20 +740,32 @@ test("E5: an unconfigured campaign cannot be switched ON, and says what is missi
 // ══ SLICE E5 — the edit buffer ═══════════════════════════════════════════════════════════════
 const tick = async (s, id) => { await act(async () => { s.q(id).click(); }); };
 
-test("E5: Save and Cancel are both inert until something has actually changed", async () => {
-  const s = await mount(cardEl({ audienceRefs: ["e1"] }, { isOwner: true }));
+test("E5: Save is inert until something has actually changed; Cancel closes silently when nothing was edited and asks first when something was", async () => {
+  // SURFACE 8 (W26): X, Cancel, the backdrop and Escape share ONE contract. Original invariant kept: Save is inert while
+  // clean and there is no unsaved-changes notice. Changed by decision: Cancel is the way OUT, so it is always available.
+  const closed = [];
+  const s = await mount(cardEl({ audienceRefs: ["e1"] }, { isOwner: true, onToggleExpanded: (id) => closed.push(id) }));
   assert.equal(s.tid("act-save-cmp_1").disabled, true, "nothing to save");
-  assert.equal(s.tid("act-cancel-cmp_1").disabled, true, "nothing to discard");
   assert.equal(s.tid("card-dirty-cmp_1"), null, "and no unsaved-changes notice");
+  await click(s.tid("act-cancel-cmp_1"));
+  assert.deepEqual(closed, ["cmp_1"], "untouched: it closes");
+  assert.equal(s.tid("card-discard-cmp_1"), null, "and never asks");
 
+  closed.length = 0;
   await tick(s, "#c-cmp_1-aud-employee");
   assert.equal(s.tid("act-save-cmp_1").disabled, false);
-  assert.equal(s.tid("act-cancel-cmp_1").disabled, false);
   assert.ok(s.tid("card-dirty-cmp_1"), "the card says there is something unsaved");
+  await click(s.tid("act-cancel-cmp_1"));
+  assert.ok(s.tid("card-discard-cmp_1"), "edited: it asks whether to discard");
+  assert.deepEqual(closed, [], "and has not closed yet");
+  await click(s.tid("card-discard-keep-cmp_1"));
+  assert.equal(s.tid("card-discard-cmp_1"), null, "Keep editing returns to the dialog");
+  assert.ok(s.tid("card-dirty-cmp_1"), "with the edit still there");
 });
 
-test("E5: Cancel restores every field at once and sends nothing", async () => {
-  const s = await mount(cardEl({ audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date", timeZone: "UTC" } }, { isOwner: true }));
+test("E5: Discard restores every field at once, sends nothing, and closes; reopening shows the saved campaign", async () => {
+  const closed = [];
+  const s = await mount(cardEl({ audienceRefs: ["e1"], deliveryConfig: { scheduleMode: "campaign_date", timeZone: "UTC" } }, { isOwner: true, onToggleExpanded: (id) => closed.push(id) }));
   const before = s.tid("card-audience-total-cmp_1").textContent;
   calls.length = 0;
 
@@ -761,13 +773,71 @@ test("E5: Cancel restores every field at once and sends nothing", async () => {
   assert.notEqual(s.tid("card-audience-total-cmp_1").textContent, before, "the edit is visible");
 
   await click(s.tid("act-cancel-cmp_1"));
-  assert.equal(s.tid("card-audience-total-cmp_1").textContent, before, "…and fully undone");
+  await click(s.tid("card-discard-yes-cmp_1"));
+  assert.deepEqual(closed, ["cmp_1"], "it closed");
+  assert.equal(s.tid("card-audience-total-cmp_1").textContent, before, "the edit is fully undone (so a reopen shows what is saved)");
   assert.equal(s.tid("act-save-cmp_1").disabled, true, "back to clean");
   assert.equal(s.tid("card-dirty-cmp_1"), null);
   // The whole point: a bail-out that never touched the server has nothing to roll back.
-  assert.equal(calls.length, 0, "Cancel is a local operation");
+  assert.equal(calls.length, 0, "Discard is a local operation");
 });
 
+test("W26: Escape closes only the topmost layer - selector, then the discard question, then the dialog", async () => {
+  const closed = [];
+  const s = await mount(cardEl({ audienceRefs: [] }, { isOwner: true, onToggleExpanded: (id) => closed.push(id) }), {});
+  const esc = () => act(async () => { document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+  // a contact selector is open on top of a dialog that has an edit in it
+  await tick(s, "#c-cmp_1-aud-employee");
+  await click(s.tid("card-individual-cmp_1"));
+  assert.ok(s.tid("individual-picker"), "the selector is open");
+  await esc();
+  assert.equal(s.tid("individual-picker"), null, "first Escape closes only the selector");
+  assert.deepEqual(closed, [], "the dialog is still open");
+  await esc();
+  assert.ok(s.tid("card-discard-cmp_1"), "second Escape: edited, so it asks");
+  assert.deepEqual(closed, []);
+  await esc();
+  assert.equal(s.tid("card-discard-cmp_1"), null, "Escape on the question closes only the question");
+  assert.deepEqual(closed, [], "still open");
+  await click(s.tid("card-close-cmp_1"));
+  await click(s.tid("card-discard-yes-cmp_1"));
+  assert.deepEqual(closed, ["cmp_1"], "X + Discard closes");
+});
+
+test("W26: Escape on an untouched dialog closes it without any prompt", async () => {
+  const closed = [];
+  const s = await mount(cardEl({ audienceRefs: ["e1"] }, { isOwner: true, onToggleExpanded: (id) => closed.push(id) }));
+  await act(async () => { document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+  assert.deepEqual(closed, ["cmp_1"]);
+  assert.equal(s.tid("card-discard-cmp_1"), null);
+});
+
+test("W25: category selectors - opening and cancelling change nothing; only a confirmed different selection edits the draft", async () => {
+  const s = await mount(cardEl({ audienceRefs: [] }, { isOwner: true }));
+  assert.ok(s.tid("card-choose-employee-cmp_1") && s.tid("card-choose-client-cmp_1") && s.tid("card-choose-vendor-cmp_1"), "one selector per category");
+  await click(s.tid("card-choose-employee-cmp_1"));
+  assert.ok(s.tid("card-category-picker-cmp_1"));
+  assert.equal(s.tid("card-dirty-cmp_1"), null, "opening is state-neutral");
+  await click(s.tid("picker-close"));
+  assert.equal(s.tid("card-dirty-cmp_1"), null, "closing is state-neutral");
+  await click(s.tid("card-choose-employee-cmp_1"));
+  await click(s.tid("picker-save"));
+  assert.equal(s.tid("card-dirty-cmp_1"), null, "confirming with no change leaves the draft clean");
+  await click(s.tid("card-choose-employee-cmp_1"));
+  await act(async () => { s.q("#pick-e1").click(); });
+  await click(s.tid("picker-save"));
+  assert.ok(s.tid("card-dirty-cmp_1"), "a confirmed different selection marks the draft edited");
+});
+
+test("W28: the dialog has five tabs and a Message tab with presentation controls and the honest wording", async () => {
+  const s = await mount(cardEl({}, { isOwner: true }));
+  assert.deepEqual(s.qa('[role="tab"]').map((b) => b.textContent.trim()), ["Overview", "Recipients", "Message", "Gift", "Schedule & Payment"]);
+  const msg = s.tid("tab-message-cmp_1");
+  assert.match(msg.textContent, /personalizes the wording for each recipient by occasion/);
+  assert.ok(msg.querySelector('[data-testid="selector-spread-cmp_1"]'), "the Featured Spread lives in Message");
+  assert.equal(s.tid("tab-gift-cmp_1").querySelector('[data-testid="selector-spread-cmp_1"]'), null, "and no longer in Gift");
+  assert.doesNotMatch(s.q('[role="dialog"]').textContent, /Approved|Locked|Scheduled/, "no lifecycle word in the dialog");
+});
 test("E5: unchecking a category actually removes its members", async () => {
   // Before the edit buffer this silently did nothing: the card fed the whole persisted audience
   // back as "individually selected", so everyone a category had added stayed added forever.
