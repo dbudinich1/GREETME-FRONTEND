@@ -16,7 +16,7 @@ import { campaignsContainingContact, deleteWarningLine } from "../../api/corpora
 
 export const EMPTY_ADDRESS = Object.freeze({ line1: "", line2: "", city: "", state: "", zip: "", country: "United States" });
 export const EMPTY_FORM = Object.freeze({
-  name: "", email: "", phone: "", company: "", department: "", notes: "",
+  name: "", firstName: "", lastName: "", email: "", phone: "", company: "", department: "", notes: "",
   birthday: "", anniversary: "", address: EMPTY_ADDRESS,
 });
 
@@ -35,7 +35,12 @@ export const hasAddress = (c) => Boolean(c && c.shippingAddress && typeof c.ship
 
 /** READY means a name and a valid email. Nothing else counts. */
 export function isContactReady(c) {
-  return Boolean(c && trim(c.name) && EMAIL_RE.test(trim(c.email)));
+  if (!c) return false;
+  // The server states readiness as a boolean on both reads (roster `ready`, management `readiness.ready`): trust it
+  // when present, otherwise compute the same rule from the fields.
+  if (typeof c.ready === "boolean") return c.ready;
+  if (c.readiness && typeof c.readiness.ready === "boolean") return c.readiness.ready;
+  return Boolean(trim(c.name) && EMAIL_RE.test(trim(c.email)));
 }
 export const readinessOf = (c) => (isContactReady(c)
   ? { ready: true, label: "Ready" }
@@ -59,7 +64,7 @@ export function fromContact(contact) {
   const c = contact || {};
   const a = (c.shippingAddress && typeof c.shippingAddress === "object") ? c.shippingAddress : {};
   return {
-    name: str(c.name), email: str(c.email), phone: str(c.phone), company: str(c.company),
+    name: str(c.name), firstName: str(c.firstName), lastName: str(c.lastName), email: str(c.email), phone: str(c.phone), company: str(c.company),
     department: str(c.department), notes: str(c.notes),
     birthday: occasionDate(c, OCCASION_FIELDS.birthday),
     anniversary: occasionDate(c, OCCASION_FIELDS.anniversary),
@@ -113,7 +118,7 @@ export function toPayload(draft, { category, existing = null } = {}) {
     if (trim(d[field])) occasions.push({ type, date: trim(d[field]) });
   }
   const body = {
-    name: trim(d.name), email: trim(d.email), phone: trim(d.phone), company: trim(d.company),
+    name: trim(d.name), firstName: trim(d.firstName), lastName: trim(d.lastName), email: trim(d.email), phone: trim(d.phone), company: trim(d.company),
     department: trim(d.department), notes: trim(d.notes), occasions,
     shippingAddress: normalizedAddress(d.address),
   };
@@ -137,6 +142,9 @@ export function archiveCopy(contact, campaigns) {
 /** Plain-language message for a failed contact write. */
 export function writeFailureMessage(res) {
   if (res && res.notFound) return "That contact no longer exists. The list has been refreshed.";
+  if (res && res.error === "invalid_shipping_address") return "That address doesn\u2019t look right. Check it and try again.";
+  if (res && res.error === "shipping_address_field_too_long") return "One of the address lines is too long.";
+  if (res && res.error === "invalid_contact_type") return "That category isn\u2019t valid.";
   if (res && res.conflict && res.error === "email_archived") return "A contact you removed earlier has that email. You can restore them instead.";
   if (res && res.conflict) return "Someone with that email is already here.";
   if (res && res.dormant) return "Business contacts aren’t available yet.";

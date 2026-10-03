@@ -82,8 +82,9 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
       } else if (res && res.error === "plan_shortfall") {
         setOutcome({ kind: "short", details: res.details || {} });
         await loadReview();
-      } else if (res && res.error === "review_out_of_date") {
-        setOutcome({ kind: "error", text: blockerText("review_out_of_date") });
+      } else if (res && (res.error === "review_out_of_date" || res.error === "quote_changed")) {
+        // The thing the owner confirmed is no longer true: nothing was sent or charged. A new review is a new send.
+        setOutcome({ kind: "error", text: blockerText(res.error) });
         keyRef.current = null;
         await loadReview();
       } else {

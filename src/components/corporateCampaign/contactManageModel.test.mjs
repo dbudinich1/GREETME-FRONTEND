@@ -70,3 +70,13 @@ test("failure messages: duplicate vs removed-contact email, and the generic fall
   assert.equal(writeFailureMessage({ conflict: true, error: "email_already_exists" }), "Someone with that email is already here.");
   assert.match(writeFailureMessage({}), /didn’t go through/);
 });
+
+test("the server's own ready flag wins; first and last name travel with the form for shipping labels", () => {
+  assert.equal(isContactReady({ ready: true, name: "", email: "" }), true, "roster flag");
+  assert.equal(isContactReady({ ready: false, name: "A", email: "a@b.co" }), false, "roster flag");
+  assert.equal(isContactReady({ readiness: { ready: true } }), true, "management flag");
+  const d = fromContact({ name: "Bob", firstName: "Robert", lastName: "Smith", email: "b@x.co" });
+  assert.equal(d.firstName, "Robert");
+  assert.equal(toPayload(d, {}).lastName, "Smith");
+  assert.match(writeFailureMessage({ error: "invalid_shipping_address" }), /address doesn\u2019t look right/);
+});

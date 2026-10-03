@@ -37,6 +37,8 @@ export default function ContactFields({ prefix, draft, setDraft, errors = {} }) 
     <>
       <div style={grid}>
         {f("name", "Name *")}
+        {f("firstName", "First name (for shipping labels)")}
+        {f("lastName", "Last name")}
         {f("email", "Email *", { type: "email" })}
         {f("phone", "Phone", { type: "tel" })}
         {f("company", "Company")}

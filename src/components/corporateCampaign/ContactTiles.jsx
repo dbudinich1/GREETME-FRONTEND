@@ -59,6 +59,10 @@ export default function ContactTiles({ contacts, loading = false, onManage, onAd
   const [openCategory, setOpenCategory] = useState(null);
   const [addFirst, setAddFirst] = useState(false); // opened through the tile\u2019s Add button
   const managed = Boolean(manager && Array.isArray(manager.contacts));
+  // Ready / Needs info come from the full management read when the viewer has it (the owner), otherwise from the
+  // roster read, which carries the server's own `ready` boolean on every contact (never the email itself).
+  const readinessSource = managed ? manager.contacts : ((Array.isArray(contacts) && contacts.length > 0 && contacts.every((c) => typeof c.ready === "boolean")) ? contacts : null);
+  const countsFor = (key) => readinessCounts(readinessSource.filter((c) => c.corporateContactType === key));
 
   return (
     <section className="gcd-panel" data-testid="contact-tiles-panel" aria-labelledby="gcd-contacts-head">
@@ -112,14 +116,14 @@ export default function ContactTiles({ contacts, loading = false, onManage, onAd
                     <span className="gcd-tile-stat-label">Total</span>
                   </div>
                   <div className="gcd-tile-stat">
-                    <span className={`gcd-tile-stat-value${managed ? "" : " gcd-tile-stat-value--muted"}`} data-testid={`tile-${cat.key}-ready`}>
-                      {managed ? readinessCounts(manager.contacts.filter((c) => c.corporateContactType === cat.key)).ready : "—"}
+                    <span className={`gcd-tile-stat-value${readinessSource ? "" : " gcd-tile-stat-value--muted"}`} data-testid={`tile-${cat.key}-ready`}>
+                      {readinessSource ? countsFor(cat.key).ready : "—"}
                     </span>
                     <span className="gcd-tile-stat-label">Ready</span>
                   </div>
                   <div className="gcd-tile-stat">
-                    <span className={`gcd-tile-stat-value${managed ? "" : " gcd-tile-stat-value--muted"}`} data-testid={`tile-${cat.key}-needs-info`}>
-                      {managed ? readinessCounts(manager.contacts.filter((c) => c.corporateContactType === cat.key)).needs : "—"}
+                    <span className={`gcd-tile-stat-value${readinessSource ? "" : " gcd-tile-stat-value--muted"}`} data-testid={`tile-${cat.key}-needs-info`}>
+                      {readinessSource ? countsFor(cat.key).needs : "—"}
                     </span>
                     <span className="gcd-tile-stat-label">Needs info</span>
                   </div>

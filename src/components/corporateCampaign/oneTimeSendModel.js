@@ -68,6 +68,18 @@ const BLOCKER_TEXT = Object.freeze({
   needs_default_photo: "Add your profile photo first: every Greet-Me includes your photo.",
   needs_authorized_voice: "Your voice needs to be set up first: every Greet-Me uses your voice.",
   idempotency_key_reused: "That send was already used for a different request. Please review again.",
+  saved_card_required: "A saved card is needed for this gift. Add one below.",
+  no_business_plan: "Your account doesn\u2019t have a business plan that can send.",
+  corporate_plan_unmetered: "We can\u2019t count Greet-Mes on this plan, so it can\u2019t send from here yet.",
+  needs_organization_name: "Add your organization\u2019s name first: it appears as the sender.",
+  provider_quote_unavailable: "We can\u2019t get a price for that gift right now. Please try again shortly.",
+  quote_not_authoritative: "We can\u2019t confirm the price for that gift right now. Nothing was charged.",
+  quote_changed: "The price changed since you reviewed. Nothing was charged. Please review again.",
+  send_in_progress: "Your earlier press is still being processed. Press again in a moment: it will not send twice.",
+  funding_declined: "Your card was declined. Nothing was sent.",
+  funding_authentication_required: "Your bank needs to confirm this card. Nothing was sent.",
+  funding_incomplete: "The payment didn\u2019t complete. Nothing was sent.",
+  contact_not_found: "That person is no longer in your contacts.",
   review_out_of_date: "Things changed since you reviewed. Please review again.",
 });
 export function blockerText(code) {

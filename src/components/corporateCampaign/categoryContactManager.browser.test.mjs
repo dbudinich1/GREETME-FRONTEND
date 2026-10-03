@@ -188,6 +188,21 @@ test("a removed contact's email offers Restore instead of a second record", asyn
   assert.deepEqual(h.calls.filter((c) => c[0] === "restore"), [["restore", "org1", "gone1"]]);
 });
 
+test("without the management read (a non-owner), the tiles still show Ready / Needs info from the roster\u2019s own ready flag - never the email", async () => {
+  const host = document.createElement("div"); document.body.appendChild(host);
+  const root = createRoot(host); mounted.push({ root, host });
+  await act(async () => { root.render(React.createElement(ContactTiles, { contacts: [
+    { id: "e1", name: "A", corporateContactType: "employee", ready: true },
+    { id: "e2", name: "B", corporateContactType: "employee", ready: false },
+    { id: "c1", name: "C", corporateContactType: "client", ready: true },
+  ], manager: null })); });
+  const v = (t) => host.querySelector(`[data-testid="${t}"]`).textContent.trim();
+  assert.equal(v("tile-employee-ready"), "1");
+  assert.equal(v("tile-employee-needs-info"), "1");
+  assert.equal(v("tile-client-ready"), "1");
+  assert.equal(v("tile-vendor-ready"), "0");
+});
+
 test("a non-owner sees the list but no Add / Edit / Remove; without the management read the tile falls back to the read-only roster", async () => {
   const s = await mount(setup({ canWrite: false }));
   await click(s.tid("tile-employee-manage"));

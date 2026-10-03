@@ -193,6 +193,23 @@ test("a server-side shortfall at send time is shown as 'you are N short' and the
   assert.ok(c.calls.preview.length >= 2, "the review was refreshed");
 });
 
+test("if the quote changed after the review, nothing is charged, the message says so and a fresh review (and key) is needed", async () => {
+  const c = fakeClient({ send: () => ({ ok: false, status: 409, error: "quote_changed", details: { expectedTotalCents: 100, currentTotalCents: 200 } }) });
+  const s = await mount(flow(c));
+  await toReview(s);
+  await click(s.tid("sendnow-confirm"));
+  assert.match(s.tid("sendnow-error").textContent, /price changed since you reviewed\. Nothing was charged/);
+  assert.ok(c.calls.preview.length >= 2, "the review was refreshed");
+});
+
+test("a declined card says nothing was sent", async () => {
+  const c = fakeClient({ send: () => ({ ok: false, status: 402, error: "funding_declined" }) });
+  const s = await mount(flow(c));
+  await toReview(s);
+  await click(s.tid("sendnow-confirm"));
+  assert.match(s.tid("sendnow-error").textContent, /card was declined\. Nothing was sent\./);
+});
+
 test("not switched on / not available yet: the review says so instead of offering a send", async () => {
   const c = { preview: async () => ({ ok: false, dormant: true }), send: async () => { throw new Error("must not send"); } };
   const s = await mount(flow(c));

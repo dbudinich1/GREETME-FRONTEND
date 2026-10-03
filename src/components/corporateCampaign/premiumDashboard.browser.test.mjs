@@ -829,6 +829,20 @@ test("W25: category selectors - opening and cancelling change nothing; only a co
   assert.ok(s.tid("card-dirty-cmp_1"), "a confirmed different selection marks the draft edited");
 });
 
+test("the lifecycle words (Approved / Locked / Scheduled / Active) never appear in the campaign dialog, whatever the state", async () => {
+  for (const over of [
+    { approvalStatus: "approved" },
+    { approvalStatus: "approved", lockStatus: "locked" },
+    { approvalStatus: "approved", lockStatus: "locked", deliveryConfig: { scheduleMode: "campaign_date", status: "scheduled", scheduledForUtc: "2027-01-05T14:00:00.000Z" } },
+    { approvalStatus: "approved", lockStatus: "locked", deliveryConfig: { scheduleMode: "contact_saved_date", occasionType: "birthday", status: "active" } },
+  ]) {
+    const s = await mount(cardEl({ audienceRefs: ["e1"], ...over }, { isOwner: true }));
+    const dialog = s.q('[role="dialog"]');
+    assert.doesNotMatch(dialog.querySelector(".gcd-modal-head").textContent, /Approved|Locked|Scheduled|Active/, JSON.stringify(over));
+    assert.doesNotMatch(s.tid("card-footer-cmp_1").getAttribute("aria-label"), /Approved|Locked|Scheduled|Active/);
+  }
+});
+
 test("W28: the dialog has five tabs and a Message tab with presentation controls and the honest wording", async () => {
   const s = await mount(cardEl({}, { isOwner: true }));
   assert.deepEqual(s.qa('[role="tab"]').map((b) => b.textContent.trim()), ["Overview", "Recipients", "Message", "Gift", "Schedule & Payment"]);
