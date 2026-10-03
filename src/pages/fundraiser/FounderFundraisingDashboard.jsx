@@ -7,6 +7,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { fundraiserApi, stateFor } from "../../api/fundraiserApi.js";
 import { isFundraiserUiEnabled } from "../../config/fundraiserGate.js";
+import { payoutOnlyLine } from "./partnerEarningsCopy.js";
 import { pageWrap, box, h, btn, btnGhost, Stat, StateView, Empty, HeldBadge } from "./FundraiserUI.jsx";
 // P2 — pure state model for the partner-administrator panel (no React/DOM/fetch inside).
 import { STATES, resolveOutcome, assignOutcome, messageFor, canAssign, isAssigned } from "./partnerAdminAssign.js";
@@ -1687,7 +1688,7 @@ export default function FounderFundraisingDashboard() {
             <Stat label="Refunds" value={detail.ledger?.refunds ?? 0} />
           </div>
           <p>Reconciliation: {detail.reconciliation?.reconciled ? "✓ reconciled" : `drift ${detail.reconciliation?.driftCount ?? 0}`}</p>
-          <p>Payout review: <strong>{detail.payout?.posture || "manual_review_only"}</strong> <HeldBadge /></p>
+          <p>{payoutOnlyLine(detail.payout)}</p>
           {/* Organization lifecycle. Inside the founder detail block, so it renders only where the
               founder overview already succeeded — a non-founder never reaches this markup at all
               (the dashboard short-circuits to StateView on the 403), and every call it makes is

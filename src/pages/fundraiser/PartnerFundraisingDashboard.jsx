@@ -9,6 +9,7 @@ import { useParams } from "react-router-dom";
 import { fundraiserApi, stateFor } from "../../api/fundraiserApi.js";
 import { isFundraiserUiEnabled } from "../../config/fundraiserGate.js";
 import { pageWrap, box, h, btn, btnGhost, Stat, StateView, Empty, HeldBadge } from "./FundraiserUI.jsx";
+import { partnerEarningsCopy } from "./partnerEarningsCopy.js";
 import ParticipantQrCode from "./ParticipantQrCode.jsx"; // F1-7 — scannable QR from the existing payload
 
 export default function PartnerFundraisingDashboard() {
@@ -132,6 +133,7 @@ export default function PartnerFundraisingDashboard() {
   // FE-ROSTER-1: the backend overview returns removed participants too (organizationOverview
   // filters by campaignId only, never by status — verified at eda1420), so a just-removed
   // participant would otherwise keep rendering. Exclude status "removed" from the roster.
+  const earningsCopy = partnerEarningsCopy(earnings, payout);
   const rows = (ov.participants || []).filter((r) => r.status !== "removed");
   return (
     <div style={pageWrap}>
@@ -153,10 +155,15 @@ export default function PartnerFundraisingDashboard() {
           <Stat label="Scans" value={ov.totals?.scans ?? 0} />
           <Stat label="Conversions" value={ov.totals?.conversions ?? 0} />
         </div>
-        <p style={{ marginTop: 12 }}>
-          Estimated earnings: <strong>{earnings?.available ? `${earnings.estimateCents}¢` : "—"}</strong> <HeldBadge>{earnings?.reason || "held"}</HeldBadge>
-          &nbsp;·&nbsp; Payout review: <strong>{payout?.posture || "manual_review_only"}</strong> <HeldBadge />
-        </p>
+        {/* W49: founder-approved wording. LIMITATION: with "All campaigns" selected no campaignId is sent, so the
+            server always answers "economics not activated"; the wording is safe but not exact until the backend
+            offers a whole-organization answer (later item). */}
+        <div data-testid="partner-earnings" style={{ marginTop: 12 }}>
+          <div style={{ color: "#8a7c6c", fontSize: 13 }}>{earningsCopy.label} {earningsCopy.pill ? <HeldBadge>{earningsCopy.pill}</HeldBadge> : null}</div>
+          {earningsCopy.amount ? <div style={{ fontSize: 26, fontWeight: 700, color: "#4a3f35" }}>{earningsCopy.amount}</div> : null}
+          {earningsCopy.lines.map((l) => <p key={l} style={{ margin: "4px 0" }}>{l}</p>)}
+          {earningsCopy.payoutLine ? <p style={{ margin: "4px 0", color: "#6b5d4f" }}>{earningsCopy.payoutLine}</p> : null}
+        </div>
       </div>
 
       <div style={box}>
