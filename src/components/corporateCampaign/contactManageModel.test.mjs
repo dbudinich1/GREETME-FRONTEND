@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  EMPTY_FORM, isContactReady, readinessOf, readinessCounts, fromContact, validateContact, toPayload, hasAddress, archiveCopy, writeFailureMessage,
+  EMPTY_FORM, isContactReady, readinessOf, readinessCounts, fromContact, validateContact, toPayload, hasAddress, deleteCopy, writeFailureMessage,
 } from "./contactManageModel.js";
 
 const full = {
@@ -55,18 +55,20 @@ test("fromContact and toPayload round-trip the SAME field set, keep unrelated oc
   assert.deepEqual(add.occasions, []);
 });
 
-test("Remove is an archive: the copy says so and warns about campaigns that include the contact", () => {
-  const c = archiveCopy({ id: "c1", name: "Bob" }, [{ name: "Birthdays", enabled: true, audienceRefs: ["c1"] }, { name: "Off", enabled: false, audienceRefs: ["c1"] }]);
-  assert.match(c.detail, /archives the contact/);
+test("Remove is a permanent delete: the copy says so and warns about campaigns that include the contact", () => {
+  const c = deleteCopy({ id: "c1", name: "Bob" }, [{ name: "Birthdays", enabled: true, audienceRefs: ["c1"] }, { name: "Off", enabled: false, audienceRefs: ["c1"] }]);
+  assert.match(c.question, /delete this contact permanently\. Are you sure you want to delete this contact\?/);
+  assert.match(c.detail, /cannot be undone/);
+  assert.doesNotMatch(JSON.stringify(c), /archiv/i);
   assert.equal(c.warning, "Bob is in Birthdays.");
   assert.ok(c.scheduledWarning);
-  const none = archiveCopy({ id: "c9", name: "Zed" }, []);
+  const none = deleteCopy({ id: "c9", name: "Zed" }, []);
   assert.equal(none.warning, null);
   assert.equal(none.scheduledWarning, null);
 });
 
-test("failure messages: duplicate vs removed-contact email, and the generic fallback", () => {
-  assert.match(writeFailureMessage({ conflict: true, error: "email_archived" }), /removed earlier/);
+test("failure messages: duplicate email, no archive/restore wording, and the generic fallback", () => {
+  assert.doesNotMatch(writeFailureMessage({ conflict: true, error: "email_archived" }), /removed earlier|restore|archiv/i);
   assert.equal(writeFailureMessage({ conflict: true, error: "email_already_exists" }), "Someone with that email is already here.");
   assert.match(writeFailureMessage({}), /didn’t go through/);
 });
