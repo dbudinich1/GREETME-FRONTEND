@@ -65,8 +65,8 @@ test.describe("enabled (gate ON)", () => {
     await seedAuth(page); const c = { n: 0 }; await mockApi(page, c);
     await page.goto(`${BASE}/#/dashboard/fundraiser/partner/org_a`);
     await expect(page.getByRole("heading", { name: /Partner Administrator/ })).toBeVisible();
-    await expect(page.getByText(/manual_review_only/)).toBeVisible();
-    await expect(page.getByText(/economics_not_activated/)).toBeVisible();
+    await expect(page.getByText(/Payouts have not started yet/)).toBeVisible();
+    await expect(page.getByText(/once the terms of your partnership are in place/)).toBeVisible();
     await expect(page.getByText(/no login or dashboard/i)).toBeVisible();
   });
 
