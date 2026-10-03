@@ -63,7 +63,8 @@ export default function Cart() {
   const hasSubscription = !!subscriptionItem;
 
   // Referral credit disqualifies G1G1; business tiers are excluded (annual-credit model).
-  const referralCodeStored = localStorage.getItem('greetme_referral_code');
+  let referralCodeStored = null;
+  try { referralCodeStored = localStorage.getItem('greetme_referral_code'); } catch { /* blocked storage: treat as no referral code */ }
   const hasReferralCredit = !!referralCodeStored;
   // The REAL referral credit amount as the server issued it (null until known; never a literal).
   const referralCreditCents = useReferralCreditCents(referralCodeStored);
