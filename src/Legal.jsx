@@ -40,7 +40,8 @@ export default function Legal() {
       <p style={S.p}>These providers only receive information necessary to perform their function and are subject to their own privacy policies.</p>
 
       <h3 style={S.h3}>Data Retention &amp; Deletion</h3>
-      <p style={S.p}>We retain your account information and greeting data for as long as your account is active or as needed to provide the service. Greeting media (photos, voice, generated video) is retained for up to 12 months after creation to allow recipients to view greetings. You may request deletion of your account and all associated data by emailing support@greet-me.com. We will process deletion requests within 30 days.</p>
+      <p style={S.p}>We retain your account information and greeting data for as long as your account is active or as needed to provide the service. Greeting media (photos, voice, generated video) is retained for up to 12 months after creation to allow recipients to view greetings. You may request deletion of your account and all associated data by emailing support@greet-me.com. We will process deletion requests within 30 days, except for records we are required or permitted to keep as described below.</p>
+      <p style={S.p}><strong>Deleting contacts.</strong> If you delete a contact from your lists, that contact is permanently removed from your account and will not receive future sends. Records of orders and gifts that have already been placed or sent keep the delivery details they were fulfilled with (for example, the name and shipping address on the order). We retain these records for fulfilment, tax, accounting and dispute-resolution purposes and for as long as the law requires, and we do not use them for any other purpose. When you ask us to delete your account and associated data, we will delete or anonymise your information within 30 days, except for records we are required or permitted to keep for those purposes.</p>
 
       <h3 style={S.h3}>Recipient Data</h3>
       <p style={S.p}>When you send a Greet-Me, we store the recipient&rsquo;s name and email address to deliver the greeting and send related notifications. Recipients may request removal of their data by contacting support@greet-me.com.</p>
@@ -49,7 +50,7 @@ export default function Legal() {
       <p style={S.p}>Greet-Me is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13. If you believe a child under 13 has provided us with personal information, please contact us immediately at support@greet-me.com so we can remove the information.</p>
 
       <h3 style={S.h3}>Your Rights</h3>
-      <p style={S.p}>You may request access to, correction of, or deletion of your personal information by emailing support@greet-me.com. California residents and EEA residents may have additional rights under applicable law.</p>
+      <p style={S.p}>You may request access to, correction of, or deletion of your personal information by emailing support@greet-me.com. California residents and EEA residents may have additional rights under applicable law. Records we are required or permitted to keep for fulfilment, tax, accounting and dispute purposes are retained as described under Data Retention &amp; Deletion.</p>
 
       <h3 style={S.h3}>Contact</h3>
       <p style={S.p}>For privacy questions: support@greet-me.com</p>
