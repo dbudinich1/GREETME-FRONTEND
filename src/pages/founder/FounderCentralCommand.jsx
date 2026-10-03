@@ -77,6 +77,17 @@ const QR_CASH_MANAGEMENT_SURFACE_EXISTS = false;
 // Injectable, defaulting to the real clients — the same dependency-injection shape this codebase
 // already uses elsewhere (e.g. SalespersonControlCenter's `api = salesAdminApi`), so tests can
 // supply fakes without esbuild inlining the real network-calling modules into a test bundle.
+// Founder decision (Surface 9): the fundraising cards say PLAINLY that payouts are off. There is no backend
+// flag this page can read for it, so the statement is one constant here; flip it only when payouts are
+// authorized and a real flag is wired.
+export const FUNDRAISER_PAYOUTS_ACTIVE = false;
+const PAYOUTS_OFF_TEXT = "Payouts are OFF. Nothing is paid out to organizations or participants yet.";
+function PayoutsNote({ testId }) {
+  return FUNDRAISER_PAYOUTS_ACTIVE ? null : (
+    <p data-testid={testId} role="note" style={{ margin: "0 0 .5rem", fontSize: ".84rem", fontWeight: 600 }}>{PAYOUTS_OFF_TEXT}</p>
+  );
+}
+
 export default function FounderCentralCommand({
   user: injectedUser,
   qrCashApi = founderCommandApi,
@@ -286,6 +297,7 @@ export default function FounderCentralCommand({
         {/* ── FUNDRAISING ──────────────────────────────────────────────────────────────────────── */}
         <section style={card} data-testid="fcc-card-fundraising" aria-labelledby="fcc-fundraising-title">
           <h2 id="fcc-fundraising-title" style={cardTitle}>Fundraising</h2>
+          <PayoutsNote testId="fcc-fundraising-payouts" />
           {fundraising.loading ? (
             <p style={unavailable}>Loading…</p>
           ) : fundraising.error ? (
@@ -311,7 +323,7 @@ export default function FounderCentralCommand({
           </a>
         </section>
 
-        {/* ── W36 (PROPOSED) · ENTRY POINTS to existing fundraiser surfaces ─────────────────────
+        {/* ── W36 · ENTRY POINTS to existing fundraiser surfaces ─────────────────────
             Four separate cards: campaigns, participants, partner portal, activation state. Each
             reads ONLY the founder overview this page already loads (counts + byStatus) and links to
             an EXISTING route. No new endpoint, no mutation, no duplicate subsystem. The route and
@@ -378,6 +390,7 @@ export default function FounderCentralCommand({
 
         <section style={card} data-testid="fcc-card-activation" aria-labelledby="fcc-activation-title">
           <h2 id="fcc-activation-title" style={cardTitle}>Activation State</h2>
+          <PayoutsNote testId="fcc-activation-payouts" />
           {fundraising.loading ? <p style={unavailable}>Loading…</p>
             : fundraising.error ? <p style={unavailable} data-testid="fcc-activation-error">{fundraising.error}</p>
             : (

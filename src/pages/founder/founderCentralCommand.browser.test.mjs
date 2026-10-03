@@ -202,3 +202,10 @@ test("W36: more than five organizations shows five links and a pointer to the re
   assert.equal(tid("fcc-partner-list").querySelectorAll("a").length, 5);
   assert.match(tid("fcc-partner-more").textContent, /3 more/);
 });
+test("Surface 9: the fundraising and activation cards state plainly that payouts are OFF, and keep the activation state beside it", async () => {
+  const fr = fakeFundraiserFull(FULL_OVERVIEW, ORGS);
+  await mount(defaultProps({ user: { plan: "founder" }, fundraiserOverviewApi: fr }));
+  assert.match(tid("fcc-fundraising-payouts").textContent, /^Payouts are OFF\. Nothing is paid out/);
+  assert.match(tid("fcc-activation-payouts").textContent, /^Payouts are OFF\./);
+  assert.match(tid("fcc-activation-orgs").textContent, /Approved 2/, "activation state is still shown");
+});

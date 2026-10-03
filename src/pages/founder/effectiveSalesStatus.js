@@ -17,7 +17,7 @@ export function effectiveSalesStatus(linkStatus, controls) {
   if (s === "inactive") {
     return {
       key: "inactive", label: "Inactive",
-      detail: "New referrals do not attribute to this salesperson. Existing customers, commissions and history are unchanged.",
+      detail: "New referrals do not attribute to this salesperson. Commission stops accruing for an inactive salesperson; what has already accrued stays, and needs approval before any payout.",
     };
   }
   if (s !== "active") {
