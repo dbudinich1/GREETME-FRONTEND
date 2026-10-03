@@ -125,7 +125,7 @@ function Detail({ api, id, period, onBack, onPeriod }) {
                   <li key={k} data-testid={`cc-stage-${k}`} style={{ display: "flex", justifyContent: "space-between", fontSize: ".86rem" }}><span>{label}</span><strong>{money(d.commissionByStage[k])}</strong></li>
                 ))}
               </ul>
-              <p style={ui.note}>Direct sales {money(d.commissionByStage.directMinor)} and override {money(d.commissionByStage.overrideMinor)} together make up the commission earned. There is no Paid line because payouts are off.</p>
+              <p style={ui.note}>Direct sales {money(d.commissionByStage.directMinor)} and override {money(d.commissionByStage.overrideMinor)} together make up the commission earned. Nothing is shown as paid out because payouts are off.</p>
             </section>
             <section style={ui.card} data-testid="cc-section-override">
               <h3 style={ui.title}>Override earnings (from salespeople they referred)</h3>
