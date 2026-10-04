@@ -232,7 +232,8 @@ test("gift sales are NEVER shown as commission; no payout / approve / export con
   await mount(M.SalesPerformance, { user: FOUNDER, api: salesApi() });
   await click(tid("cc-open-sp_a"));
   const text = document.body.textContent;
-  assert.doesNotMatch(text, /gift commission|commission on gift|gift earnings|store commission/i);
+  // The note may now NAME the Gift commission panel (terms live on the profile), but no gift commission FIGURE may appear here.
+  assert.doesNotMatch(text, /commission on gift|gift earnings|store commission|gift commission[^.]{0,40}\$\d/i);
   assert.match(text, /sales only, not commission/i);
   assert.doesNotMatch(text, /no commission on gifts|carry no commission|no commission is calculated/i, "nothing claims gifts never earn commission");
   for (const b of document.querySelectorAll("button")) assert.doesNotMatch(b.textContent, /approve|\bpay\b|export|download|mark paid/i);
