@@ -10,7 +10,7 @@ export const GIFT_COMMISSION_BANNER = "Gift commission is OFF platform-wide unti
 export const GIFT_TYPE_OPTIONS = [
   { id: "gift_boxes", label: "Gift boxes", selectable: true, note: "Earns on Greet-Me's mark-up on the gift box." },
   { id: "merch", label: "Merch", selectable: true, note: "Accrues nothing while the merch mark-up is off." },
-  { id: "flowers", label: "Flowers", selectable: false, note: "Not available yet: it is refused until a definition is approved." },
+  { id: "flowers", label: "Flowers", selectable: true, note: "Earns a share of Greet-Me's 20% florist share; florist payment is verified before approval." },
 ];
 export const NEVER_EARN = [
   { id: "qrcash", label: "QR Cash", note: "Never earns." },
@@ -24,7 +24,7 @@ export const DURATION_MODES = [
   { id: "ongoing", label: "Ongoing" },
 ];
 
-export const blankDraft = () => ({ enabled: true, ratePercent: "", mode: "first_gift_only", months: "12", types: [], startDate: "" });
+export const blankDraft = () => ({ enabled: true, ratePercent: "", mode: "first_gift_only", months: "12", types: [], stored: [], startDate: "" });
 
 /** Draft from the stored `current` block (or blank when nothing is set). */
 export function draftFromCurrent(cur) {
@@ -34,9 +34,21 @@ export function draftFromCurrent(cur) {
     ratePercent: Number.isFinite(cur.rateBps) ? String(cur.rateBps / 100) : "",
     mode: cur.duration && cur.duration.mode ? cur.duration.mode : "first_gift_only",
     months: cur.duration && cur.duration.months ? String(cur.duration.months) : "12",
+    // Every stored eligible type is pre-selected, so saving without touching the types keeps exactly what is stored.
     types: Array.isArray(cur.eligibleTypes) ? cur.eligibleTypes.filter((t) => GIFT_TYPE_OPTIONS.some((o) => o.id === t && o.selectable)) : [],
+    stored: Array.isArray(cur.eligibleTypes) ? cur.eligibleTypes.slice() : [],
     startDate: "",
   };
+}
+
+/** Stored types that the draft would drop (shown as a warning; never dropped silently). */
+export function removedTypes(d) {
+  const keep = new Set(d.types || []);
+  return (d.stored || []).filter((t) => !keep.has(t));
+}
+export function typeLabel(t) {
+  const o = GIFT_TYPE_OPTIONS.find((x) => x.id === t) || NEVER_EARN.find((x) => x.id === t);
+  return o ? o.label : t;
 }
 
 /** @returns {{errors:Object, payload:Object|null}} payload is the exact PUT body when valid. `now` is injectable for tests. */

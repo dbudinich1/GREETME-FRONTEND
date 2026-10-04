@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  validateDraft, blankDraft, draftFromCurrent, summaryLine, historyRows, giftCommissionErrorMessage,
+  validateDraft, blankDraft, draftFromCurrent, removedTypes, summaryLine, historyRows, giftCommissionErrorMessage,
   GIFT_TYPE_OPTIONS, NEVER_EARN, GIFT_COMMISSION_BANNER,
 } from "./giftCommissionLogic.js";
 
@@ -29,13 +29,28 @@ test("validation: rate, months, types, date", () => {
   assert.equal(validateDraft(good({ startDate: "2026-10-03" }), NOW).payload.effectiveFrom, undefined, "today means now");
   assert.equal(validateDraft(good({ startDate: "2026-11-01" }), NOW).payload.effectiveFrom, "2026-11-01T00:00:00.000Z");
 });
-test("QR Cash, Smart Card and flowers can never be selected or sent", () => {
+test("QR Cash and Smart Card can never be selected or sent; flowers can", () => {
   assert.deepEqual(NEVER_EARN.map((n) => n.id).sort(), ["gift_cards", "qrcash"]);
-  assert.equal(GIFT_TYPE_OPTIONS.find((o) => o.id === "flowers").selectable, false);
+  assert.equal(GIFT_TYPE_OPTIONS.find((o) => o.id === "flowers").selectable, true);
+  assert.match(GIFT_TYPE_OPTIONS.find((o) => o.id === "flowers").note, /20% florist share; florist payment is verified before approval/);
   const v = validateDraft(good({ types: ["gift_boxes", "qrcash", "gift_cards", "flowers"] }), NOW);
-  assert.deepEqual(v.payload.eligibleTypes, ["gift_boxes"]);
-  assert.ok(validateDraft(good({ types: ["qrcash", "flowers"] }), NOW).errors.types, "nothing selectable left");
-  assert.deepEqual(draftFromCurrent({ enabled: true, rateBps: 500, duration: { mode: "ongoing" }, eligibleTypes: ["flowers", "qrcash", "merch"] }).types, ["merch"]);
+  assert.deepEqual(v.payload.eligibleTypes, ["gift_boxes", "flowers"], "never-earn types are stripped, flowers is kept");
+  assert.ok(validateDraft(good({ types: ["qrcash", "gift_cards"] }), NOW).errors.types, "nothing selectable left");
+});
+test("keep-flowers round trip: every stored selectable type is pre-selected and sent back unchanged", () => {
+  const cur = { enabled: true, rateBps: 500, duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes", "flowers", "merch"] };
+  const d = draftFromCurrent(cur);
+  assert.deepEqual(d.types, ["gift_boxes", "flowers", "merch"]);
+  assert.deepEqual(removedTypes(d), []);
+  const v = validateDraft(d, NOW);
+  assert.deepEqual(v.payload.eligibleTypes, ["gift_boxes", "flowers", "merch"], "saving without touching types drops nothing");
+  const onlyFlowers = draftFromCurrent({ ...cur, eligibleTypes: ["flowers"] });
+  assert.deepEqual(validateDraft(onlyFlowers, NOW).payload.eligibleTypes, ["flowers"]);
+});
+test("removing a stored type is reported (never silent)", () => {
+  const d = draftFromCurrent({ enabled: true, rateBps: 500, duration: { mode: "ongoing" }, eligibleTypes: ["gift_boxes", "flowers"] });
+  d.types = d.types.filter((t) => t !== "flowers");
+  assert.deepEqual(removedTypes(d), ["flowers"]);
 });
 test("turning it off does not require types and sends enabled:false", () => {
   const v = validateDraft(good({ enabled: false, types: [], ratePercent: "" }), NOW);

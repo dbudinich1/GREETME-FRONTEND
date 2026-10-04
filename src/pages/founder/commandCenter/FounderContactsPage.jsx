@@ -1,6 +1,6 @@
 // W46 Founder contact book (lean version). Founder-only (the server enforces it; this check is cosmetic). General housekeeping
 // contacts: not a lead tracker. Delete is PERMANENT and always goes through a warning step. Links open in a new tab and are never fetched.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { isFounder } from "../../../utils/accountState.js";
 import { founderContactsApi, founderContactsErrorMessage } from "../../../api/founderContacts.js";
 import { Page, ui } from "./commandCenterUi.jsx";
@@ -108,6 +108,16 @@ export default function FounderContactsPage({ api = founderContactsApi, user: in
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [serverError, setServerError] = useState("");
+  const cancelRef = useRef(null);
+  // Delete dialog (as in the corporate delete dialog): Cancel gets default focus; Escape closes it without deleting.
+  const confirming = !!(mode && mode.confirm);
+  useEffect(() => {
+    if (!confirming) return undefined;
+    if (cancelRef.current) cancelRef.current.focus();
+    const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); setMode(null); } };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [confirming]);
   const load = useCallback(async () => {
     const r = await api.list({ q: q.trim(), category, followUpDue: due, sort: "name" });
     if (r.ok && r.data && Array.isArray(r.data.contacts)) setState({ data: r.data });
@@ -174,7 +184,7 @@ export default function FounderContactsPage({ api = founderContactsApi, user: in
                 <div role="alertdialog" aria-label="Confirm delete" data-testid="delete-confirm" style={{ border: "1px solid #b3261e", borderRadius: 10, padding: 12, background: "#fef2f2" }}>
                   <p style={{ margin: "0 0 8px", fontSize: ".88rem" }} data-testid="delete-warning">{DELETE_WARNING}</p>
                   <button type="button" style={ui.btn} disabled={busy} data-testid="delete-confirm-go" onClick={() => remove(c.id)}>Yes, delete permanently</button>{" "}
-                  <button type="button" style={ui.btn2} data-testid="delete-cancel" onClick={() => setMode(null)}>Cancel</button>
+                  <button type="button" ref={cancelRef} style={ui.btn2} data-testid="delete-cancel" onClick={() => setMode(null)}>Cancel</button>
                 </div>
               ) : null}
             </li>
