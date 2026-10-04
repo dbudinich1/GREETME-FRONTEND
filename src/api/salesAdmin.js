@@ -181,6 +181,15 @@ export const salesAdminApi = {
   assignedLinks: (salespersonId) => get(`${one(salespersonId)}/links`),
   /** GET /admin/salespeople/:id/gift-sales?period= -> informational only */
   giftSales: (salespersonId, period = "30") => get(`${one(salespersonId)}/gift-sales?period=${encodeURIComponent(period)}`),
+
+  /** GET /admin/salespeople/:id/gift-commission -> { ok, giftCommission:{ current, history } } (founder only) */
+  giftCommission: (salespersonId) => get(`${one(salespersonId)}/gift-commission`),
+  /**
+   * PUT /admin/salespeople/:id/gift-commission body { enabled, rateBps, duration, eligibleTypes, effectiveFrom? }.
+   * Records TERMS only: effective-dated, never retroactive, previous terms move to an append-only history. Accrues nothing
+   * by itself (a platform switch and marker must also be live). 400 carries a `reason` code (mapped to plain words by the UI).
+   */
+  setGiftCommission: (salespersonId, body) => req("PUT", `${one(salespersonId)}/gift-commission`, body),
 };
 
 /**
