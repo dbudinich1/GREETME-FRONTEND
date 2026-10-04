@@ -168,6 +168,19 @@ export const salesAdminApi = {
 
   /** GET /admin/controls → { ok, controls } — read-only. No endpoint can flip a flag. */
   controls: () => get("/api/sales/admin/controls"),
+
+  // ── COMMAND CENTER READS (W50 tracker, assigned links, gift sales). All GET, founder-only, read-only. ──
+  // `period` is one of 7 | 30 | 90 | all. Shapes: reports/closeout-sprint/contracts/T3-command-center-backend-contract.md
+  /** GET /admin/performance?period= -> { ok, period, currency, payouts, salespeople:[...] } */
+  performance: (period = "30") => get(`/api/sales/admin/performance?period=${encodeURIComponent(period)}`),
+  /** GET /admin/salespeople/:id/performance?period= */
+  performanceOne: (salespersonId, period = "30") => get(`${one(salespersonId)}/performance?period=${encodeURIComponent(period)}`),
+  /** GET /admin/salespeople/:id/customers?period=&limit= (masked) */
+  customers: (salespersonId, period = "all", limit = 200) => get(`${one(salespersonId)}/customers?period=${encodeURIComponent(period)}&limit=${limit}`),
+  /** GET /admin/salespeople/:id/links -> assigned link states (never a token) */
+  assignedLinks: (salespersonId) => get(`${one(salespersonId)}/links`),
+  /** GET /admin/salespeople/:id/gift-sales?period= -> informational only */
+  giftSales: (salespersonId, period = "30") => get(`${one(salespersonId)}/gift-sales?period=${encodeURIComponent(period)}`),
 };
 
 /**

@@ -83,6 +83,7 @@ function defaultProps(overrides = {}) {
     fundraiserOverviewApi: fakeFundraiser(DEFAULT_FUNDRAISING),
     salesApi: fakeSales(DEFAULT_SALES),
     catalogApi: fakeCatalog(DEFAULT_CATALOG),
+    view: "all", // W51: hubs split the cards across pages; "all" is the original single-page layout these assertions cover
     ...overrides,
   };
 }
