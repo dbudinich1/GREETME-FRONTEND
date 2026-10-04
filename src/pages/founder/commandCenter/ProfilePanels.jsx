@@ -2,6 +2,7 @@
 // when the client has no such read (or the read fails) the panel renders nothing or one plain sentence, and the rest of the
 // profile is untouched. No token or hash is ever shown; the private link is only ever reported as a state.
 import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import { money, readGiftSales, GIFT_SALES_LABEL, GIFT_SALES_NOTE, giftTypeLabel, giftTruncationNote } from "./commandCenterLogic.js";
 
 const box = { border: "1px solid var(--border, #e5e7eb)", borderRadius: 12, padding: "12px 14px", display: "grid", gap: 6, background: "#fff" };
@@ -15,6 +16,39 @@ function CopyButton({ text, testid }) {
   }
   return <button type="button" className="btn-secondary" style={{ padding: ".3rem .7rem", fontSize: ".78rem" }} data-testid={testid} onClick={copy}>{done ? "Copied" : "Copy link"}</button>;
 }
+/**
+ * QR code for the SHAREABLE link only. Drawn in the browser from the public vanity URL string; the private tracking link is never
+ * passed in here (its token is shown once and must never be rendered or encoded). Rendered as an SVG built from the QR module
+ * matrix so there is no canvas and no stored image; `data-qr-text` records exactly what was encoded.
+ */
+export function ShareQr({ url }) {
+  const [m, setM] = useState(null);
+  useEffect(() => {
+    let live = true;
+    try {
+      const q = QRCode.create(url, { errorCorrectionLevel: "M" });
+      if (live) setM({ size: q.modules.size, data: Array.from(q.modules.data) });
+    } catch { if (live) setM(null); }
+    return () => { live = false; };
+  }, [url]);
+  if (!m) return null;
+  const pad = 4; const dim = m.size + pad * 2;
+  const rects = [];
+  for (let y = 0; y < m.size; y++) for (let x = 0; x < m.size; x++) if (m.data[y * m.size + x]) rects.push(`M${x + pad} ${y + pad}h1v1h-1z`);
+  const path = rects.join("");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dim} ${dim}" width="256" height="256" shape-rendering="crispEdges"><rect width="${dim}" height="${dim}" fill="#fff"/><path d="${path}" fill="#000"/></svg>`;
+  return (
+    <div data-testid="cc-link-qr" style={{ display: "grid", gap: 6, justifyItems: "start" }}>
+      <svg viewBox={`0 0 ${dim} ${dim}`} width="140" height="140" role="img" aria-label={`QR code for ${url}`} data-testid="cc-link-qr-svg" data-qr-text={url} data-qr-size={m.size} shape-rendering="crispEdges" style={{ maxWidth: "100%", background: "#fff" }}>
+        <rect width={dim} height={dim} fill="#fff" />
+        <path d={path} fill="#000" data-testid="cc-link-qr-path" />
+      </svg>
+      <p style={small}>QR code for the shareable link above. It does not include the private tracking link.</p>
+      <a href={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`} download="salesperson-share-link-qr.svg" style={{ fontSize: ".8rem", color: "#4F2D7F", fontWeight: 700 }} data-testid="cc-link-qr-download">Download QR code</a>
+    </div>
+  );
+}
+
 export function AssignedLinksPanel({ api, salespersonId }) {
   const [state, setState] = useState({ loading: true });
   const has = typeof api.assignedLinks === "function";
@@ -42,6 +76,7 @@ export function AssignedLinksPanel({ api, salespersonId }) {
               <code data-testid="cc-link-vanity-url" style={{ wordBreak: "break-all", userSelect: "all" }}>{vanity.url}</code>
               <p style={small}>Opens: {vanity.destination}.{vanity.active ? "" : " This salesperson is inactive, so new visitors are not credited to them."}</p>
               <div><CopyButton text={vanity.url} testid="cc-link-vanity-copy" /></div>
+              {vanity.active ? <ShareQr url={vanity.url} /> : <p style={small} data-testid="cc-link-qr-paused">No QR code is shown while this salesperson is inactive.</p>}
             </>
           ) : <p style={small} data-testid="cc-link-vanity-none">No shareable link assigned yet. Assign one below.</p>}
         </div>

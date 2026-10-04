@@ -12,6 +12,7 @@ import { dirname, join } from "node:path";
 import { writeFileSync, rmSync, readFileSync, readdirSync as __ls, rmSync as __rm } from "node:fs";
 import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
+import QR from "qrcode";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 process.on("exit", () => { try { for (const n of __ls(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __rm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
@@ -260,8 +261,18 @@ test("salesperson profile: assigned links (vanity link + copy + state + destinat
   assert.equal(tid("cc-link-vanity-url").textContent, "https://greet-me.com/alex");
   assert.equal(tid("cc-link-vanity-state").textContent, "Active");
   assert.match(tid("cc-link-vanity").textContent, /Opens: Same hand-off/);
-  assert.equal(tid("cc-link-qr"), null, "no separate salesperson QR exists, so none is drawn");
-  assert.equal(document.querySelector("img"), null);
+  // QR: exists for the SHAREABLE link only, encodes exactly that URL, never the private link.
+  const svg = tid("cc-link-qr-svg");
+  assert.ok(svg, "QR drawn for the active shareable link");
+  assert.equal(svg.getAttribute("data-qr-text"), "https://greet-me.com/alex");
+  const expected = QR.create("https://greet-me.com/alex", { errorCorrectionLevel: "M" });
+  assert.equal(Number(svg.getAttribute("data-qr-size")), expected.modules.size);
+  const want = []; for (let y = 0; y < expected.modules.size; y++) for (let x = 0; x < expected.modules.size; x++) if (expected.modules.data[y * expected.modules.size + x]) want.push(`M${x + 4} ${y + 4}h1v1h-1z`);
+  assert.equal(tid("cc-link-qr-path").getAttribute("d"), want.join(""), "the drawn modules are exactly the QR of the shareable URL");
+  assert.equal(tid("cc-link-share").querySelector("svg"), null, "no QR inside the private-link box");
+  assert.match(tid("cc-link-qr-download").getAttribute("href"), /^data:image\/svg\+xml/);
+  assert.equal(tid("cc-link-qr-download").getAttribute("download"), "salesperson-share-link-qr.svg");
+  assert.equal(document.querySelectorAll("svg").length, 1, "exactly one QR on the panel");
   assert.match(tid("cc-link-share").textContent, /version 2/);
   assert.match(tid("cc-link-share").textContent, /cannot be shown again/);
   assert.doesNotMatch(tid("cc-link-share").textContent, /https?:\/\//, "the private link is never displayed");
@@ -281,7 +292,14 @@ test("salesperson profile: assigned links (vanity link + copy + state + destinat
   const paused = salesApi({ assignedLinks: () => ok({ ok: true, referralPublicEnabled: false, links: [{ type: "vanity_alias", active: false, assigned: true, slug: "bo", url: "https://greet-me.com/bo", destination: "x" }] }) });
   await mount(M.AssignedLinksPanel, { api: paused, salespersonId: "sp_b" });
   assert.equal(tid("cc-link-vanity-state").textContent, "Paused");
+  assert.equal(tid("cc-link-qr"), null, "no QR while inactive");
+  assert.ok(tid("cc-link-qr-paused"));
+  assert.equal(document.querySelector("svg"), null);
   assert.ok(tid("cc-links-platform-off"));
+  const noSlug = salesApi({ assignedLinks: () => ok({ ok: true, referralPublicEnabled: true, links: [{ type: "vanity_alias", active: true, assigned: false, slug: null, url: null, destination: "x" }, { type: "share_link", active: true, tokenVersion: 1, destination: "x", note: "y" }] }) });
+  await mount(M.AssignedLinksPanel, { api: noSlug, salespersonId: "sp_e" });
+  assert.equal(tid("cc-link-qr"), null, "no shareable link, no QR (and the private link never produces one)");
+  assert.equal(document.querySelector("svg"), null);
   await mount(M.AssignedLinksPanel, { api: {}, salespersonId: "sp_a" });
   assert.equal(document.body.textContent.trim(), "", "no read => nothing rendered");
   await mount(M.AssignedLinksPanel, { api: { assignedLinks: () => Promise.resolve({ ok: false, status: 500, data: null }) }, salespersonId: "sp_a" });
