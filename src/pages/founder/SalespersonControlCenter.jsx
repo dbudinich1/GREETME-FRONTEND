@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { salesAdminApi, salesAdminErrorMessage } from "../../api/salesAdmin.js";
 import { AssignedLinksPanel, GiftSalesPanel } from "./commandCenter/ProfilePanels.jsx";
+import GiftCommissionPanel from "./commandCenter/GiftCommissionPanel.jsx";
 import { fundraiserApi } from "../../api/fundraiserApi.js";
 import { isFounder } from "../../utils/accountState.js";
 import AttributionHealthPanel from "./AttributionHealthPanel.jsx";
@@ -627,6 +628,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
               {/* W51: assigned links and gift sales. Read-only panels, each gated by the api (absent read = nothing rendered). */}
               <AssignedLinksPanel api={api} salespersonId={detail.salespersonId} />
               <GiftSalesPanel api={api} salespersonId={detail.salespersonId} />
+              <GiftCommissionPanel api={api} salespersonId={detail.salespersonId} />
             </div>
               {/* ── VANITY ALIAS ──
                   Separate from the opaque link by design, and the copy says so: changing or
