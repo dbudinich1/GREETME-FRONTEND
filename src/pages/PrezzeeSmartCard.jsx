@@ -16,13 +16,17 @@ import api from '../api/api';
 import PrezzeeCardConfirmationModal from '../components/PrezzeeCardConfirmationModal';
 import { Gift, AlertCircle, Loader, CheckCircle2 } from 'lucide-react';
 
-// Preview-only mirror of the server's published formula (services/giftCatalog.js#
-// calcPrezzeeCardFees) — 2.9% + $0.30. Used ONLY to show an estimate before a charge is
-// attempted; the actual charge amount and the actual persisted fee always come from the server's
-// own response, never from this function's return value.
-function previewFee(amountCents) {
-  const fee = Math.round(amountCents * 0.029) + 30;
-  return { feeCents: fee, totalCents: amountCents + fee };
+// FEE (founder decision 2026-10-01, UNIVERSAL-gift-fee-policy): the Smart Card carries a flat,
+// DISCLOSED convenience fee that is additive to the face value (a $50 card still delivers $50).
+// There is deliberately NO client-side fee formula here any more (the old 2.9% + $0.30 mirror is
+// removed): the preview shows only what the server states per tile (`feeCents`, `totalCents`),
+// and says "confirmed at checkout" when it does not. The charge and the persisted fee always come
+// from the server's own response.
+function previewFee(tile) {
+  const fee = tile?.feeCents;
+  const total = tile?.totalCents;
+  if (!Number.isSafeInteger(fee) || fee < 0 || !Number.isSafeInteger(total) || total !== tile.amountCents + fee) return null;
+  return { feeCents: fee, totalCents: total };
 }
 
 const fmt = (cents) => `$${(cents / 100).toFixed(2)}`;
@@ -112,11 +116,12 @@ export default function PrezzeeSmartCard() {
     [tiles, selectedTileId],
   );
   const preview = useMemo(
-    () => (selectedTile ? previewFee(selectedTile.amountCents) : null),
+    () => (selectedTile ? previewFee(selectedTile) : null),
     [selectedTile],
   );
 
-  const canContinue = Boolean(selectedTile) && recipientEmail.trim() && recipientName.trim() && !charging && !outcomeUnknown;
+  // Fail closed: a customer must see the disclosed fee before paying, so no server-stated fee = no Continue.
+  const canContinue = Boolean(selectedTile) && Boolean(preview) && recipientEmail.trim() && recipientName.trim() && !charging && !outcomeUnknown;
 
   const handleContinue = useCallback(() => {
     if (!canContinue) return;
@@ -358,7 +363,7 @@ export default function PrezzeeSmartCard() {
         </label>
       </div>
 
-      {selectedTile && preview && (
+      {selectedTile && (
         <div style={{
           padding: '1rem 1.25rem', borderRadius: '0.75rem', background: '#f9fafb', border: '1px solid #e5e7eb', marginBottom: '1.25rem',
         }}>
@@ -366,14 +371,19 @@ export default function PrezzeeSmartCard() {
             <span>Smart Card value</span><span>{fmt(selectedTile.amountCents)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: '#4b5563', marginBottom: '0.375rem' }}>
-            <span>Processing fee (estimated)</span><span>{fmt(preview.feeCents)}</span>
+            <span>Convenience fee</span><span>{preview ? fmt(preview.feeCents) : 'Shown at checkout'}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: 700, color: '#111827', paddingTop: '0.5rem', borderTop: '1px solid #e5e7eb' }}>
-            <span>Estimated total</span><span>{fmt(preview.totalCents)}</span>
+            <span>{preview ? 'Total' : 'Total charged'}</span><span>{preview ? fmt(preview.totalCents) : 'Shown at checkout'}</span>
           </div>
           <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0.5rem 0 0' }}>
-            The exact fee and total charged are confirmed by the server at checkout.
+            The convenience fee is added on top; the full Smart Card value is delivered. The exact total is confirmed at checkout.
           </p>
+          {!preview && (
+            <p data-testid="smartcard-fee-unavailable" role="status" style={{ fontSize: '0.8125rem', color: '#b45309', margin: '0.5rem 0 0' }}>
+              We can’t show this card’s price right now, so it can’t be purchased yet. Please try again later.
+            </p>
+          )}
         </div>
       )}
 

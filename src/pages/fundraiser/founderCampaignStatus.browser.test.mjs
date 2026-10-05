@@ -21,7 +21,10 @@ import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLE = join(__dirname, ".__f4founder.bundle.mjs");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const BUNDLE = join(__dirname, `.__f4founder.${process.pid}.bundle.mjs`);
 let React, createRoot, act, Founder, window;
 
 const GATE_STUB = `export const isFundraiserUiEnabled = () => !!globalThis.__flag;`;
@@ -34,7 +37,7 @@ before(async () => {
     b.onResolve({ filter: /fundraiserGate\.js$/ }, (a) => ({ path: a.path, namespace: "gate" }));
     b.onLoad({ filter: /.*/, namespace: "gate" }, () => ({ contents: GATE_STUB, loader: "js" }));
   } };
-  const entry = join(__dirname, ".__f4founder.jsx");
+  const entry = join(__dirname, `.__f4founder.${process.pid}.jsx`);
   writeFileSync(entry, `export { default as Founder } from "./FounderFundraisingDashboard.jsx";\n`);
   await esbuild.build({
     entryPoints: [entry], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
@@ -47,7 +50,7 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/founder" });
   window = dom.window;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ } globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.MouseEvent = window.MouseEvent;
   globalThis.KeyboardEvent = window.KeyboardEvent;
   globalThis.localStorage = window.localStorage;
@@ -179,6 +182,7 @@ async function openRow(legalName) {
   const row = [...document.querySelectorAll("tr")].find((tr) => tr.textContent.includes(legalName));
   assert.ok(row, `the organization row for ${legalName} must render`);
   await click([...row.querySelectorAll("button")].find((b) => b.textContent.trim() === "Open"));
+  if ($("f1-toggle")) await click($("f1-toggle")); // W34: Draft Economics opens closed
 }
 
 /** Mount, open the fixture organization and select the campaign that owns the status panel. */
@@ -554,6 +558,7 @@ test("F4 revalidation: a transition that became illegal is refused locally, send
   routes["/campaigns"] = { status: 200, data: [campaignAt("closed")] };
   await click([...document.querySelectorAll("tr")].find((tr) => tr.textContent.includes(ORG.legalName))
     .querySelectorAll("button")[0]);
+  if ($("f1-toggle")) await click($("f1-toggle"));
   await setValue("f1-campaign", CID, window.HTMLSelectElement.prototype);
   assert.equal($("f4-confirm"), null, "the stale confirmation is gone");
   assert.equal($("f4-terminal") !== null, true, "and the panel reflects the closed campaign");

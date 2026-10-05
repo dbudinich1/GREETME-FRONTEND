@@ -232,6 +232,9 @@ class ApiService {
       const error = new Error(data?.error || `HTTP ${res.status}`);
       error.status = res.status;
       error.code = data?.code || undefined;
+      // Additive: the parsed error body, for callers that need structured fields (e.g. the merch
+      // expected-price 409 carries the new subtotalCents and per-item priceCents).
+      error.data = data;
       throw error;
     }
 
@@ -722,6 +725,31 @@ class ApiService {
   }
 
   // --------------------
+  // Gift Boxes — Greet-Me charges on its own Stripe rail; the order is placed server-side.
+  // --------------------
+  /** One authoritative, server-computed price for a gift-box selection shipped to a US address. */
+  quoteGiftBox(payload) {
+    return this.request("/api/gifts/gift-box/quote", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  chargeGiftBox(payload) {
+    return this.request("/api/gifts/gift-box", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  finalizeGiftBox(payload) {
+    return this.request("/api/gifts/gift-box/finalize", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  // --------------------
   // G1G1 Gift Membership
   // --------------------
   getG1G1Gift(giftCode) {
@@ -963,6 +991,34 @@ class ApiService {
   // H7 B5 — spend Hearts for an in-kind reward. `redemptionRequestId` is generated once per
   // redemption intent on the client and reused across retries (idempotency). Server is
   // authoritative; no localStorage is used for balance/redemption/history.
+  // W18 — one-time consumer platform fee status (T2 contract T2-w18-fee-once.md). Authenticated.
+  // 200 { ok, consumer:{feeCents,applies,reason}, business:{feeCents,applies} }; 503 throws
+  // (FEE_HISTORY_UNAVAILABLE) and callers must then assert NO fee amount.
+  getPlatformFeeStatus() {
+    return this.request("/api/payments/platform-fee-status");
+  }
+
+  // W07 (DORMANT until scheduled QR Cash is activated; the routes answer 503 SCHEDULED_QRCASH_DISABLED before then): the
+  // personal card used for scheduled QR Cash. Only the ContactForm SAVE modal calls these, behind SCHEDULED_QRCASH_AVAILABLE.
+  //   status   -> { ok, card: { present, brand, last4, expMonth, expYear, expired, ... } }  (a SAFE summary, never an id or secret)
+  //   setup    -> { ok, clientSecret, setupIntentId, consentWordingVersion }  (off_session SetupIntent)
+  //   complete -> { ok, card }  body { setupIntentId, consentAccepted: true, consentWordingVersion }
+  getQrCashCardStatus() {
+    return this.request("/api/payments/qrcash-card/status");
+  }
+  setupQrCashCard() {
+    return this.request("/api/payments/qrcash-card/setup", { method: "POST", body: JSON.stringify({}) });
+  }
+  completeQrCashCard(body) {
+    return this.request("/api/payments/qrcash-card/complete", { method: "POST", body: JSON.stringify(body) });
+  }
+
+  // W42 — provider-neutral combined order history (T2 contract T2-w42-combined-orders.md).
+  // Additive: /api/merch/orders is unchanged. Returns { ok, count, truncated, orders[] }.
+  getOrderHistory() {
+    return this.request("/api/orders/history");
+  }
+
   redeemHearts(optionId, redemptionRequestId) {
     return this.request("/api/hearts/redeem", {
       method: "POST",
@@ -986,6 +1042,25 @@ class ApiService {
   // --------------------
   getHeroLeaderboard() {
     return this.request("/api/hero/leaderboard");
+  }
+
+  // --------------------
+  // CONTACT SALES (public, no login: POST /api/contact-sales). Deliberately NOT this.request: that helper adds the
+  // auth token and clears it on a 401, and a prospect has no account. Returns { status, body } for ANY HTTP answer
+  // (the caller decides what it means; success is only a real 200 with received:true) or { networkError: true }.
+  async contactSales(payload) {
+    try {
+      const res = await fetch(`${API_BASE}/api/contact-sales`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      let body = null;
+      try { body = await res.json(); } catch { /* non-JSON body */ }
+      return { status: res.status, body };
+    } catch {
+      return { networkError: true };
+    }
   }
 }
 

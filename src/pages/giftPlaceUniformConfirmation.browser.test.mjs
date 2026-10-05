@@ -93,8 +93,19 @@ before(async () => {
     + "  if (String(url).includes('/api/merch/products')) return { products };\n"
     + "  return {};\n"
     + "}\n"
+    // The canonical catalog exactly as GET /api/gifts/catalog projects it (routes/giftCatalogRoutes.js
+    // toClient): the flower fixtures are served as curated Florist One products and resolved to the
+    // provider checkout by providerProductId. Smart Card tiles stay dormant ({ ok: false }).
+    + "const curated = " + JSON.stringify(FLOWERS.map((f) => ({
+      id: "gm-" + f.providerProductId, vendor: "florist_one", title: f.name, description: "",
+      priceCents: f.priceMinor, giftType: "Gifts", occasion: null, currency: f.currency,
+      images: f.imageUrl ? [{ url: f.imageUrl, alt: "" }] : [], variants: [],
+      greetMeCategories: ["flowers"], source: "florist_one", providerProductId: f.providerProductId,
+    }))) + ";\n"
+    + "async function getGiftCatalog() { return { ok: true, products: curated }; }\n"
+    + "async function getSmartCardTiles() { return { ok: false }; }\n"
     + "const noop = async () => ({ data: {} });\n"
-    + "export default { request, get: noop, post: noop, put: noop, delete: noop };\n");
+    + "export default { request, getGiftCatalog, getSmartCardTiles, get: noop, post: noop, put: noop, delete: noop };\n");
 
   // Mirrors the real cartService surface. A flower must never reach it — asserted below.
   writeFileSync(CART_STUB,

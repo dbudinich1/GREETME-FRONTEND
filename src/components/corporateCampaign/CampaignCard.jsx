@@ -10,7 +10,7 @@
 // Nothing here decides anything. Status, capability, and enablement all come from
 // corporateDashboardModel.js, which reads persisted backend state only.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CONTACT_CATEGORIES,
   corporateGiftOptions,
@@ -47,6 +47,7 @@ import { CategoryBubble, ChoiceBubble, BubbleGroup } from "./Bubbles.jsx";
 import CampaignFeaturedSpreadEditor from "../../corporateCampaign/CampaignFeaturedSpreadEditor.jsx";
 import { ANIMATION_IMAGE_SOURCE } from "../../corporateCampaign/constants.js";
 import IndividualContactPicker from "./IndividualContactPicker.jsx";
+import { readinessOf } from "./contactManageModel.js";
 import SavedCardPanel from "./SavedCardPanel.jsx";
 import "./premiumDashboard.css";
 
@@ -66,6 +67,7 @@ import "./premiumDashboard.css";
 const CAMPAIGN_TABS = [
   { key: "overview", label: "Overview" },
   { key: "recipients", label: "Recipients" },
+  { key: "message", label: "Message" },
   { key: "gift", label: "Gift" },
   { key: "schedule", label: "Schedule & Payment" },
 ];
@@ -102,6 +104,8 @@ const TIME_ZONES = ["America/New_York", "America/Chicago", "America/Denver", "Am
 
 export default function CampaignCard({
   campaign, contacts, orgId, client, isOwner, busy,
+  // SURFACE 8: the full-record management read (optional). Only used to show the Ready badge in category selectors.
+  managedContacts = null,
   // SLICE E3 — the server's execution interlock, read from the campaign list by the dashboard and
   // handed down. Defaults to false so a card rendered without it (an older caller, a test, a
   // partially wired parent) refuses rather than offers. Never derived here.
@@ -171,6 +175,9 @@ export default function CampaignCard({
   // tab. It is now part of THIS modal (no second overlay) and stages into the draft below, never
   // writing to the server on its own.
   const [pickerOpen, setPickerOpen] = useState(false);
+  // SURFACE 8 (W25/W26): one category-scoped selector at a time ("employee" | "client" | "vendor" | null), and the discard question.
+  const [catPicker, setCatPicker] = useState(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   // TEAM A — removal is a TWO-STEP affordance. The first press only arms it; the second confirms.
   // A destructive action on a card sitting under the pointer during a drag-reorder must never be
   // one stray click away, and an inline confirm keeps the decision on the card being removed
@@ -472,6 +479,39 @@ export default function CampaignCard({
     setMessage(null);
   }
 
+  // SURFACE 8 (W26/W27) - ONE close contract for X, Cancel, the backdrop and Escape.
+  //   * Untouched: closes silently, never asks.
+  //   * Edited: asks "Discard your unsaved changes?" first; Discard resets to the SAVED campaign and closes.
+  // Because a close either happens on an untouched draft or discards it, reopening always shows the saved campaign.
+  function closeNow() {
+    setPickerOpen(false); setCatPicker(null); setConfirmDiscard(false);
+    if (onToggleExpanded) onToggleExpanded(campaign.campaignId);
+  }
+  function requestClose() {
+    if (!dirty) { closeNow(); return; }
+    setConfirmDiscard(true);
+  }
+  function discardAndClose() {
+    cancelEdits();
+    closeNow();
+  }
+  // Escape closes only the TOPMOST layer: the discard question, else an open contact selector, else the dialog.
+  const escRef = useRef(null);
+  escRef.current = { confirmDiscard, pickerOpen, catPicker, requestClose };
+  useEffect(() => {
+    if (!expanded) return undefined;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      const s = escRef.current;
+      e.preventDefault();
+      if (s.confirmDiscard) { setConfirmDiscard(false); return; }
+      if (s.pickerOpen || s.catPicker) { setPickerOpen(false); setCatPicker(null); return; }
+      s.requestClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [expanded]);
+
   const disabledNote = (a) => (a.enabled ? null : a.reason);
 
   const ranked = rankActions(actions, { scheduleMode: draft.scheduleMode });
@@ -675,26 +715,19 @@ export default function CampaignCard({
           and the sections are now organised under tabs instead of all always visible at once. */}
       {expanded ? (
         <div className="gcd-modal-overlay" role="presentation"
-          onClick={() => onToggleExpanded && onToggleExpanded(campaign.campaignId)}>
+          onClick={() => requestClose()}>
           <div className="gcd-modal" id={uid("body")} role="dialog" aria-modal="true" aria-labelledby={uid("modal-title")}
             onClick={(e) => e.stopPropagation()}
-            /* TEAM 5 (2026-09-29) — Escape now closes this modal, matching the established pattern
-               elsewhere in this codebase (e.g. SalespersonControlCenter.jsx's inline onKeyDown on
-               its own dialog root). Escape behaves like the X button (close only) rather than like
-               Cancel (close AND discard): neither in-repo precedent discards on Escape, and closing
-               without discarding already preserves the unsaved draft for a later reopen — a reader
-               who wants to discard has the existing, explicit Cancel button for that. */
-            onKeyDown={(e) => {
-              if (e.key === "Escape") onToggleExpanded && onToggleExpanded(campaign.campaignId);
-            }}>
+            /* SURFACE 8 (W26): Escape is handled by ONE document-level listener (see the effect above) that closes only the
+               TOPMOST layer, so there is nothing to do on this element. */>
             <header className="gcd-modal-head">
               <div>
                 <h2 className="gcd-modal-title" id={uid("modal-title")}>{campaignLabel}</h2>
-                <p className="gcd-modal-sub" data-testid={`card-modal-sub-${campaign.campaignId}`}>{status.label} · {status.next}</p>
+                <p className="gcd-modal-sub" data-testid={`card-modal-sub-${campaign.campaignId}`}>{status.next}</p>
               </div>
               <button type="button" className="gcd-iconbtn" data-testid={`card-close-${campaign.campaignId}`}
                 aria-label={`Close ${campaignLabel}`}
-                onClick={() => onToggleExpanded && onToggleExpanded(campaign.campaignId)}>
+                onClick={() => requestClose()}>
                 ×
               </button>
             </header>
@@ -754,7 +787,7 @@ export default function CampaignCard({
                   choice that fits in a bubble. Its availability and count stay on the card. */}
               <div className="gcd-wcard-foot">
                 <button type="button" className="gcd-btn" data-testid={`card-individual-${campaign.campaignId}`}
-                  disabled={locked} onClick={() => setPickerOpen(true)}>
+                  disabled={locked} onClick={() => { setCatPicker(null); setPickerOpen(true); }}>
                   Select Individual Contacts
                 </button>
                 <span className="gcd-wcard-note" data-testid={`card-audience-total-${campaign.campaignId}`}>
@@ -762,6 +795,42 @@ export default function CampaignCard({
                   {counts.unclassified > 0 ? ` \u00b7 ${counts.unclassified} unclassified` : ""}
                 </span>
               </div>
+              {/* SURFACE 8 (W25): one selector per category, each with search and (when the management read is
+                  available) the Ready badge. Opening or cancelling one changes nothing; only a confirmed, different
+                  selection touches the draft. */}
+              <div className="gcd-wcard-foot" data-testid={`card-category-selectors-${campaign.campaignId}`}>
+                {CONTACT_CATEGORIES.map((cat) => (
+                  <button key={cat.key} type="button" className="gcd-btn" disabled={locked}
+                    data-testid={`card-choose-${cat.key}-${campaign.campaignId}`}
+                    onClick={() => { setPickerOpen(false); setCatPicker(cat.key); }}>
+                    {`Choose ${cat.label}`}
+                  </button>
+                ))}
+              </div>
+              {catPicker ? (() => {
+                const pool = (Array.isArray(managedContacts) ? managedContacts : contacts).filter((c) => c.corporateContactType === catPicker);
+                const label = (CONTACT_CATEGORIES.find((c) => c.key === catPicker) || {}).label || "";
+                const inPool = new Set(pool.map((c) => c.id));
+                return (
+                  <div className="gcd-wcard-foot" style={{ display: "block", marginTop: 12 }} data-testid={`card-category-picker-${campaign.campaignId}`}>
+                    <IndividualContactPicker
+                      key={catPicker}
+                      contacts={pool}
+                      title={`Choose ${label}`} note={`People in ${label} only. Opening this changes nothing until you confirm a different selection.`}
+                      searchable readiness={Array.isArray(managedContacts) ? readinessOf : null}
+                      initialSelected={draft.individualRefs.filter((id) => inPool.has(id))}
+                      onClose={() => setCatPicker(null)}
+                      onSave={(ids) => {
+                        const others = draft.individualRefs.filter((id) => !inPool.has(id));
+                        const next = [...others, ...ids];
+                        const same = next.length === draft.individualRefs.length && next.every((id) => draft.individualRefs.includes(id));
+                        if (!same) edit({ individualRefs: next });
+                        setCatPicker(null);
+                      }}
+                    />
+                  </div>
+                );
+              })() : null}
               {pickerOpen ? (
                 <div className="gcd-wcard-foot" style={{ display: "block", marginTop: 12 }}>
                   <IndividualContactPicker
@@ -884,6 +953,16 @@ export default function CampaignCard({
               ) : null}
             </section>
 
+            </div>
+
+          {/* MESSAGE TAB (Surface 8, W28/W30): presentation controls + readiness only - the existing Featured Spread, unchanged
+              (animated message on/off, NO new variants). The honest line says how the words are chosen. Authoring custom greeting
+              text is a post-launch item and is not offered. */}
+          <div hidden={activeTab !== "message"} data-testid={`tab-message-${campaign.campaignId}`}>
+            <p className="gcd-wcard-note" data-testid={`card-message-note-${campaign.campaignId}`} style={{ margin: "0 0 10px", fontSize: ".88rem" }}>
+              <strong>How the greeting is worded.</strong> Greet-Me personalizes the wording for each recipient by occasion. You choose how the card is presented below.
+            </p>
+
             {/* ── FEATURED SPREAD ──────────────────────────────────────────────────────────── */}
             <section className="gcd-wcard" data-testid={`selector-spread-${campaign.campaignId}`}
               aria-labelledby={uid("wc-spread")}>
@@ -1000,7 +1079,7 @@ export default function CampaignCard({
                 kept, plus the same blocked-step/owner reasons, now sticky beneath every tab
                 instead of scrolling away at the bottom of a long expanded card. */}
             <footer className="gcd-modal-foot" data-testid={`card-footer-${campaign.campaignId}`}
-              role="group" aria-label={`Actions for ${campaignLabel} — ${status.label}`}>
+              role="group" aria-label={`Actions for ${campaignLabel}`}>
             {dirty ? (
               <p className="gcd-dirty" data-testid={`card-dirty-${campaign.campaignId}`} role="status">
                 Unsaved changes - nothing is sent until you save.
@@ -1020,9 +1099,9 @@ export default function CampaignCard({
                 and vanishes as you type moves the row under the pointer; a steady one that is
                 simply inert is calmer and keeps the rail a fixed shape. */}
             <button type="button" className="gcd-btn" data-testid={`act-cancel-${campaign.campaignId}`}
-              disabled={!dirty || busy || pending === "save"}
-              title={dirty ? "Discard your unsaved changes." : "No unsaved changes."}
-              onClick={cancelEdits}>Cancel</button>
+              disabled={busy || pending === "save"}
+              title={dirty ? "Close without saving (you will be asked first)." : "Close."}
+              onClick={() => requestClose()}>Cancel</button>
             {ranked.blockedNext ? (
               <p className="gcd-reason" data-testid={`card-blocked-${campaign.campaignId}`}>
                 {actions[ranked.blockedNext].reason}
@@ -1034,6 +1113,16 @@ export default function CampaignCard({
               </p>
             ) : null}
             </footer>
+            {confirmDiscard ? (
+              <div role="alertdialog" aria-modal="true" aria-labelledby={uid("discard-title")} data-testid={`card-discard-${campaign.campaignId}`}
+                style={{ margin: "0 22px 16px", border: "1px solid #b3261e", borderRadius: 10, padding: 12 }}>
+                <strong id={uid("discard-title")}>Discard your unsaved changes?</strong>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button type="button" className="gcd-btn" style={{ color: "#a3241a" }} data-testid={`card-discard-yes-${campaign.campaignId}`} onClick={discardAndClose}>Discard changes</button>
+                  <button type="button" className="gcd-btn" data-testid={`card-discard-keep-${campaign.campaignId}`} onClick={() => setConfirmDiscard(false)}>Keep editing</button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

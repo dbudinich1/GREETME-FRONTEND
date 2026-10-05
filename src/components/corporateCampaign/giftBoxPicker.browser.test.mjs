@@ -22,8 +22,11 @@ import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ENTRY = join(__dirname, ".__gb.entry.jsx");
-const BUNDLE = join(__dirname, ".__gb.bundle.mjs");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const ENTRY = join(__dirname, `.__gb.${process.pid}.entry.jsx`);
+const BUNDLE = join(__dirname, `.__gb.${process.pid}.bundle.mjs`);
 // Rendered evidence lands OUTSIDE the repository, beside the other closeout reports.
 const EVIDENCE_DIR = "C:\\1_GREET-ME\\reports\\g4-evidence";
 
@@ -157,7 +160,7 @@ test("G3: with a published gift box, the option appears IMMEDIATELY AFTER the cu
   withCatalog([BOX_A, BOX_B]);
   const s = await mount(cardEl());
   const values = s.qa(`[data-testid="c-cmp_1-gift"] input[type="radio"]`).map((i) => i.value);
-  assert.deepEqual(values, ["none", "curated", "gift_boxes", "qrcash", "marketplace"]);
+  assert.deepEqual(values, ["none", "curated", "gift_boxes", "qrcash"]);
   assert.match(s.text(), /Gift Box/);
   assert.match(s.text(), /Choose one gift box for every recipient in this campaign\./);
 });
@@ -170,7 +173,7 @@ test("G3: the option is selectable, and the other four gifts keep their existing
   assert.equal(byValue("none").disabled, false, "No gift unchanged");
   assert.equal(byValue("curated").disabled, false, "Curated unchanged");
   assert.equal(byValue("qrcash").disabled, true, "QR Cash still visible and still not automatable");
-  assert.equal(byValue("marketplace").disabled, true, "Greet-Me Gifts still visible and still not automatable");
+  assert.equal(byValue("marketplace"), null, "W29: no Greet-Me Gifts (marketplace) class is offered");
 });
 
 // ══ SELECTION — exactly one product, and its published variants ═════════════════════════════

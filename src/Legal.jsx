@@ -73,7 +73,7 @@ export default function Legal() {
       <p style={S.p}>By submitting a voice sample, you consent to AI-based voice synthesis to create greeting audio that approximates your voice. You confirm you are submitting your own voice or have obtained explicit permission from the voice owner.</p>
 
       <h3 style={S.h3}>Payments, Subscriptions &amp; Credits</h3>
-      <p style={S.p}>Paid subscriptions are billed through Stripe. Subscription terms, pricing, and renewal periods are displayed at checkout. Credits ($5 courtesy credits, $10 referral credits) are promotional, non-transferable, and may expire. Credits have no cash value and cannot be redeemed for cash. Refund requests should be directed to support@greet-me.com.</p>
+      <p style={S.p}>Paid subscriptions are billed through Stripe. Subscription terms, pricing, and renewal periods are displayed at checkout. Credits ($5 courtesy credits, $5 referral credits) are promotional, non-transferable, and may expire. Credits have no cash value and cannot be redeemed for cash. Refund requests should be directed to support@greet-me.com.</p>
 
       <h3 style={S.h3}>QR Cash&trade; Gifts</h3>
       <p style={S.p}>QR Cash is a digital gifting feature that allows senders to include a monetary gift with a greeting. QR Cash is a gift from sender to recipient, facilitated by Greet-Me using Stripe for payment processing. Greet-Me is not a bank, money transmitter, or stored-value provider. A service fee applies to each gift. Unclaimed gifts expire after 30 days. Greet-Me is not responsible for incorrect payout details provided by recipients.</p>

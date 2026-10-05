@@ -22,8 +22,11 @@ import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ENTRY = join(__dirname, ".__fcc.jsx");
-const BUNDLE = join(__dirname, ".__fcc.bundle.mjs");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const ENTRY = join(__dirname, `.__fcc.${process.pid}.jsx`);
+const BUNDLE = join(__dirname, `.__fcc.${process.pid}.bundle.mjs`);
 let React, createRoot, Surface, act, window, dom;
 
 before(async () => {
@@ -80,6 +83,7 @@ function defaultProps(overrides = {}) {
     fundraiserOverviewApi: fakeFundraiser(DEFAULT_FUNDRAISING),
     salesApi: fakeSales(DEFAULT_SALES),
     catalogApi: fakeCatalog(DEFAULT_CATALOG),
+    view: "all", // W51: hubs split the cards across pages; "all" is the original single-page layout these assertions cover
     ...overrides,
   };
 }
@@ -131,4 +135,78 @@ test("a failed card fetch shows an honest error, not a fabricated value or a cra
   assert.equal(tid("fcc-fundraising-orgs"), null, "no fabricated number is shown in its place");
   // The other three cards, unaffected by this one's failure, still render normally.
   assert.equal(tid("fcc-sales-active").textContent, "2");
+});
+
+// == CLOSEOUT W36 (proposed): entry points to existing fundraiser surfaces ==================
+const FULL_OVERVIEW = {
+  organizations: { total: 3, byStatus: { approved: 2, suspended: 1 } },
+  campaigns: { total: 5, byStatus: { active: 2, draft: 3 } },
+  participants: { total: 40, active: 37 },
+  economics: { activeVersions: 2 },
+};
+const fakeFundraiserFull = (data, orgs) => ({
+  calls: 0, orgCalls: 0, writes: 0,
+  overview() { this.calls++; return Promise.resolve({ ok: true, status: 200, data }); },
+  organizations() { this.orgCalls++; return Promise.resolve({ ok: true, status: 200, data: orgs }); },
+});
+const ORGS = [
+  { organizationId: "org_a", legalName: "Alpha School" }, { organizationId: "org_b", legalName: "Beta Club" },
+];
+
+test("W36: campaigns, participants, partner portal and activation each have a separate card", async () => {
+  const fr = fakeFundraiserFull(FULL_OVERVIEW, ORGS);
+  await mount(defaultProps({ user: { plan: "founder" }, fundraiserOverviewApi: fr }));
+  for (const id of ["campaigns", "participants", "partner", "activation"]) assert.ok(tid(`fcc-card-${id}`), id);
+  assert.equal(tid("fcc-campaigns-total").textContent, "5");
+  assert.match(tid("fcc-campaigns-bystatus").textContent, /Active 2/);
+  assert.equal(tid("fcc-participants-total").textContent, "40");
+  assert.equal(tid("fcc-participants-active").textContent, "37");
+  assert.match(tid("fcc-activation-orgs").textContent, /Approved 2 \u00b7 Suspended 1/);
+  assert.match(tid("fcc-activation-campaigns").textContent, /Draft 3/);
+  assert.equal(tid("fcc-activation-economics").textContent, "2");
+  // Links go ONLY to routes that already exist.
+  assert.equal(tid("fcc-campaigns-open").getAttribute("href"), "#/dashboard/fundraiser/admin");
+  assert.equal(tid("fcc-participants-open").getAttribute("href"), "#/dashboard/fundraiser/admin");
+  assert.equal(tid("fcc-activation-open").getAttribute("href"), "#/dashboard/fundraiser/admin");
+  assert.equal(tid("fcc-partner-org-org_a").getAttribute("href"), "#/dashboard/fundraiser/partner/org_a");
+  assert.equal(fr.orgCalls, 1, "the existing organizations read is used once");
+  assert.ok(!document.body.textContent.includes("[object Object]"));
+});
+
+test("W36: it is read-only - only anchors and no buttons or forms were added", async () => {
+  await mount(defaultProps({ user: { plan: "founder" }, fundraiserOverviewApi: fakeFundraiserFull(FULL_OVERVIEW, ORGS) }));
+  for (const id of ["campaigns", "participants", "partner", "activation"]) {
+    const card = tid(`fcc-card-${id}`);
+    assert.equal(card.querySelectorAll("button, form, input, select").length, 0, `${id} has no controls`);
+  }
+});
+
+test("W36: missing counts read 'unavailable', never 0; failed org read shows its own error", async () => {
+  const fr = { overview: () => Promise.resolve({ ok: true, status: 200, data: { organizations: { total: 1 }, campaigns: { total: 1 } } }), organizations: () => Promise.resolve({ ok: false, status: 403, data: null }) };
+  await mount(defaultProps({ user: { plan: "founder" }, fundraiserOverviewApi: fr }));
+  assert.match(tid("fcc-participants-total").textContent, /unavailable/);
+  assert.match(tid("fcc-activation-economics").textContent, /unavailable/);
+  assert.ok(tid("fcc-partner-error"));
+  assert.equal(tid("fcc-sales-active").textContent, "2", "other cards unaffected");
+});
+
+test("W36: a non-founder still triggers no organizations request", async () => {
+  const fr = fakeFundraiserFull(FULL_OVERVIEW, ORGS);
+  await mount(defaultProps({ user: { plan: "free" }, fundraiserOverviewApi: fr }));
+  assert.equal(fr.orgCalls, 0);
+  assert.equal(fr.calls, 0);
+});
+
+test("W36: more than five organizations shows five links and a pointer to the rest", async () => {
+  const many = Array.from({ length: 8 }, (_, i) => ({ organizationId: `o${i}`, legalName: `Org ${i}` }));
+  await mount(defaultProps({ user: { plan: "founder" }, fundraiserOverviewApi: fakeFundraiserFull(FULL_OVERVIEW, many) }));
+  assert.equal(tid("fcc-partner-list").querySelectorAll("a").length, 5);
+  assert.match(tid("fcc-partner-more").textContent, /3 more/);
+});
+test("Surface 9: the fundraising and activation cards state plainly that payouts are OFF, and keep the activation state beside it", async () => {
+  const fr = fakeFundraiserFull(FULL_OVERVIEW, ORGS);
+  await mount(defaultProps({ user: { plan: "founder" }, fundraiserOverviewApi: fr }));
+  assert.match(tid("fcc-fundraising-payouts").textContent, /^Payouts are OFF\. Nothing is paid out/);
+  assert.match(tid("fcc-activation-payouts").textContent, /^Payouts are OFF\./);
+  assert.match(tid("fcc-activation-orgs").textContent, /Approved 2/, "activation state is still shown");
 });

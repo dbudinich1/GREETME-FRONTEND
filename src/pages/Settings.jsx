@@ -1,10 +1,12 @@
 // src/pages/Settings.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Lock, CreditCard, Database, Gift, ChevronRight, Download, Trash2, Key } from 'lucide-react';
+import { Bell, Lock, CreditCard, Database, Gift, ChevronRight, Download, Trash2, Key, Copy } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
+
+const SUPPORT_EMAIL = 'support@greet-me.com';
 
 const TIER_DISPLAY = {
   free: 'Free',
@@ -59,6 +61,8 @@ export default function Settings() {
   const [wallet, setWallet] = useState(null);
   const [walletLoading, setWalletLoading] = useState(true);
   const [walletError, setWalletError] = useState(false);
+  const [privacyRequest, setPrivacyRequest] = useState(null); // null | 'export' | 'delete'
+  const [copyState, setCopyState] = useState('idle'); // idle | copied | failed
 
   useEffect(() => {
     const onResize = () => setIsNarrow(window.innerWidth <= 768);
@@ -123,6 +127,27 @@ export default function Settings() {
   const hasBillingRelationship =
     ['active', 'past_due', 'canceled', 'trialing'].includes(user?.subscriptionStatus) ||
     user?.paymentLocked === true;
+
+  // W08: privacy actions never navigate (no blank tab without a mail client) and never submit.
+  const privacyCopy = privacyRequest === 'delete'
+    ? { title: 'Request account deletion', subject: 'Account Deletion Request' }
+    : { title: 'Request a copy of my data', subject: 'Data Export Request' };
+  const copySupportAddress = async () => {
+    try {
+      if (!navigator?.clipboard?.writeText) throw new Error('clipboard unavailable');
+      await navigator.clipboard.writeText(SUPPORT_EMAIL);
+      setCopyState('copied');
+    } catch {
+      setCopyState('failed');
+    }
+  };
+  const privacySecondaryBtn = {
+    display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+    padding: '0.5rem 0.875rem', border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-md, 0.5rem)', background: 'var(--bg-primary)',
+    color: 'var(--text-primary)', fontSize: '0.8125rem', fontWeight: 600,
+    fontFamily: 'inherit', cursor: 'pointer',
+  };
 
   // --- Shared token-based styles ---
   const card = (hero = false) => ({
@@ -415,7 +440,8 @@ export default function Settings() {
             <h2 style={cardTitle}>Security</h2>
           </div>
           <button
-            onClick={() => navigate('/forgot-password')}
+            data-testid="reset-password-button"
+            onClick={() => navigate('/forgot-password', { state: { email: user?.email || '' } })}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -433,10 +459,12 @@ export default function Settings() {
               <Key size={18} style={{ color: 'var(--primary)', flexShrink: 0 }} />
               <span style={{ minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: '0.9375rem', fontWeight: 500, color: 'var(--text-primary)' }}>
-                  Password
+                  Reset password
                 </span>
-                <span style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.125rem' }}>
-                  Change your account password
+                <span data-testid="reset-password-help" style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.125rem' }}>
+                  {user?.email
+                    ? `We'll email a password reset link to ${user.email}`
+                    : "We'll email you a password reset link"}
                 </span>
               </span>
             </span>
@@ -451,14 +479,22 @@ export default function Settings() {
             <h2 style={cardTitle}>Data &amp; Privacy</h2>
           </div>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 1.25rem' }}>
-            To request a copy of your data or to delete your account, email us at the address below.
-            We process all requests within 30 days, as described in our{' '}
+            To request a copy of your data or to delete your account, choose an option below for
+            our support address and instructions. We process all requests within 30 days, as described in our{' '}
             <a href="/#/legal" style={{ color: 'var(--primary)', textDecoration: 'none' }}>privacy policy</a>.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <a
-              href="mailto:support@greet-me.com?subject=Data%20Export%20Request"
+            <button
+              type="button"
+              data-testid="privacy-export-button"
+              aria-expanded={privacyRequest === 'export'}
+              onClick={() => { setPrivacyRequest(privacyRequest === 'export' ? null : 'export'); setCopyState('idle'); }}
               style={{
+                width: '100%',
+                background: 'transparent',
+                fontFamily: 'inherit',
+                textAlign: 'left',
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -475,10 +511,17 @@ export default function Settings() {
                 <span style={{ fontSize: '0.9375rem', fontWeight: 500 }}>Request a copy of my data</span>
               </span>
               <ChevronRight size={18} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
-            </a>
-            <a
-              href="mailto:support@greet-me.com?subject=Account%20Deletion%20Request"
+            </button>
+            <button
+              type="button"
+              data-testid="privacy-delete-button"
+              aria-expanded={privacyRequest === 'delete'}
+              onClick={() => { setPrivacyRequest(privacyRequest === 'delete' ? null : 'delete'); setCopyState('idle'); }}
               style={{
+                width: '100%',
+                fontFamily: 'inherit',
+                textAlign: 'left',
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -496,7 +539,39 @@ export default function Settings() {
                 <span style={{ fontSize: '0.9375rem', fontWeight: 500 }}>Request account deletion</span>
               </span>
               <ChevronRight size={18} style={{ color: '#dc2626', flexShrink: 0 }} />
-            </a>
+            </button>
+
+            {privacyRequest && (
+              <div data-testid="privacy-request-panel" role="region" aria-label={privacyCopy.title} style={{
+                border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
+                padding: '1rem', background: 'var(--bg-secondary, #f8fafc)',
+              }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: '0 0 0.5rem', color: 'var(--text-primary)' }}>{privacyCopy.title}</h3>
+                <p data-testid="privacy-pending-note" style={{ fontSize: '0.875rem', lineHeight: 1.6, margin: '0 0 0.75rem', color: 'var(--text-secondary)' }}>
+                  <strong>Nothing has been submitted yet.</strong> To make this request, email{' '}
+                  <strong data-testid="privacy-support-address" style={{ userSelect: 'all' }}>{SUPPORT_EMAIL}</strong>
+                  {user?.email ? <> from <strong>{user.email}</strong></> : null} with the subject{' '}
+                  <strong data-testid="privacy-subject" style={{ userSelect: 'all' }}>{privacyCopy.subject}</strong>.
+                  Our team handles it by hand and replies within 30 days; this page does not send or track the request.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <button type="button" data-testid="privacy-copy-button" onClick={copySupportAddress} style={privacySecondaryBtn}>
+                    <Copy size={14} /> Copy email address
+                  </button>
+                  <a data-testid="privacy-mailto-link" href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(privacyCopy.subject)}`} style={{ ...privacySecondaryBtn, textDecoration: 'none' }}>
+                    Open my email app
+                  </a>
+                  <button type="button" data-testid="privacy-close-button" onClick={() => setPrivacyRequest(null)} style={privacySecondaryBtn}>
+                    Close
+                  </button>
+                </div>
+                <p role="status" data-testid="privacy-copy-status" style={{ fontSize: '0.8125rem', margin: '0.5rem 0 0', color: 'var(--text-secondary)', minHeight: '1.2em' }}>
+                  {copyState === 'copied' && 'Email address copied.'}
+                  {copyState === 'failed' && `Couldn't copy automatically. Please select and copy ${SUPPORT_EMAIL} above.`}
+                  {copyState === 'idle' && "If your email app doesn't open, copy the address above and email us from any mail service."}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

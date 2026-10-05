@@ -20,10 +20,15 @@ import { useState } from "react";
 import { contactCategoryLabel, contactCategoryAbbr } from "./corporateDashboardModel.js";
 import "./premiumDashboard.css";
 
-export default function IndividualContactPicker({ contacts, initialSelected, onClose, onSave }) {
+// SURFACE 8 (W25): the same picker also serves a CATEGORY-scoped choice. Optional props: `title`/`note` to name it,
+// `searchable` for a name filter, and `readiness(contact)` -> { ready, label } | null to show the Ready badge. All
+// default to the picker's original behaviour, and opening/closing it never changes the campaign draft by itself.
+export default function IndividualContactPicker({ contacts, initialSelected, onClose, onSave, title = "Select Individual Contacts", note = "Add or remove specific people, on top of any categories you chose.", searchable = false, readiness = null }) {
   const [selected, setSelected] = useState(() => new Set(Array.isArray(initialSelected) ? initialSelected : []));
+  const [q, setQ] = useState("");
 
-  const list = Array.isArray(contacts) ? contacts : [];
+  const all = Array.isArray(contacts) ? contacts : [];
+  const list = searchable && q.trim() ? all.filter((c) => String(c.name || "").toLowerCase().includes(q.trim().toLowerCase())) : all;
 
   function toggle(id) {
     setSelected((prev) => {
@@ -43,8 +48,11 @@ export default function IndividualContactPicker({ contacts, initialSelected, onC
     <div className="gcd-panel" data-testid="individual-picker" aria-label="Select individual contacts">
       <div className="gcd-panel-head">
         <div>
-          <h2 className="gcd-panel-title">Select Individual Contacts</h2>
-          <p className="gcd-panel-note">Add or remove specific people, on top of any categories you chose.</p>
+          <h2 className="gcd-panel-title">{title}</h2>
+          <p className="gcd-panel-note">{note}</p>
+          {searchable ? (
+            <label style={{ fontSize: ".78rem", fontWeight: 700 }}>Search <input data-testid="picker-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name" style={{ padding: "5px 8px", borderRadius: 8, border: "1px solid #cbd5e1", marginLeft: 6 }} /></label>
+          ) : null}
         </div>
         <button type="button" className="gcd-btn" data-testid="picker-close" onClick={onClose}>Close</button>
       </div>
@@ -72,6 +80,9 @@ export default function IndividualContactPicker({ contacts, initialSelected, onC
                   </span>
                   {/* Neutral descriptor. An unclassified contact is never labelled Employee. */}
                   <span className="gcd-bubble-note" data-testid={`pick-${c.id}-category`}>{contactCategoryLabel(c)}</span>
+                  {readiness && readiness(c) ? (
+                    <span className="gcd-bubble-note" data-testid={`pick-${c.id}-ready`} data-ready={readiness(c).ready ? "yes" : "no"}>{readiness(c).label}</span>
+                  ) : null}
                 </span>
               </label>
             ))}

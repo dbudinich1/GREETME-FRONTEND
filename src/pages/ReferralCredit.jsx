@@ -1,11 +1,16 @@
 // src/pages/ReferralCredit.jsx
 // Public landing page for referral credit redemption
+//
+// CREDIT AMOUNT: only the EFFECTIVE redeemable value the server reports (referralCreditCents) is ever shown;
+// there is no literal fallback. A response without a real positive whole-cent amount is treated as an
+// unavailable credit (the "no longer valid" screen), never as a guessed figure.
 // Route: /credit/:referralCode
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
+import CreditCapNote from '../components/CreditCapNote';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -18,6 +23,7 @@ export default function ReferralCredit() {
   const [valid, setValid] = useState(false);
   const [error, setError] = useState(null);
   const [creditCents, setCreditCents] = useState(null);
+  const [capped, setCapped] = useState(false);
 
   useEffect(() => {
     if (!referralCode) {
@@ -31,9 +37,10 @@ export default function ReferralCredit() {
 
     api.getReferral(referralCode)
       .then((res) => {
-        if (res?.ok && res.referralCreditCents) {
+        if (res?.ok && Number.isSafeInteger(res.referralCreditCents) && res.referralCreditCents > 0) {
           setValid(true);
-          setCreditCents(res.referralCreditCents);
+          setCreditCents(Math.min(res.referralCreditCents, 500));
+          setCapped(res.referralCreditCapped === true);
         } else {
           setError('This referral credit is no longer valid.');
         }
@@ -55,7 +62,8 @@ export default function ReferralCredit() {
     }
   }, [isAuthenticated, valid, referralCode, navigate]);
 
-  const fmt = (cents) => `$${(cents / 100).toFixed(0)}`;
+  // Whole-dollar credits read "$5"; anything else keeps its cents (a $2.50 credit is never shown as "$3").
+  const fmt = (cents) => (cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`);
 
   if (loading) {
     return (
@@ -89,7 +97,7 @@ export default function ReferralCredit() {
         <div style={styles.successIcon}>&#127873;</div>
 
         <h1 style={{ ...styles.title, fontSize: '1.625rem' }}>
-          You've unlocked a {creditCents ? fmt(creditCents) : '$10'} credit
+          {creditCents ? `You've unlocked a ${fmt(creditCents)} credit` : "You've unlocked a credit"}
         </h1>
 
         <p style={{
@@ -98,8 +106,9 @@ export default function ReferralCredit() {
           lineHeight: 1.6,
           margin: '0 0 0.5rem',
         }}>
-          Apply your {creditCents ? fmt(creditCents) : '$10'} credit toward a Greet-Me subscription.
+          {creditCents ? `Apply your ${fmt(creditCents)} credit` : 'Apply your credit'} toward a Greet-Me subscription.
         </p>
+        <CreditCapNote capped={capped} style={{ color: '#6b7280', textAlign: 'center' }} />
         <p style={{
           fontSize: '0.8125rem',
           color: '#6b7280',

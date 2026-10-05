@@ -27,6 +27,8 @@ import PreSendReviewModal from '../components/PreSendReviewModal';
 // The catalogue is NOT here: products live in the Gift Place, which this page navigates to and back
 // through the return-to-greeting mechanism that already existed.
 import ProviderCheckoutModal from '../components/providerCheckout/ProviderCheckoutModal';
+// Gift boxes: Greet-Me charges on its own Stripe rail and places the order server-side.
+import GiftBoxCheckoutModal from '../components/providerCheckout/GiftBoxCheckoutModal';
 // The gift-link retry. It re-posts to the EXISTING submit endpoint, whose settled-attempt branch
 // returns before the provider is ever resolved — so it cannot submit, tokenize or charge.
 import { retryGiftLink } from '../api/providerCheckout';
@@ -45,6 +47,7 @@ import EmailVerificationModal from '../components/EmailVerificationModal';
 import VoiceMissingModal from '../components/VoiceMissingModal';
 import '../styles/ceremony.css';
 import AttachmentIndicator from '../components/AttachmentIndicator';
+import { qrCashQuote, centsToDollarString } from '../utils/qrCashAmount';
 import HeartsBurst from '../components/HeartsBurst';
 import cartService from '../services/cartService';
 import { useAuth } from '../context/AuthContext';
@@ -103,6 +106,18 @@ function readResumeDraft(uuid) {
 function deleteResumeDraft(uuid) {
   try { localStorage.removeItem(SEND_RESUME_KEY_PREFIX + uuid); } catch { /* best-effort */ }
 }
+
+// Referral-credit display: the amount is ALWAYS the server-issued one (referralCreditCents from the
+// referral lookup), never a literal. "Cap new, honor old": new credits are up to $5, older ones up to $10,
+// so only the server's figure is truthful. Returns '' when no real amount is known.
+function formatReferralCreditCents(cents) {
+  if (!Number.isSafeInteger(cents) || cents <= 0) return '';
+  return cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`;
+}
+
+// W03: why a profile photo is required, and where to add one.
+const SENDER_PHOTO_REQUIRED_MESSAGE =
+  'Every Greet-Me includes your photo so the recipient knows it is from you. Add a profile photo to send \u2014 your greeting stays saved while you do.';
 
 export default function SendGreeting() {
   const navigate = useNavigate();
@@ -260,9 +275,10 @@ export default function SendGreeting() {
         onContinueGiftOnly: async () => {
           try {
             const auth = await api.requestGiftOnlyAuthorization(giftAttemptId);
+            const giftOnlyToken = auth?.giftOnlyToken || auth?.token || null;
             setEntitlementCaution(null);
-            if (auth?.ok && auth.giftOnlyToken) {
-              resolve({ proceed: true, giftOnlyToken: auth.giftOnlyToken });
+            if (auth?.ok && giftOnlyToken) {
+              resolve({ proceed: true, giftOnlyToken });
             } else {
               // The server re-checked and disagreed (e.g. the user actually has a send now) —
               // fail closed on the ESCAPE HATCH, not on the send: just don't proceed with a
@@ -291,6 +307,11 @@ export default function SendGreeting() {
   // dashboard, and the flower order is never presented as finished while the Greet-Me is unsent.
   // ───────────────────────────────────────────────
   const [isFlowersCheckoutOpen, setIsFlowersCheckoutOpen] = useState(false);
+  // GIFT BOXES — the same embedded-step cadence as flowers, through GiftBoxCheckoutModal (Greet-Me
+  // is the merchant of record). `giftBoxHeldNotice` is set only when the box was PAID but its order
+  // is not yet confirmed placed: the greeting is then held, never sent announcing an unplaced order.
+  const [isGiftBoxCheckoutOpen, setIsGiftBoxCheckoutOpen] = useState(false);
+  const [giftBoxHeldNotice, setGiftBoxHeldNotice] = useState(null);
   // CONFIRMED, and that is all this holds. Set from the backend's own accepted result and used to say
   // "your selected gift is confirmed" — never to quote an order number, which belongs in the sender's
   // authenticated order history and nowhere near the recipient.
@@ -1068,6 +1089,21 @@ export default function SendGreeting() {
     }
   };
 
+  // W03: a REAL profile photo URL (https://...) is required before the final send/checkout. Not a
+  // data URL or a placeholder domain. Computed every render so the notice below the form appears
+  // BEFORE the sender reaches "Done & Send", not as a surprise on the final click.
+  const senderPhotoMissing = (() => {
+    const photoUrl = user?.photoUrl || '';
+    return (
+      !photoUrl ||
+      photoUrl.startsWith('data:') ||
+      photoUrl.includes('placeholder.com') ||
+      photoUrl.includes('placehold.co') ||
+      photoUrl.includes('placekitten.com') ||
+      photoUrl.includes('dummyimage.com')
+    );
+  })();
+
   const validate = () => {
     const newErrors = {};
 
@@ -1079,20 +1115,9 @@ export default function SendGreeting() {
       newErrors.occasionType = 'Please select an occasion';
     }
 
-    // Validate user has a REAL photo URL (https://...), not a data URL or placeholder
-    // Order of preference: user.photoUrl from backend profile (real Azure Blob URL)
-    const photoUrl = user?.photoUrl || '';
-
-    // Reject if empty, is a data URL, or is a placeholder domain
-    const isDataUrl = photoUrl.startsWith('data:');
-    const isPlaceholder = !photoUrl ||
-      photoUrl.includes('placeholder.com') ||
-      photoUrl.includes('placehold.co') ||
-      photoUrl.includes('placekitten.com') ||
-      photoUrl.includes('dummyimage.com');
-
-    if (isDataUrl || isPlaceholder) {
-      newErrors.photo = 'Please upload your photo first \u2014 go to Dashboard \u2192 Personalization and add a profile photo.';
+    // W03: the same predicate drives the up-front notice (senderPhotoMissing) and this gate.
+    if (senderPhotoMissing) {
+      newErrors.photo = SENDER_PHOTO_REQUIRED_MESSAGE;
     }
 
     setErrors(newErrors);
@@ -1146,6 +1171,10 @@ export default function SendGreeting() {
       const card = fromProviderProduct(giftSettings.flowersProduct);
       return card && { name: card.name, priceLabel: card.priceLabel, imageUrl: card.imageUrl };
     }
+    if (giftSettings?.type === 'gift_boxes' && giftSettings.giftBoxProduct) {
+      const card = fromProviderProduct(giftSettings.giftBoxProduct);
+      return card && { name: card.name, priceLabel: card.priceLabel, imageUrl: card.imageUrl };
+    }
     // Marketplace items already have their own removable list on the review step; the cart is their
     // source of truth and duplicating it here would give one gift two summaries.
     return null;
@@ -1191,8 +1220,11 @@ export default function SendGreeting() {
       // /gift/:claimToken. Setting the flag for it would have sent every flower Greet-Me into
       // SEND_GIFT_ERRORS.MALFORMED — "Please re-select your gift" — for a selection that was
       // perfectly valid. The flower order is confirmed to the SENDER, beside the send itself.
+      // A gift box is the same: its gift record exists only once it has been paid for, and
+      // dispatchGiftBoxGreeting sets the flag then, with the server's own claim token.
       includeGift: Boolean(
-        giftSettings?.type && giftSettings.type !== 'none' && giftSettings.type !== 'flowers',
+        giftSettings?.type && giftSettings.type !== 'none' && giftSettings.type !== 'flowers'
+          && giftSettings.type !== 'gift_boxes',
       ),
       // Curated is founder-fulfilled out of band — there is no payment to
       // wait on, so the selected spend tier IS the evidence that a gift was
@@ -1601,6 +1633,86 @@ export default function SendGreeting() {
   // untouched, so the sender can change or remove the gift and send without composing again.
   const handleFlowersCheckoutClose = () => {
     setIsFlowersCheckoutOpen(false);
+    setPendingGreetingData(null);
+  };
+
+  // ───────────────────────────────────────────────
+  // Gift boxes — the flowers cadence, through GiftBoxCheckoutModal. Greet-Me charges the card on its
+  // own Stripe rail and the backend places the real order server-side; the accepted handoff is the
+  // only thing that can dispatch the greeting, exactly as for flowers.
+  // ───────────────────────────────────────────────
+
+  // A DELIBERATE MIRROR of handleReviewFlowersCheckout: park the greeting, open the payment step.
+  const handleReviewGiftBoxCheckout = () => {
+    const selectedContact = contacts.find(c => c.id === formData.contactId);
+    if (!selectedContact) return;
+    if (!giftSettings?.giftBoxProduct?.providerProductId) return;
+    const greetingData = buildGreetingData(selectedContact);
+    setPendingGreetingData(greetingData);
+    // The same one-send latch the flowers path uses: armed by this human action, disarmed by the send.
+    flowerSendStarted.current = false;
+    setGiftConfirmedForSend(false);
+    setConfirmedGiftPayload(null);
+    setGiftSeparatedByEntitlement(false);
+    setGiftBoxHeldNotice(null);
+    setIsPreSendReviewOpen(false);
+    setIsGiftBoxCheckoutOpen(true);
+  };
+
+  /**
+   * THE ONE DISPATCH for a gift-box greeting. Mirrors dispatchFlowerGreeting, with the gift-box
+   * discriminator: only the type and the server's claim token travel.
+   */
+  const dispatchGiftBoxGreeting = async (greetingData, giftClaimToken) => {
+    if (flowerSendStarted.current) return;
+    flowerSendStarted.current = true;
+    const payload = {
+      ...greetingData,
+      includeGift: true,
+      gift: { type: 'gift_boxes', claimToken: giftClaimToken },
+    };
+    setGiftConfirmedForSend(true);
+    setConfirmedGiftPayload(payload);
+    setPendingGreetingData(null);
+    await executeGreetingSend(payload);
+  };
+
+  // THE ONE PLACE A GIFT BOX PURCHASE TURNS INTO A SEND — the handleFlowerOrderAccepted shape, with
+  // only the giftType discriminator changed. GiftBoxCheckoutModal calls this once for any PAID order.
+  // The greeting is sent only for a CONFIRMED order: the backend's send-time resolver refuses a
+  // provider gift with no placed order behind it, so a pending/failed fulfilment HOLDS the greeting
+  // (already paid, same claim token) and offers a greeting-only retry — never a second checkout.
+  const handleGiftBoxAccepted = async (result) => {
+    const greetingData = pendingGreetingData;
+    if (!greetingData) return;
+    const giftClaimToken = typeof result?.giftClaimToken === 'string' ? result.giftClaimToken : '';
+
+    if (result?.fulfillmentStatus === 'confirmed' && giftClaimToken) {
+      // Closed automatically: the checkout has no terminal screen of its own in this flow.
+      setIsGiftBoxCheckoutOpen(false);
+      await dispatchGiftBoxGreeting(greetingData, giftClaimToken);
+      return;
+    }
+
+    // PAID, NOT YET CONFIRMED PLACED. The checkout stays open on its own truthful outcome screen;
+    // behind it, the greeting is held with the SAME payload a later retry will replay.
+    if (giftClaimToken) {
+      setConfirmedGiftPayload({
+        ...greetingData,
+        includeGift: true,
+        gift: { type: 'gift_boxes', claimToken: giftClaimToken },
+      });
+    }
+    setGiftBoxHeldNotice(
+      result?.message
+        || 'Your payment was received. We’re still confirming your gift box order — your Greet-Me will be ready to send once it is.',
+    );
+  };
+
+  // Closing the gift box checkout. Before payment NOTHING WAS CHARGED: the parked greeting is released
+  // and the draft is untouched. After a held (paid, unconfirmed) outcome the held payload is kept.
+  const handleGiftBoxCheckoutClose = () => {
+    setIsGiftBoxCheckoutOpen(false);
     setPendingGreetingData(null);
   };
 
@@ -2451,10 +2563,10 @@ if (typeof window !== "undefined") {
             <span style={{ fontSize: '1.5rem' }}>🎁</span>
             <div>
               <p style={{ margin: 0, fontWeight: 600, color: '#065f46', fontSize: '0.9375rem' }}>
-                ${(referralValue / 100).toFixed(0)} Greet-Me Credit Applied
+                {formatReferralCreditCents(referralValue) ? `${formatReferralCreditCents(referralValue)} ` : ''}Greet-Me Credit Applied
               </p>
               <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: '#047857' }}>
-                Your $10 credit has been applied toward this Greet-Me subscription. Terms and conditions apply.
+                {formatReferralCreditCents(referralValue) ? `Your ${formatReferralCreditCents(referralValue)} credit` : 'Your credit'} has been applied toward this Greet-Me subscription. Terms and conditions apply.
               </p>
             </div>
           </div>
@@ -2528,6 +2640,48 @@ if (typeof window !== "undefined") {
             >
               {retryingGiftLink ? 'Trying again\u2026' : 'Try again'}
             </button>
+          </div>
+        )}
+
+        {/* GIFT BOX HELD. Paid on Greet-Me's rail, but the order is not yet confirmed placed, so the
+            greeting has NOT been sent. The retry replays the one held payload (same claim token) —
+            it never reopens checkout and cannot charge again. */}
+        {giftBoxHeldNotice && !isGiftBoxCheckoutOpen && (
+          <div
+            data-testid="gift-box-held"
+            role="status"
+            style={{
+              padding: '0.875rem 1rem',
+              marginBottom: '1rem',
+              borderRadius: '0.625rem',
+              border: '1px solid #fcd34d',
+              background: '#fffbeb',
+            }}
+          >
+            <p style={{ margin: '0 0 0.5rem', fontWeight: 700, color: '#92400e' }}>
+              Your gift box payment was received. Your Greet-Me has not been sent yet.
+            </p>
+            <p style={{ margin: '0 0 0.5rem', color: '#92400e', fontSize: '0.875rem' }}>{giftBoxHeldNotice}</p>
+            {confirmedGiftPayload && (
+              <button
+                type="button"
+                data-testid="gift-box-held-retry"
+                disabled={sending}
+                onClick={() => { setGiftBoxHeldNotice(null); handleRetryGreetingOnly(); }}
+                style={{
+                  padding: '0.6rem 1.1rem',
+                  borderRadius: '0.5rem',
+                  border: 'none',
+                  background: sending ? 'var(--border, #cbd5e1)' : '#b45309',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontFamily: 'inherit',
+                  cursor: sending ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {sending ? 'Sending…' : 'Send my Greet-Me now'}
+              </button>
+            )}
           </div>
         )}
 
@@ -2678,6 +2832,10 @@ if (typeof window !== "undefined") {
         {errors.photo && (
           <div ref={photoErrorRef} tabIndex={-1} style={{ outline: 'none' }}>
             <Alert type="error" message={errors.photo} />
+            <button type="button" data-testid="add-profile-photo-from-error" onClick={() => navigate('/dashboard/profile')}
+              style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer', padding: 0, marginBottom: '0.75rem', fontFamily: 'inherit' }}>
+              Add profile photo
+            </button>
           </div>
         )}
 
@@ -3555,7 +3713,20 @@ if (typeof window !== "undefined") {
                   color: '#16a34a'
                 }}>
                   {giftSettings.type === 'qrcash' && (
-                    <>Gift: QR Cash (${giftSettings.amount === 0 ? giftSettings.customAmount || '0' : giftSettings.amount})</>
+                    <>
+                      <span data-testid="qrcash-summary-line">Gift: QR Cash (${giftSettings.amount === 0 ? giftSettings.customAmount || '0' : giftSettings.amount})</span>
+                      {(() => {
+                        // Display only: the single parity-tested QR Cash quote (src/utils/qrCashAmount.js, proven equal
+                        // to the backend calcGiftFees). A referral credit is not charged, so it gets no pay line.
+                        const dollars = giftSettings.amount === 0 ? Number(giftSettings.customAmount) || 0 : Number(giftSettings.amount) || 0;
+                        if (referralCode || !(dollars > 0)) return null;
+                        return (
+                          <span data-testid="qrcash-summary-pay" style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#14532d' }}>
+                            You pay {centsToDollarString(qrCashQuote(dollars).totalCents)}. Nothing is charged until you confirm.
+                          </span>
+                        );
+                      })()}
+                    </>
                   )}
                   {giftSettings.type === 'curated' && (
                     <>Gift: Curated (Max ${giftSettings.maxSpend}){giftSettings.qrCashAddOn && ` + QR Cash ($${giftSettings.qrCashAddOnAmount === 0 ? giftSettings.qrCashAddOnCustomAmount || '0' : giftSettings.qrCashAddOnAmount || 25})`}</>
@@ -3583,6 +3754,33 @@ if (typeof window !== "undefined") {
             )}
           </div>
         </div>
+
+        {senderPhotoMissing && (
+          <div data-testid="sender-photo-required-notice" role="note" style={{
+            marginTop: isNarrow ? '1.25rem' : '2rem',
+            padding: '0.875rem 1rem',
+            background: '#fffbeb',
+            border: '1px solid #fde68a',
+            borderRadius: '0.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            flexWrap: 'wrap',
+          }}>
+            <span style={{ fontSize: '0.8125rem', color: '#92400e', lineHeight: 1.5, flex: '1 1 240px' }}>
+              {SENDER_PHOTO_REQUIRED_MESSAGE}
+            </span>
+            <button
+              type="button"
+              data-testid="add-profile-photo"
+              onClick={() => navigate('/dashboard/profile')}
+              style={{ background: '#fff', border: '1px solid #f59e0b', color: '#92400e', borderRadius: '0.5rem', padding: '0.5rem 0.875rem', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              Add profile photo
+            </button>
+          </div>
+        )}
 
         {/* Submit */}
         <div style={{
@@ -3708,11 +3906,22 @@ if (typeof window !== "undefined") {
               }
             : null
         }
+        giftBoxAttachment={
+          giftSettings.type === 'gift_boxes' && giftSettings.giftBoxProduct
+            ? {
+                providerProductId: giftSettings.giftBoxProduct.providerProductId,
+                name: giftSettings.giftBoxProduct.name,
+                priceMinor: giftSettings.giftBoxProduct.priceMinor,
+                currency: giftSettings.giftBoxProduct.currency,
+              }
+            : null
+        }
         sending={sending}
         onConfirmDirectSend={handleReviewDirectSend}
         onConfirmQRCashFresh={handleReviewQRCashFresh}
         onMarketplaceCheckout={handleReviewMarketplaceCheckout}
         onConfirmFlowersCheckout={handleReviewFlowersCheckout}
+        onConfirmGiftBoxCheckout={handleReviewGiftBoxCheckout}
         onRemoveAttachment={handleReviewRemoveAttachment}
       />
 
@@ -3732,6 +3941,22 @@ if (typeof window !== "undefined") {
         onAccepted={handleFlowerOrderAccepted}
         checkEntitlement={runGiftEntitlementPreflight}
       />
+
+      {/* THE GIFT BOX CHECKOUT, opened as the next STEP of this send when
+          giftSettings.type === 'gift_boxes'. Never the flowers checkout above: a gift box is charged
+          by Greet-Me, not by a partner's tokenizer. Same recipient binding and the same entitlement
+          gate as the flowers instance. */}
+      {giftSettings?.type === 'gift_boxes' && (
+        <GiftBoxCheckoutModal
+          isOpen={isGiftBoxCheckoutOpen}
+          onClose={handleGiftBoxCheckoutClose}
+          product={giftSettings?.giftBoxProduct || null}
+          customer={user}
+          contactId={formData.contactId || null}
+          onAccepted={handleGiftBoxAccepted}
+          checkEntitlement={runGiftEntitlementPreflight}
+        />
+      )}
 
       {/* QR Cash™ Confirmation Modal */}
       <GiftConfirmationModal

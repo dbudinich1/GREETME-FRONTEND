@@ -122,6 +122,13 @@ const SalespersonControlCenter = lazy(() => import("./pages/founder/SalespersonC
 // SURFACES and LINKS TO the above founder pages plus catalog management. It does not replace or
 // duplicate any of them. Lazy, same pattern as the pages it links to.
 const FounderCentralCommand = lazy(() => import("./pages/founder/FounderCentralCommand"));
+// W51 - Command Center hubs (additive; every pre-existing route above still resolves). All founder-only: each page re-checks
+// isFounder() before any request, and every read behind them is independently founder-gated on the server.
+const GiftPlaceHub = lazy(() => import("./pages/founder/commandCenter/Hubs").then((m) => ({ default: m.GiftPlaceHub })));
+const SalesHub = lazy(() => import("./pages/founder/commandCenter/Hubs").then((m) => ({ default: m.SalesHub })));
+const FundraiserHub = lazy(() => import("./pages/founder/commandCenter/Hubs").then((m) => ({ default: m.FundraiserHub })));
+const SalesPerformance = lazy(() => import("./pages/founder/commandCenter/SalesPerformance"));
+const FounderContactsPage = lazy(() => import("./pages/founder/commandCenter/FounderContactsPage"));
 const QrCashPayoutsReview = lazy(() => import("./pages/founder/QrCashPayoutsReview"));
 const PartnerFundraisingDashboard = lazy(() => import("./pages/fundraiser/PartnerFundraisingDashboard"));
 // NAV-02 — param-less Partner Admin home; the "Greet-Me Fundraise" primary-nav header points here.
@@ -173,6 +180,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          {/* W44 — legacy localStorage deposit route retired: forwards to the canonical /gift/:claimToken claim flow. */}
           <Route path="/redeem/qr-cash/:id" element={<RedeemQRCash />} />
           <Route path="/greeting/:greetingId" element={<RecipientGreeting />} />
           <Route path="/g/:jobId" element={<PublicGreetingCard />} />
@@ -246,6 +254,11 @@ export default function App() {
                 (founderCommandApi, fundraiserApi.founder, salesAdminApi, founderCatalogApi) is
                 independently requireFounder-gated server-side. */}
             <Route path="founder/command" element={<Suspense fallback={null}><FounderCentralCommand /></Suspense>} />
+            <Route path="founder/gift-place" element={<Suspense fallback={null}><GiftPlaceHub /></Suspense>} />
+            <Route path="founder/sales" element={<Suspense fallback={null}><SalesHub /></Suspense>} />
+            <Route path="founder/sales/performance" element={<Suspense fallback={null}><SalesPerformance /></Suspense>} />
+            <Route path="founder/fundraising" element={<Suspense fallback={null}><FundraiserHub /></Suspense>} />
+            <Route path="founder/contacts" element={<Suspense fallback={null}><FounderContactsPage /></Suspense>} />
             <Route path="founder/qr-cash-payouts" element={<Suspense fallback={null}><QrCashPayoutsReview /></Suspense>} />
             <Route path="fundraiser/partner/:organizationId" element={<Suspense fallback={null}><PartnerFundraisingDashboard /></Suspense>} />
           </Route>

@@ -6,7 +6,7 @@
 // A download here can never create a contact, start a campaign, or reach the backend.
 
 import { useState } from "react";
-import { templateHeaders, templateFileBase, templateCsv, isBusinessTemplateKind } from "../../import/templateModel.js";
+import { templateFileBase, templateCsv, isBusinessTemplateKind } from "../../import/templateModel.js";
 import { templateXlsx, templatePracticeXlsx, practiceFileBase, XLSX_MIME } from "../../import/xlsxTemplate.js";
 import { sampleContactsFor, sampleCsvFor } from "../../import/sampleWorkspace.js";
 
@@ -107,7 +107,6 @@ export default function TemplateLibraryCard({ kind }) {
   const [fmt, setFmt] = useState("xlsx");   // "xlsx" | "csv" — which format the two buttons below produce
   const copy = CARD_COPY[kind];
   const business = isBusinessTemplateKind(kind);
-  const headers = templateHeaders(kind);
   const medallion = MEDALLION_META[kind];
   const MedallionIcon = medallion.Icon;
 
@@ -156,13 +155,8 @@ export default function TemplateLibraryCard({ kind }) {
       </div>
       <p style={{ color: "#5b5570", fontSize: ".85rem", margin: "6px 0 10px" }}>{copy.copy}</p>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-        {headers.map((h) => (
-          <span key={h} style={{ fontSize: ".68rem", padding: "2px 8px", borderRadius: 999, background: "#f4f2fb", color: "#5b5570", border: "1px solid rgba(27,24,48,.08)" }}>
-            {h}
-          </span>
-        ))}
-      </div>
+      {/* Founder revision 2026-10-02: the row of internal column names that used to sit here is removed.
+          The downloaded files still carry the same column headers the import requires. */}
 
       <div style={{ marginTop: "auto" }}>
         <div role="group" aria-label="File format" style={{ display: "inline-flex", border: "1px solid rgba(27,24,48,.15)", borderRadius: 999, padding: 2, marginBottom: 10 }}>

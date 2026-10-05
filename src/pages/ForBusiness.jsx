@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Play } from 'lucide-react';
 import ContactSalesModal from '../components/ContactSalesModal';
+import { FOR_BUSINESS_ENTRY } from '../utils/contactSales';
 
 export default function ForBusiness() {
   const navigate = useNavigate();
@@ -356,7 +357,7 @@ export default function ForBusiness() {
             color: 'var(--text-primary)',
             marginBottom: '1rem'
           }}>
-            Hero Status
+            Greet-Me™ Hero™ Participation
           </h3>
           <p style={{
             fontSize: '1rem',
@@ -364,7 +365,7 @@ export default function ForBusiness() {
             lineHeight: 1.7,
             margin: 0
           }}>
-            All corporate patronage is automatically Greet-Me™ Hero™ eligible.
+            All corporate patronage is automatically Greet-Me™ Hero™ eligible. Hero participation is live; Hero Status and recognition are not live yet.
           </p>
         </div>
       </section>
@@ -393,7 +394,7 @@ export default function ForBusiness() {
           marginBottom: '1.5rem',
           lineHeight: 1.6
         }}>
-          Through Greet-Me™ Hero™, we reward corporate patronage with automatic 10% contributions to veteran, law enforcement and EMS organizations and Greet-Me™ Hero™ recognition.
+          Through Greet-Me™ Hero™, we reward corporate patronage with automatic 10% contributions to veteran, law enforcement and EMS organizations.
         </p>
         <button
           onClick={() => navigate('/dashboard/hero')}
@@ -488,7 +489,7 @@ export default function ForBusiness() {
       {/* End Background Frame */}
 
       {/* Contact Sales Form Modal — shared component; opens in place, no navigation */}
-      <ContactSalesModal isOpen={showContactForm} onClose={() => setShowContactForm(false)} />
+      <ContactSalesModal isOpen={showContactForm} onClose={() => setShowContactForm(false)} {...FOR_BUSINESS_ENTRY} />
     </div>
   );
 }

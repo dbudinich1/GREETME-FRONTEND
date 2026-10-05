@@ -20,6 +20,7 @@ import { founderCommandApi } from "../../api/founderCommand.js";
 import { fundraiserApi } from "../../api/fundraiserApi.js";
 import { salesAdminApi, salesAdminErrorMessage } from "../../api/salesAdmin.js";
 import { founderCatalogApi } from "../../api/founderCatalog.js";
+import { founderContactsApi } from "../../api/founderContacts.js";
 
 function readUser() {
   try { return JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; }
@@ -32,6 +33,9 @@ const card = {
 const cardTitle = { margin: 0, fontSize: "1rem", fontWeight: 700, color: "#1b1830" };
 const statRow = { display: "flex", justifyContent: "space-between", fontSize: ".85rem", color: "#3a3552" };
 const statValue = { fontWeight: 700, color: "#1b1830" };
+const sectionLabel = { fontSize: ".78rem", fontWeight: 700, color: "#928ea8", textTransform: "uppercase", margin: "0 0 8px" };
+const gridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 };
+const hubNote = { fontSize: ".8rem", color: "#605c78", margin: 0 };
 const unavailable = { color: "#928ea8", fontStyle: "italic" };
 const linkBtn = {
   marginTop: "auto", alignSelf: "flex-start", background: "#4F2D7F", color: "#fff",
@@ -39,6 +43,22 @@ const linkBtn = {
   textDecoration: "none", display: "inline-block",
 };
 const severityColor = { normal: "#3a3552", attention: "#b3261e" };
+
+const PARTNER_LINKS_SHOWN = 5;
+
+/** A count the server stated, or an "unavailable" marker - never a guessed 0. */
+function overviewCount(section, key) {
+  const n = section && section[key];
+  return Number.isFinite(n) ? n : <span style={unavailable}>unavailable</span>;
+}
+/** { active: 2, draft: 1 } -> "Active 2 · Draft 1"; null when there is nothing to say. */
+function statusPairs(byStatus) {
+  if (!byStatus || typeof byStatus !== "object") return null;
+  const parts = Object.entries(byStatus)
+    .filter(([, n]) => Number.isFinite(n))
+    .map(([k, n]) => `${String(k).replace(/[_-]+/g, " ").replace(/^./, (c) => c.toUpperCase())} ${n}`);
+  return parts.length ? parts.join(" · ") : null;
+}
 
 function money(cents) {
   if (!Number.isFinite(cents)) return null;
@@ -61,20 +81,37 @@ const QR_CASH_MANAGEMENT_SURFACE_EXISTS = false;
 // Injectable, defaulting to the real clients — the same dependency-injection shape this codebase
 // already uses elsewhere (e.g. SalespersonControlCenter's `api = salesAdminApi`), so tests can
 // supply fakes without esbuild inlining the real network-calling modules into a test bundle.
+// Founder decision (Surface 9): the fundraising cards say PLAINLY that payouts are off. There is no backend
+// flag this page can read for it, so the statement is one constant here; flip it only when payouts are
+// authorized and a real flag is wired.
+export const FUNDRAISER_PAYOUTS_ACTIVE = false;
+const PAYOUTS_OFF_TEXT = "Payouts are OFF. Nothing is paid out to organizations or participants yet.";
+function PayoutsNote({ testId }) {
+  return FUNDRAISER_PAYOUTS_ACTIVE ? null : (
+    <p data-testid={testId} role="note" style={{ margin: "0 0 .5rem", fontSize: ".84rem", fontWeight: 600 }}>{PAYOUTS_OFF_TEXT}</p>
+  );
+}
+
 export default function FounderCentralCommand({
   user: injectedUser,
   qrCashApi = founderCommandApi,
   fundraiserOverviewApi = fundraiserApi.founder,
   salesApi = salesAdminApi,
   catalogApi = founderCatalogApi,
+  contactsApi = founderContactsApi,
+  // W51 (Command Center hubs): "home" = hub entry points + tiles no hub absorbs; "gift" | "sales" | "fundraiser" = the tiles that
+  // live inside that hub (identical cards, same data, same test ids); "all" = every card at once (the pre-hub layout).
+  view = "home",
 } = {}) {
   const user = injectedUser !== undefined ? injectedUser : readUser();
   const founder = isFounder(user);
 
   const [qrCash, setQrCash] = useState({ loading: true, data: null, error: null });
   const [fundraising, setFundraising] = useState({ loading: true, data: null, error: null });
+  const [orgs, setOrgs] = useState({ loading: true, rows: [], error: null }); // W36 partner-portal entry links
   const [sales, setSales] = useState({ loading: true, activeCount: null, error: null });
   const [catalog, setCatalog] = useState({ loading: true, activeCount: null, totalCount: null, error: null });
+  const [contacts, setContacts] = useState({ loading: true, total: null, followUpDue: null, error: null });
 
   useEffect(() => {
     if (!founder) return undefined;
@@ -96,6 +133,25 @@ export default function FounderCentralCommand({
       if (!alive) return;
       if (res.ok && res.data) setFundraising({ loading: false, data: res.data, error: null });
       else setFundraising({ loading: false, data: null, error: "Couldn't load the fundraising overview." });
+    })();
+    return () => { alive = false; };
+  }, [founder, fundraiserOverviewApi]);
+
+  // W36 - the EXISTING founder organizations read (GET /api/fundraiser/admin/organizations), used
+  // only to build links to the existing partner portal route. A founder passes
+  // requirePartnerAdminFor for any organization server-side, so the portal link resolves.
+  useEffect(() => {
+    if (!founder) return undefined;
+    let alive = true;
+    (async () => {
+      if (typeof fundraiserOverviewApi.organizations !== "function") {
+        setOrgs({ loading: false, rows: [], error: "Couldn't load partner organizations." });
+        return;
+      }
+      const res = await fundraiserOverviewApi.organizations();
+      if (!alive) return;
+      if (res && res.ok && Array.isArray(res.data)) setOrgs({ loading: false, rows: res.data, error: null });
+      else setOrgs({ loading: false, rows: [], error: "Couldn't load partner organizations." });
     })();
     return () => { alive = false; };
   }, [founder, fundraiserOverviewApi]);
@@ -137,6 +193,19 @@ export default function FounderCentralCommand({
     return () => { alive = false; };
   }, [founder, catalogApi]);
 
+  // W46 contact book: count only. A missing or failing read leaves the tile (and its link) in place with no number.
+  useEffect(() => {
+    if (!founder || !contactsApi || typeof contactsApi.list !== "function") return undefined;
+    let alive = true;
+    (async () => {
+      const res = await contactsApi.list({ limit: 1 });
+      if (!alive) return;
+      if (res.ok && res.data && res.data.counts) setContacts({ loading: false, total: res.data.counts.total, followUpDue: res.data.counts.followUpDue, error: null });
+      else setContacts({ loading: false, total: null, followUpDue: null, error: res.status === 403 ? null : "Couldn't load the contact count.", forbidden: res.status === 403 });
+    })();
+    return () => { alive = false; };
+  }, [founder, contactsApi]);
+
   // ── ORDINARY USERS SEE NOTHING ── same pattern as SalespersonControlCenter.jsx: rendered
   // before any request is issued, so a non-founder never triggers a call that would 403 anyway.
   if (!founder) {
@@ -148,10 +217,12 @@ export default function FounderCentralCommand({
     );
   }
 
+  const show = (g) => view === "all" || view === g;
   const qrSeverity = qrCash.data && qrCash.data.unresolvedCount > 0 ? "attention" : "normal";
 
   return (
     <div style={{ padding: "1.5rem", maxWidth: 1100, margin: "0 auto" }} data-testid="founder-central-command">
+      {view === "home" || view === "all" ? (
       <header style={{ marginBottom: "1.25rem" }}>
         <p style={{ fontSize: ".78rem", fontWeight: 700, color: "#928ea8", textTransform: "uppercase", margin: "0 0 4px" }}>
           Founder
@@ -161,9 +232,45 @@ export default function FounderCentralCommand({
           One place to see what needs attention, and reach the existing management screen for it.
         </p>
       </header>
+      ) : null}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+      {view === "home" ? (
+        <>
+          <h2 style={sectionLabel}>Management areas</h2>
+          <div style={{ ...gridStyle, marginBottom: 22 }} data-testid="fcc-hubs">
+            <section style={card} data-testid="fcc-card-hub-gift" aria-labelledby="fcc-hub-gift-title">
+              <h2 id="fcc-hub-gift-title" style={cardTitle}>Gift Place</h2>
+              {catalog.activeCount != null ? (
+                <div style={statRow}><span>Active providers</span><span style={statValue} data-testid="fcc-hub-gift-providers">{catalog.activeCount} of {catalog.totalCount}</span></div>
+              ) : null}
+              <p style={hubNote}>Catalog management, provider status and the customer Gift Place.</p>
+              <a href="#/dashboard/founder/gift-place" style={linkBtn} data-testid="fcc-hub-gift-open">Open Gift Place</a>
+            </section>
+            <section style={card} data-testid="fcc-card-hub-sales" aria-labelledby="fcc-hub-sales-title">
+              <h2 id="fcc-hub-sales-title" style={cardTitle}>Sales</h2>
+              {sales.activeCount != null ? (
+                <div style={statRow}><span>Active salespeople</span><span style={statValue} data-testid="fcc-hub-sales-active">{sales.activeCount}</span></div>
+              ) : null}
+              <p style={hubNote}>Salespeople, their links, performance and gift sales.</p>
+              <a href="#/dashboard/founder/sales" style={linkBtn} data-testid="fcc-hub-sales-open">Open Sales</a>
+            </section>
+            <section style={card} data-testid="fcc-card-hub-fundraiser" aria-labelledby="fcc-hub-fund-title">
+              <h2 id="fcc-hub-fund-title" style={cardTitle}>Fundraiser</h2>
+              {fundraising.data ? (
+                <div style={statRow}><span>Organizations</span><span style={statValue} data-testid="fcc-hub-fund-orgs">{overviewCount(fundraising.data.organizations, "total")}</span></div>
+              ) : null}
+              <PayoutsNote testId="fcc-hub-fund-payouts" />
+              <p style={hubNote}>Organizations, campaigns, participants, partners and activation.</p>
+              <a href="#/dashboard/founder/fundraising" style={linkBtn} data-testid="fcc-hub-fund-open">Open Fundraiser</a>
+            </section>
+          </div>
+          <h2 style={sectionLabel}>Alerts and utilities</h2>
+        </>
+      ) : null}
+
+      <div style={gridStyle}>
         {/* ── OPERATIONAL ALERTS: unresolved QR Cash payouts ─────────────────────────────────── */}
+        {show("home") ? (
         <section style={card} data-testid="fcc-card-qrcash" aria-labelledby="fcc-qrcash-title">
           <h2 id="fcc-qrcash-title" style={cardTitle}>Operational Alerts</h2>
           {qrCash.loading ? (
@@ -210,8 +317,10 @@ export default function FounderCentralCommand({
             </p>
           ) : null}
         </section>
+        ) : null}
 
         {/* ── CATALOG MANAGEMENT ──────────────────────────────────────────────────────────────── */}
+        {show("gift") ? (
         <section style={card} data-testid="fcc-card-catalog" aria-labelledby="fcc-catalog-title">
           <h2 id="fcc-catalog-title" style={cardTitle}>Catalog Management</h2>
           {catalog.loading ? (
@@ -228,8 +337,10 @@ export default function FounderCentralCommand({
           )}
           <a href="#/dashboard/gifts" style={linkBtn} data-testid="fcc-catalog-open">Open Catalog Management</a>
         </section>
+        ) : null}
 
         {/* ── SALESPEOPLE ──────────────────────────────────────────────────────────────────────── */}
+        {show("sales") ? (
         <section style={card} data-testid="fcc-card-sales" aria-labelledby="fcc-sales-title">
           <h2 id="fcc-sales-title" style={cardTitle}>Salespeople</h2>
           {sales.loading ? (
@@ -246,10 +357,13 @@ export default function FounderCentralCommand({
             Open Salesperson Management
           </a>
         </section>
+        ) : null}
 
         {/* ── FUNDRAISING ──────────────────────────────────────────────────────────────────────── */}
+        {show("fundraiser") ? (
         <section style={card} data-testid="fcc-card-fundraising" aria-labelledby="fcc-fundraising-title">
           <h2 id="fcc-fundraising-title" style={cardTitle}>Fundraising</h2>
+          <PayoutsNote testId="fcc-fundraising-payouts" />
           {fundraising.loading ? (
             <p style={unavailable}>Loading…</p>
           ) : fundraising.error ? (
@@ -274,6 +388,123 @@ export default function FounderCentralCommand({
             Open Fundraising Management
           </a>
         </section>
+        ) : null}
+
+        {/* ── W36 · ENTRY POINTS to existing fundraiser surfaces ─────────────────────
+            Four separate cards: campaigns, participants, partner portal, activation state. Each
+            reads ONLY the founder overview this page already loads (counts + byStatus) and links to
+            an EXISTING route. No new endpoint, no mutation, no duplicate subsystem. The route and
+            permission trace is in reports/closeout-sprint/lane-reports/T1C.md (W36 trace). */}
+        {show("fundraiser") ? (
+        <section style={card} data-testid="fcc-card-campaigns" aria-labelledby="fcc-campaigns-title">
+          <h2 id="fcc-campaigns-title" style={cardTitle}>Fundraiser Campaigns</h2>
+          {fundraising.loading ? <p style={unavailable}>Loading…</p>
+            : fundraising.error ? <p style={unavailable} data-testid="fcc-campaigns-error">{fundraising.error}</p>
+            : (
+              <>
+                <div style={statRow}>
+                  <span>Campaigns</span>
+                  <span style={statValue} data-testid="fcc-campaigns-total">{overviewCount(fundraising.data.campaigns, "total")}</span>
+                </div>
+                <p style={{ ...statRow, margin: 0 }} data-testid="fcc-campaigns-bystatus">
+                  {statusPairs(fundraising.data.campaigns && fundraising.data.campaigns.byStatus) || <span style={unavailable}>No campaigns yet</span>}
+                </p>
+              </>
+            )}
+          <a href="#/dashboard/fundraiser/admin" style={linkBtn} data-testid="fcc-campaigns-open">Open Campaigns</a>
+        </section>
+        ) : null}
+
+        {show("fundraiser") ? (
+        <section style={card} data-testid="fcc-card-participants" aria-labelledby="fcc-participants-title">
+          <h2 id="fcc-participants-title" style={cardTitle}>Fundraiser Participants</h2>
+          {fundraising.loading ? <p style={unavailable}>Loading…</p>
+            : fundraising.error ? <p style={unavailable} data-testid="fcc-participants-error">{fundraising.error}</p>
+            : (
+              <>
+                <div style={statRow}>
+                  <span>Participants</span>
+                  <span style={statValue} data-testid="fcc-participants-total">{overviewCount(fundraising.data.participants, "total")}</span>
+                </div>
+                <div style={statRow}>
+                  <span>Active</span>
+                  <span style={statValue} data-testid="fcc-participants-active">{overviewCount(fundraising.data.participants, "active")}</span>
+                </div>
+              </>
+            )}
+          <a href="#/dashboard/fundraiser/admin" style={linkBtn} data-testid="fcc-participants-open">Open Participants</a>
+        </section>
+        ) : null}
+
+        {show("fundraiser") ? (
+        <section style={card} data-testid="fcc-card-partner" aria-labelledby="fcc-partner-title">
+          <h2 id="fcc-partner-title" style={cardTitle}>Partner Portal</h2>
+          {orgs.loading ? <p style={unavailable}>Loading…</p>
+            : orgs.error ? <p style={unavailable} data-testid="fcc-partner-error">{orgs.error}</p>
+            : orgs.rows.length === 0 ? <p style={unavailable} data-testid="fcc-partner-empty">No partner organizations yet.</p>
+            : (
+              <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: ".85rem", color: "#3a3552" }} data-testid="fcc-partner-list">
+                {orgs.rows.slice(0, PARTNER_LINKS_SHOWN).map((o) => (
+                  <li key={o.organizationId}>
+                    <a href={`#/dashboard/fundraiser/partner/${encodeURIComponent(o.organizationId)}`}
+                      data-testid={`fcc-partner-org-${o.organizationId}`}>{o.legalName || o.organizationId}</a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          {orgs.rows.length > PARTNER_LINKS_SHOWN ? (
+            <p style={{ fontSize: ".75rem", color: "#928ea8", margin: 0 }} data-testid="fcc-partner-more">
+              and {orgs.rows.length - PARTNER_LINKS_SHOWN} more in Fundraising Management
+            </p>
+          ) : null}
+          <a href="#/dashboard/fundraiser/admin" style={linkBtn} data-testid="fcc-partner-open">Open Organizations</a>
+        </section>
+        ) : null}
+
+        {show("fundraiser") ? (
+        <section style={card} data-testid="fcc-card-activation" aria-labelledby="fcc-activation-title">
+          <h2 id="fcc-activation-title" style={cardTitle}>Activation State</h2>
+          <PayoutsNote testId="fcc-activation-payouts" />
+          {fundraising.loading ? <p style={unavailable}>Loading…</p>
+            : fundraising.error ? <p style={unavailable} data-testid="fcc-activation-error">{fundraising.error}</p>
+            : (
+              <>
+                <div style={statRow}>
+                  <span>Organizations</span>
+                  <span style={statValue} data-testid="fcc-activation-orgs">
+                    {statusPairs(fundraising.data.organizations && fundraising.data.organizations.byStatus) || <span style={unavailable}>none</span>}
+                  </span>
+                </div>
+                <div style={statRow}>
+                  <span>Campaigns</span>
+                  <span style={statValue} data-testid="fcc-activation-campaigns">
+                    {statusPairs(fundraising.data.campaigns && fundraising.data.campaigns.byStatus) || <span style={unavailable}>none</span>}
+                  </span>
+                </div>
+                <div style={statRow}>
+                  <span>Active economics versions</span>
+                  <span style={statValue} data-testid="fcc-activation-economics">
+                    {overviewCount(fundraising.data.economics, "activeVersions")}
+                  </span>
+                </div>
+              </>
+            )}
+          <a href="#/dashboard/fundraiser/admin" style={linkBtn} data-testid="fcc-activation-open">Review Activation</a>
+        </section>
+        ) : null}
+        {view === "home" ? (
+          <section style={card} data-testid="fcc-card-contacts" aria-labelledby="fcc-contacts-title">
+            <h2 id="fcc-contacts-title" style={cardTitle}>Contacts</h2>
+            {contacts.total != null ? (
+              <>
+                <div style={statRow}><span>Contacts</span><span style={statValue} data-testid="fcc-contacts-total">{contacts.total}</span></div>
+                <div style={statRow}><span>Follow-ups due</span><span style={statValue} data-testid="fcc-contacts-due">{contacts.followUpDue}</span></div>
+              </>
+            ) : contacts.forbidden ? <p style={unavailable} data-testid="fcc-contacts-unavailable">The contact book is not available on this account.</p>
+              : contacts.error ? <p style={unavailable} data-testid="fcc-contacts-error">{contacts.error}</p> : null}
+            {contacts.forbidden ? null : <a href="#/dashboard/founder/contacts" style={linkBtn} data-testid="fcc-contacts-open">Open Contacts</a>}
+          </section>
+        ) : null}
       </div>
     </div>
   );

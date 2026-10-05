@@ -34,16 +34,23 @@ function businessG1g1GiftRow(item) {
   return null;
 }
 
-// Platform fee mirrors the backend rule (BUSINESS_SUBSCRIPTION_PRICE_IDS in
-// routes/paymentRoutes.js): $19.99 for business subscription tiers, $4.99 otherwise.
-// Prefer the cart item's platformFee if present, else fall back to the tier rule
-// (cart items currently omit platformFee).
+// Platform fee: ONE per account, EVER, for BOTH tiers. The amount comes ONLY from the server's platform-fee-status answer
+// (consumer or business entry by the item's tier); 0 means already paid (no fee line) and null means "do not assert an
+// amount" (calculated at checkout). Never a fixed figure. See utils/platformFee.js.
 const BUSINESS_PLAN_TIERS = new Set(['small_business', 'medium_business', 'business_scale']);
-const platformFeeFor = (item) =>
-  item?.platformFee ?? (BUSINESS_PLAN_TIERS.has(item?.planTier) ? 19.99 : 4.99);
+const platformFeeFor = (item, feeState) =>
+  resolvePlatformFee(item, BUSINESS_PLAN_TIERS.has(item?.planTier), feeState);
+
+import { platformFeeFor as resolvePlatformFee, formatFeeAmount, FEE_CALCULATED_AT_CHECKOUT } from '../utils/platformFee';
+import { SUBSCRIPTION_RENEWAL_NOTICE, PLATFORM_FEE_ONE_TIME_NOTICE } from '../utils/subscriptionTerms';
+import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
+import { useReferralCredit } from '../hooks/useReferralCreditCents';
+import CreditCapNote from '../components/CreditCapNote';
+import { clampCreditDollars } from '../utils/creditCap';
 
 export default function Cart() {
   const navigate = useNavigate();
+  const feeState = usePlatformFeeStatus();
   const [cartItems, setCartItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
@@ -58,7 +65,12 @@ export default function Cart() {
   const hasSubscription = !!subscriptionItem;
 
   // Referral credit disqualifies G1G1; business tiers are excluded (annual-credit model).
-  const hasReferralCredit = !!(localStorage.getItem('greetme_referral_code'));
+  let referralCodeStored = null;
+  try { referralCodeStored = localStorage.getItem('greetme_referral_code'); } catch { /* blocked storage: treat as no referral code */ }
+  const hasReferralCredit = !!referralCodeStored;
+  // The REAL referral credit amount as the server issued it (null until known; never a literal).
+  const { cents: referralCreditCents, capped: referralCreditCapped } = useReferralCredit(referralCodeStored);
+  const referralCreditDollars = referralCreditCents ? referralCreditCents / 100 : 0;
   const g1g1Eligible = hasSubscription && !hasReferralCredit && G1G1_PERSONAL_TIERS.has(subscriptionItem?.planTier);
 
   // Business annual-credit gift: same checkout recipient UX, credit-funded post-payment.
@@ -182,11 +194,12 @@ export default function Cart() {
           </p>
           <div style={{
             display: 'flex',
+            flexDirection: 'column',
             gap: '1rem',
-            justifyContent: 'center',
-            flexWrap: 'wrap'
+            alignItems: 'center'
           }}>
             <button
+              data-testid="cart-empty-browse-agp"
               onClick={() => navigate('/dashboard/gifts')}
               style={{
                 padding: '0.875rem 1.5rem',
@@ -214,33 +227,25 @@ export default function Cart() {
               }}
             >
               <ShoppingBag size={18} />
-              Browse Gifts
+              Browse American Gift Place&#8482;
             </button>
             <button
-              onClick={() => navigate('/dashboard/merch')}
+              type="button"
+              data-testid="cart-empty-back-home"
+              onClick={() => navigate('/dashboard')}
               style={{
-                padding: '0.875rem 1.5rem',
-                background: 'white',
-                color: '#667eea',
-                border: '2px solid #667eea',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '0.9375rem',
-                fontWeight: 600,
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                color: 'var(--text-secondary)',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                textDecoration: 'underline',
                 cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontFamily: 'inherit',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#f5f3ff';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'white';
+                fontFamily: 'inherit'
               }}
             >
-              Shop the American Gift Place
+              Back Home
             </button>
           </div>
         </div>
@@ -867,15 +872,15 @@ export default function Cart() {
               {(() => {
                 const subscriptionItem = cartItems.find(item => item.type === 'subscription');
                 const planPrice = subscriptionItem?.price || total;
-                // Both referral ($10) and courtesy ($5) credits now create Stripe coupons
+                // Both referral and courtesy credits create Stripe coupons; the referral amount is the server-reported value (never a literal)
                 const courtesyCredit = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
                 // CREDIT CONTRACT INTEGRITY (2026-09-30, Cart/Pricing display-honesty correction) —
                 // same gate as Checkout.jsx: a stored courtesy amount with no backend-issued
                 // creditCode must never be displayed or subtracted here either.
-                const rawCredit = hasReferralCredit ? 10 : (courtesyCredit?.creditCode ? (courtesyCredit?.amount || 0) : 0);
+                const rawCredit = hasReferralCredit ? referralCreditDollars : (courtesyCredit?.creditCode ? clampCreditDollars(courtesyCredit?.amount) : 0);
                 const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                 const creditAmt = creditEligible ? rawCredit : 0;
-                const techFee = platformFeeFor(subscriptionItem);
+                const techFee = platformFeeFor(subscriptionItem, feeState);
 
                 return (
                   <div style={{ marginBottom: '0.25rem' }}>
@@ -926,15 +931,20 @@ export default function Cart() {
                         <span>{creditEligible ? `\u2013$${rawCredit.toFixed(2)}` : 'Not eligible for this plan'}</span>
                       </div>
                     )}
+                    {rawCredit > 0 && hasReferralCredit && creditEligible && <CreditCapNote capped={referralCreditCapped} />}
 
-                    {/* One-Time Platform Fee */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                      <span>One-Time Platform Fee</span>
-                      <span>${techFee.toFixed(2)}</span>
-                    </div>
-                    <p style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', margin: '0 0 0.5rem', fontStyle: 'italic' }}>
-                      Covers setup for you and your G1G1 recipient
-                    </p>
+                    {/* One-Time Platform Fee — omitted when the account already paid it (W18). */}
+                    {techFee !== 0 && (
+                      <>
+                        <div data-testid="cart-platform-fee" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                          <span>One-Time Platform Fee</span>
+                          <span>{formatFeeAmount(techFee)}</span>
+                        </div>
+                        <p style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', margin: '0 0 0.5rem', fontStyle: 'italic' }}>
+                          Covers setup for you and your G1G1 recipient
+                        </p>
+                      </>
+                    )}
                   </div>
                 );
               })()}
@@ -945,20 +955,31 @@ export default function Cart() {
                 const planPrice = subscriptionItem?.price || total;
                 const courtesyCredit2 = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
                 // CREDIT CONTRACT INTEGRITY (2026-09-30) — same gate as the display block above.
-                const rawCredit = hasReferralCredit ? 10 : (courtesyCredit2?.creditCode ? (courtesyCredit2?.amount || 0) : 0);
+                const rawCredit = hasReferralCredit ? referralCreditDollars : (courtesyCredit2?.creditCode ? clampCreditDollars(courtesyCredit2?.amount) : 0);
                 const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                 const creditAmt = creditEligible ? rawCredit : 0;
-                const techFee = platformFeeFor(subscriptionItem);
-                const finalTotal = Math.max(0, planPrice + techFee - creditAmt);
+                const techFee = platformFeeFor(subscriptionItem, feeState);
+                const finalTotal = Math.max(0, planPrice + (techFee ?? 0) - creditAmt);
                 return (
                   <div style={{ borderTop: '2px solid var(--border)', paddingTop: '0.5rem', marginBottom: '0.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--text-primary)' }}>Total</span>
                       <span style={{ fontSize: '1rem', fontWeight: 800, color: '#667eea' }}>${finalTotal.toFixed(2)}</span>
                     </div>
+                    {techFee == null && (
+                      <p data-testid="cart-total-fee-note" style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', margin: '0.25rem 0 0' }}>
+                        Plus the one-time platform fee, {FEE_CALCULATED_AT_CHECKOUT.toLowerCase()}.
+                      </p>
+                    )}
                   </div>
                 );
               })()}
+
+              {cartItems.some((item) => item.type === 'subscription') && (
+                <p data-testid="cart-subscription-terms" style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', margin: '0 0 0.5rem', lineHeight: 1.4 }}>
+                  {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE}
+                </p>
+              )}
 
               {/* Checkout Button */}
               <button

@@ -28,8 +28,11 @@ import { createCorporateCampaignsClient } from "../../api/corporateCampaigns.js"
 import { OWNER_ONLY_MESSAGE } from "./corporateDashboardModel.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLE = join(__dirname, ".__rename.bundle.mjs");
-const ENTRY = join(__dirname, ".__rename.entry.jsx");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const BUNDLE = join(__dirname, `.__rename.${process.pid}.bundle.mjs`);
+const ENTRY = join(__dirname, `.__rename.${process.pid}.entry.jsx`);
 let React, createRoot, act, Surface, window;
 
 before(async () => {
@@ -45,7 +48,7 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   window = dom.window;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ } globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.KeyboardEvent = window.KeyboardEvent;
   globalThis.getComputedStyle = window.getComputedStyle;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;

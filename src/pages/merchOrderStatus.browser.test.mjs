@@ -1,228 +1,160 @@
 // src/pages/merchOrderStatus.browser.test.mjs
 //
-// PACKAGE C — RENDERED-COMPONENT coverage of the customer merchandise status
-// display. The REAL MerchOrders page is esbuild-transformed and mounted into
-// jsdom; only ambient collaborators (router, icons, api client) are stubbed, so
-// the rendering under test is genuine.
+// RENDERED-COMPONENT coverage of how the provider-neutral "Your Orders" page (MerchOrders.jsx, W42) displays STATUS - the
+// property this file has always protected, now for the one-list page. The REAL page is mounted in jsdom (harness: myOrdersTestHarness.mjs);
+// only router, icons and api client are stubbed, answering with the backend's own shapes.
 //
-// Proves the frontend renders the backend-provided label verbatim, keeps no
-// competing lifecycle map, falls back safely when a label is absent, never
-// surfaces a raw internal state or vendor status, preserves the existing
-// tracking display, and stays readable at a narrow mobile width.
+// Proves: the backend label is shown as it is and no competing status vocabulary exists in the client; a refunded order is NOT styled as
+// cancelled; an unknown or missing status is honest ("Status unavailable" with Get Help, never "Processing"); raw internal states and
+// vendor statuses never reach the DOM; long labels stay readable at 320px; tracking is a link only when it is https; "Delivered" only
+// with proof. Both the combined-history path and the legacy fallback path (history unavailable) are covered.
 //
-// Run: node --test src/pages/merchOrderStatus.browser.test.mjs
-
+// Run: node --test src/pages/merchOrderStatus.browser.test.mjs   (Node 20)
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { dirname, join } from "node:path";
-import { writeFileSync, rmSync } from "node:fs";
-import { JSDOM } from "jsdom";
-import esbuild from "esbuild";
+import { createHarness, ROWS, history, LEGACY_MERCH } from "./myOrdersTestHarness.mjs";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLE = join(__dirname, ".__merchorders.bundle.mjs");
-let React, createRoot, act, MerchOrders;
+let H;
+before(async () => { H = await createHarness("status"); });
+after(() => H.cleanup());
 
-const ROUTER_STUB = `export const useNavigate = () => (() => {});`;
-const ICONS_STUB = `
-import React from "react";
-const I = () => null;
-export const Package = I, Truck = I, ArrowLeft = I, ExternalLink = I, Flower2 = I;
-export default {};
-`;
-// The api client returns whatever the test places on globalThis.__orders. Flower orders
-// (Team 2's honest-visibility addition) default to none, matching this suite's pre-existing
-// scope — it covers only the branded-goods list.
-const API_STUB = `
-export default {
-  getMerchOrders: async () => ({ ok: true, orders: globalThis.__orders || [] }),
-  getFlowerOrders: async () => ({ ok: true, orders: globalThis.__flowerOrders || [] }),
-};
-`;
+const hist = (rows) => ({ ok: true, count: rows.length, truncated: false, orders: rows });
+const row = (o) => ({ ...ROWS.merchProcessing, orderRef: "ord_0000000000000999", ...o });
 
-function stubPlugin() {
-  const map = [
-    [/^react-router-dom$/, ROUTER_STUB, "rr"],
-    [/^lucide-react$/, ICONS_STUB, "icons"],
-    [/api[\\/]api$/, API_STUB, "api"],
-  ];
-  return { name: "stub", setup(b) {
-    for (const [filter, contents, ns] of map) {
-      b.onResolve({ filter }, (a) => ({ path: a.path, namespace: ns }));
-      b.onLoad({ filter: /.*/, namespace: ns }, () => ({ contents, loader: "js" }));
-    }
-  } };
-}
-
-before(async () => {
-  writeFileSync(join(__dirname, ".__merchorders.jsx"), `export { default as MerchOrders } from "./MerchOrders.jsx";\n`);
-  await esbuild.build({
-    entryPoints: [join(__dirname, ".__merchorders.jsx")], outfile: BUNDLE, bundle: true,
-    format: "esm", platform: "browser", jsx: "automatic", jsxImportSource: "react",
-    external: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"],
-    define: { "import.meta.env": "{}", "process.env.NODE_ENV": '"production"' },
-    plugins: [stubPlugin()], logLevel: "silent",
-  });
-  rmSync(join(__dirname, ".__merchorders.jsx"), { force: true });
-
-  const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
-  const { window } = dom;
-  globalThis.window = window; globalThis.document = window.document;
-  // NOTE: globalThis.navigator is a getter-only built-in on Node 20+, so it is
-  // NOT reassigned here. MerchOrders reads window.innerWidth, never navigator.
-  globalThis.HTMLElement = window.HTMLElement;
-  globalThis.Event = window.Event; globalThis.CustomEvent = window.CustomEvent;
-  globalThis.localStorage = window.localStorage;
-  globalThis.requestAnimationFrame = (cb) => window.setTimeout(() => cb(Date.now()), 0);
-  globalThis.cancelAnimationFrame = (id) => window.clearTimeout(id);
-  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
-  React = (await import("react")).default; act = React.act;
-  ({ createRoot } = await import("react-dom/client"));
-  ({ MerchOrders } = await import(pathToFileURL(BUNDLE).href));
-});
-after(() => { try { rmSync(BUNDLE, { force: true }); } catch { /* ignore */ } });
-
-async function renderWith(orders, { width = 1280 } = {}) {
-  globalThis.__orders = orders;
-  globalThis.window.innerWidth = width;
-  const host = globalThis.document.createElement("div");
-  globalThis.document.body.appendChild(host);
-  const root = createRoot(host);
-  await act(async () => { root.render(React.createElement(MerchOrders)); });
-  // let the load effect settle
-  await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-  return { host, text: host.textContent || "", html: host.innerHTML || "", unmount: () => act(async () => root.unmount()) };
-}
-
-const ORDER = (o = {}) => ({
-  id: "ord-1",
-  paidAt: "2026-08-14T05:44:24.083Z",
-  totalCents: 4499,
-  itemSummary: "White glossy mug — 15 oz",
-  statusKind: "processing",
-  statusLabel: "Payment received — preparing your order",
-  shippedAt: null,
-  packages: [],
-  ...o,
-});
-
-// ── 1. Every supported backend label renders verbatim ───────────────────────
-test("every supported backend label renders exactly as provided", async () => {
+test("every supported backend label renders exactly as provided (combined history)", async () => {
   const labels = [
-    "Payment received — preparing your order",
-    "Order placed with our print partner",
-    "Approved — production scheduled",
-    "Being made",
-    "Shipped",
-    "We hit a snag — we're on it",
-    "Cancelled",
-    "Refunded",
+    ["processing", "Payment received — preparing your order"], ["processing", "Order placed with our print partner"],
+    ["processing", "Approved — production scheduled"], ["processing", "Being made"], ["shipped", "Shipped"],
+    ["issue", "We hit a snag — we're on it"], ["canceled", "Cancelled"], ["refunded", "Refunded"],
   ];
-  for (const label of labels) {
-    const r = await renderWith([ORDER({ statusLabel: label })]);
-    assert.ok(r.text.includes(label), `"${label}" must render`);
+  for (const [kind, label] of labels) {
+    const r = await H.render({ history: hist([row({ status: { kind, label } })]) });
+    assert.equal(r.tid("order-status").textContent, label, `"${label}" must render verbatim`);
     await r.unmount();
   }
 });
 
-// ── 2. Backend label takes precedence over any fallback ─────────────────────
-test("the backend label always wins over the fallback", async () => {
-  const r = await renderWith([ORDER({ statusLabel: "Being made" })]);
-  assert.ok(r.text.includes("Being made"));
-  assert.ok(!r.text.includes("Processing"), "fallback must not appear when a label exists");
+test("the backend label always wins; no 'Processing' appears when the label says something else", async () => {
+  const r = await H.render({ history: hist([row({ status: { kind: "processing", label: "Being made" } })]) });
+  assert.ok(r.text().includes("Being made"));
+  assert.ok(!r.text().includes("Processing"));
   await r.unmount();
 });
 
-// ── 3. Missing label uses a safe fallback ───────────────────────────────────
-test("a missing label renders a safe fallback, never blank or undefined", async () => {
-  for (const missing of [undefined, null, ""]) {
-    const r = await renderWith([ORDER({ statusLabel: missing })]);
-    assert.ok(r.text.includes("Processing"), `fallback for ${String(missing)}`);
-    assert.ok(!r.text.includes("undefined"), "never renders the word undefined");
-    assert.ok(!r.text.includes("null"), "never renders the word null");
+test("a missing or blank label is honest: 'Status unavailable', never blank, never undefined/null, never 'Processing'", async () => {
+  for (const label of [undefined, null, "", "   "]) {
+    const r = await H.render({ history: hist([row({ status: { kind: "processing", label } })]) });
+    assert.equal(r.tid("order-status").textContent, "Status unavailable");
+    assert.ok(!r.text().includes("undefined") && !r.text().includes("null"));
+    assert.ok(!r.text().includes("Processing"), "no invented Processing");
     await r.unmount();
   }
+  // the legacy fallback (history unavailable) is just as honest about a merch order with no label or kind
+  const legacy = LEGACY_MERCH({ statusKind: undefined, statusLabel: undefined });
+  const r = await H.render({ history: "fail", merch: { ok: true, orders: [legacy] } });
+  assert.equal(r.rowWith("White glossy mug").querySelector('[data-testid="order-status"]').textContent, "Status unavailable");
+  assert.ok(r.rowWith("White glossy mug").querySelector('[data-testid="order-support"]'), "Get Help is offered");
+  assert.ok(!r.text().includes("Processing"));
+  await r.unmount();
 });
 
-// ── 4/5. No raw enum or vendor value ever renders ───────────────────────────
+test("an UNKNOWN status is shown plainly with Get Help, in a neutral badge (not the 'processing' look)", async () => {
+  const r = await H.render({ history: history(["merchUnknown", "merchProcessing"]) });
+  const u = r.rowWith("Notebook set");
+  assert.equal(u.querySelector('[data-testid="order-status"]').textContent, "Status unavailable - contact support");
+  assert.ok(u.querySelector('[data-testid="order-support"]'));
+  const style = (el) => el.querySelector('[data-testid="order-status"]').getAttribute("style");
+  assert.notEqual(style(u), style(r.rowWith("Embroidered cap")), "unknown does not look like processing");
+  await r.unmount();
+});
+
+test("a REFUNDED order is not styled as cancelled (its own kind and badge), on both paths", async () => {
+  const badge = (r, s) => r.rowWith(s).querySelector('[data-testid="order-status"]').getAttribute("style");
+  const r = await H.render({ history: hist([row({ itemSummary: "Refunded thing", status: { kind: "refunded", label: "Refunded" } }), row({ orderRef: "ord_0000000000000998", itemSummary: "Cancelled thing", status: { kind: "canceled", label: "Cancelled" } })]) });
+  assert.equal(r.rowWith("Refunded thing").getAttribute("data-kind"), "refunded");
+  assert.notEqual(badge(r, "Refunded thing"), badge(r, "Cancelled thing"));
+  await r.unmount();
+  // legacy fallback: the old endpoint collapses a refund into "canceled" with the label "Refunded"; the badge stays the refunded one
+  const l = await H.render({ history: "fail", merch: { ok: true, orders: [LEGACY_MERCH({ id: "a1", itemSummary: "Legacy refunded", statusKind: "canceled", statusLabel: "Refunded" }), LEGACY_MERCH({ id: "b2", itemSummary: "Legacy cancelled", statusKind: "canceled", statusLabel: "Cancelled" })] } });
+  assert.equal(l.rowWith("Legacy refunded").getAttribute("data-kind"), "refunded");
+  assert.equal(l.rowWith("Legacy cancelled").getAttribute("data-kind"), "canceled");
+  assert.notEqual(badge(l, "Legacy refunded"), badge(l, "Legacy cancelled"));
+  await l.unmount();
+});
+
 test("raw internal states and vendor statuses never reach the DOM", async () => {
-  // A hostile payload carrying internal fields the backend would never send.
-  const r = await renderWith([ORDER({
-    statusLabel: "Being made",
-    state: "fulfillment_placed",
-    printfulStatus: "inprocess",
-    printfulOrderId: 171449412,
-    retailReconciliationError: "retail reconciliation failed (subtotal_mismatch)",
-    lastFailureReason: "Printful order submit error 400",
-  })]);
-  for (const banned of [
-    "fulfillment_placed", "fulfillment_pending", "pending_fulfillment", "fulfillment_failed",
-    "inprocess", "printful", "Printful", "171449412", "reconciliation", "subtotal_mismatch", "400",
-  ]) {
-    assert.ok(!r.text.includes(banned), `"${banned}" must not render`);
+  const hostile = {
+    state: "fulfillment_placed", printfulStatus: "inprocess", printfulOrderId: 171449412,
+    retailReconciliationError: "retail reconciliation failed (subtotal_mismatch)", lastFailureReason: "Printful order submit error 400",
+    claimToken: "tok_secret", voucherUrl: "https://v.example/x", giftPin: "9988", paymentIntentId: "pi_123",
+  };
+  const r = await H.render({ history: hist([row({ ...hostile, status: { kind: "processing", label: "Being made" } })]) });
+  for (const banned of ["fulfillment_placed", "fulfillment_pending", "pending_fulfillment", "fulfillment_failed", "inprocess", "printful", "Printful", "171449412", "reconciliation", "subtotal_mismatch", "tok_secret", "v.example", "9988", "pi_123"]) {
+    assert.ok(!r.html().includes(banned), `"${banned}" must not render`);
   }
-  assert.ok(r.text.includes("Being made"));
+  assert.ok(r.text().includes("Being made"));
   await r.unmount();
+  const l = await H.render({ history: "fail", merch: { ok: true, orders: [LEGACY_MERCH({ ...hostile, statusLabel: "Being made" })] } });
+  for (const banned of ["fulfillment_placed", "inprocess", "Printful", "171449412", "subtotal_mismatch", "400"]) assert.ok(!l.text().includes(banned), `legacy: "${banned}"`);
+  await l.unmount();
 });
 
 test("the page contains no competing status vocabulary of its own", async () => {
-  // The legacy backend wording must not be hard-coded anywhere in the client.
-  const r = await renderWith([ORDER({ statusLabel: "Shipped" })]);
-  assert.ok(!r.text.includes("Order received — processing"), "no client-side legacy label");
+  const r = await H.render({ history: hist([row({ status: { kind: "shipped", label: "Shipped" } })]) });
+  assert.ok(!r.text().includes("Order received — processing"));
+  assert.ok(!/delivered/i.test(r.text()), "a shipped order never says delivered");
   await r.unmount();
 });
 
-// ── 6. Long labels remain readable on mobile ────────────────────────────────
 test("the longest label renders complete and unclipped at a narrow width", async () => {
   const longest = "Payment received — preparing your order";
-  const r = await renderWith([ORDER({ statusLabel: longest })], { width: 320 });
-  assert.ok(r.text.includes(longest), "full label present at 320px");
-
-  // Scope the truncation check to the BADGE element itself. A page-wide scan
-  // would falsely trip on the total-price element, which legitimately uses
-  // white-space: nowrap so a currency amount never breaks across lines.
-  const badge = [...r.host.querySelectorAll("div")].find(
-    (el) => el.textContent === longest
-  );
-  assert.ok(badge, "status badge element located");
+  const r = await H.render({ history: hist([row({ status: { kind: "processing", label: longest } })]) }, { width: 320 });
+  const badge = r.tid("order-status");
+  assert.equal(badge.textContent, longest);
   const css = badge.getAttribute("style") || "";
-  assert.ok(!/text-overflow\s*:\s*ellipsis/i.test(css), "badge does not ellipsis-truncate");
-  assert.ok(!/white-space\s*:\s*nowrap/i.test(css), "badge does not force a single line");
-  assert.ok(!/overflow\s*:\s*hidden/i.test(css), "badge does not clip overflow");
-  assert.ok(!/\bmax-width\s*:/i.test(css), "badge is not width-capped");
+  assert.ok(!/text-overflow\s*:\s*ellipsis/i.test(css) && !/white-space\s*:\s*nowrap/i.test(css) && !/overflow\s*:\s*hidden/i.test(css) && !/\bmax-width\s*:/i.test(css));
   await r.unmount();
 });
 
-// ── 7. Existing tracking display remains intact ─────────────────────────────
-test("tracking link and carrier still render for a shipped order", async () => {
-  const r = await renderWith([ORDER({
-    statusKind: "shipped",
-    statusLabel: "Shipped",
-    shippedAt: "2026-08-20T00:00:00.000Z",
-    packages: [{
-      carrier: "DHLGLOBALMAIL",
-      trackingNumber: "TRK123",
-      trackingUrl: "https://myorders.co/tracking/82735098/",
-      shippedAt: "2026-08-20T00:00:00.000Z",
-    }],
-  })]);
-  assert.ok(r.text.includes("Shipped"));
-  assert.ok(r.html.includes("https://myorders.co/tracking/82735098/"), "tracking URL preserved");
-  assert.ok(r.html.includes('rel="noopener noreferrer"'), "existing link safety preserved");
+test("tracking: an https link opens safely; an http or script link is never linked; carrier and number show as text without a link", async () => {
+  const r = await H.render({ history: history(["merchShipped", "boxShipped"]) });
+  const link = r.rowWith("Logo mug").querySelector('[data-testid="order-track"]');
+  assert.equal(link.getAttribute("href"), "https://www.ups.com/track?tracknum=1Z999AA10123456784");
+  assert.equal(link.getAttribute("rel"), "noopener noreferrer");
+  assert.equal(link.getAttribute("target"), "_blank");
+  assert.equal(r.rowWith("Coffee Lover").querySelector('[data-testid="order-track"]'), null);
+  assert.equal(r.rowWith("Coffee Lover").querySelector('[data-testid="order-carrier"]').textContent, "FedEx 794600000000");
   await r.unmount();
+  const bad = await H.render({ history: hist([row({ status: { kind: "shipped", label: "Shipped" }, tracking: { available: true, carrier: "X", trackingNumber: "1", trackingUrl: "javascript:alert(1)" } }), row({ orderRef: "ord_0000000000000997", itemSummary: "Plain http", status: { kind: "shipped", label: "Shipped" }, tracking: { available: true, carrier: "Y", trackingNumber: "2", trackingUrl: "http://t.example/2" } })]) });
+  assert.equal(bad.all("order-track").length, 0);
+  assert.ok(!bad.html().includes("javascript:"));
+  await bad.unmount();
 });
 
-test("an order without tracking renders without error", async () => {
-  const r = await renderWith([ORDER({ packages: [] })]);
-  assert.ok(r.text.includes("Payment received"));
-  await r.unmount();
+test("legacy fallback keeps the existing tracking display: the first package link, safe rel", async () => {
+  const l = await H.render({ history: "fail", merch: { ok: true, orders: [LEGACY_MERCH({ statusKind: "shipped", statusLabel: "Shipped", shippedAt: "2026-08-20T00:00:00.000Z", packages: [{ carrier: "DHLGLOBALMAIL", trackingNumber: "TRK123", trackingUrl: "https://myorders.co/tracking/82735098/", shippedAt: "2026-08-20T00:00:00.000Z" }] })] } });
+  assert.ok(l.text().includes("Shipped"));
+  assert.ok(l.html().includes("https://myorders.co/tracking/82735098/"));
+  assert.ok(l.html().includes('rel="noopener noreferrer"'));
+  assert.ok(l.text().includes("Track with DHLGLOBALMAIL"));
+  await l.unmount();
 });
 
-// ── Item summary and totals still render (no regression) ────────────────────
-test("existing order details still render alongside the new labels", async () => {
-  const r = await renderWith([ORDER({ statusLabel: "Approved — production scheduled" })]);
-  assert.ok(r.text.includes("White glossy mug"), "item summary preserved");
-  assert.ok(r.text.includes("44.99"), "total preserved");
+test("'Delivered' appears only for a row with proof (kind delivered), whatever the label says elsewhere", async () => {
+  const r = await H.render({ history: history(["boxDelivered", "boxShipped", "merchShipped", "flowers"]) });
+  const delivered = r.rows().filter((x) => /Delivered/.test(x.querySelector('[data-testid="order-status"]').textContent));
+  assert.equal(delivered.length, 1);
+  assert.equal(delivered[0].getAttribute("data-kind"), "delivered");
+  await r.unmount();
+  // a label that CLAIMS delivery under another kind is not trusted
+  const liar = await H.render({ history: hist([row({ status: { kind: "processing", label: "Delivered to your door" } })]) });
+  assert.ok(!/Delivered/.test(liar.tid("order-status").textContent));
+  await liar.unmount();
+});
+
+test("existing order details still render: item summary and total", async () => {
+  const r = await H.render({ history: hist([row({ itemSummary: "White glossy mug — 15 oz", amountCents: 4499, status: { kind: "processing", label: "Approved — production scheduled" } })]) });
+  assert.ok(r.text().includes("White glossy mug"));
+  assert.ok(r.text().includes("44.99"));
   await r.unmount();
 });

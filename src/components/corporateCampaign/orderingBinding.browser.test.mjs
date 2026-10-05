@@ -16,8 +16,11 @@ import esbuild from "esbuild";
 import { isOrderVersion } from "../../api/corporateCampaigns.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLE = join(__dirname, ".__bind.bundle.mjs");
-const ENTRY = join(__dirname, ".__bind.entry.jsx");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const BUNDLE = join(__dirname, `.__bind.${process.pid}.bundle.mjs`);
+const ENTRY = join(__dirname, `.__bind.${process.pid}.entry.jsx`);
 let React, createRoot, act, Surface, window;
 
 before(async () => {
@@ -33,7 +36,7 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   window = dom.window;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ } globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.KeyboardEvent = window.KeyboardEvent;
   globalThis.getComputedStyle = window.getComputedStyle;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -136,7 +139,7 @@ test("2/3: a MISSING list version disables ordering and issues zero writes", asy
   assert.equal(handles().length, 0);
   assert.equal(h.reorders.length, 0);
   // Everything else on the surface remains usable.
-  assert.ok(tid("card-expand-cmp_1"), "expansion still offered");
+  assert.ok(tid("card-open-cmp_1"), "the open-campaign control (successor of the PR#22 expander) is still offered");
   assert.ok(tid("card-rename-cmp_1"), "rename still offered");
   assert.ok(tid("card-toggle-cmp_1"), "the enable switch still offered");
   assert.ok(tid("campaign-viewport"), "the campaign list still renders");
@@ -247,7 +250,7 @@ test("15: a 404 marks ordering unavailable, restores authority and does not retr
   assert.deepEqual(ids(), ["cmp_1", "cmp_2", "cmp_3", "cmp_4"], "authoritative order restored");
   assert.match(tid("reorder-live").textContent, /isn.t available yet/i, "calm, not alarming");
   // Everything else still works.
-  assert.ok(tid("card-expand-cmp_1"));
+  assert.ok(tid("card-open-cmp_1"), "the open-campaign control is still offered");
   assert.ok(tid("card-toggle-cmp_1"));
 });
 

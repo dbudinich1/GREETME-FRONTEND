@@ -73,7 +73,6 @@ export default function DashboardHome() {
   const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
   const [showG1G1Modal, setShowG1G1Modal] = useState(false);
   const [sentGreetings, setSentGreetings] = useState([]);
-  const [qrCashGifts, setQrCashGifts] = useState([]);
   const [rewardsBalance, setRewardsBalance] = useState(0);
   const [viewMode, setViewMode] = useState('recipients'); // 'recipients' or 'occasions'
   const [isNarrow, setIsNarrow] = useState(window.innerWidth <= 768);
@@ -165,11 +164,9 @@ export default function DashboardHome() {
 
       // Sent greetings now loaded from API in fetchDashboardData()
 
-      // Load QR Cash gifts
-      const savedQrCash = safeGet('greetme_qrcash_gifts');
-      if (savedQrCash) {
-        setQrCashGifts(JSON.parse(savedQrCash));
-      }
+      // QR Cash gifts: the legacy browser-local list was removed. Its only writers were the retired
+      // QRCashGiftModal simulation and the localStorage redeem page (W44), so it can only hold
+      // simulated gifts. The history below is the server's sent-greetings list.
     } catch (error) {
       console.error('Error loading persisted media:', error);
     }
@@ -2083,12 +2080,12 @@ export default function DashboardHome() {
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.25rem'
-            }}>Download Greet-Me™ Mobile App</h3>
+            }}>Add Greet-Me™ to Your Home Screen</h3>
             <p style={{
               fontSize: '0.8125rem',
               color: 'var(--text-secondary)',
               margin: 0
-            }}>Send Greet-Me messages on the go - scan QR code to download</p>
+            }}>Scan the QR code to open the install page. No app store needed.</p>
           </div>
         </div>
         <div style={{
@@ -2115,7 +2112,7 @@ export default function DashboardHome() {
             e.currentTarget.style.boxShadow = 'none';
           },
         })}
-        title="Scan to install Greet-Me mobile app"
+        title="Scan to open the Greet-Me home-screen install page"
         >
           {appQrUrl
             ? <img src={appQrUrl} alt="Scan to install Greet-Me" style={{ width: '70%', height: '70%' }} />
@@ -2184,26 +2181,8 @@ export default function DashboardHome() {
         {/* Table Rows — outer card handles scroll; sticky header keeps columns visible */}
         <div>
           {(() => {
-            // Combine sent greetings and QR Cash gifts
-            const allItems = [
-              ...sentGreetings.map(g => ({
-                ...g,
-                type: 'greeting',
-                qrCash: qrCashGifts.find(qr => qr.recipientEmail === g.recipientEmail || qr.recipientName === g.recipient)
-              })),
-              ...qrCashGifts.filter(qr => !sentGreetings.some(g => g.recipientEmail === qr.recipientEmail || g.recipient === qr.recipientName))
-                .map(qr => ({
-                  id: qr.id,
-                  recipient: qr.recipientName,
-                  relationship: 'QR Cash Gift',
-                  icons: ['💵'],
-                  occasions: ['QR Cash'],
-                  date: new Date(qr.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                  sent: true,
-                  type: 'qrcash',
-                  qrCash: qr
-                }))
-            ];
+            // Server-backed sent greetings only (no browser-local QR Cash list).
+            const allItems = sentGreetings.map(g => ({ ...g, type: 'greeting' }));
 
             if (allItems.length === 0) {
               return (

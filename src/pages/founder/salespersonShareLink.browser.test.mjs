@@ -20,8 +20,11 @@ import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLE = join(__dirname, ".__link.bundle.mjs");
-const ENTRY = join(__dirname, ".__link.entry.jsx");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const BUNDLE = join(__dirname, `.__link.${process.pid}.bundle.mjs`);
+const ENTRY = join(__dirname, `.__link.${process.pid}.entry.jsx`);
 let React, createRoot, act, Page, window;
 
 const ORIGIN = "https://greet-me.com";
@@ -39,7 +42,7 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   window = dom.window;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ } globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.getComputedStyle = window.getComputedStyle;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   React = (await import("react")).default;
@@ -136,21 +139,21 @@ test("no slug means no link block at all", async () => {
 // ══ copy ════════════════════════════════════════════════════════════════════════════════════
 test("Copy link writes the EXACT displayed URL", async () => {
   let copied = null;
-  globalThis.navigator = { clipboard: { writeText: async (t) => { copied = t; } } };
+  Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText: async (t) => { copied = t; } } }, configurable: true, writable: true });
   await open(api());
   await click(tid("fcc-copy-share"));
   assert.equal(copied, "https://greet-me.com/rudy", "byte-for-byte what is on screen");
   assert.equal(tid("fcc-copy-share").textContent, "Copied");
-  globalThis.navigator = window.navigator;
+  Object.defineProperty(globalThis, "navigator", { value: window.navigator, configurable: true, writable: true });
 });
 
 test("a denied clipboard leaves the URL visible and says so", async () => {
-  globalThis.navigator = { clipboard: { writeText: async () => { throw new Error("denied"); } } };
+  Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText: async () => { throw new Error("denied"); } } }, configurable: true, writable: true });
   await open(api());
   await click(tid("fcc-copy-share"));
   assert.equal(tid("fcc-public-link").textContent, "https://greet-me.com/rudy", "still selectable on screen");
   assert.match(tid("fcc-message").textContent, /select the link above/i);
-  globalThis.navigator = window.navigator;
+  Object.defineProperty(globalThis, "navigator", { value: window.navigator, configurable: true, writable: true });
 });
 
 // ══ server is the only source of truth ══════════════════════════════════════════════════════

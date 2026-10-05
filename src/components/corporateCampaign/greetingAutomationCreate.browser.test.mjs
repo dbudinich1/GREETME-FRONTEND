@@ -17,25 +17,28 @@ import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLE = join(__dirname, ".__gac_create.bundle.mjs");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const BUNDLE = join(__dirname, `.__gac_create.${process.pid}.bundle.mjs`);
 let React, createRoot, Surface, act, window;
 
 before(async () => {
-  writeFileSync(join(__dirname, ".__gacc.jsx"), `export { default as Surface } from "./GreetingAutomationCampaigns.jsx";\n`);
+  writeFileSync(join(__dirname, `.__gacc.${process.pid}.jsx`), `export { default as Surface } from "./GreetingAutomationCampaigns.jsx";\n`);
   await esbuild.build({
-    entryPoints: [join(__dirname, ".__gacc.jsx")],
+    entryPoints: [join(__dirname, `.__gacc.${process.pid}.jsx`)],
     outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
     jsx: "automatic", jsxImportSource: "react",
     external: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"],
     define: { "import.meta.env": "{}", "process.env.NODE_ENV": '"production"' },
     logLevel: "silent",
   });
-  rmSync(join(__dirname, ".__gacc.jsx"), { force: true });
+  rmSync(join(__dirname, `.__gacc.${process.pid}.jsx`), { force: true });
 
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   window = dom.window;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ } globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.getComputedStyle = window.getComputedStyle;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -44,7 +47,7 @@ before(async () => {
   ({ createRoot } = await import("react-dom/client"));
   ({ Surface } = await import(pathToFileURL(BUNDLE).href));
 });
-after(() => { try { rmSync(BUNDLE, { force: true }); rmSync(BUNDLE.replace(/\.mjs$/, ".css"), { force: true }); rmSync(join(__dirname, ".__gacc.jsx"), { force: true }); } catch { /* ignore */ } });
+after(() => { try { rmSync(BUNDLE, { force: true }); rmSync(BUNDLE.replace(/\.mjs$/, ".css"), { force: true }); rmSync(join(__dirname, `.__gacc.${process.pid}.jsx`), { force: true }); } catch { /* ignore */ } });
 
 const flush = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 0)); }); };
 const tid = (t) => document.querySelector(`[data-testid="${t}"]`);
@@ -157,6 +160,9 @@ test("entering a name enables submit; create posts { name } (NOT empty {}), relo
   assert.equal(tid("create-submit").disabled, false, "submit enabled once named");
   const listBefore = c.calls.listCampaigns;
   await submitForm();
+  assert.equal(c.calls.createCampaign.length, 0, "W32: Create only opens the details dialog; nothing is sent yet");
+  assert.ok(tid("create-dialog"), "the details dialog is open");
+  await click(tid("create-confirm"));
   assert.equal(c.calls.createCampaign.length, 1, "exactly one create");
   assert.deepEqual(c.calls.createCampaign[0].body, { name: "Q4 Client Appreciation" }, "posts name only, no empty {}, no type");
   assert.ok(tid("create-form"), "the row stays visible after success — it is permanent, not a step");
@@ -167,8 +173,11 @@ test("entering a name enables submit; create posts { name } (NOT empty {}), relo
 test("optional type is included when provided", async () => {
   const c = fakeClient({ campaigns: [] });
   await mount({ client: c });
-  await act(async () => { setValue(tid("create-name"), "Winter Cards"); setValue(tid("create-type"), "Holiday"); }); await flush();
+  await act(async () => { setValue(tid("create-name"), "Winter Cards"); }); await flush();
+  assert.equal(tid("create-type"), null, "W32: Type is no longer in the persistent row");
   await submitForm();
+  await act(async () => { setValue(tid("create-type"), "Holiday"); }); await flush();
+  await click(tid("create-confirm"));
   assert.deepEqual(c.calls.createCampaign[0].body, { name: "Winter Cards", campaignType: "Holiday" });
 });
 
@@ -192,13 +201,48 @@ test("a failed create shows a useful, visible error and does not clear the enter
   await mount({ client: c });
   await act(async () => { setValue(tid("create-name"), "Duplicate Name"); }); await flush();
   await submitForm();
+  await act(async () => { setValue(tid("create-type"), "Holiday"); }); await flush();
+  await click(tid("create-confirm"));
   const error = tid("create-error");
   assert.ok(error, "an error is shown, not a silent failure");
   assert.match(error.textContent, /A campaign named that already exists\./);
   assert.equal(tid("create-name").value, "Duplicate Name", "the entered name is preserved so the reader can correct it, not lost");
+  assert.ok(tid("create-dialog"), "the dialog stays open on failure");
+  assert.equal(tid("create-type").value, "Holiday", "and so does the type");
+  assert.equal(tid("create-confirm").disabled, false, "retry is possible");
 });
 
-test("existing campaign shows its type and expands INLINE (no detail navigation)", async () => {
+test("W32: two confirms in the same tick send ONE create (duplicate-submit guard)", async () => {
+  const c = fakeClient({ campaigns: [] });
+  let release;
+  c.createCampaign = (orgId, body) => { c.calls.createCampaign.push({ orgId, body }); return new Promise((r) => { release = () => r({ ok: true, data: {} }); }); };
+  await mount({ client: c });
+  await act(async () => { setValue(tid("create-name"), "Once Only"); }); await flush();
+  await submitForm();
+  await act(async () => {
+    const b = tid("create-confirm");
+    b.dispatchEvent(new window.Event("click", { bubbles: true }));
+    b.dispatchEvent(new window.Event("click", { bubbles: true }));
+  });
+  assert.equal(c.calls.createCampaign.length, 1, "one request despite two clicks");
+  assert.equal(tid("create-confirm").disabled, true, "disabled while the request is out");
+  await act(async () => { release(); }); await flush();
+  assert.equal(tid("create-dialog"), null, "dialog closes on success");
+  assert.equal(tid("create-name").value, "", "name clears on success only");
+});
+
+test("W32: Cancel closes the dialog, sends nothing and keeps the name", async () => {
+  const c = fakeClient({ campaigns: [] });
+  await mount({ client: c });
+  await act(async () => { setValue(tid("create-name"), "Keep Me"); }); await flush();
+  await submitForm();
+  await click(tid("create-cancel"));
+  assert.equal(tid("create-dialog"), null);
+  assert.equal(c.calls.createCampaign.length, 0);
+  assert.equal(tid("create-name").value, "Keep Me");
+});
+
+test("existing campaign: heading not link; Open campaign opens the campaign IN PLACE (modal, no detail navigation) with its three selectors", async () => {
   // SLICE F1 - the title is a heading now, not a link. A campaign is configured on its own tile,
   // so routing to CampaignDetail to read the same facts was the secondary-screen sequence this
   // redesign removes. Expansion happens in place instead.
@@ -212,12 +256,20 @@ test("existing campaign shows its type and expands INLINE (no detail navigation)
   const title = tid("card-title-camp_1");
   assert.equal(title.tagName, "H3", "a heading, not a link");
   assert.equal(title.querySelector("a, button"), null, "nothing inside it navigates");
-  const expand = tid("card-expand-camp_1");
+  // PR#22 (founder-approved): the inline accordion became a compact row + pop-out dialog. The
+  // invariant is unchanged - the campaign opens IN PLACE on this surface and never routes to a
+  // detail screen - so the proof is: the open control toggles aria-expanded, the dialog shows the
+  // three selectors (audience, gift, spread), and no navigation/read-detail call happens.
+  const hashBefore = window.location.hash;
+  const expand = tid("card-open-camp_1");
   assert.equal(expand.getAttribute("aria-expanded"), "false");
+  assert.equal(document.querySelector('[role="dialog"]'), null, "closed: no dialog yet");
   await click(expand);
-  assert.equal(tid("card-expand-camp_1").getAttribute("aria-expanded"), "true", "it expands in place");
-  assert.ok(tid("card-selectors-camp_1"), "the three selectors appear inline");
+  assert.equal(tid("card-open-camp_1").getAttribute("aria-expanded"), "true", "it opens in place");
+  assert.ok(document.querySelector('[role="dialog"]'), "the campaign dialog is open on this surface");
+  for (const sel of ["audience", "gift", "spread"]) assert.ok(tid(`selector-${sel}-camp_1`), `the ${sel} selector is part of the opened campaign`);
   assert.equal(c.calls.readCampaign.length, 0, "and nothing navigated away");
+  assert.equal(window.location.hash, hashBefore, "the route did not change");
 });
 
 
@@ -274,10 +326,17 @@ test("F1C-ADD: the disclosure is NOT inside campaign tiles - two campaigns, stil
   await mount({ client: ownerClient({ campaigns: [GIFT_CAMPAIGN, PLAIN_CAMPAIGN] }) });
   assert.equal(notes().length, 1, "two tiles do not produce two notes");
   for (const cid of ["c1", "c2"]) {
-    const anchor = document.querySelector(`[data-testid="card-expand-${cid}"]`);
+    const anchor = document.querySelector(`[data-testid="card-open-${cid}"]`);
     assert.ok(anchor, `tile ${cid} rendered`);
-    const card = anchor.closest("article, .gcd-tile, li, div");
+    const card = anchor.closest("article");
     assert.equal(card.querySelector('[data-testid="gift-payment-note"]'), null, `no note inside tile ${cid}`);
+    // Stronger than the accordion-era check: it is not inside the campaign dialog either.
+    await click(anchor);
+    const dialog = card.querySelector('[role="dialog"]');
+    assert.ok(dialog, `tile ${cid} opens its dialog`);
+    assert.equal(dialog.querySelector('[data-testid="gift-payment-note"]'), null, `no note inside the ${cid} dialog`);
+    assert.equal(notes().length, 1, "still exactly one note while a dialog is open");
+    await click(tid(`card-close-${cid}`));
   }
 });
 
@@ -343,7 +402,7 @@ test("F1C-ADD: the disclosure does not block Save Changes", async () => {
   await mount({ client: c });
   assert.equal(notes().length, 1, "the note is present throughout");
 
-  await click(tid("card-expand-c2"));
+  await click(tid("card-open-c2"));
   const save = tid("act-save-c2");
   assert.ok(save, "Save is offered");
   assert.equal(save.disabled, true, "nothing to save yet");

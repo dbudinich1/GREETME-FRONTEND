@@ -37,17 +37,20 @@ export default function PreSendReviewModal({
   curatedAttachment,          // { maxSpendCents } | null
   marketplaceAttachments,     // Array<{ id, name, price, partner }> | null
   flowersAttachment,          // { providerProductId, name, priceMinor, currency } | null
+  giftBoxAttachment = null,   // same shape as flowersAttachment, for a gift box | null
   sending,
   onConfirmDirectSend,
   onConfirmQRCashFresh,
   onMarketplaceCheckout,      // A2.4: active handler (replaces A2.3 onMarketplaceBlocked stub)
   onConfirmFlowersCheckout,   // provider checkout as an embedded step of THIS send
+  onConfirmGiftBoxCheckout,   // Greet-Me's own gift box checkout, as an embedded step of THIS send
   onRemoveAttachment,
 }) {
   if (!isOpen) return null;
 
   const hasMarketplaceItems = Array.isArray(marketplaceAttachments) && marketplaceAttachments.length > 0;
   const hasFlower = Boolean(flowersAttachment?.providerProductId);
+  const hasGiftBox = Boolean(giftBoxAttachment?.providerProductId);
 
   // Primary CTA configuration — derived from giftMode + attachment kind.
   // Each path routes to an existing terminal handler in SendGreeting.jsx.
@@ -89,6 +92,18 @@ export default function PreSendReviewModal({
         note: hasFlower
           ? 'Your Greet-Me sends by itself as soon as your gift payment is confirmed.'
           : 'Choose an arrangement below, or return to the greeting to change the gift type.',
+      };
+    }
+    if (giftMode === 'gift_boxes') {
+      // The flowers rule: payment is the next STEP of the send, never a direct send without it.
+      return {
+        label: 'Continue',
+        onClick: onConfirmGiftBoxCheckout,
+        disabled: !hasGiftBox || !!sending,
+        icon: 'payment',
+        note: hasGiftBox
+          ? 'Your Greet-Me sends by itself as soon as your gift box order is confirmed.'
+          : 'Choose a gift box, or return to the greeting to change the gift type.',
       };
     }
     return { label: 'Send Now', onClick: onConfirmDirectSend, disabled: !!sending, icon: 'send' };
@@ -194,7 +209,10 @@ export default function PreSendReviewModal({
             color: '#6b7280',
           }}>
             <Calendar size={14} />
-            {occasionLabel || 'Just Because'}
+            <span data-testid="review-occasion">{occasionLabel || 'Just Because'}</span>
+            {/* W04: occasion and cadence are separate facts. This review is only ever for the
+                immediate one-time composer, so say so; it must never read as scheduled or recurring. */}
+            <span data-testid="review-cadence"> &middot; One-time send</span>
           </div>
         </div>
 
@@ -364,6 +382,40 @@ export default function PreSendReviewModal({
                 ) : (
                   <p data-testid="review-flowers-none" style={{ fontSize: '0.8125rem', color: '#9d174d', margin: 0 }}>
                     No arrangement chosen yet.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Gift box attachment — the flower block's shape. The list price is labelled as such:
+                the exact total (shipping and tax) is quoted at the payment step. */}
+            {giftMode === 'gift_boxes' && (
+              <div data-testid="review-gift-box" style={{
+                padding: '1rem 1.125rem',
+                background: '#f5f3ff',
+                border: '1px solid #ddd6fe',
+                borderRadius: '0.625rem',
+              }}>
+                {hasGiftBox ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#5b21b6' }}>
+                        {giftBoxAttachment.name}
+                      </span>
+                      {typeof giftBoxAttachment.priceMinor === 'number' && (
+                        <span data-testid="review-gift-box-price" style={{ fontSize: '0.875rem', fontWeight: 500, color: '#6d28d9', whiteSpace: 'nowrap' }}>
+                          {formatPrice(giftBoxAttachment.priceMinor)}
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: '#6d28d9', margin: '0.5rem 0 0', lineHeight: 1.5 }}>
+                      Gift box price. Shipping and tax are added at the payment step, and you approve the
+                      total there before anything is charged.
+                    </p>
+                  </>
+                ) : (
+                  <p data-testid="review-gift-box-none" style={{ fontSize: '0.8125rem', color: '#5b21b6', margin: 0 }}>
+                    No gift box chosen yet.
                   </p>
                 )}
               </div>

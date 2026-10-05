@@ -1,6 +1,20 @@
 // src/components/GiftSelectorModal.jsx
 import Modal from './Modal';
 import { DollarSign } from 'lucide-react';
+import {
+  validateQrCashDollars, qrCashQuote, centsToDollarString, QR_CASH_MIN_DOLLARS, QR_CASH_MAX_DOLLARS,
+} from '../utils/qrCashAmount';
+import { SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY } from '../config/scheduledQrCash';
+
+// The QR Cash amount a gift setting currently stands for, validated against the server's limits
+// ($5 to $100 whole dollars). Presets are always valid; Custom must be typed.
+function qrCashAmountCheck(giftSetting) {
+  if (giftSetting.amount === 0) {
+    const typed = Number.isFinite(giftSetting.customAmount) ? giftSetting.customAmount : (giftSetting.customAmount || '');
+    return validateQrCashDollars(typed);
+  }
+  return { ok: true, dollars: giftSetting.amount || 25 };
+}
 
 // The gift types a sender may attach. Every entry here mints a claim token and
 // resolves at /gift/:claimToken — that is the entry requirement, not a
@@ -41,6 +55,12 @@ export default function GiftSelectorModal({
   const getGiftSetting = (occasionValue) => {
     return occasionGiftSettings?.[occasionValue] || { type: 'none', autoGift: false };
   };
+
+  // A QR Cash amount the server would refuse ($5 to $100 whole dollars) cannot be carried forward.
+  const anyQrCashAmountInvalid = (occasions || []).some((occ) => {
+    const gs = getGiftSetting(occ.type);
+    return gs.type === 'qrcash' && !qrCashAmountCheck(gs).ok;
+  });
 
 
   return (
@@ -232,7 +252,7 @@ export default function GiftSelectorModal({
                             <span style={{ color: '#92400e', fontWeight: 500 }}>$</span>
                             <input
                               type="number"
-                              min="1"
+                              min={QR_CASH_MIN_DOLLARS} max={QR_CASH_MAX_DOLLARS} step="1" aria-invalid={!qrCashAmountCheck(giftSetting).ok}
                               placeholder="Amount"
                               value={giftSetting.customAmount || ''}
                               onChange={(e) => onGiftChange(occ.type, 'customAmount', parseInt(e.target.value))}
@@ -250,16 +270,29 @@ export default function GiftSelectorModal({
                         )}
                       </div>
 
-                      {/* Fee Preview (display-only) */}
+                      {giftSetting.amount === 0 && (
+                        <p style={{ fontSize: '0.75rem', color: '#92400e', margin: '0.5rem 0 0' }}>
+                          {`Whole dollars from $${QR_CASH_MIN_DOLLARS} to $${QR_CASH_MAX_DOLLARS}.`}
+                        </p>
+                      )}
+
+                      {/* Amount check, fee, total and timing (display-only; the server stays authoritative) */}
                       {(() => {
-                        const amt = giftSetting.amount === 0
-                          ? (giftSetting.customAmount || 0)
-                          : (giftSetting.amount || 25);
-                        if (!amt || amt < 5) return null;
-                        const feeCents = 199 + Math.round(amt * 100 * 0.03);
-                        const totalCents = amt * 100 + feeCents;
+                        const check = qrCashAmountCheck(giftSetting);
+                        if (!check.ok) {
+                          return (
+                            <p
+                              data-testid="qrcash-amount-error"
+                              role={check.reason === 'empty' ? undefined : 'alert'}
+                              style={{ fontSize: '0.8125rem', color: check.reason === 'empty' ? '#92400e' : '#b91c1c', margin: '0.5rem 0 0' }}
+                            >
+                              {check.message}
+                            </p>
+                          );
+                        }
+                        const { feeCents, totalCents } = qrCashQuote(check.dollars);
                         return (
-                          <div style={{
+                          <div data-testid="qrcash-fee-preview" style={{
                             marginTop: '0.75rem',
                             padding: '0.625rem 0.75rem',
                             background: 'rgba(255, 255, 255, 0.7)',
@@ -269,13 +302,18 @@ export default function GiftSelectorModal({
                             lineHeight: 1.5,
                           }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span>Processing fee</span>
-                              <span>${(feeCents / 100).toFixed(2)}</span>
+                              <span>Processing fee ($1.99 + 3%)</span>
+                              <span data-testid="qrcash-fee">{centsToDollarString(feeCents)}</span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, marginTop: '0.25rem' }}>
                               <span>Total charge</span>
-                              <span>${(totalCents / 100).toFixed(2)}</span>
+                              <span data-testid="qrcash-total">{centsToDollarString(totalCents)}</span>
                             </div>
+                            {context === 'oneoff' && (
+                              <p data-testid="qrcash-timing" style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', lineHeight: 1.5 }}>
+                                You are charged once, when you confirm on the next step. The recipient has 30 days after delivery to claim it. The fee is shown before any fee-waiver reward.
+                              </p>
+                            )}
                           </div>
                         );
                       })()}
@@ -372,8 +410,13 @@ export default function GiftSelectorModal({
                       QR Cash remains available as a first-class choice above. */}
 
                   {/* Auto-Gift Toggle - Only show in recipient context (not one-off) */}
-                  {context !== 'oneoff' && giftSetting.type !== 'none' && (
-                    <div style={{
+                  {context !== 'oneoff' && giftSetting.type !== 'none' && (() => {
+                    // The "sent automatically" claim is only true for gift types that really auto-send.
+                    // QR Cash has no automatic send until the scheduled charge is live (config/scheduledQrCash.js).
+                    const autoSendClaimApplies = (giftSetting.type !== 'none' && giftSetting.type !== 'qrcash') || SCHEDULED_QRCASH_AVAILABLE;
+                    const autoOn = autoSendClaimApplies && giftSetting.autoGift === true;
+                    return (
+                    <div data-testid="auto-gift-block" style={{
                       marginTop: '1.25rem',
                       paddingTop: '1rem',
                       borderTop: '1px dashed var(--border, #e5e7eb)'
@@ -387,7 +430,8 @@ export default function GiftSelectorModal({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                           <input
                             type="checkbox"
-                            checked={giftSetting.autoGift === true}
+                            checked={autoOn}
+                            disabled={!autoSendClaimApplies}
                             onChange={(e) => onGiftChange(occ.type, 'autoGift', e.target.checked)}
                             style={{
                               width: '1.125rem',
@@ -409,28 +453,29 @@ export default function GiftSelectorModal({
                           fontWeight: 600,
                           padding: '0.3125rem 0.625rem',
                           borderRadius: '9999px',
-                          background: giftSetting.autoGift
+                          background: autoOn
                             ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(102, 126, 234, 0.1) 100%)'
                             : 'rgba(107, 114, 128, 0.1)',
-                          color: giftSetting.autoGift ? '#667eea' : 'var(--text-tertiary, #9ca3af)',
+                          color: autoOn ? '#667eea' : 'var(--text-tertiary, #9ca3af)',
                           textTransform: 'uppercase',
                           letterSpacing: '0.03em'
                         }}>
-                          {giftSetting.autoGift ? 'Auto' : 'Manual'}
+                          {autoOn ? 'Auto' : 'Manual'}
                         </span>
                       </label>
-                      <p style={{
+                      <p data-testid="auto-gift-copy" style={{
                         fontSize: '0.8125rem',
                         color: 'var(--text-tertiary, #9ca3af)',
                         margin: '0.625rem 0 0 1.75rem',
                         lineHeight: 1.4
                       }}>
-                        {giftSetting.autoGift
+                        {!autoSendClaimApplies ? SCHEDULED_QRCASH_UNAVAILABLE_COPY : giftSetting.autoGift
                           ? 'Gift will be sent automatically on the occasion date.'
                           : 'You\'ll receive a reminder 10 days before to confirm.'}
                       </p>
                     </div>
-                  )}
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -466,9 +511,12 @@ export default function GiftSelectorModal({
           </button>
           <button
             type="button"
+            data-testid="gift-selector-continue"
             onClick={onClose}
+            disabled={anyQrCashAmountInvalid}
             className="btn-primary"
             style={{
+              opacity: anyQrCashAmountInvalid ? 0.5 : 1,
               padding: '0.75rem 1.5rem',
               background: 'linear-gradient(135deg, #667eea 0%, #5a67d8 100%)',
               color: 'white',
@@ -476,7 +524,7 @@ export default function GiftSelectorModal({
               borderRadius: '0.5rem',
               fontSize: '0.9375rem',
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: anyQrCashAmountInvalid ? 'not-allowed' : 'pointer',
               transition: 'all 0.15s ease',
               fontFamily: 'inherit',
               boxShadow: '0 2px 4px rgba(102, 126, 234, 0.25)'

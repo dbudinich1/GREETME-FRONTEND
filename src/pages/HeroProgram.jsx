@@ -12,6 +12,7 @@ import { Heart, ShoppingCart, Check, ArrowRight, Award, Trophy, Clock, Star, Loc
 import cartService from '../services/cartService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ContactSalesModal from '../components/ContactSalesModal';
+import { contactEntryForHeroCard, GIFTED_BUNDLES_INTRO } from '../utils/contactSales';
 import api from '../api/api';
 
 // Display labels for the impact bySource breakdown (the backend supplies labels for
@@ -91,6 +92,8 @@ export default function HeroProgram() {
   // ---- Corporate contact modal — shared ContactSalesModal, opened OVER the Hero page
   // (no navigation; close/submit leaves the user on /dashboard/hero) ----
   const [showContactModal, setShowContactModal] = useState(false);
+  // Which card opened it: sets the request's `source` and `pageContext` (W22) and, for bundles, the interim wording (W21).
+  const [contactCard, setContactCard] = useState(null);
 
   // ---- Hero Hearts purchase modal (retained; cart path unchanged) ----
   const [showHeroHeartsModal, setShowHeroHeartsModal] = useState(false);
@@ -151,7 +154,7 @@ export default function HeroProgram() {
             Greet-Me™ Hero™
           </h1>
           <p style={{ fontSize: '0.9375rem', lineHeight: 1.5, color: '#ffffff', maxWidth: '640px', margin: '0 auto 1rem' }}>
-            Appreciation with a purpose — recognition for the businesses making an impact through Greet-Me.
+            Appreciation with a purpose — participation by the businesses making an impact through Greet-Me.
           </p>
           <button
             onClick={() => setShowHeroHeartsModal(true)}
@@ -186,14 +189,21 @@ export default function HeroProgram() {
               // TEAM 1 — canonical QR Cash entry contract: the real composer flow, not the
               // localStorage-only QRCashGiftModal simulation this used to open.
               onOpenQRCash={() => navigate('/dashboard/send?giftType=qrcash')}
-              onOpenContact={() => setShowContactModal(true)}
+              onOpenContact={(card) => { setContactCard(card || null); setShowContactModal(true); }}
             />
-            <LeaderboardSection />
-            <StatusSection status={data.status} />
+            {/* W20 / W23 — the LOWER recognition & ranking area (Community Leaderboard, Hero Status,
+                Recognition badges) is DORMANT until a verified corporate-only contract exists:
+                individuals must never be ranked or badged. When dormant, none of these sections
+                mounts, so GET /api/hero/leaderboard is not even requested. The upper participation
+                area (Ways to Participate) and the participation activity/impact sections stay live. */}
+            {HERO_RECOGNITION_RANKING_LIVE && <LeaderboardSection />}
+            {HERO_RECOGNITION_RANKING_LIVE && <StatusSection status={data.status} />}
             <ActivitySection items={data.recentActivity} />
             <HistorySection items={data.history} />
             <ImpactSection impact={data.impact} />
-            <RecognitionSection recognition={data.recognition} />
+            {HERO_RECOGNITION_RANKING_LIVE
+              ? <RecognitionSection recognition={data.recognition} />
+              : <RecognitionDormantNotice />}
           </>
         )}
       </div>
@@ -218,10 +228,30 @@ export default function HeroProgram() {
       <ContactSalesModal
         isOpen={showContactModal}
         onClose={() => setShowContactModal(false)}
-        title="Contact Sales"
-        subtitle="Tell us about your corporate Greet-Me Hero participation"
+        title={contactCard?.key === 'gifted_bundles' ? 'Gifted Subscription Bundles' : 'Contact Sales'}
+        subtitle={contactCard?.key === 'gifted_bundles' ? 'Tell us who you would like to gift' : 'Tell us about your corporate Greet-Me Hero participation'}
+        intro={contactCard?.key === 'gifted_bundles' ? GIFTED_BUNDLES_INTRO : null}
+        {...contactEntryForHeroCard(contactCard)}
       />
     </div>
+  );
+}
+
+// W20 / W23 — settled founder decision: the upper Hero participation area is live; the lower
+// recognition/ranking area stays dormant (no Hero Status badge, no leaderboard, no recognition
+// badges) until a verified corporate-only contract exists. Flip ONLY with that contract.
+const HERO_RECOGNITION_RANKING_LIVE = false;
+
+function RecognitionDormantNotice() {
+  return (
+    <section style={{ marginBottom: '0.5rem' }} data-testid="hero-recognition-dormant">
+      <h2 style={sectionTitle}>Hero Status &amp; Recognition</h2>
+      <div style={{ ...card, padding: '1.25rem' }}>
+        <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', margin: 0 }}>
+          Hero Status, recognition, and the community leaderboard are not live yet. Your participation above is live and counts toward the Hero mission.
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -558,7 +588,7 @@ const PARTICIPATION_GROUPS = [
         desc: 'Pre-purchase animation credits for birthdays, holidays, celebrations, appreciation, and everyday Greet-Me moments.',
         chip: 'available', cta: { kind: 'link', to: '/dashboard/animations', label: 'Purchase Packs' } },
       { key: 'marketplace', title: 'Greet-Me Gifts & Marketplace', icon: ShoppingBag,
-        desc: 'Send curated gifts and branded merch through Greet-Me.',
+        desc: 'Send curated gifts and Branded Goods through Greet-Me.',
         chip: 'available', cta: { kind: 'link', to: '/dashboard/gifts', label: 'Browse' } },
     ],
   },
@@ -603,11 +633,11 @@ const CHIP_STYLE = {
 };
 
 function WaysToParticipateSection({ navigate, onOpenHeroHearts, onOpenQRCash, onOpenContact }) {
-  const onCta = (cta) => {
+  const onCta = (cta, item) => {
     if (!cta) return;
     if (cta.kind === 'modal') return onOpenHeroHearts();
     if (cta.kind === 'qrcash') return onOpenQRCash();
-    if (cta.kind === 'contact') return onOpenContact();
+    if (cta.kind === 'contact') return onOpenContact(item);
     if (cta.kind === 'link' || cta.kind === 'learn') return navigate(cta.to);
   };
   return (
@@ -621,6 +651,14 @@ function WaysToParticipateSection({ navigate, onOpenHeroHearts, onOpenQRCash, on
           }}>
             {group.heading}
           </div>
+          {group.heading === 'Corporate & managed programs' && (
+            <p data-testid="hero-for-business-link" style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: '0 0 0.75rem' }}>
+              Running a business?{' '}
+              <button type="button" onClick={() => navigate('/business')} style={{ background: 'none', border: 'none', padding: 0, color: '#667eea', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit', textDecoration: 'underline' }}>
+                See how For Business works with Hero
+              </button>
+            </p>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
             {group.cards.map((c) => <ParticipationCard key={c.key} item={c} onCta={onCta} />)}
           </div>
@@ -660,7 +698,7 @@ function ParticipationCard({ item, onCta }) {
       </div>
       {hasCta && (
         <button
-          onClick={() => onCta(item.cta)}
+          onClick={() => onCta(item.cta, item)}
           style={{
             marginTop: 'auto', alignSelf: 'flex-start', padding: '0.5rem 0.875rem',
             background: ['learn', 'contact'].includes(item.cta.kind) ? 'transparent' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',

@@ -117,7 +117,7 @@ test("a network-level failure on the canonical gift catalog is surfaced as an er
 // ============================================================
 
 test("the Gifted Subscription Bundles card no longer links to /dashboard/gifts", () => {
-  const idx = HERO_SRC.indexOf("gifted_bundles");
+  const idx = HERO_SRC.indexOf("key: 'gifted_bundles'"); // the card definition (the modal wiring also mentions the key)
   assert.ok(idx > -1, "the gifted_bundles card must still exist");
   const card = HERO_SRC.slice(idx, HERO_SRC.indexOf("}", HERO_SRC.indexOf("cta:", idx)) + 1);
   assert.doesNotMatch(card, /\/dashboard\/gifts/, "no dedicated bundle destination exists — it must not fall back to the general marketplace");

@@ -6,12 +6,23 @@ import { Check, CheckCircle, ShoppingCart, X, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import cartService from '../services/cartService';
 import { personalPlans, businessPlans } from '../config/plans';
+import { SUBSCRIPTION_RENEWAL_NOTICE, PLATFORM_FEE_ONE_TIME_NOTICE } from '../utils/subscriptionTerms';
+import { platformFeeFor, formatFeeAmount, isBusinessPlanTier } from '../utils/platformFee';
+import ContactSalesModal from '../components/ContactSalesModal';
+import { PRICING_ENTERPRISE_ENTRY } from '../utils/contactSales';
+import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
+import { useReferralCredit } from '../hooks/useReferralCreditCents';
+import CreditCapNote from '../components/CreditCapNote';
+import { clampCreditDollars } from '../utils/creditCap';
 
 // Plan tiers ineligible for referral credit
 const CREDIT_INELIGIBLE_TIERS = new Set(['close_circle']);
 
 export default function Pricing() {
   const navigate = useNavigate();
+  // One platform fee per account, ever, for both tiers; the amount is the server's (see utils/platformFee.js). Never plan.platformFee.
+  const feeState = usePlatformFeeStatus();
+  const feeFor = (plan) => platformFeeFor(plan, isBusinessPlanTier(plan?.planTier), feeState);
   const location = useLocation();
   const { user } = useAuth();
   const planKey = user?.tier || user?.plan || 'free';
@@ -21,6 +32,10 @@ export default function Pricing() {
 
   // Referral credit from URL or localStorage
   const [referralCode, setReferralCode] = useState(null);
+  // The REAL referral credit as the server issued it ("cap new, honor old"): null until known, never a literal.
+  const { cents: referralCreditCents, capped: referralCreditCapped } = useReferralCredit(referralCode);
+  const referralCreditDollars = referralCreditCents ? referralCreditCents / 100 : 0;
+  const referralCreditLabel = referralCreditCents ? (referralCreditCents % 100 === 0 ? `$${referralCreditCents / 100}` : `$${(referralCreditCents / 100).toFixed(2)}`) : null;
   // TEAM 1 — gift/entitlement safety. Set when the user arrived here FROM the gift-entitlement
   // caution modal (Top Up / Upgrade), via /dashboard/send's own snapshot-before-navigate contract
   // (the same one Browse Media Library / Browse the Gift Place already use). Purely additive: it
@@ -47,14 +62,6 @@ export default function Pricing() {
   }, []);
 
   const [showEnterpriseForm, setShowEnterpriseForm] = useState(false);
-  const [enterpriseFormData, setEnterpriseFormData] = useState({
-    companyName: '',
-    contactName: '',
-    email: '',
-    phone: '',
-    employeeCount: '',
-    message: ''
-  });
   // Pricing Modal State (Cart-based two-state flow)
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -70,20 +77,6 @@ export default function Pricing() {
       handleAddPlanToCart(plan);
       setShowPricingModal(true);
     }
-  };
-
-  const handleEnterpriseSubmit = (e) => {
-    e.preventDefault();
-    alert('Thank you! Our sales team will contact you within 24 hours.');
-    setShowEnterpriseForm(false);
-    setEnterpriseFormData({
-      companyName: '',
-      contactName: '',
-      email: '',
-      phone: '',
-      employeeCount: '',
-      message: ''
-    });
   };
 
   const handleAddPlanToCart = (plan) => {
@@ -633,7 +626,8 @@ export default function Pricing() {
 
                 {/* Platform-fee pricing note (business cards) — subtle support text.
                     Always reserves the row on business so the CTA/divider planes align;
-                    Enterprise (no platformFee) renders an empty fixed-height spacer. */}
+                    Enterprise (no priceId) renders an empty fixed-height spacer. The text follows the server's answer:
+                    amount when it applies, nothing when already paid, "calculated at checkout" when unknown. */}
                 {isBiz && (
                   <div style={{
                     fontSize: '0.6875rem',
@@ -644,12 +638,16 @@ export default function Pricing() {
                     marginBottom: '0.75rem',
                     whiteSpace: 'nowrap'
                   }}>
-                    {plan.platformFee ? `+ $${plan.platformFee} One-Time Platform Fee` : ''}
+                    {plan.priceId ? (() => {
+                      const f = feeFor(plan);
+                      if (f === 0) return '';
+                      return <span data-testid="pricing-card-platform-fee">{f == null ? '+ One-Time Platform Fee, calculated at checkout' : `+ $${f.toFixed(2)} One-Time Platform Fee`}</span>;
+                    })() : ''}
                   </div>
                 )}
 
                 {/* Credit eligibility badge */}
-                {isCreditEligible && (
+                {isCreditEligible && referralCreditLabel && (
                   <div style={{
                     padding: '0.5rem 0.75rem',
                     background: '#ecfdf5',
@@ -660,7 +658,8 @@ export default function Pricing() {
                     color: '#065f46',
                     fontWeight: 600,
                   }}>
-                    $10 credit applies &mdash; pay ${(plan.price - 10).toFixed(2)}/{plan.period}
+                    {referralCreditLabel} credit applies &mdash; pay ${Math.max(0, plan.price - referralCreditDollars).toFixed(2)}/{plan.period}
+                    <CreditCapNote capped={referralCreditCapped} style={{ fontWeight: 400, marginBottom: 0 }} />
                   </div>
                 )}
                 {isCreditIneligible && (
@@ -784,6 +783,11 @@ export default function Pricing() {
           })}
           </div>
 
+          {/* Founder-required subscription terms (2026-10-02), shown with the prices. */}
+          <p data-testid="pricing-subscription-terms" style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', textAlign: 'center', margin: isNarrow ? '1rem 0 0' : '1.5rem 0 0', lineHeight: 1.5 }}>
+            {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE}
+          </p>
+
           {/* Universal Benefits — personal view only, below the grid */}
           {viewMode === 'personal' && (
             <div style={{
@@ -825,200 +829,13 @@ export default function Pricing() {
       {/* End Background Frame */}
 
       {/* Enterprise Contact Form Modal */}
-      {showEnterpriseForm && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '2rem'
-        }}>
-          <div style={{
-            background: 'white',
-            borderRadius: 'var(--radius-xl)',
-            padding: '2rem',
-            maxWidth: '500px',
-            width: '100%',
-            maxHeight: '90vh',
-            overflow: 'auto',
-            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1.5rem'
-            }}>
-              <h2 style={{
-                fontSize: '1.5rem',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                margin: 0
-              }}>Let&apos;s Build Your Appreciation Program</h2>
-              <button
-                onClick={() => setShowEnterpriseForm(false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer',
-                  color: 'var(--text-secondary)'
-                }}
-              >×</button>
-            </div>
-            <p style={{
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)',
-              marginBottom: '1.5rem'
-            }}>
-              Tell us about your business and we'll create a custom enterprise solution for you.
-            </p>
-            <form onSubmit={handleEnterpriseSubmit}>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-                  Company Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={enterpriseFormData.companyName}
-                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, companyName: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-                  Contact Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={enterpriseFormData.contactName}
-                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, contactName: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={enterpriseFormData.email}
-                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, email: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  value={enterpriseFormData.phone}
-                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, phone: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-                  Number of Employees *
-                </label>
-                <select
-                  required
-                  value={enterpriseFormData.employeeCount}
-                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, employeeCount: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontFamily: 'inherit',
-                    background: 'white'
-                  }}
-                >
-                  <option value="">Select...</option>
-                  <option value="51-100">51-100</option>
-                  <option value="101-250">101-250</option>
-                  <option value="251-500">251-500</option>
-                  <option value="501-1000">501-1000</option>
-                  <option value="1000+">1000+</option>
-                </select>
-              </div>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-                  Tell us about your needs
-                </label>
-                <textarea
-                  value={enterpriseFormData.message}
-                  onChange={(e) => setEnterpriseFormData({...enterpriseFormData, message: e.target.value})}
-                  rows={4}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.875rem',
-                    fontFamily: 'inherit',
-                    resize: 'vertical'
-                  }}
-                  placeholder="What features are most important? Any specific integrations needed?"
-                />
-              </div>
-              <button
-                type="submit"
-                style={{
-                  width: '100%',
-                  padding: '0.875rem',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 'var(--radius-lg)',
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit'
-                }}
-              >
-                Submit Request
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Enterprise "Talk With Our Team": the shared, REAL Contact Sales form (source business, context Pricing: Enterprise). */}
+      <ContactSalesModal
+        isOpen={showEnterpriseForm}
+        onClose={() => setShowEnterpriseForm(false)}
+        subtitle="Tell us about your business and we will build a custom enterprise solution with you"
+        {...PRICING_ENTERPRISE_ENTRY}
+      />
 
       {/* Pricing Modal (Cart-based two-state flow) */}
       {showPricingModal && selectedPlan && createPortal(
@@ -1109,6 +926,7 @@ export default function Pricing() {
                     <span style={{ color: 'var(--text-secondary)' }}>{selectedPlan.name}</span>
                     <span style={{ fontWeight: 600 }}>${selectedPlan.price}/{selectedPlan.period}</span>
                   </div>
+                  {feeFor(selectedPlan) !== 0 && (
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -1118,8 +936,9 @@ export default function Pricing() {
                     color: 'var(--text-secondary)'
                   }}>
                     <span>One-Time Platform Fee</span>
-                    <span>${(selectedPlan.platformFee ?? 4.99).toFixed(2)}</span>
+                    <span data-testid="pricing-platform-fee">{formatFeeAmount(feeFor(selectedPlan))}</span>
                   </div>
+                  )}
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -1129,7 +948,7 @@ export default function Pricing() {
                     marginTop: '0.5rem'
                   }}>
                     <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Total</span>
-                    <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--primary)' }}>${(selectedPlan.price + (selectedPlan.platformFee ?? 4.99)).toFixed(2)}</span>
+                    <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--primary)' }}>${(selectedPlan.price + (feeFor(selectedPlan) ?? 0)).toFixed(2)}</span>
                   </div>
                   {pricingMode === 'founders' && (
                     <div style={{
@@ -1220,7 +1039,7 @@ export default function Pricing() {
                   textAlign: 'center',
                   marginTop: '1rem'
                 }}>
-                  Secure checkout powered by Stripe. Cancel anytime.
+                  {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE} Secure checkout powered by Stripe. Cancel anytime.
                 </p>
               </>
             )}
@@ -1278,6 +1097,7 @@ export default function Pricing() {
                     <span style={{ color: 'var(--text-secondary)' }}>{lastAddedPlan.name}</span>
                     <span style={{ fontWeight: 600, color: 'var(--primary)' }}>${lastAddedPlan.price}/{lastAddedPlan.period}</span>
                   </div>
+                  {feeFor(lastAddedPlan) !== 0 && (
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -1286,14 +1106,15 @@ export default function Pricing() {
                     color: 'var(--text-secondary)'
                   }}>
                     <span>One-Time Platform Fee</span>
-                    <span>${(lastAddedPlan.platformFee ?? 4.99).toFixed(2)}</span>
+                    <span data-testid="pricing-added-platform-fee">{formatFeeAmount(feeFor(lastAddedPlan))}</span>
                   </div>
+                  )}
                   {(() => {
                     const cc = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
                     // CREDIT CONTRACT INTEGRITY (2026-09-30, Cart/Pricing display-honesty correction) —
                     // same gate as Checkout.jsx: a stored courtesy amount with no backend-issued
                     // creditCode must never be displayed or subtracted here either.
-                    const creditAmt = referralCode ? 10 : (cc?.creditCode ? (cc?.amount || 0) : 0);
+                    const creditAmt = referralCode ? referralCreditDollars : (cc?.creditCode ? clampCreditDollars(cc?.amount) : 0);
                     const isEligible = !CREDIT_INELIGIBLE_TIERS.has(lastAddedPlan.planTier);
                     const effectiveCredit = isEligible ? creditAmt : 0;
                     return (
@@ -1311,6 +1132,7 @@ export default function Pricing() {
                             <span>&ndash;${effectiveCredit.toFixed(2)}</span>
                           </div>
                         )}
+                        {effectiveCredit > 0 && referralCode && <CreditCapNote capped={referralCreditCapped} />}
                         <div style={{
                           borderTop: '1px solid var(--border)',
                           paddingTop: '0.625rem',
@@ -1320,12 +1142,16 @@ export default function Pricing() {
                           fontSize: '1.0625rem',
                         }}>
                           <span>Total</span>
-                          <span style={{ color: 'var(--primary)' }}>${Math.max(0, lastAddedPlan.price + (lastAddedPlan.platformFee ?? 4.99) - effectiveCredit).toFixed(2)}</span>
+                          <span style={{ color: 'var(--primary)' }}>${Math.max(0, lastAddedPlan.price + (feeFor(lastAddedPlan) ?? 0) - effectiveCredit).toFixed(2)}</span>
                         </div>
                       </>
                     );
                   })()}
                 </div>
+
+                <p data-testid="pricing-added-terms" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5, maxWidth: '340px', margin: '0 auto 1rem' }}>
+                  {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE}
+                </p>
 
                 {/* Action Buttons */}
                 <div style={{

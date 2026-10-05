@@ -16,8 +16,11 @@ import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLE = join(__dirname, ".__ptr.bundle.mjs");
-const ENTRY = join(__dirname, ".__ptr.entry.jsx");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const BUNDLE = join(__dirname, `.__ptr.${process.pid}.bundle.mjs`);
+const ENTRY = join(__dirname, `.__ptr.${process.pid}.entry.jsx`);
 let React, createRoot, act, Surface, window;
 
 const TILE_H = 100;
@@ -36,7 +39,7 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   window = dom.window;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ } globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.MouseEvent = window.MouseEvent;
   globalThis.KeyboardEvent = window.KeyboardEvent;
   globalThis.getComputedStyle = window.getComputedStyle;
@@ -187,7 +190,7 @@ test("5/6: no campaign duplicates and none disappears, across many gestures", as
 test("7: the expanded campaign stays attached to its ID, not its position", async () => {
   const h = harness();
   await mount(h);
-  await act(async () => { tid("card-expand-cmp_1").dispatchEvent(new window.Event("click", { bubbles: true })); });
+  await act(async () => { tid("card-open-cmp_1").dispatchEvent(new window.Event("click", { bubbles: true })); });
   await flush();
   assert.ok(document.querySelector('[data-testid="campaign-card-cmp_1"].gcd-card--expanded'), "cmp_1 expanded");
 

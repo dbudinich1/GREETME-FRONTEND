@@ -29,7 +29,10 @@ import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLE = join(__dirname, ".__f3founder.bundle.mjs");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const BUNDLE = join(__dirname, `.__f3founder.${process.pid}.bundle.mjs`);
 let React, createRoot, act, Founder, window;
 
 const GATE_STUB = `export const isFundraiserUiEnabled = () => !!globalThis.__flag;`;
@@ -55,7 +58,7 @@ before(async () => {
     b.onResolve({ filter: /fundraiserGate\.js$/ }, (a) => ({ path: a.path, namespace: "gate" }));
     b.onLoad({ filter: /.*/, namespace: "gate" }, () => ({ contents: GATE_STUB, loader: "js" }));
   } };
-  const entry = join(__dirname, ".__f3founder.jsx");
+  const entry = join(__dirname, `.__f3founder.${process.pid}.jsx`);
   writeFileSync(entry, `export { default as Founder } from "./FounderFundraisingDashboard.jsx";\n`);
   await esbuild.build({
     entryPoints: [entry], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
@@ -68,7 +71,7 @@ before(async () => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/founder" });
   window = dom.window;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ } globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.MouseEvent = window.MouseEvent;
   globalThis.KeyboardEvent = window.KeyboardEvent;
   globalThis.localStorage = window.localStorage;
@@ -221,6 +224,7 @@ async function openApproved(routes = baseRoutes(), campaign = CAMPAIGNS[0].campa
   const row = [...document.querySelectorAll("tr")].find((tr) => tr.textContent.includes(ORG.legalName));
   assert.ok(row, "the organization row must render");
   await click([...row.querySelectorAll("button")].find((b) => b.textContent.trim() === "Open"));
+  if ($("f1-toggle")) await click($("f1-toggle")); // W34: Draft Economics opens closed
   await setSelect("f1-campaign", campaign);
   return routes;
 }
@@ -288,8 +292,8 @@ test("F3 review: the sealed terms are shown in full", async () => {
   assert.match(text("f3-review-status"), /approved/);
   assert.match(text("f3-review-initial"), /10[\s\S]*ENSR/, "the initial share is shown as sealed");
   assert.match(text("f3-review-renewal"), /12\.5[\s\S]*ENGP/, "the renewal share is shown as sealed");
-  assert.match(text("f3-review-gift"), /3[\s\S]*gross/, "the gift share is shown as sealed");
-  assert.match(text("f3-review-taxTreatment"), /excluded_from_base/);
+  assert.match(text("f3-review-gift"), /3[\s\S]*gross/i, "the gift share is shown as sealed");
+  assert.match(text("f3-review-taxTreatment"), /Excluded from the base/);
 });
 
 test("F3 review: the version currently in force is named, so supersession is visible", async () => {

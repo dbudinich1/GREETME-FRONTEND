@@ -40,7 +40,7 @@ const CATEGORY_FILTERS = [
 ];
 
 // Truthful state → AVAILABLE | LOCKED badge (the only two canonical states).
-function StateBadge({ available }) {
+function StateBadge({ available, label }) {
   return (
     <span style={{
       display: 'inline-block',
@@ -54,7 +54,7 @@ function StateBadge({ available }) {
       background: available ? 'rgba(22, 163, 74, 0.10)' : 'var(--gray-100)',
       border: `1px solid ${available ? 'rgba(22, 163, 74, 0.25)' : 'var(--border)'}`
     }}>
-      {available ? 'Available' : 'Locked'}
+      {label || (available ? 'Available' : 'Locked')}
     </span>
   );
 }
@@ -95,8 +95,14 @@ const gridStyle = {
 // badge, the canonical Hearts cost, and — where the canon defines a real gate — the reachable
 // unlock requirement (never "Coming Soon").
 function RewardTile({ title, hearts, available, unlock }) {
+  // W17 — this tile has NO redeem handler, so it must never read AVAILABLE (which a shopper takes
+  // as redeemable). An available-but-not-wired reward says so; a locked one opens its reason.
+  const badgeLabel = available ? 'Not redeemable yet' : 'Locked';
+  const detail = available
+    ? 'Redemption for this reward is not open yet. Your Hearts are not spent and nothing happens if you wait.'
+    : (unlock ? `Locked. It unlocks with ${unlock}.` : 'Locked. This reward is not open for redemption yet.');
   return (
-    <div style={{
+    <div data-testid="reward-tile" style={{
       background: 'var(--gray-50)',
       border: '1px solid var(--border)',
       borderRadius: 'var(--radius-lg)',
@@ -116,7 +122,7 @@ function RewardTile({ title, hearts, available, unlock }) {
         }}>
           <Gift size={20} style={{ color: '#ec4899' }} />
         </span>
-        <StateBadge available={available} />
+        <StateBadge available={false} label={badgeLabel} />
       </div>
       <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{title}</div>
       {unlock ? (
@@ -127,6 +133,11 @@ function RewardTile({ title, hearts, available, unlock }) {
       <div style={{ marginTop: '0.625rem' }}>
         <CostPill hearts={hearts} />
       </div>
+      {/* Native disclosure (not a button): locked/non-redeemable tiles keep NO click-to-redeem affordance. */}
+      <details data-testid="reward-why-not" style={{ marginTop: '0.625rem' }}>
+        <summary style={{ cursor: 'pointer', color: '#be185d', fontSize: '0.75rem', fontWeight: 700 }}>Why can’t I redeem this?</summary>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0.375rem 0 0' }}>{detail}</p>
+      </details>
     </div>
   );
 }
@@ -157,6 +168,7 @@ export default function HubRedeemMarketplace({
 }) {
   const [allOpen, setAllOpen] = useState(false);
   const [categoryKey, setCategoryKey] = useState('all');
+  const [shortfallOpenId, setShortfallOpenId] = useState(null);
   // Server catalog is authoritative; fall back to the built-in canonical catalog while the
   // endpoint rolls out. The Anytime cost shown here comes from the catalog and equals the
   // amount the server charges (displayed cost == charged cost).
@@ -187,6 +199,8 @@ export default function HubRedeemMarketplace({
           : (r.unlock ? `Unlocks with ${r.unlock}` : ''),
         cost: r.hearts,
         available: r.available,
+        // W17 — never AVAILABLE for a reward this page cannot redeem.
+        badgeLabel: r.available && !Object.prototype.hasOwnProperty.call(redeemableRewardIds, r.id) ? 'Not redeemable yet' : undefined,
       })),
     })),
     ...(marketplaceItems.length ? [{
@@ -213,7 +227,10 @@ export default function HubRedeemMarketplace({
     const isThisIntentOpen = redeemOpen && redeemTargetId === reward.id;
     const isThisOutcome = Boolean(redeemOutcome) && redeemTargetId === reward.id;
     const insufficient = balance < reward.hearts;
-    const disabled = redemptionPaused || insufficient || redeemSubmitting;
+    // W17 — an insufficient balance is NOT a dead button: it opens an explanation (below). Only a
+    // paused redemption or an in-flight request is truly disabled.
+    const disabled = redemptionPaused || redeemSubmitting;
+    const blocked = redemptionPaused || insufficient;
     return (
       <div key={reward.id} style={{
         background: 'var(--gray-50)',
@@ -235,7 +252,11 @@ export default function HubRedeemMarketplace({
           }}>
             <Gift size={22} style={{ color: '#ec4899' }} />
           </span>
-          <StateBadge available={reward.available} />
+          {/* W17 — AVAILABLE only when this account can actually redeem it right now. */}
+          <StateBadge
+            available={reward.available && !blocked}
+            label={redemptionPaused ? 'Paused' : (insufficient ? 'Need more Hearts' : undefined)}
+          />
         </div>
         <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{reward.title}</div>
         <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.25rem', lineHeight: 1.5, flex: 1 }}>
@@ -246,21 +267,25 @@ export default function HubRedeemMarketplace({
         </div>
 
         {!isThisIntentOpen ? (
+          <>
           <button
             className="hub-btn"
-            onClick={() => openRedeemIntent(reward.id)}
+            onClick={() => (insufficient && !redemptionPaused
+              ? setShortfallOpenId((cur) => (cur === reward.id ? null : reward.id))
+              : openRedeemIntent(reward.id))}
             disabled={disabled}
+            aria-expanded={insufficient && !redemptionPaused ? shortfallOpenId === reward.id : undefined}
             style={{
               marginTop: '0.875rem',
               width: '100%',
               padding: '0.75rem',
-              background: disabled ? 'var(--gray-300)' : 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
+              background: (disabled || blocked) ? 'var(--gray-300)' : 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
               color: 'white',
               border: 'none',
               borderRadius: 'var(--radius-lg)',
               fontSize: '0.875rem',
               fontWeight: 700,
-              boxShadow: disabled ? 'none' : '0 8px 20px -6px rgba(236, 72, 153, 0.5)',
+              boxShadow: (disabled || blocked) ? 'none' : '0 8px 20px -6px rgba(236, 72, 153, 0.5)',
               cursor: disabled ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit'
             }}
@@ -271,6 +296,12 @@ export default function HubRedeemMarketplace({
                 ? `Need ${(reward.hearts - balance).toLocaleString()} more Hearts`
                 : `Redeem ${reward.hearts.toLocaleString()} Hearts`}
           </button>
+          {!redemptionPaused && insufficient && shortfallOpenId === reward.id && (
+            <p role="status" data-testid="reward-shortfall-detail" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0.5rem 0 0' }}>
+              This reward costs {reward.hearts.toLocaleString()} Hearts and your balance is {Number(balance).toLocaleString()}. You need {(reward.hearts - balance).toLocaleString()} more. See Ways to Earn Hearts above to earn more.
+            </p>
+          )}
+          </>
         ) : (
           <div style={{ marginTop: '0.875rem' }}>
             <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', margin: '0 0 0.75rem' }}>
@@ -432,8 +463,8 @@ export default function HubRedeemMarketplace({
       border: '1px solid var(--border)'
     }}>
       {/* Header: title/subtitle (left) + "All Rewards" catalog affordance (top-right). */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.25rem' }}>
-        <div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.25rem' }}>
+        <div style={{ minWidth: 0 }}>
           <h2 style={{
             fontSize: '1.375rem',
             fontWeight: 700,
@@ -454,10 +485,16 @@ export default function HubRedeemMarketplace({
             compact overview. No backend, no reward logic. Native select for robust accessibility. */}
         <select
           aria-label="Filter marketplace by category"
+          data-testid="hub-category-filter"
           value={categoryKey}
           onChange={(e) => setCategoryKey(e.target.value)}
           style={{
-            flexShrink: 0,
+            // Appearance only: the global `select{width:100%}` made this fill the whole row and run off the page.
+            width: 'auto',
+            maxWidth: '100%',
+            minWidth: 0,
+            boxSizing: 'border-box',
+            flexShrink: 1,
             padding: '0.5rem 0.875rem',
             background: 'var(--bg-primary)',
             color: 'var(--text-primary)',
@@ -610,7 +647,7 @@ export default function HubRedeemMarketplace({
                         ) : null}
                       </div>
                       {r.cost != null ? <CostPill hearts={r.cost} /> : null}
-                      <StateBadge available={r.available} />
+                      <StateBadge available={r.available && !r.badgeLabel} label={r.badgeLabel} />
                     </li>
                   ))}
                 </ul>

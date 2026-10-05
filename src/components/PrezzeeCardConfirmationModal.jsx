@@ -132,7 +132,7 @@ function PrezzeeCardConfirmForm({
           <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#065f46' }}>{fmt(giftAmountCents)}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-          <span style={{ fontSize: '0.875rem', color: '#047857' }}>Processing fee</span>
+          <span style={{ fontSize: '0.875rem', color: '#047857' }}>Convenience fee</span>
           <span style={{ fontSize: '0.875rem', color: '#047857' }}>{fmt(feeCents)}</span>
         </div>
         <div style={{

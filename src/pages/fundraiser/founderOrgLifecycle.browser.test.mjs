@@ -22,7 +22,10 @@ import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLE = join(__dirname, ".__orglife.bundle.mjs");
+// CLEAN_SCRATCH: scratch files carry this process id in their name, so concurrent suites cannot collide; all are removed on exit.
+import { readdirSync as __scratchLs, rmSync as __scratchRm } from "node:fs";
+process.on("exit", () => { try { for (const n of __scratchLs(__dirname)) if (n.startsWith(".__") && n.includes(`.${process.pid}.`)) __scratchRm(join(__dirname, n), { force: true }); } catch { /* ignore */ } });
+const BUNDLE = join(__dirname, `.__orglife.${process.pid}.bundle.mjs`);
 let React, createRoot, act, Founder;
 
 const GATE_STUB = `export const isFundraiserUiEnabled = () => !!globalThis.__flag;`;
@@ -32,19 +35,19 @@ before(async () => {
     b.onResolve({ filter: /fundraiserGate\.js$/ }, (a) => ({ path: a.path, namespace: "gate" }));
     b.onLoad({ filter: /.*/, namespace: "gate" }, () => ({ contents: GATE_STUB, loader: "js" }));
   } };
-  writeFileSync(join(__dirname, ".__orglife.jsx"), `export { default as Founder } from "./FounderFundraisingDashboard.jsx";\n`);
+  writeFileSync(join(__dirname, `.__orglife.${process.pid}.jsx`), `export { default as Founder } from "./FounderFundraisingDashboard.jsx";\n`);
   await esbuild.build({
-    entryPoints: [join(__dirname, ".__orglife.jsx")], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
+    entryPoints: [join(__dirname, `.__orglife.${process.pid}.jsx`)], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
     jsx: "automatic", jsxImportSource: "react",
     external: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"],
     define: { "import.meta.env": "{}", "process.env.NODE_ENV": '"production"' }, plugins: [stub], logLevel: "silent",
   });
-  rmSync(join(__dirname, ".__orglife.jsx"), { force: true });
+  rmSync(join(__dirname, `.__orglife.${process.pid}.jsx`), { force: true });
 
   const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
   const { window } = dom;
   globalThis.window = window; globalThis.document = window.document;
-  globalThis.navigator = window.navigator; globalThis.HTMLElement = window.HTMLElement;
+  try { globalThis.navigator = window.navigator; } catch { /* read-only global on Node 21+ */ } globalThis.HTMLElement = window.HTMLElement;
   globalThis.Event = window.Event; globalThis.MouseEvent = window.MouseEvent;
   globalThis.KeyboardEvent = window.KeyboardEvent;
   globalThis.localStorage = window.localStorage;

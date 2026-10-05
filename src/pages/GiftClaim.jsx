@@ -8,6 +8,14 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { useAccountState } from '../hooks/useAccountState';
 import { isSenderViewingOwnGift } from '../utils/accountState';
+import GiftCardVoucherPanel from '../components/GiftCardVoucherPanel';
+import { CREDIT_CAP_NOTE_TEXT } from '../components/CreditCapNote';
+
+// CREDIT AMOUNT (founder: no referral or courtesy credit above $5, for any reason): the credit toward a
+// Greet-Me subscription shown after a payout is the EFFECTIVE redeemable value the SERVER reports for this
+// gift (referralGiftValueCents on the claim response; Team 2 caps it). This page shows exactly what the
+// server says, never a literal, and never more than the server returns. With no real amount, no credit
+// block is shown.
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -119,11 +127,35 @@ export default function GiftClaim() {
       const status = err?.status || err?.response?.status;
       if (status === 404) {
         setError('not_found');
+      } else if (status === 410 || err?.code === 'GIFT_EXPIRED') {
+        // Expired gifts (any type) return 410 GIFT_EXPIRED — never a voucher area.
+        setGift(null);
+        setError('expired');
       } else {
         setError(err?.message || 'Failed to load gift');
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Quiet re-read for the gift-card Check again control: updates the gift in place WITHOUT the
+  // full-page loading state. The response (which may hold a voucher/PIN) is never logged.
+  const refreshGift = async () => {
+    try {
+      const res = await api.getGiftClaim(claimToken);
+      if (res?.ok && res?.gift) {
+        setGift(res.gift);
+        return 'ok';
+      }
+      return 'error';
+    } catch (err) {
+      if (err?.status === 410 || err?.code === 'GIFT_EXPIRED') {
+        setGift(null); // drop the previously loaded gift (and its voucher) from state
+        setError('expired');
+        return 'expired';
+      }
+      return 'error';
     }
   };
 
@@ -225,6 +257,12 @@ export default function GiftClaim() {
   };
 
   const fmt = (cents) => `$${(cents / 100).toFixed(2)}`;
+  // The server-issued referral credit for the fulfilled screen; null (show nothing) when absent or malformed.
+  const creditCents = (Number.isSafeInteger(gift?.referralGiftValueCents) && gift.referralGiftValueCents > 0)
+    ? Math.min(gift.referralGiftValueCents, 500)
+    : null;
+  // Whole-dollar credits read as "$5", not "$5.00" (same value, matching how the credit is described elsewhere).
+  const creditLabel = (cents) => (cents % 100 === 0 ? `$${cents / 100}` : fmt(cents));
 
   const currentMethod = PAYOUT_METHODS.find((m) => m.id === selectedMethod);
 
@@ -297,7 +335,11 @@ export default function GiftClaim() {
 
           {/* Fulfilment, resolved live on every load. The message is composed
               server-side so this page can never invent a status of its own. */}
-          {gift.statusMessage && (
+          {gift.giftType === 'gift_cards' && !isOwnerView ? (
+            /* Prezzee gift card: the voucher / PIN panel owns the status line and the redeem
+               controls. The sender (isOwnerView) never sees the recipient's secret. */
+            <GiftCardVoucherPanel gift={gift} onRefresh={refreshGift} />
+          ) : gift.statusMessage && (
             <p style={{
               fontSize: '0.95rem',
               color: '#6b7280',
@@ -370,12 +412,14 @@ export default function GiftClaim() {
         <div style={styles.card}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎁</div>
           <h1 style={styles.title}>
-            {error === 'not_found' ? 'Gift Not Found' : 'Something Went Wrong'}
+            {error === 'not_found' ? 'Gift Not Found' : error === 'expired' ? 'Gift Expired' : 'Something Went Wrong'}
           </h1>
           <p style={styles.subtitle}>
             {error === 'not_found'
               ? 'This gift link may be invalid or has already expired.'
-              : typeof error === 'string' ? error : 'Please try again later.'}
+              : error === 'expired'
+                ? 'This gift is no longer available. Please contact support if you need help.'
+                : typeof error === 'string' ? error : 'Please try again later.'}
           </p>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
           {trustLinks}
@@ -392,15 +436,15 @@ export default function GiftClaim() {
           <div style={styles.successIcon}>&#10003;</div>
           <h1 style={styles.title}>Gift Received!</h1>
           <p style={{ ...styles.subtitle, marginBottom: '0.5rem' }}>
-            Your {fmt(gift.giftAmountCents)} QR Cash&trade; gift has been sent to your account.
+            Your {fmt(gift.giftAmountCents)} QR Cash&trade; gift has been paid out by the Greet-Me team using the method you chose.
           </p>
           <p style={{ fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
-            Funds typically arrive within 1-2 business days to your bank account, or instantly to a debit card.
+            It arrives on that service&rsquo;s usual timing.
           </p>
 
           {/* Referral credit CTA */}
-          {gift.referralCode && (
-            <div style={{
+          {gift.referralCode && creditCents && (
+            <div data-testid="claim-credit-block" style={{
               padding: '1.25rem',
               background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
               borderRadius: '0.75rem',
@@ -409,7 +453,7 @@ export default function GiftClaim() {
               textAlign: 'center',
             }}>
               <p style={{ fontSize: '1.25rem', margin: '0 0 0.5rem', fontWeight: 700, color: '#065f46' }}>
-                You've unlocked a $10 credit
+                {`You've unlocked a ${creditLabel(creditCents)} credit`}
               </p>
               <p style={{
                 fontSize: '0.9rem',
@@ -417,7 +461,8 @@ export default function GiftClaim() {
                 lineHeight: 1.5,
                 margin: '0 0 1rem',
               }}>
-                Apply your $10 credit toward a Greet-Me subscription.
+                {`Apply your ${creditLabel(creditCents)} credit toward a Greet-Me subscription.`}
+                {gift.referralCreditCapped === true && (<><br /><span data-testid="credit-cap-note" style={{ fontSize: '0.8rem' }}>{CREDIT_CAP_NOTE_TEXT}</span></>)}
                 <br />
                 <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>Valid toward Social Butterfly or higher plans. Terms apply.</span>
               </p>
@@ -436,7 +481,7 @@ export default function GiftClaim() {
                   boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)',
                 }}
               >
-                Unlock Your $10 Credit
+                {`Unlock Your ${creditLabel(creditCents)} Credit`}
               </a>
             </div>
           )}
@@ -460,8 +505,8 @@ export default function GiftClaim() {
             Your {fmt(gift.giftAmountCents)} QR Cash&trade; gift request has been submitted.
           </p>
           <p style={{ fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
-            We&rsquo;ll send your gift using your selected method shortly.
-            You&rsquo;ll receive a confirmation once it&rsquo;s on the way.
+            A person at Greet-Me sends this by hand using the method you chose.
+            We will email you when it has been sent.
           </p>
 
           {/* Forward-motion CTAs — no dead ends */}
@@ -492,7 +537,9 @@ export default function GiftClaim() {
                     boxShadow: '0 4px 14px rgba(99, 102, 241, 0.3)',
                   }}
                 >
-                  {isAuthenticated ? 'Send a Greet-Me' : 'Claim Your $5 \u2014 Create Your Account'}
+                  {isAuthenticated
+                    ? 'Send a Greet-Me'
+                    : (creditCents ? `Claim Your ${creditLabel(creditCents)} \u2014 Create Your Account` : 'Create Your Account')}
                 </button>
 
                 {/* Smart loop: Thank You (only when sourceGreetingJobId exists) */}
@@ -535,7 +582,7 @@ export default function GiftClaim() {
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>&#9200;</div>
           <h1 style={styles.title}>Gift Expired</h1>
           <p style={styles.subtitle}>
-            This QR Cash&trade; gift is no longer available. Gifts expire {gift.expiryDays || 30} days after delivery. Expired gifts are not automatically refunded &mdash; contact support for assistance.
+            This QR Cash&trade; gift is no longer available. Gifts expire {gift.expiryDays || 30} days after delivery. Questions about an expired gift? Contact support.
           </p>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
           {trustLinks}

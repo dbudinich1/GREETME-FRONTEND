@@ -132,9 +132,10 @@ export function createCorporateContactsClient({
     const early = classifyStatus(res.status);
     if (early) return early;
     if (res.status === 404) return { ok: false, notFound: true, status: 404 };
-    if (res.status === 409) return { ok: false, conflict: true, status: 409 };
     let data = null;
     try { data = await res.json(); } catch { /* tolerate empty body */ }
+    // 409 keeps its reason (e.g. email_already_exists: an active contact already has that email).
+    if (res.status === 409) return { ok: false, conflict: true, status: 409, error: (data && data.error) || null };
     if (!res.ok) return { ok: false, status: res.status, error: (data && (data.error || data.reason)) || `HTTP ${res.status}` };
     return { ok: true, status: res.status, data: (data && data.data) || data };
   }
@@ -156,7 +157,53 @@ export function createCorporateContactsClient({
       ? Promise.resolve({ ok: false, status: 400, error: "missing_org" })
       : writeContact("DELETE", `${contactsPath(orgId)}/${encodeURIComponent(contactId)}`, null);
 
-  return { listOrganizations, importContacts, createContact, updateContact, deleteContact };
+  // SURFACE 8 - the management read: the FULL stored records (email, phone, company, department, notes, full-date
+  // occasions, delivery address) for the owner, so Manage can show readiness and Edit can be pre-filled. This is
+  // NOT the campaign audience read (that one deliberately returns only id, name, category and month-day dates).
+  // Any failure - including a server that does not have the endpoint yet (404/405) - is "not available", and the
+  // caller falls back to the read-only roster. It never throws.
+  async function listManaged(orgId) {
+    if (!orgId || typeof orgId !== "string") return { ok: false, status: 400, error: "missing_org" };
+    let res;
+    try {
+      res = await fetchImpl(`${apiBase}/api/corporate-contacts${contactsPath(orgId)}`, { method: "GET", headers: headers() });
+    } catch {
+      return { ok: false, networkError: true, status: 0 };
+    }
+    const early = classifyStatus(res.status);
+    if (early) return early;
+    if (!res.ok) return { ok: false, unavailable: true, status: res.status };
+    let data = null;
+    try { data = await res.json(); } catch { /* tolerate */ }
+    const body = (data && data.data) || data;
+    const contacts = body && Array.isArray(body.contacts) ? body.contacts : null;
+    return contacts ? { ok: true, status: res.status, contacts } : { ok: false, malformed: true, status: res.status };
+  }
+
+  // Deletion history (owner-only, read-only). Removing a contact is a PERMANENT delete; the server keeps a log of
+  // WHEN, WHICH CATEGORY and HOW MANY - never who. This client keeps only those three fields from each entry
+  // (everything else is dropped on the way in), so personal data cannot reach the screen even if a server sent it.
+  // Any failure, including an endpoint that is not deployed yet, is "not available"; it never throws.
+  async function listDeletionLog(orgId) {
+    if (!orgId || typeof orgId !== "string") return { ok: false, status: 400, error: "missing_org" };
+    let res;
+    try {
+      res = await fetchImpl(`${apiBase}/api/corporate-contacts/organizations/${encodeURIComponent(orgId)}/deletion-log`, { method: "GET", headers: headers() });
+    } catch {
+      return { ok: false, networkError: true, status: 0 };
+    }
+    const early = classifyStatus(res.status);
+    if (early) return early;
+    if (!res.ok) return { ok: false, unavailable: true, status: res.status };
+    let data = null;
+    try { data = await res.json(); } catch { /* tolerate */ }
+    const body = (data && data.data) || data;
+    const raw = Array.isArray(body) ? body : body && (Array.isArray(body.entries) ? body.entries : null);
+    if (!raw) return { ok: false, malformed: true, status: res.status };
+    return { ok: true, status: res.status, entries: raw.map(sanitizeDeletionEntry).filter(Boolean) };
+  }
+
+  return { listOrganizations, importContacts, createContact, updateContact, deleteContact, listManaged, listDeletionLog };
 }
 
 /**
@@ -175,6 +222,17 @@ export function campaignsContainingContact(campaigns, contactId) {
 }
 
 /** "Ada is in VIP and Birthdays." — the same list-joining the overlap warning uses. */
+/** One deletion-log entry reduced to { date, category, count } - nothing else is ever kept. */
+export function sanitizeDeletionEntry(e) {
+  if (!e || typeof e !== "object") return null;
+  const when = e.deletedAt || e.date || e.at || e.createdAt || null;
+  const date = typeof when === "string" && /^\d{4}-\d{2}-\d{2}/.test(when) ? when.slice(0, 10) : null;
+  if (!date) return null;
+  const category = typeof (e.category || e.corporateContactType) === "string" ? String(e.category || e.corporateContactType) : "";
+  const n = Number(e.count);
+  return { date, category, count: Number.isFinite(n) && n >= 0 ? Math.floor(n) : 1 };
+}
+
 export function deleteWarningLine(contactName, campaignNames) {
   const names = Array.isArray(campaignNames) ? campaignNames : [];
   if (names.length === 0) return null;

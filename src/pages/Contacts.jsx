@@ -26,6 +26,7 @@ import CSVImport from '../components/CSVImport';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import { getOccasionIcon, getOccasionLabel } from '../utils/helpers';
+import { getOccasionCadenceLabel } from '../utils/occasionCadence';
 import { autoAddRecipientPhotosToLibrary } from '../utils/mediaLibrary';
 import { getErrorMessage } from '../utils/errorMessages';
 import { getHoverHandlers } from '../utils/hoverable';
@@ -193,6 +194,8 @@ export default function Recipients() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
+  // Deep link from the "Review your Auto-Gift" / 10-day reminder emails: #/dashboard/contacts?contactId=<id>&occasion=<type>.
+  const [focusOccasion, setFocusOccasion] = useState(null);
   const [alert, setAlert] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [viewMode, setViewMode] = useState('recipients');
@@ -265,6 +268,26 @@ export default function Recipients() {
       }
     }
   }, [recipients, location.state, navigate, location.pathname]);
+
+  // Deep link from the emails: ?contactId=<id>&occasion=<type> (read from the HashRouter search params) opens that recipient's edit form
+  // at that occasion, once. The params are consumed (replace) so a refresh or Back does not reopen it. An unknown or missing id, or a
+  // list that fails to load, degrades to the plain list with no error; a missing or unknown occasion just opens the form.
+  const hasOpenedDeepLinkRef = useRef(false);
+  useEffect(() => {
+    if (hasOpenedDeepLinkRef.current || practiceActive || isBusiness || loading) return;
+    const params = new URLSearchParams(location.search || '');
+    const contactId = (params.get('contactId') || '').trim();
+    if (!contactId) return;
+    hasOpenedDeepLinkRef.current = true;
+    const occasion = (params.get('occasion') || '').trim();
+    const target = recipients.find((r) => r && (String(r.id) === contactId || String(r._id) === contactId));
+    if (target) {
+      setEditingContact(target);
+      setFocusOccasion(/^[a-z0-9_]{1,40}$/.test(occasion) ? occasion : null);
+      setShowEditModal(true);
+    }
+    navigate(location.pathname, { replace: true, state: {} });   // consume the params either way
+  }, [loading, recipients, location.search, location.pathname, navigate, practiceActive, isBusiness]);
 
   // Handle deep link from Dashboard to auto-open Add Recipient modal
   useEffect(() => {
@@ -393,6 +416,12 @@ export default function Recipients() {
         return;
       }
 
+      // W07 — a save that carries Auto-Gift consents is never "stored locally": a refused or failed consent must be seen, not hidden.
+      if (Array.isArray(contactData?.occasionGiftConsents) && contactData.occasionGiftConsents.length > 0) {
+        showAlertMessage('error', getErrorMessage(error));
+        return;
+      }
+
       const newRecipient = {
         id: Date.now(),
         ...contactData,
@@ -492,6 +521,7 @@ export default function Recipients() {
   };
 
   const openEditModal = (contact) => {
+    setFocusOccasion(null);
     setEditingContact(contact);
     setShowEditModal(true);
     setTimeout(() => {
@@ -1071,12 +1101,18 @@ export default function Recipients() {
                       </div>
                     </div>
 
-                    {/* Primary occasion — nearest scheduled date */}
+                    {/* Primary occasion — nearest scheduled date.
+                        SURFACE 2 W04/W06 — cadence ("Repeats yearly" / "One-time") shown distinct from
+                        the occasion name and date, so this never reads as a single ambiguous "it's
+                        scheduled" claim. */}
                     <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--text-secondary)', fontSize: '0.8125rem', minWidth: 0 }}>
                       {primaryOcc ? (
                         <>
                           <span style={{ fontSize: '0.9375rem', flexShrink: 0 }}>{getOccasionIcon(primaryOcc.type)}</span>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getOccasionLabel(primaryOcc.type)} · {new Date(primaryOcc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {getOccasionLabel(primaryOcc.type)} · {new Date(primaryOcc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            <span style={{ color: 'var(--text-tertiary)' }}> · {getOccasionCadenceLabel(primaryOcc.type)}</span>
+                          </span>
                         </>
                       ) : (
                         <span style={{ color: 'var(--text-tertiary)' }}>No occasions yet</span>
@@ -1167,6 +1203,10 @@ export default function Recipients() {
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {soonest.recipientName} · {new Date(soonest.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </div>
+                        {/* SURFACE 2 W04/W06 — cadence distinct from the occasion/date line above. */}
+                        <div style={{ color: 'var(--text-tertiary)', fontSize: '0.6875rem', marginTop: '1px' }}>
+                          {getOccasionCadenceLabel(soonest.type)}
+                        </div>
                         {items.length > 1 && (
                           <div style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', marginTop: '2px' }}>+{items.length - 1} more</div>
                         )}
@@ -1182,11 +1222,14 @@ export default function Recipients() {
               );
             })}
 
-            {/* Closing brand tile */}
+            {/* Closing brand tile — SURFACE 2 W14: "Schedule the love." used brand-purple, bold,
+                letter-spaced styling that reads as a clickable CTA even without underline/hover,
+                with no destination behind it. No approved occasion-management destination exists
+                yet, so this is now ordinary informational copy — same neutral treatment as the
+                "Schedule the love." line in the empty-occasion tiles above it. */}
             <div style={{ marginTop: '2px', padding: '18px 16px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.06) 0%, rgba(118, 75, 162, 0.06) 100%)', border: '1px solid rgba(102, 126, 234, 0.12)', textAlign: 'center' }}>
               <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9375rem', letterSpacing: '-0.01em' }}>Moments are better shared.</p>
-              <p style={{ margin: '5px 0 0', color: 'var(--text-secondary)', fontSize: '0.8125rem', lineHeight: 1.5 }}>Add dates and Greet-Me will take care of the rest.</p>
-              <p style={{ margin: '8px 0 0', color: '#5a4fcf', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.02em' }}>Schedule the love.</p>
+              <p style={{ margin: '5px 0 0', color: 'var(--text-secondary)', fontSize: '0.8125rem', lineHeight: 1.5 }}>Add dates and Greet-Me will take care of the rest. Schedule the love.</p>
             </div>
           </div>
         </div>
@@ -1221,16 +1264,19 @@ export default function Recipients() {
         onClose={() => {
           setShowEditModal(false);
           setEditingContact(null);
+          setFocusOccasion(null);
         }}
         title="Edit Recipient"
         size="lg"
       >
         <ContactForm
           contact={editingContact}
+          focusOccasion={focusOccasion}
           onSubmit={handleEditRecipient}
           onCancel={() => {
             setShowEditModal(false);
             setEditingContact(null);
+            setFocusOccasion(null);
           }}
         />
       </Modal>

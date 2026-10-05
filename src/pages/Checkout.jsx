@@ -25,13 +25,12 @@ import { isFundraiserUiEnabled } from '../config/fundraiserGate.js';
 // eslint-disable-next-line react-refresh/only-export-components -- pure predicate exported for unit testing (not a component)
 export const checkoutSessionCreated = (data) => !!(data && typeof data.url === 'string' && data.url.length > 0);
 
-// Platform fee mirrors the backend rule (BUSINESS_SUBSCRIPTION_PRICE_IDS in
-// routes/paymentRoutes.js): $19.99 for business subscription tiers, $4.99 otherwise.
-// Prefer the cart item's platformFee if present, else fall back to the tier rule
-// (cart items currently omit platformFee).
+// Platform fee: ONE per account, EVER, for BOTH tiers. The amount comes ONLY from the server's platform-fee-status answer
+// (consumer or business entry by the item's tier); 0 means already paid (no fee line) and null means "do not assert an
+// amount" (calculated at checkout). Never a fixed figure. See utils/platformFee.js.
 const BUSINESS_PLAN_TIERS = new Set(['small_business', 'medium_business', 'business_scale']);
-const platformFeeFor = (item) =>
-  item?.platformFee ?? (BUSINESS_PLAN_TIERS.has(item?.planTier) ? 19.99 : 4.99);
+const platformFeeFor = (item, feeState) =>
+  resolvePlatformFee(item, BUSINESS_PLAN_TIERS.has(item?.planTier), feeState);
 
 // G1G1 auto-mint is PERSONAL-only; business tiers use the annual-credit model.
 const G1G1_PERSONAL_TIERS = new Set(['close_circle', 'social_butterfly', 'unforgettable']);
@@ -87,8 +86,19 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
   : null;
 
+import { platformFeeFor as resolvePlatformFee, formatFeeAmount, FEE_CALCULATED_AT_CHECKOUT } from '../utils/platformFee';
+import { SUBSCRIPTION_RENEWAL_NOTICE, PLATFORM_FEE_ONE_TIME_NOTICE } from '../utils/subscriptionTerms';
+import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
+import { useReferralCredit } from '../hooks/useReferralCreditCents';
+import CreditCapNote from '../components/CreditCapNote';
+import { clampCreditDollars } from '../utils/creditCap';
+import {
+  expectedMerchSubtotalCents, isMerchPriceConfirmationCode, applyMerchPriceChange, merchPriceNotice,
+} from '../utils/merchPriceGuard';
+
 export default function Checkout() {
   const navigate = useNavigate();
+  const feeState = usePlatformFeeStatus();
   const location = useLocation();
   const { user } = useAuth();
   const [cartItems, setCartItems] = useState([]);
@@ -144,7 +154,7 @@ export default function Checkout() {
     }
   })();
 
-  // Credit: referral ($10 from gift) or courtesy ($5 from finale QR)
+  // Credit: referral (the server-reported amount from a gift claim) or courtesy ($5 from finale QR)
   const courtesyCredit = (() => {
     try {
       const stored = localStorage.getItem('greetme_courtesy_credit');
@@ -158,7 +168,9 @@ export default function Checkout() {
   // both together; only the legacy /courtesy-credit?amount= page ever wrote amount alone).
   // Referral credit is a separate, already-verified mechanism (referralCode itself is what
   // the backend checks) and is unaffected.
-  const creditAmount = referralCode ? 10 : (courtesyCreditCode ? (courtesyCredit?.amount || 0) : 0);
+  // The REAL referral credit as the server issued it; null (nothing shown or subtracted) until known.
+  const { cents: referralCreditCents, capped: referralCreditCapped } = useReferralCredit(referralCode);
+  const creditAmount = referralCode ? (referralCreditCents ? referralCreditCents / 100 : 0) : (courtesyCreditCode ? clampCreditDollars(courtesyCredit?.amount) : 0);
 
   const [total, setTotal] = useState(0);
   // CREDIT CONTRACT INTEGRITY (2026-09-29, follow-up correction) — the order summary must never
@@ -186,6 +198,9 @@ export default function Checkout() {
   });
 
   const [errors, setErrors] = useState({});
+  // Merch expected-price guard: set after a 409 (nothing was charged) so the customer can review the
+  // refreshed item prices before choosing to place the order again.
+  const [merchPriceNoticeText, setMerchPriceNoticeText] = useState(null);
 
   // ===== Phase 3C Stage 3 — merch shipping state =====
   const cartHasMerch = cartItems.some((it) => !!it.printfulSyncVariantId);
@@ -293,6 +308,7 @@ export default function Checkout() {
       }
       setIsProcessing(true);
       setErrors({});
+      setMerchPriceNoticeText(null);
       try {
         const items = cartItems
           .filter((i) => i.printfulSyncVariantId)
@@ -300,6 +316,9 @@ export default function Checkout() {
         const data = await api.post('/api/payments/create-checkout', {
           purchaseType: 'merch',
           items,
+          // The ITEM subtotal the customer is looking at right now (shipping excluded). The server
+          // compares it with its own and answers 409, charging nothing, if it differs.
+          expectedSubtotalCents: expectedMerchSubtotalCents(cartItems),
           recipientName: recipientName.trim(),
           shippingAddress: {
             address1: shipForm.address1.trim(),
@@ -331,6 +350,25 @@ export default function Checkout() {
         if (checkoutSessionCreated(data)) clearFundraiserToken();
         window.location.href = data.url;
       } catch (error) {
+        // PRICE GUARD (409, nothing charged): show the refreshed item prices and total and wait for the
+        // customer's own click. Never retried here, and no redirect to Stripe happens.
+        if (isMerchPriceConfirmationCode(error?.code)) {
+          const applied = applyMerchPriceChange(cartItems, error?.data);
+          if (applied) {
+            applied.items.forEach((it, idx) => {
+              const before = cartItems[idx];
+              if (before && it.priceCents !== before.priceCents) cartService.updateItem(before.id, { price: it.price, priceCents: it.priceCents });
+            });
+            setCartItems(applied.items);
+            setTotal(applied.items.reduce((s, i) => s + (typeof i.price === 'number' ? i.price : 0), 0));
+            setMerchPriceNoticeText(merchPriceNotice({ code: error.code, previousCents: applied.previousCents, subtotalCents: applied.subtotalCents }));
+            setErrors({});
+          } else {
+            setErrors({ submit: 'The prices in your cart may have changed. Nothing was charged. Please go back to your cart, review it, and try again.' });
+          }
+          setIsProcessing(false);
+          return;
+        }
         console.error('Stripe merch checkout error:', error);
         setErrors({ submit: getErrorMessage(error) });
         setIsProcessing(false);
@@ -792,6 +830,20 @@ export default function Checkout() {
               </div>
             )}
 
+            {merchPriceNoticeText && (
+              <div data-testid="merch-price-notice" role="status" style={{
+                marginTop: '1rem',
+                padding: '1rem',
+                background: '#fffbeb',
+                border: '1px solid #fcd34d',
+                borderRadius: 'var(--radius-md)',
+                color: '#92400e',
+                fontSize: '0.875rem'
+              }}>
+                {merchPriceNoticeText}
+              </div>
+            )}
+
             {errors.submit && (
               <div style={{
                 marginTop: '1rem',
@@ -909,8 +961,8 @@ export default function Checkout() {
                   // never had a credit at all — never a discounted figure the backend already
                   // refused to honor.
                   const effectiveCredit = (creditEligible && !creditDisplayOverride) ? creditAmount : 0;
-                  const techFee = platformFeeFor(subscriptionItem);
-                  const finalTotal = Math.max(0, planPrice + techFee - effectiveCredit);
+                  const techFee = platformFeeFor(subscriptionItem, feeState);
+                  const finalTotal = Math.max(0, planPrice + (techFee ?? 0) - effectiveCredit);
 
                   return (
                     <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
@@ -965,26 +1017,39 @@ export default function Checkout() {
                           </span>
                         </div>
                       )}
+                      {creditAmount > 0 && referralCode && creditEligible && !creditDisplayOverride && <CreditCapNote capped={referralCreditCapped} />}
 
-                      {/* One-Time Platform Fee */}
-                      <div style={{ marginBottom: '0.75rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-secondary)' }}>
-                          <span>One-Time Platform Fee</span>
-                          <span>${techFee.toFixed(2)}</span>
+                      {/* One-Time Platform Fee — omitted when the account already paid it (W18). */}
+                      {techFee !== 0 && (
+                        <div data-testid="checkout-platform-fee" style={{ marginBottom: '0.75rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-secondary)' }}>
+                            <span>One-Time Platform Fee</span>
+                            <span>{formatFeeAmount(techFee)}</span>
+                          </div>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '0.25rem 0 0', fontStyle: 'italic' }}>
+                            Covers setup for you and your G1G1 recipient
+                          </p>
                         </div>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '0.25rem 0 0', fontStyle: 'italic' }}>
-                          Covers setup for you and your G1G1 recipient
-                        </p>
-                      </div>
+                      )}
 
                       {/* Total */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '2px solid var(--border)', fontSize: '1.25rem', fontWeight: 800 }}>
                         <span>Total</span>
                         <span style={{ color: '#667eea' }}>${finalTotal.toFixed(2)}</span>
                       </div>
+                      {techFee == null && (
+                        <div data-testid="checkout-total-fee-note" style={{ fontSize: '0.8rem', color: '#777', marginTop: '0.25rem' }}>
+                          Plus the one-time platform fee, {FEE_CALCULATED_AT_CHECKOUT.toLowerCase()}.
+                        </div>
+                      )}
                       <div style={{ fontSize: '0.85rem', color: '#555', marginTop: '0.25rem' }}>
                         Includes 2 Greet-Me experiences
                       </div>
+                      {subscriptionItem && (
+                        <div data-testid="checkout-subscription-terms" style={{ fontSize: '0.8rem', color: '#555', marginTop: '0.5rem', lineHeight: 1.4 }}>
+                          {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE}
+                        </div>
+                      )}
                       <div style={{ fontSize: '0.8rem', color: '#777', marginTop: '0.5rem' }}>
                         🔒 Secure checkout • Cancel anytime
                       </div>

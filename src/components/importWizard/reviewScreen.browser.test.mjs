@@ -133,6 +133,14 @@ async function uploadCsvVia(controlTid, csv) {
   await act(async () => { input.dispatchEvent(new window.Event("change", { bubbles: true })); });
   await flush(); await flush();
 }
+// Test Drive is a modal (PR#20): the entry card opens it; "Load sample instantly" is the old
+// "Start Test Drive"; "Upload sample to preview" (td-modal-upload) is the old dedicated practice upload;
+// "Download sample list" (xlsx) / "Download sample as CSV" are the old Download Practice CSV.
+const openTestDrive = async () => { await act(async () => fireClick(tid("open-testdrive-modal"))); };
+const startTestDrive = async () => { await openTestDrive(); await act(async () => fireClick(tid("td-modal-instant"))); };
+// The wizard calls the GLOBAL URL.createObjectURL; count downloads there and return a hash href so the
+// anchor click is a harmless same-document navigation in jsdom.
+const stubDownloads = () => { URL.createObjectURL = (...a) => { (globalThis.__downloads || (globalThis.__downloads = [])).push(a); return "#download-stub"; }; URL.revokeObjectURL = () => {}; };
 const PRACTICE_CSV = "Name,Email,Relationship,Company,Birthday,Greet-Me Practice File\nRobin Sample,robin@example.com,,,,practice-v2\nCasey Sample,casey@example.org,,,,practice-v2";
 const PRACTICE_BAD = "Name,Email,Greet-Me Practice File\nRobin Sample,robin@example.com,practice-v9";
 const ORDINARY_SAMPLE = "Name,Email\nReal Sample,real@x.co\nOther Person,other@x.co";
@@ -140,7 +148,7 @@ const ORDINARY_SAMPLE = "Name,Email\nReal Sample,real@x.co\nOther Person,other@x
 // ---------- SAMPLE (individual) ----------
 test("Individual → Try sample → combined preview (no separate list, no Finish/View CTA)", async () => {
   await mountWizard(); await goIndividual();
-  await act(async () => fireClick(tid("start-testdrive")));
+  await startTestDrive();
   assert.ok(tid("confirm-screen"), "sample opens directly on the combined preview");
   assert.match(txt(), /Preview your practice contacts/);
   assert.match(txt(), /Safe practice mode — Nothing will be saved or sent/);
@@ -150,13 +158,21 @@ test("Individual → Try sample → combined preview (no separate list, no Finis
   assert.ok(!/Finish sample/.test(txt()));
 });
 
-test("sample: open optional relationship editor, change a value, return", async () => {
+test("optional relationship editor: open, change a value, return (real review); Test Drive hides it by approved simplification", async () => {
+  // Original invariant was proven on the sample. PR#23 (founder-approved Test Drive simplification,
+  // locked by testDriveReviewGating.test.mjs) removed "Add relationship details first" from Test Drive
+  // and auto-applies defaults instead, so the editor is proven on the real review (same ReviewScreen
+  // and DetailsView), and the sample is asserted NOT to offer it.
   await mountWizard(); await goIndividual();
-  await act(async () => fireClick(tid("start-testdrive")));
+  await startTestDrive();
+  assert.ok(tid("confirm-screen"));
+  assert.equal(tid("details-cta"), null, "Test Drive offers no relationship editor (approved simplification)");
+  await mountWizard(); globalThis.__getContacts = () => ({ data: [] });
+  await goIndividual(); await uploadCsv(CSV2);
   await act(async () => fireClick(tid("details-cta")));
   assert.ok(tid("details-screen"));
-  await act(async () => fireChange(tid("group-select"), "friend"));
-  const opts = [...tid("relation-select").options].map((o) => o.value);
+  await act(async () => fireChange(document.querySelector('[data-testid="group-select"]'), "friend"));
+  const opts = [...document.querySelector('[data-testid="relation-select"]').options].map((o) => o.value);
   assert.ok(opts.includes("close_friend") && !opts.includes("sibling"));
   await act(async () => fireClick(tid("details-done")));
   assert.ok(tid("confirm-screen"));
@@ -164,7 +180,7 @@ test("sample: open optional relationship editor, change a value, return", async 
 
 test("sample persists for a same-session reload (remount restores the preview)", async () => {
   await mountWizard(); await goIndividual();
-  await act(async () => fireClick(tid("start-testdrive")));
+  await startTestDrive();
   await flush();
   document.body.innerHTML = "";
   const c2 = document.createElement("div"); document.body.appendChild(c2);
@@ -177,12 +193,12 @@ test("sample persists for a same-session reload (remount restores the preview)",
 test("sample: Delete / Exit / Start Over all clear it and return to selection", async () => {
   for (const id of ["sample-delete", "sample-exit"]) {
     await mountWizard(); await goIndividual();
-    await act(async () => fireClick(tid("start-testdrive")));
+    await startTestDrive();
     await act(async () => fireClick(tid(id)));
     assert.match(txt(), /Import Those Important to You?/, `${id} returns to selection`);
   }
   await mountWizard(); await goIndividual();
-  await act(async () => fireClick(tid("start-testdrive")));
+  await startTestDrive();
   await act(async () => fireClick(tid("startover")));
   assert.match(txt(), /Import Those Important to You?/);
 });
@@ -275,10 +291,13 @@ test("each Business selection → Business Upload Options (canonical heading, st
     assert.match(txt(), /Upload your contacts/);
     assert.ok(tid("choose-csv"), "Choose a CSV file control present");
     assert.match(txt(), /Choose a file/);
-    assert.ok(tid("upload-or"), "OR divider present");
+    // PR#20 replaced the stacked sections + OR divider with side-by-side cards: the Upload section and
+    // a separate TEST DRIVE WIZARD card, whose practice actions live in a modal.
+    assert.ok(document.querySelector(".gmiw-uxref-grid [data-testid=\"upload-section\"]") && tid("open-testdrive-modal"), "upload and Test Drive are separate side-by-side cards");
+    assert.match(txt(), /TEST DRIVE WIZARD/);
+    await openTestDrive();
     assert.match(txt(), /Safe practice mode/);
-    assert.match(txt(), /Test Drive the Import Wizard/);
-    assert.ok(tid("download-practice") && tid("start-testdrive"), "practice CTAs present");
+    assert.ok(tid("td-modal-download") && tid("td-modal-instant"), "practice CTAs present (in the modal)");
     assert.equal(tid("sample-upload-own"), null, "no individual sample bar on business upload options");
   }
 });
@@ -288,16 +307,17 @@ test("Business Test Drive is ZERO mutation; primary CTA opens the Recipients Pra
     await mountWizard();
     globalThis.__importContacts = (c) => ({ data: { imported: c.length, failed: 0, errors: [] } });
     await goBusiness(kind);
-    await act(async () => fireClick(tid("start-testdrive")));
+    await startTestDrive();
     await flush();
     assert.ok(tid("confirm-screen"), `${kind} test drive opens the preview`);
     assert.match(txt(), /Preview your practice contacts/);
-    // primary CTA → Recipients Practice View (explicit marker), persists the session workspace only
-    assert.ok(tid("view-practice-recipients"), `${kind} has the Practice View CTA`);
-    assert.match(txt(), /See how the fictional contacts will look in your Recipients page/);
-    await act(async () => fireClick(tid("view-practice-recipients")));
+    // primary CTA → Corporate Dashboard Test Drive (founder-approved Business wording), persists the session workspace only
+    assert.ok(tid("view-practice-dashboard"), `${kind} has the Practice View CTA (Corporate Dashboard)`);
+    assert.equal(tid("view-practice-recipients"), null, "Business no longer routes to the Personal Recipients practice view");
+    assert.match(txt(), /View and Manage Your Practice Contacts in the Corporate Dashboard/);
+    await act(async () => fireClick(tid("view-practice-dashboard")));
     await flush();
-    assert.equal(globalThis.__nav, "/dashboard/contacts?practice=1", `${kind} navigates to Recipients Practice View`);
+    assert.equal(globalThis.__nav, "/dashboard/campaigns/test-drive", `${kind} navigates to the Corporate Dashboard Test Drive`);
     assert.equal(globalThis.__lastImport, undefined, `${kind} test drive made NO import API call`);
     // the fictional contacts were persisted to the session-scoped workspace (never a backend write)
     const raw = window.sessionStorage.getItem("greetme_sample_workspace");
@@ -350,18 +370,19 @@ test("FAMILY UX PROOF: before opt-in unchanged; after opt-in shows Family Member
   globalThis.__importContacts = (c) => ({ data: { imported: c.length, failed: 0, errors: [] } });
   await goIndividual("family"); await uploadCsv(CSV2);
   assert.ok(tid("defaults-notice"), "Family now has a canonical recommended default");
+  // PR#23 review table: the Type column shows "—" until a relationship is provided, then the group label.
+  const typeCells = () => [...document.querySelectorAll(".gmiw-review-table tbody tr")].map((r) => r.children[2].textContent.trim());
   // before opt-in: relationship blank / unchanged
-  assert.match(txt(), /Relationship not provided/);
-  assert.ok(!txt().includes("Family Member"), "no relationship applied before opt-in");
-  // after opt-in: review displays Family / Family Member
+  assert.deepEqual(typeCells(), ["—", "—"], "no relationship shown before opt-in");
+  assert.equal(document.querySelectorAll(".gmiw-review-edit-link").length, 2, "each blank row offers 'Add relationship'");
+  // after opt-in: review displays Family
   await act(async () => fireClick(tid("apply-defaults")));
   assert.ok(tid("defaults-applied"));
-  assert.match(txt(), /Family Member/, "Family Member shown after opt-in");
+  assert.deepEqual(typeCells(), ["Family", "Family"], "Family shown after opt-in");
   // undo restores the exact prior state
   await act(async () => fireClick(tid("undo-defaults")));
   assert.ok(tid("defaults-notice"));
-  assert.match(txt(), /Relationship not provided/);
-  assert.ok(!txt().includes("Family Member"), "undo removed the applied relationship");
+  assert.deepEqual(typeCells(), ["—", "—"], "undo removed the applied relationship");
   // and the payload carries the canonical family default when applied + committed
   await act(async () => fireClick(tid("apply-defaults")));
   await act(async () => fireClick(tid("add-cta")));
@@ -405,8 +426,9 @@ test("dedicated Upload Practice CSV → Test Drive; primary CTA is View Practice
   await mountWizard();
   globalThis.__importContacts = (c) => ({ data: { imported: c.length } });
   await goIndividual("family");
-  assert.ok(tid("upload-practice"), "dedicated Upload Practice CSV lives inside Option 1");
-  await uploadCsvVia("upload-practice", PRACTICE_CSV);
+  await openTestDrive();
+  assert.ok(tid("td-modal-upload"), "dedicated practice upload lives inside the Test Drive modal");
+  await uploadCsvVia("td-modal-upload", PRACTICE_CSV);
   assert.ok(tid("confirm-screen"), "entered Test Drive review");
   assert.match(txt(), /Preview your practice contacts/);
   assert.match(txt(), /Robin Sample/);
@@ -435,7 +457,8 @@ test("normal Choose CSV detects a marked Practice CSV → notice → Continue in
 test("the practice marker is stripped from the persisted workspace (never a contact field / payload)", async () => {
   await mountWizard();
   await goIndividual("family");
-  await uploadCsvVia("upload-practice", PRACTICE_CSV);
+  await openTestDrive();
+  await uploadCsvVia("td-modal-upload", PRACTICE_CSV);
   await act(async () => fireClick(tid("view-practice-recipients")));
   await flush();
   const raw = window.sessionStorage.getItem("greetme_sample_workspace");
@@ -471,7 +494,7 @@ test("Business Choose CSV: a marked Practice CSV opens Test Drive; an unmarked o
   assert.ok(tid("practice-detected"), "marked business practice CSV → detected notice");
   await act(async () => fireClick(tid("continue-in-testdrive")));
   await flush();
-  assert.ok(tid("confirm-screen") && tid("view-practice-recipients"));
+  assert.ok(tid("confirm-screen") && tid("view-practice-dashboard"));
   assert.equal(globalThis.__lastImport, undefined);
   await mountWizard(); await goBusiness("employee");
   await uploadCsvVia("choose-csv", CSV2);                       // unmarked business CSV → preview (not dormant)
@@ -480,77 +503,81 @@ test("Business Choose CSV: a marked Practice CSV opens Test Drive; an unmarked o
 });
 
 test("all six blank-template download actions are wired and separate from the Practice CSV", async () => {
+  // Current UI (PR#20): one format toggle (Excel/CSV) + one download button per category; the Practice
+  // files are offered separately inside the Test Drive modal.
   for (const [nav, kind] of [["p", "family"], ["p", "friend"], ["p", "professional"], ["b", "employee"], ["b", "client"], ["b", "vendor"]]) {
     await mountWizard();
     if (nav === "p") await goIndividual(kind); else await goBusiness(kind);
-    assert.match(txt(), /Need a file to fill out\?/, `${kind} template block`);
-    assert.ok(tid("download-excel-template"), `${kind} Excel template action`);
-    assert.ok(tid("download-csv-template"), `${kind} CSV template action`);
-    assert.ok(tid("download-practice"), `${kind} Practice CSV still present + separate`);
+    stubDownloads();
+    assert.match(txt(), /Need a file to fill out\?|template/i, `${kind} template block`);
+    assert.ok(tid("template-block") && tid("template-fmt-xlsx") && tid("template-fmt-csv") && tid("download-template-btn"), `${kind} template controls`);
+    for (const fmt of ["xlsx", "csv"]) {
+      globalThis.__downloads = [];
+      await act(async () => fireClick(tid(`template-fmt-${fmt}`)));
+      await act(async () => fireClick(tid("download-template-btn")));
+      await flush();
+      assert.equal((globalThis.__downloads || []).length, 1, `${kind} ${fmt} template download fired exactly once`);
+    }
+    assert.equal(tid("confirm-screen"), null, "a template download never opens the review");
+    assert.equal(globalThis.__lastImport, undefined);
+    assert.equal(globalThis.__nav, undefined);
+    await openTestDrive();
+    assert.ok(tid("td-modal-download") && tid("td-modal-csv"), `${kind} Practice downloads still present + separate (modal)`);
   }
 });
 
 // ---------- Test Drive two-tile structure (rendered DOM, all six paths) ----------
 const q = (sel) => document.querySelector(sel);
 const within = (containerTid, sel) => q(`[data-testid="${containerTid}"] ${sel}`);
-test("Upload/Test-Drive numbering: OPTION labels live ONLY in the two Test Drive tiles (DOM structure)", async () => {
+test("Upload vs Test Drive structure: no OPTION numbering in Upload; Test Drive is its own card + modal (DOM structure)", async () => {
+  // The old OPTION 1 / OR / OPTION 2 tile pair was replaced by PR#20 with a TEST DRIVE card and modal.
+  // The surviving invariants: Upload carries no practice numbering; Test Drive is a separate container
+  // that offers download-only vs load actions; no bullet list.
   for (const [nav, kind] of [["p", "family"], ["p", "friend"], ["p", "professional"], ["b", "employee"], ["b", "client"], ["b", "vendor"]]) {
     await mountWizard();
     if (nav === "p") await goIndividual(kind); else await goBusiness(kind);
-    const upload = tid("upload-section"), td = tid("testdrive-section");
-    assert.ok(upload && td, `${kind}: both containers present`);
-    // (1/2) normal-upload container has NO OPTION label / numbered tile
-    assert.equal(within("upload-section", '[data-testid^="td-option-"]'), null, `${kind}: no OPTION label in Upload`);
+    const upload = tid("upload-section"), card = tid("open-testdrive-modal");
+    assert.ok(upload && card, `${kind}: both containers present`);
     assert.ok(!/OPTION\s*[12]/.test(upload.textContent), `${kind}: Upload section text has no OPTION 1/2`);
-    // (3/4) Safe practice mode heading area has no parent OPTION label — the only OPTION labels are the tiles' eyebrows
-    assert.ok(!within("testdrive-section", '[data-testid="option-2-label"]'), `${kind}: no parent OPTION 2 label`);
-    // (5) old bullet list absent
-    assert.equal(within("testdrive-section", "ul"), null, `${kind}: no bullet list in Test Drive`);
-    // (6/7/8) exactly two numbered tiles inside the Test Drive container, in order
-    const tiles = td.querySelectorAll('[data-testid^="testdrive-option-"]');
-    assert.equal(tiles.length, 2, `${kind}: exactly two Test Drive tiles`);
-    assert.equal(tiles[0].getAttribute("data-testid"), "testdrive-option-1");
-    assert.equal(tiles[1].getAttribute("data-testid"), "testdrive-option-2");
-    assert.equal(within("testdrive-option-1", '[data-testid="td-option-1-label"]').textContent.trim(), "OPTION 1");
-    assert.equal(within("testdrive-option-2", '[data-testid="td-option-2-label"]').textContent.trim(), "OPTION 2");
-    assert.ok(!within("testdrive-option-2", '[data-testid="td-option-1-label"]'), `${kind}: OPTION 1 only in tile 1`);
-    // (9/10) each tile owns its CTA
-    assert.ok(within("testdrive-option-1", '[data-testid="download-practice"]'), `${kind}: tile 1 → Download Practice CSV`);
-    assert.ok(within("testdrive-option-2", '[data-testid="start-testdrive"]'), `${kind}: tile 2 → Start Test Drive`);
-    // (11) internal OR between the two tiles, positioned after tile 1 and before tile 2
-    const children = [...td.children];
-    const i1 = children.indexOf(tiles[0]), iOr = children.findIndex((c) => c.getAttribute && c.getAttribute("data-testid") === "testdrive-or"), i2 = children.indexOf(tiles[1]);
-    assert.ok(i1 >= 0 && iOr > i1 && i2 > iOr, `${kind}: OPTION1 → OR → OPTION2 order`);
-    assert.equal(tid("testdrive-or").textContent.trim(), "OR");
+    assert.ok(!upload.contains(card) && !card.contains(upload), `${kind}: Test Drive is a separate container`);
+    assert.equal(upload.querySelector("ul"), null);
+    await openTestDrive();
+    const dlg = document.querySelector('[role="dialog"]');
+    assert.ok(dlg, `${kind}: modal opened`);
+    assert.equal(dlg.querySelector("ul"), null, `${kind}: no bullet list in Test Drive (numbered steps are an <ol>)`);
+    assert.equal(dlg.querySelectorAll("ol > li").length, 3, `${kind}: three numbered steps`);
+    assert.ok(dlg.querySelector('[data-testid="td-modal-download"]') && dlg.querySelector('[data-testid="td-modal-instant"]'), `${kind}: download and load actions both in the modal`);
   }
 });
-test("Test Drive OPTION 1 downloads only (no load / no navigate / no API); OPTION 2 loads the review (zero mutation)", async () => {
-  // OPTION 1 — download only
+test("Test Drive downloads are download-only (no load / no navigate / no API); Load sample instantly loads the review (zero mutation)", async () => {
+  for (const dl of ["td-modal-download", "td-modal-csv"]) {
+    await mountWizard(); await goIndividual("professional");
+    stubDownloads(); globalThis.__downloads = [];
+    await openTestDrive();
+    await act(async () => fireClick(tid(dl)));
+    await flush();
+    assert.equal((globalThis.__downloads || []).length, 1, `${dl} produced a download`);
+    assert.equal(tid("confirm-screen"), null, `${dl} did NOT navigate to the review`);
+    assert.ok(tid("td-modal-instant"), "still in the Test Drive modal on the upload screen");
+    assert.equal(globalThis.__lastImport, undefined, `${dl} made no import API call`);
+    assert.equal(globalThis.__nav, undefined, `${dl} did not navigate to prod`);
+  }
   await mountWizard(); await goIndividual("professional");
-  window.URL.createObjectURL = () => "blob:stub"; window.URL.revokeObjectURL = () => {};
-  await act(async () => fireClick(within("testdrive-option-1", '[data-testid="download-practice"]')));
+  await startTestDrive();
   await flush();
-  assert.equal(tid("confirm-screen"), null, "OPTION 1 did NOT navigate to the review");
-  assert.ok(tid("testdrive-option-1"), "still on the upload options screen");
-  assert.equal(globalThis.__lastImport, undefined, "OPTION 1 made no import API call");
-  assert.equal(globalThis.__nav, undefined, "OPTION 1 did not navigate to prod");
-  // OPTION 2 — load fictional data → review, zero mutation
-  await mountWizard(); await goIndividual("professional");
-  await act(async () => fireClick(within("testdrive-option-2", '[data-testid="start-testdrive"]')));
-  await flush();
-  assert.ok(tid("confirm-screen"), "OPTION 2 loaded the Test Drive review");
+  assert.ok(tid("confirm-screen"), "Load sample instantly loaded the Test Drive review");
   assert.match(txt(), /Preview your practice contacts/);
-  assert.equal(globalThis.__lastImport, undefined, "OPTION 2 made no import API call");
-  assert.equal(globalThis.__nav, undefined, "OPTION 2 made no navigation to prod");
+  assert.equal(globalThis.__lastImport, undefined, "no import API call");
+  assert.equal(globalThis.__nav, undefined, "no navigation to prod");
 });
 
 test("Personal Test Drive loads the CATEGORY dataset (Family names differ from Friends)", async () => {
   await mountWizard(); await goIndividual("family");
-  await act(async () => fireClick(tid("start-testdrive")));
+  await startTestDrive();
   await flush();
   const familyTxt = txt();
   await mountWizard(); await goIndividual("friend");
-  await act(async () => fireClick(tid("start-testdrive")));
+  await startTestDrive();
   await flush();
   const friendTxt = txt();
   // every practice contact has surname "Sample"; datasets differ by distinct first names
@@ -575,7 +602,7 @@ test("mobile width: the combined screen still renders", async () => {
   Object.defineProperty(window, "innerWidth", { value: 375, configurable: true });
   window.dispatchEvent(new window.Event("resize"));
   await mountWizard(); await goIndividual();
-  await act(async () => fireClick(tid("start-testdrive")));
+  await startTestDrive();
   assert.ok(tid("confirm-screen") && tid("sample-exit"));
 });
 
@@ -812,7 +839,8 @@ test("generated Practice Excel via 'Choose a file' → forced Test Drive, zero m
 test("generated Practice Excel via the dedicated 'Upload practice file' control → Test Drive", async () => {
   await mountWizard(); await goIndividual();
   const bytes = templatePracticeXlsx("family", { contacts: sampleContactsFor("family") });
-  await uploadFileVia("upload-practice", new File([bytes], "practice.xlsx"));
+  await openTestDrive();
+  await uploadFileVia("td-modal-upload", new File([bytes], "practice.xlsx"));
   assert.ok(tid("confirm-screen"), "dedicated practice upload opens the combined Test Drive preview");
   assert.ok(tid("view-practice-recipients"));
   assert.equal(tid("add-cta"), null);
