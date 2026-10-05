@@ -86,12 +86,12 @@ test("Prezzee: GiftClaim wires the voucher panel; secrets are never logged, stor
   assert.match(claim, /status === 410 \|\| err\?\.code === 'GIFT_EXPIRED'/);
 });
 
-test("W42: MerchOrders keeps merch + flower reads and adds the combined history read for gift rows only", () => {
-  const src = read("pages/MerchOrders.jsx");
+test("W42: Your Orders reads the combined history and falls back to the two older reads (merch, flowers) only when it is unavailable", () => {
+  const src = read("utils/myOrders.js");
   assert.match(src, /api\.getMerchOrders\(\)/);
   assert.match(src, /api\.getFlowerOrders\(\)/);
   assert.match(src, /api\.getOrderHistory\(\)/);
-  assert.match(src, /o\.source === "gift"/);
+  assert.match(read("pages/MerchOrders.jsx"), /loadMyOrders\(api\)/);
   assert.match(read("api/api.js"), /getOrderHistory\(\) \{\s*return this\.request\("\/api\/orders\/history"\);/);
   assert.doesNotMatch(read("api/api.js"), /getMerchOrders\(\)[^}]*orders\/history/);
 });

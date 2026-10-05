@@ -81,9 +81,12 @@ test("tracking link only when available, https and parseable", () => {
   assert.equal(giftOrderTrackingHref(null), null);
 });
 
-test("MerchOrders uses these helpers and keeps merch fallback untouched", () => {
+test("MerchOrders (the one-list Your Orders page) uses these helpers for EVERY row and invents no Processing fallback", () => {
   const src = fs.readFileSync(new URL("../pages/MerchOrders.jsx", import.meta.url), "utf8");
   assert.match(src, /from "\.\.\/utils\/orderStatus"/);
-  assert.match(src, /giftStatusBadgeStyle\(kind\)/);
-  assert.match(src, /o\.statusLabel \|\| "Processing"/, "merch behavior deliberately unchanged");
+  assert.match(src, /giftStatusBadgeStyle\(r\.status && r\.status\.kind\)/);
+  assert.match(src, /giftOrderStatusLabel\(r\.status\)/);
+  assert.match(src, /giftOrderTrackingHref\(r\.tracking\)/);
+  // W42 (founder-approved Surface 11): the old page asserted "Processing" for a merch order without a label; an unknown status is now honest
+  assert.doesNotMatch(src, /\|\| "Processing"/);
 });
