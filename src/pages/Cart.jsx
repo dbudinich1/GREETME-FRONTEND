@@ -46,6 +46,7 @@ import { SUBSCRIPTION_RENEWAL_NOTICE, PLATFORM_FEE_ONE_TIME_NOTICE } from '../ut
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
 import { useReferralCredit } from '../hooks/useReferralCreditCents';
 import CreditCapNote from '../components/CreditCapNote';
+import { clampCreditDollars } from '../utils/creditCap';
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -876,7 +877,7 @@ export default function Cart() {
                 // CREDIT CONTRACT INTEGRITY (2026-09-30, Cart/Pricing display-honesty correction) —
                 // same gate as Checkout.jsx: a stored courtesy amount with no backend-issued
                 // creditCode must never be displayed or subtracted here either.
-                const rawCredit = hasReferralCredit ? referralCreditDollars : (courtesyCredit?.creditCode ? (courtesyCredit?.amount || 0) : 0);
+                const rawCredit = hasReferralCredit ? referralCreditDollars : (courtesyCredit?.creditCode ? clampCreditDollars(courtesyCredit?.amount) : 0);
                 const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                 const creditAmt = creditEligible ? rawCredit : 0;
                 const techFee = platformFeeFor(subscriptionItem, feeState);
@@ -954,7 +955,7 @@ export default function Cart() {
                 const planPrice = subscriptionItem?.price || total;
                 const courtesyCredit2 = (() => { try { const s = localStorage.getItem('greetme_courtesy_credit'); return s ? JSON.parse(s) : null; } catch { return null; } })();
                 // CREDIT CONTRACT INTEGRITY (2026-09-30) — same gate as the display block above.
-                const rawCredit = hasReferralCredit ? referralCreditDollars : (courtesyCredit2?.creditCode ? (courtesyCredit2?.amount || 0) : 0);
+                const rawCredit = hasReferralCredit ? referralCreditDollars : (courtesyCredit2?.creditCode ? clampCreditDollars(courtesyCredit2?.amount) : 0);
                 const creditEligible = subscriptionItem?.planTier !== 'close_circle';
                 const creditAmt = creditEligible ? rawCredit : 0;
                 const techFee = platformFeeFor(subscriptionItem, feeState);

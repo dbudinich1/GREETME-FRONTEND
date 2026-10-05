@@ -91,6 +91,7 @@ import { SUBSCRIPTION_RENEWAL_NOTICE, PLATFORM_FEE_ONE_TIME_NOTICE } from '../ut
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
 import { useReferralCredit } from '../hooks/useReferralCreditCents';
 import CreditCapNote from '../components/CreditCapNote';
+import { clampCreditDollars } from '../utils/creditCap';
 import {
   expectedMerchSubtotalCents, isMerchPriceConfirmationCode, applyMerchPriceChange, merchPriceNotice,
 } from '../utils/merchPriceGuard';
@@ -169,7 +170,7 @@ export default function Checkout() {
   // the backend checks) and is unaffected.
   // The REAL referral credit as the server issued it; null (nothing shown or subtracted) until known.
   const { cents: referralCreditCents, capped: referralCreditCapped } = useReferralCredit(referralCode);
-  const creditAmount = referralCode ? (referralCreditCents ? referralCreditCents / 100 : 0) : (courtesyCreditCode ? (courtesyCredit?.amount || 0) : 0);
+  const creditAmount = referralCode ? (referralCreditCents ? referralCreditCents / 100 : 0) : (courtesyCreditCode ? clampCreditDollars(courtesyCredit?.amount) : 0);
 
   const [total, setTotal] = useState(0);
   // CREDIT CONTRACT INTEGRITY (2026-09-29, follow-up correction) — the order summary must never

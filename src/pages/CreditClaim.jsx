@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { safeGet, safeSet, safeSessionSet, safeSessionRemove } from '../utils/safeStorage';
 import { useAccountState } from '../hooks/useAccountState';
+import { clampCreditCents } from '../utils/creditCap';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -115,7 +116,7 @@ export default function CreditClaim() {
         setClaimed(true);
         safeSet('greetme_courtesy_credit', JSON.stringify({
           creditCode,
-          amount: (result.amountCents || credit?.amountCents || 500) / 100,
+          amount: clampCreditCents(result.amountCents || credit?.amountCents || 500) / 100,
           source: 'courtesy',
           claimedAt: new Date().toISOString(),
         }));
@@ -194,7 +195,7 @@ export default function CreditClaim() {
 
         safeSet('greetme_courtesy_credit', JSON.stringify({
           creditCode,
-          amount: (claimResult.amountCents || credit?.amountCents || 500) / 100,
+          amount: clampCreditCents(claimResult.amountCents || credit?.amountCents || 500) / 100,
           source: 'courtesy',
           claimedAt: new Date().toISOString(),
         }));
@@ -268,7 +269,7 @@ export default function CreditClaim() {
         loginClaimSuccess = true;
         safeSet('greetme_courtesy_credit', JSON.stringify({
           creditCode,
-          amount: (claimResult.amountCents || credit?.amountCents || 500) / 100,
+          amount: clampCreditCents(claimResult.amountCents || credit?.amountCents || 500) / 100,
           source: 'courtesy',
           claimedAt: new Date().toISOString(),
         }));
@@ -308,7 +309,7 @@ export default function CreditClaim() {
       if (credit.claimed) {
         safeSet('greetme_courtesy_credit', JSON.stringify({
           creditCode,
-          amount: (credit.amountCents || 500) / 100,
+          amount: clampCreditCents(credit.amountCents || 500) / 100,
           source: 'courtesy',
           claimedAt: new Date().toISOString(),
         }));
@@ -322,7 +323,7 @@ export default function CreditClaim() {
         if (result?.ok) {
           safeSet('greetme_courtesy_credit', JSON.stringify({
             creditCode,
-            amount: (result.amountCents || credit.amountCents || 500) / 100,
+            amount: clampCreditCents(result.amountCents || credit.amountCents || 500) / 100,
             source: 'courtesy',
             claimedAt: new Date().toISOString(),
           }));
@@ -355,7 +356,7 @@ export default function CreditClaim() {
       .finally(() => setPrefillLoading(false));
   }, [credit, isAuthenticated]);
 
-  const displayAmount = credit ? `$${(credit.amountCents / 100).toFixed(0)}` : '$5';
+  const displayAmount = credit ? `$${(clampCreditCents(credit.amountCents) / 100).toFixed(0)}` : '$5';
   const senderFirstName = (recipientPrefill?.senderName || '').trim().split(/\s+/)[0];
 
   if (loading || !sessionReady) {

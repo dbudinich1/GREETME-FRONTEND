@@ -13,6 +13,7 @@ import { PRICING_ENTERPRISE_ENTRY } from '../utils/contactSales';
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
 import { useReferralCredit } from '../hooks/useReferralCreditCents';
 import CreditCapNote from '../components/CreditCapNote';
+import { clampCreditDollars } from '../utils/creditCap';
 
 // Plan tiers ineligible for referral credit
 const CREDIT_INELIGIBLE_TIERS = new Set(['close_circle']);
@@ -1113,7 +1114,7 @@ export default function Pricing() {
                     // CREDIT CONTRACT INTEGRITY (2026-09-30, Cart/Pricing display-honesty correction) —
                     // same gate as Checkout.jsx: a stored courtesy amount with no backend-issued
                     // creditCode must never be displayed or subtracted here either.
-                    const creditAmt = referralCode ? referralCreditDollars : (cc?.creditCode ? (cc?.amount || 0) : 0);
+                    const creditAmt = referralCode ? referralCreditDollars : (cc?.creditCode ? clampCreditDollars(cc?.amount) : 0);
                     const isEligible = !CREDIT_INELIGIBLE_TIERS.has(lastAddedPlan.planTier);
                     const effectiveCredit = isEligible ? creditAmt : 0;
                     return (
