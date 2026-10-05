@@ -10,26 +10,40 @@ import { useEffect, useState } from 'react';
 import api from '../api/api';
 
 /** Pure: the cents to display for a server response, or null when there is no real amount. */
+// Founder rule: no referral credit above $5. The server already returns the effective value; this is the
+// belt-and-braces ceiling so no screen can ever render a figure above $5.
+export const MAX_REFERRAL_CREDIT_CENTS = 500;
+
 export function referralCreditCentsFrom(res) {
   const cents = res && res.ok === true ? res.referralCreditCents : null;
-  return Number.isSafeInteger(cents) && cents > 0 ? cents : null;
+  return Number.isSafeInteger(cents) && cents > 0 ? Math.min(cents, MAX_REFERRAL_CREDIT_CENTS) : null;
 }
 
-export default function useReferralCreditCents(referralCode) {
-  const [cents, setCents] = useState(null);
+/** Pure: true only when the server says the credit was capped (strict boolean) AND there is a real amount. */
+export function referralCreditCappedFrom(res) {
+  return referralCreditCentsFrom(res) !== null && res.referralCreditCapped === true;
+}
+
+/** { cents, capped } for a referral code; { cents: null, capped: false } when unknown or malformed. */
+export function useReferralCredit(referralCode) {
+  const [credit, setCredit] = useState({ cents: null, capped: false });
   useEffect(() => {
-    if (!referralCode || typeof referralCode !== 'string') { setCents(null); return undefined; }
+    if (!referralCode || typeof referralCode !== 'string') { setCredit({ cents: null, capped: false }); return undefined; }
     let cancelled = false;
-    setCents(null);
+    setCredit({ cents: null, capped: false });
     (async () => {
       try {
         const res = await api.getReferral(referralCode);
-        if (!cancelled) setCents(referralCreditCentsFrom(res));
+        if (!cancelled) setCredit({ cents: referralCreditCentsFrom(res), capped: referralCreditCappedFrom(res) });
       } catch {
-        if (!cancelled) setCents(null);
+        if (!cancelled) setCredit({ cents: null, capped: false });
       }
     })();
     return () => { cancelled = true; };
   }, [referralCode]);
-  return cents;
+  return credit;
+}
+
+export default function useReferralCreditCents(referralCode) {
+  return useReferralCredit(referralCode).cents;
 }

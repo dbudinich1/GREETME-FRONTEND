@@ -9,6 +9,7 @@ import api from '../api/api';
 import { useAccountState } from '../hooks/useAccountState';
 import { isSenderViewingOwnGift } from '../utils/accountState';
 import GiftCardVoucherPanel from '../components/GiftCardVoucherPanel';
+import { CREDIT_CAP_NOTE_TEXT } from '../components/CreditCapNote';
 
 // CREDIT AMOUNT (founder: no referral or courtesy credit above $5, for any reason): the credit toward a
 // Greet-Me subscription shown after a payout is the EFFECTIVE redeemable value the SERVER reports for this
@@ -258,7 +259,7 @@ export default function GiftClaim() {
   const fmt = (cents) => `$${(cents / 100).toFixed(2)}`;
   // The server-issued referral credit for the fulfilled screen; null (show nothing) when absent or malformed.
   const creditCents = (Number.isSafeInteger(gift?.referralGiftValueCents) && gift.referralGiftValueCents > 0)
-    ? gift.referralGiftValueCents
+    ? Math.min(gift.referralGiftValueCents, 500)
     : null;
   // Whole-dollar credits read as "$5", not "$5.00" (same value, matching how the credit is described elsewhere).
   const creditLabel = (cents) => (cents % 100 === 0 ? `$${cents / 100}` : fmt(cents));
@@ -461,6 +462,7 @@ export default function GiftClaim() {
                 margin: '0 0 1rem',
               }}>
                 {`Apply your ${creditLabel(creditCents)} credit toward a Greet-Me subscription.`}
+                {gift.referralCreditCapped === true && (<><br /><span data-testid="credit-cap-note" style={{ fontSize: '0.8rem' }}>{CREDIT_CAP_NOTE_TEXT}</span></>)}
                 <br />
                 <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>Valid toward Social Butterfly or higher plans. Terms apply.</span>
               </p>

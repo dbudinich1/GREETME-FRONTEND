@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
+import CreditCapNote from '../components/CreditCapNote';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -22,6 +23,7 @@ export default function ReferralCredit() {
   const [valid, setValid] = useState(false);
   const [error, setError] = useState(null);
   const [creditCents, setCreditCents] = useState(null);
+  const [capped, setCapped] = useState(false);
 
   useEffect(() => {
     if (!referralCode) {
@@ -37,7 +39,8 @@ export default function ReferralCredit() {
       .then((res) => {
         if (res?.ok && Number.isSafeInteger(res.referralCreditCents) && res.referralCreditCents > 0) {
           setValid(true);
-          setCreditCents(res.referralCreditCents);
+          setCreditCents(Math.min(res.referralCreditCents, 500));
+          setCapped(res.referralCreditCapped === true);
         } else {
           setError('This referral credit is no longer valid.');
         }
@@ -105,6 +108,7 @@ export default function ReferralCredit() {
         }}>
           {creditCents ? `Apply your ${fmt(creditCents)} credit` : 'Apply your credit'} toward a Greet-Me subscription.
         </p>
+        <CreditCapNote capped={capped} style={{ color: '#6b7280', textAlign: 'center' }} />
         <p style={{
           fontSize: '0.8125rem',
           color: '#6b7280',

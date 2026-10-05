@@ -89,7 +89,8 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 import { platformFeeFor as resolvePlatformFee, formatFeeAmount, FEE_CALCULATED_AT_CHECKOUT } from '../utils/platformFee';
 import { SUBSCRIPTION_RENEWAL_NOTICE, PLATFORM_FEE_ONE_TIME_NOTICE } from '../utils/subscriptionTerms';
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
-import useReferralCreditCents from '../hooks/useReferralCreditCents';
+import { useReferralCredit } from '../hooks/useReferralCreditCents';
+import CreditCapNote from '../components/CreditCapNote';
 import {
   expectedMerchSubtotalCents, isMerchPriceConfirmationCode, applyMerchPriceChange, merchPriceNotice,
 } from '../utils/merchPriceGuard';
@@ -167,7 +168,7 @@ export default function Checkout() {
   // Referral credit is a separate, already-verified mechanism (referralCode itself is what
   // the backend checks) and is unaffected.
   // The REAL referral credit as the server issued it; null (nothing shown or subtracted) until known.
-  const referralCreditCents = useReferralCreditCents(referralCode);
+  const { cents: referralCreditCents, capped: referralCreditCapped } = useReferralCredit(referralCode);
   const creditAmount = referralCode ? (referralCreditCents ? referralCreditCents / 100 : 0) : (courtesyCreditCode ? (courtesyCredit?.amount || 0) : 0);
 
   const [total, setTotal] = useState(0);
@@ -1015,6 +1016,7 @@ export default function Checkout() {
                           </span>
                         </div>
                       )}
+                      {creditAmount > 0 && referralCode && creditEligible && !creditDisplayOverride && <CreditCapNote capped={referralCreditCapped} />}
 
                       {/* One-Time Platform Fee — omitted when the account already paid it (W18). */}
                       {techFee !== 0 && (
