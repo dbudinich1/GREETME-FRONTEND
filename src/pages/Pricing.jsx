@@ -11,7 +11,8 @@ import { platformFeeFor, formatFeeAmount, isBusinessPlanTier } from '../utils/pl
 import ContactSalesModal from '../components/ContactSalesModal';
 import { PRICING_ENTERPRISE_ENTRY } from '../utils/contactSales';
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
-import useReferralCreditCents from '../hooks/useReferralCreditCents';
+import { useReferralCredit } from '../hooks/useReferralCreditCents';
+import CreditCapNote from '../components/CreditCapNote';
 
 // Plan tiers ineligible for referral credit
 const CREDIT_INELIGIBLE_TIERS = new Set(['close_circle']);
@@ -31,7 +32,7 @@ export default function Pricing() {
   // Referral credit from URL or localStorage
   const [referralCode, setReferralCode] = useState(null);
   // The REAL referral credit as the server issued it ("cap new, honor old"): null until known, never a literal.
-  const referralCreditCents = useReferralCreditCents(referralCode);
+  const { cents: referralCreditCents, capped: referralCreditCapped } = useReferralCredit(referralCode);
   const referralCreditDollars = referralCreditCents ? referralCreditCents / 100 : 0;
   const referralCreditLabel = referralCreditCents ? (referralCreditCents % 100 === 0 ? `$${referralCreditCents / 100}` : `$${(referralCreditCents / 100).toFixed(2)}`) : null;
   // TEAM 1 — gift/entitlement safety. Set when the user arrived here FROM the gift-entitlement
@@ -657,6 +658,7 @@ export default function Pricing() {
                     fontWeight: 600,
                   }}>
                     {referralCreditLabel} credit applies &mdash; pay ${Math.max(0, plan.price - referralCreditDollars).toFixed(2)}/{plan.period}
+                    <CreditCapNote capped={referralCreditCapped} style={{ fontWeight: 400, marginBottom: 0 }} />
                   </div>
                 )}
                 {isCreditIneligible && (
@@ -1129,6 +1131,7 @@ export default function Pricing() {
                             <span>&ndash;${effectiveCredit.toFixed(2)}</span>
                           </div>
                         )}
+                        {effectiveCredit > 0 && referralCode && <CreditCapNote capped={referralCreditCapped} />}
                         <div style={{
                           borderTop: '1px solid var(--border)',
                           paddingTop: '0.625rem',

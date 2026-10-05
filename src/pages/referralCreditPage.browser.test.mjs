@@ -65,8 +65,8 @@ async function mount() {
 }
 const ok = (cents, extra = {}) => ({ ok: true, referralCreditCents: cents, referralCode: "REF-1", ...extra });
 
-test("shows exactly the server amount: $5, $3, $2.50 (not rounded to $3), and a server-reported $10 as-is", async () => {
-  for (const [cents, shown] of [[500, "$5"], [300, "$3"], [250, "$2.50"], [1000, "$10"]]) {
+test("shows exactly the server amount: $5, $3, $2.50 (not rounded to $3), and a server-reported 1000 clamped to $5", async () => {
+  for (const [cents, shown] of [[500, "$5"], [300, "$3"], [250, "$2.50"], [1000, "$5"]]) {
     M.__responses.getReferral = ok(cents);
     const t = await mount();
     assert.ok(t.includes(`You've unlocked a ${shown} credit`), `${shown}: ${t}`);
@@ -110,4 +110,17 @@ test("source guard: no literal credit amount remains in ReferralCredit.jsx", () 
   const src = readFileSync(join(__dirname, "ReferralCredit.jsx"), "utf8").replace(/\r\n/g, "\n");
   const code = src.split("\n").filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join("\n");
   assert.doesNotMatch(code, /'\$\d+'|"\$\d+"|\$10\b/, "no quoted or inline dollar literal");
+});
+
+test("cap note: shown only when referralCreditCapped is strictly true; amount is $5 and never $10", async () => {
+  const NOTE = "Credits are worth up to $5 each.";
+  M.__responses.getReferral = ok(1000, { referralCreditCapped: true });
+  let t = await mount();
+  assert.ok(t.includes("You've unlocked a $5 credit") && t.includes(NOTE), t);
+  assert.doesNotMatch(t, /\$10\b/);
+  for (const v of [false, undefined, "true", 1, null]) {
+    M.__responses.getReferral = ok(500, v === undefined ? {} : { referralCreditCapped: v });
+    t = await mount();
+    assert.ok(t.includes("$5 credit") && !t.includes(NOTE), String(v));
+  }
 });

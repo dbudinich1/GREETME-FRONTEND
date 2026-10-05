@@ -44,7 +44,8 @@ const platformFeeFor = (item, feeState) =>
 import { platformFeeFor as resolvePlatformFee, formatFeeAmount, FEE_CALCULATED_AT_CHECKOUT } from '../utils/platformFee';
 import { SUBSCRIPTION_RENEWAL_NOTICE, PLATFORM_FEE_ONE_TIME_NOTICE } from '../utils/subscriptionTerms';
 import usePlatformFeeStatus from '../hooks/usePlatformFeeStatus';
-import useReferralCreditCents from '../hooks/useReferralCreditCents';
+import { useReferralCredit } from '../hooks/useReferralCreditCents';
+import CreditCapNote from '../components/CreditCapNote';
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ export default function Cart() {
   try { referralCodeStored = localStorage.getItem('greetme_referral_code'); } catch { /* blocked storage: treat as no referral code */ }
   const hasReferralCredit = !!referralCodeStored;
   // The REAL referral credit amount as the server issued it (null until known; never a literal).
-  const referralCreditCents = useReferralCreditCents(referralCodeStored);
+  const { cents: referralCreditCents, capped: referralCreditCapped } = useReferralCredit(referralCodeStored);
   const referralCreditDollars = referralCreditCents ? referralCreditCents / 100 : 0;
   const g1g1Eligible = hasSubscription && !hasReferralCredit && G1G1_PERSONAL_TIERS.has(subscriptionItem?.planTier);
 
@@ -929,6 +930,7 @@ export default function Cart() {
                         <span>{creditEligible ? `\u2013$${rawCredit.toFixed(2)}` : 'Not eligible for this plan'}</span>
                       </div>
                     )}
+                    {rawCredit > 0 && hasReferralCredit && creditEligible && <CreditCapNote capped={referralCreditCapped} />}
 
                     {/* One-Time Platform Fee — omitted when the account already paid it (W18). */}
                     {techFee !== 0 && (

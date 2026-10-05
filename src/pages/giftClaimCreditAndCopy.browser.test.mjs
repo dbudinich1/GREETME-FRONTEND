@@ -85,7 +85,7 @@ const referralCalls = () => M.__calls.filter((c) => c.name === "getReferral");
 // gift is fulfilled and the code unused (routes/giftRoutes.js 2306-2310). Founder rule: no credit above $5;
 // Team 2 returns the EFFECTIVE redeemable value (min(stored, $5)). The page shows exactly the server value.
 test("credit: the displayed amount is exactly what the server issued, never a literal", async () => {
-  for (const [serverCents, shown] of [[500, "$5"], [300, "$3"], [250, "$2.50"], [1000, "$10"]]) {
+  for (const [serverCents, shown] of [[500, "$5"], [300, "$3"], [250, "$2.50"], [1000, "$5"]]) {
     M.__calls.length = 0;
     M.__responses.getGiftClaim = { ok: true, gift: gift({ status: "fulfilled", referralCode: "REF-1", referralGiftValueCents: serverCents }) };
     const h = await mount();
@@ -109,8 +109,8 @@ test("credit: effective value 5 when the stored value was 10 shows $5, and the d
     M.__responses.getGiftClaim = { ok: true, gift: gift({ status: "fulfilled", referralCode: "R", referralGiftValueCents: cents }) };
     const figs = [...text(await mount()).matchAll(/(?:unlocked a|Apply your|Unlock Your) \$(\d+(?:\.\d+)?) [Cc]redit/g)].map((m) => Number(m[1]) * 100);
     assert.equal(figs.length, 3);
-    assert.ok(figs.every((f) => f <= cents), `no displayed figure exceeds the server value ${cents}: ${figs}`);
-    assert.ok(figs.every((f) => f === cents), `and it equals it: ${figs}`);
+    assert.ok(figs.every((f) => f <= Math.min(cents, 500)), `no displayed figure exceeds the server value ${cents}: ${figs}`);
+    assert.ok(figs.every((f) => f === Math.min(cents, 500)), `and it equals it: ${figs}`);
   }
 });
 
@@ -164,7 +164,7 @@ test("payout wording: claimed screen says a person sends it by hand, with no sta
 // ---------------------------------------------------------------- claimed-screen account button
 const accountButton = (h) => [...h.querySelectorAll("button")].map((b) => (b.textContent || "").trim()).find((t) => /Create Your Account/.test(t));
 test("claimed screen: the account button names the server-issued credit, or drops the figure when none is known", async () => {
-  for (const [cents, label] of [[300, "Claim Your $3 \u2014 Create Your Account"], [500, "Claim Your $5 \u2014 Create Your Account"], [1000, "Claim Your $10 \u2014 Create Your Account"]]) {
+  for (const [cents, label] of [[300, "Claim Your $3 \u2014 Create Your Account"], [500, "Claim Your $5 \u2014 Create Your Account"], [1000, "Claim Your $5 \u2014 Create Your Account"]]) {
     M.__responses.getGiftClaim = { ok: true, gift: gift({ status: "claimed", referralGiftValueCents: cents }) };
     assert.equal(accountButton(await mount()), label, `legacy/new ${cents}`);
   }
@@ -173,5 +173,18 @@ test("claimed screen: the account button names the server-issued credit, or drop
     const h = await mount();
     assert.equal(accountButton(h), "Create Your Account", name);
     assert.doesNotMatch(text(h), /Claim Your \$/, `${name}: no literal figure`);
+  }
+});
+
+test("cap note: claim page shows the line only when gift.referralCreditCapped is strictly true, amount $5, never $10", async () => {
+  const NOTE = "Credits are worth up to $5 each.";
+  M.__responses.getGiftClaim = { ok: true, gift: gift({ status: "fulfilled", referralCode: "REF-1", referralGiftValueCents: 1000, referralCreditCapped: true }) };
+  let t = text(await mount());
+  assert.ok(t.includes("You've unlocked a $5 credit") && t.includes(NOTE), t);
+  assert.doesNotMatch(t, /\$10\b/);
+  for (const v of [false, undefined, "true", 1, null]) {
+    M.__responses.getGiftClaim = { ok: true, gift: gift({ status: "fulfilled", referralCode: "REF-1", referralGiftValueCents: 500, ...(v === undefined ? {} : { referralCreditCapped: v }) }) };
+    t = text(await mount());
+    assert.ok(t.includes("$5 credit") && !t.includes(NOTE), String(v));
   }
 });

@@ -120,7 +120,7 @@ async function pricingConfirmation() {
 const CASES = [
   ["new mint, $5", 500, "$5.00", "$24.98", "$5"],
   ["new mint, $3 (a $3 gift)", 300, "$3.00", "$26.98", "$3"],
-  ["server reports $10 (display follows the server exactly, never a literal)", 1000, "$10.00", "$19.98", "$10"],
+  ["server reports 1000 (clamped: never above $5)", 1000, "$5.00", "$24.98", "$5"],
 ];
 
 for (const [name, cents, line, total, label] of CASES) {
@@ -203,5 +203,71 @@ test("no hard-coded referral credit literal remains in Cart, Checkout, Pricing o
     const code = src.split("\n").filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join("\n");
     assert.doesNotMatch(code, /(?:referralCode|hasReferralCredit)\s*\?\s*10\b/, `${f}: no "? 10" referral literal`);
     assert.doesNotMatch(code, /\$10 credit|\$10\.00|plan\.price - 10\b/, `${f}: no literal $10 credit`);
+  }
+});
+
+// ---- credit cap note: "Credits are worth up to $5 each." only when the server says referralCreditCapped === true
+const NOTE = "Credits are worth up to $5 each.";
+const withCapped = (cents, capped) => ({ status: 200, body: { ok: true, referralCreditCents: cents, referralCode: CODE, ...(capped === undefined ? {} : { referralCreditCapped: capped }) } });
+
+test("cap note: capped true shows $5.00 plus the line on Cart and Pricing, and never $10", async () => {
+  referralResponse = withCapped(500, true);
+  const c = await mount("/dashboard/cart", Cart);
+  try {
+    const body = text(c.host);
+    assert.ok(body.includes("–$5.00"), body);
+    assert.ok(body.includes(NOTE), "Cart shows the note");
+    assert.doesNotMatch(body, /\$10\b/);
+  } finally { await c.unmount(); }
+  window.document.body.innerHTML = "";
+  const p = await pricingConfirmation();
+  try {
+    assert.ok(p.banner.includes(NOTE), "Pricing banner shows the note");
+    const body = text(p.host);
+    assert.ok(body.includes("–$5.00") && body.includes(NOTE));
+    assert.doesNotMatch(body + p.banner, /\$10\b/);
+  } finally { await p.unmount(); }
+});
+
+for (const [name, capped] of [["false", false], ["missing", undefined], ["string 'true'", "true"], ["1", 1], ["null", null]]) {
+  test(`cap note: referralCreditCapped ${name} shows no line on Cart and Pricing`, async () => {
+    referralResponse = withCapped(500, capped);
+    const c = await mount("/dashboard/cart", Cart);
+    try { assert.ok(!text(c.host).includes(NOTE)); assert.ok(text(c.host).includes("–$5.00")); } finally { await c.unmount(); }
+    window.document.body.innerHTML = "";
+    const p = await pricingConfirmation();
+    try { assert.ok(!(p.banner + text(p.host)).includes(NOTE)); } finally { await p.unmount(); }
+  });
+}
+
+test("cap note: a server value above $5 is clamped to $5.00 on screen", async () => {
+  referralResponse = withCapped(1000, true);
+  const c = await mount("/dashboard/cart", Cart);
+  try { const b = text(c.host); assert.ok(b.includes("–$5.00") && !/\$10\b/.test(b)); } finally { await c.unmount(); }
+});
+
+test("cap note: no real amount means no note even if capped is true", async () => {
+  referralResponse = withCapped(0, true);
+  const c = await mount("/dashboard/cart", Cart);
+  try { assert.ok(!text(c.host).includes(NOTE)); } finally { await c.unmount(); }
+});
+
+test("cap note: hook helpers return null/false safely on malformed input", async () => {
+  const { referralCreditCentsFrom, referralCreditCappedFrom } = await import(pathToFileURL(join(__dirname, "..", "hooks", "useReferralCreditCents.js")).href).catch(() => ({}));
+  if (!referralCreditCentsFrom) return; // hook module imports the api edge; covered through the mounted pages above
+  for (const bad of [undefined, null, {}, "x", 5, { ok: false }, { ok: true, referralCreditCents: "500" }, { ok: true, referralCreditCents: 4.5 }, { ok: true, referralCreditCents: 0 }, { ok: true, referralCreditCents: -1 }]) {
+    assert.equal(referralCreditCentsFrom(bad), null);
+    assert.equal(referralCreditCappedFrom(bad), false);
+  }
+  assert.equal(referralCreditCentsFrom({ ok: true, referralCreditCents: 1000 }), 500);
+  assert.equal(referralCreditCappedFrom({ ok: true, referralCreditCents: 500, referralCreditCapped: true }), true);
+  assert.equal(referralCreditCappedFrom({ ok: true, referralCreditCents: 500, referralCreditCapped: "true" }), false);
+});
+
+test("cap note: Checkout, Cart and Pricing are wired to the capped flag via the shared component", () => {
+  for (const f of ["Checkout.jsx", "Cart.jsx", "Pricing.jsx"]) {
+    const src = readFileSync(join(__dirname, f), "utf8");
+    assert.match(src, /<CreditCapNote capped=\{referralCreditCapped\}/, f);
+    assert.match(src, /useReferralCredit\(/, f);
   }
 });
