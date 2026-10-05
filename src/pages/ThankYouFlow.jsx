@@ -13,6 +13,7 @@ import VoiceRecorder from '../components/VoiceRecorder';
 import PhotoUpload from '../components/PhotoUpload';
 import HeartsBurst from '../components/HeartsBurst';
 import ShareTheLovePanel from '../components/ShareTheLovePanel';
+import { clampCreditCents } from '../utils/creditCap';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -214,7 +215,7 @@ export default function ThankYouFlow() {
           if (claimResult?.ok) {
             safeSet('greetme_courtesy_credit', JSON.stringify({
               creditCode,
-              amount: (claimResult.amountCents || 500) / 100,
+              amount: clampCreditCents(claimResult.amountCents || 500) / 100,
               source: 'courtesy',
               claimedAt: new Date().toISOString(),
             }));

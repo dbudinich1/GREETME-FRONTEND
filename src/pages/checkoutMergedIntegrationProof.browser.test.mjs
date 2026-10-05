@@ -240,7 +240,7 @@ test("MERGED 5: both field sets are genuinely present in the merged file (the me
   assert.match(SRC, /giftAttemptId:\s*sendDraftId/, "send-limit-recovery's giftAttemptId field must survive the merge");
   assert.match(SRC, /giftOnlyToken:\s*sendDraftGiftOnlyToken/, "send-limit-recovery's giftOnlyToken field must survive the merge");
   assert.match(SRC, /courtesyCreditCode\s*&&\s*!referralCode\s*&&\s*\{\s*courtesyCreditCode\s*\}/, "credit-contract-integrity's courtesyCreditCode gate must survive the merge");
-  assert.match(SRC, /courtesyCreditCode\s*\?\s*\(courtesyCredit\?\.amount \|\| 0\)\s*:\s*0/, "the amount-without-creditCode display gate must survive the merge");
+  assert.match(SRC, /courtesyCreditCode\s*\?\s*clampCreditDollars\(courtesyCredit\?\.amount\)\s*:\s*0/, "the amount-without-creditCode display gate must survive the merge");
 });
 
 test("MERGED 6: the merch path returns unconditionally before the subscription path can run — no duplicate submission/charge path (item 6)", () => {
