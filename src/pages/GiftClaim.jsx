@@ -582,7 +582,7 @@ export default function GiftClaim() {
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>&#9200;</div>
           <h1 style={styles.title}>Gift Expired</h1>
           <p style={styles.subtitle}>
-            This QR Cash&trade; gift is no longer available. Gifts expire {gift.expiryDays || 30} days after delivery. Expired gifts are not automatically refunded &mdash; contact support for assistance.
+            This QR Cash&trade; gift is no longer available. Gifts expire {gift.expiryDays || 30} days after delivery. Questions about an expired gift? Contact support.
           </p>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
           {trustLinks}

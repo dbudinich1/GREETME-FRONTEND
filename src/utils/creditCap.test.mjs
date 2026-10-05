@@ -50,3 +50,17 @@ test("no customer-visible '$10 credit' / 'up to $10' wording remains outside the
   }
   assert.deepEqual(hits, []);
 });
+
+test("clamp floor: negatives and junk are 0, never negative; Infinity is the max; non-integer cents kept as-is", () => {
+  for (const v of [-5, -0, "-5", -Infinity, NaN, -499.9]) {
+    assert.ok(Object.is(clampCreditCents(v), 0), `cents ${String(v)} -> 0, got ${clampCreditCents(v)}`);
+    assert.ok(Object.is(clampCreditDollars(v), 0), `dollars ${String(v)} -> 0, got ${clampCreditDollars(v)}`);
+  }
+  assert.equal(clampCreditCents(Infinity), 500);
+  assert.equal(clampCreditDollars(Infinity), 5);
+  assert.equal(clampCreditCents("1000"), 500);
+  assert.equal(clampCreditCents(1000), 500);
+  assert.equal(clampCreditCents(499.9), 499.9, "existing contract: no rounding of non-integer cents");
+  assert.equal(clampCreditDollars(4.999), 5, "existing contract: dollars are rounded to whole cents");
+  assert.equal(clampCreditDollars(-5), 0);
+});
