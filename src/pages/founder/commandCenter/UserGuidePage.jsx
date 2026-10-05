@@ -14,7 +14,7 @@ function readUser() {
 function FileCell({ file, api, windowOpen, onMessage }) {
   const [busy, setBusy] = useState("");
   const [fallback, setFallback] = useState(null); // { url } when the browser blocked the new tab
-  if (!file || file.available !== true) return <span style={ui.note} data-testid={`ug-na-${file ? file.id : "x"}`}>Not published yet</span>;
+  if (!file || file.available !== true) return <span style={ui.note} data-testid={`ug-na-${file ? file.id : "x"}`}>Not uploaded yet</span>;
   const isHtml = file.format === "html";
 
   async function open() {

@@ -109,7 +109,7 @@ test("page lists all 20 files grouped by view, area and format, with size and up
 test("partially published: unpublished files say so and have no actions", async () => {
   await mount(M.Page, { user: FOUNDER, api: fakeApi({ list: () => ok(manifest({ published: (id) => id === "desktop-full-pdf" })) }), windowOpen: fakeWindowOpen() });
   assert.ok(tid("ug-open-desktop-full-pdf")); assert.equal(tid("ug-open-desktop-full-html"), null);
-  assert.match(tid("ug-na-desktop-full-html").textContent, /Not published yet/);
+  assert.match(tid("ug-na-desktop-full-html").textContent, /Not uploaded yet/);
 });
 
 test("HTML Open: fresh link per click, new tab, opener nulled, never embedded; token never in a URL", async () => {
