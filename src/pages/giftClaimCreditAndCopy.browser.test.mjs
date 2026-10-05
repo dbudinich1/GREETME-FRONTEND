@@ -188,3 +188,11 @@ test("cap note: claim page shows the line only when gift.referralCreditCapped is
     assert.ok(t.includes("$5 credit") && !t.includes(NOTE), String(v));
   }
 });
+
+test("expired screen: states no refund policy and points to support", async () => {
+  M.__responses.getGiftClaim = { ok: true, gift: gift({ status: "expired" }) };
+  const t = text(await mount());
+  assert.ok(t.includes("Gift Expired"), t);
+  assert.ok(t.includes("Questions about an expired gift? Contact support."), t);
+  assert.doesNotMatch(t, /refund/i, "no refund statement either way");
+});
