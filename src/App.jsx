@@ -128,6 +128,7 @@ const GiftPlaceHub = lazy(() => import("./pages/founder/commandCenter/Hubs").the
 const SalesHub = lazy(() => import("./pages/founder/commandCenter/Hubs").then((m) => ({ default: m.SalesHub })));
 const FundraiserHub = lazy(() => import("./pages/founder/commandCenter/Hubs").then((m) => ({ default: m.FundraiserHub })));
 const SalesPerformance = lazy(() => import("./pages/founder/commandCenter/SalesPerformance"));
+const UserGuidePage = lazy(() => import("./pages/founder/commandCenter/UserGuidePage"));
 const FounderContactsPage = lazy(() => import("./pages/founder/commandCenter/FounderContactsPage"));
 const QrCashPayoutsReview = lazy(() => import("./pages/founder/QrCashPayoutsReview"));
 const PartnerFundraisingDashboard = lazy(() => import("./pages/fundraiser/PartnerFundraisingDashboard"));
@@ -258,6 +259,7 @@ export default function App() {
             <Route path="founder/sales" element={<Suspense fallback={null}><SalesHub /></Suspense>} />
             <Route path="founder/sales/performance" element={<Suspense fallback={null}><SalesPerformance /></Suspense>} />
             <Route path="founder/fundraising" element={<Suspense fallback={null}><FundraiserHub /></Suspense>} />
+            <Route path="founder/user-guide" element={<Suspense fallback={null}><UserGuidePage /></Suspense>} />
             <Route path="founder/contacts" element={<Suspense fallback={null}><FounderContactsPage /></Suspense>} />
             <Route path="founder/qr-cash-payouts" element={<Suspense fallback={null}><QrCashPayoutsReview /></Suspense>} />
             <Route path="fundraiser/partner/:organizationId" element={<Suspense fallback={null}><PartnerFundraisingDashboard /></Suspense>} />
