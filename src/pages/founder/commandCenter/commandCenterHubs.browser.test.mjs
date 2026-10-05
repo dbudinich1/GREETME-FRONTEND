@@ -179,7 +179,9 @@ test("hub pages list their existing destinations and the Sales hub shows the gif
   assert.match(tid("cc-gift-sales-30").textContent, /11 orders \(\$471\.00\)/);
   assert.match(tid("cc-card-gift-sales").textContent, /Gift & store sales/);
   assert.match(tid("cc-card-gift-sales").textContent, /including merch and marketplace/);
-  assert.match(tid("cc-card-gift-sales").textContent, /no commission is calculated/);
+  assert.match(tid("cc-card-gift-sales").textContent, /sales only/);
+  assert.match(tid("cc-card-gift-sales").textContent, /Commission terms are set per salesperson/);
+  assert.doesNotMatch(tid("cc-card-gift-sales").textContent, /no commission/i, "stays true once gift commission is activated");
   assert.ok(tid("cc-link-people") && tid("cc-link-performance"));
   await mount(M.FundraiserHub, { commandProps: cmdProps() });
   for (const c of ["fundraising", "campaigns", "participants", "partner", "activation"]) assert.ok(tid(`fcc-card-${c}`));
@@ -211,7 +213,8 @@ test("performance list: sort, filters, rank, gift sales column; detail has tiles
   assert.equal(tid("tile-customers-value").textContent, "3");
   assert.match(tid("tile-gifts-value").textContent, /9 \(\$406\.00\)/);
   assert.match(tid("tile-gifts").textContent, /Gift & store sales/);
-  assert.match(tid("tile-gifts").textContent, /no commission/);
+  assert.match(tid("tile-gifts").textContent, /not commission/);
+  assert.doesNotMatch(tid("tile-gifts").textContent, /no commission/i);
   assert.match(tid("cc-gift-type-qr_cash").textContent, /QR Cash.*6 \(\$300\.00\)/);
   assert.match(tid("cc-gift-type-merch").textContent, /Merch.*3 \(\$106\.00\)/);
   assert.equal(tid("cc-gifts-truncated"), null, "complete figure: no truncation note");
@@ -229,8 +232,10 @@ test("gift sales are NEVER shown as commission; no payout / approve / export con
   await mount(M.SalesPerformance, { user: FOUNDER, api: salesApi() });
   await click(tid("cc-open-sp_a"));
   const text = document.body.textContent;
-  assert.doesNotMatch(text, /gift commission|commission on gift|gift earnings|store commission/i);
-  assert.match(text, /carry no commission|no commission/);
+  // The note may now NAME the Gift commission panel (terms live on the profile), but no gift commission FIGURE may appear here.
+  assert.doesNotMatch(text, /commission on gift|gift earnings|store commission|gift commission[^.]{0,40}\$\d/i);
+  assert.match(text, /sales only, not commission/i);
+  assert.doesNotMatch(text, /no commission on gifts|carry no commission|no commission is calculated/i, "nothing claims gifts never earn commission");
   for (const b of document.querySelectorAll("button")) assert.doesNotMatch(b.textContent, /approve|\bpay\b|export|download|mark paid/i);
   assert.doesNotMatch(text, /\bPaid\b(?! out)/);
   assert.doesNotMatch(text, /year_|subscription_|entryKind|pending/);
@@ -283,7 +288,8 @@ test("salesperson profile: assigned links (vanity link + copy + state + destinat
   await mount(M.GiftSalesPanel, { api, salespersonId: "sp_a" });
   assert.match(tid("cc-profile-gifts-30").textContent, /9 orders \(\$406\.00\)/);
   assert.match(tid("cc-profile-gifts").textContent, /Gift & store sales/);
-  assert.match(tid("cc-profile-gifts").textContent, /no commission is calculated/);
+  assert.match(tid("cc-profile-gifts").textContent, /sales only/);
+  assert.doesNotMatch(tid("cc-profile-gifts").textContent, /no commission/i);
   assert.match(tid("cc-gift-type-merch").textContent, /Merch/);
   assert.equal(tid("cc-profile-gifts-truncated"), null);
   await mount(M.GiftSalesPanel, { api, salespersonId: "sp_b" });
@@ -348,7 +354,12 @@ test("contacts: list, add (arrays), follow-up filter, and PERMANENT delete alway
   await click(tid("delete-c1"));
   assert.equal(tid("delete-warning").textContent, "Continuing will delete this contact permanently. Are you sure you want to delete this contact?");
   assert.equal(calls.filter((c) => c[0] === "remove").length, 0, "nothing deleted by opening the warning");
+  assert.equal(document.activeElement, tid("delete-cancel"), "Cancel has default focus in the delete dialog");
   await click(tid("delete-cancel")); assert.equal(calls.filter((c) => c[0] === "remove").length, 0);
+  await click(tid("delete-c1")); assert.ok(tid("delete-confirm"));
+  await act(async () => { document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); }); await flush();
+  assert.equal(tid("delete-confirm"), null, "Escape closes the delete dialog");
+  assert.equal(calls.filter((c) => c[0] === "remove").length, 0, "Escape deletes nothing");
   await click(tid("delete-c1")); await click(tid("delete-confirm-go"));
   assert.deepEqual(calls.filter((c) => c[0] === "remove"), [["remove", "c1"]]);
   assert.equal(tid("notice").textContent, "Contact deleted.");

@@ -73,7 +73,7 @@ export function readGiftSales(res) {
 }
 /** Accurate label: the backend counts gift orders AND store (merch / marketplace) orders. */
 export const GIFT_SALES_LABEL = "Gift & store sales";
-export const GIFT_SALES_NOTE = "Gift and store orders placed by customers this salesperson brought in, including merch and marketplace orders. For information only: no commission is calculated on them and nothing here is paid out.";
+export const GIFT_SALES_NOTE = "This panel shows sales only: gift and store orders placed by customers this salesperson brought in, including merch and marketplace orders, as a count and total value. Commission terms are set per salesperson in the Gift commission panel on their profile. Nothing here is paid out.";
 export function giftTypeLabel(t) {
   const v = String(t || "").replace(/[_-]+/g, " ").trim();
   return v ? v.split(" ").map((w) => (w.toLowerCase() === "qr" ? "QR" : w.charAt(0).toUpperCase() + w.slice(1))).join(" ") : "Other";

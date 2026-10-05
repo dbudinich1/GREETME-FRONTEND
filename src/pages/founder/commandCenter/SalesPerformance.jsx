@@ -106,7 +106,7 @@ function Detail({ api, id, period, onBack, onPeriod }) {
               <Tile testid="tile-subscribers" label="New subscribers" value={d.tiles.newSubscribers} sub="First paid month" />
               <Tile testid="tile-renewals" label="Renewals" value={d.tiles.renewals} sub="Later paid months" />
               <Tile testid="tile-revenue" label="Subscription revenue" value={money(d.tiles.revenueMinor)} sub="Attributed, after refunds" />
-              {gift.data ? <Tile testid="tile-gifts" label={GIFT_SALES_LABEL} value={`${gift.data.count} (${money(gift.data.grossGiftVolumeMinor)})`} sub="Information only: no commission" /> : null}
+              {gift.data ? <Tile testid="tile-gifts" label={GIFT_SALES_LABEL} value={`${gift.data.count} (${money(gift.data.grossGiftVolumeMinor)})`} sub="Sales only, not commission" /> : null}
               <Tile testid="tile-commission" label="Commission earned" value={money((d.commissionByStage.directMinor || 0) + (d.commissionByStage.overrideMinor || 0))} sub="Not paid out" />
             </div>
             <section style={ui.card} data-testid="cc-section-chart">
@@ -253,7 +253,7 @@ export default function SalesPerformance({ api = salesAdminApi, user: injectedUs
               </table>
             </div>)
         ) : null}
-        <p style={ui.note}>Revenue is subscription revenue attributed to the salesperson, after refunds. Commission earned includes override earnings and is not paid out. Gift & store sales are the gift and store orders (including merch and marketplace) that customers attributed to the salesperson placed, as a count and total value; they are for information only and carry no commission. Dollar amounts are in US dollars.</p>
+        <p style={ui.note}>Revenue is subscription revenue attributed to the salesperson, after refunds. Commission earned includes override earnings and is not paid out. Gift & store sales are the gift and store orders (including merch and marketplace) that customers attributed to the salesperson placed, as a count and total value; this column and tile show sales only, not commission. Gift commission terms are set per salesperson on their profile. Dollar amounts are in US dollars.</p>
       </div>
     </Page>
   );

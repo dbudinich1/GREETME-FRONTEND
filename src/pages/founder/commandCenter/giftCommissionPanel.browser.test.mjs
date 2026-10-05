@@ -63,7 +63,7 @@ test("shows current terms, plain summary, never-earn list, OFF banner, history; 
   assert.match(tid("cc-giftcomm-setby").textContent, /2026-09-01 by account founder-1/);
   assert.match(tid("cc-giftcomm-banner").textContent, /OFF platform-wide/); assert.match(tid("cc-giftcomm-banner").textContent, /payouts are off/);
   assert.match(tid("cc-giftcomm-never-qrcash").textContent, /never earns/); assert.match(tid("cc-giftcomm-never-gift_cards").textContent, /Smart Card/);
-  assert.match(tid("cc-giftcomm-flowers-note").textContent, /not available yet/); assert.match(tid("cc-giftcomm-merch-note").textContent, /mark-up is off/);
+  assert.match(tid("cc-giftcomm-flowers-note").textContent, /20% florist share; florist payment is verified before approval/); assert.match(tid("cc-giftcomm-merch-note").textContent, /mark-up is off/);
   assert.equal(document.querySelectorAll('[data-testid="cc-giftcomm-history-row"]').length, 1);
   assert.match(tid("cc-giftcomm-history").textContent, /10%.*first gift only/);
   assert.deepEqual(api.calls.map((c) => c[0]), ["GET"], "only a read on open");
@@ -88,9 +88,10 @@ test("open, edit, cancel and go-back never write", async () => {
   assert.equal(writes(api).length, 0, "no write without confirm");
 });
 
-test("QR Cash, Smart Card and flowers are unselectable", async () => {
+test("QR Cash and Smart Card are unselectable; flowers is selectable", async () => {
   await mount(fakeApi()); await click(tid("cc-giftcomm-edit"));
-  for (const id of ["qrcash", "gift_cards", "flowers"]) { assert.equal(tid(`cc-giftcomm-f-type-${id}`).disabled, true, id); assert.equal(tid(`cc-giftcomm-f-type-${id}`).checked, false); }
+  assert.equal(tid("cc-giftcomm-f-type-flowers").disabled, false);
+  for (const id of ["qrcash", "gift_cards"]) { assert.equal(tid(`cc-giftcomm-f-type-${id}`).disabled, true, id); assert.equal(tid(`cc-giftcomm-f-type-${id}`).checked, false); }
   assert.equal(tid("cc-giftcomm-f-type-gift_boxes").disabled, false); assert.equal(tid("cc-giftcomm-f-type-merch").disabled, false);
   assert.match(document.body.textContent, /Never earns/);
 });
@@ -145,4 +146,30 @@ test("read 403 / failure handled: plain message, no form, no crash", async () =>
 
 test("api without the reads renders nothing (panel is gated)", async () => {
   await mount({}); assert.equal(document.body.textContent.trim(), "");
+});
+
+test("round trip: Change terms then Save keeps stored flowers (and every stored type); the PUT sends exactly what is ticked", async () => {
+  const gc = { current: { ...CURRENT, eligibleTypes: ["gift_boxes", "flowers", "merch"] }, history: [] };
+  const api = fakeApi({ gc }); await mount(api);
+  await click(tid("cc-giftcomm-edit"));
+  for (const id of ["gift_boxes", "flowers", "merch"]) assert.equal(tid(`cc-giftcomm-f-type-${id}`).checked, true, `${id} pre-selected`);
+  assert.equal(tid("cc-giftcomm-removal-warning"), null);
+  await submit(tid("cc-giftcomm-form"));
+  assert.equal(tid("cc-giftcomm-confirm-removal"), null);
+  assert.match(tid("cc-giftcomm-confirm-summary").textContent, /gift boxes, merch and flowers|gift boxes, flowers and merch/);
+  await click(tid("cc-giftcomm-confirm-go"));
+  assert.deepEqual(writes(api)[0][2].eligibleTypes, ["gift_boxes", "flowers", "merch"]);
+});
+
+test("unticking a stored type warns on the form and again on the confirm step, and the PUT omits only that type", async () => {
+  const gc = { current: { ...CURRENT, eligibleTypes: ["gift_boxes", "flowers"] }, history: [] };
+  const api = fakeApi({ gc }); await mount(api);
+  await click(tid("cc-giftcomm-edit"));
+  await click(tid("cc-giftcomm-f-type-flowers"));
+  assert.match(tid("cc-giftcomm-removal-warning").textContent, /removing Flowers/);
+  await submit(tid("cc-giftcomm-form"));
+  assert.match(tid("cc-giftcomm-confirm-removal").textContent, /Removing from the types that earn: Flowers/);
+  assert.equal(writes(api).length, 0);
+  await click(tid("cc-giftcomm-confirm-go"));
+  assert.deepEqual(writes(api)[0][2].eligibleTypes, ["gift_boxes"]);
 });

@@ -1,10 +1,10 @@
 // Founder-only "Gift commission" settings panel for the salesperson profile. NO payout / approve controls. It records TERMS only;
 // accrual stays off platform-wide until activation. Opening or cancelling never writes: the only write is the explicit confirm step.
-// The gift-sales panel next to it stays informational and shows no commission figure.
+// The gift-sales panel next to it stays a sales-only panel and shows no commission figure.
 import { useCallback, useEffect, useState } from "react";
 import {
   GIFT_COMMISSION_BANNER, GIFT_TYPE_OPTIONS, NEVER_EARN, DURATION_MODES, blankDraft, draftFromCurrent, validateDraft,
-  summaryLine, historyRows, giftCommissionErrorMessage,
+  summaryLine, historyRows, giftCommissionErrorMessage, removedTypes, typeLabel,
 } from "./giftCommissionLogic.js";
 
 const box = { border: "1px solid var(--border, #e5e7eb)", borderRadius: 12, padding: "12px 14px", display: "grid", gap: 8, background: "#fff" };
@@ -20,6 +20,7 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
   const [draft, setDraft] = useState(blankDraft());
   const [errors, setErrors] = useState({});
   const [payload, setPayload] = useState(null);
+  const [removed, setRemoved] = useState([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [saved, setSaved] = useState("");
@@ -40,7 +41,7 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
     ev.preventDefault();
     const v = validateDraft(draft, now());
     setErrors(v.errors); setMessage("");
-    if (v.payload) { setPayload(v.payload); setMode("confirm"); }
+    if (v.payload) { setPayload(v.payload); setRemoved(removedTypes(draft)); setMode("confirm"); }
   }
   async function confirm() {
     setBusy(true); setMessage("");
@@ -74,7 +75,7 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
             ) : <p style={small} data-testid="cc-giftcomm-unset">No terms set. Nothing accrues for this salesperson.</p>}
             <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: ".8rem", color: "#475569" }} data-testid="cc-giftcomm-never">
               {NEVER_EARN.map((n) => <li key={n.id} data-testid={`cc-giftcomm-never-${n.id}`}>{n.label}: never earns</li>)}
-              <li data-testid="cc-giftcomm-flowers-note">Flowers: not available yet</li>
+              <li data-testid="cc-giftcomm-flowers-note">Flowers: earns a share of Greet-Me's 20% florist share; florist payment is verified before approval</li>
               <li data-testid="cc-giftcomm-merch-note">Merch: accrues nothing while the merch mark-up is off</li>
             </ul>
           </div>
@@ -110,6 +111,7 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
                 </label>
               ))}
               {errors.types ? <p style={err} data-testid="cc-giftcomm-err-types">{errors.types}</p> : null}
+              {removedTypes(draft).length ? <p style={{ ...small, color: "#92400e" }} data-testid="cc-giftcomm-removal-warning">You are removing {removedTypes(draft).map(typeLabel).join(", ")} from the types that earn. Future sales of {removedTypes(draft).length === 1 ? "that type" : "those types"} will earn nothing.</p> : null}
               <label style={lab} htmlFor="gc-start">Start date (optional, YYYY-MM-DD; leave empty to start now)</label>
               <input id="gc-start" style={{ ...inp, width: 160 }} data-testid="cc-giftcomm-f-start" value={draft.startDate} onChange={(e) => set("startDate", e.target.value)} />
               {errors.startDate ? <p style={err} data-testid="cc-giftcomm-err-start">{errors.startDate}</p> : null}
@@ -124,6 +126,7 @@ export default function GiftCommissionPanel({ api, salespersonId, now = () => ne
           {mode === "confirm" && payload ? (
             <div role="alertdialog" aria-label="Confirm gift commission terms" data-testid="cc-giftcomm-confirm" style={{ border: "1px solid #4F2D7F", borderRadius: 10, padding: 12, display: "grid", gap: 8 }}>
               <p style={{ margin: 0, fontWeight: 600, fontSize: ".9rem" }} data-testid="cc-giftcomm-confirm-summary">{summaryLine(payload, startsOn)}</p>
+              {removed.length ? <p style={{ ...small, color: "#92400e", fontWeight: 600 }} data-testid="cc-giftcomm-confirm-removal">Removing from the types that earn: {removed.map(typeLabel).join(", ")}. Future sales of {removed.length === 1 ? "that type" : "those types"} will earn nothing.</p> : null}
               <p style={small} data-testid="cc-giftcomm-confirm-note">This applies to future sales only. Sales already made are not changed, and the previous terms stay in the history.</p>
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" className="btn-primary" disabled={busy} data-testid="cc-giftcomm-confirm-go" onClick={confirm}>Confirm and save</button>
