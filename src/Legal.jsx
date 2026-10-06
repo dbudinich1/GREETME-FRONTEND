@@ -79,7 +79,7 @@ export default function Legal() {
       <p style={S.p}>QR Cash is a digital gifting feature that allows senders to include a monetary gift with a greeting. QR Cash is a gift from sender to recipient, facilitated by Greet-Me using Stripe for payment processing. Greet-Me is not a bank, money transmitter, or stored-value provider. A service fee applies to each gift. Unclaimed gifts expire after 30 days. Greet-Me is not responsible for incorrect payout details provided by recipients.</p>
 
       <h3 style={S.h3}>Greet One, Give One&trade; (G1G1)</h3>
-      <p style={S.p}>Full-price subscription purchases may include a complimentary gift subscription for one recipient. G1G1 gifts are not available on discounted purchases. Gift subscriptions are non-transferable and subject to these Terms.</p>
+      <p style={S.p}>Individual subscription purchases may include a complimentary gift subscription for one recipient. G1G1 gifts are not available when a referral credit is applied. Gift subscriptions are non-transferable and subject to these Terms.</p>
 
       <h3 style={S.h3}>Prohibited Use</h3>
       <p style={S.p}>You may not: upload content you do not have rights to use; submit voice recordings of others without their consent; use the service for harassment, spam, or illegal purposes; attempt to circumvent security measures, rate limits, or usage restrictions; create accounts for the purpose of abuse or fraud.</p>
