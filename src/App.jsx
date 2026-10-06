@@ -37,6 +37,7 @@ import MerchOrders from "./pages/MerchOrders";
 import HeroProgram from "./pages/HeroProgram";
 import AnimationBank from "./pages/AnimationBank";
 import Invitations from "./pages/Invitations";
+import { isFounder } from "./utils/accountState.js";
 import RedeemQRCash from "./pages/RedeemQRCash";
 import ForBusiness from "./pages/ForBusiness";
 import Rewards from "./pages/Rewards";
@@ -47,6 +48,12 @@ import GiftClaim from "./pages/GiftClaim";
 import ReferralCredit from "./pages/ReferralCredit";
 import ThankYouFlow from "./pages/ThankYouFlow";
 // RecipientThankYouWizard decommissioned — redirect below
+function FounderOnlyInvitations() {
+  let user = null;
+  try { user = JSON.parse(localStorage.getItem("user") || "null"); } catch { user = null; }
+  return isFounder(user) ? <Invitations /> : <Navigate to="/dashboard" replace />;
+}
+
 function RecipientThankYouRedirect() {
   const location = useLocation();
   return <Navigate to={`/thank-you${location.search || ''}`} replace />;
@@ -240,7 +247,8 @@ export default function App() {
             <Route path="gifts/smart-card" element={<PrezzeeSmartCard />} />
             <Route path="hero" element={<HeroProgram />} />
             <Route path="animations" element={<AnimationBank />} />
-            <Route path="invitations" element={<Invitations />} />
+            {/* B-029: Invitations is not part of Greet-Me for customers. Founder-only; everyone else is sent to the dashboard. */}
+            <Route path="invitations" element={<FounderOnlyInvitations />} />
             <Route path="rewards" element={<Rewards />} />
             <Route path="notifications" element={<Notifications />} />
             {/* TEAM B — dark fundraising dashboards (self-gated; backend-authorized) */}
