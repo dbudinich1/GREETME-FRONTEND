@@ -100,7 +100,8 @@ test("round 3: Profile Photo label; Moments copy states no invented count", () =
   assert.match(CODE, />\s*Profile Photo\s*</);
   assert.match(CODE, /Add images below\. These images will be presented inside your sent Greet-Me\./);
   assert.doesNotMatch(CODE, /Add up to \d+ images/);
-  assert.match(CODE, /file\.size > 5 \* 1024 \* 1024/, "the real 5MB per-image limit is still enforced");
+  // C-060 (founder 2026-10-06): the pre-check now matches the backend multer limit (10MB).
+  assert.match(CODE, /file\.size > 10 \* 1024 \* 1024/, "the per-image pre-check matches the backend 10MB limit");
 });
 
 test("round 3: ONE section gap and ONE inner gap, applied uniformly (no responsive overrides)", () => {
