@@ -51,6 +51,18 @@ const PINNED = [
   ["src/pages/GiftClaim.jsx", "days after the gift is created."],
   ["src/pages/ForBusiness.jsx", "Add real cash to a gift with QR Cash on individual sends."],
   ["src/pages/Merch.jsx", "Send • Claim • Spend"],
+  ["src/pages/DashboardHome.jsx", "Send • Claim • Spend"],
+  ["src/pages/Landing.jsx", "New accounts include 5 free sends during your 7-day trial."],
+  ["src/components/GuidedSetupFlow.jsx", "received 5 free sends to use in your first 7 days."],
+  ["src/pages/DashboardHome.jsx", "Once redeemed, we review and send the cash to their chosen Venmo, PayPal or Zelle. Payouts are processed manually."],
+  ["src/pages/Profile.jsx", "Voice: Record at least 10 seconds in a quiet environment."],
+  ["src/pages/Profile.jsx", "AI will use relationship context to personalize your messages."],
+  ["src/components/hub/hubConfig.js", "A good fit for regular gifters"],
+  ["src/components/hub/hubConfig.js", "Maximum impact - the most Hearts per dollar"],
+  ["src/pages/AnimationBank.jsx", "Redeem Hearts for Holiday Bonus Sends and Anytime Credits on the Rewards page."],
+  ["src/pages/Support.jsx", "To change or cancel your subscription, or for refund and billing questions, email"],
+  ["src/pages/Support.jsx", "We reply as quickly as we can."],
+  ["src/pages/Checkout.jsx", "Secure checkout"],
 ];
 for (const [file, text] of PINNED) {
   test(`pinned: ${file} says "${text.slice(0, 60)}"`, () => assert.ok(read(file).includes(text)));
@@ -112,25 +124,14 @@ test("round 2 (founder 2026-10-06): banner has no auto-selection claim; Landing 
 test("founder colour-coding 2026-10-06: items not approved are back to their daab7e5 wording", () => {
   // Reverted (undecided / red / yellow): the original text must still be present and the proposed text absent.
   const back = [
-    ["src/pages/Landing.jsx", "Guest accounts include 3 free sends.", "New accounts include 5 free sends during your 7-day trial."],
-    ["src/components/GuidedSetupFlow.jsx", "received 3 free sends \\u2014 our gift to you.", "received 5 free sends to use in your first 7 days."],
-    ["src/pages/AnimationBank.jsx", "We add bonus animations for holidays, milestones, and special moments throughout the year!", "Redeem Hearts for Holiday Bonus Sends and Anytime Credits"],
     ["src/pages/Invitations.jsx", "Get Notified When Invitations Launch", "Invitations are coming soon"],
     ["src/components/hub/HubMarketplace.jsx", "Your rewards marketplace is growing.", "The Hearts Marketplace is not open yet."],
     ["src/components/hub/HubWaysToSpend.jsx", "Redemption is coming soon", "Redemption is temporarily unavailable"],
     ["src/components/hub/HubRedeemMarketplace.jsx", "Unlocks with {unlock}", "r.unlock === 'Heart Champion'"],
-    ["src/components/hub/hubConfig.js", "Most popular choice - best value for regular gifters", "A good fit for regular gifters"],
-    ["src/components/hub/hubConfig.js", "Maximum impact - double your rewards balance", "the most Hearts per dollar"],
-    ["src/pages/HeroProgram.jsx", "name: 'Growth', price: 250, hearts: 3250, popular: true,", "popular: false, description"],
+    ["src/pages/HeroProgram.jsx", "name: 'Growth', price: 250, hearts: 3250, popular: true,", "popular: false, description"], // ribbon stays (founder)
     ["src/components/corporateCampaign/corporateDashboardModel.js", "Cash they can scan and spend.", "Not available in campaigns yet."],
-    ["src/pages/Support.jsx", "You can manage your subscription plan directly from your dashboard.", "To change or cancel your subscription"],
     ["src/pages/G1G1Send.jsx", "included with full memberships.", "included when you subscribe at full price."],
     ["src/pages/DashboardHome.jsx", "Every subscription includes one for you", "Every full-price individual subscription"],
-    ["src/pages/DashboardHome.jsx", "Send • Spend • Gift", "Send • Claim • Gift"],
-    ["src/pages/DashboardHome.jsx", "transferred to their preferred payment method", "Payouts are processed manually."],
-    ["src/pages/Profile.jsx", "Record 30-60 seconds in a quiet environment for best voice cloning", "Record 10-30 seconds"],
-    ["src/pages/Profile.jsx", "create 20+ second personalized messages", "personalize your messages."],
-    ["src/pages/Merch.jsx", ">$0.00</p>", "balance figure removed"],
   ];
   for (const [file, original, proposed] of back) {
     const s = read(file);
@@ -138,4 +139,18 @@ test("founder colour-coding 2026-10-06: items not approved are back to their daa
     if (!original.includes(proposed) && proposed !== "balance figure removed") assert.ok(!s.includes(proposed), `${file}: unapproved text present: ${proposed}`);
   }
   assert.ok(!read("src/pages/ForBusiness.jsx").includes("scheduled campaigns yet"));
+});
+
+test("B-029: /invitations is founder-only; customers are redirected to the dashboard; no nav link", () => {
+  const app = read("src/App.jsx");
+  assert.ok(app.includes(`<Route path="invitations" element={<FounderOnlyInvitations />} />`));
+  assert.ok(app.includes(`isFounder(user) ? <Invitations /> : <Navigate to="/dashboard" replace />`));
+  assert.deepEqual(everywhere("dashboard/invitations"), []);
+});
+
+test("C-060: photo upload limit text and pre-checks match the backend multer limit (10MB)", () => {
+  assert.ok(read("src/components/PhotoUpload.jsx").includes("10MB"));
+  assert.ok(read("src/components/ContactForm.jsx").includes("Max 10MB each"));
+  assert.ok(read("src/components/GuidedSetupFlow.jsx").includes("PNG, JPG up to 10MB"));
+  assert.ok(read("src/pages/Profile.jsx").includes("Image size must be less than 10MB"));
 });
