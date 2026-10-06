@@ -31,7 +31,7 @@ export default function Legal() {
       <h3 style={S.h3}>Third-Party Processors</h3>
       <p style={S.p}>We use the following categories of third-party services to operate Greet-Me:</p>
       <ul style={S.ul}>
-        <li><strong>Payment processing:</strong> Stripe (payment, subscription, and payout handling)</li>
+        <li><strong>Payment processing:</strong> Stripe (payment and subscription handling)</li>
         <li><strong>Email delivery:</strong> SendGrid (transactional and engagement emails)</li>
         <li><strong>AI voice synthesis:</strong> ElevenLabs (voice cloning and text-to-speech)</li>
         <li><strong>AI video generation:</strong> D-ID (photo animation)</li>
@@ -80,7 +80,7 @@ export default function Legal() {
       <p style={S.p}>Paid subscriptions are billed through Stripe. Subscription terms, pricing, and renewal periods are displayed at checkout. Credits ($5 courtesy credits, $5 referral credits) are promotional, non-transferable, and may expire. Credits have no cash value and cannot be redeemed for cash. Refund requests should be directed to support@greet-me.com.</p>
 
       <h3 style={S.h3}>QR Cash&trade; Gifts</h3>
-      <p style={S.p}>QR Cash is a digital gifting feature that allows senders to include a monetary gift with a greeting. QR Cash is a gift from sender to recipient, facilitated by Greet-Me using Stripe for payment processing. Greet-Me is not a bank, money transmitter, or stored-value provider. A service fee applies to each gift. Unclaimed gifts expire 30 days after the gift is created. QR Cash payouts are reviewed and processed manually. Greet-Me is not responsible for incorrect payout details provided by recipients.</p>
+      <p style={S.p}>QR Cash is a digital gifting feature that allows senders to include a monetary gift with a greeting. QR Cash is a gift from sender to recipient, facilitated by Greet-Me using Stripe for payment processing. Greet-Me is not a bank, money transmitter, or stored-value provider. A service fee applies to each gift. Unclaimed gifts expire 30 days after the gift is created. QR Cash payouts are reviewed and sent manually by our team, to the Venmo, PayPal or Zelle account the recipient provides. Greet-Me is not responsible for incorrect payout details provided by recipients.</p>
 
       <h3 style={S.h3}>Greet One, Give One&trade; (G1G1)</h3>
       <p style={S.p}>Individual subscription purchases may include a complimentary gift subscription for one recipient. G1G1 gifts are not available when a referral credit is applied. Gift subscriptions are non-transferable and subject to these Terms.</p>

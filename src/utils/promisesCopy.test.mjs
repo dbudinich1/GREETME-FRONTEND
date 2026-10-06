@@ -165,3 +165,32 @@ test("G1G1 exclusion copy 2026-10-06: only referral credit excludes the gift; ol
   assert.equal(cart.includes("is awarded with full memberships and is not included with discounted purchases"), false);
   assert.equal(cart.includes("Not included with discounted purchases"), false);
 });
+
+test("Legal 2026-10-06: retention, processors, QR Cash and G1G1 wording are truthful", () => {
+  const legal = read("src/Legal.jsx");
+  for (const t of [
+    "Greeting media is kept while your account is active and for a limited period afterward.",
+    "<strong>Deleting contacts.</strong>",
+    "Stripe (payment and subscription handling)",
+    "<strong>AI text generation:</strong> OpenAI",
+    "Google Analytics",
+    "Goody, Florist One or Printful",
+    "Unclaimed gifts expire 30 days after the gift is created.",
+    "QR Cash payouts are reviewed and sent manually by our team, to the Venmo, PayPal or Zelle account the recipient provides.",
+    "G1G1 gifts are not available when a referral credit is applied.",
+  ]) assert.ok(legal.includes(t), `Legal.jsx missing: ${t}`);
+  for (const t of ["retained for up to 12 months", "payout handling", "48 hours", "48-hour", "Unclaimed gifts expire after 30 days"]) {
+    assert.equal(legal.includes(t), false, `Legal.jsx still has: ${t}`);
+  }
+});
+
+test("Impact plan: no per-send $2.99 fee claim anywhere (no code bills it)", () => {
+  assert.deepEqual(everywhere("Flat-Fee Appreciation"), []);
+  assert.deepEqual(everywhere(/\$2\.99 per Greet-Me/), []);
+});
+
+test("A-054 / C-056 (2026-10-06): dead Gifts modal no longer promises instant cash; delete-recipient dialog discloses kept order records", () => {
+  assert.equal(read("src/pages/Gifts.jsx").includes("instantly available to spend anywhere"), false);
+  assert.ok(read("src/pages/Gifts.jsx").includes("Payouts are processed manually."));
+  assert.ok(read("src/pages/Contacts.jsx").includes("This action cannot be undone. Records of gifts and orders already placed are kept."));
+});
