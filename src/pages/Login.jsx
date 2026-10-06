@@ -308,7 +308,7 @@ export const Login = () => {
                   textDecoration: 'none'
                 }}
               >
-                Sign up for free
+                Sign up for 5 free sends
               </Link>
             </p>
           </div>

@@ -567,7 +567,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       }}>
         {sessionStorage.getItem('greetme_g1g1_claimed')
           ? 'Once you\u2019re ready, you\u2019ll be able to pass it forward.'
-          : 'You\u2019ve earned your first Hearts and received 3 free sends \u2014 our gift to you.'}
+          : 'You\u2019ve earned your first Hearts and received 5 free sends to use in your first 7 days.'}
       </p>
       <p style={{
         fontSize: '1.0625rem',
@@ -601,7 +601,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         fontStyle: 'italic',
         margin: 0,
       }}>
-        This test Greet-Me is on us &mdash; it won&rsquo;t count toward your 3 sends.
+        This test Greet-Me is on us &mdash; it won&rsquo;t count toward your 5 free sends.
       </p>
     </div>
   );
@@ -1202,7 +1202,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         color: '#10b981',
         marginBottom: '1.5rem',
       }}>
-        This test Greet-Me is on us &mdash; it won&rsquo;t count toward your 3 sends.
+        This test Greet-Me is on us &mdash; it won&rsquo;t count toward your 5 free sends.
       </p>
       {sendingError && (
         <div style={{
@@ -1478,7 +1478,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         color: '#10b981',
         marginBottom: '1.5rem',
       }}>
-        This test send is free and does not count against your 3 free sends.
+        This test send is free and does not count against your 5 free sends.
       </p>
 
       {/* E14: Emotional payoff first — see what you created */}

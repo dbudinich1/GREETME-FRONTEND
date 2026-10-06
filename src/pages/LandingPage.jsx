@@ -181,7 +181,7 @@ export default function LandingPage() {
               e.currentTarget.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.2)';
             }}
           >
-            Get Started Free
+            Start with 5 Free Sends
             <Sparkles size={24} />
           </button>
 

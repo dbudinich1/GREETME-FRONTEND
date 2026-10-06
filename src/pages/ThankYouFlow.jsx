@@ -844,7 +844,7 @@ export default function ThankYouFlow() {
               Quick sign-up to send
             </p>
             <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: '0 0 1rem' }}>
-              Create your free account and your Greet-Me sends instantly.
+              Create your free account and send your Greet-Me right away. Free accounts include 5 sends during the first 7 days.
             </p>
             {regError && (
               <div style={{ padding: '0.5rem 0.75rem', background: '#fef2f2', borderRadius: '0.375rem', border: '1px solid #fecaca', marginBottom: '0.75rem' }}>
