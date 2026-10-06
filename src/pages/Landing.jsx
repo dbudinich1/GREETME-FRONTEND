@@ -83,7 +83,7 @@ export default function Landing() {
         maxWidth: '540px',
       }}>
         Create premium personalized greetings using your voice and photo&mdash;send a personalized greeting to everyone
-        on your list automatically, and add a gift to any occasion. Automatic sending is part of a paid plan after your free trial.
+        on your list automatically, and add a gift to any occasion.
       </p>
 
       {/* Demo video — large, central */}

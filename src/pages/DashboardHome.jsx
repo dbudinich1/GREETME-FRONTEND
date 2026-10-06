@@ -1518,7 +1518,7 @@ export default function DashboardHome() {
                     No recipients yet
                   </p>
                   <p style={{ fontSize: '0.8125rem', margin: '0 0 1rem', lineHeight: 1.5 }}>
-                    Add your first recipient to schedule personalized Greet-Me greetings for each occasion where you turn on Auto-Send. You can also send a Greet-Me anytime.
+                    Add your first recipient to schedule personalized Greet-Me greetings for each occasion where you turn on Enable Auto-Gift. You can also send a Greet-Me anytime.
                   </p>
                   <button
                     onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}

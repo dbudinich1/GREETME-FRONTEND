@@ -78,14 +78,14 @@ test("round 2/3: header is Occasion Scheduler with subtext and festive icons; th
 
 test("round 3: gift banner is centered with a cinematic gift icon on BOTH sides and no left-only icon", () => {
   const b = CODE.slice(CODE.indexOf('<div data-testid="gift-banner"'), CODE.indexOf("{/* Occasions */}") > 0 ? CODE.length : undefined);
-  const blk = b.slice(0, b.indexOf("within your budget.") + 200);
+  const blk = b.slice(0, b.indexOf("Gift Place.") + 200);
   assert.equal((blk.match(/<CinematicGiftIcon \/>/g) || []).length, 2, "an icon on each side");
-  assert.ok(blk.indexOf("<CinematicGiftIcon />") < blk.indexOf("Remember to Include a gift") && blk.lastIndexOf("<CinematicGiftIcon />") > blk.indexOf("OR let Greet-Me select one"));
+  assert.ok(blk.indexOf("<CinematicGiftIcon />") < blk.indexOf("Remember to Include a gift") && blk.lastIndexOf("<CinematicGiftIcon />") > blk.indexOf("Gift Place."));
   assert.doesNotMatch(blk, /<Gift size=\{20\}/, "old left-only icon removed");
   assert.match(blk, /justifyContent: 'center'/);
   assert.equal((blk.match(/textAlign: 'center'/g) || []).length >= 3, true, "container, title and body centered");
   assert.match(blk, /Remember to Include a gift/);
-  assert.match(blk, /Complete the moment with the thoughtful gift from the Greet-Me Gift Place\. OR let Greet-Me select one for you within your budget\./);
+  assert.match(blk, /Complete the moment with a thoughtful gift from the Greet-Me Gift Place\./);
   assert.doesNotMatch(blk, /Gifts are configured per occasion|thoughtfulg|<button|onClick/, "old copy gone, dictation typo fixed, informational only (no CTA)");
   assert.ok(CODE.indexOf('data-testid="special-occasions-toggle"') < CODE.indexOf('<div data-testid="gift-banner" style'), "banner is after the scheduler header");
   assert.ok(CODE.indexOf('</>)}') < CODE.indexOf('<div data-testid="gift-banner" style'), "banner is after the scheduler content");

@@ -2965,8 +2965,8 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
           narrower option set than that picker). Removed per founder-approved brief: this
           banner should explain, not navigate.
           Claims in the copy verified in this file: "Greet-Me Gift Place" = the per-occasion "Choose Item" button
-          (navigate to /dashboard/merch, which redirects to /dashboard/gifts); "let Greet-Me select one for you
-          within your budget" = the "Let Greet-Me select a gift" option with its $25/$50/$75/$100/$150 Max selector. */}
+          (navigate to /dashboard/merch, which redirects to /dashboard/gifts). The automatic-selection sentence was
+          REMOVED (founder 2026-10-06) until automatic selection actually works. */}
       <div data-testid="gift-banner" style={{
         padding: 'var(--gm-inner-gap, 1rem)',
         background: 'linear-gradient(135deg, #fffbeb 0%, #fde68a 100%)',
@@ -2995,7 +2995,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
             margin: '0.25rem 0 0 0',
             textAlign: 'center'
           }}>
-            Complete the moment with the thoughtful gift from the Greet-Me Gift Place. OR let Greet-Me select one for you within your budget.
+            Complete the moment with a thoughtful gift from the Greet-Me Gift Place.
           </p>
         </div>
         <CinematicGiftIcon />

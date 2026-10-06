@@ -121,3 +121,12 @@ test("D-015 (FE side): the corporate card route the funding email should link to
   assert.match(app, /<Route path="campaigns" element=\{<GreetingAutomationCampaigns/);
   assert.match(app, /path="\/dashboard"/);
 });
+
+test("round 2 (founder 2026-10-06): banner has no auto-selection claim; Landing has no paid-plan clause; C-043 names the real control", () => {
+  assert.ok(read("src/components/ContactForm.jsx").includes("Complete the moment with a thoughtful gift from the Greet-Me Gift Place."));
+  assert.deepEqual(everywhere("OR let Greet-Me select one"), []);
+  assert.deepEqual(everywhere("paid plan after your free trial"), []);
+  assert.deepEqual(everywhere("turn on Auto-Send"), []);
+  assert.ok(read("src/pages/DashboardHome.jsx").includes("turn on Enable Auto-Gift."));
+  assert.ok(read("src/pages/Landing.jsx").includes("and add a gift to any occasion."));
+});

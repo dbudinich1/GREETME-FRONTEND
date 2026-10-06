@@ -53,7 +53,7 @@ test("the banner's copy is informational and points at the real gift routes (Gif
   // Copy replaced by the founder (2026-10-01). Intent kept: informational, and it must point at controls that exist.
   assert.match(BANNER, /Remember to Include a gift/);
   assert.match(BANNER, /Greet-Me Gift Place/, "names the Gift Place route (per-occasion Choose Item -> /dashboard/gifts)");
-  assert.match(BANNER, /let Greet-Me select one for you within your budget/, "names the curated-select route (Max $25-$150)");
+  assert.doesNotMatch(BANNER, /select one for you|within your budget/, "auto-selection claim removed until it works (founder 2026-10-06)");
   assert.match(CF, /<option value="curated">Let Greet-Me select a gift<\/option>/, "the control the copy refers to exists");
 });
 test("the banner now sits after the Occasions card and before the footer", () => {

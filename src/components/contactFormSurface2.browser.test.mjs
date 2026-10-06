@@ -200,7 +200,7 @@ test("banner: new copy, centered with an icon on each side, informational (no bu
   await mount();
   const b = tid("gift-banner");
   assert.ok(b.textContent.includes("Remember to Include a gift"));
-  assert.ok(b.textContent.includes("Complete the moment with the thoughtful gift from the Greet-Me Gift Place. OR let Greet-Me select one for you within your budget."));
+  assert.ok(b.textContent.includes("Complete the moment with a thoughtful gift from the Greet-Me Gift Place.") && !b.textContent.includes("select one for you"));
   assert.equal(b.querySelectorAll('[data-testid="cinematic-gift-icon"]').length, 2);
   assert.equal(b.querySelectorAll("button, a").length, 0);
   assert.ok(!txt().includes("Gifts are configured per occasion"));
