@@ -28,8 +28,6 @@ const everywhere = (needle) => ALL.filter(({ s }) => (needle instanceof RegExp ?
 
 // New text that must be present, per file.
 const PINNED = [
-  ["src/pages/Landing.jsx", "New accounts include 5 free sends during your 7-day trial."],
-  ["src/components/GuidedSetupFlow.jsx", "received 5 free sends to use in your first 7 days."],
   ["src/components/GuidedSetupFlow.jsx", "it won&rsquo;t count toward your 5 free sends."],
   ["src/components/GuidedSetupFlow.jsx", "does not count against your 5 free sends."],
   ["src/components/GuidedSetupFlow.jsx", "Enjoy automatic animated greetings, and add a gift to any occasion."],
@@ -49,10 +47,10 @@ const PINNED = [
   ["src/components/OnboardingTour.jsx", "or choose a gift yourself from the Gift Place."],
   ["src/config/plans.js", "Includes 1 gift subscription with your plan."],
   ["src/pages/CreditClaim.jsx", "Reserved for non-subscribers. It will be ready when your plan ends."],
-  ["src/components/hub/HubRedeemMarketplace.jsx", "'Coming soon'"],
   ["src/pages/Checkout.jsx", "Payments by Stripe"],
-  ["src/pages/DashboardHome.jsx", "we review and send the cash to their chosen Venmo, PayPal or Zelle."],
   ["src/pages/GiftClaim.jsx", "days after the gift is created."],
+  ["src/pages/ForBusiness.jsx", "Add real cash to a gift with QR Cash on individual sends."],
+  ["src/pages/Merch.jsx", "Send • Claim • Spend"],
 ];
 for (const [file, text] of PINNED) {
   test(`pinned: ${file} says "${text.slice(0, 60)}"`, () => assert.ok(read(file).includes(text)));
@@ -60,10 +58,7 @@ for (const [file, text] of PINNED) {
 
 // Old claims that must not appear anywhere in shipped source.
 const GONE = [
-  "Guest accounts include 3 free sends",
   "your 3 sends",
-  "your 3 free sends",
-  "received 3 free sends",
   "Get Started Free",
   "Sign up for free",
   "Gift will be sent automatically on the occasion date.\n", // only allowed inside the QR-Cash-live ternary (checked below)
@@ -78,23 +73,10 @@ const GONE = [
   "Greet-Me adds nothing",
   "Applied to your account balance",
   "Privacy Guaranteed",
-  "Unlocks with Heart Champion",
-  "Get Notified When Invitations Launch",
-  "Your rewards marketplace is growing",
-  "Redemption is coming soon",
-  "We add bonus animations for holidays",
-  "double your rewards balance",
-  "Most popular choice",
-  "transferred to their preferred payment method",
   "thoughtful gift for every occasion that matters",
   "with thoughtful gifts they'll never forget",
   "curate one automatically",
   "each year.'", // plans.js "Includes 1 ... subscription each year."
-  "Record 30-60 seconds",
-  "20+ second",
-  "included with full memberships",
-  "Every subscription includes one for you",
-  "Send • Spend • Gift",
   "Delivered automatically.</h1>",
 ];
 for (const phrase of GONE) {
@@ -112,10 +94,6 @@ test("'Gift will be sent automatically' appears ONLY behind the QR Cash schedule
   }
 });
 
-test("free tier numbers: 5 sends / 7 days appear, and no '3 free' claim anywhere", () => {
-  assert.deepEqual(everywhere(/\b3 free sends?\b|\bthree free sends?\b/i), []);
-});
-
 test("D-015 (FE side): the corporate card route the funding email should link to exists in App.jsx", () => {
   const app = read("src/App.jsx");
   assert.match(app, /<Route path="campaigns" element=\{<GreetingAutomationCampaigns/);
@@ -129,4 +107,35 @@ test("round 2 (founder 2026-10-06): banner has no auto-selection claim; Landing 
   assert.deepEqual(everywhere("turn on Auto-Send"), []);
   assert.ok(read("src/pages/DashboardHome.jsx").includes("turn on Enable Auto-Gift."));
   assert.ok(read("src/pages/Landing.jsx").includes("and add a gift to any occasion."));
+});
+
+test("founder colour-coding 2026-10-06: items not approved are back to their daab7e5 wording", () => {
+  // Reverted (undecided / red / yellow): the original text must still be present and the proposed text absent.
+  const back = [
+    ["src/pages/Landing.jsx", "Guest accounts include 3 free sends.", "New accounts include 5 free sends during your 7-day trial."],
+    ["src/components/GuidedSetupFlow.jsx", "received 3 free sends \\u2014 our gift to you.", "received 5 free sends to use in your first 7 days."],
+    ["src/pages/AnimationBank.jsx", "We add bonus animations for holidays, milestones, and special moments throughout the year!", "Redeem Hearts for Holiday Bonus Sends and Anytime Credits"],
+    ["src/pages/Invitations.jsx", "Get Notified When Invitations Launch", "Invitations are coming soon"],
+    ["src/components/hub/HubMarketplace.jsx", "Your rewards marketplace is growing.", "The Hearts Marketplace is not open yet."],
+    ["src/components/hub/HubWaysToSpend.jsx", "Redemption is coming soon", "Redemption is temporarily unavailable"],
+    ["src/components/hub/HubRedeemMarketplace.jsx", "Unlocks with {unlock}", "r.unlock === 'Heart Champion'"],
+    ["src/components/hub/hubConfig.js", "Most popular choice - best value for regular gifters", "A good fit for regular gifters"],
+    ["src/components/hub/hubConfig.js", "Maximum impact - double your rewards balance", "the most Hearts per dollar"],
+    ["src/pages/HeroProgram.jsx", "name: 'Growth', price: 250, hearts: 3250, popular: true,", "popular: false, description"],
+    ["src/components/corporateCampaign/corporateDashboardModel.js", "Cash they can scan and spend.", "Not available in campaigns yet."],
+    ["src/pages/Support.jsx", "You can manage your subscription plan directly from your dashboard.", "To change or cancel your subscription"],
+    ["src/pages/G1G1Send.jsx", "included with full memberships.", "included when you subscribe at full price."],
+    ["src/pages/DashboardHome.jsx", "Every subscription includes one for you", "Every full-price individual subscription"],
+    ["src/pages/DashboardHome.jsx", "Send • Spend • Gift", "Send • Claim • Gift"],
+    ["src/pages/DashboardHome.jsx", "transferred to their preferred payment method", "Payouts are processed manually."],
+    ["src/pages/Profile.jsx", "Record 30-60 seconds in a quiet environment for best voice cloning", "Record 10-30 seconds"],
+    ["src/pages/Profile.jsx", "create 20+ second personalized messages", "personalize your messages."],
+    ["src/pages/Merch.jsx", ">$0.00</p>", "balance figure removed"],
+  ];
+  for (const [file, original, proposed] of back) {
+    const s = read(file);
+    assert.ok(s.includes(original), `${file}: original missing: ${original}`);
+    if (!original.includes(proposed) && proposed !== "balance figure removed") assert.ok(!s.includes(proposed), `${file}: unapproved text present: ${proposed}`);
+  }
+  assert.ok(!read("src/pages/ForBusiness.jsx").includes("scheduled campaigns yet"));
 });

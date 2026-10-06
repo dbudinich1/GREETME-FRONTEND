@@ -44,7 +44,7 @@ export default function HubWaysToSpend({
           lineHeight: 1.6,
           margin: 0
         }}>
-          Redemption is temporarily unavailable. Your Hearts are safe.
+          Redemption is coming soon — keep earning Hearts and you'll be able to redeem them shortly.
         </p>
       ) : (
         <>

@@ -260,7 +260,7 @@ export default function ForBusiness() {
             lineHeight: 1.7,
             margin: 0
           }}>
-            Add real cash to a gift with QR Cash on individual sends. Cash can&rsquo;t be added to scheduled campaigns yet.
+            Add real cash to a gift with QR Cash on individual sends.
           </p>
         </div>
 

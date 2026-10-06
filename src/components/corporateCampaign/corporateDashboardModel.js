@@ -197,7 +197,7 @@ export const GIFT_PAYMENT_DISCLOSURE = Object.freeze({
 export const CORPORATE_GIFT_OPTIONS = Object.freeze([
   { value: "none", label: "No gift", description: "A greeting on its own.", automatable: true },
   { value: "curated", label: "Let Greet-Me™ Select", description: "We choose something thoughtful within your limit.", automatable: true },
-  { value: "qrcash", label: "QR Cash™", description: "Cash they can claim with a scan. Not available in campaigns yet.", automatable: false },
+  { value: "qrcash", label: "QR Cash™", description: "Cash they can scan and spend.", automatable: false },
   // CLOSEOUT W29 (PROPOSED): the "Greet-Me Gifts" (marketplace) option is REMOVED from the campaign
   // gift options. It named a gift class that does not exist for a campaign: the backend lists
   // "marketplace" only among the types a campaign can NOT run (deliveryConfig.js), no catalog,

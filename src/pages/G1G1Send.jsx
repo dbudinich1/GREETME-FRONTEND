@@ -162,7 +162,7 @@ export default function G1G1Send() {
         </>
       )}
 
-      <p style={styles.footer}>Greet One, Give One&trade; — included when you subscribe at full price.</p>
+      <p style={styles.footer}>Greet One, Give One&trade; — included with full memberships.</p>
     </Shell>
   );
 }

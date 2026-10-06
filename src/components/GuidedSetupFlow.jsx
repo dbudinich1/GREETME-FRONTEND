@@ -567,7 +567,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       }}>
         {sessionStorage.getItem('greetme_g1g1_claimed')
           ? 'Once you\u2019re ready, you\u2019ll be able to pass it forward.'
-          : 'You\u2019ve earned your first Hearts and received 5 free sends to use in your first 7 days.'}
+          : 'You\u2019ve earned your first Hearts and received 3 free sends \u2014 our gift to you.'}
       </p>
       <p style={{
         fontSize: '1.0625rem',

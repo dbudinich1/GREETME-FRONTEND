@@ -127,7 +127,7 @@ function RewardTile({ title, hearts, available, unlock }) {
       <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{title}</div>
       {unlock ? (
         <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.25rem', lineHeight: 1.5, flex: 1 }}>
-          {unlock === 'Heart Champion' ? 'Coming soon' : `Unlocks with ${unlock}`}
+          Unlocks with {unlock}
         </div>
       ) : <div style={{ flex: 1 }} />}
       <div style={{ marginTop: '0.625rem' }}>
@@ -196,7 +196,7 @@ export default function HubRedeemMarketplace({
         title: r.title,
         subtitle: r.id === 'anytime_greetme'
           ? `Redeem ${anytimeCost.toLocaleString()} Hearts for 1 Anytime Greet-Me`
-          : (r.unlock ? (r.unlock === 'Heart Champion' ? 'Coming soon' : `Unlocks with ${r.unlock}`) : ''),
+          : (r.unlock ? `Unlocks with ${r.unlock}` : ''),
         cost: r.hearts,
         available: r.available,
         // W17 — never AVAILABLE for a reward this page cannot redeem.

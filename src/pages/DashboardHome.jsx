@@ -699,7 +699,7 @@ export default function DashboardHome() {
               fontWeight: 600,
               opacity: 0.95
             }}>
-              Every full-price individual subscription includes a gift subscription for someone you care about.
+              Every subscription includes one for you — and one for a loved one.
             </p>
           </div>
         </div>
@@ -769,7 +769,7 @@ export default function DashboardHome() {
                 opacity: 0.9,
                 letterSpacing: '0.025em'
               }}>
-                Send • Claim • Gift
+                Send • Spend • Gift
               </p>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -2605,7 +2605,7 @@ export default function DashboardHome() {
                       lineHeight: 1.6,
                       margin: 0
                     }}>
-                      Once redeemed, we review and send the cash to their chosen Venmo, PayPal or Zelle. Payouts are processed manually.
+                      Once redeemed, the cash is transferred to their preferred payment method (bank account, PayPal, Venmo, etc.). They can spend it anywhere they like—no restrictions!
                     </p>
                   </div>
                 </div>
