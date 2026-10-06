@@ -333,7 +333,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
 
   // ==================== PHOTO FUNCTIONS ====================
   const handlePhotoSelect = (file) => {
-    const validation = validateFile(file, { maxSize: 5 * 1024 * 1024 });
+    const validation = validateFile(file, { maxSize: 10 * 1024 * 1024 });
     if (!validation.valid) {
       setPhotoError(validation.error);
       return;
@@ -567,7 +567,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
       }}>
         {sessionStorage.getItem('greetme_g1g1_claimed')
           ? 'Once you\u2019re ready, you\u2019ll be able to pass it forward.'
-          : 'You\u2019ve earned your first Hearts and received 3 free sends \u2014 our gift to you.'}
+          : 'You\u2019ve earned your first Hearts and received 5 free sends to use in your first 7 days.'}
       </p>
       <p style={{
         fontSize: '1.0625rem',
@@ -1022,7 +1022,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
                 Tap to upload your photo
               </p>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                PNG, JPG up to 5MB
+                PNG, JPG up to 10MB
               </p>
             </div>
           ) : (

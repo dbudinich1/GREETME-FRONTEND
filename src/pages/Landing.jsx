@@ -239,7 +239,7 @@ export default function Landing() {
             color: '#166534',
             margin: '0 0 0.25rem',
           }}>
-            Guest accounts include 3 free sends.
+            New accounts include 5 free sends during your 7-day trial.
           </p>
           <p style={{
             fontSize: '0.75rem',

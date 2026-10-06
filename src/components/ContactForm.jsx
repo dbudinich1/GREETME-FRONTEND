@@ -1321,8 +1321,8 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
 
                 // Validate all files first
                 for (const file of files) {
-                  if (file.size > 5 * 1024 * 1024) {
-                    showManualToast('Error', 'Each image must be less than 5MB', COMMS_CATEGORIES.PROFILE);
+                  if (file.size > 10 * 1024 * 1024) {
+                    showManualToast('Error', 'Each image must be less than 10MB', COMMS_CATEGORIES.PROFILE);
                     return;
                   }
                 }
@@ -1402,7 +1402,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
           marginTop: '0.75rem',
           textAlign: 'center'
         }}>
-          {(formData.avatar ? 1 : 0) + formData.memoryPhotos.length} photo{((formData.avatar ? 1 : 0) + formData.memoryPhotos.length) !== 1 ? 's' : ''} • Max 5MB each • Click to enlarge
+          {(formData.avatar ? 1 : 0) + formData.memoryPhotos.length} photo{((formData.avatar ? 1 : 0) + formData.memoryPhotos.length) !== 1 ? 's' : ''} • Max 10MB each • Click to enlarge
         </p>
         </div>
         )}
