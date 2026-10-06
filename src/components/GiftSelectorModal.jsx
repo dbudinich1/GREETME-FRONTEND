@@ -470,7 +470,7 @@ export default function GiftSelectorModal({
                         lineHeight: 1.4
                       }}>
                         {!autoSendClaimApplies ? SCHEDULED_QRCASH_UNAVAILABLE_COPY : giftSetting.autoGift
-                          ? 'Gift will be sent automatically on the occasion date.'
+                          ? (giftSetting.type === 'qrcash' && SCHEDULED_QRCASH_AVAILABLE ? 'Gift will be sent automatically on the occasion date.' : 'We\'ll remind you 10 days before so you can confirm your gift.')
                           : 'You\'ll receive a reminder 10 days before to confirm.'}
                       </p>
                     </div>

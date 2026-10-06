@@ -70,7 +70,7 @@ export default function Landing() {
         textAlign: 'center',
         maxWidth: '600px',
       }}>
-        Your voice. Their moment.<br />Delivered automatically.
+        Your voice. Their moment.<br />Delivered automatically on every occasion you set up.
       </h1>
 
       {/* Subheadline */}
@@ -82,8 +82,8 @@ export default function Landing() {
         textAlign: 'center',
         maxWidth: '540px',
       }}>
-        Create premium personalized greetings using your voice and photo&mdash;send one to everyone
-        on your list automatically with a thoughtful gift for every occasion that matters.
+        Create premium personalized greetings using your voice and photo&mdash;send a personalized greeting to everyone
+        on your list automatically, and add a gift to any occasion. Automatic sending is part of a paid plan after your free trial.
       </p>
 
       {/* Demo video — large, central */}

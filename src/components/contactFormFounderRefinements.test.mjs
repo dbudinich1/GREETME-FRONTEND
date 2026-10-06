@@ -170,7 +170,7 @@ test("round 4: the annual-repeat sentence appears only for yearly-repeating occa
   // only while Auto-Gift is on and the occasion repeats yearly; it is no longer in the "Add gift" row.
   assert.doesNotMatch(CODE, /add-gift-repeat-\$\{occ\}/, "no longer in the Add gift row");
   assert.match(CODE, /giftSetting\.autoGift === true && !qrCashManualOnly\(giftSetting\) && \(repeatsAnnually\(occasion\.value\)/);
-  assert.equal((CODE.match(/Your gift selection will automatically repeat annually until changed\./g) || []).length, 3, "one per card (personal, secular, faith)");
+  assert.equal((CODE.match(/Your greeting sends automatically each year and repeats./g) || []).length, 3, "one per card (personal, secular, faith)");
   // data source: only graduation and getwell carry recurring:false in helpers
   const H = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "utils", "helpers.js"), "utf8");
   const oneTime = [...H.matchAll(/value: '([a-z_]+)'[^\n]*recurring: false/g)].map((m) => m[1]);

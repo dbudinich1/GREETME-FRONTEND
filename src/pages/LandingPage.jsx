@@ -151,7 +151,7 @@ export default function LandingPage() {
             marginBottom: '3rem',
             lineHeight: 1.6
           }}>
-            Never miss another special moment. AI-powered greetings that show you care, automatically.
+            Never miss another special moment. AI-powered greetings, sent automatically for every occasion you set up.
           </p>
 
           <button

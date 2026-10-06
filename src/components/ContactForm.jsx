@@ -1442,7 +1442,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
           marginBottom: '0.5rem'
         }}>
           <Gift size={14} style={{ display: 'inline', marginRight: '0.375rem', verticalAlign: 'middle' }} />
-          Gifts are optional and never auto-sent unless you select them for a specific occasion.
+          Gifts are optional and added only when you select one for an occasion.
         </p>
 
         {/* Personal Occasions */}
@@ -1670,7 +1670,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                           </div>
                           {giftSetting.autoGift === true && !qrCashManualOnly(giftSetting) && (repeatsAnnually(occasion.value) || (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash')) && (
                             <p data-testid={`add-gift-repeat-${occasion.value}`} style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 1.375rem' }}>
-                              {repeatsAnnually(occasion.value) ? 'Your gift selection will automatically repeat annually until changed.' : ''}
+                              {repeatsAnnually(occasion.value) ? 'Your greeting sends automatically each year and repeats.' : ''}
                               {SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' && <PaymentInfoTriangle />}
                             </p>
                           )}
@@ -1683,7 +1683,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                             {qrCashManualOnly(giftSetting)
                               ? SCHEDULED_QRCASH_UNAVAILABLE_COPY
                               : giftSetting.autoGift
-                              ? 'Gift will be sent automatically on the occasion date.'
+                              ? (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' ? 'Gift will be sent automatically on the occasion date.' : 'We\'ll remind you 10 days before so you can confirm your gift.')
                               : 'You\'ll receive a reminder 10 days before to confirm.'}
                           </p>
                         </div>
@@ -2187,7 +2187,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                           </div>
                           {giftSetting.autoGift === true && !qrCashManualOnly(giftSetting) && (repeatsAnnually(occasion.value) || (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash')) && (
                             <p data-testid={`add-gift-repeat-${occasion.value}`} style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 1.375rem' }}>
-                              {repeatsAnnually(occasion.value) ? 'Your gift selection will automatically repeat annually until changed.' : ''}
+                              {repeatsAnnually(occasion.value) ? 'Your greeting sends automatically each year and repeats.' : ''}
                               {SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' && <PaymentInfoTriangle />}
                             </p>
                           )}
@@ -2200,7 +2200,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                             {qrCashManualOnly(giftSetting)
                               ? SCHEDULED_QRCASH_UNAVAILABLE_COPY
                               : giftSetting.autoGift
-                              ? 'Gift will be sent automatically on the occasion date.'
+                              ? (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' ? 'Gift will be sent automatically on the occasion date.' : 'We\'ll remind you 10 days before so you can confirm your gift.')
                               : 'You\'ll receive a reminder 10 days before to confirm.'}
                           </p>
                         </div>
@@ -2759,7 +2759,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                           </div>
                           {giftSetting.autoGift === true && !qrCashManualOnly(giftSetting) && (repeatsAnnually(occasion.value) || (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash')) && (
                             <p data-testid={`add-gift-repeat-${occasion.value}`} style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 1.375rem' }}>
-                              {repeatsAnnually(occasion.value) ? 'Your gift selection will automatically repeat annually until changed.' : ''}
+                              {repeatsAnnually(occasion.value) ? 'Your greeting sends automatically each year and repeats.' : ''}
                               {SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' && <PaymentInfoTriangle />}
                             </p>
                           )}
@@ -2772,7 +2772,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                             {qrCashManualOnly(giftSetting)
                               ? SCHEDULED_QRCASH_UNAVAILABLE_COPY
                               : giftSetting.autoGift
-                              ? 'Gift will be sent automatically on the occasion date.'
+                              ? (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' ? 'Gift will be sent automatically on the occasion date.' : 'We\'ll remind you 10 days before so you can confirm your gift.')
                               : 'You\'ll receive a reminder 10 days before to confirm.'}
                           </p>
                         </div>

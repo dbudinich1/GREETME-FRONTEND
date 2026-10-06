@@ -186,7 +186,7 @@ test("annual-repeat subscript: now under Enable Auto-Gift - only when a gift is 
   assert.equal(tid("add-gift-repeat-birthday"), null, "a gift alone is not enough: the sentence belongs to Auto-Gift");
   const [birthdayBox] = autoBoxes();
   await click(birthdayBox);
-  assert.equal(tid("add-gift-repeat-birthday").textContent, "Your gift selection will automatically repeat annually until changed.");
+  assert.equal(tid("add-gift-repeat-birthday").textContent, "Your greeting sends automatically each year and repeats.");
   assert.ok(tid("add-gift-repeat-birthday").closest("div").textContent.includes("Enable Auto-Gift"), "it sits with the Enable Auto-Gift control");
   await click(tid("add-gift-graduation"));
   await act(async () => setValue(tid("gift-selector-graduation"), "marketplace"));

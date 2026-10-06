@@ -25,6 +25,7 @@ const FLAG_ON_STUB = join(__dirname, ".__gsag.flagon.js");
 const TEMP = [ENTRY, OFF, ON, FLAG_ON_STUB];
 const HONEST = "QR Cash is sent when you send the Greet-Me. Scheduled QR Cash is not available yet.";
 const CLAIM = "Gift will be sent automatically on the occasion date.";
+const REMIND = "We'll remind you 10 days before so you can confirm your gift.";
 const REMINDER = "You'll receive a reminder 10 days before to confirm.";
 let React, createRoot, act, SelectorOff, SelectorOn;
 
@@ -84,10 +85,10 @@ test("QR Cash: no automatic-send claim, honest copy, Auto-Gift cannot be turned 
   }
 });
 
-test("gift types that really auto-send keep the claim and a working toggle", async () => {
+test("curated and marketplace gifts are never claimed as sent automatically: the 10-day confirm reminder shows instead, with a working toggle", async () => {
   for (const type of ["curated", "marketplace"]) {
     await mount(SelectorOff, { type, maxSpend: 50, autoGift: true });
-    assert.equal(q("auto-gift-copy").textContent, CLAIM, type);
+    assert.equal(q("auto-gift-copy").textContent, REMIND, type);
     assert.equal(checkbox().disabled, false, type);
     assert.equal(checkbox().checked, true, type);
     assert.match(q("auto-gift-block").textContent, /Auto/);

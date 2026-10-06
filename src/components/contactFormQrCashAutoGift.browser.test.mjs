@@ -162,7 +162,8 @@ test("other gift types are unchanged: Auto-Gift is enabled and saves autoGift:tr
   assert.equal(box.disabled, false);
   await click(box);
   assert.match(txt(), /Auto-Gift Enabled/);
-  assert.match(txt(), /Gift will be sent automatically on the occasion date\./);
+  assert.match(txt(), /We.ll remind you 10 days before so you can confirm your gift./);
+  assert.doesNotMatch(txt(), /Gift will be sent automatically on the occasion date./);
   assert.doesNotMatch(txt(), /Scheduled QR Cash is not available yet/);
   await saveWithBasics();
   const entry = globalThis.__submitted.occasionGiftSettings.birthday;
@@ -178,7 +179,7 @@ test("the availability constant is imported from the single module, not duplicat
 });
 
 test("annual-repeat sentence (now under Enable Auto-Gift): absent for QR Cash while scheduled QR Cash is unavailable; present for marketplace and curated once Auto-Gift is on, on a yearly occasion; absent on a one-time occasion", async () => {
-  const SENTENCE = /Your gift selection will automatically repeat annually until changed\./;
+  const SENTENCE = /Your greeting sends automatically each year and repeats./;
   await mount(); await openScheduler(); await tick("occasion-birthday"); await tick("occasion-graduation");
   await click(tid("add-gift-birthday"));
   await act(async () => setValue(tid("gift-selector-birthday"), "qrcash"));

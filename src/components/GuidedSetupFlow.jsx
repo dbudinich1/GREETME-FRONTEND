@@ -634,7 +634,7 @@ export default function GuidedSetupFlow({ onComplete, onDismiss }) {
         <p style={{ marginBottom: '0.5rem' }}>Upload once.</p>
         <p style={{ marginBottom: '0.5rem' }}>Add who matters.</p>
         <p style={{ marginBottom: '0.5rem' }}>Set your can't-miss moments.</p>
-        <p style={{ marginBottom: 0 }}>Enjoy automatic animated greetings — with thoughtful gifts they'll never forget.</p>
+        <p style={{ marginBottom: 0 }}>Enjoy automatic animated greetings, and add a gift to any occasion.</p>
       </div>
 
       {/* Single Primary CTA */}
