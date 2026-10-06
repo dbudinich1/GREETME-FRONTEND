@@ -36,7 +36,7 @@ export function partnerEarningsCopy(earnings, payout) {
     'unavailable': { amount: '', pill: '', label: 'Earnings', lines: ['Earnings are not available right now. Please try again later.'] },
     'not-active': { amount: '', pill: 'Coming soon', label: 'Earnings', lines: [
       'Your earnings will appear here once the terms of your partnership are in place.',
-      'Visits, scans and sign-ups are already counted above.'] },
+      'Visits, scans and conversions are already counted above.'] },
     'terms-set': { amount: '', pill: 'Getting ready', label: 'Earnings', lines: [
       'Your partnership terms are in place. Your earnings will start to show here shortly.'] },
     'none-yet': { amount: est, pill: '', label: 'Estimated earnings', lines: [

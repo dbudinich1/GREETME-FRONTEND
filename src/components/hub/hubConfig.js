@@ -148,7 +148,7 @@ export const HERO_HEARTS_BUNDLES = [
     totalHearts: 3250,
     perDollar: 13,
     popular: true,
-    description: 'Most popular choice - best value for regular gifters',
+    description: 'A good fit for regular gifters',
     priceId: 'price_1T4eJyCf7KAA6aLaJjJLgVTK',
     purchaseType: 'hero_hearts',
   },
@@ -162,7 +162,7 @@ export const HERO_HEARTS_BUNDLES = [
     perDollar: 14,
     popular: false,
     bestValue: true,
-    description: 'Maximum impact - double your rewards balance',
+    description: 'Maximum impact - the most Hearts per dollar',
     priceId: 'price_1T4eJzCf7KAA6aLagx468kzk',
     purchaseType: 'hero_hearts',
   }

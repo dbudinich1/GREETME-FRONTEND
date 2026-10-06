@@ -250,7 +250,7 @@ export default function SavedCardPanel({ orgId, client, initial, onSaved, stripe
         <div>
           <h2 className="gcd-panel-title" id="gcd-card-head">Payment method</h2>
           <p className="gcd-panel-note">
-            Gift campaigns are charged to this card at the provider’s own quoted cost. Greet-Me adds nothing to it.
+            Gift campaigns are charged to this card. The total shown to you before you confirm is the total charged.
           </p>
         </div>
       </div>

@@ -78,14 +78,14 @@ test("round 2/3: header is Occasion Scheduler with subtext and festive icons; th
 
 test("round 3: gift banner is centered with a cinematic gift icon on BOTH sides and no left-only icon", () => {
   const b = CODE.slice(CODE.indexOf('<div data-testid="gift-banner"'), CODE.indexOf("{/* Occasions */}") > 0 ? CODE.length : undefined);
-  const blk = b.slice(0, b.indexOf("within your budget.") + 200);
+  const blk = b.slice(0, b.indexOf("Gift Place.") + 200);
   assert.equal((blk.match(/<CinematicGiftIcon \/>/g) || []).length, 2, "an icon on each side");
-  assert.ok(blk.indexOf("<CinematicGiftIcon />") < blk.indexOf("Remember to Include a gift") && blk.lastIndexOf("<CinematicGiftIcon />") > blk.indexOf("OR let Greet-Me select one"));
+  assert.ok(blk.indexOf("<CinematicGiftIcon />") < blk.indexOf("Remember to Include a gift") && blk.lastIndexOf("<CinematicGiftIcon />") > blk.indexOf("Gift Place."));
   assert.doesNotMatch(blk, /<Gift size=\{20\}/, "old left-only icon removed");
   assert.match(blk, /justifyContent: 'center'/);
   assert.equal((blk.match(/textAlign: 'center'/g) || []).length >= 3, true, "container, title and body centered");
   assert.match(blk, /Remember to Include a gift/);
-  assert.match(blk, /Complete the moment with the thoughtful gift from the Greet-Me Gift Place\. OR let Greet-Me select one for you within your budget\./);
+  assert.match(blk, /Complete the moment with a thoughtful gift from the Greet-Me Gift Place\./);
   assert.doesNotMatch(blk, /Gifts are configured per occasion|thoughtfulg|<button|onClick/, "old copy gone, dictation typo fixed, informational only (no CTA)");
   assert.ok(CODE.indexOf('data-testid="special-occasions-toggle"') < CODE.indexOf('<div data-testid="gift-banner" style'), "banner is after the scheduler header");
   assert.ok(CODE.indexOf('</>)}') < CODE.indexOf('<div data-testid="gift-banner" style'), "banner is after the scheduler content");
@@ -100,7 +100,8 @@ test("round 3: Profile Photo label; Moments copy states no invented count", () =
   assert.match(CODE, />\s*Profile Photo\s*</);
   assert.match(CODE, /Add images below\. These images will be presented inside your sent Greet-Me\./);
   assert.doesNotMatch(CODE, /Add up to \d+ images/);
-  assert.match(CODE, /file\.size > 5 \* 1024 \* 1024/, "the real 5MB per-image limit is still enforced");
+  // C-060 (founder 2026-10-06): the pre-check now matches the backend multer limit (10MB).
+  assert.match(CODE, /file\.size > 10 \* 1024 \* 1024/, "the per-image pre-check matches the backend 10MB limit");
 });
 
 test("round 3: ONE section gap and ONE inner gap, applied uniformly (no responsive overrides)", () => {
@@ -170,7 +171,7 @@ test("round 4: the annual-repeat sentence appears only for yearly-repeating occa
   // only while Auto-Gift is on and the occasion repeats yearly; it is no longer in the "Add gift" row.
   assert.doesNotMatch(CODE, /add-gift-repeat-\$\{occ\}/, "no longer in the Add gift row");
   assert.match(CODE, /giftSetting\.autoGift === true && !qrCashManualOnly\(giftSetting\) && \(repeatsAnnually\(occasion\.value\)/);
-  assert.equal((CODE.match(/Your gift selection will automatically repeat annually until changed\./g) || []).length, 3, "one per card (personal, secular, faith)");
+  assert.equal((CODE.match(/Your greeting sends automatically each year and repeats./g) || []).length, 3, "one per card (personal, secular, faith)");
   // data source: only graduation and getwell carry recurring:false in helpers
   const H = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "utils", "helpers.js"), "utf8");
   const oneTime = [...H.matchAll(/value: '([a-z_]+)'[^\n]*recurring: false/g)].map((m) => m[1]);

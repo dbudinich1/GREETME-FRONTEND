@@ -62,7 +62,7 @@ export default function ForBusiness() {
             maxWidth: '800px',
             margin: '0 auto 1.5rem'
           }}>
-            From Branded Goods to curated American Gift Place gifts and QR Cash, deliver meaningful moments at scale.
+            Deliver meaningful moments: curated gifts at scale, QR Cash and Branded Goods one order at a time.
           </p>
           <button
             onClick={() => setShowContactForm(true)}
@@ -180,7 +180,7 @@ export default function ForBusiness() {
             lineHeight: 1.7,
             margin: 0
           }}>
-            Bundle Greet-Me™ subscriptions with your products or services. Enhance customer value, boost retention, and create meaningful touchpoints that differentiate your brand.
+            Bundle Greet-Me™ subscriptions with your products or services. Enhance customer value, boost retention, and create meaningful touchpoints that differentiate your brand. Contact us to discuss bundles.
           </p>
         </div>
 
@@ -260,7 +260,7 @@ export default function ForBusiness() {
             lineHeight: 1.7,
             margin: 0
           }}>
-            Add real cash to any corporate gift via QR Cash. Simple, personal, and universally appreciated—perfect for bonuses, incentives, and recognition.
+            Add real cash to a gift with QR Cash on individual sends.
           </p>
         </div>
 
@@ -394,7 +394,7 @@ export default function ForBusiness() {
           marginBottom: '1.5rem',
           lineHeight: 1.6
         }}>
-          Through Greet-Me™ Hero™, we reward corporate patronage with automatic 10% contributions to veteran, law enforcement and EMS organizations.
+          Greet-Me™ Hero™ supports veteran, law enforcement and EMS communities.
         </p>
         <button
           onClick={() => navigate('/dashboard/hero')}

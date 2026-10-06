@@ -579,7 +579,7 @@ const PARTICIPATION_GROUPS = [
         desc: 'Contribute Hero Hearts to support the Hero mission.',
         chip: 'available', cta: { kind: 'modal', label: 'Contribute' } },
       { key: 'qr_cash', title: 'QR Cash™', icon: DollarSign,
-        desc: 'Send, scan, spend, or gift money with optional personalized Greet-Me delivery.',
+        desc: 'Send, scan, spend, or gift money with optional personalized Greet-Me delivery. Cash claims are reviewed before payout.',
         chip: 'available', cta: { kind: 'qrcash', label: 'Launch QR Cash' } },
       { key: 'gifted_bundles', title: 'Gifted Subscription Bundles', icon: Gift,
         desc: 'Gift Greet-Me memberships to your team, clients, or community.',

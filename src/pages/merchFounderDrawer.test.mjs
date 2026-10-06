@@ -216,6 +216,7 @@ test("Gift Cards, Coming Soon, cart and both return flows are unchanged", () => 
 });
 
 test("QR Cash is byte-identical to its deployed form", () => {
+  // Re-baselined again (promises ledger A-060, founder 2026-10-06): only the tile text changed, "Send • Spend • Gift" -> "Send • Claim • Spend" and the $0.00 balance figure removed (43 -> 40 lines). Approved copy change, not a weakening.
   // Re-baselined (six-team integration, 2026-09-29): Team 1's gift/entitlement-safety pass
   // deliberately changed this exact block's onClick from the client-only QRCashGiftModal
   // simulation to the real, backend-wired composer flow, adding a 2-line attribution comment
@@ -227,10 +228,10 @@ test("QR Cash is byte-identical to its deployed form", () => {
   let end = start;
   while (end < lines.length && lines[end] !== "      </div>") end += 1;
   const block = lines.slice(start, end + 1).join("\n") + "\n";
-  assert.equal(block.split("\n").length - 1, 43);
+  assert.equal(block.split("\n").length - 1, 40);
   assert.equal(
     createHash("sha256").update(block, "utf8").digest("hex"),
-    "f7cb622a33edbe74f2e796400b650495941cafd05dac49b8e3484f6ea7660fb3",
+    "11fe2d0b3fe461bb03e112c53aaaa72c8189246c796fbea580fb450170b1bcf4",
     "the QR Cash tile changed — it must stay byte-identical"
   );
 });

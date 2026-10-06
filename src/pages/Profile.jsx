@@ -127,9 +127,9 @@ export default function Profile() {
       return;
     }
 
-    // Validate file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      showAlert('error', 'Image size must be less than 5MB');
+    // Validate file size (10MB max, matches backend multer limit)
+    if (file.size > 10 * 1024 * 1024) {
+      showAlert('error', 'Image size must be less than 10MB');
       return;
     }
 
@@ -558,10 +558,10 @@ export default function Profile() {
           <div>
             <h3 className="text-sm font-semibold text-gray-900">Tips for Best Results</h3>
             <ul className="mt-2 text-sm text-gray-700 space-y-1">
-              <li>• Voice: Record 30-60 seconds in a quiet environment for best voice cloning</li>
+              <li>• Voice: Record at least 10 seconds in a quiet environment.</li>
               <li>• Photos: Use clear, front-facing photos with good lighting</li>
               <li>• Default: Mark your preferred photo as default for all greetings</li>
-              <li>• Messages: AI will use relationship context to create 20+ second personalized messages</li>
+              <li>• Messages: AI will use relationship context to personalize your messages.</li>
             </ul>
           </div>
         </div>

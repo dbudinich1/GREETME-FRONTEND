@@ -810,7 +810,7 @@ export default function Pricing() {
                 justifyContent: 'center',
                 gap: isNarrow ? '0.75rem 1.25rem' : '1rem 2rem'
               }}>
-                {['❤️ Rewards', '🥇 Greet-Me Hero™ Participation', '🎁 Access to Greet-Me Gifts™', '💸 QR Cash™'].map((benefit) => (
+                {['❤️ Earn Hearts rewards', '🥇 Greet-Me Hero™ participation', '🎁 Access to Greet-Me Gifts™', '💸 QR Cash™ available'].map((benefit) => (
                   <span key={benefit} style={{
                     fontSize: isNarrow ? '0.875rem' : '0.9375rem',
                     fontWeight: 500,
@@ -1039,7 +1039,7 @@ export default function Pricing() {
                   textAlign: 'center',
                   marginTop: '1rem'
                 }}>
-                  {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE} Secure checkout powered by Stripe. Cancel anytime.
+                  {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE} Secure checkout powered by Stripe.
                 </p>
               </>
             )}

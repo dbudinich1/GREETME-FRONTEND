@@ -432,9 +432,9 @@ export default function DashboardHome() {
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image file must be less than 5MB');
+    // Validate file size (max 10MB, matches backend multer limit)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image file must be less than 10MB');
       return;
     }
 
@@ -769,7 +769,7 @@ export default function DashboardHome() {
                 opacity: 0.9,
                 letterSpacing: '0.025em'
               }}>
-                Send • Spend • Gift
+                Send • Claim • Spend
               </p>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -1518,7 +1518,7 @@ export default function DashboardHome() {
                     No recipients yet
                   </p>
                   <p style={{ fontSize: '0.8125rem', margin: '0 0 1rem', lineHeight: 1.5 }}>
-                    Add your first recipient to start sending personalized Greet-Me greetings automatically for every occasion. You can also send a Greet-Me anytime.
+                    Add your first recipient to schedule personalized Greet-Me greetings for each occasion where you turn on Enable Auto-Gift. You can also send a Greet-Me anytime.
                   </p>
                   <button
                     onClick={() => navigate('/dashboard/contacts', { state: { openAddRecipient: true } })}
@@ -2605,7 +2605,7 @@ export default function DashboardHome() {
                       lineHeight: 1.6,
                       margin: 0
                     }}>
-                      Once redeemed, the cash is transferred to their preferred payment method (bank account, PayPal, Venmo, etc.). They can spend it anywhere they like—no restrictions!
+                      Once redeemed, we review and send the cash to their chosen Venmo, PayPal or Zelle. Payouts are processed manually.
                     </p>
                   </div>
                 </div>

@@ -249,7 +249,7 @@ test("QR Cash renders above the selector row, with its wording intact and its be
   // identically to DashboardHome.jsx/HeroProgram.jsx/Gifts.jsx). The wording and position
   // guarantees below are unchanged; only the button's action target is updated to match.
   assert.match(SRC, /QR Cash™/);
-  assert.match(SRC, /Send • Spend • Gift/);
+  assert.match(SRC, /Send • Claim • Spend/);
   assert.match(SRC, /Send QR Cash™/);
   assert.match(SRC, /navigate\('\/dashboard\/send\?giftType=qrcash'\)/);
   assert.equal(/<QRCashGiftModal/.test(SRC), false, "the client-only simulation must not be reintroduced");

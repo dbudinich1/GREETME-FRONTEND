@@ -687,8 +687,8 @@ export default function CreditClaim() {
                 </button>
                 <p style={styles.terms}>
                   {accountState.isSubscribed
-                    ? 'Applied to your account balance.'
-                    : 'Applies to your first Greet-Me subscription.'}
+                    ? 'Reserved for non-subscribers. It will be ready when your plan ends.'
+                    : 'Applies to your first Greet-Me subscription. Valid toward Social Butterfly or higher plans.'}
                 </p>
               </>
             ) : isLoginMode ? (

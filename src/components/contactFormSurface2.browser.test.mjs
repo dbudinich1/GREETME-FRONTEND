@@ -186,7 +186,7 @@ test("annual-repeat subscript: now under Enable Auto-Gift - only when a gift is 
   assert.equal(tid("add-gift-repeat-birthday"), null, "a gift alone is not enough: the sentence belongs to Auto-Gift");
   const [birthdayBox] = autoBoxes();
   await click(birthdayBox);
-  assert.equal(tid("add-gift-repeat-birthday").textContent, "Your gift selection will automatically repeat annually until changed.");
+  assert.equal(tid("add-gift-repeat-birthday").textContent, "Your greeting sends automatically each year and repeats.");
   assert.ok(tid("add-gift-repeat-birthday").closest("div").textContent.includes("Enable Auto-Gift"), "it sits with the Enable Auto-Gift control");
   await click(tid("add-gift-graduation"));
   await act(async () => setValue(tid("gift-selector-graduation"), "marketplace"));
@@ -200,7 +200,7 @@ test("banner: new copy, centered with an icon on each side, informational (no bu
   await mount();
   const b = tid("gift-banner");
   assert.ok(b.textContent.includes("Remember to Include a gift"));
-  assert.ok(b.textContent.includes("Complete the moment with the thoughtful gift from the Greet-Me Gift Place. OR let Greet-Me select one for you within your budget."));
+  assert.ok(b.textContent.includes("Complete the moment with a thoughtful gift from the Greet-Me Gift Place.") && !b.textContent.includes("select one for you"));
   assert.equal(b.querySelectorAll('[data-testid="cinematic-gift-icon"]').length, 2);
   assert.equal(b.querySelectorAll("button, a").length, 0);
   assert.ok(!txt().includes("Gifts are configured per occasion"));

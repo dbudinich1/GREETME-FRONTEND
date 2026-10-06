@@ -178,7 +178,7 @@ export const businessPlans = {
           'Greet-Me Gifts™ & QR Cash™',
           'Greet-Me Hero™ Initiative Eligible',
           '🎁 G1G1 Eligible',
-          'Includes 1 complimentary Greet-Me subscription each year.'
+          'Includes 1 gift subscription with your plan.'
         ] }
       ],
       highlight: true
@@ -204,7 +204,7 @@ export const businessPlans = {
           'Greet-Me Gifts™ & QR Cash™',
           'Greet-Me Hero™ Initiative Eligible',
           '🎁 Premium G1G1 Eligible',
-          'Includes 1 giftable Impact subscription each year.'
+          'Includes 1 gift subscription with your plan.'
         ] }
       ]
     },
@@ -270,7 +270,7 @@ export const businessPlans = {
           'Greet-Me Gifts™ & QR Cash™',
           'Greet-Me Hero™ Initiative Eligible',
           '🎁 G1G1 Eligible',
-          'Includes 1 complimentary Greet-Me subscription each year.'
+          'Includes 1 gift subscription with your plan.'
         ] }
       ],
       highlight: true
@@ -296,7 +296,7 @@ export const businessPlans = {
           'Greet-Me Gifts™ & QR Cash™',
           'Greet-Me Hero™ Initiative Eligible',
           '🎁 Premium G1G1 Eligible',
-          'Includes 1 giftable Impact subscription each year.'
+          'Includes 1 gift subscription with your plan.'
         ] }
       ]
     },

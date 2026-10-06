@@ -582,7 +582,7 @@ export default function GiftClaim() {
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>&#9200;</div>
           <h1 style={styles.title}>Gift Expired</h1>
           <p style={styles.subtitle}>
-            This QR Cash&trade; gift is no longer available. Gifts expire {gift.expiryDays || 30} days after delivery. Questions about an expired gift? Contact support.
+            This QR Cash&trade; gift is no longer available. Gifts expire {gift.expiryDays || 30} days after the gift is created. Questions about an expired gift? Contact support.
           </p>
           <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
           {trustLinks}
@@ -852,7 +852,7 @@ export default function GiftClaim() {
           margin: '0.75rem 0 0.5rem',
         }}>
           By claiming, you agree to receive funds via your selected method.
-          QR Cash&trade; gifts expire {gift.expiryDays || 30} days after delivery.
+          QR Cash&trade; gifts expire {gift.expiryDays || 30} days after the gift is created.
         </p>
 
         <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>

@@ -686,7 +686,7 @@ export default function Checkout() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.85)' }}>
             <Shield size={13} />
-            <span>Privacy Guaranteed</span>
+            <span>Payments by Stripe</span>
           </div>
         </div>
       </div>
@@ -1027,7 +1027,7 @@ export default function Checkout() {
                             <span>{formatFeeAmount(techFee)}</span>
                           </div>
                           <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '0.25rem 0 0', fontStyle: 'italic' }}>
-                            Covers setup for you and your G1G1 recipient
+                            {g1g1Eligible ? 'Covers setup for you and your G1G1 recipient' : 'Covers account setup.'}
                           </p>
                         </div>
                       )}
@@ -1042,16 +1042,18 @@ export default function Checkout() {
                           Plus the one-time platform fee, {FEE_CALCULATED_AT_CHECKOUT.toLowerCase()}.
                         </div>
                       )}
-                      <div style={{ fontSize: '0.85rem', color: '#555', marginTop: '0.25rem' }}>
-                        Includes 2 Greet-Me experiences
-                      </div>
+                      {g1g1Eligible && (
+                        <div style={{ fontSize: '0.85rem', color: '#555', marginTop: '0.25rem' }}>
+                          Includes 2 Greet-Me experiences
+                        </div>
+                      )}
                       {subscriptionItem && (
                         <div data-testid="checkout-subscription-terms" style={{ fontSize: '0.8rem', color: '#555', marginTop: '0.5rem', lineHeight: 1.4 }}>
                           {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE}
                         </div>
                       )}
                       <div style={{ fontSize: '0.8rem', color: '#777', marginTop: '0.5rem' }}>
-                        🔒 Secure checkout • Cancel anytime
+                        🔒 Secure checkout
                       </div>
                     </div>
                   );

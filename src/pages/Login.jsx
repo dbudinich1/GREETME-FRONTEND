@@ -23,7 +23,7 @@ export const Login = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // F5b: real install QR for the "Get the Mobile App" card
+  // F5b: real install QR for the home-screen install card
   const [appQrUrl, setAppQrUrl] = useState(null);
   useEffect(() => {
     QRCode.toDataURL('https://greet-me.com/#/app', {
@@ -308,7 +308,7 @@ export const Login = () => {
                   textDecoration: 'none'
                 }}
               >
-                Sign up for free
+                Sign up for 5 free sends
               </Link>
             </p>
           </div>
@@ -332,18 +332,18 @@ export const Login = () => {
                 fontSize: '0.875rem',
                 fontWeight: 600,
                 color: 'var(--text-primary)'
-              }}>Get the Mobile App</span>
+              }}>Add Greet-Me to your home screen</span>
             </div>
             <p style={{
               fontSize: '0.75rem',
               color: 'var(--text-secondary)',
               marginBottom: '0.75rem'
             }}>
-              Scan to download and send greetings on the go
+              Scan to install
             </p>
             <div
               onClick={() => navigate('/app')}
-              title="Scan to install Greet-Me mobile app"
+              title="Scan to add Greet-Me to your home screen"
               style={{
                 display: 'inline-flex',
                 padding: '0.75rem',

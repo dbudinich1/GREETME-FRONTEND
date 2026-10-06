@@ -396,11 +396,12 @@ export default function Settings() {
           <div style={cardHeader}>
             <Bell style={{ color: 'var(--primary)' }} size={24} />
             <h2 style={cardTitle}>Notifications</h2>
+            <span data-testid="notifications-coming-soon" style={{ marginLeft: 'auto', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Coming soon</span>
           </div>
           <div>
             {[
               { title: 'Email me when greetings are sent', help: 'Get a receipt the moment a card delivers.', checked: true },
-              { title: 'Remind me 7 days before upcoming occasions', help: 'Never miss a birthday or anniversary.', checked: true },
+              { title: 'Remind me 10 days before upcoming occasions', help: 'Never miss a birthday or anniversary.', checked: true },
               { title: 'Send me monthly summary reports', help: 'A recap of everything you sent.', checked: false },
             ].map((row, i, arr) => (
               <label
@@ -412,7 +413,8 @@ export default function Settings() {
                   gap: '1rem',
                   padding: '0.875rem 0',
                   borderBottom: i < arr.length - 1 ? '1px solid var(--border-light, #f3f4f6)' : 'none',
-                  cursor: 'pointer',
+                  cursor: 'default',
+                  opacity: 0.6,
                 }}
               >
                 <span style={{ minWidth: 0 }}>
@@ -426,7 +428,8 @@ export default function Settings() {
                 <input
                   type="checkbox"
                   defaultChecked={row.checked}
-                  style={{ width: '1.125rem', height: '1.125rem', accentColor: 'var(--primary)', flexShrink: 0, cursor: 'pointer' }}
+                  disabled
+                  style={{ width: '1.125rem', height: '1.125rem', accentColor: 'var(--primary)', flexShrink: 0, cursor: 'not-allowed' }}
                 />
               </label>
             ))}

@@ -41,7 +41,7 @@ export default function Support() {
           <a href="mailto:support@greet-me.com" style={{ color: '#667eea', fontWeight: 600 }}>
             support@greet-me.com
           </a>
-          . We respond within 48 hours.
+          . We reply as quickly as we can.
         </p>
 
         {/* Billing & Subscription */}
@@ -56,8 +56,7 @@ export default function Support() {
             Billing & Subscription
           </h2>
           <p style={{ fontSize: '0.9375rem', color: '#555', lineHeight: 1.6, margin: 0 }}>
-            You can manage your subscription plan directly from your dashboard. For refund requests,
-            billing questions, or plan changes that require assistance, contact us at{' '}
+            To change or cancel your subscription, or for refund and billing questions, email{' '}
             <a href="mailto:support@greet-me.com" style={{ color: '#667eea' }}>support@greet-me.com</a>
             {' '}with your account email and a brief description.
           </p>

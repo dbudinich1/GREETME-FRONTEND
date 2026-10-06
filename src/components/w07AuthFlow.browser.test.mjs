@@ -139,7 +139,7 @@ test("ON: the Manual/Card-needed pill is gone, 'Auto-Gift Enabled' shows only wh
   assert.doesNotMatch(cardOf("anniversary").textContent, /Auto-Gift Enabled/);
   const note = cardOf("birthday").querySelector('[data-testid="add-gift-repeat-birthday"]');
   assert.ok(note, "note under the control");
-  assert.match(note.textContent, /Your gift selection will automatically repeat annually until changed\./);
+  assert.match(note.textContent, /Your greeting sends automatically each year and repeats./);
   const tri = note.querySelector('[data-testid="payment-info-triangle"]');
   assert.ok(tri);
   assert.equal(tri.getAttribute("aria-label"), "Auto-Gift requires a valid form of payment on file. You will be prompted when you click Save.");

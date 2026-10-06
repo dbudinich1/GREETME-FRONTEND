@@ -1321,8 +1321,8 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
 
                 // Validate all files first
                 for (const file of files) {
-                  if (file.size > 5 * 1024 * 1024) {
-                    showManualToast('Error', 'Each image must be less than 5MB', COMMS_CATEGORIES.PROFILE);
+                  if (file.size > 10 * 1024 * 1024) {
+                    showManualToast('Error', 'Each image must be less than 10MB', COMMS_CATEGORIES.PROFILE);
                     return;
                   }
                 }
@@ -1402,7 +1402,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
           marginTop: '0.75rem',
           textAlign: 'center'
         }}>
-          {(formData.avatar ? 1 : 0) + formData.memoryPhotos.length} photo{((formData.avatar ? 1 : 0) + formData.memoryPhotos.length) !== 1 ? 's' : ''} • Max 5MB each • Click to enlarge
+          {(formData.avatar ? 1 : 0) + formData.memoryPhotos.length} photo{((formData.avatar ? 1 : 0) + formData.memoryPhotos.length) !== 1 ? 's' : ''} • Max 10MB each • Click to enlarge
         </p>
         </div>
         )}
@@ -1442,7 +1442,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
           marginBottom: '0.5rem'
         }}>
           <Gift size={14} style={{ display: 'inline', marginRight: '0.375rem', verticalAlign: 'middle' }} />
-          Gifts are optional and never auto-sent unless you select them for a specific occasion.
+          Gifts are optional and added only when you select one for an occasion.
         </p>
 
         {/* Personal Occasions */}
@@ -1670,7 +1670,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                           </div>
                           {giftSetting.autoGift === true && !qrCashManualOnly(giftSetting) && (repeatsAnnually(occasion.value) || (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash')) && (
                             <p data-testid={`add-gift-repeat-${occasion.value}`} style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 1.375rem' }}>
-                              {repeatsAnnually(occasion.value) ? 'Your gift selection will automatically repeat annually until changed.' : ''}
+                              {repeatsAnnually(occasion.value) ? 'Your greeting sends automatically each year and repeats.' : ''}
                               {SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' && <PaymentInfoTriangle />}
                             </p>
                           )}
@@ -1683,7 +1683,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                             {qrCashManualOnly(giftSetting)
                               ? SCHEDULED_QRCASH_UNAVAILABLE_COPY
                               : giftSetting.autoGift
-                              ? 'Gift will be sent automatically on the occasion date.'
+                              ? (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' ? 'Gift will be sent automatically on the occasion date.' : 'We\'ll remind you 10 days before so you can confirm your gift.')
                               : 'You\'ll receive a reminder 10 days before to confirm.'}
                           </p>
                         </div>
@@ -2187,7 +2187,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                           </div>
                           {giftSetting.autoGift === true && !qrCashManualOnly(giftSetting) && (repeatsAnnually(occasion.value) || (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash')) && (
                             <p data-testid={`add-gift-repeat-${occasion.value}`} style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 1.375rem' }}>
-                              {repeatsAnnually(occasion.value) ? 'Your gift selection will automatically repeat annually until changed.' : ''}
+                              {repeatsAnnually(occasion.value) ? 'Your greeting sends automatically each year and repeats.' : ''}
                               {SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' && <PaymentInfoTriangle />}
                             </p>
                           )}
@@ -2200,7 +2200,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                             {qrCashManualOnly(giftSetting)
                               ? SCHEDULED_QRCASH_UNAVAILABLE_COPY
                               : giftSetting.autoGift
-                              ? 'Gift will be sent automatically on the occasion date.'
+                              ? (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' ? 'Gift will be sent automatically on the occasion date.' : 'We\'ll remind you 10 days before so you can confirm your gift.')
                               : 'You\'ll receive a reminder 10 days before to confirm.'}
                           </p>
                         </div>
@@ -2759,7 +2759,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                           </div>
                           {giftSetting.autoGift === true && !qrCashManualOnly(giftSetting) && (repeatsAnnually(occasion.value) || (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash')) && (
                             <p data-testid={`add-gift-repeat-${occasion.value}`} style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 1.375rem' }}>
-                              {repeatsAnnually(occasion.value) ? 'Your gift selection will automatically repeat annually until changed.' : ''}
+                              {repeatsAnnually(occasion.value) ? 'Your greeting sends automatically each year and repeats.' : ''}
                               {SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' && <PaymentInfoTriangle />}
                             </p>
                           )}
@@ -2772,7 +2772,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                             {qrCashManualOnly(giftSetting)
                               ? SCHEDULED_QRCASH_UNAVAILABLE_COPY
                               : giftSetting.autoGift
-                              ? 'Gift will be sent automatically on the occasion date.'
+                              ? (SCHEDULED_QRCASH_AVAILABLE && giftSetting.type === 'qrcash' ? 'Gift will be sent automatically on the occasion date.' : 'We\'ll remind you 10 days before so you can confirm your gift.')
                               : 'You\'ll receive a reminder 10 days before to confirm.'}
                           </p>
                         </div>
@@ -2965,8 +2965,8 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
           narrower option set than that picker). Removed per founder-approved brief: this
           banner should explain, not navigate.
           Claims in the copy verified in this file: "Greet-Me Gift Place" = the per-occasion "Choose Item" button
-          (navigate to /dashboard/merch, which redirects to /dashboard/gifts); "let Greet-Me select one for you
-          within your budget" = the "Let Greet-Me select a gift" option with its $25/$50/$75/$100/$150 Max selector. */}
+          (navigate to /dashboard/merch, which redirects to /dashboard/gifts). The automatic-selection sentence was
+          REMOVED (founder 2026-10-06) until automatic selection actually works. */}
       <div data-testid="gift-banner" style={{
         padding: 'var(--gm-inner-gap, 1rem)',
         background: 'linear-gradient(135deg, #fffbeb 0%, #fde68a 100%)',
@@ -2995,7 +2995,7 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
             margin: '0.25rem 0 0 0',
             textAlign: 'center'
           }}>
-            Complete the moment with the thoughtful gift from the Greet-Me Gift Place. OR let Greet-Me select one for you within your budget.
+            Complete the moment with a thoughtful gift from the Greet-Me Gift Place.
           </p>
         </div>
         <CinematicGiftIcon />
