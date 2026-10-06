@@ -154,3 +154,14 @@ test("C-060: photo upload limit text and pre-checks match the backend multer lim
   assert.ok(read("src/components/GuidedSetupFlow.jsx").includes("PNG, JPG up to 10MB"));
   assert.ok(read("src/pages/Profile.jsx").includes("Image size must be less than 10MB"));
 });
+
+test("G1G1 exclusion copy 2026-10-06: only referral credit excludes the gift; old wording gone", () => {
+  assert.ok(read("src/pages/G1G1Claim.jsx").includes("Greet One, Give One&trade; — included with individual subscriptions."));
+  const cart = read("src/pages/Cart.jsx");
+  assert.ok(cart.includes("Greet One, Give One&trade; is awarded with individual memberships. It is not included when a referral credit is applied."));
+  assert.ok(cart.includes("Not included with referral credit"));
+  assert.deepEqual(everywhere("included when you subscribe at full price").filter((p) => p !== "src/pages/G1G1Send.jsx"), []);
+  assert.equal(read("src/pages/G1G1Claim.jsx").includes("included when you subscribe at full price"), false);
+  assert.equal(cart.includes("is awarded with full memberships and is not included with discounted purchases"), false);
+  assert.equal(cart.includes("Not included with discounted purchases"), false);
+});

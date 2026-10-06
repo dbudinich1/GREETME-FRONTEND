@@ -488,7 +488,7 @@ export default function Cart() {
                     fontSize: '0.5625rem',
                     fontWeight: 500,
                     color: '#9ca3af'
-                  }}>Not included with discounted purchases</span>
+                  }}>Not included with referral credit</span>
                 </div>
               </div>
             )}
@@ -658,7 +658,7 @@ export default function Cart() {
                 Greet One, Give One&trade;
               </h3>
               <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: 0, lineHeight: 1.5 }}>
-                Greet One, Give One&trade; is awarded with full memberships and is not included with discounted purchases.
+                Greet One, Give One&trade; is awarded with individual memberships. It is not included when a referral credit is applied.
               </p>
             </div>
           )}
