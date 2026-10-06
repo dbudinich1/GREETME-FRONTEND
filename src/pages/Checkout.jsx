@@ -1053,7 +1053,7 @@ export default function Checkout() {
                         </div>
                       )}
                       <div style={{ fontSize: '0.8rem', color: '#777', marginTop: '0.5rem' }}>
-                        🔒 Secure checkout • Cancel anytime
+                        🔒 Secure checkout
                       </div>
                     </div>
                   );

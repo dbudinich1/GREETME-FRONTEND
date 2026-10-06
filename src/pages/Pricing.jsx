@@ -1039,7 +1039,7 @@ export default function Pricing() {
                   textAlign: 'center',
                   marginTop: '1rem'
                 }}>
-                  {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE} Secure checkout powered by Stripe. Cancel anytime.
+                  {SUBSCRIPTION_RENEWAL_NOTICE} {PLATFORM_FEE_ONE_TIME_NOTICE} Secure checkout powered by Stripe.
                 </p>
               </>
             )}
