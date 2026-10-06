@@ -456,7 +456,7 @@ export default function AnimationBank() {
               color: 'var(--text-secondary)',
               lineHeight: 1.5
             }}>
-              We add bonus animations for holidays, milestones, and special moments throughout the year!
+              Redeem Hearts for Holiday Bonus Sends and Anytime Credits on the Rewards page.
             </p>
           </div>
         </div>

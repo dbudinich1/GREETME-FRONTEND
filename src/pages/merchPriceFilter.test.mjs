@@ -370,6 +370,7 @@ test("both sources project into the ONE card shape, so the grid cannot go ragged
 });
 
 test("QR Cash is byte-identical to its deployed form", () => {
+  // Re-baselined again (promises ledger A-060, founder 2026-10-06): "Send • Spend • Gift" -> "Send • Claim • Gift" and the $0.00 balance figure removed (43 -> 40 lines). Approved copy change, not a weakening.
   // Re-baselined (six-team integration, 2026-09-29): same reviewed change as
   // merchFounderDrawer.test.mjs's identical tripwire -- Team 1's gift/entitlement-safety pass
   // replaced this block's onClick with the real, backend-wired composer flow and added a 2-line
@@ -380,10 +381,10 @@ test("QR Cash is byte-identical to its deployed form", () => {
   let end = start;
   while (end < lines.length && lines[end] !== "      </div>") end += 1;
   const block = lines.slice(start, end + 1).join("\n") + "\n";
-  assert.equal(block.split("\n").length - 1, 43, "the block must still be 43 lines");
+  assert.equal(block.split("\n").length - 1, 40, "the block must still be 40 lines");
   assert.equal(
     createHash("sha256").update(block, "utf8").digest("hex"),
-    "f7cb622a33edbe74f2e796400b650495941cafd05dac49b8e3484f6ea7660fb3",
+    "c889daa75bdaf7a17ffe3f6316b1e2c8bc660503499dd4a4751d306c623d4fc8",
     "the QR Cash tile changed — it must stay byte-identical"
   );
 });

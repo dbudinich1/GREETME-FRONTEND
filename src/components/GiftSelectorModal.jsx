@@ -33,7 +33,7 @@ function qrCashAmountCheck(giftSetting) {
 // Place; there is no add-on, and nothing here is a second selection.
 const GIFT_OPTIONS = [
   { value: 'none', label: 'None', description: 'No gift for now' },
-  { value: 'qrcash', label: 'QR Cash\u2122', description: 'Send cash they can scan and spend' },
+  { value: 'qrcash', label: 'QR Cash\u2122', description: 'Send cash they claim with a scan; paid out by our team.' },
   // The Gift Place is one destination holding every category, flowers included.
   { value: 'marketplace', label: 'Greet-Me Gift Place', description: 'Browse gifts, flowers and more' },
   { value: 'curated', label: 'Greet-Me\u2122 Select', description: 'We\'ll select something thoughtful within your limit' },
@@ -311,7 +311,7 @@ export default function GiftSelectorModal({
                             </div>
                             {context === 'oneoff' && (
                               <p data-testid="qrcash-timing" style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', lineHeight: 1.5 }}>
-                                You are charged once, when you confirm on the next step. The recipient has 30 days after delivery to claim it. The fee is shown before any fee-waiver reward.
+                                You are charged once, when you confirm on the next step. The recipient has 30 days after the gift is created to claim it. The fee is shown before any fee-waiver reward.
                               </p>
                             )}
                           </div>

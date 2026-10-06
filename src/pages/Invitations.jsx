@@ -311,7 +311,7 @@ export default function Invitations() {
           fontWeight: 800,
           marginBottom: '1rem'
         }}>
-          Get Notified When Invitations Launch
+          Invitations are coming soon
         </h2>
         <p style={{
           fontSize: '1.125rem',

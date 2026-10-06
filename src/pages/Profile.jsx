@@ -558,10 +558,10 @@ export default function Profile() {
           <div>
             <h3 className="text-sm font-semibold text-gray-900">Tips for Best Results</h3>
             <ul className="mt-2 text-sm text-gray-700 space-y-1">
-              <li>• Voice: Record 30-60 seconds in a quiet environment for best voice cloning</li>
+              <li>• Voice: Record 10-30 seconds in a quiet environment.</li>
               <li>• Photos: Use clear, front-facing photos with good lighting</li>
               <li>• Default: Mark your preferred photo as default for all greetings</li>
-              <li>• Messages: AI will use relationship context to create 20+ second personalized messages</li>
+              <li>• Messages: AI will use relationship context to personalize your messages.</li>
             </ul>
           </div>
         </div>

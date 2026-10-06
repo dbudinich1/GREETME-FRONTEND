@@ -131,7 +131,7 @@ function GiftConfirmForm({
         margin: 0,
       }}>
         By confirming, you authorize Greet-Me to charge the total amount shown for this
-        QR Cash&#8482; gift. QR Cash&#8482; gifts are available to claim for 30 days after delivery.
+        QR Cash&#8482; gift. QR Cash&#8482; gifts are available to claim for 30 days after the gift is created.
       </p>
       <p style={{
         fontSize: '0.75rem',

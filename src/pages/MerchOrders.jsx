@@ -99,7 +99,7 @@ export default function MerchOrders() {
           <h1 style={{ fontSize: isNarrow ? "1.375rem" : "1.75rem", fontWeight: 700, margin: 0 }}>Your Orders</h1>
         </div>
         <p style={{ margin: 0, color: "rgba(255, 255, 255, 0.85)", fontSize: isNarrow ? "0.875rem" : "1rem" }}>
-          Every gift and order you have placed with Greet-Me, in one place.
+          The gifts and orders you have placed with Greet-Me, most recent first.
         </p>
       </div>
 

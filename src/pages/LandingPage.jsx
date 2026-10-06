@@ -13,7 +13,7 @@ export default function LandingPage() {
   // recipient-mode escape hatch so guest claim flows are unaffected.
   const accountState = useAccountState();
 
-  // F5b: real install QR for the "Get the Mobile App" hero section
+  // F5b: real install QR for the home-screen install hero section
   const [appQrUrl, setAppQrUrl] = useState(null);
   useEffect(() => {
     QRCode.toDataURL('https://greet-me.com/#/app', {
@@ -266,7 +266,7 @@ export default function LandingPage() {
               <p style={{
                 fontSize: '0.875rem',
                 color: 'rgba(255, 255, 255, 0.8)'
-              }}>Review, customize, and send in seconds</p>
+              }}>Review, customize, and send in a few taps.</p>
             </div>
           </div>
         </div>
@@ -297,7 +297,7 @@ export default function LandingPage() {
               fontWeight: 700,
               color: 'white',
               margin: 0
-            }}>Get the Mobile App</h2>
+            }}>Add Greet-Me to your home screen</h2>
           </div>
 
           <p style={{
@@ -305,13 +305,13 @@ export default function LandingPage() {
             color: 'rgba(255, 255, 255, 0.9)',
             marginBottom: '2rem'
           }}>
-            Scan the QR code to download Greet-Me™ on your phone
+            Scan the QR code to add Greet-Me™ to your phone&rsquo;s home screen.
           </p>
 
           {/* Install QR — real generated, tappable */}
           <div
             onClick={() => navigate('/app')}
-            title="Scan to install Greet-Me mobile app"
+            title="Scan to add Greet-Me to your home screen"
             style={{
               display: 'inline-block',
               padding: '2rem',
@@ -343,7 +343,7 @@ export default function LandingPage() {
             color: 'rgba(255, 255, 255, 0.7)',
             marginTop: '1.5rem'
           }}>
-            Available on iOS and Android
+            Works on iPhone and Android. Add it to your home screen, no app store needed.
           </p>
         </div>
       </section>

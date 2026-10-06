@@ -58,7 +58,7 @@ export default function HubMarketplace({
             margin: 0,
             maxWidth: '24rem'
           }}>
-            Your rewards marketplace is growing. New ways to redeem Hearts will appear here.
+            The Hearts Marketplace is not open yet.
           </p>
         </div>
       ) : (

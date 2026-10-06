@@ -117,7 +117,7 @@ export default function BusinessGiftCreditsPanel({ isNarrow = false }) {
         </h3>
       </div>
       <p style={{ fontSize: isNarrow ? '0.8125rem' : '0.9375rem', fontWeight: 600, opacity: 0.95, margin: '0 0 0.75rem' }}>
-        {state.remaining} of {state.annual} Remaining &mdash; each gift grants a {tierLabel}.
+        {state.remaining} remaining of {state.annual} included &mdash; each gift grants a {tierLabel}.
       </p>
 
       {result?.ok && (

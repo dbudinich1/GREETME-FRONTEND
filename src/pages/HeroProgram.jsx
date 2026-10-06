@@ -47,7 +47,7 @@ function formatDate(iso) {
 const HERO_HEARTS_BUNDLES = [
   { id: 'bundle-100', name: 'Starter', price: 100, hearts: 1200, popular: false,
     priceId: 'price_1T4eJxCf7KAA6aLaHqH2clKw', purchaseType: 'hero_hearts' },
-  { id: 'bundle-250', name: 'Growth', price: 250, hearts: 3250, popular: true,
+  { id: 'bundle-250', name: 'Growth', price: 250, hearts: 3250, popular: false,
     priceId: 'price_1T4eJyCf7KAA6aLaJjJLgVTK', purchaseType: 'hero_hearts' },
   { id: 'bundle-500', name: 'Hero', price: 500, hearts: 7000, popular: false, bestValue: true,
     priceId: 'price_1T4eJzCf7KAA6aLagx468kzk', purchaseType: 'hero_hearts' },
@@ -579,7 +579,7 @@ const PARTICIPATION_GROUPS = [
         desc: 'Contribute Hero Hearts to support the Hero mission.',
         chip: 'available', cta: { kind: 'modal', label: 'Contribute' } },
       { key: 'qr_cash', title: 'QR Cash™', icon: DollarSign,
-        desc: 'Send, scan, spend, or gift money with optional personalized Greet-Me delivery.',
+        desc: 'Send, scan, spend, or gift money with optional personalized Greet-Me delivery. Cash claims are reviewed before payout.',
         chip: 'available', cta: { kind: 'qrcash', label: 'Launch QR Cash' } },
       { key: 'gifted_bundles', title: 'Gifted Subscription Bundles', icon: Gift,
         desc: 'Gift Greet-Me memberships to your team, clients, or community.',

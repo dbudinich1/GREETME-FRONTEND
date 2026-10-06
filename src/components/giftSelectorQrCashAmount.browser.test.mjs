@@ -77,7 +77,7 @@ test("presets show fee ($1.99 + 3%), total and the immediate-send timing", async
   assert.equal(q("qrcash-total").textContent, "$12.29");
   assert.match(bodyText(), /Processing fee \(\$1\.99 \+ 3%\)/);
   assert.match(q("qrcash-timing").textContent, /charged once, when you confirm/);
-  assert.match(q("qrcash-timing").textContent, /30 days after delivery/);
+  assert.match(q("qrcash-timing").textContent, /30 days after the gift is created/);
   assert.match(q("qrcash-timing").textContent, /before any fee-waiver reward/);
   assert.equal(q("qrcash-amount-error"), null);
   assert.equal(q("gift-selector-continue").disabled, false);

@@ -941,7 +941,7 @@ export default function Cart() {
                           <span>{formatFeeAmount(techFee)}</span>
                         </div>
                         <p style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', margin: '0 0 0.5rem', fontStyle: 'italic' }}>
-                          Covers setup for you and your G1G1 recipient
+                          {g1g1Eligible ? 'Covers setup for you and your G1G1 recipient' : 'Covers account setup.'}
                         </p>
                       </>
                     )}
