@@ -21,6 +21,7 @@ import { fundraiserApi } from "../../api/fundraiserApi.js";
 import { salesAdminApi, salesAdminErrorMessage } from "../../api/salesAdmin.js";
 import { founderCatalogApi } from "../../api/founderCatalog.js";
 import { founderContactsApi } from "../../api/founderContacts.js";
+import { founderUserGuideApi } from "../../api/founderUserGuide.js";
 
 function readUser() {
   try { return JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; }
@@ -99,6 +100,7 @@ export default function FounderCentralCommand({
   salesApi = salesAdminApi,
   catalogApi = founderCatalogApi,
   contactsApi = founderContactsApi,
+  userGuideApi = founderUserGuideApi,
   // W51 (Command Center hubs): "home" = hub entry points + tiles no hub absorbs; "gift" | "sales" | "fundraiser" = the tiles that
   // live inside that hub (identical cards, same data, same test ids); "all" = every card at once (the pre-hub layout).
   view = "home",
@@ -111,6 +113,7 @@ export default function FounderCentralCommand({
   const [orgs, setOrgs] = useState({ loading: true, rows: [], error: null }); // W36 partner-portal entry links
   const [sales, setSales] = useState({ loading: true, activeCount: null, error: null });
   const [catalog, setCatalog] = useState({ loading: true, activeCount: null, totalCount: null, error: null });
+  const [guide, setGuide] = useState({ loading: true, available: null, total: null, configured: true, forbidden: false, error: false });
   const [contacts, setContacts] = useState({ loading: true, total: null, followUpDue: null, error: null });
 
   useEffect(() => {
@@ -205,6 +208,19 @@ export default function FounderCentralCommand({
     })();
     return () => { alive = false; };
   }, [founder, contactsApi]);
+
+  // User Guide tile: a count only. A missing or failing read keeps the tile (and, unless refused, its link) with no number.
+  useEffect(() => {
+    if (!founder || !userGuideApi || typeof userGuideApi.list !== "function") return undefined;
+    let alive = true;
+    (async () => {
+      const res = await userGuideApi.list();
+      if (!alive) return;
+      if (res.ok && res.data && Array.isArray(res.data.files)) setGuide({ loading: false, available: res.data.files.filter((f) => f && f.available === true).length, total: res.data.files.length, configured: res.data.configured !== false, forbidden: false, error: false });
+      else setGuide({ loading: false, available: null, total: null, configured: true, forbidden: res.status === 403, error: res.status !== 403 });
+    })();
+    return () => { alive = false; };
+  }, [founder, userGuideApi]);
 
   // ── ORDINARY USERS SEE NOTHING ── same pattern as SalespersonControlCenter.jsx: rendered
   // before any request is issued, so a non-founder never triggers a call that would 403 anyway.
@@ -503,6 +519,16 @@ export default function FounderCentralCommand({
             ) : contacts.forbidden ? <p style={unavailable} data-testid="fcc-contacts-unavailable">The contact book is not available on this account.</p>
               : contacts.error ? <p style={unavailable} data-testid="fcc-contacts-error">{contacts.error}</p> : null}
             {contacts.forbidden ? null : <a href="#/dashboard/founder/contacts" style={linkBtn} data-testid="fcc-contacts-open">Open Contacts</a>}
+          </section>
+        ) : null}
+        {view === "home" ? (
+          <section style={card} data-testid="fcc-card-user-guide" aria-labelledby="fcc-user-guide-title">
+            <h2 id="fcc-user-guide-title" style={cardTitle}>User Guide</h2>
+            <p style={{ fontSize: ".8rem", color: "#605c78", margin: 0 }}>Every screen and state of the system, for desktop and mobile, as PDF and interactive guides.</p>
+            {guide.forbidden ? <p style={unavailable} data-testid="fcc-user-guide-unavailable">The User Guide is not available on this account.</p>
+              : guide.available === 0 || guide.configured === false ? <p style={unavailable} data-testid="fcc-user-guide-empty">Guides are not published yet.</p>
+              : guide.available != null ? <div style={statRow}><span>Guides published</span><span style={statValue} data-testid="fcc-user-guide-count">{guide.available} of {guide.total}</span></div> : null}
+            {guide.forbidden ? null : <a href="#/dashboard/founder/user-guide" style={linkBtn} data-testid="fcc-user-guide-open">Open User Guide</a>}
           </section>
         ) : null}
       </div>
