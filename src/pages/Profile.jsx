@@ -567,7 +567,7 @@ export default function Profile() {
                 )}
 
                 {/* Hover Actions */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                <div className="absolute inset-x-0 bottom-8 flex items-center justify-center">
                   <div className="space-x-2">
                     {!photo.isDefault && (
                       <button

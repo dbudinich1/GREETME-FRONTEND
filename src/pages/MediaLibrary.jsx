@@ -21,6 +21,7 @@ export default function MediaLibrary() {
   const [activeVoice, setActiveVoice] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [deletingPhoto, setDeletingPhoto] = useState(false);
   const audioRef = useRef(null);
   const voiceInputRef = useRef(null);
 
@@ -235,6 +236,38 @@ export default function MediaLibrary() {
       alert(getErrorMessage(error));
     } finally {
       setUploadingPhoto(false);
+    }
+  };
+
+  // Real server-side delete of the saved default photo (same contract and wording as the Profile page).
+  // Nothing is cleared from the screen, and no success is announced, unless the server says ok.
+  const handleDeleteDefaultPhoto = async () => {
+    if (deletingPhoto || uploadingPhoto) return;
+    if (!confirm('Are you sure you want to delete this photo?')) return;
+    setDeletingPhoto(true);
+    try {
+      const result = await api.deleteProfilePhoto();
+      if (!result || result.ok !== true) {
+        alert(result?.networkError
+          ? 'Could not reach Greet-Me. Nothing was deleted. Please try again.'
+          : (result?.error || "We couldn't delete your photo. Nothing was deleted."));
+        return;
+      }
+      updateUser({ photoUrl: null });
+      let msg = result.alreadyDeleted
+        ? 'There was no saved photo to delete.'
+        : 'Your photo was deleted from your account.';
+      if (Array.isArray(result.warnings) && result.warnings.includes('SCHEDULED_SENDS_WILL_BE_SKIPPED')) {
+        const n = Number(result.scheduledSendsAffected);
+        msg += ` ${Number.isFinite(n) && n > 0 ? `${n} scheduled send${n === 1 ? '' : 's'} will` : 'Scheduled sends will'} be skipped until you add a new photo.`;
+      }
+      alert(msg);
+    } catch (error) {
+      console.error('Photo delete error:', error);
+      const specific = typeof error?.message === 'string' ? error.message.trim() : '';
+      alert(specific && !/^HTTP \d+$/.test(specific) && specific.length <= 300 ? specific : getErrorMessage(error));
+    } finally {
+      setDeletingPhoto(false);
     }
   };
 
@@ -645,9 +678,10 @@ export default function MediaLibrary() {
             onChange={handlePhotoUpload}
             style={{ display: 'none' }}
           />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
           <button
             onClick={() => photoInputRef.current?.click()}
-            disabled={uploadingPhoto}
+            disabled={uploadingPhoto || deletingPhoto}
             style={{
               padding: '0.625rem 1.25rem',
               background: uploadingPhoto ? '#e5e7eb' : '#667eea',
@@ -670,6 +704,31 @@ export default function MediaLibrary() {
             <Upload size={16} />
             {uploadingPhoto ? 'Uploading...' : (user?.photoUrl ? 'Replace Photo' : 'Upload Photo')}
           </button>
+          {user?.photoUrl && (
+            <button
+              onClick={handleDeleteDefaultPhoto}
+              disabled={deletingPhoto || uploadingPhoto}
+              style={{
+                padding: '0.625rem 1.25rem',
+                background: 'transparent',
+                color: (deletingPhoto || uploadingPhoto) ? '#9ca3af' : '#dc2626',
+                border: `1px solid ${(deletingPhoto || uploadingPhoto) ? '#e5e7eb' : '#dc2626'}`,
+                borderRadius: 'var(--radius-lg)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: (deletingPhoto || uploadingPhoto) ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                flexShrink: 0,
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Trash2 size={16} />
+              {deletingPhoto ? 'Deleting...' : 'Delete Photo'}
+            </button>
+          )}
+          </div>
         </div>
 
         {!user?.photoUrl ? (
