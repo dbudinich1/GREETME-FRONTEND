@@ -172,7 +172,7 @@ test("G3: the option is selectable, and the other four gifts keep their existing
   assert.equal(byValue("gift_boxes").disabled, false);
   assert.equal(byValue("none").disabled, false, "No gift unchanged");
   assert.equal(byValue("curated").disabled, false, "Curated unchanged");
-  assert.equal(byValue("qrcash").disabled, false, "QR Cash is visible and, with scheduled QR Cash activated (Release 2), selectable on a fixed campaign date");
+  assert.equal(byValue("qrcash").disabled, true, "QR Cash still visible and still not automatable");
   assert.equal(byValue("marketplace"), null, "W29: no Greet-Me Gifts (marketplace) class is offered");
 });
 

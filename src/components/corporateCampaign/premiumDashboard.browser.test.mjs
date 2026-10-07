@@ -365,19 +365,15 @@ test("F1C: an expanded card shows three complete cards and its schedule, at ever
   }
 });
 
-test("D: gift bubbles — Curated and No gift selectable; QR Cash selectable on a fixed date, visibly disabled on a per-contact saved date (Release 2 activation; Greet-Me Gifts removed, W29)", async () => {
-  // Release 2 activation: the availability flag is ON, so QR Cash is operable on a fixed campaign date (see corporateQrCash.browser.test.mjs);
-  // a per-contact saved date repeats every year and QR Cash is a one-off, so there it stays visible and disabled.
-  const onFixedDate = await mount(cardEl());
-  assert.equal(onFixedDate.q("#c-cmp_1-gift-qrcash").disabled, false, "selectable on a fixed campaign date");
-  const s = await mount(cardEl({ deliveryConfig: { scheduleMode: "contact_saved_date", occasionType: "birthday" } }));
+test("D: gift bubbles — Curated and No gift selectable; QR Cash visibly disabled (Greet-Me Gifts removed, W29)", async () => {
+  const s = await mount(cardEl());
   for (const v of ["none", "curated", "qrcash"]) {
     assert.ok(s.tid(`bubble-c-cmp_1-gift-${v}`), `${v} must be VISIBLE`);
   }
   const input = (v) => s.q(`#c-cmp_1-gift-${v}`);
   assert.equal(input("none").disabled, false);
   assert.equal(input("curated").disabled, false);
-  assert.equal(input("qrcash").disabled, true, "disabled for a recurring saved date");
+  assert.equal(input("qrcash").disabled, true);
   assert.equal(input("marketplace"), null, "W29: no marketplace gift class");
   // FINAL POLISH - the two keep their bubbles and their disabled state, and carry NO reason text.
   for (const v of ["qrcash"]) {
@@ -1194,8 +1190,7 @@ test("F1B: no Change/Choose/Done CTA stands between a reader and a primary optio
 
 test("F1B: a disabled gift choice stays VISIBLE and disabled, with its reason", async () => {
   // Removing an unavailable option would hide information a reader needs to understand the offer.
-  // Release 2 activation: QR Cash is unavailable only for a per-contact saved date (a one-off gift on a yearly schedule).
-  const s = await mount(cardEl({ deliveryConfig: { scheduleMode: "contact_saved_date", occasionType: "birthday" } }));
+  const s = await mount(cardEl());
   for (const v of ["qrcash"]) {
     const el = s.q(`#c-cmp_1-gift-${v}`);
     assert.ok(el, `${v} is rendered`);
@@ -1378,8 +1373,7 @@ test("FINAL POLISH: no purchase-completion typography is rendered, in any permut
   assert.match(s.tid("selector-gift-cmp_1").textContent, /QR Cash/);
   assert.doesNotMatch(s.tid("selector-gift-cmp_1").textContent, /Greet-Me Gifts/, "W29: no Greet-Me Gifts class");
   for (const v of ["qrcash"]) {
-    // Release 2 activation: operable on this (fixed-date) card; the disabled state is covered on a saved-date card above.
-    assert.equal(s.q(`#c-cmp_1-gift-${v}`).disabled, false, `${v} is operable on a fixed campaign date`);
+    assert.equal(s.q(`#c-cmp_1-gift-${v}`).disabled, true, `${v} still truthfully unavailable`);
     assert.ok(s.q(`#c-cmp_1-gift-${v}`), `${v} still visible`);
   }
 });
@@ -1503,9 +1497,8 @@ test("FINAL POLISH 3: no purchase-completion wording survives anywhere in the ch
   }
 });
 
-test("FINAL POLISH 3: the non-operable gift keeps its name, bubble and accessible disabled state", async () => {
-  // Release 2 activation: QR Cash is non-operable only for a per-contact saved date.
-  const s = await mount(cardEl({ deliveryConfig: { scheduleMode: "contact_saved_date", occasionType: "birthday" } }));
+test("FINAL POLISH 3: the two non-automatable gifts keep name, bubble and accessible disabled state", async () => {
+  const s = await mount(cardEl());
   for (const v of ["qrcash"]) {
     const input = s.q(`#c-cmp_1-gift-${v}`);
     assert.ok(input, `${v} bubble is present`);

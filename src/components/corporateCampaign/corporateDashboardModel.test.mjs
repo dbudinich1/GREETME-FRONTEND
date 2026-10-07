@@ -215,14 +215,12 @@ test("D-close: the capability drives the owner-only actions end to end", () => {
 });
 
 // ══ gift capability ═════════════════════════════════════════════════════════════════════════
-test("No gift and Let Greet-Me Select are selectable; QR Cash is visible and selectable only while the availability flag is on", () => {
+test("No gift and Let Greet-Me Select are selectable; QR Cash is visible but not", () => {
   assert.deepEqual(CORPORATE_GIFT_OPTIONS.map((o) => o.value), ["none", "curated", "qrcash"]);
   assert.equal(giftOptionState("none").selectable, true);
   assert.equal(giftOptionState("curated").selectable, true);
-  // Release 2: shipped ON (activation), so the default is selectable; the dormant path is exercised with the flag off.
-  assert.equal(giftOptionState("qrcash").selectable, true, "activated: QR Cash is a real campaign gift");
   for (const v of ["qrcash"]) {
-    const s = giftOptionState(v, { qrCashAvailable: false });
+    const s = giftOptionState(v);
     assert.equal(s.selectable, false, v);
     // FINAL POLISH - non-selectable, and NO reason text published for it. The founder's direction
     // was to remove the purchase-completion sentence and not substitute an equivalent, so the model
@@ -958,7 +956,7 @@ test("G3: the option is selectable wherever it is shown; the other four are unch
   assert.equal(giftOptionState("gift_boxes").reason, null);
   assert.equal(giftOptionState("none").selectable, true);
   assert.equal(giftOptionState("curated").selectable, true);
-  assert.equal(giftOptionState("qrcash", { qrCashAvailable: false }).selectable, false);
+  assert.equal(giftOptionState("qrcash").selectable, false);
   assert.equal(giftOptionState("marketplace").selectable, false);
   assert.equal(giftOptionState("flowers").selectable, false, "an unknown type is still refused");
 });
