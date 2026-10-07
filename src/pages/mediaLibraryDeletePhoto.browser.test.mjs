@@ -209,6 +209,42 @@ test("server refusal / failure keeps the photo and never says deleted", async ()
   }
 });
 
+test("while the delete is in flight: Deleting..., both buttons disabled and look disabled, a double click sends one request", async () => {
+  let resolve;
+  mod.__r.photo = new Promise((r) => { resolve = r; });
+  let confirms = 0;
+  global.confirm = window.confirm = () => { confirms += 1; return true; };
+  const m = await mount();
+  try {
+    const del = btn(m.host, /^Delete Photo$/);
+    // a real double click: two clicks on the same button, each its own browser task, while the
+    // server has not answered
+    await act(async () => {
+      del.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+      await new Promise((r) => window.setTimeout(r, 0));
+      del.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    });
+    await tick();
+    const busy = btn(m.host, /^Deleting\.\.\.$/);
+    assert.ok(busy, "button reads Deleting...");
+    assert.equal(busy.disabled, true);
+    const replace = btn(m.host, /^Replace Photo$/);
+    assert.equal(replace.disabled, true, "Replace Photo disabled during the delete");
+    assert.equal(replace.style.cursor, "not-allowed", "Replace Photo does not look clickable");
+    assert.notEqual(replace.style.color, "white");
+    await click(busy);
+    assert.deepEqual(mod.__calls, ["deleteProfilePhoto"], "exactly one request");
+    assert.equal(confirms, 1, "one confirmation");
+    assert.deepEqual(mod.__updates, [], "nothing cleared before the server answers");
+    await act(async () => { resolve({ ok: true, deleted: true, alreadyDeleted: false, asset: "photo", warnings: [] }); });
+    await tick();
+    assert.deepEqual(mod.__updates, [{ photoUrl: null }]);
+    const upload = btn(m.host, /^Upload Photo$/);
+    assert.equal(upload.disabled, false, "re-enabled after the delete");
+    assert.equal(upload.style.cursor, "pointer");
+  } finally { await m.unmount(); }
+});
+
 test("source scan: Profile Delete is no longer hover-only; Media Library uses the real delete", () => {
   const profile = readFileSync(join(__dirname, "Profile.jsx"), "utf8");
   const i = profile.indexOf("onClick={() => deletePhoto(photo.id)}");

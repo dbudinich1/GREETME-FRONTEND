@@ -686,13 +686,13 @@ export default function MediaLibrary() {
             disabled={uploadingPhoto || deletingPhoto}
             style={{
               padding: '0.625rem 1.25rem',
-              background: uploadingPhoto ? '#e5e7eb' : '#667eea',
-              color: uploadingPhoto ? '#9ca3af' : 'white',
+              background: (uploadingPhoto || deletingPhoto) ? '#e5e7eb' : '#667eea',
+              color: (uploadingPhoto || deletingPhoto) ? '#9ca3af' : 'white',
               border: 'none',
               borderRadius: 'var(--radius-lg)',
               fontSize: '0.875rem',
               fontWeight: 600,
-              cursor: uploadingPhoto ? 'not-allowed' : 'pointer',
+              cursor: (uploadingPhoto || deletingPhoto) ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
@@ -700,8 +700,8 @@ export default function MediaLibrary() {
               flexShrink: 0,
               whiteSpace: 'nowrap'
             }}
-            onMouseEnter={(e) => { if (!uploadingPhoto) e.currentTarget.style.background = '#5568d3'; }}
-            onMouseLeave={(e) => { if (!uploadingPhoto) e.currentTarget.style.background = '#667eea'; }}
+            onMouseEnter={(e) => { if (!(uploadingPhoto || deletingPhoto)) e.currentTarget.style.background = '#5568d3'; }}
+            onMouseLeave={(e) => { if (!(uploadingPhoto || deletingPhoto)) e.currentTarget.style.background = '#667eea'; }}
           >
             <Upload size={16} />
             {uploadingPhoto ? 'Uploading...' : (user?.photoUrl ? 'Replace Photo' : 'Upload Photo')}
