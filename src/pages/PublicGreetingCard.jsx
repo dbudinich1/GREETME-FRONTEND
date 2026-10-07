@@ -106,6 +106,8 @@ export default function PublicGreetingCard() {
           status: g.status || 'done',
           hasGift: g.hasGift || false,
           gift: g.gift || null,
+          // RELEASE 2b: false only when the server knows the attached gift was withdrawn; else null (unchanged rendering).
+          giftAvailable: g.giftAvailable === false ? false : null,
           courtesyCreditCode: g.courtesyCreditCode || null,
           isOnboardingTestSend: g.isOnboardingTestSend === true,
           // Phase 3D Batch D D6 — opaque sender id (added in backend 5634cd4)

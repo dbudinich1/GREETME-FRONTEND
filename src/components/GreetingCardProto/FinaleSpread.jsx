@@ -133,7 +133,7 @@ function tightenLineHeight(el) {
 // removed and copy is swapped to neutral "included with your greeting"
 // variants. No layout, animation, autofit, typography, or card-motion
 // changes — only conditional removal of <a> tap targets around existing art.
-export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, courtesyCreditCode, isOwner }) {
+export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, giftAvailable, courtesyCreditCode, isOwner }) {
   const closingMessageRef = useRef(null);
   const [qrImageError, setQrImageError] = useState(false);
   const [courtesyQrUrl, setCourtesyQrUrl] = useState(null);
@@ -146,7 +146,14 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
   // The send endpoint now refuses to enqueue an attached gift without a claim
   // URL, so for every card sent from here on the two branches are exhaustive —
   // gift QR, or courtesy QR — and never both, never neither.
-  const giftQrAvailable = Boolean(hasGift && gift?.claimUrl);
+  //
+  // RELEASE 2b (founder, 2026-10-07 — what Greet-Me presents must be literally true): the server's
+  // `giftAvailable` is false ONLY when a stored fact withdraws the attached gift (e.g. its payment
+  // was fully refunded). Then the card must not present it: no gift QR, no claim link, no
+  // "A little something extra" / "Scan or tap to open your gift". null/undefined (unknown, older
+  // server) keeps today's rendering exactly.
+  const giftWithdrawn = Boolean(hasGift) && giftAvailable === false;
+  const giftQrAvailable = Boolean(hasGift && gift?.claimUrl) && !giftWithdrawn;
 
   // Generate courtesy credit QR ONLY when a real tracked credit code exists
   useEffect(() => {
@@ -312,11 +319,17 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, c
               </>
             ) : (
               <>
-                <h3 className="gc-gift-title">
-                  A Gift From <span style={{ whiteSpace: 'nowrap' }}>Greet-Me</span>
-                </h3>
+                {/* RELEASE 2b: a withdrawn gift gets neither the Greet-Me gift heading nor a
+                    substitute offer — only the literal truth, in the same words as the claim page. */}
+                {giftWithdrawn ? null : (
+                  <h3 className="gc-gift-title">
+                    A Gift From <span style={{ whiteSpace: 'nowrap' }}>Greet-Me</span>
+                  </h3>
+                )}
 
-                {courtesyCreditCode ? (
+                {giftWithdrawn ? (
+                  <p className="gc-gift-instruction" data-testid="gift-withdrawn">This gift is no longer available.</p>
+                ) : courtesyCreditCode ? (
                   courtesyQrUrl ? (
                     <>
                       {/* D6-R1: courtesy-credit QR is always anchor-wrapped and clickable
