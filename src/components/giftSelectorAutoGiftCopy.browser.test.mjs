@@ -22,7 +22,8 @@ const ENTRY = join(__dirname, ".__gsag.entry.jsx");
 const OFF = join(__dirname, ".__gsag.off.mjs");
 const ON = join(__dirname, ".__gsag.on.mjs");
 const FLAG_ON_STUB = join(__dirname, ".__gsag.flagon.js");
-const TEMP = [ENTRY, OFF, ON, FLAG_ON_STUB];
+const FLAG_OFF_STUB = join(__dirname, ".__gsag.flagoff.js");
+const TEMP = [ENTRY, OFF, ON, FLAG_ON_STUB, FLAG_OFF_STUB];
 const HONEST = "QR Cash is sent when you send the Greet-Me. Scheduled QR Cash is not available yet.";
 const CLAIM = "Gift will be sent automatically on the occasion date.";
 const REMIND = "We'll remind you 10 days before so you can confirm your gift.";
@@ -35,7 +36,8 @@ async function bundle(outfile, flagOn) {
     jsx: "automatic", jsxImportSource: "react",
     external: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"],
     loader: { ".css": "empty" },
-    plugins: flagOn ? [{ name: "flag-on", setup(b) { b.onResolve({ filter: /config\/scheduledQrCash$/ }, () => ({ path: FLAG_ON_STUB })); } }] : [],
+    // Release 2 activation: the shipped constant is TRUE, so the OFF bundle forces the unavailable state through its own stub.
+    plugins: [{ name: flagOn ? "flag-on" : "flag-off", setup(b) { b.onResolve({ filter: /config\/scheduledQrCash$/ }, () => ({ path: flagOn ? FLAG_ON_STUB : FLAG_OFF_STUB })); } }],
     define: { "import.meta.env": "{}", "process.env.NODE_ENV": '"production"' }, logLevel: "silent",
   });
 }
@@ -43,6 +45,7 @@ async function bundle(outfile, flagOn) {
 before(async () => {
   writeFileSync(ENTRY, 'export { default as Selector } from "./GiftSelectorModal.jsx";\n');
   writeFileSync(FLAG_ON_STUB, `export const SCHEDULED_QRCASH_AVAILABLE = true;\nexport const SCHEDULED_QRCASH_UNAVAILABLE_COPY = ${JSON.stringify(HONEST)};\n`);
+  writeFileSync(FLAG_OFF_STUB, `export const SCHEDULED_QRCASH_AVAILABLE = false;\nexport const SCHEDULED_QRCASH_UNAVAILABLE_COPY = ${JSON.stringify(HONEST)};\n`);
   await bundle(OFF, false);
   await bundle(ON, true);
   const { window } = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
@@ -120,9 +123,9 @@ test("when the single availability constant is flipped to true, QR Cash falls ba
   assert.equal(q("auto-gift-copy").textContent, REMINDER);
 });
 
-test("the availability is one constant, default off, not wired to anything", () => {
+test("the availability is one constant, shipped ON by the Release 2 activation (founder decision #7), not wired to anything", () => {
   const cfg = readFileSync(join(__dirname, "..", "config", "scheduledQrCash.js"), "utf8");
-  assert.match(cfg, /export const SCHEDULED_QRCASH_AVAILABLE = false;/);
+  assert.match(cfg, /export const SCHEDULED_QRCASH_AVAILABLE = true;/);
   assert.equal((cfg.match(/export const /g) || []).length, 2, "the flag and its copy, nothing else");
   assert.doesNotMatch(cfg.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n"), /import |process\.env|import\.meta|fetch\(|api\./, "no wiring to env or the backend");
 });

@@ -112,8 +112,14 @@ export function notReadyText(b) {
   return b.field ? `missing ${b.field}` : "missing details";
 }
 
-export function giftPayload(giftType, tierCents) {
+export function giftPayload(giftType, tierCents, qrCashAmountCents = null) {
   if (giftType === "curated") return { type: "curated", maxSpendCents: tierCents };
+  // RELEASE 2 - QR Cash (dormant: only reachable while the option is selectable). Whole dollars in CENTS under an
+  // explicit-unit name; an invalid or missing amount serializes NO gift rather than a half-made one.
+  if (giftType === "qrcash") {
+    return Number.isSafeInteger(qrCashAmountCents) && qrCashAmountCents >= 500 && qrCashAmountCents <= 10000 && qrCashAmountCents % 100 === 0
+      ? { type: "qrcash", qrCashAmountCents } : null;
+  }
   return null; // "none" -> no gift
 }
 

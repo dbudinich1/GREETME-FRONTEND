@@ -9,7 +9,7 @@
 // what was reviewed (expected recipient count and gift total) under one idempotency key per review, so a retry
 // after a lost response can never send twice.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CONTACT_CATEGORIES, CURATED_TIERS_CENTS, centsToDisplay, corporateGiftOptions, giftOptionState } from "./corporateDashboardModel.js";
+import { CONTACT_CATEGORIES, CURATED_TIERS_CENTS, centsToDisplay, corporateGiftOptions, giftOptionState, qrCashDollarsToCents } from "./corporateDashboardModel.js";
 import { BubbleGroup, ChoiceBubble } from "./Bubbles.jsx";
 import SavedCardPanel from "./SavedCardPanel.jsx";
 import {
@@ -29,6 +29,9 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
   const [occasionType, setOccasionType] = useState("");
   const [giftType, setGiftType] = useState("none");
   const [tier, setTier] = useState(CURATED_TIERS_CENTS[0]);
+  // RELEASE 2 - QR Cash: the typed whole-dollar amount. Empty until the person chooses one; no default is invented.
+  const [qrDollars, setQrDollars] = useState("");
+  const qrCents = qrCashDollarsToCents(qrDollars);
   const [excludeSpread, setExcludeSpread] = useState(false);
   const [skipNotReady, setSkipNotReady] = useState(false);
   const [review, setReview] = useState({ state: "idle", preview: null, error: null });
@@ -43,8 +46,8 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
   const giftOptions = corporateGiftOptions({ catalogItemCount: 0, currentGiftType: giftType });
 
   const previewBody = useMemo(() => buildPreviewRequest({
-    who, category, contactId, occasionType, gift: giftPayload(giftType, tier), excludeFeaturedSpread: excludeSpread, skipNotReady,
-  }), [who, category, contactId, occasionType, giftType, tier, excludeSpread, skipNotReady]);
+    who, category, contactId, occasionType, gift: giftPayload(giftType, tier, qrCents), excludeFeaturedSpread: excludeSpread, skipNotReady,
+  }), [who, category, contactId, occasionType, giftType, tier, qrCents, excludeSpread, skipNotReady]);
   const previewKey = JSON.stringify(previewBody);
 
   // A new review (new inputs) is a new send: a fresh idempotency key, so two different sends can never collide.
@@ -193,12 +196,23 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
                 </select>
               </label>
             ) : null}
+            {giftType === "qrcash" ? (
+              <label style={{ display: "block", fontSize: ".85rem", marginTop: 8 }}>
+                Amount for each person <span style={{ color: "#605c78" }}>(whole dollars, $5 to $100)</span>{" "}
+                <input type="text" inputMode="numeric" autoComplete="off" data-testid="sendnow-qr-amount" aria-label="QR Cash amount in dollars"
+                  aria-invalid={qrCents === null ? "true" : "false"} value={qrDollars} onChange={(e) => setQrDollars(e.target.value)}
+                  style={{ padding: 6, borderRadius: 6, width: 80 }} />
+                <span style={{ display: "block", color: "#605c78", fontSize: ".8rem" }}>
+                  The standard QR Cash fee is added to your saved card when you confirm; the review shows the exact total.
+                </span>
+              </label>
+            ) : null}
             <label style={{ display: "block", fontSize: ".88rem", marginTop: 12 }}>
               <input type="checkbox" data-testid="sendnow-exclude-spread" checked={excludeSpread} onChange={(e) => setExcludeSpread(e.target.checked)} /> Exclude Featured Spread
             </label>
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button type="button" className="gcd-btn" data-testid="sendnow-back-2" onClick={() => setStep(1)}>Back</button>
-              <button type="button" className="gcd-btn gcd-btn--primary" data-testid="sendnow-next-2" onClick={() => setStep(3)}>Review</button>
+              <button type="button" className="gcd-btn gcd-btn--primary" data-testid="sendnow-next-2" disabled={giftType === "qrcash" && qrCents === null} onClick={() => setStep(3)}>Review</button>
             </div>
           </div>
         ) : null}
@@ -234,7 +248,7 @@ export default function SendNowFlow({ orgId, contacts, client, cardClient, strip
                   <div className="gcd-info-row"><dt className="gcd-info-label">When</dt>
                     <dd className="gcd-info-value" data-testid="sendnow-review-when">Once, right after you confirm. No schedule and no repeat.</dd></div>
                   <div className="gcd-info-row"><dt className="gcd-info-label">Gift</dt>
-                    <dd className="gcd-info-value">{pv.gift.type === "none" ? "No gift" : pv.gift.type === "curated" ? `Let Greet-Me™ Select (up to ${money(pv.gift.maxSpendCents || 0)})` : pv.gift.type}</dd></div>
+                    <dd className="gcd-info-value">{pv.gift.type === "none" ? "No gift" : pv.gift.type === "curated" ? `Let Greet-Me™ Select (up to ${money(pv.gift.maxSpendCents || 0)})` : pv.gift.type === "qrcash" ? `QR Cash™ (${money(pv.gift.qrCashAmountCents || 0)} each)` : pv.gift.type}</dd></div>
                   <div className="gcd-info-row"><dt className="gcd-info-label">Featured Spread</dt>
                     <dd className="gcd-info-value" data-testid="sendnow-review-spread">{pv.featuredSpread && pv.featuredSpread.included ? "Included" : "Excluded"}</dd></div>
                   <div className="gcd-info-row"><dt className="gcd-info-label">From</dt>

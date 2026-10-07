@@ -19,6 +19,11 @@
 //  3. A DISABLED CONTROL MUST SAY WHY. Every capability below carries its own truthful reason, so
 //     the UI never shows a dead button with no explanation.
 
+// RELEASE 2 - corporate QR Cash. The ONE availability constant the personal scheduled QR Cash surfaces already
+// read; corporate QR Cash is offered under the same switch, so it can never be offered while the backend switch
+// it mirrors is dormant. (The backend re-checks: it refuses QR Cash with the same switch off.)
+import { SCHEDULED_QRCASH_AVAILABLE } from "../../config/scheduledQrCash.js";
+
 // ── categories ───────────────────────────────────────────────────────────────────────────────
 // Exactly three. There is deliberately no fourth "unclassified" category: unclassified is the
 // ABSENCE of a category, not another one, and inventing a tile for it would imply a classification
@@ -197,6 +202,8 @@ export const GIFT_PAYMENT_DISCLOSURE = Object.freeze({
 export const CORPORATE_GIFT_OPTIONS = Object.freeze([
   { value: "none", label: "No gift", description: "A greeting on its own.", automatable: true },
   { value: "curated", label: "Let Greet-Me™ Select", description: "We choose something thoughtful within your limit.", automatable: true },
+  // RELEASE 2: still `automatable:false` here on purpose - selectability comes from giftOptionState(), which turns it on
+  // ONLY while SCHEDULED_QRCASH_AVAILABLE is true (the dormant default keeps it visible and disabled, as before).
   { value: "qrcash", label: "QR Cash™", description: "Cash they can scan and spend.", automatable: false },
   // CLOSEOUT W29 (PROPOSED): the "Greet-Me Gifts" (marketplace) option is REMOVED from the campaign
   // gift options. It named a gift class that does not exist for a campaign: the backend lists
@@ -319,7 +326,32 @@ export function isStaleProductSelection({ giftType, product, items, catalogRead 
   return !(Array.isArray(items) ? items : []).some((item) => selectedProductId(item) === id);
 }
 
-export function giftOptionState(value) {
+// ── RELEASE 2 — QR CASH AS A CAMPAIGN GIFT (DORMANT) ─────────────────────────────────────────
+//
+// A fixed amount the administrator types in whole dollars, $5 to $100, sent to every recipient on ONE fixed
+// date, once. The wire value is CENTS under an explicit-unit name (`qrCashAmountCents`); a bare `amount` is the
+// shape that turns $25 into $2,500 and the server refuses it. Offered only while `qrCashAvailable` is true.
+export const QRCASH_MIN_CENTS = 500;
+export const QRCASH_MAX_CENTS = 10000;
+export const isQrCashAmountCents = (c) =>
+  Number.isSafeInteger(c) && c >= QRCASH_MIN_CENTS && c <= QRCASH_MAX_CENTS && c % 100 === 0;
+
+/** Whole dollars typed by a person -> cents, or null when it is not a whole-dollar $5-$100 amount. */
+export function qrCashDollarsToCents(input) {
+  const t = String(input ?? "").trim().replace(/^\$/, "");
+  if (!/^\d{1,3}$/.test(t)) return null;
+  const cents = Number(t) * 100;
+  return isQrCashAmountCents(cents) ? cents : null;
+}
+export const qrCashCentsToDollars = (cents) => (isQrCashAmountCents(cents) ? String(cents / 100) : "");
+
+export function giftOptionState(value, { qrCashAvailable = SCHEDULED_QRCASH_AVAILABLE, scheduleMode = null } = {}) {
+  // RELEASE 2 — QR Cash is selectable only while its availability flag is true, and only for a fixed
+  // campaign date (a per-contact saved date repeats every year; QR Cash is a one-off). Otherwise it stays
+  // visible and disabled exactly as before, with no explanatory prose.
+  if (value === "qrcash") {
+    return { selectable: qrCashAvailable === true && (scheduleMode === null || scheduleMode === "campaign_date"), reason: null };
+  }
   // G3 — the provider option is a REAL option wherever it is shown; whether it is shown at all is
   // `corporateGiftOptions()`'s decision, above, and is never re-litigated here.
   const opt = [...CORPORATE_GIFT_OPTIONS, PROVIDER_GIFT_OPTION].find((o) => o.value === value);
@@ -396,8 +428,12 @@ export function selectorSummaries({ draft, recipientCount = 0, spreadLabel } = {
       key: "gift",
       title: "Gift Options",
       icon: "\u{1F381}",
-      value: d.giftType === "curated" ? `Greet-Me\u2122 selects, up to ${centsToDisplay(d.tierCents)}` : "No gift",
-      hint: d.giftType === "curated" ? "A thoughtful gift within your limit." : "The greeting on its own.",
+      value: d.giftType === "curated" ? `Greet-Me\u2122 selects, up to ${centsToDisplay(d.tierCents)}`
+        : d.giftType === "qrcash" ? (isQrCashAmountCents(d.qrCashAmountCents) ? `QR Cash\u2122, ${centsToDisplay(d.qrCashAmountCents)} each` : "QR Cash\u2122, amount needed")
+        : "No gift",
+      hint: d.giftType === "curated" ? "A thoughtful gift within your limit."
+        : d.giftType === "qrcash" ? "The same amount to everyone, sent once on the campaign date."
+        : "The greeting on its own.",
       complete: true,               // "No gift" is a complete, deliberate answer
     },
     {
@@ -484,7 +520,8 @@ export function describeCampaignPlan({ draft, recipientCount = 0, orgName, enabl
     const occasion = String(d.occasionType || "").replace(/-/g, " ") || "occasion";
     rows.push({ key: "when", label: "When", value: `On each contact's ${occasion} — every year.` });
   } else if (d.scheduledForLocal) {
-    rows.push({ key: "when", label: "When", value: `${formatLocalDay(d.scheduledForLocal)} — every year.` });
+    // RELEASE 2 — a QR Cash campaign is sent once; every other campaign date repeats annually.
+    rows.push({ key: "when", label: "When", value: d.giftType === "qrcash" ? `${formatLocalDay(d.scheduledForLocal)} — once.` : `${formatLocalDay(d.scheduledForLocal)} — every year.` });
   } else {
     rows.push({ key: "when", label: "When", value: "No date chosen yet." });
   }
@@ -494,7 +531,9 @@ export function describeCampaignPlan({ draft, recipientCount = 0, orgName, enabl
     label: "Gift",
     value: d.giftType === "curated"
       ? `Let Greet-Me\u2122 select, up to ${centsToDisplay(d.tierCents)} per person.`
-      : "No gift — the greeting on its own.",
+      : d.giftType === "qrcash"
+        ? (isQrCashAmountCents(d.qrCashAmountCents) ? `QR Cash\u2122, ${centsToDisplay(d.qrCashAmountCents)} to each person, plus the standard QR Cash fee.` : "QR Cash\u2122 — enter an amount from $5 to $100.")
+        : "No gift — the greeting on its own.",
   });
 
   // The organization signs it, not the person who happened to set it up. Named here because it is
@@ -788,6 +827,10 @@ export function buildCampaignDraft(campaign, contacts) {
     individualRefs,
     giftType: d.defaultGift ? d.defaultGift.type : "none",
     tierCents: d.defaultGift && d.defaultGift.maxSpendCents ? d.defaultGift.maxSpendCents : CURATED_TIERS_CENTS[0],
+    // RELEASE 2 — the saved QR Cash amount (cents), or null while none is chosen. No default is invented.
+    qrCashAmountCents: d.defaultGift && isQrCashAmountCents(d.defaultGift.qrCashAmountCents) ? d.defaultGift.qrCashAmountCents : null,
+    // What the person typed (whole dollars). Display only: the cents above are what is saved.
+    qrCashDollarsText: d.defaultGift && isQrCashAmountCents(d.defaultGift.qrCashAmountCents) ? qrCashCentsToDollars(d.defaultGift.qrCashAmountCents) : "",
     // D19A — the saved product selection, read back so a reopened card shows what was chosen and
     // Cancel restores it. Absent on every curated or giftless campaign, exactly as before.
     product: d.defaultGift && d.defaultGift.product ? d.defaultGift.product : null,
@@ -809,6 +852,7 @@ export function draftFingerprint(draft) {
     [...(d.categories || [])].sort(),
     [...(d.individualRefs || [])].sort(),
     d.giftType, d.giftType === "curated" ? d.tierCents : null,
+    d.giftType === "qrcash" ? (d.qrCashAmountCents ?? null) : null,
     // D19A — a changed product or variant selection must light up Save, and only a provider-backed
     // gift has one. Every other draft contributes the same `null` it would have before, so curated
     // and giftless cards compare exactly as they always did.
@@ -836,8 +880,13 @@ export function draftFingerprint(draft) {
  *
  * SINGULAR by construction: one object, never a list, so a campaign cannot carry two products.
  */
-export function buildDefaultGift({ giftType, curatedTierCents, product, variants } = {}) {
+export function buildDefaultGift({ giftType, curatedTierCents, product, variants, qrCashAmountCents = null, qrCashAvailable = SCHEDULED_QRCASH_AVAILABLE } = {}) {
   if (giftType === "curated") return { type: "curated", maxSpendCents: curatedTierCents };
+  // RELEASE 2 — QR Cash: only while available and only with a valid whole-dollar amount; otherwise NO gift is
+  // serialized (fail closed, never a half-made gift the server would have to refuse).
+  if (giftType === "qrcash") {
+    return qrCashAvailable === true && isQrCashAmountCents(qrCashAmountCents) ? { type: "qrcash", qrCashAmountCents } : null;
+  }
   if (!isProviderFundableGiftType(giftType)) return null;
   if (!selectedProductId(product)) return null;
   const chosen = (Array.isArray(variants) ? variants : [])
@@ -854,12 +903,18 @@ export function buildDefaultGift({ giftType, curatedTierCents, product, variants
   };
 }
 
-export function buildDeliveryConfigBody({ scheduleMode, scheduledForUtc, occasionType, timeZone, giftType, curatedTierCents, product = null, variants = [], overrides = [] } = {}) {
+export function buildDeliveryConfigBody({ scheduleMode, scheduledForUtc, occasionType, timeZone, giftType, curatedTierCents, product = null, variants = [], overrides = [], qrCashAmountCents = null, qrCashAvailable = SCHEDULED_QRCASH_AVAILABLE } = {}) {
   const body = { scheduleMode };
   if (scheduleMode === "campaign_date") body.scheduledForUtc = scheduledForUtc || null;
   if (scheduleMode === "contact_saved_date") body.occasionType = occasionType || null;
   if (timeZone) body.timeZone = timeZone;
-  body.defaultGift = buildDefaultGift({ giftType, curatedTierCents, product, variants });
+  body.defaultGift = buildDefaultGift({ giftType, curatedTierCents, product, variants, qrCashAmountCents, qrCashAvailable });
+  // RELEASE 2 — a QR Cash campaign is a one-off on a fixed date (the server refuses it otherwise); a
+  // per-contact saved date can never carry it, so that combination serializes no gift at all.
+  if (giftType === "qrcash") {
+    if (scheduleMode !== "campaign_date") body.defaultGift = null;
+    else if (body.defaultGift) body.sendOnce = true;
+  }
   body.recipientGiftOverrides = (Array.isArray(overrides) ? overrides : [])
     .map((o) => (o && o.action === "replace"
       ? { contactId: o.contactId, action: "replace", gift: { type: "curated", maxSpendCents: o.maxSpendCents } }

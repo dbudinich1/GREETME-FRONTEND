@@ -17,8 +17,8 @@ import esbuild from "esbuild";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PID = process.pid;
 const f = (n) => join(__dirname, `.__w07.${PID}.${n}`);
-const ENTRY = f("entry.jsx"), ON = f("on.mjs"), OFF = f("off.mjs"), API = f("api.js"), CFG_ON = f("cfg.js"), STRIPE = f("stripe.jsx"), PROV = f("prov.js"), ROUTER = f("router.js"), AUTH = f("auth.js"), NOTIFY = f("notify.js");
-const TEMP = [ENTRY, ON, OFF, API, CFG_ON, STRIPE, PROV, ROUTER, AUTH, NOTIFY];
+const ENTRY = f("entry.jsx"), ON = f("on.mjs"), OFF = f("off.mjs"), API = f("api.js"), CFG_ON = f("cfg.js"), CFG_OFF = f("cfg-off.js"), STRIPE = f("stripe.jsx"), PROV = f("prov.js"), ROUTER = f("router.js"), AUTH = f("auth.js"), NOTIFY = f("notify.js");
+const TEMP = [ENTRY, ON, OFF, API, CFG_ON, CFG_OFF, STRIPE, PROV, ROUTER, AUTH, NOTIFY];
 let React, createRoot, act, FormOn, FormOff, window;
 
 before(async () => {
@@ -33,6 +33,8 @@ before(async () => {
     export default new Proxy(impl, { get: (t, k) => (k in t ? t[k] : async () => { __calls.push("OTHER:" + String(k)); throw new Error("network is not available in this test"); }) });
   `);
   writeFileSync(CFG_ON, `export const SCHEDULED_QRCASH_AVAILABLE = true;\nexport const SCHEDULED_QRCASH_UNAVAILABLE_COPY = "";\n`);
+  // Release 2 activation: the shipped constant is TRUE, so the OFF bundle must force the unavailable state explicitly.
+  writeFileSync(CFG_OFF, `export const SCHEDULED_QRCASH_AVAILABLE = false;\nexport const SCHEDULED_QRCASH_UNAVAILABLE_COPY = "QR Cash is sent when you send the Greet-Me. Scheduled QR Cash is not available yet.";\n`);
   writeFileSync(STRIPE, `
     import React from "react";
     export const Elements = ({ children }) => children;
@@ -58,7 +60,7 @@ before(async () => {
         if (/utils\/notify$/.test(a.path)) return { path: NOTIFY };
         if (a.path === "@stripe/react-stripe-js") return { path: STRIPE };
         if (/stripe\/stripeProvider$/.test(a.path)) return { path: PROV };
-        if (withOnConfig && /config\/scheduledQrCash$/.test(a.path)) return { path: CFG_ON };
+        if (/config\/scheduledQrCash$/.test(a.path)) return { path: withOnConfig ? CFG_ON : CFG_OFF };
         return undefined;
       });
     } }],
@@ -297,7 +299,7 @@ test("ON: a new QR Cash Auto-Gift on a previously manual occasion asks for conse
 });
 
 // ================================================================================================ flag OFF (as shipped)
-test("OFF (as shipped): the whole flow is unreachable - no modal, no triangle, no consent text, no card or status request - even with a shipped gift lacking an address", async () => {
+test("OFF (forced; the shipped constant is now ON): the whole flow is unreachable - no modal, no triangle, no consent text, no card or status request - even with a shipped gift lacking an address", async () => {
   await mount(FormOff, contactWith({ birthday: { type: "qrcash", amount: 25, autoGift: true }, easter: { type: "curated", amount: 40, autoGift: false } }));
   assert.match(txt(), /Delivery Details/, "today's inline Delivery Details are still there");
   assert.equal(tid("payment-info-triangle"), null);
@@ -327,5 +329,5 @@ test("source: every W07 use in ContactForm is behind SCHEDULED_QRCASH_AVAILABLE"
   assert.equal((src.match(/\{!SCHEDULED_QRCASH_AVAILABLE && requiresDeliveryAddress\(giftSetting\.type\) && \(/g) || []).length, 3);
   assert.doesNotMatch(src, /Update Recipient/);
   const cfg = readFileSync(join(__dirname, "..", "config", "scheduledQrCash.js"), "utf8");
-  assert.match(cfg, /export const SCHEDULED_QRCASH_AVAILABLE = false;/, "the shipped constant is still false");
+  assert.match(cfg, /export const SCHEDULED_QRCASH_AVAILABLE = true;/, "the shipped constant is true (Release 2 activation, founder decision #7)");
 });
