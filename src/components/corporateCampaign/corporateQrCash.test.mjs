@@ -14,18 +14,23 @@ import { SCHEDULED_QRCASH_AVAILABLE } from "../../config/scheduledQrCash.js";
 
 const ON = { qrCashAvailable: true };
 
-test("R2-FE1 the shipped availability flag is the dormant default, and QR Cash stays visible but not selectable", () => {
-  assert.equal(SCHEDULED_QRCASH_AVAILABLE, false);
-  assert.ok(CORPORATE_GIFT_OPTIONS.some((o) => o.value === "qrcash"), "still visible");
-  assert.deepEqual(giftOptionState("qrcash"), { selectable: false, reason: null });
-  assert.deepEqual(giftOptionState("qrcash", { scheduleMode: "campaign_date" }), { selectable: false, reason: null });
+const OFF = { qrCashAvailable: false };
+
+test("R2-FE1 the shipped availability flag drives the default: DORMANT = visible but not selectable, ACTIVATED = selectable", () => {
+  assert.equal(SCHEDULED_QRCASH_AVAILABLE, true, "shipped state (the Release 2 activation commit sets it; the dormant build has false)");
+  assert.ok(CORPORATE_GIFT_OPTIONS.some((o) => o.value === "qrcash"), "always visible");
+  // the default follows the shipped constant
+  assert.deepEqual(giftOptionState("qrcash"), { selectable: SCHEDULED_QRCASH_AVAILABLE === true, reason: null });
+  // and the dormant path is exercised explicitly, whatever the shipped state
+  assert.deepEqual(giftOptionState("qrcash", OFF), { selectable: false, reason: null });
+  assert.deepEqual(giftOptionState("qrcash", { ...OFF, scheduleMode: "campaign_date" }), { selectable: false, reason: null });
 });
 
 test("R2-FE2 available: selectable only for a fixed campaign date, never for a per-contact saved date", () => {
   assert.equal(giftOptionState("qrcash", ON).selectable, true);
   assert.equal(giftOptionState("qrcash", { ...ON, scheduleMode: "campaign_date" }).selectable, true);
   assert.equal(giftOptionState("qrcash", { ...ON, scheduleMode: "contact_saved_date" }).selectable, false);
-  for (const nonTrue of [undefined, null, 1, "true"]) assert.equal(giftOptionState("qrcash", { qrCashAvailable: nonTrue }).selectable, false, String(nonTrue));
+  for (const nonTrue of [false, null, 1, "true"]) assert.equal(giftOptionState("qrcash", { qrCashAvailable: nonTrue }).selectable, false, String(nonTrue));
   // the others are untouched
   assert.equal(giftOptionState("none").selectable, true);
   assert.equal(giftOptionState("curated").selectable, true);
@@ -48,7 +53,7 @@ test("R2-FE3 the amount input: whole dollars $5-$100 become cents; anything else
 
 test("R2-FE4 the wire gift: explicit-unit cents, only while available, never a half-made gift", () => {
   assert.deepEqual(buildDefaultGift({ giftType: "qrcash", qrCashAmountCents: 2500, qrCashAvailable: true }), { type: "qrcash", qrCashAmountCents: 2500 });
-  assert.equal(buildDefaultGift({ giftType: "qrcash", qrCashAmountCents: 2500 }), null, "dormant default: no QR gift is ever serialized");
+  assert.equal(buildDefaultGift({ giftType: "qrcash", qrCashAmountCents: 2500, qrCashAvailable: false }), null, "dormant: no QR gift is ever serialized");
   assert.equal(buildDefaultGift({ giftType: "qrcash", qrCashAmountCents: null, qrCashAvailable: true }), null);
   assert.equal(buildDefaultGift({ giftType: "qrcash", qrCashAmountCents: 2550, qrCashAvailable: true }), null);
   // a QR amount can never ride onto another gift type
@@ -69,7 +74,7 @@ test("R2-FE5 the config body: a QR campaign is a fixed-date, send-once config; a
   const noAmount = buildDeliveryConfigBody({ ...base, qrCashAmountCents: null });
   assert.equal(noAmount.defaultGift, null);
   assert.equal("sendOnce" in noAmount, false);
-  const dormant = buildDeliveryConfigBody({ ...base, qrCashAvailable: undefined });
+  const dormant = buildDeliveryConfigBody({ ...base, qrCashAvailable: false });
   assert.equal(dormant.defaultGift, null, "dormant: nothing is ever sent for QR Cash");
   // curated is byte-identical to before: no sendOnce key
   const cur = buildDeliveryConfigBody({ scheduleMode: "campaign_date", scheduledForUtc: "2030-12-01T14:00:00.000Z", giftType: "curated", curatedTierCents: 5000 });
