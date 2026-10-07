@@ -5,6 +5,8 @@ import { getErrorMessage } from '../utils/errorMessages';
 // the opaque attribution token via the existing carrier helper. Scoped removal only (never a broad
 // storage wipe). clearToken is itself fail-safe (wrapped in try/catch), so it never throws.
 import { clearToken as clearFundraiserToken } from '../pages/fundraiser/attributionCarrier.js';
+// CL-03: once per session, tell the server the browser timezone when it has none (silent, never blocks).
+import { syncBrowserTimezone } from '../utils/browserTimezoneSync';
 
 // Safari private browsing throws SecurityError on localStorage access.
 // These helpers prevent that from crashing the app.
@@ -50,6 +52,8 @@ export const AuthProvider = ({ children }) => {
       const updatedUser = { ...currentUser, name, photoUrl, voiceId, voiceUrl, plan, tier, entitlements, subscriptionStatus, paymentLocked, emailVerified, voiceIdStaleAt, voiceIdStaleReason, personalizationComplete };
       safeSet('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
+      // Fire-and-forget; syncBrowserTimezone never throws and sends only when timezoneSource is absent.
+      syncBrowserTimezone({ profile: data.profile, token, apiBase: API_URL });
     } catch (err) {
       // Silent fail: do not break login flow
     }
