@@ -641,7 +641,10 @@ export function describeSchedule(campaign, draft) {
   return {
     shape,
     heading: "What should Greet-Me do, and when?",
-    summary: "Everyone receives it at the same moment, every year.",
+    // RELEASE 2 — a QR Cash campaign is sent once (matches describeCampaignPlan and the card's gift note).
+    summary: draft && draft.giftType === "qrcash"
+      ? "Everyone receives it at the same moment, once."
+      : "Everyone receives it at the same moment, every year.",
     showSharedDate: true,
     showOccasion: false,
   };

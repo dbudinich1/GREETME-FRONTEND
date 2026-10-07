@@ -1025,3 +1025,21 @@ test("G3: the wire contract is the D19A one, unchanged — one product, its vari
     scheduleMode: "campaign_date", giftType: "gift_boxes", curatedTierCents: 7500, product: null,
   }).defaultGift, null);
 });
+
+// ══ RELEASE 2 — T5 item B: the Schedule summary says "once" for a QR Cash campaign ═══════════════
+import { describeSchedule } from "./corporateDashboardModel.js";
+
+test("describeSchedule: a shared-date QR Cash campaign is sent once; every other case is unchanged", () => {
+  const shared = { deliveryConfig: { scheduleMode: "campaign_date" } };
+  assert.equal(describeSchedule(shared, { giftType: "qrcash" }).summary, "Everyone receives it at the same moment, once.");
+  // agrees with the plan summary for the same draft
+  const when = describeCampaignPlan({ draft: { giftType: "qrcash", scheduledForLocal: "2026-12-15T09:00" } }).find((r) => r.key === "when");
+  assert.match(when.value, /once\.$/);
+  for (const giftType of ["curated", "gift_boxes", "none", "", undefined]) {
+    assert.equal(describeSchedule(shared, { giftType }).summary, "Everyone receives it at the same moment, every year.", String(giftType));
+  }
+  assert.equal(describeSchedule(shared, null).summary, "Everyone receives it at the same moment, every year.");
+  assert.equal(describeSchedule({}, undefined).summary, "Everyone receives it at the same moment, every year.");
+  const perContact = describeSchedule({ deliveryConfig: { scheduleMode: "contact_saved_date" } }, { giftType: "curated", occasionType: "birthday" });
+  assert.equal(perContact.summary, "Sends on each contact's birthday — every year.");
+});

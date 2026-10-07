@@ -100,7 +100,9 @@ test("R2-FEB1 AVAILABLE: QR Cash is selectable on a fixed date, shows an amount 
   const radio = s.q("#c-cmp_1-gift-qrcash");
   assert.equal(radio.disabled, false, "selectable while the availability flag is true");
   assert.equal(s.tid("card-qrcash-cmp_1"), null, "no amount input until QR Cash is chosen");
+  assert.equal(s.tid("card-sched-summary-cmp_1").textContent, "Everyone receives it at the same moment, every year.");
   await click(radio);
+  assert.equal(s.tid("card-sched-summary-cmp_1").textContent, "Everyone receives it at the same moment, once.", "schedule summary agrees with 'Sent once'");
   const input = s.tid("card-qrcash-amount-cmp_1");
   assert.ok(input, "the amount input appears");
   assert.equal(input.value, "", "no amount is pre-chosen for the administrator");
