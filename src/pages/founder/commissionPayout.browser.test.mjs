@@ -105,6 +105,16 @@ const PAYOUT_ENTRIES = [
   { id: "e_reversed", status: "pending", salespersonCommissionMinor: 500, currency: "usd" },
   { id: "e_rev_row", status: "reversed", salespersonCommissionMinor: -500, currency: "usd", reversalOf: "e_reversed" },
   { id: "e_flower", status: "pending", salespersonCommissionMinor: 300, currency: "usd", affiliatePaymentUnverified: true },
+  // Partial refunds (T5 R2 item C): net = original - |reversal rows| (two rows on the pending one).
+  { id: "e_part_pend", status: "pending", salespersonCommissionMinor: 1000, currency: "usd" },
+  { id: "x_r1", status: "reversed", salespersonCommissionMinor: -300, currency: "usd", reversalOf: "e_part_pend" },
+  { id: "x_r2", status: "reversed", salespersonCommissionMinor: -100, currency: "usd", reversalOf: "e_part_pend" },
+  { id: "e_part_appr", status: "approved", salespersonCommissionMinor: 800, currency: "usd", approvedNetMinor: 500 },
+  { id: "x_r3", status: "reversed", salespersonCommissionMinor: -300, currency: "usd", reversalOf: "e_part_appr" },
+  // Over-reversed by two partial refunds: net < 0, still nothing to pay.
+  { id: "e_over", status: "approved", salespersonCommissionMinor: 200, currency: "usd" },
+  { id: "x_r4", status: "reversed", salespersonCommissionMinor: -150, currency: "usd", reversalOf: "e_over" },
+  { id: "x_r5", status: "reversed", salespersonCommissionMinor: -150, currency: "usd", reversalOf: "e_over" },
 ];
 const ok = (data) => ({ ok: true, status: 200, data: { ok: true, ...data } });
 function payoutApi(over = {}) {
@@ -138,8 +148,58 @@ test("buttons: Approve on pending, Record payment on approved, a paid note on pa
   assert.equal(rowOf("e_paid").querySelector("button"), null);
   assert.equal(rowOf("e_rev_row").querySelector("button"), null, "a reversal row has no payout control");
   assert.equal(rowOf("e_reversed").querySelector("button"), null, "a reversed original cannot be approved");
-  assert.match(within(rowOf("e_reversed"), "fcc-payout-reversed").textContent, /cannot be approved or paid/);
+  assert.equal(within(rowOf("e_reversed"), "fcc-payout-reversed").textContent, "Fully reversed by refunds — nothing to pay.");
+  assert.match(within(rowOf("e_reversed"), "fcc-payout-net").textContent, /Net after refunds: 0 usd \(minor units\)/);
   assert.match(within(rowOf("e_flower"), "fcc-affiliate-unverified").textContent, /not yet verified/);
+  // No refund: unchanged - no net line, no blocking text.
+  for (const id of ["e_pending", "e_approved", "e_paid", "e_flower"]) {
+    assert.equal(within(rowOf(id), "fcc-payout-net"), null, `${id}: no net line without refunds`);
+    assert.equal(within(rowOf(id), "fcc-payout-reversed"), null, `${id}: not blocked`);
+  }
+  assert.equal(within(rowOf("e_paid"), "fcc-payout-paid").textContent, "Paid by hand on 2026-09-30 · ref ACH-7");
+});
+
+test("partial refund: the net is shown next to the original and the entry can still be approved and paid", async () => {
+  const a = payoutApi();
+  await open(a);
+  const pend = rowOf("e_part_pend");
+  assert.match(pend.textContent, /1,000 usd \(minor units\)/, "the ledger still shows the original");
+  assert.equal(within(pend, "fcc-payout-net").textContent,
+    "Original 1,000 usd (minor units) · refunds −400 usd (minor units) · Net after refunds: 600 usd (minor units)");
+  assert.equal(within(pend, "fcc-payout-reversed"), null, "a partial refund is not a block");
+  assert.ok(within(pend, "fcc-approve"), "Approve is offered");
+  await click(within(pend, "fcc-approve"));
+  assert.match(within(rowOf("e_part_pend"), "fcc-payout-confirm").textContent, /The amount to pay is the net after refunds: 600 usd \(minor units\)\./);
+  await click(within(rowOf("e_part_pend"), "fcc-payout-go"));
+  assert.deepEqual(a.calls.find((c) => c[0] === "approve"), ["approve", "sp1", "e_part_pend"]);
+  assert.ok(within(rowOf("e_part_pend"), "fcc-record-payment"), "after approval the payment step is offered");
+
+  const appr = rowOf("e_part_appr");
+  assert.match(within(appr, "fcc-payout-net").textContent, /Net after refunds: 500 usd \(minor units\)/);
+  await click(within(appr, "fcc-record-payment"));
+  assert.match(within(rowOf("e_part_appr"), "fcc-payout-confirm").textContent, /net after refunds: 500 usd/);
+  setVal(within(rowOf("e_part_appr"), "fcc-pay-reference"), "ACH-NET");
+  await flush();
+  await click(within(rowOf("e_part_appr"), "fcc-payout-go"));
+  assert.deepEqual(a.calls.find((c) => c[0] === "pay").slice(0, 3), ["pay", "sp1", "e_part_appr"]);
+  assert.match(within(rowOf("e_part_appr"), "fcc-payout-paid").textContent, /ref ACH-NET/);
+});
+
+test("refunds that reach or exceed the original block with true wording and offer no button", async () => {
+  await open(payoutApi());
+  const over = rowOf("e_over");
+  assert.equal(over.querySelector("button"), null);
+  assert.equal(within(over, "fcc-payout-reversed").textContent, "Fully reversed by refunds — nothing to pay.");
+  assert.match(within(over, "fcc-payout-net").textContent, /refunds −300 usd \(minor units\) · Net after refunds: 0 usd/);
+});
+
+test("a paid entry that was paid net of refunds shows the amount actually paid", async () => {
+  const entries = [
+    { id: "e_pn", status: "paid", salespersonCommissionMinor: 1000, currency: "usd", paidOn: "2026-10-01", paymentReference: "W-1", paidAmountMinor: 600 },
+    { id: "x_pn", status: "reversed", salespersonCommissionMinor: -400, currency: "usd", reversalOf: "e_pn" },
+  ];
+  await open(payoutApi({ ledger: async () => ok({ entries }) }));
+  assert.equal(within(rowOf("e_pn"), "fcc-payout-paid").textContent, "Paid by hand on 2026-10-01 · ref W-1 · amount 600 usd (minor units)");
 });
 
 test("Approve needs an in-page confirmation (no browser dialog); Cancel makes no call", async () => {
@@ -194,7 +254,7 @@ test("a refused step shows a plain sentence in the row and changes nothing", asy
   await click(within(rowOf("e_pending"), "fcc-payout-go"));
   const err = within(rowOf("e_pending"), "fcc-payout-error");
   assert.ok(err);
-  assert.match(err.textContent, /reversed by a refund or dispute/);
+  assert.match(err.textContent, /reversed this commission in full, so there is nothing to approve or pay/);
   assert.equal(/REVERSED|INVALID_REQUEST/.test(err.textContent), false, "no raw code");
   assert.match(rowOf("e_pending").textContent, /pending/);
   assert.match(tid("fcc-summary").textContent, /Commission approved1,000/);

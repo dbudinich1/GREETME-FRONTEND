@@ -922,7 +922,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                       ) : null}
                       {detail ? (
                         <CommissionPayoutControls api={api} salespersonId={detail.salespersonId} entry={e}
-                          reversedIds={new Set(all.filter((x) => x.reversalOf).map((x) => x.reversalOf))} onDone={adoptPayout} />
+                          ledgerEntries={all} onDone={adoptPayout} />
                       ) : null}
                     </li>
                   ))}
