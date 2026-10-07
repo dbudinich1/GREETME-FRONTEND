@@ -1304,7 +1304,7 @@ export default function Recipients() {
         >
           <div>
             <p style={{ color: 'var(--text-secondary)', marginBottom: isBusiness ? '12px' : '24px', fontSize: '0.9375rem' }}>
-              Are you sure you want to delete <strong>{deleteConfirm.name}</strong>? This action cannot be undone.
+              Are you sure you want to delete <strong>{deleteConfirm.name}</strong>? This action cannot be undone. Records of gifts and orders already placed are kept.
             </p>
             {/* SLICE E7 — WARN, never block. Removing someone who is in a campaign is a
                 legitimate thing to want; being surprised by it afterwards is not. The campaigns

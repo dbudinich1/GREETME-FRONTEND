@@ -32,6 +32,7 @@ export default function Profile() {
   const [photoFiles, setPhotoFiles] = useState([]);
   const [uploadingVoice, setUploadingVoice] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [photoUrl, setPhotoUrl] = useState('');
   const [playingVoice, setPlayingVoice] = useState(null);
   // Fix 5 (Team 3 WP-C): tracks photos whose <img> failed to load, so we can
@@ -69,6 +70,7 @@ export default function Profile() {
         setPhotoFiles([
           {
             id: '1',
+            saved: true,
             url: profileData.photoUrl,
             uploadedAt: new Date().toISOString(),
             isDefault: true,
@@ -195,17 +197,71 @@ export default function Profile() {
     setTimeout(() => setPlayingVoice(null), 3000);
   };
 
-  const deleteVoice = (voiceId) => {
-    if (confirm('Are you sure you want to delete this voice recording?')) {
-      setVoiceFiles(prev => prev.filter(v => v.id !== voiceId));
-      showAlert('success', 'Voice recording deleted');
+  // Real delete (T3 profile-delete contract): the server result decides what we show.
+  // Nothing is removed from the page, and no success is announced, unless the server says ok.
+  const deleteErrorText = (error) => {
+    const specific = typeof error?.message === 'string' ? error.message.trim() : '';
+    if (specific && !/^HTTP d+$/.test(specific) && specific.length <= 300) return specific;
+    return getErrorMessage(error);
+  };
+
+  const deleteResultMessage = (result, noun) => {
+    let msg = result.alreadyDeleted
+      ? `There was no saved ${noun} to delete.`
+      : `Your ${noun} was deleted from your account.`;
+    if (result.remoteVoiceDeleted === true) msg += ' Your cloned voice was also removed.';
+    if (Array.isArray(result.warnings) && result.warnings.includes('SCHEDULED_SENDS_WILL_BE_SKIPPED')) {
+      const n = Number(result.scheduledSendsAffected);
+      msg += ` ${Number.isFinite(n) && n > 0 ? `${n} scheduled send${n === 1 ? '' : 's'} will` : 'Scheduled sends will'} be skipped until you add a new ${noun}.`;
+    }
+    return msg;
+  };
+
+  const runServerDelete = async (call, noun) => {
+    if (deleting) return false;
+    setDeleting(true);
+    try {
+      const result = await call();
+      if (!result || result.ok !== true) {
+        // api.request returns (does not throw) for 401 / 404 / network failure.
+        const err = result?.networkError
+          ? new Error('Could not reach Greet-Me. Nothing was deleted. Please try again.')
+          : new Error(result?.error || `We couldn't delete your ${noun}. Nothing was deleted.`);
+        showAlert('error', deleteErrorText(err));
+        return false;
+      }
+      showAlert(result.warnings?.length ? 'info' : 'success', deleteResultMessage(result, noun));
+      return true;
+    } catch (error) {
+      showAlert('error', deleteErrorText(error));
+      return false;
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const deletePhoto = (photoId) => {
-    if (confirm('Are you sure you want to delete this photo?')) {
+  const deleteVoice = async (voiceId) => {
+    if (!confirm('Are you sure you want to delete this voice recording?')) return;
+    const ok = await runServerDelete(() => api.deleteProfileVoice(), 'voice recording');
+    if (ok) {
+      setVoiceFiles(prev => prev.filter(v => v.id !== voiceId));
+      setProfile(prev => (prev ? { ...prev, voiceId: null, voiceUrl: null } : prev));
+    }
+  };
+
+  const deletePhoto = async (photoId) => {
+    const target = photoFiles.find(p => p.id === photoId);
+    if (!confirm('Are you sure you want to delete this photo?')) return;
+    if (target && !target.saved) {
+      // Added by URL this session only; it was never saved on the server.
       setPhotoFiles(prev => prev.filter(p => p.id !== photoId));
-      showAlert('success', 'Photo deleted');
+      showAlert('success', 'Photo removed from this session.');
+      return;
+    }
+    const ok = await runServerDelete(() => api.deleteProfilePhoto(), 'photo');
+    if (ok) {
+      setPhotoFiles(prev => prev.filter(p => p.id !== photoId));
+      setProfile(prev => (prev ? { ...prev, photoUrl: null } : prev));
     }
   };
 
@@ -399,6 +455,7 @@ export default function Profile() {
                       </button>
                       <button
                         onClick={() => deleteVoice(voice.id)}
+                        disabled={deleting}
                         className="inline-flex items-center px-3 py-1.5 border border-red-200 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
                       >
                         <Trash2 size={14} className="mr-1" />
@@ -522,6 +579,7 @@ export default function Profile() {
                     )}
                     <button
                       onClick={() => deletePhoto(photo.id)}
+                      disabled={deleting}
                       className="px-3 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
                     >
                       Delete

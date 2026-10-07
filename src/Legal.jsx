@@ -4,7 +4,7 @@ export default function Legal() {
   return (
     <div style={{ padding: 40, fontFamily: "system-ui, Arial, sans-serif", maxWidth: 900, margin: "0 auto" }}>
       <h1 style={{ marginBottom: 10 }}>Legal</h1>
-      <p style={{ color: "#555", marginTop: 0 }}>Last updated: April 3, 2026</p>
+      <p style={{ color: "#555", marginTop: 0 }}>Last updated: October 6, 2026</p>
 
       <hr style={{ margin: "24px 0" }} />
 
@@ -19,7 +19,7 @@ export default function Legal() {
         <li><strong>Uploaded content:</strong> photos you upload for greeting creation.</li>
         <li><strong>Voice recordings:</strong> audio samples you provide so we can generate a voice-cloned greeting using AI.</li>
         <li><strong>Payment information:</strong> processed by Stripe; we do not store card numbers.</li>
-        <li><strong>Usage data:</strong> pages visited, features used, and device/browser information for service improvement.</li>
+        <li><strong>Usage data:</strong> pages visited, features used, and device/browser information for service improvement, collected through Google Analytics.</li>
       </ul>
 
       <h3 style={S.h3}>How We Use Information</h3>
@@ -31,16 +31,20 @@ export default function Legal() {
       <h3 style={S.h3}>Third-Party Processors</h3>
       <p style={S.p}>We use the following categories of third-party services to operate Greet-Me:</p>
       <ul style={S.ul}>
-        <li><strong>Payment processing:</strong> Stripe (payment, subscription, and payout handling)</li>
+        <li><strong>Payment processing:</strong> Stripe (payment and subscription handling)</li>
         <li><strong>Email delivery:</strong> SendGrid (transactional and engagement emails)</li>
         <li><strong>AI voice synthesis:</strong> ElevenLabs (voice cloning and text-to-speech)</li>
         <li><strong>AI video generation:</strong> D-ID (photo animation)</li>
-        <li><strong>Cloud storage:</strong> Microsoft Azure (photos, voice recordings, greeting media, and application data)</li>
+        <li><strong>AI text generation:</strong> OpenAI (greeting text)</li>
+        <li><strong>Cloud storage and hosting:</strong> Microsoft Azure (photos, voice recordings, greeting media, and application data)</li>
+        <li><strong>Gift fulfilment:</strong> when you order a gift, the gift provider that fulfils it (such as Goody, Florist One or Printful) receives the recipient name and delivery details needed to complete the order</li>
+        <li><strong>Analytics:</strong> Google Analytics (usage data)</li>
       </ul>
       <p style={S.p}>These providers only receive information necessary to perform their function and are subject to their own privacy policies.</p>
 
       <h3 style={S.h3}>Data Retention &amp; Deletion</h3>
-      <p style={S.p}>We retain your account information and greeting data for as long as your account is active or as needed to provide the service. Greeting media (photos, voice, generated video) is retained for up to 12 months after creation to allow recipients to view greetings. You may request deletion of your account and all associated data by emailing support@greet-me.com. We will process deletion requests within 30 days.</p>
+      <p style={S.p}>We retain your account information and greeting data for as long as your account is active or as needed to provide the service. Greeting media (photos, voice, generated video) is retained for up to 12 months after creation to allow recipients to view greetings. You may request deletion of your account and all associated data by emailing support@greet-me.com. We will process deletion requests within 30 days, except for records we are required or permitted to keep as described below.</p>
+      <p style={S.p}><strong>Deleting contacts.</strong> If you delete a contact from your lists, that contact is permanently removed from your account and will not receive future sends. Records of orders and gifts that have already been placed or sent keep the delivery details they were fulfilled with (for example, the name and shipping address on the order). We retain these records for fulfilment, tax, accounting and dispute-resolution purposes and for as long as the law requires, and we do not use them for any other purpose. When you ask us to delete your account and associated data, we will delete or anonymise your information within 30 days, except for records we are required or permitted to keep for those purposes.</p>
 
       <h3 style={S.h3}>Recipient Data</h3>
       <p style={S.p}>When you send a Greet-Me, we store the recipient&rsquo;s name and email address to deliver the greeting and send related notifications. Recipients may request removal of their data by contacting support@greet-me.com.</p>
@@ -49,7 +53,7 @@ export default function Legal() {
       <p style={S.p}>Greet-Me is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13. If you believe a child under 13 has provided us with personal information, please contact us immediately at support@greet-me.com so we can remove the information.</p>
 
       <h3 style={S.h3}>Your Rights</h3>
-      <p style={S.p}>You may request access to, correction of, or deletion of your personal information by emailing support@greet-me.com. California residents and EEA residents may have additional rights under applicable law.</p>
+      <p style={S.p}>You may request access to, correction of, or deletion of your personal information by emailing support@greet-me.com. California residents and EEA residents may have additional rights under applicable law. Records we are required or permitted to keep for fulfilment, tax, accounting and dispute purposes are retained as described under Data Retention &amp; Deletion.</p>
 
       <h3 style={S.h3}>Contact</h3>
       <p style={S.p}>For privacy questions: support@greet-me.com</p>
@@ -76,10 +80,10 @@ export default function Legal() {
       <p style={S.p}>Paid subscriptions are billed through Stripe. Subscription terms, pricing, and renewal periods are displayed at checkout. Credits ($5 courtesy credits, $5 referral credits) are promotional, non-transferable, and may expire. Credits have no cash value and cannot be redeemed for cash. Refund requests should be directed to support@greet-me.com.</p>
 
       <h3 style={S.h3}>QR Cash&trade; Gifts</h3>
-      <p style={S.p}>QR Cash is a digital gifting feature that allows senders to include a monetary gift with a greeting. QR Cash is a gift from sender to recipient, facilitated by Greet-Me using Stripe for payment processing. Greet-Me is not a bank, money transmitter, or stored-value provider. A service fee applies to each gift. Unclaimed gifts expire after 30 days. Greet-Me is not responsible for incorrect payout details provided by recipients.</p>
+      <p style={S.p}>QR Cash is a digital gifting feature that allows senders to include a monetary gift with a greeting. QR Cash is a gift from sender to recipient, facilitated by Greet-Me using Stripe for payment processing. Greet-Me is not a bank, money transmitter, or stored-value provider. A service fee applies to each gift. Unclaimed gifts expire 30 days after the gift is created. QR Cash payouts are reviewed and sent manually by our team, to the Venmo, PayPal or Zelle account the recipient provides. Greet-Me is not responsible for incorrect payout details provided by recipients.</p>
 
       <h3 style={S.h3}>Greet One, Give One&trade; (G1G1)</h3>
-      <p style={S.p}>Full-price subscription purchases may include a complimentary gift subscription for one recipient. G1G1 gifts are not available on discounted purchases. Gift subscriptions are non-transferable and subject to these Terms.</p>
+      <p style={S.p}>Individual subscription purchases may include a complimentary gift subscription for one recipient. G1G1 gifts are not available when a referral credit is applied. Gift subscriptions are non-transferable and subject to these Terms.</p>
 
       <h3 style={S.h3}>Prohibited Use</h3>
       <p style={S.p}>You may not: upload content you do not have rights to use; submit voice recordings of others without their consent; use the service for harassment, spam, or illegal purposes; attempt to circumvent security measures, rate limits, or usage restrictions; create accounts for the purpose of abuse or fraud.</p>

@@ -897,7 +897,7 @@ export default function Gifts() {
                       lineHeight: 1.6,
                       margin: 0
                     }}>
-                      The cash is instantly available to spend anywhere. No restrictions, no gift cards - just real money they can use however they'd like.
+                      Once redeemed, we review and send the cash to the recipient's chosen Venmo, PayPal or Zelle. Payouts are processed manually.
                     </p>
                   </div>
                 </div>
