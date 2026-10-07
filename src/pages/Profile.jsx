@@ -39,7 +39,7 @@ export default function Profile() {
   // show an honest local "unavailable" state instead of fetching a random
   // external placeholder image from a third-party service.
   const [brokenPhotoIds, setBrokenPhotoIds] = useState(new Set());
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
 
   useEffect(() => {
     fetchProfile();
@@ -201,7 +201,7 @@ export default function Profile() {
   // Nothing is removed from the page, and no success is announced, unless the server says ok.
   const deleteErrorText = (error) => {
     const specific = typeof error?.message === 'string' ? error.message.trim() : '';
-    if (specific && !/^HTTP d+$/.test(specific) && specific.length <= 300) return specific;
+    if (specific && !/^HTTP \d+$/.test(specific) && specific.length <= 300) return specific;
     return getErrorMessage(error);
   };
 
@@ -262,6 +262,8 @@ export default function Profile() {
     if (ok) {
       setPhotoFiles(prev => prev.filter(p => p.id !== photoId));
       setProfile(prev => (prev ? { ...prev, photoUrl: null } : prev));
+      // Also clear the signed-in user's photo (same as Media Library), so it is not left stale.
+      updateUser({ photoUrl: null });
     }
   };
 
@@ -566,8 +568,8 @@ export default function Profile() {
                   </div>
                 )}
 
-                {/* Hover Actions */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                {/* Photo Actions (always visible, not hover-only, so they work on touch) */}
+                <div className="absolute inset-x-0 bottom-8 flex items-center justify-center">
                   <div className="space-x-2">
                     {!photo.isDefault && (
                       <button

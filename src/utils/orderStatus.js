@@ -10,10 +10,13 @@
 //     not trusted and is replaced by that kind's own plain text (never "Processing" unless the kind IS
 //     processing) - the backend only emits "delivered" with provider proof, so this should not fire;
 //   * "Delivered" is shown only for kind "delivered".
+// Release 2 (2026-10-07): kind "on_hold" = paid, but not yet sent to the fulfilment partner (e.g. held
+// merchandise). It has its own amber badge so it never looks like an order in progress.
 
 /** The plain text for each documented kind, used only when a label must be rewritten. */
 export const GIFT_KIND_TEXT = Object.freeze({
   processing: 'Processing',
+  on_hold: 'On hold',
   submitted: 'Submitted',
   shipped: 'Shipped',
   delivered: 'Delivered',
@@ -53,6 +56,7 @@ const NEUTRAL = { background: '#f3f4f6', color: '#4b5563', borderColor: '#d1d5db
 const GIFT_BADGE = {
   processing: { background: '#eef2ff', color: '#4338ca', borderColor: '#c7d2fe' },
   submitted: { background: '#eef2ff', color: '#4338ca', borderColor: '#c7d2fe' },
+  on_hold: { background: '#fff7ed', color: '#9a3412', borderColor: '#fed7aa' },
   shipped: { background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' },
   delivered: { background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' },
   completed: { background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' },

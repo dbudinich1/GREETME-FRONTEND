@@ -18,6 +18,18 @@ function isSafeToStore(url) {
 }
 
 /**
+ * Is this an Azure Blob Storage URL (raw or with an expiring SAS)?
+ * Personal photos live in a private container, so a stored copy of the URL is either raw
+ * (unreadable) or carries a short-lived signature (broken once it expires). The Media Library
+ * already shows these photos signed, fresh from GET /api/contacts, so they are not kept here.
+ * @param {string} url
+ * @returns {boolean}
+ */
+export function isAzureBlobUrl(url) {
+  return typeof url === 'string' && url.includes('.blob.core.windows.net');
+}
+
+/**
  * Get all items from the media library
  * @returns {Array<{id: string, url: string, type: string, source: string, addedAt: string}>}
  */
@@ -118,8 +130,10 @@ export function addMultipleToMediaLibrary(photoUrls, source = 'recipient') {
 export function autoAddRecipientPhotosToLibrary(contactData) {
   if (!contactData) return;
 
+  // Azure Blob photos are skipped (see isAzureBlobUrl): a stored copy would be raw or expire.
+
   // Add avatar if present
-  if (contactData.avatar) {
+  if (contactData.avatar && !isAzureBlobUrl(contactData.avatar)) {
     addToMediaLibrary(contactData.avatar, 'recipient-avatar');
   }
 
@@ -128,7 +142,7 @@ export function autoAddRecipientPhotosToLibrary(contactData) {
   if (contactData.memoryPhotos && Array.isArray(contactData.memoryPhotos)) {
     const urls = contactData.memoryPhotos.map(photo =>
       typeof photo === 'object' ? photo.url : photo
-    ).filter(Boolean);
+    ).filter(url => url && !isAzureBlobUrl(url));
     addMultipleToMediaLibrary(urls, 'recipient-memory');
   }
 }

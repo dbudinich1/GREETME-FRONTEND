@@ -169,7 +169,7 @@ test("G1G1 exclusion copy 2026-10-06: only referral credit excludes the gift; ol
 test("Legal 2026-10-06: retention, processors, QR Cash and G1G1 wording are truthful", () => {
   const legal = read("src/Legal.jsx");
   for (const t of [
-    "Greeting media (photos, voice, generated video) is retained for up to 12 months after creation to allow recipients to view greetings.",
+    "Greeting media is available to recipients for 30 days after it is delivered. Gift and credit records are kept as described.",
     "<strong>Deleting contacts.</strong>",
     "Stripe (payment and subscription handling)",
     "<strong>AI text generation:</strong> OpenAI",

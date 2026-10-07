@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Upload, Trash2, Play, Pause, Image as ImageIcon, Mic, ArrowLeft, Smartphone, QrCode, Video, CheckCircle, Users, Check, X, Send } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getMediaLibraryItems, removeFromMediaLibrary } from '../utils/mediaLibrary';
+import { getMediaLibraryItems, removeFromMediaLibrary, isAzureBlobUrl } from '../utils/mediaLibrary';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
 import QRCode from 'qrcode';
@@ -21,6 +21,7 @@ export default function MediaLibrary() {
   const [activeVoice, setActiveVoice] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [deletingPhoto, setDeletingPhoto] = useState(false);
   const audioRef = useRef(null);
   const voiceInputRef = useRef(null);
 
@@ -101,7 +102,9 @@ export default function MediaLibrary() {
 
     // Load recipient photos from media library storage
     const libraryItems = getMediaLibraryItems();
-    const libraryPhotos = libraryItems.filter(item => item.type === 'photo');
+    // Stored Azure Blob entries are hidden: they are raw or carry an expired signature, and the
+    // same recipient photos are shown signed below from GET /api/contacts.
+    const libraryPhotos = libraryItems.filter(item => item.type === 'photo' && !isAzureBlobUrl(item.url));
 
     // Also fetch memory photos directly from contacts (since base64 photos aren't stored in media library)
     try {
@@ -235,6 +238,38 @@ export default function MediaLibrary() {
       alert(getErrorMessage(error));
     } finally {
       setUploadingPhoto(false);
+    }
+  };
+
+  // Real server-side delete of the saved default photo (same contract and wording as the Profile page).
+  // Nothing is cleared from the screen, and no success is announced, unless the server says ok.
+  const handleDeleteDefaultPhoto = async () => {
+    if (deletingPhoto || uploadingPhoto) return;
+    if (!confirm('Are you sure you want to delete this photo?')) return;
+    setDeletingPhoto(true);
+    try {
+      const result = await api.deleteProfilePhoto();
+      if (!result || result.ok !== true) {
+        alert(result?.networkError
+          ? 'Could not reach Greet-Me. Nothing was deleted. Please try again.'
+          : (result?.error || "We couldn't delete your photo. Nothing was deleted."));
+        return;
+      }
+      updateUser({ photoUrl: null });
+      let msg = result.alreadyDeleted
+        ? 'There was no saved photo to delete.'
+        : 'Your photo was deleted from your account.';
+      if (Array.isArray(result.warnings) && result.warnings.includes('SCHEDULED_SENDS_WILL_BE_SKIPPED')) {
+        const n = Number(result.scheduledSendsAffected);
+        msg += ` ${Number.isFinite(n) && n > 0 ? `${n} scheduled send${n === 1 ? '' : 's'} will` : 'Scheduled sends will'} be skipped until you add a new photo.`;
+      }
+      alert(msg);
+    } catch (error) {
+      console.error('Photo delete error:', error);
+      const specific = typeof error?.message === 'string' ? error.message.trim() : '';
+      alert(specific && !/^HTTP \d+$/.test(specific) && specific.length <= 300 ? specific : getErrorMessage(error));
+    } finally {
+      setDeletingPhoto(false);
     }
   };
 
@@ -645,18 +680,19 @@ export default function MediaLibrary() {
             onChange={handlePhotoUpload}
             style={{ display: 'none' }}
           />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
           <button
             onClick={() => photoInputRef.current?.click()}
-            disabled={uploadingPhoto}
+            disabled={uploadingPhoto || deletingPhoto}
             style={{
               padding: '0.625rem 1.25rem',
-              background: uploadingPhoto ? '#e5e7eb' : '#667eea',
-              color: uploadingPhoto ? '#9ca3af' : 'white',
+              background: (uploadingPhoto || deletingPhoto) ? '#e5e7eb' : '#667eea',
+              color: (uploadingPhoto || deletingPhoto) ? '#9ca3af' : 'white',
               border: 'none',
               borderRadius: 'var(--radius-lg)',
               fontSize: '0.875rem',
               fontWeight: 600,
-              cursor: uploadingPhoto ? 'not-allowed' : 'pointer',
+              cursor: (uploadingPhoto || deletingPhoto) ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
@@ -664,12 +700,37 @@ export default function MediaLibrary() {
               flexShrink: 0,
               whiteSpace: 'nowrap'
             }}
-            onMouseEnter={(e) => { if (!uploadingPhoto) e.currentTarget.style.background = '#5568d3'; }}
-            onMouseLeave={(e) => { if (!uploadingPhoto) e.currentTarget.style.background = '#667eea'; }}
+            onMouseEnter={(e) => { if (!(uploadingPhoto || deletingPhoto)) e.currentTarget.style.background = '#5568d3'; }}
+            onMouseLeave={(e) => { if (!(uploadingPhoto || deletingPhoto)) e.currentTarget.style.background = '#667eea'; }}
           >
             <Upload size={16} />
             {uploadingPhoto ? 'Uploading...' : (user?.photoUrl ? 'Replace Photo' : 'Upload Photo')}
           </button>
+          {user?.photoUrl && (
+            <button
+              onClick={handleDeleteDefaultPhoto}
+              disabled={deletingPhoto || uploadingPhoto}
+              style={{
+                padding: '0.625rem 1.25rem',
+                background: 'transparent',
+                color: (deletingPhoto || uploadingPhoto) ? '#9ca3af' : '#dc2626',
+                border: `1px solid ${(deletingPhoto || uploadingPhoto) ? '#e5e7eb' : '#dc2626'}`,
+                borderRadius: 'var(--radius-lg)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: (deletingPhoto || uploadingPhoto) ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                flexShrink: 0,
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Trash2 size={16} />
+              {deletingPhoto ? 'Deleting...' : 'Delete Photo'}
+            </button>
+          )}
+          </div>
         </div>
 
         {!user?.photoUrl ? (

@@ -158,3 +158,43 @@ test("existing order details still render: item summary and total", async () => 
   assert.ok(r.text().includes("44.99"));
   await r.unmount();
 });
+
+// ---- Release 2 (2026-10-07): truthful refunded gift orders and held merchandise ----------------------------------------
+test("Release 2: held merchandise renders 'not yet sent for printing' with its own badge and Get Help, never 'processing'", async () => {
+  const r = await H.render({ history: hist([
+    row({ itemSummary: "Held tee", status: { kind: "on_hold", label: "Payment received — not yet sent for printing" }, support: true }),
+    row({ orderRef: "ord_0000000000000996", itemSummary: "Failed tee", status: { kind: "issue", label: "Not yet sent for printing — please contact support" }, support: true }),
+    row({ orderRef: "ord_0000000000000995", itemSummary: "Moving tee", status: { kind: "processing", label: "Being made" } }),
+  ]) });
+  const held = r.rowWith("Held tee");
+  assert.equal(held.querySelector('[data-testid="order-status"]').textContent, "Payment received — not yet sent for printing");
+  assert.equal(held.getAttribute("data-kind"), "on_hold");
+  assert.ok(held.querySelector('[data-testid="order-support"]'), "Get Help is offered on a held order");
+  const style = (s) => r.rowWith(s).querySelector('[data-testid="order-status"]').getAttribute("style");
+  assert.notEqual(style("Held tee"), style("Moving tee"), "held does not look like an order in progress");
+  assert.equal(r.rowWith("Failed tee").querySelector('[data-testid="order-status"]').textContent, "Not yet sent for printing — please contact support");
+  assert.ok(r.rowWith("Failed tee").querySelector('[data-testid="order-support"]'));
+  assert.equal(r.rowWith("Moving tee").querySelector('[data-testid="order-status"]').textContent, "Being made", "normal progress unchanged");
+  assert.ok(!/processing/i.test(held.textContent + r.rowWith("Failed tee").textContent));
+  await r.unmount();
+});
+
+test("Release 2: a refunded Prezzee gift card shows Refunded (refunded badge); a partial refund keeps its real status", async () => {
+  const card = (o) => ({ ...ROWS.cardReady, ...o });
+  const r = await H.render({ history: hist([
+    card({ itemSummary: "Gift card", status: { kind: "refunded", label: "Refunded" } }),
+    card({ orderRef: "ord_0000000000000994", itemSummary: "Partly refunded card", status: { kind: "completed", label: "Gift card ready for recipient — partially refunded" } }),
+  ]) });
+  const full = r.rowWith("Gift card for");
+  assert.equal(full.querySelector('[data-testid="order-status"]').textContent, "Refunded");
+  assert.equal(full.getAttribute("data-kind"), "refunded");
+  assert.ok(!/ready for recipient/i.test(full.textContent), "a refunded card never still says ready");
+  assert.equal(r.rowWith("Partly refunded card").querySelector('[data-testid="order-status"]').textContent, "Gift card ready for recipient — partially refunded");
+  await r.unmount();
+});
+
+test("Release 2: legacy fallback shows the held label verbatim (old endpoint keeps its four kinds)", async () => {
+  const l = await H.render({ history: "fail", merch: { ok: true, orders: [LEGACY_MERCH({ itemSummary: "Legacy held", statusKind: "processing", statusLabel: "Payment received — not yet sent for printing" })] } });
+  assert.equal(l.rowWith("Legacy held").querySelector('[data-testid="order-status"]').textContent, "Payment received — not yet sent for printing");
+  await l.unmount();
+});
