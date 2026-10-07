@@ -155,11 +155,13 @@ test("C-060: photo upload limit text and pre-checks match the backend multer lim
   assert.ok(read("src/pages/Profile.jsx").includes("Image size must be less than 10MB"));
 });
 
-test("G1G1 exclusion copy 2026-10-06: only referral credit excludes the gift; old wording gone", () => {
+test("G1G1 exclusion copy 2026-10-06 (wording 2026-10-07): only the QR Cash Greet-Me Credit excludes the gift; old wording gone", () => {
   assert.ok(read("src/pages/G1G1Claim.jsx").includes("Greet One, Give One&trade; — included with individual subscriptions."));
   const cart = read("src/pages/Cart.jsx");
-  assert.ok(cart.includes("Greet One, Give One&trade; is awarded with individual memberships. It is not included when a referral credit is applied."));
-  assert.ok(cart.includes("Not included with referral credit"));
+  assert.ok(cart.includes("Greet One, Give One&trade; is awarded with individual memberships. It is not included when a Greet-Me Credit from a QR Cash gift is applied."));
+  assert.ok(cart.includes("Not included with a Greet-Me Credit from a QR Cash gift"));
+  assert.equal(cart.includes("referral credit is applied"), false);
+  assert.equal(cart.includes("Not included with referral credit"), false);
   assert.deepEqual(everywhere("included when you subscribe at full price").filter((p) => p !== "src/pages/G1G1Send.jsx"), []);
   assert.equal(read("src/pages/G1G1Claim.jsx").includes("included when you subscribe at full price"), false);
   assert.equal(cart.includes("is awarded with full memberships and is not included with discounted purchases"), false);
@@ -177,9 +179,9 @@ test("Legal 2026-10-06: retention, processors, QR Cash and G1G1 wording are trut
     "Goody, Florist One or Printful",
     "Unclaimed gifts expire 30 days after the gift is created.",
     "QR Cash payouts are reviewed and sent manually by our team, to the Venmo, PayPal or Zelle account the recipient provides.",
-    "G1G1 gifts are not available when a referral credit is applied.",
+    "G1G1 gifts are not available when a Greet-Me Credit received with a QR Cash gift is applied.",
   ]) assert.ok(legal.includes(t), `Legal.jsx missing: ${t}`);
-  for (const t of ["limited period afterward", "payout handling", "48 hours", "48-hour", "Unclaimed gifts expire after 30 days"]) {
+  for (const t of ["limited period afterward", "payout handling", "48 hours", "48-hour", "Unclaimed gifts expire after 30 days", "referral credit"]) {
     assert.equal(legal.includes(t), false, `Legal.jsx still has: ${t}`);
   }
 });

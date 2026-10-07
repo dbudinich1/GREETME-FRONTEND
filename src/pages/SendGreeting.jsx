@@ -665,13 +665,13 @@ export default function SendGreeting() {
           autoGift: false,
         });
       } else {
-        setReferralError('This referral credit is no longer valid.');
+        setReferralError('This Greet-Me Credit is no longer valid.');
       }
     }).catch((err) => {
       if (err?.code === 'REFERRAL_ALREADY_USED') {
-        setReferralError('This referral credit has already been used.');
+        setReferralError('This Greet-Me Credit has already been used.');
       } else {
-        setReferralError('This referral credit is not valid.');
+        setReferralError('This Greet-Me Credit is not valid.');
       }
     });
   }, [location.search]);
@@ -1371,7 +1371,7 @@ export default function SendGreeting() {
         });
 
         if (!redeemResult.ok || !redeemResult.gift) {
-          throw new Error(redeemResult.error || 'Referral redemption failed');
+          throw new Error(redeemResult.error || 'Greet-Me Credit redemption failed');
         }
 
         const giftObj = redeemResult.gift;
@@ -1394,7 +1394,7 @@ export default function SendGreeting() {
 
         await executeGreetingSend(greetingDataWithGift);
       } catch (error) {
-        setErrors({ submit: error?.message || 'Failed to apply referral credit.' });
+        setErrors({ submit: error?.message || 'Failed to apply Greet-Me Credit.' });
         setSending(false);
       }
       return;

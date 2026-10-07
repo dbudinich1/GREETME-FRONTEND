@@ -305,7 +305,7 @@ export default function PreSendReviewModal({
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#854d0e' }}>
-                    QR Cash{qrCashAttachment.kind === 'referral' ? ' — referral credit' : ''}
+                    QR Cash{qrCashAttachment.kind === 'referral' ? ' — Greet-Me Credit' : ''}
                   </span>
                   <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#854d0e' }}>
                     {formatPrice(qrCashAttachment.amountCents)}
