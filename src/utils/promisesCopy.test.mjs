@@ -169,7 +169,7 @@ test("G1G1 exclusion copy 2026-10-06: only referral credit excludes the gift; ol
 test("Legal 2026-10-06: retention, processors, QR Cash and G1G1 wording are truthful", () => {
   const legal = read("src/Legal.jsx");
   for (const t of [
-    "Greeting media is kept while your account is active and for a limited period afterward.",
+    "Greeting media (photos, voice, generated video) is retained for up to 12 months after creation to allow recipients to view greetings.",
     "<strong>Deleting contacts.</strong>",
     "Stripe (payment and subscription handling)",
     "<strong>AI text generation:</strong> OpenAI",
@@ -179,14 +179,22 @@ test("Legal 2026-10-06: retention, processors, QR Cash and G1G1 wording are trut
     "QR Cash payouts are reviewed and sent manually by our team, to the Venmo, PayPal or Zelle account the recipient provides.",
     "G1G1 gifts are not available when a referral credit is applied.",
   ]) assert.ok(legal.includes(t), `Legal.jsx missing: ${t}`);
-  for (const t of ["retained for up to 12 months", "payout handling", "48 hours", "48-hour", "Unclaimed gifts expire after 30 days"]) {
+  for (const t of ["limited period afterward", "payout handling", "48 hours", "48-hour", "Unclaimed gifts expire after 30 days"]) {
     assert.equal(legal.includes(t), false, `Legal.jsx still has: ${t}`);
   }
 });
 
-test("Impact plan: no per-send $2.99 fee claim anywhere (no code bills it)", () => {
-  assert.deepEqual(everywhere("Flat-Fee Appreciation"), []);
-  assert.deepEqual(everywhere(/\$2\.99 per Greet-Me/), []);
+test("Impact plan (founder rule: no promise removed without approval): the original Flat-Fee Appreciation bullet is present in both Impact lists", () => {
+  const plans = read("src/config/plans.js");
+  const bullet = "'Flat-Fee Appreciation™ — $2.99 per Greet-Me sent'";
+  assert.equal(plans.split(bullet).length - 1, 2);
+  const lines = plans.split("\n").map((l) => l.trim());
+  lines.forEach((l, i) => {
+    if (l === bullet + ",") {
+      assert.equal(lines[i - 1], "'Branded Gift Options',");
+      assert.equal(lines[i + 1], "'Greet-Me Gifts™ & QR Cash™',");
+    }
+  });
 });
 
 test("A-054 / C-056 (2026-10-06): dead Gifts modal no longer promises instant cash; delete-recipient dialog discloses kept order records", () => {
