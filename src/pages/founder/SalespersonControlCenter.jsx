@@ -22,6 +22,7 @@ import GiftCommissionPanel from "./commandCenter/GiftCommissionPanel.jsx";
 import { fundraiserApi } from "../../api/fundraiserApi.js";
 import { isFounder } from "../../utils/accountState.js";
 import AttributionHealthPanel from "./AttributionHealthPanel.jsx";
+import CommissionPayoutControls from "./CommissionPayoutControls.jsx";
 import { effectiveSalesStatus } from "./effectiveSalesStatus.js";
 import { STATES, resolveOutcome, LINK_STATES, linkOutcome, linkMessageFor, canLink } from "./salespersonLinkAssign.js";
 
@@ -234,6 +235,17 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
       const c = await api.controls();
       if (c.ok) setControls((c.data && c.data.controls) || null);
     }
+  }
+
+  /** A manual payout step succeeded: adopt the SERVER's entry and refreshed totals (never optimistic). */
+  function adoptPayout(data) {
+    setReport((r) => {
+      if (!r) return r;
+      const next = { ...r };
+      if (data.summary) { next.summary = data.summary; next.summaryError = null; }
+      if (data.entry && Array.isArray(r.entries)) next.entries = r.entries.map((x) => (x.id === data.entry.id ? data.entry : x));
+      return next;
+    });
   }
 
   /** Pending attribution for ONE deliberately entered user id. Never enumerated. */
@@ -895,7 +907,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                 </p>
               ) : report.entries ? (
                 <ul data-testid="fcc-ledger" style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: ".4rem" }}>
-                  {report.entries.map((e, i) => (
+                  {report.entries.map((e, i, all) => (
                     <li key={e.id || e.entryId || i} data-testid={`fcc-ledger-row-${i}`}
                       style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: ".5rem .65rem" }}>
                       <span style={{ ...mono, display: "block", color: "var(--text-tertiary)" }}>{e.id || e.entryId || "\u2014"}</span>
@@ -903,6 +915,15 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                         {(e.status || "\u2014")} {"\u00b7"} {minorUnits(e.salespersonCommissionMinor, e.currency)}
                         {e.effectiveAt || e.at ? ` \u00b7 ${e.effectiveAt || e.at}` : ""}
                       </span>
+                      {e.affiliatePaymentUnverified === true ? (
+                        <span data-testid="fcc-affiliate-unverified" style={{ display: "block", fontSize: ".78rem", color: "var(--text-secondary)" }}>
+                          The florist&rsquo;s affiliate payment is not yet verified.
+                        </span>
+                      ) : null}
+                      {detail ? (
+                        <CommissionPayoutControls api={api} salespersonId={detail.salespersonId} entry={e}
+                          reversedIds={new Set(all.filter((x) => x.reversalOf).map((x) => x.reversalOf))} onDone={adoptPayout} />
+                      ) : null}
                     </li>
                   ))}
                 </ul>

@@ -155,8 +155,20 @@ export const salesAdminApi = {
   /** GET …/attribution-health → { ok, attributionHealth, controls } — counts only, no PII. */
   attributionHealth: (salespersonId) => get(`${one(salespersonId)}/attribution-health`),
 
-  /** GET …/ledger → { ok, entries } — the raw commission entries. No payout action exists. */
+  /** GET …/ledger → { ok, entries } — the raw commission entries. */
   ledger: (salespersonId) => get(`${one(salespersonId)}/ledger`),
+
+  // ── MANUAL PAYOUT (founder decision 2026-10-07 #12). Records a payment the founder made by hand; no money moves. ──
+  /** POST …/ledger/:entryId/approve → { ok, noop, entry, summary }. pending -> approved. 404 / 409 (reason) when refused. */
+  approveCommission: (salespersonId, entryId) =>
+    post(`${one(salespersonId)}/ledger/${encodeURIComponent(entryId)}/approve`, {}),
+  /** POST …/ledger/:entryId/record-payment body { reference, paidOn: "YYYY-MM-DD", note? } → { ok, noop, entry, summary }. approved -> paid. */
+  recordCommissionPayment: (salespersonId, entryId, { reference, paidOn, note } = {}) =>
+    post(`${one(salespersonId)}/ledger/${encodeURIComponent(entryId)}/record-payment`, {
+      reference: typeof reference === "string" ? reference.trim() : reference,
+      paidOn,
+      ...(typeof note === "string" && note.trim() ? { note: note.trim() } : {}),
+    }),
 
   /**
    * GET /admin/pending/:userId → { ok, pending }
@@ -205,8 +217,15 @@ export function salesAdminErrorMessage(res, { context = "load" } = {}) {
   switch (res.status) {
     case 401: return "Your session has expired. Sign in again to continue.";
     case 403: return "This area is limited to the founder account.";
-    case 404: return context === "read" ? "That salesperson no longer exists." : "Not found.";
+    case 404: return context === "read" ? "That salesperson no longer exists." : context === "payout" ? "That commission entry was not found for this salesperson." : "Not found.";
     case 409: {
+      if (context === "payout") {
+        const why = res.data && res.data.reason;
+        if (why === "REVERSED") return "This commission was reversed by a refund or dispute, so it can't be approved or paid.";
+        if (why === "NOT_APPROVED") return "Approve this commission first, then record the payment.";
+        if (why === "PAYMENT_ALREADY_RECORDED") return "A different payment is already recorded for this commission.";
+        return "This commission changed while you were working. Reload the page and check it.";
+      }
       // The slug conflict, the linked-user conflict and the duplicate-id conflict share a status
       // but mean different things, and the server distinguishes them with `reason`. Reported
       // truthfully rather than merged.
@@ -221,6 +240,7 @@ export function salesAdminErrorMessage(res, { context = "load" } = {}) {
       // slug_*/INVALID_LINKED_USER reasons are machine codes, never shown raw.
       if (context === "slug") return "That vanity URL isn’t valid. Use letters, numbers and hyphens.";
       if (context === "linkedUser") return "Enter a valid email address.";
+      if (context === "payout") return "Enter a payment reference and a valid date that is not in the future.";
       return "Check the details and try again.";
     default:  return "That didn’t go through. Please try again.";
   }
