@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Upload, Trash2, Play, Pause, Image as ImageIcon, Mic, ArrowLeft, Smartphone, QrCode, Video, CheckCircle, Users, Check, X, Send } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getMediaLibraryItems, removeFromMediaLibrary } from '../utils/mediaLibrary';
+import { getMediaLibraryItems, removeFromMediaLibrary, isAzureBlobUrl } from '../utils/mediaLibrary';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
 import QRCode from 'qrcode';
@@ -102,7 +102,9 @@ export default function MediaLibrary() {
 
     // Load recipient photos from media library storage
     const libraryItems = getMediaLibraryItems();
-    const libraryPhotos = libraryItems.filter(item => item.type === 'photo');
+    // Stored Azure Blob entries are hidden: they are raw or carry an expired signature, and the
+    // same recipient photos are shown signed below from GET /api/contacts.
+    const libraryPhotos = libraryItems.filter(item => item.type === 'photo' && !isAzureBlobUrl(item.url));
 
     // Also fetch memory photos directly from contacts (since base64 photos aren't stored in media library)
     try {
