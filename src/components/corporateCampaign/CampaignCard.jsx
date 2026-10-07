@@ -25,6 +25,8 @@ import {
   SCHEDULE_MODES,
   centsToDisplay,
   giftOptionState,
+  isQrCashAmountCents,
+  qrCashDollarsToCents,
   deriveCampaignStatus,
   deriveActions,
   isCampaignEnabled,
@@ -235,10 +237,16 @@ export default function CampaignCard({
   // A gift box with nothing chosen is not a saveable campaign: the wire contract would serialise no
   // gift at all, silently turning a gift campaign into a greeting-only one.
   const productMissing = isProviderFundableGiftType(draft.giftType) && !productChosen;
-  const giftBlocked = staleProduct || productMissing;
+  // RELEASE 2 - QR Cash needs a whole-dollar amount ($5-$100) and a fixed campaign date; either missing is not a
+  // saveable campaign (the wire contract would serialize NO gift, silently turning it into a greeting-only one).
+  const qrCashMissing = draft.giftType === "qrcash" && !isQrCashAmountCents(draft.qrCashAmountCents);
+  const qrCashWrongSchedule = draft.giftType === "qrcash" && draft.scheduleMode !== "campaign_date";
+  const giftBlocked = staleProduct || productMissing || qrCashMissing || qrCashWrongSchedule;
   const giftBlockedNote = staleProduct
     ? "That gift box is no longer published. Choose one from the list to save this campaign."
-    : (productMissing ? "Choose a gift box to save this campaign." : null);
+    : (productMissing ? "Choose a gift box to save this campaign."
+      : (qrCashWrongSchedule ? "QR Cash is sent once, on one campaign date. Choose One Campaign Date to save this campaign."
+        : (qrCashMissing ? "Enter a QR Cash amount from $5 to $100 to save this campaign." : null)));
 
   useEffect(() => {
     // Only when the reader is actually looking at this campaign's spread choices.
@@ -461,6 +469,7 @@ export default function CampaignCard({
         // takes a product, and serialises NO gift at all rather than a half-selection.
         product: draft.product,
         variants: draft.variants,
+        qrCashAmountCents: draft.qrCashAmountCents,
       });
       const res = await client.updateDeliveryConfig(orgId, campaign.campaignId, body);
       if (!res || res.ok !== true) return reportFailure(res);
@@ -862,7 +871,7 @@ export default function CampaignCard({
                   announces, so nothing is communicated by colour alone. */}
               <BubbleGroup label="What goes with the greeting" role="radiogroup" testId={uid("gift")}>
                 {giftOptions.map((opt) => {
-                  const state = giftOptionState(opt.value);
+                  const state = giftOptionState(opt.value, { scheduleMode: draft.scheduleMode });
                   return (
                     <ChoiceBubble
                       key={opt.value} id={uid(`gift-${opt.value}`)} name={uid("gift-group")} value={opt.value}
@@ -875,6 +884,30 @@ export default function CampaignCard({
                   );
                 })}
               </BubbleGroup>
+              {/* RELEASE 2 - QR CASH AMOUNT. Rendered only while QR Cash is the chosen gift, which can only happen
+                  while the availability flag is true (the option is otherwise disabled). Whole dollars, $5 to
+                  $100; the same amount goes to everyone, once, on the campaign date. The standard QR Cash fee
+                  is added at funding time and is named, not hidden. */}
+              {draft.giftType === "qrcash" ? (
+                <div className="gcd-wcard-foot gcd-wcard-foot--stack" data-testid={`card-qrcash-${campaign.campaignId}`}>
+                  <label className="gcd-wcard-field" htmlFor={uid("qrcash-amount")}>
+                    Amount for each person <span className="gcd-wcard-note">(whole dollars, $5 to $100)</span>
+                  </label>
+                  <input id={uid("qrcash-amount")} type="text" inputMode="numeric" autoComplete="off" disabled={locked}
+                    value={draft.qrCashDollarsText ?? ""}
+                    aria-invalid={qrCashMissing ? "true" : "false"}
+                    data-testid={`card-qrcash-amount-${campaign.campaignId}`}
+                    onChange={(e) => edit({ qrCashDollarsText: e.target.value, qrCashAmountCents: qrCashDollarsToCents(e.target.value) })} />
+                  <span className="gcd-wcard-note" data-testid={`card-qrcash-note-${campaign.campaignId}`}>
+                    Sent once, on the campaign date. The standard QR Cash fee is added to your saved card when the campaign is funded.
+                  </span>
+                  {giftBlockedNote ? (
+                    <span className="gcd-wcard-note" role="status" data-testid={`card-qrcash-blocked-${campaign.campaignId}`}>
+                      {giftBlockedNote}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
               {draft.giftType === "curated" ? (
                 <div className="gcd-wcard-foot" data-testid={`card-curated-${campaign.campaignId}`}>
                   <label className="gcd-wcard-field" htmlFor={uid("tier")}>
