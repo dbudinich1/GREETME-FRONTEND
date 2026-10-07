@@ -21,6 +21,7 @@ import { shouldShowFirstTimeCTA, isSenderViewingOwnGreeting } from '../utils/acc
 // here — it already lives on the FinaleSpread back-of-card (see FinaleSpread.jsx) and Item A of
 // the growth-loops brief calls for avoiding duplicated CTAs across unrelated locations.
 import ShareTheLovePanel from '../components/ShareTheLovePanel';
+import ExpiredGreetingNotice from '../components/ExpiredGreetingNotice';
 
 export default function PublicGreetingCard() {
   const { jobId } = useParams();
@@ -32,6 +33,7 @@ export default function PublicGreetingCard() {
   const [greeting, setGreeting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expiredClaim, setExpiredClaim] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
@@ -123,6 +125,7 @@ export default function PublicGreetingCard() {
       const status = err?.status || err?.response?.status;
       if (status === 410) {
         setError('expired');
+        setExpiredClaim(err?.data?.claim || null);
       } else if (status === 404) {
         setError('not_found');
       } else {
@@ -195,13 +198,15 @@ export default function PublicGreetingCard() {
         }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💌</div>
           <h2 style={{ color: '#1B2A4A', margin: '0 0 0.75rem', fontSize: '1.5rem', fontWeight: 700 }}>
-            {error === 'expired' ? 'This greeting has expired' : 'This greeting is unavailable'}
+            {error === 'expired' ? 'This greeting is no longer available' : 'This greeting is unavailable'}
           </h2>
-          <p style={{ color: '#666', fontSize: '1rem', lineHeight: 1.6, margin: '0 0 1rem' }}>
-            {error === 'expired'
-              ? 'Greet-Me™ greetings are available for a limited time to keep your moments special. This greeting is no longer accessible.'
-              : 'The link may have expired or the greeting doesn\'t exist.'}
-          </p>
+          {error === 'expired' ? (
+            <ExpiredGreetingNotice claim={expiredClaim} />
+          ) : (
+            <p style={{ color: '#666', fontSize: '1rem', lineHeight: 1.6, margin: '0 0 1rem' }}>
+              The link may have expired or the greeting doesn't exist.
+            </p>
+          )}
           <p style={{ color: '#888', fontSize: '0.9rem', margin: '0 0 1.25rem' }}>
             Want to send your own heartfelt greeting?
           </p>
