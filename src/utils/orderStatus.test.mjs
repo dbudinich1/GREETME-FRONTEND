@@ -9,6 +9,7 @@ const S = (kind, label) => ({ kind, label });
 test("every documented kind keeps the authoritative backend label", () => {
   const labels = {
     processing: "Payment received - confirming your order",
+    on_hold: "Payment received — not yet sent for printing",
     submitted: "Flower order submitted",
     shipped: "On its way",
     awaiting_recipient: "Waiting for recipient to claim",
@@ -33,7 +34,7 @@ test("canceled/expired/awaiting_recipient with a 'delivery' label keep the label
 test("a label asserting past-tense delivery under another kind becomes that kind's own plain text, never 'Processing'", () => {
   const cases = {
     shipped: "Shipped", canceled: "Canceled", expired: "Expired", refunded: "Refunded", unknown: "Status unavailable", issue: "Needs attention", completed: "Completed",
-    awaiting_recipient: "Waiting for recipient", submitted: "Submitted", processing: "Processing",
+    awaiting_recipient: "Waiting for recipient", submitted: "Submitted", processing: "Processing", on_hold: "On hold",
   };
   for (const [kind, text] of Object.entries(cases)) {
     assert.equal(giftOrderStatusLabel(S(kind, "Delivered to doorstep")), text, kind);
@@ -69,6 +70,10 @@ test("badge styles: documented kinds are distinct from neutral where meaningful;
     assert.notDeepEqual(giftStatusBadgeStyle(k), neutral, k);
   }
   assert.notDeepEqual(giftStatusBadgeStyle("awaiting_recipient"), giftStatusBadgeStyle("processing"));
+  // Release 2: held (paid, not yet sent) never looks like an order in progress, nor like a problem.
+  assert.notDeepEqual(giftStatusBadgeStyle("on_hold"), neutral);
+  assert.notDeepEqual(giftStatusBadgeStyle("on_hold"), giftStatusBadgeStyle("processing"));
+  assert.notDeepEqual(giftStatusBadgeStyle("on_hold"), giftStatusBadgeStyle("issue"));
   assert.notDeepEqual(giftStatusBadgeStyle("submitted"), neutral);
 });
 
