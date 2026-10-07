@@ -203,11 +203,10 @@ export default function RecipientGreeting() {
         }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💌</div>
           <h2 style={{ color: '#1B2A4A', margin: '0 0 0.75rem', fontSize: '1.5rem', fontWeight: 700 }}>
-            This greeting has expired
+            This greeting is no longer available
           </h2>
           <p style={{ color: '#666', fontSize: '1rem', lineHeight: 1.6, margin: '0 0 1rem' }}>
-            Greet-Me™ greetings are available for a limited time to keep your moments special.
-            This greeting is no longer accessible.
+            This greeting was available for 30 days and is no longer available.
           </p>
           <p style={{ color: '#888', fontSize: '0.9rem', margin: '0 0 1.25rem' }}>
             Want to send your own heartfelt greeting?
