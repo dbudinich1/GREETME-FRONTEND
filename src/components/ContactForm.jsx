@@ -1335,10 +1335,13 @@ export default function ContactForm({ contact, onSubmit, onCancel, focusOccasion
                   try {
                     const result = await api.uploadContactMemoryPhoto(contactId, file);
                     if (result.ok && result.blobUrl) {
-                      // Store as object with url property (required by sanitizer)
+                      // Store as object with url property (required by sanitizer).
+                      // url = raw blobUrl (the stored value; the sanitizer drops sasUrl from the save payload).
+                      // sasUrl = signed link for display (getPhotoSrc prefers it), so the new thumbnail
+                      // still shows when the photos container is private.
                       setFormData(prev => ({
                         ...prev,
-                        memoryPhotos: [...prev.memoryPhotos, { url: result.blobUrl }]
+                        memoryPhotos: [...prev.memoryPhotos, { url: result.blobUrl, sasUrl: result.url }]
                       }));
                     } else {
                       showManualToast('Upload failed', 'Could not upload photo', COMMS_CATEGORIES.PROFILE);
