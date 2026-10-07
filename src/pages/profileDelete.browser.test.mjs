@@ -26,7 +26,9 @@ let React, createRoot, act, Profile, window, apiMod;
 
 before(async () => {
   writeFileSync(AUTH_STUB,
-    "export const useAuth = () => ({ user: { id: 'u1', email: 'u1@example.com' }, isAuthenticated: true });\n"
+    "export const __updates = [];\n"
+    + "const updateUser = (u) => { __updates.push(u); };\n"
+    + "export const useAuth = () => ({ user: { id: 'u1', email: 'u1@example.com' }, updateUser, isAuthenticated: true });\n"
     + "export default { useAuth };\n");
   writeFileSync(API_STUB,
     "export const __calls = [];\n"
@@ -40,7 +42,8 @@ before(async () => {
     + "export default api;\n");
   writeFileSync(ENTRY,
     'export { default as Profile } from "./Profile.jsx";\n'
-    + 'export { __calls, __r } from "../api/api";\n');
+    + 'export { __calls, __r } from "../api/api";\n'
+    + 'export { __updates } from "../context/AuthContext";\n');
 
   await esbuild.build({
     entryPoints: [ENTRY], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
@@ -85,6 +88,7 @@ after(() => { for (const f of TEMP) { try { rmSync(f, { force: true }); } catch 
 const PROFILE = { ok: true, profile: { voiceId: "v_abc", voiceUrl: "https://x/v.mp3", photoUrl: "https://x/p.jpg" } };
 beforeEach(() => {
   apiMod.__calls.length = 0;
+  apiMod.__updates.length = 0;
   apiMod.__r.profile = PROFILE;
   apiMod.__r.voice = null;
   apiMod.__r.photo = null;
@@ -186,6 +190,38 @@ test("photo: server ok -> photo removed with server-based message", async () => 
     assert.deepEqual(apiMod.__calls.filter((c) => c.startsWith("delete")), ["deleteProfilePhoto"]);
     assert.equal(m.host.querySelectorAll("img").length, 0);
     assert.match(text(m.host), /Your photo was deleted from your account\./);
+    assert.deepEqual(apiMod.__updates, [{ photoUrl: null }], "signed-in user's photo cleared too (not left stale)");
+  } finally { await m.unmount(); }
+});
+
+test("photo: failure never clears the signed-in user's photo; a voice delete never touches it", async () => {
+  for (const r of [{ ok: false, status: 404 }, { ok: false, status: 0, networkError: true }, Object.assign(new Error("In use."), { status: 409 })]) {
+    apiMod.__updates.length = 0;
+    apiMod.__r.photo = r;
+    const m = await mount();
+    try {
+      await click(deleteButtons(m.host).at(-1));
+      assert.deepEqual(apiMod.__updates, []);
+      assert.equal(m.host.querySelectorAll("img").length, 1);
+    } finally { await m.unmount(); }
+  }
+  apiMod.__r.voice = { ok: true, deleted: true, alreadyDeleted: false, asset: "voice", remoteVoiceDeleted: false, warnings: [] };
+  const m = await mount();
+  try {
+    await click(m.host.querySelector("table button.text-red-600") || deleteButtons(m.host)[0]);
+    assert.deepEqual(apiMod.__updates, []);
+  } finally { await m.unmount(); }
+});
+
+test("photo: a bare 'HTTP <status>' error shows the friendly fallback, not the placeholder", async () => {
+  apiMod.__r.photo = Object.assign(new Error("HTTP 400"), { status: 400 });
+  const m = await mount();
+  try {
+    await click(deleteButtons(m.host).at(-1));
+    const body = text(m.host);
+    assert.doesNotMatch(body, /HTTP 400/);
+    assert.match(body, /Something unexpected occurred/);
+    assert.equal(m.host.querySelectorAll("img").length, 1);
   } finally { await m.unmount(); }
 });
 
