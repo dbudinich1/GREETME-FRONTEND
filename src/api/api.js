@@ -471,6 +471,16 @@ class ApiService {
     });
   }
 
+  // Real server-side delete of the caller's own saved photo / voice (T3 profile-delete contract).
+  // No body; the target is always the authenticated caller.
+  deleteProfilePhoto() {
+    return this.request("/api/profile/photo", { method: "DELETE" });
+  }
+
+  deleteProfileVoice() {
+    return this.request("/api/profile/voice", { method: "DELETE" });
+  }
+
   // --------------------
   // Profile uploads (FormData)
   // IMPORTANT: do NOT set Content-Type for FormData
