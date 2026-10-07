@@ -22,6 +22,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import { useAuth } from '../context/AuthContext';
 import { getErrorMessage } from '../utils/errorMessages';
+import { describeProfileAssetInUse } from '../utils/profileDeleteBlockers';
 import { validateAudioFile } from '../utils/helpers';
 
 export default function Profile() {
@@ -199,7 +200,10 @@ export default function Profile() {
 
   // Real delete (T3 profile-delete contract): the server result decides what we show.
   // Nothing is removed from the page, and no success is announced, unless the server says ok.
-  const deleteErrorText = (error) => {
+  const deleteErrorText = (error, asset) => {
+    // Release 2b: a 409 PROFILE_ASSET_IN_USE now says what still needs the photo / voice.
+    const inUse = asset ? describeProfileAssetInUse(error, asset) : null;
+    if (inUse) return inUse;
     const specific = typeof error?.message === 'string' ? error.message.trim() : '';
     if (specific && !/^HTTP \d+$/.test(specific) && specific.length <= 300) return specific;
     return getErrorMessage(error);
@@ -233,7 +237,7 @@ export default function Profile() {
       showAlert(result.warnings?.length ? 'info' : 'success', deleteResultMessage(result, noun));
       return true;
     } catch (error) {
-      showAlert('error', deleteErrorText(error));
+      showAlert('error', deleteErrorText(error, noun === 'photo' ? 'photo' : 'voice'));
       return false;
     } finally {
       setDeleting(false);
