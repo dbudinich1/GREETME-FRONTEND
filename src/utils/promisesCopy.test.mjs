@@ -185,6 +185,21 @@ test("Legal 2026-10-06: retention, processors, QR Cash and G1G1 wording are trut
   }
 });
 
+test("Hero Hearts purchase terms 2026-10-08 (founder-approved): verbatim in Terms and the purchase modal", () => {
+  assert.ok(read("src/Legal.jsx").includes(
+    "Hero Hearts are non-refundable, have no cash value, and cannot be transferred or exchanged; Greet-Me may change Hearts costs and available rewards at any time."));
+  const modal = read("src/components/hub/HubHeroHeartsModal.jsx");
+  assert.ok(modal.includes("Hero Hearts are non-refundable, have no cash value, and can't be transferred. Costs and rewards may change."));
+  assert.ok(modal.includes("25% of proceeds from Hero Hearts™ support U.S. Veterans and their families."), "veterans line untouched");
+});
+
+test("Email-invite Hearts copy 2026-10-08: invite reward stated truthfully; social sharing still earns nothing", () => {
+  const panel = read("src/components/ShareTheLovePanel.jsx");
+  assert.ok(panel.includes("Invite friends by email to earn 50 Hearts per invite, up to 3 invites a week."));
+  assert.ok(panel.includes("Sharing on social media doesn’t earn Hearts."));
+  assert.deepEqual(everywhere("Sharing doesn’t earn Hearts yet"), []);
+});
+
 test("Impact plan (founder rule: no promise removed without approval): the original Flat-Fee Appreciation bullet is present in both Impact lists", () => {
   const plans = read("src/config/plans.js");
   const bullet = "'Flat-Fee Appreciation™ — $2.99 per Greet-Me sent'";

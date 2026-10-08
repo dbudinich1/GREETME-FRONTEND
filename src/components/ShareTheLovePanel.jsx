@@ -103,10 +103,14 @@ export default function ShareTheLovePanel({
       <div className="gm-stl-head">
         <h3 className="gm-stl-title">{heading}</h3>
       </div>
-      {/* W16 — honest award copy: share rewards are dormant, so never imply Hearts for sharing. */}
+      {/* W16 — honest award copy: the email invite (share_act) earns 50 Hearts, capped at 3 a week
+          server-side; social/platform-share rewards are dormant, so never imply Hearts for those. */}
       {!SHARE_HEARTS_REWARD_LIVE && (
         <p className="gm-stl-dormant" data-testid="share-reward-dormant" style={{ fontSize: "0.8125rem", margin: "0 0 0.75rem", opacity: 0.8 }}>
-          Sharing doesn’t earn Hearts yet. We’ll only show “Viewed” or “Referral earned” once Greet-Me has confirmed it.
+          {canInvite
+            ? "Invite friends by email to earn 50 Hearts per invite, up to 3 invites a week. Sharing on social media doesn’t earn Hearts."
+            : "Sharing on social media doesn’t earn Hearts."}{" "}
+          We’ll only show “Viewed” or “Referral earned” once Greet-Me has confirmed it.
         </p>
       )}
 

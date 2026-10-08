@@ -115,13 +115,21 @@ export const SOCIAL_CIRCUIT_ENABLED = false;
 // Flip true only after founder review AND the backend flag is on. Founder-controlled.
 export const POST_VERIFICATION_ENABLED = false;
 
-// W16 — share-based Hearts rewards are DORMANT: social attribution is disabled and no share award
-// (amount / event / window / duplicate rule) is proven end to end. Behaviors listed here render a
-// "Not live yet" label instead of a Hearts amount in Ways to Earn, and the Share the Love panel
-// says plainly that sharing does not earn Hearts yet. Flip SHARE_HEARTS_REWARD_LIVE to true ONLY
-// when share attribution is proven and the founder activates it; the label then disappears.
+// W16 — SOCIAL share-based Hearts rewards are DORMANT: social attribution is disabled and no
+// social-share award is proven end to end. Behaviors listed here render a "Not live yet" label
+// instead of a Hearts amount in Ways to Earn, and the Share the Love panel says plainly that
+// sharing on social media does not earn Hearts. Flip SHARE_HEARTS_REWARD_LIVE to true ONLY when
+// share attribution is proven and the founder activates it; the label then disappears.
+// share_act (the EMAIL invite — POST /api/events/share-invite) is LIVE (founder-approved
+// 2026-10-08): it shows its real server amount, capped server-side at 3 invites a week.
 export const SHARE_HEARTS_REWARD_LIVE = false;
-export const DORMANT_SHARE_EARN_BEHAVIORS = Object.freeze(['share_act', 'share_converted']);
+export const DORMANT_SHARE_EARN_BEHAVIORS = Object.freeze(['share_converted']);
+
+// Short limit note rendered next to a behavior's label in Ways to Earn (display copy only; the
+// cap itself is enforced server-side).
+export const BEHAVIOR_EARN_NOTES = Object.freeze({
+  share_act: 'up to 3 a week',
+});
 
 // Hero Hearts Bundles - price tiers with bonus hearts
 export const HERO_HEARTS_BUNDLES = [
@@ -193,7 +201,7 @@ export const BEHAVIOR_LABELS = Object.freeze({
   repeat_occasion: 'Celebrate a repeat occasion',
   additional_gift: 'Add an additional gift',
   upgrade: 'Upgrade Your Plan',
-  share_act: 'Share the Love',
+  share_act: 'Invite a friend by email',
   social_handle_connect: 'Social Media Connection',
   welcome_greeting: 'Welcome greeting',
 });

@@ -104,15 +104,17 @@ test("W17: balance card explains where the number comes from", async () => {
   assert.match(note.textContent, /Heart History/);
 });
 
-test("W16: share rewards say Not live yet and never show a Hearts amount; real earn rows keep theirs", async () => {
+test("W16 (2026-10-08): social share reward says Not live yet; email invite (share_act) shows its real amount + weekly cap", async () => {
   const host = await mount(React.createElement(C.HubWaysToEarn, { amounts: [
     { behavior: "first_independent_send", amount: 50 },
     { behavior: "share_act", amount: 25 },
     { behavior: "share_converted", amount: 100 },
   ] }));
-  assert.equal((host.textContent.match(/Not live yet/g) || []).length, 2);
+  assert.equal((host.textContent.match(/Not live yet/g) || []).length, 1);
   assert.ok(host.textContent.includes("50"));
-  assert.ok(!host.textContent.includes("25 ❤️") && !host.textContent.includes("100 ❤️"));
+  assert.ok(host.textContent.includes("25 ❤️"), "share_act shows its server amount");
+  assert.ok(!host.textContent.includes("100 ❤️"), "share_converted never shows an amount");
+  assert.ok(host.textContent.includes("Invite a friend by email · up to 3 a week"));
 });
 
 test("W17: an available reward this page cannot redeem reads 'Not redeemable yet', never AVAILABLE", async () => {
