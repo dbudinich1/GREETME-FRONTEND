@@ -76,7 +76,7 @@ const CATALOG = [{ category: "Greet-Me", rewards: [
   { id: "anytime_greetme", title: "Anytime Greet-Me", hearts: 500, available: true, unlock: null },
   { id: "anytime_5", title: "5 Anytime Credits", hearts: 2000, available: true, unlock: null },
   { id: "free_gift", title: "Free Gift Thing", hearts: 100, available: true, unlock: null }, // available, NOT allowlisted
-  { id: "holiday_bonus", title: "Holiday Bonus Send", hearts: 750, available: false, unlock: "Active subscription" },
+  { id: "premium_theme", title: "Premium Theme Unlock", hearts: 750, available: false, unlock: "Active subscription" },
 ] }];
 const props = (o = {}) => ({
   catalog: CATALOG, balance: 600, redemptionPaused: false,
@@ -143,10 +143,16 @@ test("W17: a redeemable reward is AVAILABLE only when affordable; unaffordable s
 
 test("W17: a locked reward keeps no button and shows its unlock reason", async () => {
   const host = await mount(React.createElement(C.HubRedeemMarketplace, props()));
-  const tile = card(host, "Holiday Bonus Send");
+  const tile = card(host, "Premium Theme Unlock");
   assert.equal(tile.querySelectorAll("button").length, 0);
   assert.match(tile.textContent, /Unlocks with Active subscription/);
   assert.match(tile.textContent, /Locked/);
+});
+
+test("Ways to Earn labels the welcome_greeting behavior 'Welcome greeting', never the raw key", async () => {
+  const host = await mount(React.createElement(C.HubWaysToEarn, { amounts: [{ behavior: "welcome_greeting", amount: 50 }] }));
+  assert.ok(host.textContent.includes("Welcome greeting"));
+  assert.ok(!host.textContent.includes("welcome_greeting") && !host.textContent.includes("Welcome Greeting"));
 });
 
 test("Hearts closeout: a clickable subscriber-only reward shows its requirement; provenance note is truthful", async () => {

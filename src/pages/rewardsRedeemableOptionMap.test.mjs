@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { CANONICAL_CATALOG } from "../components/hub/hubConfig.js";
+import { CANONICAL_CATALOG, BEHAVIOR_LABELS } from "../components/hub/hubConfig.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = readFileSync(join(HERE, "Rewards.jsx"), "utf8");
@@ -30,10 +30,10 @@ test("REDEEMABLE_OPTION_ID_BY_REWARD is exported, module-level, and frozen", () 
 
 const CONNECTED_IDS = [
   "anytime_greetme", "anytime_3", "anytime_5", "renewal_10", "renewal_15", "renewal_20",
-  "upgrade_discount", "qr_fee_waiver", "holiday_bonus",
+  "upgrade_discount", "qr_fee_waiver",
 ];
 
-test("exactly the nine connected reward ids map to the exact canonical optionId strings", () => {
+test("exactly the eight connected reward ids map to the exact canonical optionId strings", () => {
   const body = match[1];
   const pairs = Object.fromEntries(
     [...body.matchAll(/(\w+):\s*'([\w]+)'/g)].map((m) => [m[1], m[2]])
@@ -47,11 +47,10 @@ test("exactly the nine connected reward ids map to the exact canonical optionId 
     renewal_20: "renewal_20",
     upgrade_discount: "upgrade_discount",
     qr_fee_waiver: "qr_fee_waiver",
-    holiday_bonus: "holiday_bonus",
   });
 });
 
-test("every OTHER reward in the full 20-reward canonical catalog is absent from the map's source — including the four STOPPED at activation (Prestige/Champion dormant)", () => {
+test("every OTHER reward in the full 19-reward canonical catalog is absent from the map's source — including the four STOPPED at activation (Prestige/Champion dormant)", () => {
   const body = match[1];
   const allIds = CANONICAL_CATALOG.flatMap((cat) => cat.rewards.map((r) => r.id));
   const otherIds = allIds.filter((id) => !CONNECTED_IDS.includes(id));
@@ -64,6 +63,17 @@ test("every OTHER reward in the full 20-reward canonical catalog is absent from 
   for (const id of otherIds) {
     assert.doesNotMatch(body, new RegExp(`\\b${id}\\b`), `${id} must not appear in the redeemable map`);
   }
+});
+
+test("2026-10-08: holiday_bonus is NOT redeemable — absent from the redeem map and from the fallback catalog", () => {
+  assert.doesNotMatch(match[1], /holiday_bonus/, "holiday_bonus must not be in REDEEMABLE_OPTION_ID_BY_REWARD");
+  const allIds = CANONICAL_CATALOG.flatMap((cat) => cat.rewards.map((r) => r.id));
+  assert.ok(!allIds.includes("holiday_bonus"), "holiday_bonus must not be listed in the static CANONICAL_CATALOG");
+  assert.equal(allIds.length, 19);
+});
+
+test("2026-10-08: the welcome_greeting earn behavior has its display label (never a raw key)", () => {
+  assert.equal(BEHAVIOR_LABELS.welcome_greeting, "Welcome greeting");
 });
 
 test("openRedeemIntent refuses any reward id not in the map (defense in depth, source-verified)", () => {

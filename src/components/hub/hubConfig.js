@@ -32,7 +32,6 @@ export const CANONICAL_CATALOG = Object.freeze([
     { id: 'anytime_greetme', title: 'Anytime Greet-Me',            hearts: REDEEM_COST, available: true,  unlock: null },
     { id: 'anytime_3',       title: '3 Anytime Credits',           hearts: 1200,        available: false, unlock: null },
     { id: 'anytime_5',       title: '5 Anytime Credits',           hearts: 2000,        available: false, unlock: null },
-    { id: 'holiday_bonus',   title: 'Holiday Bonus Send',          hearts: 750,         available: false, unlock: null },
   ] },
   { category: 'Subscription', rewards: [
     { id: 'renewal_10',      title: '10% Renewal Discount',        hearts: 750,         available: false, unlock: 'Active subscription' },
@@ -196,6 +195,7 @@ export const BEHAVIOR_LABELS = Object.freeze({
   upgrade: 'Upgrade Your Plan',
   share_act: 'Share the Love',
   social_handle_connect: 'Social Media Connection',
+  welcome_greeting: 'Welcome greeting',
 });
 
 // Social Circuit fact key (GET /api/social/circuit) → human label. Boolean facts only —

@@ -59,7 +59,7 @@ const PINNED = [
   ["src/pages/Profile.jsx", "AI will use relationship context to personalize your messages."],
   ["src/components/hub/hubConfig.js", "A good fit for regular gifters"],
   ["src/components/hub/hubConfig.js", "Maximum impact - the most Hearts per dollar"],
-  ["src/pages/AnimationBank.jsx", "Redeem Hearts for Holiday Bonus Sends and Anytime Credits on the Rewards page."],
+  ["src/pages/AnimationBank.jsx", "Redeem Hearts for Anytime Credits on the Rewards page."],
   ["src/pages/Support.jsx", "To change or cancel your subscription, or for refund and billing questions, email"],
   ["src/pages/Support.jsx", "We reply as quickly as we can."],
   ["src/pages/Checkout.jsx", "Secure checkout"],
@@ -90,6 +90,7 @@ const GONE = [
   "curate one automatically",
   "each year.'", // plans.js "Includes 1 ... subscription each year."
   "Delivered automatically.</h1>",
+  "Holiday Bonus Send", // 2026-10-08: no longer a customer-redeemable Hearts reward
 ];
 for (const phrase of GONE) {
   if (phrase === "Gift will be sent automatically on the occasion date.\n") continue;

@@ -53,6 +53,9 @@ function makeRedemptionRequestId() {
 // and Prestige remains dormant (LAUNCH_CONTROL.prestigeEnabled:false), so isChampionEligible() can
 // never return true for any user. Adding a tile mapping for an unreachable reward would be a
 // "looks live, cannot be redeemed" state this project's Governing Law explicitly forbids.
+// 2026-10-08: holiday_bonus REMOVED — Holiday Bonus is no longer a customer-redeemable Hearts reward
+// (backend drops it from GET /api/hearts/catalog and rejects the option). Kept out of this map so a
+// stale catalog that still lists it can never make it clickable/redeemable.
 export const REDEEMABLE_OPTION_ID_BY_REWARD = Object.freeze({
   anytime_greetme: 'free_greeting',
   anytime_3: 'anytime_credits_3',
@@ -62,7 +65,6 @@ export const REDEEMABLE_OPTION_ID_BY_REWARD = Object.freeze({
   renewal_20: 'renewal_20',
   upgrade_discount: 'upgrade_discount',
   qr_fee_waiver: 'qr_fee_waiver',
-  holiday_bonus: 'holiday_bonus',
 });
 
 export default function Rewards() {
