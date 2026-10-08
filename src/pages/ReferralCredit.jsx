@@ -1,6 +1,11 @@
 // src/pages/ReferralCredit.jsx
 // Public landing page for referral credit redemption
 //
+// NAMING (2026-10-07, Release 2b): "referral credit" is the INTERNAL name of the $5 credit a QR Cash RECIPIENT
+// receives; it is not a reward for referring anyone. Customers see it as "Greet-Me Credit" (this page's error
+// text, the claim page, the credit emails, the send banner). Identifiers, routes, query params, storage keys and
+// error codes (referralCode, ?referral=, greetme_referral_code, REFERRAL_ALREADY_USED) keep their names on purpose.
+//
 // CREDIT AMOUNT: only the EFFECTIVE redeemable value the server reports (referralCreditCents) is ever shown;
 // there is no literal fallback. A response without a real positive whole-cent amount is treated as an
 // unavailable credit (the "no longer valid" screen), never as a guessed figure.
@@ -27,7 +32,7 @@ export default function ReferralCredit() {
 
   useEffect(() => {
     if (!referralCode) {
-      setError('Invalid referral link.');
+      setError('Invalid Greet-Me Credit link.');
       setLoading(false);
       return;
     }
@@ -42,14 +47,14 @@ export default function ReferralCredit() {
           setCreditCents(Math.min(res.referralCreditCents, 500));
           setCapped(res.referralCreditCapped === true);
         } else {
-          setError('This referral credit is no longer valid.');
+          setError('This Greet-Me Credit is no longer valid.');
         }
       })
       .catch((err) => {
         if (err?.code === 'REFERRAL_ALREADY_USED') {
-          setError('This referral credit has already been used.');
+          setError('This Greet-Me Credit has already been used.');
         } else {
-          setError('This referral credit is not valid.');
+          setError('This Greet-Me Credit is not valid.');
         }
       })
       .finally(() => setLoading(false));

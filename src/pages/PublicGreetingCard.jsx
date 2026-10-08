@@ -101,11 +101,15 @@ export default function PublicGreetingCard() {
           occasionKey: g.occasionKey || 'general',
           relationshipKey: g.relationshipKey || '',
           videoUrl: g.videoUrl || null,
+          // Release 2b: ready | preparing | unavailable | none, or null/absent (corporate, older backend).
+          videoStatus: g.videoStatus || null,
           photoUrl: g.photoUrl || null,
           photos: g.photos || [],
           status: g.status || 'done',
           hasGift: g.hasGift || false,
           gift: g.gift || null,
+          // RELEASE 2b: false only when the server knows the attached gift was withdrawn; else null (unchanged rendering).
+          giftAvailable: g.giftAvailable === false ? false : null,
           courtesyCreditCode: g.courtesyCreditCode || null,
           isOnboardingTestSend: g.isOnboardingTestSend === true,
           // Phase 3D Batch D D6 — opaque sender id (added in backend 5634cd4)
@@ -134,6 +138,15 @@ export default function PublicGreetingCard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Release 2b: "Try again" on a video that is still being prepared. Re-reads the greeting and replaces ONLY the
+  // video fields, so the card stays on the screen the recipient is on (a full loadGreeting would remount it).
+  const refreshVideo = async () => {
+    const response = await api.getPublicGreeting(jobId);
+    const g = response?.ok ? response.greeting : null;
+    if (!g) return;
+    setGreeting((cur) => (cur ? { ...cur, videoUrl: g.videoUrl || null, videoStatus: g.videoStatus || null } : cur));
   };
 
   // Loading state
@@ -335,6 +348,7 @@ export default function PublicGreetingCard() {
       <GreetingCardProto
         greeting={greeting}
         isOwner={isViewerTheSender}
+        onRetryVideo={refreshVideo}
       />
 
       {/* QR Cash™ claim lives inside the FinaleSpread (right page of the card) */}
@@ -421,11 +435,15 @@ export default function PublicGreetingCard() {
               maxHeight: '90dvh', overflowY: 'auto',
             }}
           >
+            {/* 2026-10-08 — email invite (Mode A) only for the greeting's own sender: the backend
+                share-invite returns 403 unless greeting.userId === caller, so recipients get the
+                broadcast share only and are never promised invite Hearts they cannot earn. */}
             <ShareTheLovePanel
-              jobId={accountState.isAuthenticated ? greeting.jobId : undefined}
+              jobId={isViewerTheSender ? greeting.jobId : undefined}
               shareUrl={`${window.location.origin}/#/g/${greeting.jobId}`}
               shareText={`${greeting.senderName} sent me a Greet-Me — come see what I mean.`}
-              defaultMode={accountState.isAuthenticated ? 'invite' : 'broadcast'}
+              defaultMode={isViewerTheSender ? 'invite' : 'broadcast'}
+              inviteRewardEligible={isViewerTheSender}
             />
             <button
               onClick={() => setShowShareModal(false)}

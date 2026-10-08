@@ -488,7 +488,7 @@ export default function Cart() {
                     fontSize: '0.5625rem',
                     fontWeight: 500,
                     color: '#9ca3af'
-                  }}>Not included with referral credit</span>
+                  }}>Not included with a Greet-Me Credit from a QR Cash gift</span>
                 </div>
               </div>
             )}
@@ -658,7 +658,7 @@ export default function Cart() {
                 Greet One, Give One&trade;
               </h3>
               <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: 0, lineHeight: 1.5 }}>
-                Greet One, Give One&trade; is awarded with individual memberships. It is not included when a referral credit is applied.
+                Greet One, Give One&trade; is awarded with individual memberships. It is not included when a Greet-Me Credit from a QR Cash gift is applied.
               </p>
             </div>
           )}

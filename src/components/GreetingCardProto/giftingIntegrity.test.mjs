@@ -51,7 +51,10 @@ test("the card has exactly two mutually exclusive gift branches", () => {
 });
 
 test("the gift branch is gated on a real claim URL, not on hasGift alone", () => {
-  assert.match(FINALE, /const giftQrAvailable = Boolean\(hasGift && gift\?\.claimUrl\);/);
+  // RELEASE 2b: still gated on a real claim URL, and additionally withdrawn ONLY when the server says
+  // giftAvailable === false (a stored fact withdrew the gift). Unknown keeps the gift branch.
+  assert.match(FINALE, /const giftWithdrawn = Boolean\(hasGift\) && giftAvailable === false;/);
+  assert.match(FINALE, /const giftQrAvailable = Boolean\(hasGift && gift\?\.claimUrl\) && !giftWithdrawn;/);
   // hasGift on its own must never decide what is rendered.
   assert.doesNotMatch(FINALE_CODE, /\{hasGift \?/);
   assert.doesNotMatch(FINALE_CODE, /\) : hasGift \?/);

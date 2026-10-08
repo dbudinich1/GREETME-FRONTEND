@@ -59,7 +59,7 @@ const PINNED = [
   ["src/pages/Profile.jsx", "AI will use relationship context to personalize your messages."],
   ["src/components/hub/hubConfig.js", "A good fit for regular gifters"],
   ["src/components/hub/hubConfig.js", "Maximum impact - the most Hearts per dollar"],
-  ["src/pages/AnimationBank.jsx", "Redeem Hearts for Holiday Bonus Sends and Anytime Credits on the Rewards page."],
+  ["src/pages/AnimationBank.jsx", "Redeem Hearts for Anytime Credits on the Rewards page."],
   ["src/pages/Support.jsx", "To change or cancel your subscription, or for refund and billing questions, email"],
   ["src/pages/Support.jsx", "We reply as quickly as we can."],
   ["src/pages/Checkout.jsx", "Secure checkout"],
@@ -90,6 +90,7 @@ const GONE = [
   "curate one automatically",
   "each year.'", // plans.js "Includes 1 ... subscription each year."
   "Delivered automatically.</h1>",
+  "Holiday Bonus Send", // 2026-10-08: no longer a customer-redeemable Hearts reward
 ];
 for (const phrase of GONE) {
   if (phrase === "Gift will be sent automatically on the occasion date.\n") continue;
@@ -155,11 +156,13 @@ test("C-060: photo upload limit text and pre-checks match the backend multer lim
   assert.ok(read("src/pages/Profile.jsx").includes("Image size must be less than 10MB"));
 });
 
-test("G1G1 exclusion copy 2026-10-06: only referral credit excludes the gift; old wording gone", () => {
+test("G1G1 exclusion copy 2026-10-06 (wording 2026-10-07): only the QR Cash Greet-Me Credit excludes the gift; old wording gone", () => {
   assert.ok(read("src/pages/G1G1Claim.jsx").includes("Greet One, Give One&trade; — included with individual subscriptions."));
   const cart = read("src/pages/Cart.jsx");
-  assert.ok(cart.includes("Greet One, Give One&trade; is awarded with individual memberships. It is not included when a referral credit is applied."));
-  assert.ok(cart.includes("Not included with referral credit"));
+  assert.ok(cart.includes("Greet One, Give One&trade; is awarded with individual memberships. It is not included when a Greet-Me Credit from a QR Cash gift is applied."));
+  assert.ok(cart.includes("Not included with a Greet-Me Credit from a QR Cash gift"));
+  assert.equal(cart.includes("referral credit is applied"), false);
+  assert.equal(cart.includes("Not included with referral credit"), false);
   assert.deepEqual(everywhere("included when you subscribe at full price").filter((p) => p !== "src/pages/G1G1Send.jsx"), []);
   assert.equal(read("src/pages/G1G1Claim.jsx").includes("included when you subscribe at full price"), false);
   assert.equal(cart.includes("is awarded with full memberships and is not included with discounted purchases"), false);
@@ -177,11 +180,29 @@ test("Legal 2026-10-06: retention, processors, QR Cash and G1G1 wording are trut
     "Goody, Florist One or Printful",
     "Unclaimed gifts expire 30 days after the gift is created.",
     "QR Cash payouts are reviewed and sent manually by our team, to the Venmo, PayPal or Zelle account the recipient provides.",
-    "G1G1 gifts are not available when a referral credit is applied.",
+    "G1G1 gifts are not available when a Greet-Me Credit received with a QR Cash gift is applied.",
   ]) assert.ok(legal.includes(t), `Legal.jsx missing: ${t}`);
-  for (const t of ["limited period afterward", "payout handling", "48 hours", "48-hour", "Unclaimed gifts expire after 30 days"]) {
+  for (const t of ["limited period afterward", "payout handling", "48 hours", "48-hour", "Unclaimed gifts expire after 30 days", "referral credit"]) {
     assert.equal(legal.includes(t), false, `Legal.jsx still has: ${t}`);
   }
+});
+
+test("Hero Hearts purchase terms 2026-10-08 (founder-approved): verbatim in Terms and the purchase modal", () => {
+  assert.ok(read("src/Legal.jsx").includes(
+    "Hero Hearts are non-refundable, have no cash value, and cannot be transferred or exchanged; Greet-Me may change Hearts costs and available rewards at any time."));
+  const modal = read("src/components/hub/HubHeroHeartsModal.jsx");
+  assert.ok(modal.includes("Hero Hearts are non-refundable, have no cash value, and can't be transferred. Costs and rewards may change."));
+  assert.ok(modal.includes("25% of proceeds from Hero Hearts™ support U.S. Veterans and their families."), "veterans line untouched");
+});
+
+test("Email-invite Hearts copy 2026-10-08: invite reward stated truthfully; social sharing still earns nothing", () => {
+  const panel = read("src/components/ShareTheLovePanel.jsx");
+  assert.ok(panel.includes("Invite friends by email to earn 50 Hearts per invite, up to 3 invites a week."));
+  assert.ok(panel.includes("Sharing on social media doesn’t earn Hearts."));
+  assert.deepEqual(everywhere("Sharing doesn’t earn Hearts yet"), []);
+  // The invite reward is promised ONLY for a viewer-owned greeting (share-invite 403s otherwise).
+  assert.ok(panel.includes("inviteRewardEligible = false,"));
+  assert.match(panel, /\{canInvite && inviteRewardEligible\s*\? "Invite friends by email/);
 });
 
 test("Impact plan (founder rule: no promise removed without approval): the original Flat-Fee Appreciation bullet is present in both Impact lists", () => {

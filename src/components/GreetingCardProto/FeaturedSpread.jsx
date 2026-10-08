@@ -10,7 +10,10 @@ import VideoPlayer from './VideoPlayer';
 import PhotoAlbum from './PhotoAlbum';
 import cardInteriorImg from '../../assets/card/card-interior.png';
 
-export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnded, onVideoEnd, posterUrl }) {
+export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnded, onVideoEnd, posterUrl, videoStatus = null, onRetryVideo = null }) {
+  // Release 2b: when the server says there is no playable video right now (preparing / unavailable), the album is
+  // not held behind a video that cannot play. Every other case (none, missing field) keeps today's behaviour.
+  const noPlayableVideo = !videoUrl && (videoStatus === 'preparing' || videoStatus === 'unavailable');
   const [showVideo, setShowVideo] = useState(false);
   const [showSwipeCue, setShowSwipeCue] = useState(false);
   const [albumUnlocking, setAlbumUnlocking] = useState(false);
@@ -64,7 +67,8 @@ export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnde
           onClick={(e) => e.stopPropagation()}
         >
           <div className={`gc-video-container ${showVideo ? 'gc-video-visible' : ''}`}>
-            <VideoPlayer videoUrl={videoUrl} onEnded={onVideoEnd} hasEnded={videoHasEnded} />
+            <VideoPlayer videoUrl={videoUrl} onEnded={onVideoEnd} hasEnded={videoHasEnded}
+              videoStatus={videoStatus} onRetry={onRetryVideo} />
             <p className="gc-video-caption">
               <em>From the heart, with love</em>
             </p>
@@ -77,7 +81,7 @@ export default function FeaturedSpread({ videoUrl, photos, onClick, videoHasEnde
           onClick={(e) => e.stopPropagation()}
         >
           <h3 className="gc-album-title">Cherished Moments</h3>
-          <PhotoAlbum photos={photos} disabled={!videoHasEnded} unlocking={albumUnlocking} />
+          <PhotoAlbum photos={photos} disabled={!videoHasEnded && !noPlayableVideo} unlocking={albumUnlocking} />
         </div>
 
         {showSwipeCue && (

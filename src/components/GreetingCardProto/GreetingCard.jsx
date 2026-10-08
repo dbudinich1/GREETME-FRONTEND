@@ -44,7 +44,7 @@ const TRANSITION_MS = 420;
 const ENVELOPE_EXIT_MS = 280;
 const REDUCED_MOTION_MS = 150;
 
-export default function GreetingCard({ greeting, isOwner }) {
+export default function GreetingCard({ greeting, isOwner, onRetryVideo = null }) {
   // Content-derived screen order. Personal greetings return the exact PERSONAL_SCREEN_ORDER
   // (unchanged behavior); a corporate greeting with no Featured Spread omits the FEATURED
   // screen so navigation, dots, swipe and keyboard recalculate automatically.
@@ -176,6 +176,8 @@ export default function GreetingCard({ greeting, isOwner }) {
             videoHasEnded={videoHasEnded}
             onVideoEnd={() => setVideoHasEnded(true)}
             posterUrl={greeting.photoUrl || null}
+            videoStatus={greeting.videoStatus || null}
+            onRetryVideo={onRetryVideo}
           />
         );
       case SCREENS.FINALE:
@@ -185,6 +187,7 @@ export default function GreetingCard({ greeting, isOwner }) {
             occasionKey={greeting.occasionKey}
             hasGift={greeting.isOnboardingTestSend ? false : greeting.hasGift}
             gift={greeting.isOnboardingTestSend ? null : greeting.gift}
+            giftAvailable={greeting.giftAvailable}
             jobId={greeting.jobId}
             courtesyCreditCode={greeting.courtesyCreditCode}
             isOwner={isOwner}
@@ -420,6 +423,8 @@ export default function GreetingCard({ greeting, isOwner }) {
                 videoHasEnded={videoHasEnded}
                 onVideoEnd={() => setVideoHasEnded(true)}
                 posterUrl={greeting.photoUrl || null}
+                videoStatus={greeting.videoStatus || null}
+                onRetryVideo={onRetryVideo}
               />
             )
           )}
@@ -430,6 +435,7 @@ export default function GreetingCard({ greeting, isOwner }) {
               occasionKey={greeting.occasionKey}
               hasGift={greeting.isOnboardingTestSend ? false : greeting.hasGift}
               gift={greeting.isOnboardingTestSend ? null : greeting.gift}
+              giftAvailable={greeting.giftAvailable}
               jobId={greeting.jobId}
               courtesyCreditCode={greeting.courtesyCreditCode}
               isOwner={isOwner}

@@ -221,7 +221,10 @@ export function salesAdminErrorMessage(res, { context = "load" } = {}) {
     case 409: {
       if (context === "payout") {
         const why = res.data && res.data.reason;
-        if (why === "REVERSED") return "Refunds or disputes have reversed this commission in full, so there is nothing to approve or pay.";
+        // The server (services/sales/commissionPayout.js) returns REVERSED both when refunds or disputes leave nothing
+        // to pay AND when the entry is no longer in a state that step accepts (e.g. approving a non-pending entry),
+        // so the sentence must be true in both cases.
+        if (why === "REVERSED") return "This commission can’t be approved or paid in its current state. Refresh the page to see its latest status.";
         if (why === "NOT_APPROVED") return "Approve this commission first, then record the payment.";
         if (why === "PAYMENT_ALREADY_RECORDED") return "A different payment is already recorded for this commission.";
         return "This commission changed while you were working. Reload the page and check it.";

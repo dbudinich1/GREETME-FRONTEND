@@ -69,15 +69,20 @@ test("W23: For Business no longer promises Hero Status/recognition, uses Branded
   assert.doesNotMatch(src, />\s*Merch/);
 });
 
-test("W16: share Hearts rewards are labeled dormant (Ways to Earn + Share panel)", () => {
+test("W16 (2026-10-08): social-share Hearts stay dormant; the email invite (share_act) is live and says so", () => {
   const cfg = read("components/hub/hubConfig.js");
   assert.match(cfg, /export const SHARE_HEARTS_REWARD_LIVE = false;/);
-  assert.match(cfg, /DORMANT_SHARE_EARN_BEHAVIORS = Object\.freeze\(\['share_act', 'share_converted'\]\)/);
+  assert.match(cfg, /DORMANT_SHARE_EARN_BEHAVIORS = Object\.freeze\(\['share_converted'\]\)/);
+  assert.match(cfg, /share_act: 'Invite a friend by email',/);
+  assert.match(cfg, /share_act: 'up to 3 a week',/);
   const earn = read("components/hub/HubWaysToEarn.jsx");
   assert.match(earn, /'Not live yet'/);
+  assert.match(earn, /BEHAVIOR_EARN_NOTES\[behavior\]/);
   const panel = read("components/ShareTheLovePanel.jsx");
   assert.match(panel, /data-testid="share-reward-dormant"/);
-  assert.match(panel, /Sharing doesn’t earn Hearts yet/);
+  assert.ok(panel.includes("Invite friends by email to earn 50 Hearts per invite, up to 3 invites a week. Sharing on social media doesn’t earn Hearts."));
+  assert.ok(panel.includes(": \"Sharing on social media doesn’t earn Hearts.\""));
+  assert.doesNotMatch(panel, /Sharing doesn’t earn Hearts yet/);
 });
 
 test("W17: Hub labels Buy consistently, shows balance provenance, and never badges a non-redeemable reward AVAILABLE", () => {
