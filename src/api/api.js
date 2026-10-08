@@ -204,6 +204,7 @@ class ApiService {
       error.status = 429;
       error.code = data?.code || 'RATE_LIMIT_GENERAL';
       error.retryAfter = Number(retryAfter);
+      error.data = data; // additive: parsed body (e.g. Hearts redeem `reason`)
       throw error;
     }
 
@@ -212,6 +213,7 @@ class ApiService {
       const error = new Error(data?.error || 'Access denied');
       error.status = 403;
       error.code = data?.code || 'FORBIDDEN';
+      error.data = data; // additive: parsed body (e.g. Hearts redeem `reason`)
       throw error;
     }
 

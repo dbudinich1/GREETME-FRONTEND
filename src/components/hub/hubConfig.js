@@ -89,7 +89,7 @@ export const JOURNEY_CHAPTERS = Object.freeze({
   rewards_marketplace: {
     label: 'Rewards Marketplace',
     blurb: 'Put your Hearts to work on meaningful, Greet-Me-native rewards.',
-    lockedBlurb: 'Opens when the Rewards Marketplace goes live.',
+    lockedBlurb: 'Opens when Maker Gifts go live. Launch rewards can already be redeemed.',
   },
   giving_back: {
     label: 'Giving Back',

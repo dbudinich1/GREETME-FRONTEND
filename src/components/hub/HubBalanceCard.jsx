@@ -50,7 +50,7 @@ export default function HubBalanceCard({ balance, setShowHeroHeartsModal, onView
         </div>
         {/* W17 — balance provenance: where this number comes from, and where to see each entry. */}
         <p data-testid="hub-balance-provenance" style={{ fontSize: '0.8125rem', lineHeight: 1.5, opacity: 0.9, margin: '-1rem 0 1.5rem', maxWidth: '28rem' }}>
-          This is your current balance from your Hearts ledger: Hearts you bought, were given, or earned, minus Hearts you’ve redeemed. Each entry is listed in Heart History.
+          This is your current balance from your Hearts ledger: Hearts you bought, were given, or earned, minus Hearts you’ve redeemed. Heart History lists the Hearts you’ve earned; purchases and redemptions aren’t shown there.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
           <button

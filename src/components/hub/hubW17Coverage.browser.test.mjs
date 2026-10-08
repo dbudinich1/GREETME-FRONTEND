@@ -148,3 +148,17 @@ test("W17: a locked reward keeps no button and shows its unlock reason", async (
   assert.match(tile.textContent, /Unlocks with Active subscription/);
   assert.match(tile.textContent, /Locked/);
 });
+
+test("Hearts closeout: a clickable subscriber-only reward shows its requirement; provenance note is truthful", async () => {
+  const catalog = [{ category: "Subscription", rewards: [
+    { id: "renewal_10", title: "10% Renewal Discount", hearts: 750, available: true, unlock: "Active subscription" },
+  ] }];
+  const host = await mount(React.createElement(C.HubRedeemMarketplace, props({ catalog, balance: 1000, redeemableRewardIds: { renewal_10: "renewal_10" } })));
+  const tile = card(host, "10% Renewal Discount");
+  assert.ok(tile.querySelectorAll("button").length > 0, "tile stays clickable");
+  assert.match(tile.querySelector('[data-testid="reward-requirement"]').textContent, /Requires: Active subscription/);
+  const bal = await mount(React.createElement(C.HubBalanceCard, { balance: 120, setShowHeroHeartsModal: () => {}, onViewHistory: () => {} }));
+  const note = bal.querySelector('[data-testid="hub-balance-provenance"]').textContent;
+  assert.ok(!note.includes("Each entry is listed"));
+  assert.match(note, /Heart History lists the Hearts you’ve earned/);
+});

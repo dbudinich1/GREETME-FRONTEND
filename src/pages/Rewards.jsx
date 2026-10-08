@@ -350,7 +350,7 @@ export default function Rewards() {
         // redeemTargetId names, so it must keep pointing at this reward until the next intent
         // opens (or cancel runs) rather than disappearing the instant the dialog closes.
         setRedeemRequestId(null);              // intent completed
-        try { pushInApp(COMMS_EVENTS?.REWARDS_REDEEMED, { cost: res.cost ?? REDEEM_COST }); } catch { /* non-fatal */ }
+        try { pushInApp(COMMS_EVENTS?.REWARDS_REDEEMED, { cost: res.cost ?? REDEEM_COST, rewardName: findRewardTitle(redeemTargetId) }); } catch { /* non-fatal */ }
       } else if (res && res.ok === false && res.networkError) {
         // keep the dialog + requestId so a retry reuses the same id
         setRedeemOutcome({ type: 'error', message: 'Network error — please try again.' });
@@ -361,6 +361,8 @@ export default function Rewards() {
       }
     } catch (err) {
       const status = err?.status;
+      // Backend body `reason` (services/heartsRedeemDispatch.js), carried on err.data by api.request.
+      const reason = err?.data?.reason;
       if (status === 503) {
         // paused — honest: redemption is not available yet (backend pauseHeartsRedemption=true)
         setRedemptionPaused(true);
@@ -369,10 +371,19 @@ export default function Rewards() {
         // on the reward tile it's actually about.
         setRedeemRequestId(null);
         setRedeemOutcome({ type: 'paused', message: 'Redemption is temporarily unavailable — please try again shortly.' });
-      } else if (status === 429) {
+      } else if (reason === 'velocity') {
         setRedeemOutcome({ type: 'velocity', message: 'You can redeem once per day. Please try again later.' });
-      } else if (status === 400) {
+      } else if (status === 429) {
+        // Transport rate limiter (too many attempts), not the daily redemption limit.
+        setRedeemOutcome({ type: 'rate_limited', message: 'Too many attempts. Please wait a few minutes and try again.' });
+      } else if (reason === 'insufficient') {
         setRedeemOutcome({ type: 'insufficient', message: 'You don’t have enough Hearts to redeem yet.' });
+      } else if (reason === 'ineligible') {
+        setRedeemOutcome({ type: 'ineligible', message: 'This reward needs an active subscription.' });
+      } else if (status === 403) {
+        setRedeemOutcome({ type: 'ineligible', message: 'This reward isn’t available to your account yet.' });
+      } else if (reason === 'discount_pending' || reason === 'reward_already_active') {
+        setRedeemOutcome({ type: 'already_active', message: 'You already have a discount waiting to be used.' });
       } else {
         setRedeemOutcome({ type: 'error', message: 'Could not complete redemption. Please try again.' });
       }
