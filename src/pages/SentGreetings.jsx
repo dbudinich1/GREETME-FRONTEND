@@ -14,6 +14,10 @@ export default function SentGreetings() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedGreeting, setSelectedGreeting] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  // Release 2b: an older greeting's stored D-ID link stops working ~24h after it was made (the backend now returns a
+  // signed private copy when one exists). Remember the link that failed to load so the modal shows a true line
+  // instead of an empty black player and a Download button that leads nowhere.
+  const [failedVideoUrl, setFailedVideoUrl] = useState(null);
 
   useEffect(() => {
     fetchSentGreetings();
@@ -296,21 +300,28 @@ export default function SentGreetings() {
               {selectedGreeting.videoUrl && (
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Video</label>
-                  <div className="relative rounded-xl overflow-hidden bg-black">
-                    <video
-                      src={selectedGreeting.videoUrl}
-                      controls
-                      className="w-full"
-                      poster={selectedGreeting.photoUrl}
-                    >
-                      Your browser does not support the video tag.
-                    </video>
-                  </div>
+                  {failedVideoUrl === selectedGreeting.videoUrl ? (
+                    <p data-testid="sent-video-unavailable" className="text-gray-700 bg-gray-50 rounded-xl p-4 border border-gray-200">
+                      This video could not be loaded. It may no longer be available.
+                    </p>
+                  ) : (
+                    <div className="relative rounded-xl overflow-hidden bg-black">
+                      <video
+                        src={selectedGreeting.videoUrl}
+                        controls
+                        className="w-full"
+                        poster={selectedGreeting.photoUrl}
+                        onError={() => setFailedVideoUrl(selectedGreeting.videoUrl)}
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Download Button (if video available) */}
-              {selectedGreeting.videoUrl && (
+              {selectedGreeting.videoUrl && failedVideoUrl !== selectedGreeting.videoUrl && (
                 <div className="flex justify-end space-x-3">
                   <a
                     href={selectedGreeting.videoUrl}
