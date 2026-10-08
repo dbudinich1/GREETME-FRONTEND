@@ -85,7 +85,7 @@ export default function AttachmentIndicator({
     icon = <Heart size={14} />;
     primary = `Including a QR Cash gift of ${formatDollarsFromCents(qrCashAmountCents)}`;
     if (qrCashIsReferral) {
-      secondary = 'Applied as a referral credit';
+      secondary = 'Applied as a Greet-Me Credit';
     }
   } else if (giftMode === 'curated') {
     state = 'curated';
