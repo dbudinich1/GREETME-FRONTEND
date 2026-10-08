@@ -185,6 +185,7 @@ export default function GreetingCard({ greeting, isOwner }) {
             occasionKey={greeting.occasionKey}
             hasGift={greeting.isOnboardingTestSend ? false : greeting.hasGift}
             gift={greeting.isOnboardingTestSend ? null : greeting.gift}
+            giftAvailable={greeting.giftAvailable}
             jobId={greeting.jobId}
             courtesyCreditCode={greeting.courtesyCreditCode}
             isOwner={isOwner}
@@ -430,6 +431,7 @@ export default function GreetingCard({ greeting, isOwner }) {
               occasionKey={greeting.occasionKey}
               hasGift={greeting.isOnboardingTestSend ? false : greeting.hasGift}
               gift={greeting.isOnboardingTestSend ? null : greeting.gift}
+              giftAvailable={greeting.giftAvailable}
               jobId={greeting.jobId}
               courtesyCreditCode={greeting.courtesyCreditCode}
               isOwner={isOwner}

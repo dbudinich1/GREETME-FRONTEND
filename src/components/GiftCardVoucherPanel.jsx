@@ -7,6 +7,7 @@
 //   being_prepared -> the server's statusMessage + "Check again". No redeem controls, no dead button.
 //   redeemable     -> PIN (masked until Reveal, with Copy) and/or an Open action for the voucher URL.
 //                     Either secret alone is valid; neither present is treated as still being prepared.
+//   unavailable    -> (Release 2b) the server's statusMessage only. No redeem controls, no "Check again".
 //
 // SECRET HYGIENE (load-bearing): the voucher URL and PIN live ONLY in props/component state. They are
 // never written to console, storage, analytics, the address bar, or an error message. The Open link
@@ -84,6 +85,18 @@ export default function GiftCardVoucherPanel({ gift, onRefresh }) {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setCopyState(null), 2500);
   };
+
+  // RELEASE 2b: the server withdrew this gift (status "unavailable"): its own message, and no
+  // "Check again" — nothing will change by checking, so the button would imply a wait that is untrue.
+  if (gift?.status === 'unavailable') {
+    return (
+      <div data-testid="giftcard-unavailable" style={{ margin: '0 0 1.5rem' }}>
+        <p style={{ fontSize: '0.95rem', color: '#6b7280', lineHeight: 1.6, margin: 0 }}>
+          {gift.statusMessage || 'This gift is no longer available.'}
+        </p>
+      </div>
+    );
+  }
 
   if (!ready) {
     return (

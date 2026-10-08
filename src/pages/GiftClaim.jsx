@@ -97,6 +97,8 @@ export default function GiftClaim() {
   // After loading gift, handle connect return/refresh
   useEffect(() => {
     if (!gift || loading) return;
+    // RELEASE 2b: a withdrawn gift has no payout to finish or resume.
+    if (gift.status === 'unavailable') return;
 
     if (isConnectReturn && gift.status !== 'fulfilled') {
       handleConnectComplete();
@@ -172,6 +174,9 @@ export default function GiftClaim() {
     } catch (err) {
       if (err?.code === 'GIFT_ALREADY_CLAIMED') {
         setClaimed(true);
+      } else if (err?.code === 'GIFT_UNAVAILABLE') {
+        // RELEASE 2b: the server withdrew this gift; show the truthful unavailable screen.
+        setGift((prev) => prev ? { ...prev, status: 'unavailable' } : prev);
       } else if (err?.code === 'GIFT_EXPIRED') {
         setGift((prev) => prev ? { ...prev, status: 'expired' } : prev);
       } else {
@@ -208,6 +213,11 @@ export default function GiftClaim() {
         setSubmitError('Something went wrong. Please try again.');
       }
     } catch (err) {
+      if (err?.code === 'GIFT_UNAVAILABLE') {
+        setConnectPending(false);
+        setGift((prev) => prev ? { ...prev, status: 'unavailable' } : prev);
+        return;
+      }
       setSubmitError(err?.message || 'Failed to complete payout. Please try again.');
     } finally {
       setSubmitting(false);
@@ -246,6 +256,9 @@ export default function GiftClaim() {
     } catch (err) {
       if (err?.code === 'GIFT_ALREADY_CLAIMED') {
         setClaimed(true);
+      } else if (err?.code === 'GIFT_UNAVAILABLE') {
+        // RELEASE 2b: the server withdrew this gift; show the truthful unavailable screen.
+        setGift((prev) => prev ? { ...prev, status: 'unavailable' } : prev);
       } else if (err?.code === 'GIFT_EXPIRED') {
         setGift((prev) => prev ? { ...prev, status: 'expired' } : prev);
       } else {
@@ -378,6 +391,32 @@ export default function GiftClaim() {
   // ---- Sender viewing own gift (Phase 3D Batch D D6 frontend) ----
   // Intercepts BEFORE fulfilled/claimed/expired/connect_pending/form branches
   // so senders never see recipient-facing claim UX for their own gift.
+  // (RELEASE 2b) An unavailable QR Cash gift is resolved FIRST, before the sender branch below.
+  // The server reports "unavailable" only for a QR Cash gift that was withdrawn before it was paid
+  // out. Checked BEFORE the sender view and every claim/payout screen, so nobody is shown a claim
+  // form, an amount to claim, "submitted", or "they'll claim it" for it. It never says why: no
+  // refund and no sender payment detail is named.
+  if (gift && gift.status === 'unavailable') {
+    return (
+      <div className="gm-min-h-screen" style={styles.page}>
+        <div style={styles.card}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎁</div>
+          <h1 style={styles.title}>This gift is no longer available</h1>
+          <p data-testid="gift-unavailable" style={styles.subtitle}>
+            Please contact support if you need help.
+          </p>
+          {gift.sourceGreetingJobId && (
+            <a href={`/#/g/${gift.sourceGreetingJobId}`} style={styles.secondaryLink}>
+              See your Greet-Me
+            </a>
+          )}
+          <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+          {trustLinks}
+        </div>
+      </div>
+    );
+  }
+
   if (gift && isSenderViewingOwnGift({ gift, userId: accountState.userId })) {
     return (
       <div className="gm-min-h-screen" style={styles.page}>
