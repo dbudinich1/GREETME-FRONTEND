@@ -76,7 +76,7 @@ const CATALOG = [{ category: "Greet-Me", rewards: [
   { id: "anytime_greetme", title: "Anytime Greet-Me", hearts: 500, available: true, unlock: null },
   { id: "anytime_5", title: "5 Anytime Credits", hearts: 2000, available: true, unlock: null },
   { id: "free_gift", title: "Free Gift Thing", hearts: 100, available: true, unlock: null }, // available, NOT allowlisted
-  { id: "holiday_bonus", title: "Holiday Bonus Send", hearts: 750, available: false, unlock: "Active subscription" },
+  { id: "premium_theme", title: "Premium Theme Unlock", hearts: 750, available: false, unlock: "Active subscription" },
 ] }];
 const props = (o = {}) => ({
   catalog: CATALOG, balance: 600, redemptionPaused: false,
@@ -104,15 +104,17 @@ test("W17: balance card explains where the number comes from", async () => {
   assert.match(note.textContent, /Heart History/);
 });
 
-test("W16: share rewards say Not live yet and never show a Hearts amount; real earn rows keep theirs", async () => {
+test("W16 (2026-10-08): social share reward says Not live yet; email invite (share_act) shows its real amount + weekly cap", async () => {
   const host = await mount(React.createElement(C.HubWaysToEarn, { amounts: [
     { behavior: "first_independent_send", amount: 50 },
     { behavior: "share_act", amount: 25 },
     { behavior: "share_converted", amount: 100 },
   ] }));
-  assert.equal((host.textContent.match(/Not live yet/g) || []).length, 2);
+  assert.equal((host.textContent.match(/Not live yet/g) || []).length, 1);
   assert.ok(host.textContent.includes("50"));
-  assert.ok(!host.textContent.includes("25 ❤️") && !host.textContent.includes("100 ❤️"));
+  assert.ok(host.textContent.includes("25 ❤️"), "share_act shows its server amount");
+  assert.ok(!host.textContent.includes("100 ❤️"), "share_converted never shows an amount");
+  assert.ok(host.textContent.includes("Invite a friend by email · up to 3 a week"));
 });
 
 test("W17: an available reward this page cannot redeem reads 'Not redeemable yet', never AVAILABLE", async () => {
@@ -143,8 +145,28 @@ test("W17: a redeemable reward is AVAILABLE only when affordable; unaffordable s
 
 test("W17: a locked reward keeps no button and shows its unlock reason", async () => {
   const host = await mount(React.createElement(C.HubRedeemMarketplace, props()));
-  const tile = card(host, "Holiday Bonus Send");
+  const tile = card(host, "Premium Theme Unlock");
   assert.equal(tile.querySelectorAll("button").length, 0);
   assert.match(tile.textContent, /Unlocks with Active subscription/);
   assert.match(tile.textContent, /Locked/);
+});
+
+test("Ways to Earn labels the welcome_greeting behavior 'Welcome greeting', never the raw key", async () => {
+  const host = await mount(React.createElement(C.HubWaysToEarn, { amounts: [{ behavior: "welcome_greeting", amount: 50 }] }));
+  assert.ok(host.textContent.includes("Welcome greeting"));
+  assert.ok(!host.textContent.includes("welcome_greeting") && !host.textContent.includes("Welcome Greeting"));
+});
+
+test("Hearts closeout: a clickable subscriber-only reward shows its requirement; provenance note is truthful", async () => {
+  const catalog = [{ category: "Subscription", rewards: [
+    { id: "renewal_10", title: "10% Renewal Discount", hearts: 750, available: true, unlock: "Active subscription" },
+  ] }];
+  const host = await mount(React.createElement(C.HubRedeemMarketplace, props({ catalog, balance: 1000, redeemableRewardIds: { renewal_10: "renewal_10" } })));
+  const tile = card(host, "10% Renewal Discount");
+  assert.ok(tile.querySelectorAll("button").length > 0, "tile stays clickable");
+  assert.match(tile.querySelector('[data-testid="reward-requirement"]').textContent, /Requires: Active subscription/);
+  const bal = await mount(React.createElement(C.HubBalanceCard, { balance: 120, setShowHeroHeartsModal: () => {}, onViewHistory: () => {} }));
+  const note = bal.querySelector('[data-testid="hub-balance-provenance"]').textContent;
+  assert.ok(!note.includes("Each entry is listed"));
+  assert.match(note, /Heart History lists the Hearts you’ve earned/);
 });

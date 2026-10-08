@@ -53,6 +53,9 @@ function makeRedemptionRequestId() {
 // and Prestige remains dormant (LAUNCH_CONTROL.prestigeEnabled:false), so isChampionEligible() can
 // never return true for any user. Adding a tile mapping for an unreachable reward would be a
 // "looks live, cannot be redeemed" state this project's Governing Law explicitly forbids.
+// 2026-10-08: holiday_bonus REMOVED — Holiday Bonus is no longer a customer-redeemable Hearts reward
+// (backend drops it from GET /api/hearts/catalog and rejects the option). Kept out of this map so a
+// stale catalog that still lists it can never make it clickable/redeemable.
 export const REDEEMABLE_OPTION_ID_BY_REWARD = Object.freeze({
   anytime_greetme: 'free_greeting',
   anytime_3: 'anytime_credits_3',
@@ -62,7 +65,6 @@ export const REDEEMABLE_OPTION_ID_BY_REWARD = Object.freeze({
   renewal_20: 'renewal_20',
   upgrade_discount: 'upgrade_discount',
   qr_fee_waiver: 'qr_fee_waiver',
-  holiday_bonus: 'holiday_bonus',
 });
 
 export default function Rewards() {
@@ -350,7 +352,7 @@ export default function Rewards() {
         // redeemTargetId names, so it must keep pointing at this reward until the next intent
         // opens (or cancel runs) rather than disappearing the instant the dialog closes.
         setRedeemRequestId(null);              // intent completed
-        try { pushInApp(COMMS_EVENTS?.REWARDS_REDEEMED, { cost: res.cost ?? REDEEM_COST }); } catch { /* non-fatal */ }
+        try { pushInApp(COMMS_EVENTS?.REWARDS_REDEEMED, { cost: res.cost ?? REDEEM_COST, rewardName: findRewardTitle(redeemTargetId) }); } catch { /* non-fatal */ }
       } else if (res && res.ok === false && res.networkError) {
         // keep the dialog + requestId so a retry reuses the same id
         setRedeemOutcome({ type: 'error', message: 'Network error — please try again.' });
@@ -361,6 +363,8 @@ export default function Rewards() {
       }
     } catch (err) {
       const status = err?.status;
+      // Backend body `reason` (services/heartsRedeemDispatch.js), carried on err.data by api.request.
+      const reason = err?.data?.reason;
       if (status === 503) {
         // paused — honest: redemption is not available yet (backend pauseHeartsRedemption=true)
         setRedemptionPaused(true);
@@ -369,10 +373,23 @@ export default function Rewards() {
         // on the reward tile it's actually about.
         setRedeemRequestId(null);
         setRedeemOutcome({ type: 'paused', message: 'Redemption is temporarily unavailable — please try again shortly.' });
-      } else if (status === 429) {
+      } else if (reason === 'velocity') {
         setRedeemOutcome({ type: 'velocity', message: 'You can redeem once per day. Please try again later.' });
-      } else if (status === 400) {
+      } else if (status === 429) {
+        // Transport rate limiter (too many attempts), not the daily redemption limit.
+        setRedeemOutcome({ type: 'rate_limited', message: 'Too many attempts. Please wait a few minutes and try again.' });
+      } else if (reason === 'insufficient') {
         setRedeemOutcome({ type: 'insufficient', message: 'You don’t have enough Hearts to redeem yet.' });
+      } else if (reason === 'ineligible') {
+        setRedeemOutcome({ type: 'ineligible', message: 'This reward needs an active subscription.' });
+      } else if (status === 403) {
+        setRedeemOutcome({ type: 'ineligible', message: 'This reward isn’t available to your account yet.' });
+      } else if (reason === 'discount_pending' || reason === 'reward_already_active') {
+        setRedeemOutcome({ type: 'already_active', message: 'You already have a discount waiting to be used.' });
+      } else if (reason === 'in_progress') {
+        // An earlier redemption is still being settled server-side (no Hearts were taken by this
+        // request). A later retry of the same reward completes or refunds that earlier one.
+        setRedeemOutcome({ type: 'in_progress', message: 'Your last redemption is still being processed. Please try again in a little while.' });
       } else {
         setRedeemOutcome({ type: 'error', message: 'Could not complete redemption. Please try again.' });
       }

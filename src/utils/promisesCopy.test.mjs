@@ -59,7 +59,7 @@ const PINNED = [
   ["src/pages/Profile.jsx", "AI will use relationship context to personalize your messages."],
   ["src/components/hub/hubConfig.js", "A good fit for regular gifters"],
   ["src/components/hub/hubConfig.js", "Maximum impact - the most Hearts per dollar"],
-  ["src/pages/AnimationBank.jsx", "Redeem Hearts for Holiday Bonus Sends and Anytime Credits on the Rewards page."],
+  ["src/pages/AnimationBank.jsx", "Redeem Hearts for Anytime Credits on the Rewards page."],
   ["src/pages/Support.jsx", "To change or cancel your subscription, or for refund and billing questions, email"],
   ["src/pages/Support.jsx", "We reply as quickly as we can."],
   ["src/pages/Checkout.jsx", "Secure checkout"],
@@ -90,6 +90,7 @@ const GONE = [
   "curate one automatically",
   "each year.'", // plans.js "Includes 1 ... subscription each year."
   "Delivered automatically.</h1>",
+  "Holiday Bonus Send", // 2026-10-08: no longer a customer-redeemable Hearts reward
 ];
 for (const phrase of GONE) {
   if (phrase === "Gift will be sent automatically on the occasion date.\n") continue;
@@ -184,6 +185,24 @@ test("Legal 2026-10-06: retention, processors, QR Cash and G1G1 wording are trut
   for (const t of ["limited period afterward", "payout handling", "48 hours", "48-hour", "Unclaimed gifts expire after 30 days", "referral credit"]) {
     assert.equal(legal.includes(t), false, `Legal.jsx still has: ${t}`);
   }
+});
+
+test("Hero Hearts purchase terms 2026-10-08 (founder-approved): verbatim in Terms and the purchase modal", () => {
+  assert.ok(read("src/Legal.jsx").includes(
+    "Hero Hearts are non-refundable, have no cash value, and cannot be transferred or exchanged; Greet-Me may change Hearts costs and available rewards at any time."));
+  const modal = read("src/components/hub/HubHeroHeartsModal.jsx");
+  assert.ok(modal.includes("Hero Hearts are non-refundable, have no cash value, and can't be transferred. Costs and rewards may change."));
+  assert.ok(modal.includes("25% of proceeds from Hero Hearts™ support U.S. Veterans and their families."), "veterans line untouched");
+});
+
+test("Email-invite Hearts copy 2026-10-08: invite reward stated truthfully; social sharing still earns nothing", () => {
+  const panel = read("src/components/ShareTheLovePanel.jsx");
+  assert.ok(panel.includes("Invite friends by email to earn 50 Hearts per invite, up to 3 invites a week."));
+  assert.ok(panel.includes("Sharing on social media doesn’t earn Hearts."));
+  assert.deepEqual(everywhere("Sharing doesn’t earn Hearts yet"), []);
+  // The invite reward is promised ONLY for a viewer-owned greeting (share-invite 403s otherwise).
+  assert.ok(panel.includes("inviteRewardEligible = false,"));
+  assert.match(panel, /\{canInvite && inviteRewardEligible\s*\? "Invite friends by email/);
 });
 
 test("Impact plan (founder rule: no promise removed without approval): the original Flat-Fee Appreciation bullet is present in both Impact lists", () => {

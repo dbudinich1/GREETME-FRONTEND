@@ -81,7 +81,7 @@ const CATALOG = [
     { id: "anytime_greetme", title: "Anytime Greet-Me", hearts: 500, available: true, unlock: null },
     { id: "anytime_3", title: "3 Anytime Credits", hearts: 1200, available: true, unlock: null },
     { id: "anytime_5", title: "5 Anytime Credits", hearts: 2000, available: true, unlock: null },
-    { id: "holiday_bonus", title: "Holiday Bonus Send", hearts: 750, available: false, unlock: null },
+    { id: "premium_theme", title: "Premium Theme Unlock", hearts: 750, available: false, unlock: null },
   ] },
   { category: "Subscription", rewards: [
     // Allowlisted (connected) but NOT server-available — matches production reality today
@@ -194,17 +194,35 @@ test("an open intent for anytime_3 does NOT show a confirm dialog on the anytime
 
 // ── Non-actionable: every other reward stays locked, with NO click affordance at all ───────
 
-test("a LOCKED, non-allowlisted reward (Holiday Bonus Send) renders with NO button whatsoever", async () => {
+test("a LOCKED, non-allowlisted reward (Premium Theme Unlock) renders with NO button whatsoever", async () => {
   const props = baseProps();
   const r = await renderWith(props);
   // The title renders as its own leaf div (RewardTile); its immediate parent is that one
   // reward's card — not an ancestor grid/section containing every other card too.
   const titleEl = [...r.host.querySelectorAll("div")].find(
-    (d) => d.children.length === 0 && d.textContent.trim() === "Holiday Bonus Send"
+    (d) => d.children.length === 0 && d.textContent.trim() === "Premium Theme Unlock"
   );
   assert.ok(titleEl, "the reward must still render (never hidden)");
   const card = titleEl.parentElement;
   assert.equal(card.querySelectorAll("button").length, 0, "no button anywhere in this reward's own card");
+});
+
+test("2026-10-08: a STALE catalog still listing Holiday Bonus Send as available never makes it redeemable", async () => {
+  const stale = [{ category: "Greet-Me", rewards: [
+    { id: "holiday_bonus", title: "Holiday Bonus Send", hearts: 750, available: true, unlock: null },
+  ] }];
+  assert.ok(!("holiday_bonus" in REDEEMABLE_IDS), "fixture mirrors Rewards.jsx: holiday_bonus is not allowlisted");
+  const props = baseProps({ catalog: stale });
+  const r = await renderWith(props);
+  const titleEl = [...r.host.querySelectorAll("div")].find(
+    (d) => d.children.length === 0 && d.textContent.trim() === "Holiday Bonus Send"
+  );
+  const card = titleEl.parentElement;
+  assert.ok(![...card.querySelectorAll("button")].some((b) => /Redeem/.test(b.textContent)), "no Redeem button");
+  assert.ok(!/Available/i.test(card.textContent.replace(/Not redeemable yet/, "")), "never badged AVAILABLE");
+  for (const b of card.querySelectorAll("button")) await act(async () => { b.click(); });
+  assert.deepEqual(openCalls, [], "openRedeemIntent never called for holiday_bonus");
+  await r.unmount();
 });
 
 test("a LOCKED reward's card shows its unlock reason and exact price, never a redeem affordance", async () => {

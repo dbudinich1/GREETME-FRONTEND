@@ -374,6 +374,15 @@ export default function HubHeroHeartsModal({
             }}>
               Hearts are added to your Rewards balance immediately after purchase. 25% of proceeds from Hero Hearts™ support U.S. Veterans and their families.
             </p>
+            <p data-testid="hero-hearts-purchase-terms" style={{
+              fontSize: '0.75rem',
+              color: 'var(--text-secondary)',
+              textAlign: 'center',
+              marginTop: '0.5rem',
+              fontStyle: 'italic'
+            }}>
+              Hero Hearts are non-refundable, have no cash value, and can't be transferred. Costs and rewards may change.
+            </p>
           </>
         )}
 

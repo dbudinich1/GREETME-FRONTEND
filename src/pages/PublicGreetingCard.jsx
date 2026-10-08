@@ -435,11 +435,15 @@ export default function PublicGreetingCard() {
               maxHeight: '90dvh', overflowY: 'auto',
             }}
           >
+            {/* 2026-10-08 — email invite (Mode A) only for the greeting's own sender: the backend
+                share-invite returns 403 unless greeting.userId === caller, so recipients get the
+                broadcast share only and are never promised invite Hearts they cannot earn. */}
             <ShareTheLovePanel
-              jobId={accountState.isAuthenticated ? greeting.jobId : undefined}
+              jobId={isViewerTheSender ? greeting.jobId : undefined}
               shareUrl={`${window.location.origin}/#/g/${greeting.jobId}`}
               shareText={`${greeting.senderName} sent me a Greet-Me — come see what I mean.`}
-              defaultMode={accountState.isAuthenticated ? 'invite' : 'broadcast'}
+              defaultMode={isViewerTheSender ? 'invite' : 'broadcast'}
+              inviteRewardEligible={isViewerTheSender}
             />
             <button
               onClick={() => setShowShareModal(false)}

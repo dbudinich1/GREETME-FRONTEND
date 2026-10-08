@@ -262,6 +262,11 @@ export default function HubRedeemMarketplace({
         <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.25rem', lineHeight: 1.5, flex: 1 }}>
           Redeem {reward.hearts.toLocaleString()} Hearts for {reward.title}
         </div>
+        {reward.unlock ? (
+          <div data-testid="reward-requirement" style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.25rem', lineHeight: 1.5 }}>
+            Requires: {reward.unlock}
+          </div>
+        ) : null}
         <div style={{ marginTop: '0.625rem' }}>
           <CostPill hearts={reward.hearts} />
         </div>

@@ -78,6 +78,7 @@ export default function Legal() {
 
       <h3 style={S.h3}>Payments, Subscriptions &amp; Credits</h3>
       <p style={S.p}>Paid subscriptions are billed through Stripe. Subscription terms, pricing, and renewal periods are displayed at checkout. Credits ($5 courtesy credits, $5 Greet-Me Credits received with a QR Cash gift) are promotional, non-transferable, and may expire. Credits have no cash value and cannot be redeemed for cash. Refund requests should be directed to support@greet-me.com.</p>
+      <p style={S.p}>Hero Hearts are non-refundable, have no cash value, and cannot be transferred or exchanged; Greet-Me may change Hearts costs and available rewards at any time.</p>
 
       <h3 style={S.h3}>QR Cash&trade; Gifts</h3>
       <p style={S.p}>QR Cash is a digital gifting feature that allows senders to include a monetary gift with a greeting. QR Cash is a gift from sender to recipient, facilitated by Greet-Me using Stripe for payment processing. Greet-Me is not a bank, money transmitter, or stored-value provider. A service fee applies to each gift. Unclaimed gifts expire 30 days after the gift is created. QR Cash payouts are reviewed and sent manually by our team, to the Venmo, PayPal or Zelle account the recipient provides. Greet-Me is not responsible for incorrect payout details provided by recipients.</p>
