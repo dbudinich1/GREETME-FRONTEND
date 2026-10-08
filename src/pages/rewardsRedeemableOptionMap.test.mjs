@@ -95,3 +95,10 @@ test("the success message branches on the REAL server grant shape (Anytime count
   assert.match(SRC, /res\.granted\?\.couponId/, "checks for a subscription-discount grant explicitly");
   assert.match(SRC, /findRewardTitle\(redeemTargetId\)/, "the discount branch names the actual reward, not a generic string");
 });
+
+test("backend reason in_progress (an earlier redemption still settling) shows a clear retry-later message, and the request id behavior is unchanged", () => {
+  assert.match(SRC, /reason === 'in_progress'/, "in_progress is mapped explicitly, not left to the generic error");
+  assert.match(SRC, /Your last redemption is still being processed\. Please try again in a little while\./);
+  // The request id is still only cleared on success/paused/cancel (reused across retries while open).
+  assert.match(SRC, /setRedeemRequestId\(\(prev\) => prev \|\| makeRedemptionRequestId\(\)\)/);
+});

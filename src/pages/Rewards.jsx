@@ -386,6 +386,10 @@ export default function Rewards() {
         setRedeemOutcome({ type: 'ineligible', message: 'This reward isn’t available to your account yet.' });
       } else if (reason === 'discount_pending' || reason === 'reward_already_active') {
         setRedeemOutcome({ type: 'already_active', message: 'You already have a discount waiting to be used.' });
+      } else if (reason === 'in_progress') {
+        // An earlier redemption is still being settled server-side (no Hearts were taken by this
+        // request). A later retry of the same reward completes or refunds that earlier one.
+        setRedeemOutcome({ type: 'in_progress', message: 'Your last redemption is still being processed. Please try again in a little while.' });
       } else {
         setRedeemOutcome({ type: 'error', message: 'Could not complete redemption. Please try again.' });
       }
