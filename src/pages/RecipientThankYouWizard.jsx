@@ -405,6 +405,7 @@ export default function RecipientThankYouWizard() {
                 shareUrl={sentJobId ? `${window.location.origin}/#/g/${sentJobId}` : window.location.origin}
                 shareText="I just sent a Greet-Me — come see what I mean."
                 defaultMode="broadcast"
+                inviteRewardEligible={!!sentJobId}
               />
             </div>
             <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>

@@ -198,6 +198,9 @@ test("Email-invite Hearts copy 2026-10-08: invite reward stated truthfully; soci
   assert.ok(panel.includes("Invite friends by email to earn 50 Hearts per invite, up to 3 invites a week."));
   assert.ok(panel.includes("Sharing on social media doesn’t earn Hearts."));
   assert.deepEqual(everywhere("Sharing doesn’t earn Hearts yet"), []);
+  // The invite reward is promised ONLY for a viewer-owned greeting (share-invite 403s otherwise).
+  assert.ok(panel.includes("inviteRewardEligible = false,"));
+  assert.match(panel, /\{canInvite && inviteRewardEligible\s*\? "Invite friends by email/);
 });
 
 test("Impact plan (founder rule: no promise removed without approval): the original Flat-Fee Appreciation bullet is present in both Impact lists", () => {
