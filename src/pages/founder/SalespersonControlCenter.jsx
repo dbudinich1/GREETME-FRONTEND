@@ -248,6 +248,12 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
     });
   }
 
+  /** A payout step re-read the ledger just before writing: show those SERVER rows everywhere on the page. */
+  function adoptLedger(entries) {
+    if (!Array.isArray(entries)) return;
+    setReport((r) => (r ? { ...r, entries, ledgerError: null } : r));
+  }
+
   /** Pending attribution for ONE deliberately entered user id. Never enumerated. */
   async function lookupPending() {
     const id = pendingId.trim();
@@ -922,7 +928,7 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                       ) : null}
                       {detail ? (
                         <CommissionPayoutControls api={api} salespersonId={detail.salespersonId} entry={e}
-                          ledgerEntries={all} onDone={adoptPayout} />
+                          ledgerEntries={all} onDone={adoptPayout} onLedger={adoptLedger} />
                       ) : null}
                     </li>
                   ))}

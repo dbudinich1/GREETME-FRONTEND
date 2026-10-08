@@ -101,6 +101,8 @@ export default function PublicGreetingCard() {
           occasionKey: g.occasionKey || 'general',
           relationshipKey: g.relationshipKey || '',
           videoUrl: g.videoUrl || null,
+          // Release 2b: ready | preparing | unavailable | none, or null/absent (corporate, older backend).
+          videoStatus: g.videoStatus || null,
           photoUrl: g.photoUrl || null,
           photos: g.photos || [],
           status: g.status || 'done',
@@ -136,6 +138,15 @@ export default function PublicGreetingCard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Release 2b: "Try again" on a video that is still being prepared. Re-reads the greeting and replaces ONLY the
+  // video fields, so the card stays on the screen the recipient is on (a full loadGreeting would remount it).
+  const refreshVideo = async () => {
+    const response = await api.getPublicGreeting(jobId);
+    const g = response?.ok ? response.greeting : null;
+    if (!g) return;
+    setGreeting((cur) => (cur ? { ...cur, videoUrl: g.videoUrl || null, videoStatus: g.videoStatus || null } : cur));
   };
 
   // Loading state
@@ -337,6 +348,7 @@ export default function PublicGreetingCard() {
       <GreetingCardProto
         greeting={greeting}
         isOwner={isViewerTheSender}
+        onRetryVideo={refreshVideo}
       />
 
       {/* QR Cash™ claim lives inside the FinaleSpread (right page of the card) */}

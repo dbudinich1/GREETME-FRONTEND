@@ -148,8 +148,8 @@ test("buttons: Approve on pending, Record payment on approved, a paid note on pa
   assert.equal(rowOf("e_paid").querySelector("button"), null);
   assert.equal(rowOf("e_rev_row").querySelector("button"), null, "a reversal row has no payout control");
   assert.equal(rowOf("e_reversed").querySelector("button"), null, "a reversed original cannot be approved");
-  assert.equal(within(rowOf("e_reversed"), "fcc-payout-reversed").textContent, "Fully reversed by refunds — nothing to pay.");
-  assert.match(within(rowOf("e_reversed"), "fcc-payout-net").textContent, /Net after refunds: 0 usd \(minor units\)/);
+  assert.equal(within(rowOf("e_reversed"), "fcc-payout-reversed").textContent, "Fully reversed by refunds or disputes — nothing to pay.");
+  assert.match(within(rowOf("e_reversed"), "fcc-payout-net").textContent, /Net after refunds or disputes: 0 usd \(minor units\)/);
   assert.match(within(rowOf("e_flower"), "fcc-affiliate-unverified").textContent, /not yet verified/);
   // No refund: unchanged - no net line, no blocking text.
   for (const id of ["e_pending", "e_approved", "e_paid", "e_flower"]) {
@@ -165,19 +165,19 @@ test("partial refund: the net is shown next to the original and the entry can st
   const pend = rowOf("e_part_pend");
   assert.match(pend.textContent, /1,000 usd \(minor units\)/, "the ledger still shows the original");
   assert.equal(within(pend, "fcc-payout-net").textContent,
-    "Original 1,000 usd (minor units) · refunds −400 usd (minor units) · Net after refunds: 600 usd (minor units)");
+    "Original 1,000 usd (minor units) · refunds or disputes −400 usd (minor units) · Net after refunds or disputes: 600 usd (minor units)");
   assert.equal(within(pend, "fcc-payout-reversed"), null, "a partial refund is not a block");
   assert.ok(within(pend, "fcc-approve"), "Approve is offered");
   await click(within(pend, "fcc-approve"));
-  assert.match(within(rowOf("e_part_pend"), "fcc-payout-confirm").textContent, /The amount to pay is the net after refunds: 600 usd \(minor units\)\./);
+  assert.match(within(rowOf("e_part_pend"), "fcc-payout-confirm").textContent, /The amount to pay is the net after refunds or disputes: 600 usd \(minor units\)\./);
   await click(within(rowOf("e_part_pend"), "fcc-payout-go"));
   assert.deepEqual(a.calls.find((c) => c[0] === "approve"), ["approve", "sp1", "e_part_pend"]);
   assert.ok(within(rowOf("e_part_pend"), "fcc-record-payment"), "after approval the payment step is offered");
 
   const appr = rowOf("e_part_appr");
-  assert.match(within(appr, "fcc-payout-net").textContent, /Net after refunds: 500 usd \(minor units\)/);
+  assert.match(within(appr, "fcc-payout-net").textContent, /Net after refunds or disputes: 500 usd \(minor units\)/);
   await click(within(appr, "fcc-record-payment"));
-  assert.match(within(rowOf("e_part_appr"), "fcc-payout-confirm").textContent, /net after refunds: 500 usd/);
+  assert.match(within(rowOf("e_part_appr"), "fcc-payout-confirm").textContent, /net after refunds or disputes: 500 usd/);
   setVal(within(rowOf("e_part_appr"), "fcc-pay-reference"), "ACH-NET");
   await flush();
   await click(within(rowOf("e_part_appr"), "fcc-payout-go"));
@@ -189,8 +189,8 @@ test("refunds that reach or exceed the original block with true wording and offe
   await open(payoutApi());
   const over = rowOf("e_over");
   assert.equal(over.querySelector("button"), null);
-  assert.equal(within(over, "fcc-payout-reversed").textContent, "Fully reversed by refunds — nothing to pay.");
-  assert.match(within(over, "fcc-payout-net").textContent, /refunds −300 usd \(minor units\) · Net after refunds: 0 usd/);
+  assert.equal(within(over, "fcc-payout-reversed").textContent, "Fully reversed by refunds or disputes — nothing to pay.");
+  assert.match(within(over, "fcc-payout-net").textContent, /refunds or disputes −300 usd \(minor units\) · Net after refunds or disputes: 0 usd/);
 });
 
 test("a paid entry that was paid net of refunds shows the amount actually paid", async () => {
@@ -254,10 +254,103 @@ test("a refused step shows a plain sentence in the row and changes nothing", asy
   await click(within(rowOf("e_pending"), "fcc-payout-go"));
   const err = within(rowOf("e_pending"), "fcc-payout-error");
   assert.ok(err);
-  assert.match(err.textContent, /reversed this commission in full, so there is nothing to approve or pay/);
+  assert.match(err.textContent, /can’t be approved or paid in its current state\. Refresh the page to see its latest status\./);
   assert.equal(/REVERSED|INVALID_REQUEST/.test(err.textContent), false, "no raw code");
   assert.match(rowOf("e_pending").textContent, /pending/);
   assert.match(tid("fcc-summary").textContent, /Commission approved1,000/);
+});
+
+// ══ stale page (T5 R2 follow-up note 1): the ledger is re-read right before each write ══════════════
+test("Approve re-reads the ledger first; an unchanged net goes straight through", async () => {
+  const a = payoutApi();
+  let reads = 0;
+  const inner = a.ledger;
+  a.ledger = async (...args) => { reads++; return inner(...args); };
+  await open(a);
+  const before = reads;
+  await click(within(rowOf("e_part_pend"), "fcc-approve"));
+  await click(within(rowOf("e_part_pend"), "fcc-payout-go"));
+  assert.equal(reads, before + 1, "one fresh ledger read before the write");
+  assert.deepEqual(a.calls.find((c) => c[0] === "approve"), ["approve", "sp1", "e_part_pend"]);
+  assert.equal(within(rowOf("e_part_pend"), "fcc-payout-changed"), null);
+});
+
+test("a refund that landed after load: Record payment shows the new net, sends nothing, and needs a second confirm", async () => {
+  let entries = PAYOUT_ENTRIES.map((e) => ({ ...e }));
+  const a = payoutApi({ ledger: async () => ok({ entries }) });
+  await open(a);
+  await click(within(rowOf("e_part_appr"), "fcc-record-payment"));
+  assert.match(within(rowOf("e_part_appr"), "fcc-payout-confirm").textContent, /net after refunds or disputes: 500 usd/);
+  setVal(within(rowOf("e_part_appr"), "fcc-pay-reference"), "ACH-STALE");
+  await flush();
+  // A lost dispute lands on the server after the page loaded: -200 more.
+  entries = [...entries, { id: "x_late", status: "reversed", salespersonCommissionMinor: -200, currency: "usd", reversalOf: "e_part_appr" }];
+  await click(within(rowOf("e_part_appr"), "fcc-payout-go"));
+  assert.equal(a.calls.filter((c) => c[0] === "pay").length, 0, "nothing sent while the amount differs from what was shown");
+  const row = rowOf("e_part_appr");
+  assert.equal(within(row, "fcc-payout-changed").textContent,
+    "The amount changed since this page was loaded, so nothing was saved. The amount to pay is now 300 usd (minor units). Confirm again if that is right.");
+  assert.match(within(row, "fcc-payout-confirm").textContent, /net after refunds or disputes: 300 usd \(minor units\)\./, "confirmation shows the server's current net");
+  assert.equal(within(row, "fcc-pay-reference").value, "ACH-STALE", "the typed reference is kept");
+  assert.ok(rowOf("x_late"), "the page now shows the new reversal row");
+  // Second confirm with the same (now shown) net goes through.
+  await click(within(rowOf("e_part_appr"), "fcc-payout-go"));
+  assert.deepEqual(a.calls.find((c) => c[0] === "pay").slice(0, 3), ["pay", "sp1", "e_part_appr"]);
+  assert.match(within(rowOf("e_part_appr"), "fcc-payout-paid").textContent, /ref ACH-STALE/);
+});
+
+test("a refund after load on an entry with no earlier reversal: Approve shows the amount, then needs a second confirm", async () => {
+  let entries = PAYOUT_ENTRIES.map((e) => ({ ...e }));
+  const a = payoutApi({ ledger: async () => ok({ entries }) });
+  await open(a);
+  await click(within(rowOf("e_pending"), "fcc-approve"));
+  entries = [...entries, { id: "x_new", status: "reversed", salespersonCommissionMinor: -500, currency: "usd", reversalOf: "e_pending" }];
+  await click(within(rowOf("e_pending"), "fcc-payout-go"));
+  assert.equal(a.calls.filter((c) => c[0] === "approve").length, 0);
+  assert.match(within(rowOf("e_pending"), "fcc-payout-changed").textContent, /The amount to pay is now 2,000 usd \(minor units\)/);
+  assert.match(within(rowOf("e_pending"), "fcc-payout-confirm").textContent, /The amount to pay is the net after refunds or disputes: 2,000 usd/);
+  await click(within(rowOf("e_pending"), "fcc-payout-go"));
+  assert.equal(a.calls.filter((c) => c[0] === "approve").length, 1);
+});
+
+test("fully reversed after load: nothing is sent and the row shows the block text", async () => {
+  let entries = PAYOUT_ENTRIES.map((e) => ({ ...e }));
+  const a = payoutApi({ ledger: async () => ok({ entries }) });
+  await open(a);
+  await click(within(rowOf("e_approved"), "fcc-record-payment"));
+  setVal(within(rowOf("e_approved"), "fcc-pay-reference"), "R-1");
+  await flush();
+  entries = [...entries, { id: "x_all", status: "reversed", salespersonCommissionMinor: -1000, currency: "usd", reversalOf: "e_approved" }];
+  await click(within(rowOf("e_approved"), "fcc-payout-go"));
+  assert.equal(a.calls.filter((c) => c[0] === "pay").length, 0);
+  assert.equal(within(rowOf("e_approved"), "fcc-payout-reversed").textContent, "Fully reversed by refunds or disputes — nothing to pay.");
+  assert.equal(rowOf("e_approved").querySelector("button"), null);
+});
+
+test("status changed after load (approved elsewhere): Approve sends nothing and says so", async () => {
+  let entries = PAYOUT_ENTRIES.map((e) => ({ ...e }));
+  const a = payoutApi({ ledger: async () => ok({ entries }) });
+  await open(a);
+  await click(within(rowOf("e_pending"), "fcc-approve"));
+  entries = entries.map((e) => (e.id === "e_pending" ? { ...e, status: "approved" } : e));
+  await click(within(rowOf("e_pending"), "fcc-payout-go"));
+  assert.equal(a.calls.filter((c) => c[0] === "approve").length, 0);
+  assert.equal(within(rowOf("e_pending"), "fcc-payout-changed").textContent,
+    "This commission changed since the page was loaded, so nothing was saved. Check its latest status before you continue.");
+  assert.ok(within(rowOf("e_pending"), "fcc-record-payment"), "the row now shows the server's status");
+});
+
+test("the re-read fails: nothing is sent and the row says so", async () => {
+  let fail = false;
+  const base = payoutApi();
+  const inner = base.ledger;
+  base.ledger = async (...args) => (fail ? { ok: false, status: 503, data: {} } : inner(...args));
+  await open(base);
+  await click(within(rowOf("e_pending"), "fcc-approve"));
+  fail = true;
+  await click(within(rowOf("e_pending"), "fcc-payout-go"));
+  assert.equal(base.calls.filter((c) => c[0] === "approve").length, 0);
+  assert.equal(within(rowOf("e_pending"), "fcc-payout-error").textContent, "Couldn’t re-check the current amount, so nothing was saved. Try again.");
 });
 
 test("a client without the payout methods shows no payout controls (page stays usable)", async () => {

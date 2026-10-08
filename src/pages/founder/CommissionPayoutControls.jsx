@@ -45,24 +45,31 @@ export function commissionNet(entry, ledgerEntries) {
   return { originalMinor, reversedMinor, netMinor, reversalCount: reversals.length, payable };
 }
 
-export default function CommissionPayoutControls({ api, salespersonId, entry, ledgerEntries, onDone }) {
+export default function CommissionPayoutControls({ api, salespersonId, entry, ledgerEntries, onDone, onLedger }) {
   const [step, setStep] = useState(null);      // null | "approve" | "pay"
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [reference, setReference] = useState("");
   const [paidOn, setPaidOn] = useState(todayIso());
   const [payNote, setPayNote] = useState("");
+  // STALE PAGE (T5 R2 follow-up note 1): the ledger is re-read right before Approve / Record payment. `freshRows`
+  // holds that re-read so the amount shown is the server's current net; `shownNet` is the net the open confirmation
+  // displayed. If the re-read net differs, nothing is sent and the founder must confirm the new amount again.
+  const [freshRows, setFreshRows] = useState(null);
+  const [shownNet, setShownNet] = useState(null);
+  const [changedNotice, setChangedNotice] = useState(null);
 
   const canApprove = typeof api.approveCommission === "function";
   const canPay = typeof api.recordCommissionPayment === "function";
   if (isReversalRow(entry)) return null;
-  const net = commissionNet(entry, ledgerEntries);
+  const net = commissionNet(entry, freshRows || ledgerEntries);
   const netText = minorUnits(net.netMinor, entry.currency);
-  // Shown only when refunds touched this entry, so a no-refund row reads exactly as before.
+  // Shown only when refunds or disputes touched this entry, so an untouched row reads exactly as before.
+  // Reversal rows come from refunds AND lost disputes (chargebacks), so the wording names both.
   const netLine = net.reversalCount > 0 ? (
     <p style={note} data-testid="fcc-payout-net">
-      Original {minorUnits(net.originalMinor, entry.currency)} {"·"} refunds {"−"}{minorUnits(net.reversedMinor, entry.currency)}
-      {" · "}<strong>Net after refunds: {net.netMinor > 0 ? netText : minorUnits(0, entry.currency)}</strong>
+      Original {minorUnits(net.originalMinor, entry.currency)} {"·"} refunds or disputes {"−"}{minorUnits(net.reversedMinor, entry.currency)}
+      {" · "}<strong>Net after refunds or disputes: {net.netMinor > 0 ? netText : minorUnits(0, entry.currency)}</strong>
     </p>
   ) : null;
 
@@ -81,18 +88,46 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
       <>
         {netLine}
         <p style={note} data-testid="fcc-payout-reversed">
-          {net.reversalCount > 0 ? "Fully reversed by refunds — nothing to pay." : "Nothing to pay on this entry."}
+          {net.reversalCount > 0 ? "Fully reversed by refunds or disputes — nothing to pay." : "Nothing to pay on this entry."}
         </p>
       </>
     );
   }
   const isPending = entry.status === "pending";
   if ((isPending && !canApprove) || (!isPending && !canPay)) return netLine;
-  const amountClause = net.reversalCount > 0 ? ` The amount to pay is the net after refunds: ${netText}.` : "";
+  const amountClause = net.reversalCount > 0 ? ` The amount to pay is the net after refunds or disputes: ${netText}.` : "";
+  const changedLine = changedNotice ? (
+    <p data-testid="fcc-payout-changed" style={{ color: "var(--warning)", fontSize: ".84rem", margin: ".4rem 0" }}>{changedNotice}</p>
+  ) : null;
+
+  /** Re-read the ledger. Returns true only when this entry's status and net are what the confirmation showed. */
+  async function stillAsShown() {
+    if (typeof api.ledger !== "function") return true;   // a client without reads: the server still recomputes at write
+    const led = await api.ledger(salespersonId);
+    const rows = led && led.ok && led.data && Array.isArray(led.data.entries) ? led.data.entries : null;
+    if (!rows) { setError("Couldn’t re-check the current amount, so nothing was saved. Try again."); return false; }
+    setFreshRows(rows);
+    if (typeof onLedger === "function") onLedger(rows);
+    const current = rows.find((r) => r && String(r.id) === String(entry.id));
+    if (!current || current.status !== entry.status) {
+      setStep(null);
+      setChangedNotice("This commission changed since the page was loaded, so nothing was saved. Check its latest status before you continue.");
+      return false;
+    }
+    const fresh = commissionNet(current, rows);
+    if (!fresh.payable) { setStep(null); return false; }   // the row now renders the "nothing to pay" block
+    if (fresh.netMinor !== shownNet) {
+      setShownNet(fresh.netMinor);
+      setChangedNotice(`The amount changed since this page was loaded, so nothing was saved. The amount to pay is now ${minorUnits(fresh.netMinor, entry.currency)}. Confirm again if that is right.`);
+      return false;
+    }
+    return true;
+  }
 
   async function run() {
     if (busy) return;
-    setBusy(true); setError(null);
+    setBusy(true); setError(null); setChangedNotice(null);
+    if (!(await stillAsShown())) { setBusy(false); return; }
     const res = isPending
       ? await api.approveCommission(salespersonId, entry.id)
       : await api.recordCommissionPayment(salespersonId, entry.id, { reference: reference.trim(), paidOn, note: payNote.trim() });
@@ -106,8 +141,10 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
     return (
       <div style={{ marginTop: ".4rem" }}>
         {netLine}
+        {changedLine}
         <button type="button" className="btn-secondary" style={{ padding: ".25rem .7rem" }}
-          data-testid={isPending ? "fcc-approve" : "fcc-record-payment"} onClick={() => { setError(null); setStep(isPending ? "approve" : "pay"); }}>
+          data-testid={isPending ? "fcc-approve" : "fcc-record-payment"}
+          onClick={() => { setError(null); setChangedNotice(null); setShownNet(net.netMinor); setStep(isPending ? "approve" : "pay"); }}>
           {isPending ? "Approve" : "Record payment"}
         </button>
       </div>
@@ -136,6 +173,7 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
           </div>
         </>
       )}
+      {changedLine}
       {error ? <p data-testid="fcc-payout-error" style={{ color: "var(--warning)", fontSize: ".84rem", margin: ".5rem 0 0" }}>{error}</p> : null}
       <div style={{ display: "flex", gap: ".5rem", marginTop: ".6rem" }}>
         <button type="button" className="btn-primary" data-testid="fcc-payout-go"
@@ -143,7 +181,7 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
           {busy ? "Saving…" : step === "approve" ? "Confirm approval" : "Confirm payment recorded"}
         </button>
         <button type="button" className="btn-secondary" data-testid="fcc-payout-cancel" disabled={busy}
-          onClick={() => { setStep(null); setError(null); }}>Cancel</button>
+          onClick={() => { setStep(null); setError(null); setChangedNotice(null); }}>Cancel</button>
       </div>
     </div>
   );

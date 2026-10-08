@@ -1,13 +1,25 @@
 /**
  * VideoPlayer.jsx
+ *
+ * Release 2b: the public greeting response carries `videoStatus` (backend utils/mediaAccess.js resolvePublicMedia):
+ *   ready        videoUrl plays (signed private copy, or a still-valid D-ID link while a background repair runs)
+ *   preparing    videoUrl null; the private copy is being made right now, try again shortly
+ *   unavailable  videoUrl null; the video was erased by the provider and can no longer be shown
+ *   none         text-only / no video
+ * Only `preparing` and `unavailable` change what is shown. `none`, a missing field (a backend that predates
+ * videoStatus) and corporate (null) keep the generic placeholder exactly as before.
  */
 
 import React, { useRef, useState } from 'react';
 
-export default function VideoPlayer({ videoUrl, onEnded, hasEnded }) {
+export const VIDEO_PREPARING_TEXT = 'Your video is being prepared. Please try again shortly.';
+export const VIDEO_UNAVAILABLE_TEXT = 'The video for this greeting is no longer available. The rest of your greeting is still here.';
+
+export default function VideoPlayer({ videoUrl, onEnded, hasEnded, videoStatus = null, onRetry = null }) {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   const togglePlay = (e) => {
     e.stopPropagation();
@@ -41,6 +53,47 @@ export default function VideoPlayer({ videoUrl, onEnded, hasEnded }) {
     setIsPlaying(false);
     onEnded?.();
   };
+
+  if (!videoUrl && (videoStatus === 'preparing' || videoStatus === 'unavailable')) {
+    const preparing = videoStatus === 'preparing';
+    const retry = async (e) => {
+      e.stopPropagation();
+      if (retrying || typeof onRetry !== 'function') return;
+      setRetrying(true);
+      try { await onRetry(); } catch { /* the message stays; the person can try again */ }
+      setRetrying(false);
+    };
+    return (
+      <div className="gc-video-player">
+        <div className="gc-video-frame gc-video-placeholder" data-video-status={videoStatus}>
+          <p className="gc-video-placeholder-text" role="status" data-testid="gc-video-status-text">
+            {preparing ? VIDEO_PREPARING_TEXT : VIDEO_UNAVAILABLE_TEXT}
+          </p>
+          {preparing && typeof onRetry === 'function' ? (
+            <button
+              type="button"
+              data-testid="gc-video-retry"
+              onClick={retry}
+              disabled={retrying}
+              style={{
+                marginTop: '0.75rem',
+                padding: '8px 18px',
+                minHeight: '44px',
+                borderRadius: '8px',
+                border: '1px solid currentColor',
+                background: 'transparent',
+                color: 'inherit',
+                font: 'inherit',
+                cursor: retrying ? 'default' : 'pointer',
+              }}
+            >
+              {retrying ? 'Checking…' : 'Try again'}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
 
   if (!videoUrl || hasError) {
     return (
