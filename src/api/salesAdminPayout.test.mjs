@@ -36,7 +36,10 @@ test("recordCommissionPayment POSTs reference, paidOn and a trimmed optional not
 
 test("payout errors read as plain sentences, never raw codes", () => {
   const m = (status, reason) => salesAdminErrorMessage({ ok: false, status, data: { reason } }, { context: "payout" });
-  assert.match(m(409, "REVERSED"), /reversed/i);
+  // REVERSED is returned for "nothing left after refunds or disputes" AND for a step the entry's status no longer
+  // accepts (e.g. approving a non-pending entry), so the sentence must not claim a reversal.
+  assert.equal(m(409, "REVERSED"), "This commission can’t be approved or paid in its current state. Refresh the page to see its latest status.");
+  assert.equal(/reversed|refund/i.test(m(409, "REVERSED")), false);
   assert.match(m(409, "NOT_APPROVED"), /Approve this commission first/);
   assert.match(m(409, "PAYMENT_ALREADY_RECORDED"), /different payment is already recorded/);
   assert.match(m(409, "CONFLICT"), /changed while you were working/);
