@@ -38,3 +38,15 @@ test("older server (inUseBy only) still gets a specific sentence", () => {
   assert.match(describeProfileAssetInUse(inUse({ inUseBy: "corporate_campaign" })), /^A corporate campaign still uses this photo/);
   assert.match(describeProfileAssetInUse(inUse({ inUseBy: "queued_send" })), /^A greeting that is about to send still uses this photo/);
 });
+
+test("T5 D2: a corporate greeting already QUEUED says 'try again after it has been sent', never 'switch it off'", () => {
+  const s = describeProfileAssetInUse(inUse({ inUseBy: "corporate_campaign", blockers: [{ kind: "corporate_campaign", scheduledForUtc: "2027-09-02T07:00:00.000Z", campaignName: "Preflight", status: "queued" }] }));
+  assert.match(s, /^A greeting from your corporate campaign "Preflight" scheduled for September 2, 2027/);
+  assert.match(s, /is about to send with this photo\. Try again after it has been sent\.$/);
+  assert.doesNotMatch(s, /Switch that campaign off/);
+  const v = describeProfileAssetInUse(inUse({ inUseBy: "corporate_campaign", blockers: [{ kind: "corporate_campaign", scheduledForUtc: null, campaignName: null, status: "queued" }] }), "voice");
+  assert.equal(v, "A greeting from one of your corporate campaigns is about to send with this voice recording. Try again after it has been sent.");
+  // A still-waiting occurrence keeps the switch-off advice (it works for that one).
+  const w = describeProfileAssetInUse(inUse({ inUseBy: "corporate_campaign", blockers: [{ kind: "corporate_campaign", scheduledForUtc: "2027-09-02T07:00:00.000Z", campaignName: "Preflight", status: "scheduled" }] }));
+  assert.match(w, /Switch that campaign off or remove it, then try again\.$/);
+});

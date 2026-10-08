@@ -29,6 +29,12 @@ function sentenceFor(b, thing) {
     return `${what}${when ? ` scheduled for ${when}` : ''} is about to send with ${thing}. Try again after it has been sent, or turn off that occasion's automatic send first.`;
   }
   if (b && b.kind === 'corporate_campaign') {
+    // Release 2b assembly (T5 D2): a greeting already on its way (`status: 'queued'`) cannot be stopped by switching the
+    // campaign off, so the only true advice is to wait until it has been sent. Older servers send no status: unchanged.
+    if (b.status === 'queued') {
+      const who = b.campaignName ? `A greeting from your corporate campaign "${b.campaignName}"` : 'A greeting from one of your corporate campaigns';
+      return `${who}${when ? ` scheduled for ${when}` : ''} is about to send with ${thing}. Try again after it has been sent.`;
+    }
     if (!when && !b.campaignName) {
       return `A corporate campaign still uses ${thing} as its sender ${thing === 'this photo' ? 'photo' : 'voice'}, so it can't be deleted yet.`;
     }
