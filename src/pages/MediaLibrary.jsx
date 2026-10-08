@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { getMediaLibraryItems, removeFromMediaLibrary, isAzureBlobUrl } from '../utils/mediaLibrary';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
+import { describeProfileAssetInUse } from '../utils/profileDeleteBlockers';
 import QRCode from 'qrcode';
 
 export default function MediaLibrary() {
@@ -266,6 +267,9 @@ export default function MediaLibrary() {
       alert(msg);
     } catch (error) {
       console.error('Photo delete error:', error);
+      // Release 2b: a 409 PROFILE_ASSET_IN_USE now says what still needs the photo.
+      const inUse = describeProfileAssetInUse(error, 'photo');
+      if (inUse) { alert(inUse); return; }
       const specific = typeof error?.message === 'string' ? error.message.trim() : '';
       alert(specific && !/^HTTP \d+$/.test(specific) && specific.length <= 300 ? specific : getErrorMessage(error));
     } finally {

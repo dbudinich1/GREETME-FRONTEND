@@ -209,6 +209,22 @@ test("server refusal / failure keeps the photo and never says deleted", async ()
   }
 });
 
+test("Release 2b: a 409 that names the blocking corporate campaign says which campaign and when, and keeps the photo", async () => {
+  const err = new Error("A Greet-Me or campaign still needs this. Try again after it has been sent, or cancel it first.");
+  err.status = 409; err.code = "PROFILE_ASSET_IN_USE";
+  err.data = { ok: false, code: "PROFILE_ASSET_IN_USE", inUseBy: "corporate_campaign", blockers: [{ kind: "corporate_campaign", scheduledForUtc: "2027-09-02T07:00:00.000Z", campaignName: "Client birthdays" }] };
+  mod.__r.photo = err;
+  const m = await mount();
+  try {
+    await click(btn(m.host, /^Delete Photo$/));
+    assert.equal(alerts.length, 1);
+    assert.match(alerts[0], /Your corporate campaign "Client birthdays" still uses this photo for a greeting scheduled for September 2, 2027/);
+    assert.match(alerts[0], /Switch that campaign off or remove it, then try again\./);
+    assert.deepEqual(mod.__updates, []);
+    assert.ok(btn(m.host, /^Delete Photo$/));
+  } finally { await m.unmount(); }
+});
+
 test("while the delete is in flight: Deleting..., both buttons disabled and look disabled, a double click sends one request", async () => {
   let resolve;
   mod.__r.photo = new Promise((r) => { resolve = r; });

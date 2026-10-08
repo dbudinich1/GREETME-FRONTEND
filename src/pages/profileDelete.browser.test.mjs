@@ -238,6 +238,21 @@ test("photo: 403/409/429 refusal keeps the photo and shows the server error", as
   }
 });
 
+test("Release 2b: a 409 naming a queued send says which greeting and when; the photo is kept", async () => {
+  const err = new Error("A Greet-Me or campaign still needs this. Try again after it has been sent, or cancel it first.");
+  err.status = 409; err.code = "PROFILE_ASSET_IN_USE";
+  err.data = { inUseBy: "queued_send", blockers: [{ kind: "queued_send", scheduledForUtc: "2026-10-08T13:00:00.000Z", occasionType: "birthday" }] };
+  apiMod.__r.photo = err;
+  const m = await mount();
+  try {
+    await click(deleteButtons(m.host).at(-1));
+    const body = text(m.host);
+    assert.match(body, /A birthday greeting scheduled for October 8, 2026/);
+    assert.match(body, /is about to send with this photo\./);
+    assert.equal(m.host.querySelectorAll("img").length, 1);
+  } finally { await m.unmount(); }
+});
+
 test("wire level: api client sends DELETE with no body to the two contract routes", async () => {
   const calls = [];
   const saved = global.fetch;
