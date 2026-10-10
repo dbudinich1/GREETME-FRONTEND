@@ -77,7 +77,7 @@ export default function Legal() {
       <p style={S.p}>By submitting a voice sample, you consent to AI-based voice synthesis to create greeting audio that approximates your voice. You confirm you are submitting your own voice or have obtained explicit permission from the voice owner.</p>
 
       <h3 style={S.h3}>Payments, Subscriptions &amp; Credits</h3>
-      <p style={S.p}>Paid subscriptions are billed through Stripe. Subscription terms, pricing, and renewal periods are displayed at checkout. Credits ($5 courtesy credits, $5 Greet-Me Credits received with a QR Cash gift) are promotional, non-transferable, and may expire. Credits have no cash value and cannot be redeemed for cash. Refund requests should be directed to support@greet-me.com.</p>
+      <p style={S.p}>Paid subscriptions are billed through Stripe. Subscription terms, pricing, and renewal periods are displayed at checkout. Credits ($5 courtesy credits, $5 Greet-Me Credits received with a QR Cash gift) are promotional, usable once, by one eligible account, and have no expiration date. Credits have no cash value and cannot be redeemed for cash. Refund requests should be directed to support@greet-me.com.</p>
       <p style={S.p}>Hero Hearts are non-refundable, have no cash value, and cannot be transferred or exchanged; Greet-Me may change Hearts costs and available rewards at any time.</p>
 
       <h3 style={S.h3}>QR Cash&trade; Gifts</h3>

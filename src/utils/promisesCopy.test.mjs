@@ -209,8 +209,10 @@ test("Legal 2026-10-06: retention, processors, QR Cash and G1G1 wording are trut
     "Unclaimed gifts expire 30 days after the gift is created.",
     `QR Cash payouts are reviewed and sent manually by our team, to the ${PAYOUT_LIST} account the recipient provides.`,
     "G1G1 gifts are not available when a Greet-Me Credit received with a QR Cash gift is applied.",
+    // Founder decision D9f Q5 = (a), 2026-10-10.
+    "Credits ($5 courtesy credits, $5 Greet-Me Credits received with a QR Cash gift) are promotional, usable once, by one eligible account, and have no expiration date. Credits have no cash value and cannot be redeemed for cash.",
   ]) assert.ok(legal.includes(t), `Legal.jsx missing: ${t}`);
-  for (const t of ["limited period afterward", "payout handling", "48 hours", "48-hour", "Unclaimed gifts expire after 30 days", "referral credit"]) {
+  for (const t of ["limited period afterward", "payout handling", "48 hours", "48-hour", "Unclaimed gifts expire after 30 days", "referral credit", "non-transferable, and may expire"]) {
     assert.equal(legal.includes(t), false, `Legal.jsx still has: ${t}`);
   }
 });
