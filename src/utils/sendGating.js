@@ -203,3 +203,14 @@ export function qrCashFailureDisposition(error, phase = 'charge') {
   if (Number.isInteger(status) && status >= 400 && status < 500) return 'rotate';
   return 'unknown';
 }
+
+/**
+ * LANE E3 E3F-M2 — the idempotency id for (re)opening the QR Cash card step. While an earlier
+ * attempt's outcome is UNKNOWN (a PaymentIntent may exist or may have succeeded), the SAME id is
+ * reused, so nothing done from the reopened step can open a second PaymentIntent. Otherwise a fresh
+ * id is minted, exactly as before.
+ */
+export function qrCashKeyForOpen({ outcomeUnknown = false, currentKey = null, mint }) {
+  if (outcomeUnknown && currentKey) return currentKey;
+  return mint();
+}

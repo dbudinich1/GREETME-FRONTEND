@@ -59,7 +59,7 @@ import { normalizeOccasionKey } from '../utils/normalizeOccasionKey';
 import { getErrorMessage } from '../utils/errorMessages';
 import {
   isUnsubscribedAccount, emailConfirmationBlock, paymentInProgressMessage, PAYMENT_ALREADY_IN_PROGRESS_CODE,
-  qrCashFailureDisposition, qrCashNotCharged, QR_CASH_OUTCOME_UNKNOWN_MESSAGE,
+  qrCashFailureDisposition, qrCashNotCharged, QR_CASH_OUTCOME_UNKNOWN_MESSAGE, qrCashKeyForOpen,
 } from '../utils/sendGating';
 
 // ───────────────────────────────────────────────────────────────
@@ -196,6 +196,16 @@ export default function SendGreeting() {
   const [pendingGreetingData, setPendingGreetingData] = useState(null);
   const [giftRequestId, setGiftRequestId] = useState(null);
   const [giftConfirmed, setGiftConfirmed] = useState(false);
+  // LANE E3 E3F-M2 — set when a QR Cash attempt ended with an UNKNOWN outcome (a PaymentIntent may
+  // exist or may have succeeded). While set, Pay stays disabled, reopening reuses the same
+  // giftRequestId, and only the outcome-unknown message is shown. Cleared ONLY by a definitive
+  // outcome: a confirmed charge, or a known not-charged failure. A page reload also resets it.
+  const [qrCashOutcomeUnknown, setQrCashOutcomeUnknownState] = useState(false);
+  const qrCashOutcomeUnknownRef = useRef(false);
+  const setQrCashOutcomeUnknown = (value) => {
+    qrCashOutcomeUnknownRef.current = value;
+    setQrCashOutcomeUnknownState(value);
+  };
 
   // TEAM 1 — gift/entitlement safety. Non-null only while the caution modal is genuinely open;
   // `resolve` is the pending promise's resolver, called exactly once by whichever action the user
@@ -1802,8 +1812,11 @@ export default function SendGreeting() {
     if (!early.proceed) return;
     const greetingData = buildGreetingData(selectedContact);
     setPendingGreetingData(greetingData);
-    setGiftChargeError(null);
-    setGiftRequestId(crypto.randomUUID());
+    // LANE E3 E3F-M2 — an earlier attempt with an unknown outcome keeps its key and its block.
+    setGiftChargeError(qrCashOutcomeUnknownRef.current ? QR_CASH_OUTCOME_UNKNOWN_MESSAGE : null);
+    setGiftRequestId((current) => qrCashKeyForOpen({
+      outcomeUnknown: qrCashOutcomeUnknownRef.current, currentKey: current, mint: () => crypto.randomUUID(),
+    }));
     setIsPreSendReviewOpen(false);
     setIsGiftConfirmOpen(true);
   };
@@ -1872,6 +1885,7 @@ export default function SendGreeting() {
   // QR Cash™ confirmation handler: charge then send (with 3DS support)
   const handleGiftConfirm = async (paymentMethodId, stripeInstance) => {
     if (qrCashChargeInFlight.current) return; // LANE E3 — never a second charge call mid-attempt
+    if (qrCashOutcomeUnknownRef.current) return; // LANE E3 E3F-M2 — Pay is blocked after an unknown outcome
     if (!pendingGreetingData || !paymentMethodId) return;
     qrCashChargeInFlight.current = true;
     setGiftCharging(true);
@@ -1950,6 +1964,7 @@ export default function SendGreeting() {
         throw new Error(chargeResult.error || 'Gift charge failed');
       }
       qrCashPhase = 'charged';
+      setQrCashOutcomeUnknown(false); // LANE E3 E3F-M2 — definitive: charged
 
       // Step 2: Attach gift object to greeting payload and send
       const greetingDataWithGift = {
@@ -2005,7 +2020,10 @@ export default function SendGreeting() {
       // verification. Show its words, and KEEP the same giftRequestId: rotating it here is what
       // would let the next click open a second PaymentIntent. No retry is made.
       if (error?.code === PAYMENT_ALREADY_IN_PROGRESS_CODE) {
-        setGiftChargeError(paymentInProgressMessage(error));
+        // LANE E3 E3F-M2 — after an unknown outcome, "close and start again" would be wrong advice.
+        setGiftChargeError(qrCashOutcomeUnknownRef.current
+          ? QR_CASH_OUTCOME_UNKNOWN_MESSAGE
+          : paymentInProgressMessage(error));
         return;
       }
       // LANE E3 — /charge-now refused an unconfirmed email (nothing was charged). Close the card
@@ -2022,12 +2040,14 @@ export default function SendGreeting() {
       // second PaymentIntent (the server answers 409 "already in progress" at worst).
       const disposition = qrCashFailureDisposition(error, qrCashPhase);
       if (disposition === 'unknown') {
+        setQrCashOutcomeUnknown(true); // LANE E3 E3F-M2 — Pay stays disabled; reopen reuses the key
         setGiftChargeError(QR_CASH_OUTCOME_UNKNOWN_MESSAGE);
         return;
       }
       const msg = error?.message || error?.error || 'Failed to charge QR Cash™ gift. Please try again.';
       setGiftChargeError(msg);
       if (disposition === 'rotate') {
+        setQrCashOutcomeUnknown(false); // LANE E3 E3F-M2 — definitive: known not charged
         // Fresh idempotency key so the next attempt isn't blocked by Stripe
         setGiftRequestId(crypto.randomUUID());
       }
@@ -4123,6 +4143,7 @@ if (typeof window !== "undefined") {
         })()}
         charging={giftCharging}
         chargeError={giftChargeError}
+        outcomeUnknown={qrCashOutcomeUnknown}
       />
 
       {/* TEAM 1 — gift/entitlement safety caution. Only ever open while entitlementCaution is

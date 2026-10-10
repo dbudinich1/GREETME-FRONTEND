@@ -170,3 +170,125 @@ test("E3F-M1: post-charge failures never rotate; outcome-unknown copy", () => {
   assert.equal(qrCashFailureDisposition(new Error("send failed"), "charged"), "keep");
   assert.equal(QR_CASH_OUTCOME_UNKNOWN_MESSAGE, "We couldn't confirm your payment. Please check your email or account before trying again.");
 });
+
+// ---- LANE E3 E3F-M2: unknown outcome blocks Pay and pins the key across reopen ----
+import { qrCashKeyForOpen } from "./sendGating.js";
+
+test("E3F-M2: reopen after an unknown outcome reuses the SAME key; otherwise a fresh key as before", () => {
+  let n = 0;
+  const mint = () => `k${++n}`;
+  assert.equal(qrCashKeyForOpen({ outcomeUnknown: true, currentKey: "k-old", mint }), "k-old");
+  assert.equal(n, 0, "nothing minted while unknown");
+  assert.equal(qrCashKeyForOpen({ outcomeUnknown: false, currentKey: "k-old", mint }), "k1");
+  assert.equal(qrCashKeyForOpen({ outcomeUnknown: true, currentKey: null, mint }), "k2", "no prior key -> fresh");
+});
+
+// A model of the page's QR Cash state machine built ONLY from the helpers SendGreeting uses
+// (qrCashKeyForOpen, qrCashFailureDisposition) plus the Pay block, against a fake Stripe that
+// counts PaymentIntents per idempotency key (same key -> same PI; different params -> 409).
+function makeFakeServer({ finalizeFails = 0 } = {}) {
+  const pis = new Map(); // key -> { pm }
+  let finalizeFailuresLeft = finalizeFails;
+  return {
+    get piCount() { return pis.size; },
+    chargeNow(key, pm) {
+      if (pis.has(key)) {
+        if (pis.get(key).pm !== pm) throw Object.assign(new Error("in progress"), { status: 409, code: "PAYMENT_ALREADY_IN_PROGRESS" });
+        return { requiresAction: true };
+      }
+      pis.set(key, { pm });
+      return { requiresAction: true };
+    },
+    finalize() {
+      if (finalizeFailuresLeft > 0) { finalizeFailuresLeft -= 1; throw Object.assign(new Error("Server error"), { status: 500 }); }
+      return { ok: true };
+    },
+  };
+}
+function makePage(server) {
+  let n = 0;
+  const page = { key: null, unknown: false, error: null, payDisabled: false, open: false };
+  page.reopen = () => {
+    page.key = qrCashKeyForOpen({ outcomeUnknown: page.unknown, currentKey: page.key, mint: () => `key-${++n}` });
+    page.error = page.unknown ? QR_CASH_OUTCOME_UNKNOWN_MESSAGE : null;
+    page.payDisabled = page.unknown;
+    page.open = true;
+  };
+  page.close = () => { page.open = false; page.error = null; };
+  page.pay = (pm) => {
+    if (page.payDisabled || page.unknown) return "blocked";
+    let phase = "charge";
+    try {
+      server.chargeNow(page.key, pm);
+      phase = "finalize"; // 3DS succeeded
+      server.finalize();
+      page.unknown = false;
+      return "charged";
+    } catch (error) {
+      if (error.code === "PAYMENT_ALREADY_IN_PROGRESS") {
+        page.error = page.unknown ? QR_CASH_OUTCOME_UNKNOWN_MESSAGE : error.message;
+        return "409";
+      }
+      const d = qrCashFailureDisposition(error, phase);
+      if (d === "unknown") { page.unknown = true; page.payDisabled = true; page.error = QR_CASH_OUTCOME_UNKNOWN_MESSAGE; return "unknown"; }
+      if (d === "rotate") { page.unknown = false; page.key = `key-${++n}`; }
+      return d;
+    }
+  };
+  return page;
+}
+
+test("E3F-M2 probe: finalize fails -> 409 -> close -> reopen -> Pay yields at most ONE PaymentIntent", () => {
+  const server = makeFakeServer({ finalizeFails: 1 });
+  const page = makePage(server);
+  page.reopen();
+  assert.equal(page.pay("pm_a"), "unknown", "finalize failed after 3DS");
+  assert.equal(page.payDisabled, true, "unknown -> Pay disabled");
+  assert.equal(page.error, QR_CASH_OUTCOME_UNKNOWN_MESSAGE);
+  assert.equal(page.pay("pm_b"), "blocked", "a repeat click cannot reach /charge-now");
+  // Even if a 409 arrives for the same key, the unknown message is what shows.
+  try { server.chargeNow(page.key, "pm_c"); } catch (e) { page.error = page.unknown ? QR_CASH_OUTCOME_UNKNOWN_MESSAGE : e.message; }
+  assert.equal(page.error, QR_CASH_OUTCOME_UNKNOWN_MESSAGE, "never 'close and start the gift again'");
+  const keyBefore = page.key;
+  page.close();
+  page.reopen();
+  assert.equal(page.key, keyBefore, "reopen reuses the same key");
+  assert.equal(page.payDisabled, true, "still blocked after reopen");
+  assert.equal(page.pay("pm_d"), "blocked");
+  assert.equal(server.piCount, 1, "at most ONE PaymentIntent");
+});
+
+test("E3F-M2 probe: network/5xx unknown outcomes block the same way (one PaymentIntent at most)", () => {
+  for (const err of [Object.assign(new Error("Network error"), { networkError: true }), Object.assign(new Error("Server error"), { status: 502 })]) {
+    const server = makeFakeServer();
+    const real = server.chargeNow.bind(server);
+    let first = true;
+    server.chargeNow = (k, pm) => { real(k, pm); if (first) { first = false; throw err; } return { requiresAction: true }; };
+    const page = makePage(server);
+    page.reopen();
+    assert.equal(page.pay("pm_a"), "unknown");
+    page.close(); page.reopen();
+    assert.equal(page.pay("pm_b"), "blocked");
+    assert.equal(server.piCount, 1);
+  }
+});
+
+test("E3F-M2: a definitive known-not-charged outcome (decline) rotates the key and leaves Pay available, as today", () => {
+  const server = { chargeNow() { throw Object.assign(new Error("Your card was declined"), { status: 402 }); }, finalize() {} };
+  const page = makePage(server);
+  page.reopen();
+  const k = page.key;
+  assert.equal(page.pay("pm_a"), "rotate");
+  assert.equal(page.unknown, false);
+  assert.notEqual(page.key, k, "fresh key after a decline");
+  assert.equal(page.payDisabled, false);
+});
+
+test("E3F-M2: a confirmed charge clears the block", () => {
+  const server = makeFakeServer();
+  const page = makePage(server);
+  page.reopen();
+  assert.equal(page.pay("pm_a"), "charged");
+  assert.equal(page.unknown, false);
+  assert.equal(server.piCount, 1);
+});

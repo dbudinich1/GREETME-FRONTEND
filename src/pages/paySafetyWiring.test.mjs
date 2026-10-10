@@ -66,8 +66,8 @@ test("QR Cash: a ref guard refuses a second charge call while an attempt (charge
 test("QR Cash: 409 PAYMENT_ALREADY_IN_PROGRESS shows the server message and KEEPS the giftRequestId; no retry", () => {
   const i = CHARGE.indexOf("if (error?.code === PAYMENT_ALREADY_IN_PROGRESS_CODE) {");
   assert.ok(i > -1);
-  const branch = CHARGE.slice(i, CHARGE.indexOf("}", i) + 1);
-  assert.match(branch, /setGiftChargeError\(paymentInProgressMessage\(error\)\);\s*return;/);
+  const branch = CHARGE.slice(i, CHARGE.indexOf("return;", i) + 7);
+  assert.match(branch, /: paymentInProgressMessage\(error\)\);\s*return;/);
   assert.doesNotMatch(branch, /setGiftRequestId|handleGiftConfirm|chargeGift/);
   assert.ok(i < CHARGE.indexOf("setGiftRequestId(crypto.randomUUID());"), "returns before the generic rotate");
 });
@@ -82,8 +82,8 @@ test("QR Cash: /charge-now EMAIL_NOT_VERIFIED closes the card step and shows the
 test("unchanged: amounts, idempotency id generation, /finalize call, and the locked verification gate", () => {
   assert.match(CHARGE, /const giftAmountCents = Math\.round\(giftAmountDollars \* 100\);/);
   assert.match(CHARGE, /api\.finalizeGift\(\{\s*paymentIntentId: chargeResult\.paymentIntentId,/);
-  assert.match(CHARGE, /if \(disposition === 'rotate'\) \{\s*\/\/ Fresh idempotency key so the next attempt isn't blocked by Stripe\s*setGiftRequestId\(crypto\.randomUUID\(\)\);/);
-  assert.match(SEND, /setGiftRequestId\(crypto\.randomUUID\(\)\);\s*setIsPreSendReviewOpen\(false\);\s*setIsGiftConfirmOpen\(true\);/);
+  assert.match(CHARGE, /if \(disposition === 'rotate'\) \{\s*setQrCashOutcomeUnknown\(false\);[^\n]*\n\s*\/\/ Fresh idempotency key so the next attempt isn't blocked by Stripe\s*setGiftRequestId\(crypto\.randomUUID\(\)\);/);
+  assert.match(SEND, /setGiftRequestId\(\(current\) => qrCashKeyForOpen\(\{\s*outcomeUnknown: qrCashOutcomeUnknownRef\.current, currentKey: current, mint: \(\) => crypto\.randomUUID\(\),\s*\}\)\);\s*setIsPreSendReviewOpen\(false\);\s*setIsGiftConfirmOpen\(true\);/);
   assert.match(SEND, /if \(error\?\.code === 'EMAIL_NOT_VERIFIED'\) \{\s*setPendingSendPayload\(greetingData\);\s*setShowVerificationCheckpoint\(true\);/);
   assert.match(SEND, /<EmailVerificationModal[\s\S]{0,120}onResend=\{async \(\) => api\.resendVerificationEmail\(\)\}/);
 });
@@ -115,9 +115,31 @@ test("E3F-M1: an unknown outcome keeps the SAME giftRequestId, shows the outcome
   const i = CHARGE.indexOf("const disposition = qrCashFailureDisposition(error, qrCashPhase);");
   assert.ok(i > -1);
   const unknown = CHARGE.slice(i, CHARGE.indexOf("const msg", i));
-  assert.match(unknown, /if \(disposition === 'unknown'\) \{\s*setGiftChargeError\(QR_CASH_OUTCOME_UNKNOWN_MESSAGE\);\s*return;\s*\}/);
+  assert.match(unknown, /if \(disposition === 'unknown'\) \{\s*setQrCashOutcomeUnknown\(true\);[^\n]*\n\s*setGiftChargeError\(QR_CASH_OUTCOME_UNKNOWN_MESSAGE\);\s*return;\s*\}/);
   assert.doesNotMatch(unknown, /setGiftRequestId|handleGiftConfirm|chargeGift/);
   // The only rotation in the catch is behind disposition === 'rotate'.
   const rotations = CHARGE.split("setGiftRequestId(crypto.randomUUID());").length - 1;
   assert.equal(rotations, 1);
+});
+
+// ---- LANE E3 E3F-M2 ----
+test("E3F-M2: an unknown outcome sets the block; only a confirmed charge or a known non-charge clears it", () => {
+  assert.match(SEND, /const qrCashOutcomeUnknownRef = useRef\(false\);/);
+  const i = CHARGE.indexOf("if (disposition === 'unknown') {");
+  assert.match(CHARGE.slice(i, i + 300), /setQrCashOutcomeUnknown\(true\);[\s\S]*setGiftChargeError\(QR_CASH_OUTCOME_UNKNOWN_MESSAGE\);\s*return;/);
+  assert.match(CHARGE, /qrCashPhase = 'charged';\s*setQrCashOutcomeUnknown\(false\);/);
+  assert.match(CHARGE, /if \(disposition === 'rotate'\) \{\s*setQrCashOutcomeUnknown\(false\);/);
+  // Nowhere else clears it (not the modal close, not resetForm).
+  assert.equal(SEND.split("setQrCashOutcomeUnknown(false)").length - 1, 2);
+});
+
+test("E3F-M2: while blocked, Pay is refused, reopening reuses the SAME key, and a 409 shows the outcome-unknown message", () => {
+  assert.match(CHARGE, /if \(qrCashChargeInFlight\.current\) return;[^\n]*\n\s*if \(qrCashOutcomeUnknownRef\.current\) return;/);
+  const reopen = body(SEND, "const handleReviewQRCashFresh = async () => {");
+  assert.match(reopen, /qrCashKeyForOpen\(\{\s*outcomeUnknown: qrCashOutcomeUnknownRef\.current, currentKey: current,/);
+  assert.doesNotMatch(reopen, /setGiftRequestId\(crypto\.randomUUID\(\)\)/);
+  assert.match(reopen, /setGiftChargeError\(qrCashOutcomeUnknownRef\.current \? QR_CASH_OUTCOME_UNKNOWN_MESSAGE : null\);/);
+  const i = CHARGE.indexOf("if (error?.code === PAYMENT_ALREADY_IN_PROGRESS_CODE) {");
+  assert.match(CHARGE.slice(i, i + 400), /qrCashOutcomeUnknownRef\.current\s*\? QR_CASH_OUTCOME_UNKNOWN_MESSAGE\s*: paymentInProgressMessage\(error\)/);
+  assert.match(SEND, /<GiftConfirmationModal[\s\S]{0,1600}outcomeUnknown=\{qrCashOutcomeUnknown\}/);
 });

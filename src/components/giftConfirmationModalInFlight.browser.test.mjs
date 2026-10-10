@@ -174,3 +174,21 @@ test("E3F-L1: parent charging=true also refuses the X close", async () => {
   assert.equal(closed, 0);
   unmount();
 });
+
+test("E3F-M2: outcomeUnknown keeps Pay disabled and shows the outcome-unknown message; Cancel and X still close", async () => {
+  globalThis.__stripeStub = { createPaymentMethod: async () => { throw new Error("must not tokenize"); } };
+  const msg = "We couldn't confirm your payment. Please check your email or account before trying again.";
+  let closed = 0, confirms = 0;
+  const { unmount } = mount({ outcomeUnknown: true, chargeError: msg, onConfirm: () => { confirms += 1; }, onClose: () => { closed += 1; } });
+  assert.equal(pay().disabled, true, "Pay disabled");
+  await click(pay());
+  assert.equal(confirms, 0);
+  assert.ok(document.body.textContent.includes(msg));
+  const cancel = [...document.body.querySelectorAll("button")].find((b) => b.textContent.trim() === "Cancel");
+  assert.equal(cancel.disabled, false);
+  await click(cancel);
+  const x = [...document.body.querySelectorAll("button")].find((b) => b.querySelector("svg") && b.textContent.trim() === "");
+  await click(x);
+  assert.equal(closed, 2, "the user can still close");
+  unmount();
+});

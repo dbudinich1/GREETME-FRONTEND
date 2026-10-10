@@ -29,6 +29,7 @@ function GiftConfirmForm({
   charging,
   chargeError,
   onBusyChange,
+  outcomeUnknown = false,
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -45,7 +46,8 @@ function GiftConfirmForm({
   const fmt = (cents) => `$${(cents / 100).toFixed(2)}`;
 
   const busy = charging || submitting;
-  const isDisabled = busy || !stripe || !elements || !cardComplete;
+  // LANE E3 E3F-M2 — after an unknown outcome Pay stays disabled (Cancel / close still work).
+  const isDisabled = busy || outcomeUnknown || !stripe || !elements || !cardComplete;
 
   const handleConfirm = useCallback(async () => {
     if (isDisabled || inFlight.current) return;
@@ -257,6 +259,7 @@ export default function GiftConfirmationModal({
   totalCents,
   charging = false,
   chargeError = null,
+  outcomeUnknown = false,
 }) {
   // LANE E3 E3F-L1 — the modal's own close (X / backdrop) is refused while an attempt is in flight,
   // exactly like Cancel: from the first Pay click (card tokenization) until the charge settles.
@@ -291,6 +294,7 @@ export default function GiftConfirmationModal({
             onClose={onClose}
             onConfirm={onConfirm}
             onBusyChange={setFormBusy}
+            outcomeUnknown={outcomeUnknown}
             giftAmountCents={giftAmountCents}
             feeCents={feeCents}
             totalCents={totalCents}
