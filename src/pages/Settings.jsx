@@ -208,7 +208,8 @@ export default function Settings() {
     sendCells = [
       { label: 'TOTAL SPENDABLE NOW', value: w.unmetered ? 'Unlimited' : w.totalSpendableNow },
       { label: 'MONTHLY', value: w.unmetered ? 'Unlimited' : `${w.monthly.remaining} of ${w.monthly.cap}` },
-      { label: 'ANYTIME', value: `${w.anytime.available}`, sub: `${w.anytime.includedCap} included` },
+      { label: 'ANYTIME', value: `${w.anytime.availableToSend ?? w.anytime.available}`, // LANE E2: E1 `availableToSend` when present
+        sub: `${w.anytime.includedCap} included` },
       { label: 'BANKED', value: w.banked.cap > 0 ? `${w.banked.available} of ${w.banked.cap}` : '0' },
     ];
     if (w.purchased?.animationCredits > 0) {

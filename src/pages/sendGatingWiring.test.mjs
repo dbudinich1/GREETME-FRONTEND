@@ -68,3 +68,17 @@ test("Checkout: ANYTIME_REQUIRES_SUBSCRIPTION (backend lane E1) shows the server
   assert.match(CHECKOUT, /submitNeedsPlan: error\?\.code === 'ANYTIME_REQUIRES_SUBSCRIPTION'/);
   assert.match(CHECKOUT, /data-testid="checkout-needs-plan-upgrade"\s*onClick=\{\(\) => navigate\('\/pricing'\)\}/);
 });
+
+test("Hearts Hub: ANYTIME_REQUIRES_SUBSCRIPTION shows the server's message (checked before the generic 403 copy)", () => {
+  const REWARDS = read("Rewards.jsx");
+  const i = REWARDS.indexOf("reason === 'anytime_requires_subscription'");
+  assert.ok(i > -1 && i < REWARDS.indexOf("} else if (status === 403) {"));
+  assert.match(REWARDS, /message: err\?\.data\?\.error \|\| 'Anytime Greet-Me packs are available with an active Greet-Me plan\.'/);
+  // REPORT-ONLY fact: the Hub sends the backend-accepted optionIds for the three Anytime rewards.
+  assert.match(REWARDS, /anytime_greetme: 'free_greeting',\s*anytime_3: 'anytime_credits_3',\s*anytime_5: 'anytime_credits_5',/);
+});
+
+test("wallet Anytime display prefers backend lane E1 `availableToSend` when present", () => {
+  assert.match(BANK, /w\.anytime\.availableToSend \?\? w\.anytime\.available/);
+  assert.match(SETTINGS, /w\.anytime\.availableToSend \?\? w\.anytime\.available/);
+});

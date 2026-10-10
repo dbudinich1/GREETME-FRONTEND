@@ -158,7 +158,7 @@ export default function AnimationBank() {
       },
       {
         label: 'Anytime Greet-Mes', color: '#764ba2', Icon: Sparkles,
-        value: `${w.anytime.available}`,
+        value: `${w.anytime.availableToSend ?? w.anytime.available}`, // LANE E2: E1 `availableToSend` when present
         secondary: `available · ${w.anytime.includedCap} included with plan`,
       },
       {
