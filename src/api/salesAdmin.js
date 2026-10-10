@@ -162,6 +162,10 @@ export const salesAdminApi = {
   /** POST …/ledger/:entryId/approve → { ok, noop, entry, summary }. pending -> approved. 404 / 409 (reason) when refused. */
   approveCommission: (salespersonId, entryId) =>
     post(`${one(salespersonId)}/ledger/${encodeURIComponent(entryId)}/approve`, {}),
+  /** GET …/ledger/:entryId/payment-preview → { ok, preview:{ entryId, status, netMinor, deductionMinor, amountToPayMinor, outstandingAfterMinor } }.
+   *  READ-ONLY: exactly what recording this payment would deduct now (the server's own computation). */
+  commissionPaymentPreview: (salespersonId, entryId) =>
+    get(`${one(salespersonId)}/ledger/${encodeURIComponent(entryId)}/payment-preview`),
   /**
    * POST …/ledger/:entryId/record-payment body { reference, paidOn: "YYYY-MM-DD", note? } → { ok, noop, entry, summary }. approved -> paid.
    * Refunds on commission already paid are deducted first (founder 2026-10-10): the entry then carries entryNetMinor,

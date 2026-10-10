@@ -19,9 +19,10 @@ import { salesAdminErrorMessage } from "../../api/salesAdmin.js";
 const note = { fontSize: ".78rem", color: "var(--text-secondary)", margin: ".3rem 0 0" };
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-/** Same unit rule as the ledger: minor units, currency printed only when the server supplied one. */
+/** US dollars when the server says USD ("$7.00"); any other currency keeps the explicit minor-units form. */
 function minorUnits(value, currency) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  if (String(currency || "").toLowerCase() === "usd") return (value / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
   const n = value.toLocaleString("en-US");
   return currency ? `${n} ${currency} (minor units)` : `${n} (minor units)`;
 }
@@ -45,31 +46,10 @@ export function commissionNet(entry, ledgerEntries) {
   return { originalMinor, reversedMinor, netMinor, reversalCount: reversals.length, payable };
 }
 
-/**
- * POST-PAYMENT REFUNDS (founder decision 2026-10-10): a refund or lost dispute on commission that was ALREADY PAID is
- * deducted from this salesperson's next recorded payment(s). Mirror of the backend (services/sales/commissionPayout.js):
- * reversal rows whose original is paid and not reflected in that payment, minus what earlier payments already deducted
- * (their `payoutDeductions`). The server recomputes at write; this is only what the confirmation shows.
- */
-export function outstandingDeduction(ledgerEntries) {
-  const rows = Array.isArray(ledgerEntries) ? ledgerEntries.filter(Boolean) : [];
-  const byId = new Map(rows.map((r) => [String(r.id), r]));
-  const recovered = new Map();
-  for (const r of rows) {
-    if (r.status !== "paid" || !Array.isArray(r.payoutDeductions)) continue;
-    for (const d of r.payoutDeductions) recovered.set(String(d.reversalId), (recovered.get(String(d.reversalId)) || 0) + (Number(d.amountMinor) || 0));
-  }
-  let total = 0;
-  for (const r of rows) {
-    if (!r.reversalOf) continue;
-    const o = byId.get(String(r.reversalOf));
-    if (!o || o.status !== "paid") continue;
-    if (Array.isArray(o.paidReflectsReversalIds) && o.paidReflectsReversalIds.map(String).includes(String(r.id))) continue;
-    total += Math.max(0, Math.abs(Number(r.salespersonCommissionMinor) || 0) - (recovered.get(String(r.id)) || 0));
-  }
-  return total;
-}
-
+// POST-PAYMENT REFUNDS (founder decision 2026-10-10) are deducted from the next recorded payment. What THIS payment will
+// deduct comes ONLY from the server's read-only preview (GET .../payment-preview, the same computation record-payment
+// performs). It is never recomputed here: a client mirror cannot see a reservation held by another entry after a
+// failed save (Team 5 Re-check 15, C1) and would show an amount the server will not apply.
 
 export default function CommissionPayoutControls({ api, salespersonId, entry, ledgerEntries, onDone, onLedger }) {
   const [step, setStep] = useState(null);      // null | "approve" | "pay"
@@ -84,15 +64,16 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
   const [freshRows, setFreshRows] = useState(null);
   const [shownNet, setShownNet] = useState(null);
   const [changedNotice, setChangedNotice] = useState(null);
+  // The server's preview for recording THIS payment (deduction, amount to pay, still to deduct afterwards).
+  const [preview, setPreview] = useState(null);
+  const [previewError, setPreviewError] = useState(null);
 
   const canApprove = typeof api.approveCommission === "function";
   const canPay = typeof api.recordCommissionPayment === "function";
+  const canPreview = typeof api.commissionPaymentPreview === "function";
   if (isReversalRow(entry)) return null;
   const net = commissionNet(entry, freshRows || ledgerEntries);
   const netText = minorUnits(net.netMinor, entry.currency);
-  // Refunds on commission already paid are taken off THIS payment first (only when recording a payment).
-  const owed = outstandingDeduction(freshRows || ledgerEntries);
-  const deductMinor = entry.status === "approved" && net.payable ? Math.min(owed, net.netMinor) : 0;
   // Shown only when refunds or disputes touched this entry, so an untouched row reads exactly as before.
   // Reversal rows come from refunds AND lost disputes (chargebacks), so the wording names both.
   const netLine = net.reversalCount > 0 ? (
@@ -126,14 +107,24 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
   }
   const isPending = entry.status === "pending";
   if ((isPending && !canApprove) || (!isPending && !canPay)) return netLine;
-  const amountClause = net.reversalCount > 0 ? ` The amount to pay is the net after refunds or disputes: ${netText}.` : "";
-  const deductionLine = deductMinor > 0 ? (
+  const deducting = step === "pay" && preview && preview.deductionMinor > 0;
+  const amountClause = net.reversalCount > 0 && !deducting ? ` The amount to pay is the net after refunds or disputes: ${netText}.` : "";
+  const deductionLine = deducting ? (
     <p style={note} data-testid="fcc-payout-deduction">
-      Refunds on commission you already paid: {"−"}{minorUnits(deductMinor, entry.currency)} is deducted from this payment.
-      {" "}<strong>Amount to pay: {minorUnits(net.netMinor - deductMinor, entry.currency)}</strong>
-      {owed > deductMinor ? ` · still to deduct from later payments: ${minorUnits(owed - deductMinor, entry.currency)}` : ""}
+      Refunds on commission you already paid: {"−"}{minorUnits(preview.deductionMinor, entry.currency)} is deducted from this payment.
+      {" "}<strong>Amount to pay: {minorUnits(preview.amountToPayMinor, entry.currency)}</strong>
+      {preview.outstandingAfterMinor > 0 ? ` · still to deduct from later payments: ${minorUnits(preview.outstandingAfterMinor, entry.currency)}` : ""}
     </p>
   ) : null;
+
+  /** Ask the server what recording THIS payment will deduct. Returns the preview, or null (nothing can be recorded yet). */
+  async function loadPreview() {
+    const r = await api.commissionPaymentPreview(salespersonId, entry.id);
+    const p = r && r.ok && r.data && r.data.preview ? r.data.preview : null;
+    if (!p) { setPreview(null); setPreviewError("Couldn’t load the amount to pay from the server, so this payment can’t be recorded yet. Try again."); return null; }
+    setPreviewError(null); setPreview(p);
+    return p;
+  }
   const changedLine = changedNotice ? (
     <p data-testid="fcc-payout-changed" style={{ color: "var(--warning)", fontSize: ".84rem", margin: ".4rem 0" }}>{changedNotice}</p>
   ) : null;
@@ -154,10 +145,15 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
     }
     const fresh = commissionNet(current, rows);
     if (!fresh.payable) { setStep(null); return false; }   // the row now renders the "nothing to pay" block
-    const freshDeduct = current.status === "approved" ? Math.min(outstandingDeduction(rows), fresh.netMinor) : 0;
-    if (!isPending && freshDeduct !== deductMinor) {
-      setChangedNotice(`A refund on commission already paid changed since this page was loaded, so nothing was saved. The amount to pay is now ${minorUnits(fresh.netMinor - freshDeduct, entry.currency)}. Confirm again if that is right.`);
-      return false;
+    if (!isPending && canPreview) {
+      const shown = preview;
+      const p = await loadPreview();
+      if (!p) return false;
+      if (!shown || p.amountToPayMinor !== shown.amountToPayMinor || p.deductionMinor !== shown.deductionMinor) {
+        setShownNet(fresh.netMinor);
+        setChangedNotice(`The amount changed since this page was loaded, so nothing was saved. The amount to pay is now ${minorUnits(p.amountToPayMinor, entry.currency)}. Confirm again if that is right.`);
+        return false;
+      }
     }
     if (fresh.netMinor !== shownNet) {
       setShownNet(fresh.netMinor);
@@ -187,7 +183,10 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
         {changedLine}
         <button type="button" className="btn-secondary" style={{ padding: ".25rem .7rem" }}
           data-testid={isPending ? "fcc-approve" : "fcc-record-payment"}
-          onClick={() => { setError(null); setChangedNotice(null); setShownNet(net.netMinor); setStep(isPending ? "approve" : "pay"); }}>
+          onClick={() => {
+            setError(null); setChangedNotice(null); setShownNet(net.netMinor); setStep(isPending ? "approve" : "pay");
+            if (!isPending && canPreview) { setPreview(null); setPreviewError(null); loadPreview(); }
+          }}>
           {isPending ? "Approve" : "Record payment"}
         </button>
       </div>
@@ -218,10 +217,11 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
         </>
       )}
       {changedLine}
+      {step === "pay" && previewError ? <p data-testid="fcc-payout-preview-error" style={{ color: "var(--warning)", fontSize: ".84rem", margin: ".5rem 0 0" }}>{previewError}</p> : null}
       {error ? <p data-testid="fcc-payout-error" style={{ color: "var(--warning)", fontSize: ".84rem", margin: ".5rem 0 0" }}>{error}</p> : null}
       <div style={{ display: "flex", gap: ".5rem", marginTop: ".6rem" }}>
         <button type="button" className="btn-primary" data-testid="fcc-payout-go"
-          disabled={busy || (step === "pay" && (reference.trim() === "" || !paidOn))} onClick={run}>
+          disabled={busy || (step === "pay" && (reference.trim() === "" || !paidOn || (canPreview && !preview)))} onClick={run}>
           {busy ? "Saving…" : step === "approve" ? "Confirm approval" : "Confirm payment recorded"}
         </button>
         <button type="button" className="btn-secondary" data-testid="fcc-payout-cancel" disabled={busy}
