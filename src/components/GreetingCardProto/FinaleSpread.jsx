@@ -319,17 +319,23 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, g
               </>
             ) : (
               <>
-                {/* RELEASE 2b: a withdrawn gift gets neither the Greet-Me gift heading nor a
-                    substitute offer — only the literal truth, in the same words as the claim page. */}
+                {/* RELEASE 2b: a withdrawn gift never gets the Greet-Me gift heading — only the
+                    literal truth, in the same words as the claim page (plus, D9f Q1, the card's
+                    existing $5 credit when the server created one; see below). */}
                 {giftWithdrawn ? null : (
                   <h3 className="gc-gift-title">
                     A Gift From <span style={{ whiteSpace: 'nowrap' }}>Greet-Me</span>
                   </h3>
                 )}
 
+                {/* D9f Q1 (founder, 2026-10-10): an unclaimed gift withdrawn after delivery keeps
+                    the literal truth AND, when the server created the card's $5 Greet-Me Credit,
+                    shows that existing credit QR beneath it. */}
                 {giftWithdrawn ? (
                   <p className="gc-gift-instruction" data-testid="gift-withdrawn">This gift is no longer available.</p>
-                ) : courtesyCreditCode ? (
+                ) : null}
+
+                {courtesyCreditCode ? (
                   courtesyQrUrl ? (
                     <>
                       {/* D6-R1: courtesy-credit QR is always anchor-wrapped and clickable
@@ -354,7 +360,11 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, g
                         </div>
                       </a>
                       <p className="gc-gift-instruction">
-                        {isOwner ? 'Included with your greeting' : 'Scan or tap to claim your gift'}
+                        {isOwner
+                          ? 'Included with your greeting'
+                          : giftWithdrawn
+                            ? 'Scan or tap to claim your $5 Greet-Me Credit'
+                            : 'Scan or tap to claim your gift'}
                       </p>
                     </>
                   ) : (
@@ -383,7 +393,7 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, g
                       </a>
                     </p>
                   )
-                ) : (
+                ) : giftWithdrawn ? null : (
                   // TEAM 4 — no real courtesyCreditCode exists for this greeting (e.g. a rare
                   // non-fatal mint failure in worker.js — see routes/creditRoutes.js
                   // createCourtesyCredit call site). Rule 4/F: never promise a $5 credit that
