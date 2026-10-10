@@ -59,6 +59,7 @@ import { normalizeOccasionKey } from '../utils/normalizeOccasionKey';
 import { getErrorMessage } from '../utils/errorMessages';
 import {
   isUnsubscribedAccount, emailConfirmationBlock, paymentInProgressMessage, PAYMENT_ALREADY_IN_PROGRESS_CODE,
+  qrCashFailureDisposition, qrCashNotCharged, QR_CASH_OUTCOME_UNKNOWN_MESSAGE,
 } from '../utils/sendGating';
 
 // ───────────────────────────────────────────────────────────────
@@ -1887,6 +1888,10 @@ export default function SendGreeting() {
     const { proceed, giftOnlyToken } = await runGiftEntitlementPreflight(giftRequestId);
     if (!proceed) { qrCashChargeInFlight.current = false; setGiftCharging(false); return; }
 
+    // LANE E3 E3F-M1 — how far this attempt got: 'charge' (until 3DS succeeds), 'finalize' (3DS
+    // succeeded, so the money may be taken), 'charged' (gift object in hand). Decides below whether a
+    // failure may rotate giftRequestId.
+    let qrCashPhase = 'charge';
     try {
       // Step 1: Charge for the QR Cash™ gift
       const chargeResult = await api.chargeGift({
@@ -1897,24 +1902,30 @@ export default function SendGreeting() {
         giftRequestId,
         giftOnlyToken,
       });
+      // LANE E3 E3F-M1 — api.request RESOLVES (never throws) on a network failure: the request may or
+      // may not have reached Stripe, so this is an unknown outcome, never a known non-charge.
+      if (chargeResult?.networkError) {
+        throw Object.assign(new Error('Network error'), { networkError: true });
+      }
 
       let giftObj;
 
       if (chargeResult.requiresAction && chargeResult.clientSecret) {
         // Step 1b: 3D Secure authentication required
-        if (!stripeInstance) throw new Error('Payment authentication failed. Please try again.');
+        if (!stripeInstance) throw qrCashNotCharged(new Error('Payment authentication failed. Please try again.'));
 
         const { error: confirmError, paymentIntent } = await stripeInstance.confirmCardPayment(
           chargeResult.clientSecret
         );
 
         if (confirmError) {
-          throw new Error(confirmError.message || 'Card authentication failed.');
+          throw qrCashNotCharged(new Error(confirmError.message || 'Card authentication failed.'));
         }
 
         if (paymentIntent.status !== 'succeeded') {
-          throw new Error('Payment was not completed after authentication.');
+          throw qrCashNotCharged(new Error('Payment was not completed after authentication.'));
         }
+        qrCashPhase = 'finalize';
 
         // Step 1c: Finalize gift order after successful 3DS
         const finalizeResult = await api.finalizeGift({
@@ -1932,9 +1943,13 @@ export default function SendGreeting() {
       } else if (chargeResult.ok && chargeResult.gift) {
         // Direct success (no 3DS needed)
         giftObj = chargeResult.gift;
+      } else if (chargeResult?.status === 401 || chargeResult?.status === 404) {
+        // Resolved (not thrown) by api.js before the route ran: nothing was charged.
+        throw qrCashNotCharged(new Error(chargeResult.error || 'Gift charge failed'));
       } else {
         throw new Error(chargeResult.error || 'Gift charge failed');
       }
+      qrCashPhase = 'charged';
 
       // Step 2: Attach gift object to greeting payload and send
       const greetingDataWithGift = {
@@ -2001,10 +2016,21 @@ export default function SendGreeting() {
         openEmailConfirmationCaution(emailConfirmationBlock({ preflight: { reasonCode: 'EMAIL_NOT_VERIFIED' } }));
         return;
       }
+      // LANE E3 E3F-M1 — a fresh key ONLY when the charge is known not to have happened. When a
+      // PaymentIntent may exist (network/timeout, 5xx, unknown response, /finalize failure after a
+      // successful 3DS) the SAME key is kept and no retry is made, so another click cannot create a
+      // second PaymentIntent (the server answers 409 "already in progress" at worst).
+      const disposition = qrCashFailureDisposition(error, qrCashPhase);
+      if (disposition === 'unknown') {
+        setGiftChargeError(QR_CASH_OUTCOME_UNKNOWN_MESSAGE);
+        return;
+      }
       const msg = error?.message || error?.error || 'Failed to charge QR Cash™ gift. Please try again.';
       setGiftChargeError(msg);
-      // Fresh idempotency key so the next attempt isn't blocked by Stripe
-      setGiftRequestId(crypto.randomUUID());
+      if (disposition === 'rotate') {
+        // Fresh idempotency key so the next attempt isn't blocked by Stripe
+        setGiftRequestId(crypto.randomUUID());
+      }
     } finally {
       qrCashChargeInFlight.current = false;
       setGiftCharging(false);

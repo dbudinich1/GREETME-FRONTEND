@@ -28,6 +28,7 @@ function GiftConfirmForm({
   totalCents,
   charging,
   chargeError,
+  onBusyChange,
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -50,6 +51,7 @@ function GiftConfirmForm({
     if (isDisabled || inFlight.current) return;
     inFlight.current = true;
     setSubmitting(true);
+    if (onBusyChange) onBusyChange(true);
     try {
       setCardError(null);
 
@@ -72,6 +74,7 @@ function GiftConfirmForm({
     } finally {
       inFlight.current = false;
       setSubmitting(false);
+      if (onBusyChange) onBusyChange(false);
     }
   }, [isDisabled, stripe, elements, onConfirm]);
 
@@ -255,6 +258,13 @@ export default function GiftConfirmationModal({
   charging = false,
   chargeError = null,
 }) {
+  // LANE E3 E3F-L1 — the modal's own close (X / backdrop) is refused while an attempt is in flight,
+  // exactly like Cancel: from the first Pay click (card tokenization) until the charge settles.
+  const [formBusy, setFormBusy] = useState(false);
+  const guardedClose = () => {
+    if (charging || formBusy) return;
+    onClose();
+  };
   // If Stripe is not configured, show a clear message
   if (isOpen && !stripePromise) {
     return (
@@ -274,12 +284,13 @@ export default function GiftConfirmationModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Confirm QR Cash\u2122 Gift" size="sm">
+    <Modal isOpen={isOpen} onClose={guardedClose} title="Confirm QR Cash\u2122 Gift" size="sm">
       {isOpen && stripePromise && (
         <Elements stripe={stripePromise}>
           <GiftConfirmForm
             onClose={onClose}
             onConfirm={onConfirm}
+            onBusyChange={setFormBusy}
             giftAmountCents={giftAmountCents}
             feeCents={feeCents}
             totalCents={totalCents}

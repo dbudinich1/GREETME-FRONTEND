@@ -132,3 +132,41 @@ test("E3: 409 PAYMENT_ALREADY_IN_PROGRESS shows the server's words; contract cop
   assert.equal(paymentInProgressMessage({}), PAYMENT_ALREADY_IN_PROGRESS_MESSAGE);
   assert.equal(getErrorMessage({ code: "PAYMENT_ALREADY_IN_PROGRESS", status: 409 }), server);
 });
+
+// ---- LANE E3 E3F-M1: QR Cash failure disposition (idempotency key rotation) ----
+import { qrCashFailureDisposition, qrCashNotCharged, QR_CASH_OUTCOME_UNKNOWN_MESSAGE } from "./sendGating.js";
+
+test("E3F-M1: network error / timeout on /charge-now -> 'unknown' (key kept, no new PaymentIntent)", () => {
+  assert.equal(qrCashFailureDisposition(Object.assign(new Error("Network error"), { networkError: true }), "charge"), "unknown");
+  assert.equal(qrCashFailureDisposition(new TypeError("Failed to fetch"), "charge"), "unknown");
+  assert.equal(qrCashFailureDisposition(new Error("Gift charge failed"), "charge"), "unknown", "unrecognised response");
+});
+
+test("E3F-M1: 5xx from /charge-now -> 'unknown' (the PaymentIntent may exist)", () => {
+  for (const status of [500, 502, 503, 504]) {
+    assert.equal(qrCashFailureDisposition(Object.assign(new Error("Server error"), { status, code: "GIFT_CHARGE_FAILED" }), "charge"), "unknown", String(status));
+  }
+});
+
+test("E3F-M1: ANY failure after 3DS succeeded (/finalize) -> 'unknown' — even a 4xx, network or not-ok body", () => {
+  for (const err of [
+    Object.assign(new Error("Server error"), { status: 500 }),
+    Object.assign(new Error("x"), { status: 402 }),
+    Object.assign(new Error("Network error"), { networkError: true }),
+    new Error("Gift finalization failed"),
+  ]) assert.equal(qrCashFailureDisposition(err, "finalize"), "unknown");
+});
+
+test("E3F-M1: known non-charges rotate the key as today — 402 decline, 3DS failure/cancel, 4xx pre-charge refusals", () => {
+  assert.equal(qrCashFailureDisposition(Object.assign(new Error("Your card was declined"), { status: 402 }), "charge"), "rotate");
+  assert.equal(qrCashFailureDisposition(qrCashNotCharged(new Error("Authentication canceled")), "charge"), "rotate", "3DS cancel");
+  assert.equal(qrCashFailureDisposition(qrCashNotCharged(new Error("Payment was not completed after authentication.")), "charge"), "rotate");
+  for (const status of [400, 401, 403, 404, 429]) {
+    assert.equal(qrCashFailureDisposition(Object.assign(new Error("x"), { status }), "charge"), "rotate", String(status));
+  }
+});
+
+test("E3F-M1: post-charge failures never rotate; outcome-unknown copy", () => {
+  assert.equal(qrCashFailureDisposition(new Error("send failed"), "charged"), "keep");
+  assert.equal(QR_CASH_OUTCOME_UNKNOWN_MESSAGE, "We couldn't confirm your payment. Please check your email or account before trying again.");
+});

@@ -82,7 +82,7 @@ test("QR Cash: /charge-now EMAIL_NOT_VERIFIED closes the card step and shows the
 test("unchanged: amounts, idempotency id generation, /finalize call, and the locked verification gate", () => {
   assert.match(CHARGE, /const giftAmountCents = Math\.round\(giftAmountDollars \* 100\);/);
   assert.match(CHARGE, /api\.finalizeGift\(\{\s*paymentIntentId: chargeResult\.paymentIntentId,/);
-  assert.match(CHARGE, /\/\/ Fresh idempotency key so the next attempt isn't blocked by Stripe\s*setGiftRequestId\(crypto\.randomUUID\(\)\);/);
+  assert.match(CHARGE, /if \(disposition === 'rotate'\) \{\s*\/\/ Fresh idempotency key so the next attempt isn't blocked by Stripe\s*setGiftRequestId\(crypto\.randomUUID\(\)\);/);
   assert.match(SEND, /setGiftRequestId\(crypto\.randomUUID\(\)\);\s*setIsPreSendReviewOpen\(false\);\s*setIsGiftConfirmOpen\(true\);/);
   assert.match(SEND, /if \(error\?\.code === 'EMAIL_NOT_VERIFIED'\) \{\s*setPendingSendPayload\(greetingData\);\s*setShowVerificationCheckpoint\(true\);/);
   assert.match(SEND, /<EmailVerificationModal[\s\S]{0,120}onResend=\{async \(\) => api\.resendVerificationEmail\(\)\}/);
@@ -95,4 +95,29 @@ test("Flowers and Gift Box checkouts show the same confirm-email message on a 40
   // Both already carry their own synchronous in-flight guard (unchanged).
   assert.match(GIFTBOX, /if \(submitting\.current\) return;/);
   assert.match(FLOWERS, /submitting\.current/);
+});
+
+// ---- LANE E3 E3F-M1 ----
+test("E3F-M1: phases are tracked so a failure after 3DS success (finalize) can never rotate the key", () => {
+  const charge = CHARGE.indexOf("api.chargeGift(");
+  const net = CHARGE.indexOf("if (chargeResult?.networkError) {");
+  const fin = CHARGE.indexOf("qrCashPhase = 'finalize';");
+  const finCall = CHARGE.indexOf("api.finalizeGift(");
+  const charged = CHARGE.indexOf("qrCashPhase = 'charged';");
+  assert.ok(CHARGE.indexOf("let qrCashPhase = 'charge';") > -1);
+  assert.ok(charge < net && net < fin && fin < finCall && finCall < charged, "charge -> network check -> finalize phase -> /finalize -> charged");
+  assert.match(CHARGE, /if \(chargeResult\?\.networkError\) \{\s*throw Object\.assign\(new Error\('Network error'\), \{ networkError: true \}\);/);
+  assert.match(CHARGE, /throw qrCashNotCharged\(new Error\(confirmError\.message/);
+  assert.match(CHARGE, /throw qrCashNotCharged\(new Error\('Payment was not completed after authentication\.'\)\)/);
+});
+
+test("E3F-M1: an unknown outcome keeps the SAME giftRequestId, shows the outcome-unknown message, and makes no retry", () => {
+  const i = CHARGE.indexOf("const disposition = qrCashFailureDisposition(error, qrCashPhase);");
+  assert.ok(i > -1);
+  const unknown = CHARGE.slice(i, CHARGE.indexOf("const msg", i));
+  assert.match(unknown, /if \(disposition === 'unknown'\) \{\s*setGiftChargeError\(QR_CASH_OUTCOME_UNKNOWN_MESSAGE\);\s*return;\s*\}/);
+  assert.doesNotMatch(unknown, /setGiftRequestId|handleGiftConfirm|chargeGift/);
+  // The only rotation in the catch is behind disposition === 'rotate'.
+  const rotations = CHARGE.split("setGiftRequestId(crypto.randomUUID());").length - 1;
+  assert.equal(rotations, 1);
 });

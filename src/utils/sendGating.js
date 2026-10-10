@@ -169,3 +169,37 @@ export function paymentInProgressMessage(error) {
   const m = typeof error?.message === 'string' ? error.message.trim() : '';
   return m && !/^HTTP \d+$/.test(m) ? m : PAYMENT_ALREADY_IN_PROGRESS_MESSAGE;
 }
+
+// ---- LANE E3 E3F-M1 (2026-10-10): QR Cash failure disposition ----
+
+export const QR_CASH_OUTCOME_UNKNOWN_MESSAGE = "We couldn't confirm your payment. Please check your email or account before trying again.";
+
+/**
+ * Marks an error raised where the QR Cash charge is KNOWN not to have happened (a 3DS failure or
+ * cancel, a PaymentIntent that did not succeed, a resolved 401/404 before the route ran).
+ */
+export function qrCashNotCharged(error) {
+  if (error && typeof error === 'object') error.qrCashNotCharged = true;
+  return error;
+}
+
+/**
+ * What a failed QR Cash attempt may do with its idempotency id (giftRequestId):
+ *   'rotate'  — the charge is KNOWN not to have happened: a 402 decline, a Stripe card/3DS error,
+ *               or a 4xx pre-charge refusal. A fresh id is safe (today's behaviour).
+ *   'unknown' — a PaymentIntent may exist or may have succeeded: network failure/timeout, 5xx,
+ *               an unrecognised response, or ANY failure after 3DS succeeded (/finalize). The SAME id
+ *               must be kept, so a second click converges on the first attempt server-side (409 at
+ *               worst) instead of opening a second PaymentIntent.
+ *   'keep'    — the gift is already charged (post-charge failure). Never rotate.
+ * @param {any} error
+ * @param {'charge'|'finalize'|'charged'} phase — how far the attempt got
+ */
+export function qrCashFailureDisposition(error, phase = 'charge') {
+  if (phase === 'charged') return 'keep';
+  if (phase === 'finalize') return 'unknown';
+  if (error?.qrCashNotCharged === true) return 'rotate';
+  const status = Number(error?.status);
+  if (Number.isInteger(status) && status >= 400 && status < 500) return 'rotate';
+  return 'unknown';
+}

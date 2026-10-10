@@ -149,3 +149,28 @@ test("ordinary single payment unchanged: one click -> one charge with the card's
   assert.equal(pay().disabled, false);
   unmount();
 });
+
+test("E3F-L1: the modal's own X close is refused while an attempt is in flight, and works again after", async () => {
+  globalThis.__stripeStub = { createPaymentMethod: async () => ({ paymentMethod: { id: "pm_6" } }) };
+  const attempt = deferred();
+  let closed = 0;
+  const { unmount } = mount({ onConfirm: () => attempt.promise, onClose: () => { closed += 1; } });
+  const xButton = () => [...document.body.querySelectorAll("button")].find((b) => b.querySelector("svg") && b.textContent.trim() === "");
+  await click(pay());
+  await click(xButton());
+  assert.equal(closed, 0, "X refused while busy");
+  await act(async () => { attempt.resolve(); });
+  await click(xButton());
+  assert.equal(closed, 1, "X works once the attempt settled");
+  unmount();
+});
+
+test("E3F-L1: parent charging=true also refuses the X close", async () => {
+  globalThis.__stripeStub = { createPaymentMethod: async () => ({ paymentMethod: { id: "pm_7" } }) };
+  let closed = 0;
+  const { unmount } = mount({ charging: true, onClose: () => { closed += 1; } });
+  const x = [...document.body.querySelectorAll("button")].find((b) => b.querySelector("svg") && b.textContent.trim() === "");
+  await click(x);
+  assert.equal(closed, 0);
+  unmount();
+});
