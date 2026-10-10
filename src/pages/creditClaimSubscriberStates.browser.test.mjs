@@ -36,7 +36,7 @@ const CODE = "code-sub-states-1";
 
 before(async () => {
   writeFileSync(AUTH_STUB,
-    "export const useAuth = () => ({ isAuthenticated: true, register: async () => ({ success: false }), login: async () => ({ success: false }) });\n"
+    "export const useAuth = () => ({ isAuthenticated: globalThis.__signedOut !== true, register: async () => ({ success: false }), login: async () => ({ success: false }) });\n"
     + "export const AuthContext = { Provider: ({ children }) => children };\n"
     + "export default { useAuth };\n");
 
@@ -163,7 +163,8 @@ async function mount() {
       MemoryRouter,
       { initialEntries: [`/claim-credit/${CODE}`] },
       React.createElement(Routes, null,
-        React.createElement(Route, { path: "/claim-credit/:creditCode", element: React.createElement(CreditClaim) })),
+        React.createElement(Route, { path: "/claim-credit/:creditCode", element: React.createElement(CreditClaim) }),
+        React.createElement(Route, { path: "/login", element: React.createElement("p", null, "LOGIN-PAGE") })),
     ));
   });
   for (let i = 0; i < 4; i += 1) {
@@ -380,6 +381,72 @@ test("S1: an onboarding code already claimed by THIS user is stashed without a n
       assert.deepEqual(stashedCodes(), expectStash ? [CODE] : [], `claimedBy=${claimedBy}`);
       const posted = apiMod.__calls.some((c) => c.opts?.method === "POST");
       assert.equal(posted, !expectStash, "own claim: no new POST; another's: the claim is attempted and refused");
+    } finally { await m.unmount(); globalThis.__acctUserId = null; }
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// N1-R1 (Team 5 Re-check 16, within the founder's N1 correction): the onboarding branch says
+// "ready" ONLY when this user holds the credit; signed-out viewers get the existing claim path;
+// refusals reuse the existing refused screens. Sender-own is unchanged (tests above).
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+const friendCredit = (o = {}) => onboardingCredit({ senderUserId: "sender-other-1", ...o });
+
+test("N1-R1: signed-out viewer is never told 'ready'; the existing claim path saves the pending code and goes to sign-in", async () => {
+  globalThis.__signedOut = true; globalThis.__stash = []; apiMod.__calls.length = 0;
+  apiMod.__state.creditGet = friendCredit();
+  const m = await mount();
+  try {
+    const body = text(m.host);
+    assert.doesNotMatch(body, /credit is ready|all set/i);
+    assert.match(body, /Greet-Me Credit is waiting/);
+    assert.match(body, /Sign in or create your free account to claim it/);
+    assert.equal(apiMod.__calls.some((c) => c.opts?.method === "POST"), false, "no claim attempted while signed out");
+    const btn = [...m.host.querySelectorAll("button")].find((b) => (b.textContent || "").includes("Claim Your $5 Credit"));
+    assert.ok(btn, "existing claim control");
+    await act(async () => { btn.dispatchEvent(new window.MouseEvent("click", { bubbles: true })); });
+    await act(async () => { await new Promise((r) => window.setTimeout(r, 0)); });
+    assert.deepEqual((globalThis.__stash || []).filter(([k]) => k === "greetme_pending_credit").map(([, v]) => v), [CODE]);
+    assert.match(text(m.host), /LOGIN-PAGE/, "handleClaim's existing sign-in redirect");
+  } finally { await m.unmount(); globalThis.__signedOut = false; }
+});
+
+test("N1-R1: signed-out viewer of an already-claimed credit is not told 'ready' either", async () => {
+  globalThis.__signedOut = true; globalThis.__stash = [];
+  apiMod.__state.creditGet = friendCredit({ claimed: true, claimedBy: "someone-9" });
+  const m = await mount();
+  try { assert.doesNotMatch(text(m.host), /credit is ready|all set/i); }
+  finally { await m.unmount(); globalThis.__signedOut = false; }
+});
+
+test("N1-R1: signed-in friend, claim succeeds -> 'ready' (unchanged success path)", async () => {
+  globalThis.__acctUserId = "viewer-1"; globalThis.__stash = [];
+  apiMod.__state.creditGet = friendCredit();
+  apiMod.__state.claimBehavior = { resolve: { ok: true, claimed: true, amountCents: 500 } };
+  const m = await mount();
+  try {
+    assert.ok(text(m.host).includes("Your $5 credit is ready"));
+    assert.deepEqual(stashedCodes(), [CODE]);
+  } finally { await m.unmount(); globalThis.__acctUserId = null; }
+});
+
+test("N1-R1: each refusal reuses its existing screen, never 'ready'", async () => {
+  const cases = [
+    [{ throw: true, status: 409, code: "CREDIT_ALREADY_CLAIMED", message: "This credit has already been claimed." }, /This credit was claimed by another account/],
+    [{ resolve: { ok: false, code: "CREDIT_ALREADY_CLAIMED", error: "This credit has already been claimed." } }, /This credit was claimed by another account/],
+    [{ throw: true, status: 403, code: "CREDIT_SUBSCRIBER_INELIGIBLE", message: "..." }, /This credit is for non-subscribers/],
+    [{ throw: true, status: 503, code: "CREDIT_STATUS_UNVERIFIABLE", message: "..." }, /We couldn.{0,8}t verify your eligibility/],
+  ];
+  for (const [behavior, expected] of cases) {
+    globalThis.__acctUserId = "viewer-1"; globalThis.__stash = [];
+    apiMod.__state.creditGet = friendCredit();
+    apiMod.__state.claimBehavior = behavior;
+    const m = await mount();
+    try {
+      const body = text(m.host);
+      assert.match(body, expected, JSON.stringify(behavior));
+      assert.doesNotMatch(body, /credit is ready|all set to start sending/i);
+      assert.deepEqual(stashedCodes(), []);
     } finally { await m.unmount(); globalThis.__acctUserId = null; }
   }
 });
