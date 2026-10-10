@@ -5,6 +5,7 @@ import { Bell, Lock, CreditCard, Database, Gift, ChevronRight, Download, Trash2,
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 import { getErrorMessage } from '../utils/errorMessages';
+import { isUnsubscribedAccount } from '../utils/sendGating';
 
 const SUPPORT_EMAIL = 'support@greet-me.com';
 
@@ -207,7 +208,8 @@ export default function Settings() {
     sendCells = [
       { label: 'TOTAL SPENDABLE NOW', value: w.unmetered ? 'Unlimited' : w.totalSpendableNow },
       { label: 'MONTHLY', value: w.unmetered ? 'Unlimited' : `${w.monthly.remaining} of ${w.monthly.cap}` },
-      { label: 'ANYTIME', value: `${w.anytime.available}`, sub: `${w.anytime.includedCap} included` },
+      { label: 'ANYTIME', value: `${w.anytime.availableToSend ?? w.anytime.available}`, // LANE E2: E1 `availableToSend` when present
+        sub: `${w.anytime.includedCap} included` },
       { label: 'BANKED', value: w.banked.cap > 0 ? `${w.banked.available} of ${w.banked.cap}` : '0' },
     ];
     if (w.purchased?.animationCredits > 0) {
@@ -313,7 +315,13 @@ export default function Settings() {
           {/* SEND BALANCE — live Greet-Me wallet balances (GET /api/wallet) */}
           <div style={{ marginBottom: '1.5rem' }}>
             <div style={{ ...gridLabel, marginBottom: '0.75rem' }}>SEND BALANCE</div>
-            {walletError ? (
+            {/* LANE E2 (2026-10-10) — a free-plan account has no monthly/Anytime/banked sends;
+                showing wallet cells (incl. purchased packs) would read as sends it can use. */}
+            {(isUnsubscribedAccount(user) || wallet?.subscribed === false) ? (
+              <p data-testid="settings-send-balance-free" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Free plan — monthly, Anytime and banked Greet-Mes come with a paid plan.
+              </p>
+            ) : walletError ? (
               <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
                 Send balance temporarily unavailable.
               </p>

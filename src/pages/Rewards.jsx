@@ -382,6 +382,9 @@ export default function Rewards() {
         setRedeemOutcome({ type: 'insufficient', message: 'You don’t have enough Hearts to redeem yet.' });
       } else if (reason === 'ineligible') {
         setRedeemOutcome({ type: 'ineligible', message: 'This reward needs an active subscription.' });
+      } else if (reason === 'anytime_requires_subscription' || err?.code === 'ANYTIME_REQUIRES_SUBSCRIPTION') {
+        // LANE E2 (2026-10-10) — backend lane E1: Anytime rewards need an active plan. Server's own words.
+        setRedeemOutcome({ type: 'ineligible', message: err?.data?.error || 'Anytime Greet-Me packs are available with an active Greet-Me plan.' });
       } else if (status === 403) {
         setRedeemOutcome({ type: 'ineligible', message: 'This reward isn’t available to your account yet.' });
       } else if (reason === 'discount_pending' || reason === 'reward_already_active') {

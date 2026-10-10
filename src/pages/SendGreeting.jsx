@@ -57,6 +57,10 @@ import { pushInApp, showManualToast } from '../utils/notify';
 import { COMMS_EVENTS, COMMS_CATEGORIES } from '../utils/commsCatalog';
 import { normalizeOccasionKey } from '../utils/normalizeOccasionKey';
 import { getErrorMessage } from '../utils/errorMessages';
+import {
+  isUnsubscribedAccount, emailConfirmationBlock, paymentInProgressMessage, PAYMENT_ALREADY_IN_PROGRESS_CODE,
+  qrCashFailureDisposition, qrCashNotCharged, QR_CASH_OUTCOME_UNKNOWN_MESSAGE, qrCashKeyForOpen,
+} from '../utils/sendGating';
 
 // ───────────────────────────────────────────────────────────────
 // Phase 3D Batch A — A2.4: ephemeral checkout-resume persistence
@@ -123,6 +127,9 @@ export default function SendGreeting() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, refreshProfile } = useAuth();
+  // LANE E2 (2026-10-10) — free-plan / no-active-paid-plan account. Additional sends (Animation
+  // Bank packs / Anytime) are never offered to it; see utils/sendGating.js.
+  const unsubscribed = isUnsubscribedAccount(user);
   const [contacts, setContacts] = useState([]);
   const [showInlineAdd, setShowInlineAdd] = useState(false);
   const [newContactName, setNewContactName] = useState('');
@@ -189,6 +196,16 @@ export default function SendGreeting() {
   const [pendingGreetingData, setPendingGreetingData] = useState(null);
   const [giftRequestId, setGiftRequestId] = useState(null);
   const [giftConfirmed, setGiftConfirmed] = useState(false);
+  // LANE E3 E3F-M2 — set when a QR Cash attempt ended with an UNKNOWN outcome (a PaymentIntent may
+  // exist or may have succeeded). While set, Pay stays disabled, reopening reuses the same
+  // giftRequestId, and only the outcome-unknown message is shown. Cleared ONLY by a definitive
+  // outcome: a confirmed charge, or a known not-charged failure. A page reload also resets it.
+  const [qrCashOutcomeUnknown, setQrCashOutcomeUnknownState] = useState(false);
+  const qrCashOutcomeUnknownRef = useRef(false);
+  const setQrCashOutcomeUnknown = (value) => {
+    qrCashOutcomeUnknownRef.current = value;
+    setQrCashOutcomeUnknownState(value);
+  };
 
   // TEAM 1 — gift/entitlement safety. Non-null only while the caution modal is genuinely open;
   // `resolve` is the pending promise's resolver, called exactly once by whichever action the user
@@ -247,16 +264,63 @@ export default function SendGreeting() {
     saveDraftAndNavigate('/dashboard/animations?openPacks=true&returnTo=send');
   };
 
-  const runGiftEntitlementPreflight = async (giftAttemptId) => {
+  // LANE E2 (2026-10-10) — set only when the sender already chose "Continue with Gift Only" in the
+  // EARLY check (before the card/payment step). The later, at-charge check then requests the real
+  // server-issued Gift Only token without asking the same question twice. Never a token itself;
+  // cleared whenever a gift checkout opens fresh or closes.
+  const giftOnlyAcknowledgedRef = useRef(false);
+
+  // LANE E2 — the SAME preflight, consulted BEFORE the card/payment step opens, so the sender
+  // learns the real reason (e.g. an ended free trial) before entering a card. Read-only: it never
+  // requests a Gift Only token (that stays bound to the real charge attempt below).
+  const runEarlyGiftEntitlementCheck = () => {
+    giftOnlyAcknowledgedRef.current = false;
+    return runGiftEntitlementPreflight(null, { early: true });
+  };
+
+  // LANE E3 (2026-10-10) — an unconfirmed email blocks the gift checkout before any card step. The
+  // caution shows only the confirm-your-email message and the EXISTING resend action
+  // (api.resendVerificationEmail); never Top Up / Upgrade / Gift-only. Every outcome is "don't proceed".
+  const openEmailConfirmationCaution = (emailPreflight) => new Promise((resolve) => {
+    giftOnlyAcknowledgedRef.current = false;
+    const stop = () => {
+      setEntitlementCaution(null);
+      resolve({ proceed: false, giftOnlyToken: null });
+    };
+    setEntitlementCaution({
+      preflight: emailPreflight, giftAttemptId: null,
+      onTopUp: stop, onUpgrade: stop, onContinueGiftOnly: stop, onClose: stop,
+    });
+  });
+
+  const runGiftEntitlementPreflight = async (giftAttemptId, { early = false } = {}) => {
     let preflight;
     try {
       preflight = await api.getSendEntitlementPreflight();
     } catch {
+      // (LANE E3: an unconfirmed email is still refused 403 EMAIL_NOT_VERIFIED by the payment
+      // routes before any charge; that refusal shows the same caution.)
       // The read-only preflight itself failing must never block an otherwise-fine send — the
       // authoritative server-side gate on the actual charge/order route still applies regardless.
       return { proceed: true, giftOnlyToken: null };
     }
+    // LANE E3 — checked BEFORE canSendGreeting: a sender with sends left but an unconfirmed email
+    // would otherwise be charged and then refused at send time. Server preflight only (its rule is
+    // the send handler's exact gate; see emailConfirmationBlock).
+    const emailBlocked = emailConfirmationBlock({ preflight });
+    if (emailBlocked) return openEmailConfirmationCaution(emailBlocked);
     if (preflight?.canSendGreeting) return { proceed: true, giftOnlyToken: null };
+
+    // LANE E2 — already explicitly confirmed Gift Only in the early check for this checkout: get the
+    // real token for THIS attempt without re-asking. Any failure falls through to the caution again.
+    if (!early && giftOnlyAcknowledgedRef.current) {
+      giftOnlyAcknowledgedRef.current = false;
+      try {
+        const auth = await api.requestGiftOnlyAuthorization(giftAttemptId);
+        const giftOnlyToken = auth?.giftOnlyToken || auth?.token || null;
+        if (auth?.ok && giftOnlyToken) return { proceed: true, giftOnlyToken };
+      } catch { /* fall through to the caution */ }
+    }
 
     return new Promise((resolve) => {
       setEntitlementCaution({
@@ -265,7 +329,10 @@ export default function SendGreeting() {
         onTopUp: () => {
           setEntitlementCaution(null);
           resolve({ proceed: false, giftOnlyToken: null });
-          saveDraftForAnimationBankReturn();
+          // LANE E2 — packs can never unblock a free-plan send; the modal hides this choice for an
+          // unsubscribed account, and this guard keeps any stale caller off the packs page too.
+          if (unsubscribed) saveDraftForPricingReturn();
+          else saveDraftForAnimationBankReturn();
         },
         onUpgrade: () => {
           setEntitlementCaution(null);
@@ -273,6 +340,14 @@ export default function SendGreeting() {
           saveDraftForPricingReturn();
         },
         onContinueGiftOnly: async () => {
+          if (early) {
+            // Explicitly confirmed (second screen) before any card entry. Remember the choice; the
+            // real token is requested at charge time for the real attempt id.
+            giftOnlyAcknowledgedRef.current = true;
+            setEntitlementCaution(null);
+            resolve({ proceed: true, giftOnlyToken: null });
+            return;
+          }
           try {
             const auth = await api.requestGiftOnlyAuthorization(giftAttemptId);
             const giftOnlyToken = auth?.giftOnlyToken || auth?.token || null;
@@ -1411,10 +1486,14 @@ export default function SendGreeting() {
   // Reached from CONTINUE on the pre-send review, after the sender has come back from the Gift Place
   // and looked at the arrangement they picked. Checkout never begins at the moment a product is
   // selected: selecting attaches, Continue pays.
-  const handleReviewFlowersCheckout = () => {
+  const handleReviewFlowersCheckout = async () => {
     const selectedContact = contacts.find(c => c.id === formData.contactId);
     if (!selectedContact) return;
     if (!giftSettings?.flowersProduct?.providerProductId) return;
+    // LANE E2 — preflight BEFORE the payment step.
+    setIsPreSendReviewOpen(false);
+    const early = await runEarlyGiftEntitlementCheck();
+    if (!early.proceed) return;
     const greetingData = buildGreetingData(selectedContact);
     setPendingGreetingData(greetingData);
     // A fresh checkout is a fresh chance to send. Released here and nowhere else, so it is armed by
@@ -1632,6 +1711,7 @@ export default function SendGreeting() {
   // greeting is released, and the DRAFT — formData, the chosen arrangement, the photos — is
   // untouched, so the sender can change or remove the gift and send without composing again.
   const handleFlowersCheckoutClose = () => {
+    giftOnlyAcknowledgedRef.current = false;
     setIsFlowersCheckoutOpen(false);
     setPendingGreetingData(null);
   };
@@ -1643,10 +1723,14 @@ export default function SendGreeting() {
   // ───────────────────────────────────────────────
 
   // A DELIBERATE MIRROR of handleReviewFlowersCheckout: park the greeting, open the payment step.
-  const handleReviewGiftBoxCheckout = () => {
+  const handleReviewGiftBoxCheckout = async () => {
     const selectedContact = contacts.find(c => c.id === formData.contactId);
     if (!selectedContact) return;
     if (!giftSettings?.giftBoxProduct?.providerProductId) return;
+    // LANE E2 — preflight BEFORE the payment step.
+    setIsPreSendReviewOpen(false);
+    const early = await runEarlyGiftEntitlementCheck();
+    if (!early.proceed) return;
     const greetingData = buildGreetingData(selectedContact);
     setPendingGreetingData(greetingData);
     // The same one-send latch the flowers path uses: armed by this human action, disarmed by the send.
@@ -1712,19 +1796,27 @@ export default function SendGreeting() {
   // Closing the gift box checkout. Before payment NOTHING WAS CHARGED: the parked greeting is released
   // and the draft is untouched. After a held (paid, unconfirmed) outcome the held payload is kept.
   const handleGiftBoxCheckoutClose = () => {
+    giftOnlyAcknowledgedRef.current = false;
     setIsGiftBoxCheckoutOpen(false);
     setPendingGreetingData(null);
   };
 
   // QR Cash fresh-charge path: opens the existing GiftConfirmationModal.
   // Reuses the terminal logic that previously lived in handleSubmit branch B.
-  const handleReviewQRCashFresh = () => {
+  const handleReviewQRCashFresh = async () => {
     const selectedContact = contacts.find(c => c.id === formData.contactId);
     if (!selectedContact) return;
+    // LANE E2 — preflight BEFORE the card step.
+    setIsPreSendReviewOpen(false);
+    const early = await runEarlyGiftEntitlementCheck();
+    if (!early.proceed) return;
     const greetingData = buildGreetingData(selectedContact);
     setPendingGreetingData(greetingData);
-    setGiftChargeError(null);
-    setGiftRequestId(crypto.randomUUID());
+    // LANE E3 E3F-M2 — an earlier attempt with an unknown outcome keeps its key and its block.
+    setGiftChargeError(qrCashOutcomeUnknownRef.current ? QR_CASH_OUTCOME_UNKNOWN_MESSAGE : null);
+    setGiftRequestId((current) => qrCashKeyForOpen({
+      outcomeUnknown: qrCashOutcomeUnknownRef.current, currentKey: current, mint: () => crypto.randomUUID(),
+    }));
     setIsPreSendReviewOpen(false);
     setIsGiftConfirmOpen(true);
   };
@@ -1755,6 +1847,7 @@ export default function SendGreeting() {
 
     const uuid = crypto.randomUUID();
 
+    giftOnlyAcknowledgedRef.current = false; // LANE E2 — this path asks once, here, before Stripe
     const { proceed, giftOnlyToken } = await runGiftEntitlementPreflight(uuid);
     if (!proceed) return; // caution modal handled Top Up / Upgrade / Cancel / Gift Only itself
 
@@ -1784,9 +1877,17 @@ export default function SendGreeting() {
     navigate(`/dashboard/checkout?sendDraftId=${uuid}`);
   };
 
+  // LANE E3 (2026-10-10) — true from the first line of a QR Cash charge attempt until it settles
+  // (charge, any 3DS bank step, /finalize). A ref, not state, so a second call in the same tick is
+  // refused before a second /charge-now can be issued.
+  const qrCashChargeInFlight = useRef(false);
+
   // QR Cash™ confirmation handler: charge then send (with 3DS support)
   const handleGiftConfirm = async (paymentMethodId, stripeInstance) => {
+    if (qrCashChargeInFlight.current) return; // LANE E3 — never a second charge call mid-attempt
+    if (qrCashOutcomeUnknownRef.current) return; // LANE E3 E3F-M2 — Pay is blocked after an unknown outcome
     if (!pendingGreetingData || !paymentMethodId) return;
+    qrCashChargeInFlight.current = true;
     setGiftCharging(true);
     setGiftChargeError(null);
 
@@ -1799,8 +1900,12 @@ export default function SendGreeting() {
     // caution modal otherwise. The server's own gate on /charge-now is still authoritative — this
     // is the UX layer, not the safety layer.
     const { proceed, giftOnlyToken } = await runGiftEntitlementPreflight(giftRequestId);
-    if (!proceed) { setGiftCharging(false); return; }
+    if (!proceed) { qrCashChargeInFlight.current = false; setGiftCharging(false); return; }
 
+    // LANE E3 E3F-M1 — how far this attempt got: 'charge' (until 3DS succeeds), 'finalize' (3DS
+    // succeeded, so the money may be taken), 'charged' (gift object in hand). Decides below whether a
+    // failure may rotate giftRequestId.
+    let qrCashPhase = 'charge';
     try {
       // Step 1: Charge for the QR Cash™ gift
       const chargeResult = await api.chargeGift({
@@ -1811,24 +1916,30 @@ export default function SendGreeting() {
         giftRequestId,
         giftOnlyToken,
       });
+      // LANE E3 E3F-M1 — api.request RESOLVES (never throws) on a network failure: the request may or
+      // may not have reached Stripe, so this is an unknown outcome, never a known non-charge.
+      if (chargeResult?.networkError) {
+        throw Object.assign(new Error('Network error'), { networkError: true });
+      }
 
       let giftObj;
 
       if (chargeResult.requiresAction && chargeResult.clientSecret) {
         // Step 1b: 3D Secure authentication required
-        if (!stripeInstance) throw new Error('Payment authentication failed. Please try again.');
+        if (!stripeInstance) throw qrCashNotCharged(new Error('Payment authentication failed. Please try again.'));
 
         const { error: confirmError, paymentIntent } = await stripeInstance.confirmCardPayment(
           chargeResult.clientSecret
         );
 
         if (confirmError) {
-          throw new Error(confirmError.message || 'Card authentication failed.');
+          throw qrCashNotCharged(new Error(confirmError.message || 'Card authentication failed.'));
         }
 
         if (paymentIntent.status !== 'succeeded') {
-          throw new Error('Payment was not completed after authentication.');
+          throw qrCashNotCharged(new Error('Payment was not completed after authentication.'));
         }
+        qrCashPhase = 'finalize';
 
         // Step 1c: Finalize gift order after successful 3DS
         const finalizeResult = await api.finalizeGift({
@@ -1846,9 +1957,14 @@ export default function SendGreeting() {
       } else if (chargeResult.ok && chargeResult.gift) {
         // Direct success (no 3DS needed)
         giftObj = chargeResult.gift;
+      } else if (chargeResult?.status === 401 || chargeResult?.status === 404) {
+        // Resolved (not thrown) by api.js before the route ran: nothing was charged.
+        throw qrCashNotCharged(new Error(chargeResult.error || 'Gift charge failed'));
       } else {
         throw new Error(chargeResult.error || 'Gift charge failed');
       }
+      qrCashPhase = 'charged';
+      setQrCashOutcomeUnknown(false); // LANE E3 E3F-M2 — definitive: charged
 
       // Step 2: Attach gift object to greeting payload and send
       const greetingDataWithGift = {
@@ -1890,17 +2006,53 @@ export default function SendGreeting() {
       // authorization binds to the attempt that was actually blocked.
       if (error?.code === 'SEND_ENTITLEMENT_AT_RISK') {
         setGiftCharging(false);
+        // LANE E3 — this attempt is over (nothing was charged); release the guard so the one
+        // explicit re-attempt below can run.
+        qrCashChargeInFlight.current = false;
         const retry = await runGiftEntitlementPreflight(giftRequestId);
         if (retry.proceed) {
-          return handleGiftConfirm(paymentMethodId, stripeInstance);
+          // Awaited (LANE E3) so this attempt's finally cannot release the guard mid-re-attempt.
+          return await handleGiftConfirm(paymentMethodId, stripeInstance);
         }
+        return;
+      }
+      // LANE E3 — the server says an earlier attempt for this gift is still awaiting the bank's
+      // verification. Show its words, and KEEP the same giftRequestId: rotating it here is what
+      // would let the next click open a second PaymentIntent. No retry is made.
+      if (error?.code === PAYMENT_ALREADY_IN_PROGRESS_CODE) {
+        // LANE E3 E3F-M2 — after an unknown outcome, "close and start again" would be wrong advice.
+        setGiftChargeError(qrCashOutcomeUnknownRef.current
+          ? QR_CASH_OUTCOME_UNKNOWN_MESSAGE
+          : paymentInProgressMessage(error));
+        return;
+      }
+      // LANE E3 — /charge-now refused an unconfirmed email (nothing was charged). Close the card
+      // step and show the same confirm-your-email message as the preflight, with the resend action.
+      if (error?.code === 'EMAIL_NOT_VERIFIED') {
+        setIsGiftConfirmOpen(false);
+        setPendingGreetingData(null);
+        openEmailConfirmationCaution(emailConfirmationBlock({ preflight: { reasonCode: 'EMAIL_NOT_VERIFIED' } }));
+        return;
+      }
+      // LANE E3 E3F-M1 — a fresh key ONLY when the charge is known not to have happened. When a
+      // PaymentIntent may exist (network/timeout, 5xx, unknown response, /finalize failure after a
+      // successful 3DS) the SAME key is kept and no retry is made, so another click cannot create a
+      // second PaymentIntent (the server answers 409 "already in progress" at worst).
+      const disposition = qrCashFailureDisposition(error, qrCashPhase);
+      if (disposition === 'unknown') {
+        setQrCashOutcomeUnknown(true); // LANE E3 E3F-M2 — Pay stays disabled; reopen reuses the key
+        setGiftChargeError(QR_CASH_OUTCOME_UNKNOWN_MESSAGE);
         return;
       }
       const msg = error?.message || error?.error || 'Failed to charge QR Cash™ gift. Please try again.';
       setGiftChargeError(msg);
-      // Fresh idempotency key so the next attempt isn't blocked by Stripe
-      setGiftRequestId(crypto.randomUUID());
+      if (disposition === 'rotate') {
+        setQrCashOutcomeUnknown(false); // LANE E3 E3F-M2 — definitive: known not charged
+        // Fresh idempotency key so the next attempt isn't blocked by Stripe
+        setGiftRequestId(crypto.randomUUID());
+      }
     } finally {
+      qrCashChargeInFlight.current = false;
       setGiftCharging(false);
     }
   };
@@ -2713,6 +2865,7 @@ if (typeof window !== "undefined") {
               follow-up to your gift.
             </p>
             <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
+              {!unsubscribed && (
               <button
                 type="button"
                 data-testid="gift-separated-topup"
@@ -2724,6 +2877,7 @@ if (typeof window !== "undefined") {
               >
                 Top Up
               </button>
+              )}
               <button
                 type="button"
                 data-testid="gift-separated-upgrade"
@@ -3962,6 +4116,7 @@ if (typeof window !== "undefined") {
       <GiftConfirmationModal
         isOpen={isGiftConfirmOpen}
         onClose={() => {
+          giftOnlyAcknowledgedRef.current = false;
           setIsGiftConfirmOpen(false);
           setPendingGreetingData(null);
           setGiftChargeError(null);
@@ -3988,6 +4143,7 @@ if (typeof window !== "undefined") {
         })()}
         charging={giftCharging}
         chargeError={giftChargeError}
+        outcomeUnknown={qrCashOutcomeUnknown}
       />
 
       {/* TEAM 1 — gift/entitlement safety caution. Only ever open while entitlementCaution is
@@ -3996,6 +4152,8 @@ if (typeof window !== "undefined") {
       <GiftEntitlementCautionModal
         isOpen={!!entitlementCaution}
         preflight={entitlementCaution?.preflight}
+        unsubscribed={unsubscribed}
+        onResendConfirmation={async () => api.resendVerificationEmail()}
         onClose={() => entitlementCaution?.onClose?.()}
         onTopUp={() => entitlementCaution?.onTopUp?.()}
         onUpgrade={() => entitlementCaution?.onUpgrade?.()}

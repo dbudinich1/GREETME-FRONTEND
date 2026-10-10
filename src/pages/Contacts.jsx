@@ -29,6 +29,8 @@ import { getOccasionIcon, getOccasionLabel } from '../utils/helpers';
 import { getOccasionCadenceLabel } from '../utils/occasionCadence';
 import { autoAddRecipientPhotosToLibrary } from '../utils/mediaLibrary';
 import { getErrorMessage } from '../utils/errorMessages';
+import { useAuth } from '../context/AuthContext';
+import { resolveRecipientLimit, recipientLimitMessage, isAtRecipientCap } from '../utils/sendGating';
 import { getHoverHandlers } from '../utils/hoverable';
 import giftLuxuryBox from '../assets/gifts/gift-luxury-box.png';
 import giftBouquet from '../assets/gifts/gift-bouquet.png';
@@ -132,6 +134,12 @@ export default function Recipients() {
   const returnToWizardFromPractice = () => navigate('/dashboard/import-wizard');
   const [recipients, setRecipients] = useState([]);
   const [loading, setLoading] = useState(true);
+  // LANE E2 (2026-10-10) — recipient cap stated up front. The count is trusted ONLY when it came
+  // from the server list (never from the local-storage fallback); the limit comes from the server's
+  // RECIPIENT_LIMIT_REACHED `limit`, then profile entitlements, then the plan config.
+  const { user } = useAuth();
+  const [serverRecipientCount, setServerRecipientCount] = useState(null);
+  const [recipientCapLimit, setRecipientCapLimit] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // ── SLICE E6 — Personal / Business ─────────────────────────────────────────────────────────
@@ -311,6 +319,8 @@ export default function Recipients() {
         setRecipients(stored ? JSON.parse(stored) : []);
       } else {
         setRecipients(response.data || []);
+        setServerRecipientCount(Array.isArray(response?.data) ? response.data.length : null);
+        setRecipientCapLimit(null); // re-derived from the fresh count
       }
     } catch (error) {
       console.warn('API error, using local storage fallback:', error);
@@ -370,6 +380,17 @@ export default function Recipients() {
     return true;
   };
 
+  // LANE E2 — personal view only (the Business roster has its own, separate limits).
+  const knownRecipientLimit = resolveRecipientLimit({ user });
+  const atRecipientCap = !isBusiness && isAtRecipientCap({ limit: knownRecipientLimit, count: serverRecipientCount });
+  const showRecipientCapNotice = !isBusiness && (atRecipientCap || recipientCapLimit !== null);
+  const capNoticeLimit = recipientCapLimit || knownRecipientLimit;
+  const openAddRecipient = () => {
+    if (atRecipientCap) { setRecipientCapLimit(knownRecipientLimit); return; } // say so BEFORE the form
+    try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch (e) {}
+    setShowAddModal(true);
+  };
+
   const showAlertMessage = (type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 5000);
@@ -412,6 +433,10 @@ export default function Recipients() {
 
       // SUB-RECIPIENT-CAPS — do NOT fall back to local/offline storage when the plan cap is hit.
       if (error?.code === 'RECIPIENT_LIMIT_REACHED') {
+        // LANE E2 — state the number and show the Upgrade link on the page (the form cannot succeed
+        // on this plan; its draft stays in sessionStorage).
+        setRecipientCapLimit(resolveRecipientLimit({ errorData: error?.data, user }) || 0);
+        setShowAddModal(false);
         showAlertMessage('error', getErrorMessage(error));
         return;
       }
@@ -459,6 +484,10 @@ export default function Recipients() {
       setEditingContact(null);
       fetchRecipients();
     } catch (error) {
+      // LANE E2 — PUT can now return RECIPIENT_LIMIT_REACHED too (email changed to a new recipient).
+      if (error?.code === 'RECIPIENT_LIMIT_REACHED') {
+        setRecipientCapLimit(resolveRecipientLimit({ errorData: error?.data, user }) || 0);
+      }
       throw error;
     }
   };
@@ -501,7 +530,7 @@ export default function Recipients() {
     } catch (error) {
       if (error && (error.code === 'RECIPIENT_LIMIT_REACHED' || error.status === 403)) {
         const m = /\((\d+)\)/.exec(error.message || '');
-        const limit = m ? m[1] : '3';
+        const limit = resolveRecipientLimit({ errorData: error.data }) || (m ? m[1] : '3');
         outcome = { kind: 'limit', imported: 0, failed: contactsToImport.length, rows: [], message: `You've reached your plan's recipient limit of ${limit}. Upgrade your plan to add more recipients.` };
       } else {
         outcome = { kind: 'error', imported: 0, failed: contactsToImport.length, rows: [], message: getErrorMessage(error) };
@@ -748,10 +777,7 @@ export default function Recipients() {
             Send Greet-Me
           </button>
           <button
-            onClick={() => {
-              try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch (e) {}
-              setShowAddModal(true);
-            }}
+            onClick={openAddRecipient}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -916,6 +942,33 @@ export default function Recipients() {
         </p>
       </div>
 
+      {/* LANE E2 — recipient cap, with the number and an Upgrade link, before any form is filled. */}
+      {showRecipientCapNotice && (
+        <div
+          id="recipient-cap-notice"
+          data-testid="recipient-cap-notice"
+          role="status"
+          style={{
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem 1rem',
+            padding: '0.75rem 1rem', marginBottom: '1rem', borderRadius: '0.625rem',
+            border: '1px solid #fcd34d', background: '#fffbeb', color: '#92400e', fontSize: '0.875rem',
+          }}
+        >
+          <span style={{ flex: '1 1 16rem' }}>{recipientLimitMessage(capNoticeLimit)}</span>
+          <button
+            type="button"
+            data-testid="recipient-cap-upgrade"
+            onClick={() => navigate('/pricing')}
+            style={{
+              padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', background: '#b45309',
+              color: '#fff', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+            }}
+          >
+            Upgrade
+          </button>
+        </div>
+      )}
+
       {/* Alert */}
       {alert && (
         <Alert
@@ -948,10 +1001,8 @@ export default function Recipients() {
                 create endpoint existed; one exists, so the button is real rather than a promise. */}
             <button
               data-testid="add-recipient"
-              onClick={() => {
-                try { sessionStorage.removeItem(FORM_DRAFT_KEY); } catch (e) {}
-                setShowAddModal(true);
-              }}
+              aria-describedby={showRecipientCapNotice ? 'recipient-cap-notice' : undefined}
+              onClick={openAddRecipient}
               style={{
                 marginLeft: 'auto',
                 display: 'flex',

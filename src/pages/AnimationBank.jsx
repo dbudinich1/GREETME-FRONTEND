@@ -7,11 +7,15 @@ import { Film, Plus, Gift, Calendar, Star, Sparkles, ShoppingCart, Check, ArrowR
 import animationBankService from '../services/animationBankService';
 import cartService from '../services/cartService';
 import api from '../api/api';
+import { isUnsubscribedAccount } from '../utils/sendGating';
 
 export default function AnimationBank() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  // LANE E2 (2026-10-10, founder decision) — packs / Anytime sends are never offered to an account
+  // with no active paid plan: they can never unblock a free-plan send. Such an account sees an
+  // Upgrade path here instead of "Add More", and no send balances that could read as available.
   // Level 1 truth: plan inclusions come from live profile entitlements
   // (monthlyGreetMes / includedAnytime / rolloverCap), NOT the localStorage
   // mock. Show a neutral "—" until entitlements hydrate; never fabricate a value.
@@ -31,6 +35,8 @@ export default function AnimationBank() {
   const [wallet, setWallet] = useState(null);
   const [walletLoading, setWalletLoading] = useState(true);
   const [walletError, setWalletError] = useState(false);
+  // LANE E2 — the profile says so, or the live wallet does (backend lane E1 `wallet.subscribed`).
+  const unsubscribed = isUnsubscribedAccount(user) || wallet?.subscribed === false;
 
   useEffect(() => {
     loadAnimationBank();
@@ -44,6 +50,7 @@ export default function AnimationBank() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('openPacks') !== 'true') return;
+    if (unsubscribed) return; // LANE E2 — never auto-open packs for a free-plan account
     setShowPacksModal(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
@@ -121,7 +128,11 @@ export default function AnimationBank() {
   // ---- Level 2 wallet display (live balances; labeled non-live fallback on error) ----
   const w = wallet;
   let heroLabel, heroValue, heroSubtitle;
-  if (w) {
+  if (unsubscribed) {
+    heroLabel = 'Free plan';
+    heroValue = null;
+    heroSubtitle = 'Monthly, Anytime and banked Greet-Mes come with a paid plan.';
+  } else if (w) {
     heroLabel = 'Total Spendable Now';
     heroValue = w.unmetered ? 'Unlimited' : w.totalSpendableNow;
     heroSubtitle = w.unmetered ? 'Unmetered plan' : 'Greet-Mes currently available to send';
@@ -147,7 +158,7 @@ export default function AnimationBank() {
       },
       {
         label: 'Anytime Greet-Mes', color: '#764ba2', Icon: Sparkles,
-        value: `${w.anytime.available}`,
+        value: `${w.anytime.availableToSend ?? w.anytime.available}`, // LANE E2: E1 `availableToSend` when present
         secondary: `available · ${w.anytime.includedCap} included with plan`,
       },
       {
@@ -250,6 +261,7 @@ export default function AnimationBank() {
         }}>
           {heroLabel}
         </p>
+        {heroValue !== null ? (
         <div style={{
           fontSize: '5rem',
           fontWeight: 700,
@@ -259,6 +271,7 @@ export default function AnimationBank() {
         }}>
           {heroValue}
         </div>
+        ) : null}
         <p style={{
           fontSize: '1.25rem',
           color: 'var(--text-secondary)',
@@ -267,7 +280,8 @@ export default function AnimationBank() {
           {heroSubtitle}
         </p>
         <button
-          onClick={() => setShowPacksModal(true)}
+          data-testid={unsubscribed ? 'animation-bank-upgrade' : 'animation-bank-add-more'}
+          onClick={() => (unsubscribed ? navigate('/pricing') : setShowPacksModal(true))}
           style={{
             marginTop: '1.5rem',
             padding: '0.75rem 2rem',
@@ -293,12 +307,12 @@ export default function AnimationBank() {
             e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
           }}
         >
-          <Plus size={20} />
-          Add More
+          {unsubscribed ? (<>Upgrade to send <ArrowRight size={20} /></>) : (<><Plus size={20} />Add More</>)}
         </button>
       </div>
 
-      {/* Breakdown Cards */}
+      {/* Breakdown Cards — hidden for a free-plan account (LANE E2): no balances to mislead. */}
+      {!unsubscribed && (
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
@@ -350,6 +364,7 @@ export default function AnimationBank() {
           );
         })}
       </div>
+      )}
 
       {/* How It Works */}
       <div style={{
@@ -464,7 +479,7 @@ export default function AnimationBank() {
       </div>{/* End Main Content Frame */}
 
       {/* Packs Modal */}
-      {showPacksModal && (
+      {showPacksModal && !unsubscribed && (
         <>
           {/* Backdrop */}
           <div

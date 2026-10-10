@@ -1,5 +1,5 @@
 // src/components/GiftConfirmationModal.jsx — QR Cash™ charge confirmation with Stripe Elements
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Modal from './Modal';
 import { DollarSign, AlertCircle, Loader, CreditCard } from 'lucide-react';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -28,36 +28,56 @@ function GiftConfirmForm({
   totalCents,
   charging,
   chargeError,
+  onBusyChange,
+  outcomeUnknown = false,
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [cardError, setCardError] = useState(null);
   const [cardComplete, setCardComplete] = useState(false);
+  // LANE E3 (2026-10-10) — ONE payment attempt at a time. Set synchronously on the first click, before
+  // the card is tokenized, and held until the whole charge (including any 3DS bank step and
+  // /finalize) settles. A second click in that window used to tokenize a new card and call
+  // /charge-now again with the same giftRequestId: Stripe refused the mismatched idempotent request
+  // (500), and that failure re-enabled Pay while the first bank step was still open.
+  const inFlight = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const fmt = (cents) => `$${(cents / 100).toFixed(2)}`;
 
-  const isDisabled = charging || !stripe || !elements || !cardComplete;
+  const busy = charging || submitting;
+  // LANE E3 E3F-M2 — after an unknown outcome Pay stays disabled (Cancel / close still work).
+  const isDisabled = busy || outcomeUnknown || !stripe || !elements || !cardComplete;
 
   const handleConfirm = useCallback(async () => {
-    if (isDisabled) return;
+    if (isDisabled || inFlight.current) return;
+    inFlight.current = true;
+    setSubmitting(true);
+    if (onBusyChange) onBusyChange(true);
+    try {
+      setCardError(null);
 
-    setCardError(null);
+      const cardElement = elements.getElement(CardElement);
+      if (!cardElement) return;
 
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) return;
+      const { error, paymentMethod } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+      });
 
-    const { error, paymentMethod } = await stripe.createPaymentMethod({
-      type: 'card',
-      card: cardElement,
-    });
+      if (error) {
+        setCardError(error.message);
+        return;
+      }
 
-    if (error) {
-      setCardError(error.message);
-      return;
+      // Pass both paymentMethod ID and stripe instance for potential 3DS handling. Awaited so Pay
+      // stays disabled until this attempt (charge, 3DS, finalize) has fully settled.
+      await onConfirm(paymentMethod.id, stripe);
+    } finally {
+      inFlight.current = false;
+      setSubmitting(false);
+      if (onBusyChange) onBusyChange(false);
     }
-
-    // Pass both paymentMethod ID and stripe instance for potential 3DS handling
-    onConfirm(paymentMethod.id, stripe);
   }, [isDisabled, stripe, elements, onConfirm]);
 
   const handleCardChange = useCallback((event) => {
@@ -169,7 +189,7 @@ function GiftConfirmForm({
         <button
           type="button"
           onClick={onClose}
-          disabled={charging}
+          disabled={busy}
           style={{
             flex: 1,
             padding: '0.75rem 1rem',
@@ -179,9 +199,9 @@ function GiftConfirmForm({
             borderRadius: '0.5rem',
             fontSize: '0.9375rem',
             fontWeight: 500,
-            cursor: charging ? 'not-allowed' : 'pointer',
+            cursor: busy ? 'not-allowed' : 'pointer',
             fontFamily: 'inherit',
-            opacity: charging ? 0.5 : 1,
+            opacity: busy ? 0.5 : 1,
           }}
         >
           Cancel
@@ -190,6 +210,8 @@ function GiftConfirmForm({
           type="button"
           onClick={handleConfirm}
           disabled={isDisabled}
+          aria-busy={busy}
+          data-testid="qrcash-pay"
           style={{
             flex: 1,
             padding: '0.75rem 1rem',
@@ -210,7 +232,7 @@ function GiftConfirmForm({
             boxShadow: isDisabled ? 'none' : '0 2px 4px rgba(245, 158, 11, 0.3)',
           }}
         >
-          {charging ? (
+          {busy ? (
             <>
               <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />
               Charging...
@@ -237,7 +259,15 @@ export default function GiftConfirmationModal({
   totalCents,
   charging = false,
   chargeError = null,
+  outcomeUnknown = false,
 }) {
+  // LANE E3 E3F-L1 — the modal's own close (X / backdrop) is refused while an attempt is in flight,
+  // exactly like Cancel: from the first Pay click (card tokenization) until the charge settles.
+  const [formBusy, setFormBusy] = useState(false);
+  const guardedClose = () => {
+    if (charging || formBusy) return;
+    onClose();
+  };
   // If Stripe is not configured, show a clear message
   if (isOpen && !stripePromise) {
     return (
@@ -257,12 +287,14 @@ export default function GiftConfirmationModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Confirm QR Cash\u2122 Gift" size="sm">
+    <Modal isOpen={isOpen} onClose={guardedClose} title="Confirm QR Cash\u2122 Gift" size="sm">
       {isOpen && stripePromise && (
         <Elements stripe={stripePromise}>
           <GiftConfirmForm
             onClose={onClose}
             onConfirm={onConfirm}
+            onBusyChange={setFormBusy}
+            outcomeUnknown={outcomeUnknown}
             giftAmountCents={giftAmountCents}
             feeCents={feeCents}
             totalCents={totalCents}

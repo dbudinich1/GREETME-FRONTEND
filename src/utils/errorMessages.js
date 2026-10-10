@@ -1,3 +1,5 @@
+import { recipientLimitMessage } from './sendGating.js';
+
 const ERROR_MESSAGES = {
   RATE_LIMIT_LOGIN: 'Too many login attempts. Please wait 15 minutes before trying again.',
   RATE_LIMIT_SIGNUP: 'Too many signup attempts. Please try again later.',
@@ -10,6 +12,12 @@ const ERROR_MESSAGES = {
   RATE_LIMIT_PUBLIC: 'This greeting is temporarily unavailable. Please try again shortly.',
   GENERATION_CAP: "You've reached your current Greet-Me limit. You can continue tomorrow \u2014 or upgrade anytime to keep the celebrations flowing.",
   RECIPIENT_LIMIT_REACHED: "You've reached your plan's recipient limit. Upgrade your plan to add more recipients.",
+  // LANE E2 (2026-10-10) — plain, true reason for an expired free trial (backend send-cap code).
+  TRIAL_EXPIRED: 'Your free trial has ended — upgrade to send.',
+  // Backend lane E1: Animation Bank pack purchase by an account without an active paid plan.
+  ANYTIME_REQUIRES_SUBSCRIPTION: 'Anytime Greet-Me packs are available with an active Greet-Me plan.',
+  // LANE E3 (2026-10-10) — 409 from /api/gifts/charge-now while a 3DS step is outstanding.
+  PAYMENT_ALREADY_IN_PROGRESS: "This payment is already in progress. Please finish your bank's verification step, or close and start the gift again.",
   PAYMENT_REQUIRED: 'A Greet-Me\u2122 subscription is required to send greetings.',
   PAYMENT_FAILED: "Your payment didn't go through. You can update your method and continue whenever you're ready.",
   SUBSCRIPTION_EXPIRED: 'Your Greet-Me\u2122 subscription has expired. Renew to continue.',
@@ -25,6 +33,12 @@ const ERROR_MESSAGES = {
 };
 
 export function getErrorMessage(error) {
+  // LANE E2 (2026-10-10) — state the actual cap when the server sent it (RECIPIENT_LIMIT_REACHED
+  // carries { limit, current }); otherwise the generic line above.
+  if (error?.code === 'RECIPIENT_LIMIT_REACHED') {
+    const limit = Number(error?.data?.limit ?? error?.limit);
+    if (Number.isInteger(limit) && limit > 0) return recipientLimitMessage(limit);
+  }
   if (error?.code && ERROR_MESSAGES[error.code]) {
     return ERROR_MESSAGES[error.code];
   }

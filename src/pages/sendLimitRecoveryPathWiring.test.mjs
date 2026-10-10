@@ -79,16 +79,23 @@ test("saveDraftForAnimationBankReturn navigates to Animation Bank with openPacks
 test("Upgrade's two exit points (caution modal, recovery panel) route through saveDraftForPricingReturn — unchanged", () => {
   const directCalls = (SEND_SRC.match(/saveDraftForPricingReturn\(\)/g) || []).length;
   const onClickRefs = (SEND_SRC.match(/onClick=\{saveDraftForPricingReturn\}/g) || []).length;
-  assert.equal(directCalls, 1, "caution modal onUpgrade");
+  // LANE E2 (2026-10-10): +1 — the caution's onTopUp falls back to Pricing for an unsubscribed
+  // account (packs can never unblock a free-plan send).
+  assert.equal(directCalls, 2, "caution modal onUpgrade + onTopUp unsubscribed fallback");
   assert.equal(onClickRefs, 1, "recovery panel Upgrade button");
 });
 
-test("Purchase Additional Sends' two exit points (caution modal, recovery panel) route DIRECTLY to saveDraftForAnimationBankReturn — unconditional, no tier gating", () => {
+// LANE E2 (2026-10-10, founder decision "anytime sends should not be offered to unsubscribed
+// users") SUPERSEDES the 2026-09-30 "unconditional, no tier gating" rule: subscribed accounts still
+// route straight to the packs; an unsubscribed account is never offered them (see sendGating tests).
+test("Purchase Additional Sends' two exit points (caution modal, recovery panel) route to saveDraftForAnimationBankReturn — gated only by the unsubscribed check", () => {
   const directCalls = (SEND_SRC.match(/saveDraftForAnimationBankReturn\(\)/g) || []).length;
   const onClickRefs = (SEND_SRC.match(/onClick=\{saveDraftForAnimationBankReturn\}/g) || []).length;
   assert.equal(directCalls, 1, "caution modal onTopUp");
   assert.equal(onClickRefs, 1, "recovery panel Top Up button");
-  assert.doesNotMatch(SEND_SRC, /WALLET_TIERS|isTopUpEligible|handleTopUp/, "no tier-gating logic — founder confirmed unconditional routing");
+  assert.doesNotMatch(SEND_SRC, /WALLET_TIERS|isTopUpEligible|handleTopUp/, "no wallet-tier gating logic");
+  assert.match(SEND_SRC, /if \(unsubscribed\) saveDraftForPricingReturn\(\);\s*else saveDraftForAnimationBankReturn\(\);/);
+  assert.match(SEND_SRC, /\{!unsubscribed && \(\s*<button\s*type="button"\s*data-testid="gift-separated-topup"/);
 });
 
 // ===========================================================================
@@ -163,7 +170,7 @@ test("handleReviewMarketplaceCheckout forwards whatever giftOnlyToken the prefli
 });
 
 test("runGiftEntitlementPreflight accepts either giftOnlyToken or token from gift-only authorization responses", () => {
-  const fn = block(SEND_SRC, "const runGiftEntitlementPreflight = async (giftAttemptId) => {", "  };", "runGiftEntitlementPreflight");
+  const fn = block(SEND_SRC, "const runGiftEntitlementPreflight = async (giftAttemptId, { early = false } = {}) => {", "  };", "runGiftEntitlementPreflight");
   assert.match(fn, /const giftOnlyToken = auth\?\.giftOnlyToken \|\| auth\?\.token \|\| null;/);
   assert.match(fn, /if \(auth\?\.ok && giftOnlyToken\)/);
 });
