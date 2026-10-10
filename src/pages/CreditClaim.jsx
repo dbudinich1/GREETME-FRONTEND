@@ -307,8 +307,9 @@ export default function CreditClaim() {
     if (!credit?.isOnboardingTestSend || !isAuthenticated) return;
     let cancelled = false;
     (async () => {
-      // Already claimed in Cosmos — just ensure localStorage stash exists
-      if (credit.claimed) {
+      // Already claimed in Cosmos BY THIS USER — just ensure localStorage stash exists (S1: a code
+      // claimed by someone else is never stashed; it falls through to the claim, which refuses it).
+      if (credit.claimed && credit.claimedBy === accountState.userId) {
         safeSet('greetme_courtesy_credit', JSON.stringify({
           creditCode,
           amount: clampCreditCents(credit.amountCents || 500) / 100,
@@ -338,7 +339,7 @@ export default function CreditClaim() {
       }
     })();
     return () => { cancelled = true; };
-  }, [credit, isAuthenticated, creditCode]);
+  }, [credit, isAuthenticated, creditCode, accountState.userId]);
 
   // Fetch recipient prefill for inline registration (unregistered recipients only)
   useEffect(() => {
@@ -416,16 +417,29 @@ export default function CreditClaim() {
   // message is that it can't be added here, and this same link can be passed to someone who isn't
   // subscribed: the first eligible person to claim it can use it once. No transfer system: the
   // existing bearer link is the whole mechanism. Kept calm and separate from the generic error path.
+  // D9f Q3 / N1: this page's own credit link plus a copy control, shared by the subscriber screen
+  // and the sender's-own-onboarding-credit screen. No new route or API: the existing bearer link.
+  const creditLink = `${window.location.origin}/#/claim-credit/${creditCode}`;
+  const copyCreditLink = async () => {
+    try {
+      await navigator.clipboard.writeText(creditLink);
+      setCreditLinkCopied(true);
+    } catch {
+      setCreditLinkCopied(false);
+    }
+  };
+  const shareCreditLinkBlock = (
+    <>
+      <p data-testid="credit-share-link" style={{ color: '#fff', wordBreak: 'break-all', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+        {creditLink}
+      </p>
+      <button onClick={copyCreditLink} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
+        {creditLinkCopied ? 'Link copied' : 'Copy credit link'}
+      </button>
+    </>
+  );
+
   if (subscriberIneligible) {
-    const creditLink = `${window.location.origin}/#/claim-credit/${creditCode}`;
-    const copyCreditLink = async () => {
-      try {
-        await navigator.clipboard.writeText(creditLink);
-        setCreditLinkCopied(true);
-      } catch {
-        setCreditLinkCopied(false);
-      }
-    };
     return (
       <div className="gm-min-h-screen" style={styles.page}>
         <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
@@ -433,12 +447,7 @@ export default function CreditClaim() {
           <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '1rem' }}>
             This {displayAmount} Greet-Me Credit is for people without a Greet-Me subscription, so it can&rsquo;t be added to your account. You can share this credit link with someone who isn&rsquo;t subscribed. The first eligible person to claim it can use it once.
           </p>
-          <p data-testid="credit-share-link" style={{ color: '#fff', wordBreak: 'break-all', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
-            {creditLink}
-          </p>
-          <button onClick={copyCreditLink} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
-            {creditLinkCopied ? 'Link copied' : 'Copy credit link'}
-          </button>
+          {shareCreditLinkBlock}
           <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
             Go to Dashboard
           </button>
@@ -472,6 +481,37 @@ export default function CreditClaim() {
 
   // Onboarding/test-send credit: auto-claimed state (no thank-you)
   if (credit?.isOnboardingTestSend) {
+    // N1 (founder, 2026-10-10): the self-claim rule stays. When the viewer is this credit's own
+    // sender (their onboarding test sent to themselves), the server refuses the claim, so the page
+    // must not say "ready": it says the credit can't be added to their own account and offers the
+    // same link to share with an eligible friend (unless someone has already claimed it).
+    const isOwnOnboardingCredit = !!(accountState.userId && credit.senderUserId && credit.senderUserId === accountState.userId);
+    if (isOwnOnboardingCredit) {
+      return (
+        <div className="gm-min-h-screen" style={styles.page}>
+          <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
+            <h1 style={styles.headline}>This credit can&rsquo;t be added to your own account</h1>
+            {credit.claimed ? (
+              <p style={styles.body}>
+                This {displayAmount} Greet-Me Credit came with a greeting you sent, and it has already been claimed.
+              </p>
+            ) : (
+              <>
+                <p style={styles.body}>
+                  This {displayAmount} Greet-Me Credit came with a greeting you sent, so it can&rsquo;t be added to your own account. You can share this credit link with a friend who isn&rsquo;t subscribed. The first eligible person to claim it can use it once.
+                </p>
+                {shareCreditLinkBlock}
+              </>
+            )}
+            <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
+              Go to Dashboard
+            </button>
+            <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+            {trustLinks}
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="gm-min-h-screen" style={styles.page}>
         <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>

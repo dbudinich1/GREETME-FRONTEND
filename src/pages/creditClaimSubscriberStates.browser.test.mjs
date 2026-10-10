@@ -41,7 +41,7 @@ before(async () => {
     + "export default { useAuth };\n");
 
   writeFileSync(ACCT_STUB,
-    "export const useAccountState = () => ({ isSubscribed: false });\n"
+    "export const useAccountState = () => ({ isSubscribed: false, userId: globalThis.__acctUserId ?? null });\n"
     + "export default { useAccountState };\n");
 
   // safeGet/safeSet read/write 'token' + 'user' for preAuthSnapshot — seeded so
@@ -49,7 +49,7 @@ before(async () => {
   // fixture's senderUserId, so these tests reach the claim button, not the self-claim screen.
   writeFileSync(STORAGE_STUB,
     "export const safeGet = (k) => ({ token: 'fake-token', user: JSON.stringify({ id: 'viewer-1' }) }[k] ?? null);\n"
-    + "export const safeSet = () => {};\n"
+    + "export const safeSet = (k, v) => { (globalThis.__stash ||= []).push([k, v]); };\n"
     + "export const safeSessionSet = () => {};\n"
     + "export const safeSessionRemove = () => {};\n");
 
@@ -298,4 +298,88 @@ test("regression: an unrelated/unrecognized error code still renders the EXISTIN
     assert.match(body, /Something went wrong/i, "the generic error path must still exist and still fire for unrelated errors");
     assert.match(body, /Internal error/i);
   } finally { await m.unmount(); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// N1 (founder, 2026-10-10): the self-claim rule stays; the sender's own onboarding credit page tells
+// the truth instead of "Your $5 credit is ready". S1: an onboarding code claimed by someone else is
+// never saved to this browser's checkout stash.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+const onboardingCredit = (o = {}) => ({
+  ok: true,
+  credit: {
+    amountCents: 500, claimed: false, claimedBy: null, consumed: false, source: "finale",
+    sourceJobId: "job-1", isOnboardingTestSend: true, isLoopSend: false, senderUserId: "viewer-1", ...o,
+  },
+});
+const stashedCodes = () => (globalThis.__stash || []).filter(([k]) => k === "greetme_courtesy_credit").map(([, v]) => JSON.parse(v).creditCode);
+
+test("N1: sender's own onboarding credit (claim refused) shows the truthful message and share control, never 'ready'", async () => {
+  globalThis.__acctUserId = "viewer-1"; globalThis.__stash = [];
+  apiMod.__state.creditGet = onboardingCredit();
+  apiMod.__state.claimBehavior = { throw: true, status: 403, code: "CREDIT_SELF_CLAIM_BLOCKED", message: "This credit is for your recipient" };
+  const copied = [];
+  const prev = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
+  Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async (t) => { copied.push(t); } }, configurable: true });
+  const m = await mount();
+  try {
+    const body = text(m.host);
+    assert.match(body, /This credit can.{0,8}t be added to your own account/i);
+    assert.match(body, /share this credit link with a friend who isn.{0,8}t subscribed/i);
+    assert.match(body, /The first eligible person to claim it can use it once/i);
+    assert.doesNotMatch(body, /credit is ready|all set/i, "no claim that the credit is ready");
+    const link = m.host.querySelector('[data-testid="credit-share-link"]');
+    assert.equal(link?.textContent.trim(), `${window.location.origin}/#/claim-credit/${CODE}`);
+    const btn = [...m.host.querySelectorAll("button")].find((b) => /Copy credit link/i.test(b.textContent || ""));
+    await act(async () => { btn.dispatchEvent(new window.MouseEvent("click", { bubbles: true })); });
+    await act(async () => { await new Promise((r) => window.setTimeout(r, 0)); });
+    assert.deepEqual(copied, [`${window.location.origin}/#/claim-credit/${CODE}`]);
+    assert.deepEqual(stashedCodes(), [], "a refused claim is never stashed for checkout");
+  } finally {
+    await m.unmount();
+    if (prev) Object.defineProperty(globalThis.navigator, "clipboard", prev); else delete globalThis.navigator.clipboard;
+    globalThis.__acctUserId = null;
+  }
+});
+
+test("N1: sender's own onboarding credit already claimed by someone: says so, no share link", async () => {
+  globalThis.__acctUserId = "viewer-1"; globalThis.__stash = [];
+  apiMod.__state.creditGet = onboardingCredit({ claimed: true, claimedBy: "friend-9" });
+  apiMod.__state.claimBehavior = { throw: true, status: 409, code: "CREDIT_ALREADY_CLAIMED", message: "already been claimed" };
+  const m = await mount();
+  try {
+    const body = text(m.host);
+    assert.match(body, /has already been claimed/i);
+    assert.equal(m.host.querySelector('[data-testid="credit-share-link"]'), null);
+    assert.doesNotMatch(body, /credit is ready/i);
+    assert.deepEqual(stashedCodes(), [], "S1: claimed by someone else is never stashed");
+  } finally { await m.unmount(); globalThis.__acctUserId = null; }
+});
+
+test("N1: normal onboarding success path unchanged (another account's credit): 'ready' screen and stash", async () => {
+  globalThis.__acctUserId = "viewer-1"; globalThis.__stash = [];
+  apiMod.__state.creditGet = onboardingCredit({ senderUserId: "sender-other-1" });
+  apiMod.__state.claimBehavior = { resolve: { ok: true, claimed: true, amountCents: 500 } };
+  const m = await mount();
+  try {
+    const body = text(m.host);
+    assert.ok(body.includes("Your $5 credit is ready"), body);
+    assert.match(body, /You.{0,8}re all set to start sending/);
+    assert.equal(m.host.querySelector('[data-testid="credit-share-link"]'), null);
+    assert.deepEqual(stashedCodes(), [CODE]);
+  } finally { await m.unmount(); globalThis.__acctUserId = null; }
+});
+
+test("S1: an onboarding code already claimed by THIS user is stashed without a new claim; by another user it is not", async () => {
+  for (const [claimedBy, expectStash] of [["viewer-1", true], ["friend-9", false]]) {
+    globalThis.__acctUserId = "viewer-1"; globalThis.__stash = []; apiMod.__calls.length = 0;
+    apiMod.__state.creditGet = onboardingCredit({ senderUserId: "sender-other-1", claimed: true, claimedBy });
+    apiMod.__state.claimBehavior = { throw: true, status: 409, code: "CREDIT_ALREADY_CLAIMED", message: "already been claimed" };
+    const m = await mount();
+    try {
+      assert.deepEqual(stashedCodes(), expectStash ? [CODE] : [], `claimedBy=${claimedBy}`);
+      const posted = apiMod.__calls.some((c) => c.opts?.method === "POST");
+      assert.equal(posted, !expectStash, "own claim: no new POST; another's: the claim is attempted and refused");
+    } finally { await m.unmount(); globalThis.__acctUserId = null; }
+  }
 });
