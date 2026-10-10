@@ -87,14 +87,23 @@ test("correction (b): no 'Cancel anytime'", () => {
   assert.ok(!/cancel any ?time/i.test(pageText));
 });
 
-test("correction (c): QR Cash payout methods equal the Terms list in Legal.jsx", () => {
+test("correction (c) + founder decision #7: Help and the Terms both list exactly the claim screen's payout methods", () => {
+  // The claim screen's own list, in its order (GiftClaim.jsx PAYOUT_METHODS labels).
+  const claimSrc = read("GiftClaim.jsx");
+  const block = /const PAYOUT_METHODS = \[([\s\S]*?)\n\];/.exec(claimSrc);
+  assert.ok(block, "GiftClaim.jsx still declares PAYOUT_METHODS");
+  const claim = [...block[1].matchAll(/label: '([^']+)'/g)].map((x) => x[1]);
+  assert.deepEqual(claim, ["Zelle", "Venmo", "Cash App", "PayPal"], "sanity: the claim screen's four methods");
+  const spoken = `${claim.slice(0, -1).join(", ")} or ${claim.at(-1)}`;
+  // Terms (Legal.jsx): the single payout sentence names the same four, same order.
   const legal = read("../Legal.jsx");
-  const m = /sent manually by our team, to the ([A-Za-z ]+), ([A-Za-z ]+) or ([A-Za-z ]+) account the recipient provides/.exec(legal);
-  assert.ok(m, "Legal.jsx still lists the QR Cash payout methods in this sentence");
-  const terms = [m[1], m[2], m[3]];
-  assert.deepEqual(M.C.QR_CASH_PAYOUT_METHODS, terms);
-  assert.ok(pageText.includes(`(${terms[0]}, ${terms[1]} or ${terms[2]})`));
-  for (const other of ["Cash App", "Cash-App", "CashApp"]) assert.ok(!pageText.includes(other), `${other} is not in the Terms`);
+  assert.ok(legal.includes(`QR Cash payouts are reviewed and sent manually by our team, to the ${spoken} account the recipient provides.`));
+  // Help: same list.
+  assert.deepEqual(M.C.QR_CASH_PAYOUT_METHODS, claim);
+  assert.ok(pageText.includes(`(${spoken})`));
+  // The two other founder-approved Terms sentences are untouched.
+  assert.ok(legal.includes("G1G1 gifts are not available when a Greet-Me Credit received with a QR Cash gift is applied."));
+  assert.ok(legal.includes("Hero Hearts are non-refundable, have no cash value, and cannot be transferred or exchanged; Greet-Me may change Hearts costs and available rewards at any time."));
   // The claim window matches the Terms ("30 days after the gift is created").
   assert.match(legal, /Unclaimed gifts expire 30 days after the gift is created/);
   assert.ok(pageText.includes("30 days after the gift is created"));
@@ -108,6 +117,18 @@ test("correction (d): 'lifetime' appears only in the exact Founders sentence Pri
   assert.ok(pageText.includes(M.C.FOUNDERS_PRICING_NOTE));
   // Founders pricing is still offered on Pricing (default view), so the Founders column is kept.
   assert.match(pricing, /useState\('founders'\)/);
+});
+
+test("founder decision #8: the Hearts wording is exactly the approved sentence, with no award numbers", () => {
+  const H = "You can earn Hearts from your welcome greeting, your first send and other eligible activities, then spend them in the Hearts Hub.";
+  assert.equal(M.C.HEARTS_LINE, H);
+  assert.ok(pageText.includes(H));
+  const heartsText = [...M.C.QUICK_START_STEPS.map((s) => s.body), ...M.C.FAQ.map((f) => f.a)].filter((t) => /Hearts/.test(t));
+  for (const t of heartsText) {
+    assert.ok(t.includes(H), "every Hearts mention carries the approved sentence");
+    assert.ok(!/\d/.test(t.replace(H, "")), "no award numbers beside it");
+  }
+  assert.ok(!/500 Hearts|once a day|what they can become/.test(pageText));
 });
 
 test("Greet-Me Credit terminology: no 'referral credit' (and no credit claims at all)", () => {

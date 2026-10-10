@@ -11,6 +11,9 @@ export const HELP_INTRO = {
   body: 'Forget Them Not. In a few minutes you can set up your voice, add the people who matter, and send your first Greet-Me.',
 };
 
+// Founder decision #8 (2026-10-10): the Hearts wording, verbatim.
+export const HEARTS_LINE = 'You can earn Hearts from your welcome greeting, your first send and other eligible activities, then spend them in the Hearts Hub.';
+
 export const QUICK_START_STEPS = [
   {
     title: 'Make it yours',
@@ -38,12 +41,12 @@ export const QUICK_START_STEPS = [
   },
   {
     title: 'Earn Hearts, share the love',
-    body: 'Every Greet-Me you send helps you earn Hearts, and your **Hearts Hub** shows your balance and what they can become. After you send, you can invite someone to view your Greet-Me with a name and an email. Add Greet-Me to your phone\'s home screen for one-tap access.',
+    body: `${HEARTS_LINE} After you send, you can invite someone to view your Greet-Me with a name and an email. Add Greet-Me to your phone\'s home screen for one-tap access.`,
   },
 ];
 
-// The QR Cash payout methods, worded exactly as the Terms (src/Legal.jsx) list them.
-export const QR_CASH_PAYOUT_METHODS = ['Venmo', 'PayPal', 'Zelle'];
+// The QR Cash payout methods, in the claim screen's order (GiftClaim.jsx PAYOUT_METHODS); the Terms (src/Legal.jsx) list the same four (founder decision #7, 2026-10-10).
+export const QR_CASH_PAYOUT_METHODS = ['Zelle', 'Venmo', 'Cash App', 'PayPal'];
 
 export const FAQ = [
   {
@@ -64,7 +67,7 @@ export const FAQ = [
   },
   {
     q: 'How does QR Cash work?',
-    a: `Choose an amount, send your Greet-Me, and your recipient opens it to find their gift. They then tell us where they would like to receive it (${QR_CASH_PAYOUT_METHODS[0]}, ${QR_CASH_PAYOUT_METHODS[1]} or ${QR_CASH_PAYOUT_METHODS[2]}) and we email them when it has been sent. They have 30 days after the gift is created to claim it.`,
+    a: `Choose an amount, send your Greet-Me, and your recipient opens it to find their gift. They then tell us where they would like to receive it (${QR_CASH_PAYOUT_METHODS.slice(0, -1).join(', ')} or ${QR_CASH_PAYOUT_METHODS.at(-1)}) and we email them when it has been sent. They have 30 days after the gift is created to claim it.`,
   },
   {
     q: 'Will I be charged before I confirm?',
@@ -76,7 +79,7 @@ export const FAQ = [
   },
   {
     q: 'What are Hearts?',
-    a: 'A thank-you for being thoughtful. In the Hearts Hub you can see your balance and exchange 500 Hearts for an Anytime Greet-Me (once a day).',
+    a: HEARTS_LINE,
   },
   {
     q: 'I have reached my limit. What now?',

@@ -179,7 +179,7 @@ test("Legal 2026-10-06: retention, processors, QR Cash and G1G1 wording are trut
     "Google Analytics",
     "Goody, Florist One or Printful",
     "Unclaimed gifts expire 30 days after the gift is created.",
-    "QR Cash payouts are reviewed and sent manually by our team, to the Venmo, PayPal or Zelle account the recipient provides.",
+    "QR Cash payouts are reviewed and sent manually by our team, to the Zelle, Venmo, Cash App or PayPal account the recipient provides.",
     "G1G1 gifts are not available when a Greet-Me Credit received with a QR Cash gift is applied.",
   ]) assert.ok(legal.includes(t), `Legal.jsx missing: ${t}`);
   for (const t of ["limited period afterward", "payout handling", "48 hours", "48-hour", "Unclaimed gifts expire after 30 days", "referral credit"]) {
