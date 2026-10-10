@@ -302,6 +302,18 @@ export default function CreditClaim() {
     setIsReturningUser(true);
   };
 
+  // N1-R1 (founder N1 correction, 2026-10-10): a refused onboarding auto-claim reuses the page's
+  // EXISTING refused states (the same ones handleClaim sets) instead of a "ready" screen. The
+  // sender's own credit (CREDIT_SELF_CLAIM_BLOCKED) is left to the N1 own-credit screen.
+  const showOnboardingClaimRefusal = (r) => {
+    const code = r?.code;
+    if (code === 'CREDIT_SELF_CLAIM_BLOCKED') return;
+    if (code === 'CREDIT_ALREADY_CLAIMED' || r?.message?.includes?.('already been claimed')) setClaimedByOther(true);
+    else if (code === 'CREDIT_SUBSCRIBER_INELIGIBLE') setSubscriberIneligible(true);
+    else if (code === 'CREDIT_STATUS_UNVERIFIABLE') setStatusUnverifiable(true);
+    else setError(r?.error || r?.message || 'Could not claim credit.');
+  };
+
   // Auto-claim onboarding test-send credits silently
   useEffect(() => {
     if (!credit?.isOnboardingTestSend || !isAuthenticated) return;
@@ -333,9 +345,13 @@ export default function CreditClaim() {
           setAutoClaimed(true);
         } else {
           setAutoClaimed(false);
+          showOnboardingClaimRefusal(result);
         }
-      } catch {
-        if (!cancelled) setAutoClaimed(false);
+      } catch (err) {
+        if (!cancelled) {
+          setAutoClaimed(false);
+          showOnboardingClaimRefusal(err);
+        }
       }
     })();
     return () => { cancelled = true; };
@@ -512,13 +528,48 @@ export default function CreditClaim() {
         </div>
       );
     }
-    return (
+    // N1-R1: "ready" only when this user actually holds the credit (autoClaimed === true: claimed
+    // now, or already claimed by this user). Signed out: the page's EXISTING claim path (handleClaim
+    // saves greetme_pending_credit and goes to sign-in; Login/Register bring them back here).
+    // Claimed by another account: the existing "claimed by another account" view below. While the
+    // claim is in flight: the existing loading view. Subscriber / unverifiable / other refusals were
+    // already routed to their existing screens above by showOnboardingClaimRefusal.
+    if (autoClaimed !== true) {
+      if (!isAuthenticated) {
+        return (
+          <div className="gm-min-h-screen" style={styles.page}>
+            <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
+              <div style={styles.icon}>🎁</div>
+              <p style={styles.eyebrow}>A gift from Greet-Me</p>
+              <h1 style={styles.headline}>A {displayAmount} Greet-Me Credit is waiting</h1>
+              <p style={styles.body}>
+                Sign in or create your free account to claim it.
+              </p>
+              <button onClick={handleClaim} disabled={claiming} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
+                Claim Your {displayAmount} Credit
+              </button>
+              <p style={styles.footer}>&copy; 2026 Greet-Me&trade; &middot; Forget Them Not!&trade;</p>
+              {trustLinks}
+            </div>
+          </div>
+        );
+      }
+      if (!claimedByOther) {
+        return (
+          <div className="gm-min-h-screen" style={styles.page}>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontFamily: FONT_STACK }}>Loading...</p>
+          </div>
+        );
+      }
+    }
+    if (autoClaimed === true) return (
       <div className="gm-min-h-screen" style={styles.page}>
         <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
           <div style={styles.icon}>🎁</div>
           <p style={styles.eyebrow}>A gift from Greet-Me</p>
 
           <h1 style={styles.headline}>Your {displayAmount} credit is ready</h1>
+          {/* N1-R1: reached only when autoClaimed === true (claimed by this user). */}
           <p style={styles.body}>
             You&rsquo;re all set to start sending.
           </p>
