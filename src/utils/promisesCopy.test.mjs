@@ -34,6 +34,26 @@ test("payout methods: the claim screen lists Zelle, Venmo, Cash App, PayPal", ()
   assert.deepEqual(CLAIM_METHODS, ["Zelle", "Venmo", "Cash App", "PayPal"]);
 });
 
+// Guard: ANY sentence in src/ (non-test) or index.html that names two or more payout methods is a payout list,
+// and must list exactly the claim screen's four, in its order - so no stale three-method copy can survive.
+test("payout guard: every sentence naming payout methods lists exactly the claim screen's four", () => {
+  const NAME = /Venmo|PayPal|Pay Pal|Zelle|Cash ?-?App/gi;
+  const ARRAY_FORM = `[${CLAIM_METHODS.map((m) => `'${m}'`).join(", ")}]`;
+  const bad = []; let lists = 0;
+  for (const { p, s } of ALL) {
+    for (const line of s.split("\n")) {
+      for (const sentence of line.split(/(?<=[.!?])\s+/)) {
+        const names = new Set((sentence.match(NAME) || []).map((n) => n.toLowerCase().replace(/[\s-]/g, "")));
+        if (names.size < 2) continue;
+        lists += 1;
+        if (!sentence.includes(PAYOUT_LIST) && !sentence.includes(ARRAY_FORM)) bad.push(`${p}: ${sentence.trim().slice(0, 160)}`);
+      }
+    }
+  }
+  assert.deepEqual(bad, [], "stale payout-method list(s)");
+  assert.ok(lists >= 4, `guard is not vacuous (found ${lists} lists: Terms, dashboard, Gifts, Help)`);
+});
+
 // New text that must be present, per file.
 const PINNED = [
   ["src/components/GuidedSetupFlow.jsx", "it won&rsquo;t count toward your 5 free sends."],

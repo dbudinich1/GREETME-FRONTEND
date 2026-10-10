@@ -897,7 +897,7 @@ export default function Gifts() {
                       lineHeight: 1.6,
                       margin: 0
                     }}>
-                      Once redeemed, we review and send the cash to the recipient's chosen Venmo, PayPal or Zelle. Payouts are processed manually.
+                      Once redeemed, we review and send the cash to the recipient's chosen Zelle, Venmo, Cash App or PayPal. Payouts are processed manually.
                     </p>
                   </div>
                 </div>
