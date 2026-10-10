@@ -2605,7 +2605,7 @@ export default function DashboardHome() {
                       lineHeight: 1.6,
                       margin: 0
                     }}>
-                      Once redeemed, we review and send the cash to their chosen Venmo, PayPal or Zelle. Payouts are processed manually.
+                      Once redeemed, we review and send the cash to their chosen Zelle, Venmo, Cash App or PayPal. Payouts are processed manually.
                     </p>
                   </div>
                 </div>

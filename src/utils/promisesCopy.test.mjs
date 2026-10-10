@@ -26,6 +26,34 @@ function walk(dir, out = []) {
 const ALL = [...walk(SRC), join(ROOT, "index.html")].map((p) => ({ p, s: readFileSync(p, "utf8").replace(/\r\n/g, "\n") }));
 const everywhere = (needle) => ALL.filter(({ s }) => (needle instanceof RegExp ? needle.test(s) : s.includes(needle))).map(({ p }) => p);
 
+// Founder decision #7 (2026-10-10): every payout sentence names the claim screen's own methods, in its order
+// (GiftClaim.jsx PAYOUT_METHODS labels) - the same list Help (helpContent.js) and the Terms (Legal.jsx) use.
+const CLAIM_METHODS = [...(/const PAYOUT_METHODS = \[([\s\S]*?)\n\];/.exec(read("src/pages/GiftClaim.jsx")) || [, ""])[1].matchAll(/label: '([^']+)'/g)].map((m) => m[1]);
+const PAYOUT_LIST = `${CLAIM_METHODS.slice(0, -1).join(", ")} or ${CLAIM_METHODS.at(-1)}`;
+test("payout methods: the claim screen lists Zelle, Venmo, Cash App, PayPal", () => {
+  assert.deepEqual(CLAIM_METHODS, ["Zelle", "Venmo", "Cash App", "PayPal"]);
+});
+
+// Guard: ANY sentence in src/ (non-test) or index.html that names two or more payout methods is a payout list,
+// and must list exactly the claim screen's four, in its order - so no stale three-method copy can survive.
+test("payout guard: every sentence naming payout methods lists exactly the claim screen's four", () => {
+  const NAME = /Venmo|PayPal|Pay Pal|Zelle|Cash ?-?App/gi;
+  const ARRAY_FORM = `[${CLAIM_METHODS.map((m) => `'${m}'`).join(", ")}]`;
+  const bad = []; let lists = 0;
+  for (const { p, s } of ALL) {
+    for (const line of s.split("\n")) {
+      for (const sentence of line.split(/(?<=[.!?])\s+/)) {
+        const names = new Set((sentence.match(NAME) || []).map((n) => n.toLowerCase().replace(/[\s-]/g, "")));
+        if (names.size < 2) continue;
+        lists += 1;
+        if (!sentence.includes(PAYOUT_LIST) && !sentence.includes(ARRAY_FORM)) bad.push(`${p}: ${sentence.trim().slice(0, 160)}`);
+      }
+    }
+  }
+  assert.deepEqual(bad, [], "stale payout-method list(s)");
+  assert.ok(lists >= 4, `guard is not vacuous (found ${lists} lists: Terms, dashboard, Gifts, Help)`);
+});
+
 // New text that must be present, per file.
 const PINNED = [
   ["src/components/GuidedSetupFlow.jsx", "it won&rsquo;t count toward your 5 free sends."],
@@ -46,7 +74,7 @@ const PINNED = [
   ["src/components/corporateCampaign/SavedCardPanel.jsx", "The total shown to you before you confirm is the total charged."],
   ["src/components/OnboardingTour.jsx", "or choose a gift yourself from the Gift Place."],
   ["src/config/plans.js", "Includes 1 gift subscription with your plan."],
-  ["src/pages/CreditClaim.jsx", "Reserved for non-subscribers. It will be ready when your plan ends."],
+  ["src/pages/CreditClaim.jsx", "For non-subscribers only. You can share this link with someone who isn’t subscribed."], // D9f Q3 (2026-10-10)
   ["src/pages/Checkout.jsx", "Payments by Stripe"],
   ["src/pages/GiftClaim.jsx", "days after the gift is created."],
   ["src/pages/ForBusiness.jsx", "Add real cash to a gift with QR Cash on individual sends."],
@@ -54,7 +82,7 @@ const PINNED = [
   ["src/pages/DashboardHome.jsx", "Send • Claim • Spend"],
   ["src/pages/Landing.jsx", "New accounts include 5 free sends during your 7-day trial."],
   ["src/components/GuidedSetupFlow.jsx", "received 5 free sends to use in your first 7 days."],
-  ["src/pages/DashboardHome.jsx", "Once redeemed, we review and send the cash to their chosen Venmo, PayPal or Zelle. Payouts are processed manually."],
+  ["src/pages/DashboardHome.jsx", `Once redeemed, we review and send the cash to their chosen ${PAYOUT_LIST}. Payouts are processed manually.`],
   ["src/pages/Profile.jsx", "Voice: Record at least 10 seconds in a quiet environment."],
   ["src/pages/Profile.jsx", "AI will use relationship context to personalize your messages."],
   ["src/components/hub/hubConfig.js", "A good fit for regular gifters"],
@@ -179,10 +207,12 @@ test("Legal 2026-10-06: retention, processors, QR Cash and G1G1 wording are trut
     "Google Analytics",
     "Goody, Florist One or Printful",
     "Unclaimed gifts expire 30 days after the gift is created.",
-    "QR Cash payouts are reviewed and sent manually by our team, to the Venmo, PayPal or Zelle account the recipient provides.",
+    `QR Cash payouts are reviewed and sent manually by our team, to the ${PAYOUT_LIST} account the recipient provides.`,
     "G1G1 gifts are not available when a Greet-Me Credit received with a QR Cash gift is applied.",
+    // Founder decision D9f Q5 = (a), 2026-10-10.
+    "Credits ($5 courtesy credits, $5 Greet-Me Credits received with a QR Cash gift) are promotional, usable once, by one eligible account, and have no expiration date. Credits have no cash value and cannot be redeemed for cash.",
   ]) assert.ok(legal.includes(t), `Legal.jsx missing: ${t}`);
-  for (const t of ["limited period afterward", "payout handling", "48 hours", "48-hour", "Unclaimed gifts expire after 30 days", "referral credit"]) {
+  for (const t of ["limited period afterward", "payout handling", "48 hours", "48-hour", "Unclaimed gifts expire after 30 days", "referral credit", "non-transferable, and may expire"]) {
     assert.equal(legal.includes(t), false, `Legal.jsx still has: ${t}`);
   }
 });

@@ -131,6 +131,15 @@ function payoutApi(over = {}) {
       entries = entries.map((e) => (e.id === id ? { ...e, status: "paid", paidOn: body.paidOn, paymentReference: body.reference } : e));
       return ok({ noop: false, entry: entries.find((e) => e.id === id), summary: { ...SUMMARY, approvedCommissionMinor: 0, paidCommissionMinor: 1750 } });
     },
+    // The server's read-only payment preview. Default: a server with no refunds on paid commission (no deduction), so the
+    // amount to pay is the entry's own net as the CURRENT ledger states it. Deduction tests override this.
+    commissionPaymentPreview: async (sp, id) => {
+      a.calls.push(["preview", sp, id]);
+      const rows = (await a.ledger(sp)).data.entries;
+      const e = rows.find((r) => r.id === id);
+      const net = e.salespersonCommissionMinor - rows.filter((r) => r.reversalOf === id).reduce((s, r) => s + Math.abs(r.salespersonCommissionMinor), 0);
+      return ok({ preview: { entryId: id, status: e.status, netMinor: net, deductionMinor: 0, amountToPayMinor: net, outstandingAfterMinor: 0 } });
+    },
     ...over,
   });
   return a;
@@ -149,7 +158,7 @@ test("buttons: Approve on pending, Record payment on approved, a paid note on pa
   assert.equal(rowOf("e_rev_row").querySelector("button"), null, "a reversal row has no payout control");
   assert.equal(rowOf("e_reversed").querySelector("button"), null, "a reversed original cannot be approved");
   assert.equal(within(rowOf("e_reversed"), "fcc-payout-reversed").textContent, "Fully reversed by refunds or disputes — nothing to pay.");
-  assert.match(within(rowOf("e_reversed"), "fcc-payout-net").textContent, /Net after refunds or disputes: 0 usd \(minor units\)/);
+  assert.match(within(rowOf("e_reversed"), "fcc-payout-net").textContent, /Net after refunds or disputes: \$0.00/);
   assert.match(within(rowOf("e_flower"), "fcc-affiliate-unverified").textContent, /not yet verified/);
   // No refund: unchanged - no net line, no blocking text.
   for (const id of ["e_pending", "e_approved", "e_paid", "e_flower"]) {
@@ -163,21 +172,21 @@ test("partial refund: the net is shown next to the original and the entry can st
   const a = payoutApi();
   await open(a);
   const pend = rowOf("e_part_pend");
-  assert.match(pend.textContent, /1,000 usd \(minor units\)/, "the ledger still shows the original");
+  assert.match(pend.textContent, /\$10.00/, "the ledger still shows the original");
   assert.equal(within(pend, "fcc-payout-net").textContent,
-    "Original 1,000 usd (minor units) · refunds or disputes −400 usd (minor units) · Net after refunds or disputes: 600 usd (minor units)");
+    "Original $10.00 · refunds or disputes −$4.00 · Net after refunds or disputes: $6.00");
   assert.equal(within(pend, "fcc-payout-reversed"), null, "a partial refund is not a block");
   assert.ok(within(pend, "fcc-approve"), "Approve is offered");
   await click(within(pend, "fcc-approve"));
-  assert.match(within(rowOf("e_part_pend"), "fcc-payout-confirm").textContent, /The amount to pay is the net after refunds or disputes: 600 usd \(minor units\)\./);
+  assert.match(within(rowOf("e_part_pend"), "fcc-payout-confirm").textContent, /The amount to pay is the net after refunds or disputes: \$6.00\./);
   await click(within(rowOf("e_part_pend"), "fcc-payout-go"));
   assert.deepEqual(a.calls.find((c) => c[0] === "approve"), ["approve", "sp1", "e_part_pend"]);
   assert.ok(within(rowOf("e_part_pend"), "fcc-record-payment"), "after approval the payment step is offered");
 
   const appr = rowOf("e_part_appr");
-  assert.match(within(appr, "fcc-payout-net").textContent, /Net after refunds or disputes: 500 usd \(minor units\)/);
+  assert.match(within(appr, "fcc-payout-net").textContent, /Net after refunds or disputes: \$5.00/);
   await click(within(appr, "fcc-record-payment"));
-  assert.match(within(rowOf("e_part_appr"), "fcc-payout-confirm").textContent, /net after refunds or disputes: 500 usd/);
+  assert.match(within(rowOf("e_part_appr"), "fcc-payout-confirm").textContent, /net after refunds or disputes: \$5.00/);
   setVal(within(rowOf("e_part_appr"), "fcc-pay-reference"), "ACH-NET");
   await flush();
   await click(within(rowOf("e_part_appr"), "fcc-payout-go"));
@@ -190,7 +199,7 @@ test("refunds that reach or exceed the original block with true wording and offe
   const over = rowOf("e_over");
   assert.equal(over.querySelector("button"), null);
   assert.equal(within(over, "fcc-payout-reversed").textContent, "Fully reversed by refunds or disputes — nothing to pay.");
-  assert.match(within(over, "fcc-payout-net").textContent, /refunds or disputes −300 usd \(minor units\) · Net after refunds or disputes: 0 usd/);
+  assert.match(within(over, "fcc-payout-net").textContent, /refunds or disputes −\$3.00 · Net after refunds or disputes: \$0.00/);
 });
 
 test("a paid entry that was paid net of refunds shows the amount actually paid", async () => {
@@ -199,7 +208,7 @@ test("a paid entry that was paid net of refunds shows the amount actually paid",
     { id: "x_pn", status: "reversed", salespersonCommissionMinor: -400, currency: "usd", reversalOf: "e_pn" },
   ];
   await open(payoutApi({ ledger: async () => ok({ entries }) }));
-  assert.equal(within(rowOf("e_pn"), "fcc-payout-paid").textContent, "Paid by hand on 2026-10-01 · ref W-1 · amount 600 usd (minor units)");
+  assert.equal(within(rowOf("e_pn"), "fcc-payout-paid").textContent, "Paid by hand on 2026-10-01 · ref W-1 · amount $6.00");
 });
 
 test("Approve needs an in-page confirmation (no browser dialog); Cancel makes no call", async () => {
@@ -280,7 +289,7 @@ test("a refund that landed after load: Record payment shows the new net, sends n
   const a = payoutApi({ ledger: async () => ok({ entries }) });
   await open(a);
   await click(within(rowOf("e_part_appr"), "fcc-record-payment"));
-  assert.match(within(rowOf("e_part_appr"), "fcc-payout-confirm").textContent, /net after refunds or disputes: 500 usd/);
+  assert.match(within(rowOf("e_part_appr"), "fcc-payout-confirm").textContent, /net after refunds or disputes: \$5.00/);
   setVal(within(rowOf("e_part_appr"), "fcc-pay-reference"), "ACH-STALE");
   await flush();
   // A lost dispute lands on the server after the page loaded: -200 more.
@@ -289,8 +298,8 @@ test("a refund that landed after load: Record payment shows the new net, sends n
   assert.equal(a.calls.filter((c) => c[0] === "pay").length, 0, "nothing sent while the amount differs from what was shown");
   const row = rowOf("e_part_appr");
   assert.equal(within(row, "fcc-payout-changed").textContent,
-    "The amount changed since this page was loaded, so nothing was saved. The amount to pay is now 300 usd (minor units). Confirm again if that is right.");
-  assert.match(within(row, "fcc-payout-confirm").textContent, /net after refunds or disputes: 300 usd \(minor units\)\./, "confirmation shows the server's current net");
+    "The amount changed since this page was loaded, so nothing was saved. The amount to pay is now $3.00. Confirm again if that is right.");
+  assert.match(within(row, "fcc-payout-confirm").textContent, /net after refunds or disputes: \$3.00\./, "confirmation shows the server's current net");
   assert.equal(within(row, "fcc-pay-reference").value, "ACH-STALE", "the typed reference is kept");
   assert.ok(rowOf("x_late"), "the page now shows the new reversal row");
   // Second confirm with the same (now shown) net goes through.
@@ -307,8 +316,8 @@ test("a refund after load on an entry with no earlier reversal: Approve shows th
   entries = [...entries, { id: "x_new", status: "reversed", salespersonCommissionMinor: -500, currency: "usd", reversalOf: "e_pending" }];
   await click(within(rowOf("e_pending"), "fcc-payout-go"));
   assert.equal(a.calls.filter((c) => c[0] === "approve").length, 0);
-  assert.match(within(rowOf("e_pending"), "fcc-payout-changed").textContent, /The amount to pay is now 2,000 usd \(minor units\)/);
-  assert.match(within(rowOf("e_pending"), "fcc-payout-confirm").textContent, /The amount to pay is the net after refunds or disputes: 2,000 usd/);
+  assert.match(within(rowOf("e_pending"), "fcc-payout-changed").textContent, /The amount to pay is now \$20.00/);
+  assert.match(within(rowOf("e_pending"), "fcc-payout-confirm").textContent, /The amount to pay is the net after refunds or disputes: \$20.00/);
   await click(within(rowOf("e_pending"), "fcc-payout-go"));
   assert.equal(a.calls.filter((c) => c[0] === "approve").length, 1);
 });
@@ -357,4 +366,102 @@ test("a client without the payout methods shows no payout controls (page stays u
   await open(api());
   assert.equal(document.querySelector('[data-testid="fcc-approve"]'), null);
   assert.ok(tid("fcc-ledger"));
+});
+
+// ══ refunds on commission ALREADY PAID are deducted from the next payment (founder decision 2026-10-10) ══════════════
+// The figures always come from the SERVER's payment preview (Team 5 Re-check 15, C1); the screen never recomputes them.
+const DED_ENTRIES = (refundMinor) => [
+  { id: "e_old", status: "paid", salespersonCommissionMinor: 1000, currency: "usd", paidOn: "2026-09-30", paymentReference: "ACH-1", paidAmountMinor: 1000, paidReflectsReversalIds: [] },
+  { id: "x_old", status: "reversed", salespersonCommissionMinor: -refundMinor, currency: "usd", reversalOf: "e_old" },
+  { id: "e_next", status: "approved", salespersonCommissionMinor: 1000, currency: "usd" },
+];
+const serverPreview = (byId) => async (sp, id) => ok({ preview: { entryId: id, status: "approved", ...byId[id] } });
+
+test("deduction: the record-payment confirmation shows the SERVER's deduction, amount to pay and carry-over", async () => {
+  await open(payoutApi({ ledger: async () => ok({ entries: DED_ENTRIES(300) }),
+    commissionPaymentPreview: serverPreview({ e_next: { netMinor: 1000, deductionMinor: 300, amountToPayMinor: 700, outstandingAfterMinor: 0 } }) }));
+  await click(within(rowOf("e_next"), "fcc-record-payment"));
+  assert.equal(within(rowOf("e_next"), "fcc-payout-deduction").textContent,
+    "Refunds on commission you already paid: −$3.00 is deducted from this payment. Amount to pay: $7.00");
+  await open(payoutApi({ ledger: async () => ok({ entries: DED_ENTRIES(1500) }),
+    commissionPaymentPreview: serverPreview({ e_next: { netMinor: 1000, deductionMinor: 1000, amountToPayMinor: 0, outstandingAfterMinor: 500 } }) }));
+  await click(within(rowOf("e_next"), "fcc-record-payment"));
+  assert.match(within(rowOf("e_next"), "fcc-payout-deduction").textContent, /−\$10.00 is deducted from this payment\. Amount to pay: \$0.00 · still to deduct from later payments: \$5.00/);
+});
+
+test("C1 (Team 5 Re-check 15): another entry holds a reservation from a FAILED save -> this screen shows what the server will apply (no deduction), not a ledger recomputation", async () => {
+  // The ledger alone shows a refund on paid commission (x_old) and no recorded deduction for it - a client mirror would
+  // show "-$3.00 ... Amount to pay: $7.00" here. The server knows e_res reserved it (its save failed) and will record e_next
+  // at the full net; its preview says so (proven against the real backend in commissionPayoutDeduction.test.mjs, "C1").
+  const entries = [...DED_ENTRIES(300).slice(0, 2),
+    { id: "e_res", status: "approved", salespersonCommissionMinor: 1000, currency: "usd" },
+    { id: "e_next", status: "approved", salespersonCommissionMinor: 1000, currency: "usd" }];
+  const a = payoutApi({ ledger: async () => ok({ entries }),
+    commissionPaymentPreview: serverPreview({
+      e_next: { netMinor: 1000, deductionMinor: 0, amountToPayMinor: 1000, outstandingAfterMinor: 0 },
+      e_res: { netMinor: 1000, deductionMinor: 300, amountToPayMinor: 700, outstandingAfterMinor: 0 },
+    }) });
+  await open(a);
+  await click(within(rowOf("e_next"), "fcc-record-payment"));
+  assert.equal(within(rowOf("e_next"), "fcc-payout-deduction"), null, "no deduction the server will not apply");
+  assert.doesNotMatch(within(rowOf("e_next"), "fcc-payout-confirm").textContent, /\$7\.00/);
+  setVal(within(rowOf("e_next"), "fcc-pay-reference"), "ACH-3");
+  await flush();
+  await click(within(rowOf("e_next"), "fcc-payout-go"));
+  assert.equal(a.calls.filter((c) => c[0] === "pay").length, 1, "screen == server: sent once, no second confirm needed");
+  // The entry that holds the reservation shows it.
+  await click(within(rowOf("e_res"), "fcc-record-payment"));
+  assert.match(within(rowOf("e_res"), "fcc-payout-deduction").textContent, /−\$3.00 is deducted from this payment\. Amount to pay: \$7.00/);
+});
+
+test("deduction: no preview from the server -> nothing can be recorded (never a guessed amount)", async () => {
+  const a = payoutApi({ ledger: async () => ok({ entries: DED_ENTRIES(300) }), commissionPaymentPreview: async () => ({ ok: false, status: 503, data: null }) });
+  await open(a);
+  await click(within(rowOf("e_next"), "fcc-record-payment"));
+  assert.match(within(rowOf("e_next"), "fcc-payout-preview-error").textContent, /Couldn’t load the amount to pay from the server/);
+  setVal(within(rowOf("e_next"), "fcc-pay-reference"), "ACH-9");
+  await flush();
+  assert.equal(within(rowOf("e_next"), "fcc-payout-go").disabled, true);
+  assert.equal(within(rowOf("e_next"), "fcc-payout-deduction"), null);
+});
+
+test("deduction: an earlier payment's recorded deduction shows on its paid row; no server deduction = no line", async () => {
+  const entries = [...DED_ENTRIES(300).slice(0, 2),
+    { id: "e_mid", status: "paid", salespersonCommissionMinor: 1000, currency: "usd", paidOn: "2026-10-01", paymentReference: "ACH-2", paidAmountMinor: 700, payoutDeductionMinor: 300, payoutDeductions: [{ reversalId: "x_old", amountMinor: 300 }] },
+    { id: "e_next", status: "approved", salespersonCommissionMinor: 1000, currency: "usd" }];
+  await open(payoutApi({ ledger: async () => ok({ entries }) }));
+  assert.match(within(rowOf("e_mid"), "fcc-payout-paid").textContent, /amount \$7.00 · \$3.00 deducted for refunds on commission already paid/);
+  await click(within(rowOf("e_next"), "fcc-record-payment"));
+  assert.equal(within(rowOf("e_next"), "fcc-payout-deduction"), null, "the server previews no deduction");
+});
+
+test("deduction: the server's figure changes after the confirmation opened -> nothing sent, second confirm on the new amount", async () => {
+  let fig = { netMinor: 1000, deductionMinor: 0, amountToPayMinor: 1000, outstandingAfterMinor: 0 };
+  const a = payoutApi({ ledger: async () => ok({ entries: DED_ENTRIES(300) }), commissionPaymentPreview: async (sp, id) => ok({ preview: { entryId: id, status: "approved", ...fig } }) });
+  await open(a);
+  await click(within(rowOf("e_next"), "fcc-record-payment"));
+  assert.equal(within(rowOf("e_next"), "fcc-payout-deduction"), null);
+  fig = { netMinor: 1000, deductionMinor: 300, amountToPayMinor: 700, outstandingAfterMinor: 0 };
+  setVal(within(rowOf("e_next"), "fcc-pay-reference"), "ACH-9");
+  await flush();
+  await click(within(rowOf("e_next"), "fcc-payout-go"));
+  assert.equal(a.calls.filter((c) => c[0] === "pay").length, 0, "nothing sent");
+  assert.match(within(rowOf("e_next"), "fcc-payout-changed").textContent, /amount to pay is now \$7.00/);
+  assert.match(within(rowOf("e_next"), "fcc-payout-deduction").textContent, /Amount to pay: \$7.00/);
+  await click(within(rowOf("e_next"), "fcc-payout-go"));
+  assert.equal(a.calls.filter((c) => c[0] === "pay").length, 1, "sent after the second confirm");
+});
+
+test("SOURCE: the payout controls never recompute a deduction from the ledger (C1)", () => {
+  const src = readFileSync(join(__dirname, "CommissionPayoutControls.jsx"), "utf8").replace(/\/\/.*$/gm, "");
+  assert.equal(/outstandingDeduction|payoutDeductions|paidReflectsReversalIds/.test(src), false);
+  assert.match(src, /api\.commissionPaymentPreview\(salespersonId, entry\.id\)/);
+});
+
+test("summary shows the refunds still to deduct and already deducted (only when the server sends them)", async () => {
+  await open(payoutApi({ summary: async () => ok({ summary: { ...SUMMARY, outstandingDeductionMinor: 500, recoveredDeductionMinor: 1000, postPaymentReversedMinor: 1500 } }) }));
+  assert.match(tid("fcc-summary").textContent, /Refunds after payment, still to deduct500/);
+  assert.match(tid("fcc-summary").textContent, /Refunds after payment, deducted1,000/);
+  await open(payoutApi());
+  assert.doesNotMatch(tid("fcc-summary").textContent, /Refunds after payment/);
 });

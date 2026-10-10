@@ -44,6 +44,17 @@ export default function Support() {
           . We reply as quickly as we can.
         </p>
 
+        <p data-testid="support-help-link" style={{
+          fontSize: '1rem',
+          color: '#555',
+          lineHeight: 1.6,
+          marginTop: '-1.25rem',
+          marginBottom: '2rem'
+        }}>
+          New to Greet-Me™? Read{' '}
+          <a href="#/help" style={{ color: '#667eea', fontWeight: 600 }}>Help &amp; Quick Start</a>.
+        </p>
+
         {/* Billing & Subscription */}
         <section style={{
           background: 'white',
