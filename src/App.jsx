@@ -148,6 +148,7 @@ const FundraiserReferralLanding = lazy(() => import("./pages/fundraiser/Fundrais
 // opaque token into the transient carrier; no auth, no salesperson identity, no private data.
 const SalesReferralLanding = lazy(() => import("./pages/sales/SalesReferralLanding"));
 import Support from "./pages/Support";
+import Help from "./pages/Help";
 import { currentVanityAlias } from "./pages/sales/vanityAlias.js";
 import Legal from "./Legal";
 import VerifyEmail from "./pages/VerifyEmail";
@@ -287,6 +288,7 @@ export default function App() {
 
           {/* Support & Legal (Public) */}
           <Route path="/support" element={<Support />} />
+          <Route path="/help" element={<Help />} />
           <Route path="/legal" element={<Legal />} />
 
           {/* Founder Dashboard + QA Inspector — dev-only, route-gated. */}
