@@ -17,7 +17,7 @@ import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
-import { writeFileSync, rmSync } from "node:fs";
+import { writeFileSync, rmSync, readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import esbuild from "esbuild";
 
@@ -192,11 +192,47 @@ test("subscriber refusal renders the restrained expected-state copy, not the gen
   try {
     await clickSayThankYou(m.host);
     const body = text(m.host);
-    assert.match(body, /Your Greet-Me Credit is saved/i, "the restrained heading renders");
-    assert.match(body, /reserved for non-subscribers/i);
-    assert.match(body, /your Greet-Me subscription is currently active/i);
+    // D9f Q3 (founder, 2026-10-10): the refusal leaves the credit unclaimed, so the copy says it
+    // can't be added here and that this same link can be shared (first eligible claimer, once).
+    assert.match(body, /This credit is for non-subscribers/i, "the restrained heading renders");
+    assert.match(body, /can.{0,8}t be added to your account/i);
+    assert.match(body, /share this credit link with someone who isn.{0,8}t subscribed/i);
+    assert.match(body, /The first eligible person to claim it can use it once/i);
+    assert.doesNotMatch(body, /is saved|reserved for|ready when your plan ends|cannot be applied right now/i, "no claim that the credit is held for this account");
     assert.doesNotMatch(body, /Something went wrong/i, "must NOT render through the generic error path");
   } finally { await m.unmount(); }
+});
+
+test("D9f Q3: subscriber screen shows this page's own credit link and copies it", async () => {
+  apiMod.__state.claimBehavior = { throw: true, status: 403, code: "CREDIT_SUBSCRIBER_INELIGIBLE", message: "..." };
+  const copied = [];
+  const prevClipboard = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
+  Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async (t) => { copied.push(t); } }, configurable: true });
+  const m = await mount();
+  try {
+    await clickSayThankYou(m.host);
+    const shown = m.host.querySelector('[data-testid="credit-share-link"]');
+    assert.ok(shown, "the credit link is shown");
+    assert.equal(shown.textContent.trim(), `${window.location.origin}/#/claim-credit/${CODE}`, "reuses this page's own code; no new route");
+    const btn = [...m.host.querySelectorAll("button")].find((b) => /Copy credit link/i.test(b.textContent || ""));
+    assert.ok(btn, "copy control present");
+    await act(async () => { btn.dispatchEvent(new window.MouseEvent("click", { bubbles: true })); });
+    await act(async () => { await new Promise((r) => window.setTimeout(r, 0)); });
+    assert.deepEqual(copied, [`${window.location.origin}/#/claim-credit/${CODE}`]);
+    assert.match(text(m.host), /Link copied/);
+    assert.ok([...m.host.querySelectorAll("button")].some((b) => /Go to Dashboard/i.test(b.textContent || "")), "dashboard exit kept");
+  } finally {
+    await m.unmount();
+    if (prevClipboard) Object.defineProperty(globalThis.navigator, "clipboard", prevClipboard);
+    else delete globalThis.navigator.clipboard;
+  }
+});
+
+test("D9f Q3: the authenticated subscriber's terms line is truthful and short", () => {
+  const src = readFileSync(new URL("./CreditClaim.jsx", import.meta.url), "utf8");
+  assert.ok(src.includes("For non-subscribers only. You can share this link with someone who isn’t subscribed."));
+  assert.equal(src.includes("It will be ready when your plan ends."), false);
+  assert.equal(src.includes("Your Greet-Me Credit is saved"), false);
 });
 
 test("subscriber refusal never calls it a system failure", async () => {

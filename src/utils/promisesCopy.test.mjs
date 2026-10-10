@@ -46,7 +46,7 @@ const PINNED = [
   ["src/components/corporateCampaign/SavedCardPanel.jsx", "The total shown to you before you confirm is the total charged."],
   ["src/components/OnboardingTour.jsx", "or choose a gift yourself from the Gift Place."],
   ["src/config/plans.js", "Includes 1 gift subscription with your plan."],
-  ["src/pages/CreditClaim.jsx", "Reserved for non-subscribers. It will be ready when your plan ends."],
+  ["src/pages/CreditClaim.jsx", "For non-subscribers only. You can share this link with someone who isn’t subscribed."], // D9f Q3 (2026-10-10)
   ["src/pages/Checkout.jsx", "Payments by Stripe"],
   ["src/pages/GiftClaim.jsx", "days after the gift is created."],
   ["src/pages/ForBusiness.jsx", "Add real cash to a gift with QR Cash on individual sends."],

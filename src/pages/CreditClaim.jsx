@@ -45,6 +45,8 @@ export default function CreditClaim() {
   // "Something went wrong" path is untouched and these two get their own honest copy instead.
   const [subscriberIneligible, setSubscriberIneligible] = useState(false);
   const [statusUnverifiable, setStatusUnverifiable] = useState(false);
+  // D9f Q3: the subscriber screen offers this page's own credit link to copy and pass on.
+  const [creditLinkCopied, setCreditLinkCopied] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [autoClaimed, setAutoClaimed] = useState(null);
@@ -409,19 +411,35 @@ export default function CreditClaim() {
   }
 
   // CREDIT CONTRACT INTEGRITY (2026-09-29, follow-up correction) — a current subscriber is a
-  // deliberate, expected eligibility rule, not a failure: the credit is untouched (still claimed,
-  // never consumed) and stays available under its existing expiration rules once the account is
-  // eligible again. Kept visually calm and separate from the generic error path above.
+  // deliberate, expected eligibility rule, not a failure. D9f Q3 (founder, 2026-10-10): the server's
+  // refusal leaves the credit UNCLAIMED and untouched (not held for this account), so the honest
+  // message is that it can't be added here, and this same link can be passed to someone who isn't
+  // subscribed: the first eligible person to claim it can use it once. No transfer system: the
+  // existing bearer link is the whole mechanism. Kept calm and separate from the generic error path.
   if (subscriberIneligible) {
+    const creditLink = `${window.location.origin}/#/claim-credit/${creditCode}`;
+    const copyCreditLink = async () => {
+      try {
+        await navigator.clipboard.writeText(creditLink);
+        setCreditLinkCopied(true);
+      } catch {
+        setCreditLinkCopied(false);
+      }
+    };
     return (
       <div className="gm-min-h-screen" style={styles.page}>
         <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>&#10003;</div>
-          <h2 style={{ color: '#10b981', marginBottom: '1rem', fontFamily: 'Georgia, serif' }}>Your Greet-Me Credit is saved</h2>
-          <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '1.5rem' }}>
-            This {displayAmount} credit is reserved for non-subscribers. Because your Greet-Me subscription is currently active, it cannot be applied right now.
+          <h2 style={{ color: '#10b981', marginBottom: '1rem', fontFamily: 'Georgia, serif' }}>This credit is for non-subscribers</h2>
+          <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '1rem' }}>
+            This {displayAmount} Greet-Me Credit is for people without a Greet-Me subscription, so it can&rsquo;t be added to your account. You can share this credit link with someone who isn&rsquo;t subscribed. The first eligible person to claim it can use it once.
           </p>
-          <button onClick={() => navigate('/dashboard')} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
+          <p data-testid="credit-share-link" style={{ color: '#fff', wordBreak: 'break-all', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+            {creditLink}
+          </p>
+          <button onClick={copyCreditLink} style={{ ...styles.cta, marginBottom: '0.75rem' }}>
+            {creditLinkCopied ? 'Link copied' : 'Copy credit link'}
+          </button>
+          <button onClick={() => navigate('/dashboard')} style={styles.ctaSecondary}>
             Go to Dashboard
           </button>
         </div>
@@ -687,7 +705,7 @@ export default function CreditClaim() {
                 </button>
                 <p style={styles.terms}>
                   {accountState.isSubscribed
-                    ? 'Reserved for non-subscribers. It will be ready when your plan ends.'
+                    ? 'For non-subscribers only. You can share this link with someone who isn’t subscribed.'
                     : 'Applies to your first Greet-Me subscription. Valid toward Social Butterfly or higher plans.'}
                 </p>
               </>
