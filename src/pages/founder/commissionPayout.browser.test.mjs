@@ -358,3 +358,57 @@ test("a client without the payout methods shows no payout controls (page stays u
   assert.equal(document.querySelector('[data-testid="fcc-approve"]'), null);
   assert.ok(tid("fcc-ledger"));
 });
+
+// ══ refunds on commission ALREADY PAID are deducted from the next payment (founder decision 2026-10-10) ══════════════
+const DED_ENTRIES = (refundMinor) => [
+  { id: "e_old", status: "paid", salespersonCommissionMinor: 1000, currency: "usd", paidOn: "2026-09-30", paymentReference: "ACH-1", paidAmountMinor: 1000, paidReflectsReversalIds: [] },
+  { id: "x_old", status: "reversed", salespersonCommissionMinor: -refundMinor, currency: "usd", reversalOf: "e_old" },
+  { id: "e_next", status: "approved", salespersonCommissionMinor: 1000, currency: "usd" },
+];
+
+test("deduction: recording the next payment shows the refund deducted and the amount to pay; a partial carries the rest", async () => {
+  await open(payoutApi({ ledger: async () => ok({ entries: DED_ENTRIES(300) }) }));
+  await click(within(rowOf("e_next"), "fcc-record-payment"));
+  assert.equal(within(rowOf("e_next"), "fcc-payout-deduction").textContent,
+    "Refunds on commission you already paid: −300 usd (minor units) is deducted from this payment. Amount to pay: 700 usd (minor units)");
+  await open(payoutApi({ ledger: async () => ok({ entries: DED_ENTRIES(1500) }) }));
+  await click(within(rowOf("e_next"), "fcc-record-payment"));
+  assert.match(within(rowOf("e_next"), "fcc-payout-deduction").textContent, /−1,000 usd \(minor units\) is deducted from this payment\. Amount to pay: 0 usd \(minor units\) · still to deduct from later payments: 500 usd \(minor units\)/);
+});
+
+test("deduction: an earlier payment's recorded deduction is not shown again; no refund after payment = no deduction line", async () => {
+  const entries = [...DED_ENTRIES(300).slice(0, 2),
+    { id: "e_mid", status: "paid", salespersonCommissionMinor: 1000, currency: "usd", paidOn: "2026-10-01", paymentReference: "ACH-2", paidAmountMinor: 700, payoutDeductionMinor: 300, payoutDeductions: [{ reversalId: "x_old", amountMinor: 300 }] },
+    { id: "e_next", status: "approved", salespersonCommissionMinor: 1000, currency: "usd" }];
+  await open(payoutApi({ ledger: async () => ok({ entries }) }));
+  assert.match(within(rowOf("e_mid"), "fcc-payout-paid").textContent, /amount 700 usd \(minor units\) · 300 usd \(minor units\) deducted for refunds on commission already paid/);
+  await click(within(rowOf("e_next"), "fcc-record-payment"));
+  assert.equal(within(rowOf("e_next"), "fcc-payout-deduction"), null, "already recovered");
+  await open(payoutApi());
+  await click(within(rowOf("e_approved"), "fcc-record-payment"));
+  assert.equal(within(rowOf("e_approved"), "fcc-payout-deduction"), null);
+});
+
+test("deduction: a refund on paid commission that lands after load sends nothing and needs a second confirm", async () => {
+  let entries = DED_ENTRIES(300).filter((e) => e.id !== "x_old");
+  const a = payoutApi({ ledger: async () => ok({ entries }) });
+  await open(a);
+  await click(within(rowOf("e_next"), "fcc-record-payment"));
+  assert.equal(within(rowOf("e_next"), "fcc-payout-deduction"), null);
+  entries = DED_ENTRIES(300);
+  setVal(within(rowOf("e_next"), "fcc-pay-reference"), "ACH-9");
+  await flush();
+  await click(within(rowOf("e_next"), "fcc-payout-go"));
+  assert.equal(a.calls.filter((c) => c[0] === "pay").length, 0, "nothing sent");
+  assert.match(within(rowOf("e_next"), "fcc-payout-changed").textContent, /amount to pay is now 700 usd/);
+  await click(within(rowOf("e_next"), "fcc-payout-go"));
+  assert.equal(a.calls.filter((c) => c[0] === "pay").length, 1, "sent after the second confirm");
+});
+
+test("summary shows the refunds still to deduct and already deducted (only when the server sends them)", async () => {
+  await open(payoutApi({ summary: async () => ok({ summary: { ...SUMMARY, outstandingDeductionMinor: 500, recoveredDeductionMinor: 1000, postPaymentReversedMinor: 1500 } }) }));
+  assert.match(tid("fcc-summary").textContent, /Refunds after payment, still to deduct500/);
+  assert.match(tid("fcc-summary").textContent, /Refunds after payment, deducted1,000/);
+  await open(payoutApi());
+  assert.doesNotMatch(tid("fcc-summary").textContent, /Refunds after payment/);
+});

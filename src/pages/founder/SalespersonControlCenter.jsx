@@ -889,6 +889,11 @@ export default function SalespersonControlCenter({ api = salesAdminApi, user: in
                     ["Commission approved", minorUnits(report.summary.approvedCommissionMinor)],
                     ["Commission paid", minorUnits(report.summary.paidCommissionMinor)],
                     ["Commission reversed", minorUnits(report.summary.reversedCommissionMinor)],
+                    // Founder 2026-10-10: refunds on commission already paid are deducted from the next payouts.
+                    ...(typeof report.summary.outstandingDeductionMinor === "number" ? [
+                      ["Refunds after payment, still to deduct", minorUnits(report.summary.outstandingDeductionMinor)],
+                      ["Refunds after payment, deducted", minorUnits(report.summary.recoveredDeductionMinor)],
+                    ] : []),
                   ].map(([k, v]) => (
                     <div key={k} style={{ display: "contents" }}>
                       <dt style={{ ...label, margin: 0 }}>{k}</dt>

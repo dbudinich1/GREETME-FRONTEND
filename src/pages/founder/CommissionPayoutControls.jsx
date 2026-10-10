@@ -45,6 +45,32 @@ export function commissionNet(entry, ledgerEntries) {
   return { originalMinor, reversedMinor, netMinor, reversalCount: reversals.length, payable };
 }
 
+/**
+ * POST-PAYMENT REFUNDS (founder decision 2026-10-10): a refund or lost dispute on commission that was ALREADY PAID is
+ * deducted from this salesperson's next recorded payment(s). Mirror of the backend (services/sales/commissionPayout.js):
+ * reversal rows whose original is paid and not reflected in that payment, minus what earlier payments already deducted
+ * (their `payoutDeductions`). The server recomputes at write; this is only what the confirmation shows.
+ */
+export function outstandingDeduction(ledgerEntries) {
+  const rows = Array.isArray(ledgerEntries) ? ledgerEntries.filter(Boolean) : [];
+  const byId = new Map(rows.map((r) => [String(r.id), r]));
+  const recovered = new Map();
+  for (const r of rows) {
+    if (r.status !== "paid" || !Array.isArray(r.payoutDeductions)) continue;
+    for (const d of r.payoutDeductions) recovered.set(String(d.reversalId), (recovered.get(String(d.reversalId)) || 0) + (Number(d.amountMinor) || 0));
+  }
+  let total = 0;
+  for (const r of rows) {
+    if (!r.reversalOf) continue;
+    const o = byId.get(String(r.reversalOf));
+    if (!o || o.status !== "paid") continue;
+    if (Array.isArray(o.paidReflectsReversalIds) && o.paidReflectsReversalIds.map(String).includes(String(r.id))) continue;
+    total += Math.max(0, Math.abs(Number(r.salespersonCommissionMinor) || 0) - (recovered.get(String(r.id)) || 0));
+  }
+  return total;
+}
+
+
 export default function CommissionPayoutControls({ api, salespersonId, entry, ledgerEntries, onDone, onLedger }) {
   const [step, setStep] = useState(null);      // null | "approve" | "pay"
   const [busy, setBusy] = useState(false);
@@ -64,6 +90,9 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
   if (isReversalRow(entry)) return null;
   const net = commissionNet(entry, freshRows || ledgerEntries);
   const netText = minorUnits(net.netMinor, entry.currency);
+  // Refunds on commission already paid are taken off THIS payment first (only when recording a payment).
+  const owed = outstandingDeduction(freshRows || ledgerEntries);
+  const deductMinor = entry.status === "approved" && net.payable ? Math.min(owed, net.netMinor) : 0;
   // Shown only when refunds or disputes touched this entry, so an untouched row reads exactly as before.
   // Reversal rows come from refunds AND lost disputes (chargebacks), so the wording names both.
   const netLine = net.reversalCount > 0 ? (
@@ -79,6 +108,8 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
     return (
       <p style={note} data-testid="fcc-payout-paid">
         Paid by hand{entry.paidOn ? ` on ${entry.paidOn}` : ""}{entry.paymentReference ? ` · ref ${entry.paymentReference}` : ""}{paidAmount}
+        {typeof entry.payoutDeductionMinor === "number" && entry.payoutDeductionMinor > 0
+          ? ` · ${minorUnits(entry.payoutDeductionMinor, entry.currency)} deducted for refunds on commission already paid` : ""}
       </p>
     );
   }
@@ -96,6 +127,13 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
   const isPending = entry.status === "pending";
   if ((isPending && !canApprove) || (!isPending && !canPay)) return netLine;
   const amountClause = net.reversalCount > 0 ? ` The amount to pay is the net after refunds or disputes: ${netText}.` : "";
+  const deductionLine = deductMinor > 0 ? (
+    <p style={note} data-testid="fcc-payout-deduction">
+      Refunds on commission you already paid: {"−"}{minorUnits(deductMinor, entry.currency)} is deducted from this payment.
+      {" "}<strong>Amount to pay: {minorUnits(net.netMinor - deductMinor, entry.currency)}</strong>
+      {owed > deductMinor ? ` · still to deduct from later payments: ${minorUnits(owed - deductMinor, entry.currency)}` : ""}
+    </p>
+  ) : null;
   const changedLine = changedNotice ? (
     <p data-testid="fcc-payout-changed" style={{ color: "var(--warning)", fontSize: ".84rem", margin: ".4rem 0" }}>{changedNotice}</p>
   ) : null;
@@ -116,6 +154,11 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
     }
     const fresh = commissionNet(current, rows);
     if (!fresh.payable) { setStep(null); return false; }   // the row now renders the "nothing to pay" block
+    const freshDeduct = current.status === "approved" ? Math.min(outstandingDeduction(rows), fresh.netMinor) : 0;
+    if (!isPending && freshDeduct !== deductMinor) {
+      setChangedNotice(`A refund on commission already paid changed since this page was loaded, so nothing was saved. The amount to pay is now ${minorUnits(fresh.netMinor - freshDeduct, entry.currency)}. Confirm again if that is right.`);
+      return false;
+    }
     if (fresh.netMinor !== shownNet) {
       setShownNet(fresh.netMinor);
       setChangedNotice(`The amount changed since this page was loaded, so nothing was saved. The amount to pay is now ${minorUnits(fresh.netMinor, entry.currency)}. Confirm again if that is right.`);
@@ -163,6 +206,7 @@ export default function CommissionPayoutControls({ api, salespersonId, entry, le
           <p style={{ fontSize: ".84rem", margin: "0 0 .5rem" }}>
             Record that you already paid this commission by hand. Greet Me does not send any money.{amountClause}
           </p>
+          {deductionLine}
           <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
             <input data-testid="fcc-pay-reference" aria-label="Payment reference" placeholder="Reference (required)" maxLength={120}
               value={reference} onChange={(ev) => setReference(ev.target.value)} style={{ maxWidth: 220 }} />
