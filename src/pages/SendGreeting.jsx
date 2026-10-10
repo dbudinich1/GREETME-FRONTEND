@@ -57,7 +57,9 @@ import { pushInApp, showManualToast } from '../utils/notify';
 import { COMMS_EVENTS, COMMS_CATEGORIES } from '../utils/commsCatalog';
 import { normalizeOccasionKey } from '../utils/normalizeOccasionKey';
 import { getErrorMessage } from '../utils/errorMessages';
-import { isUnsubscribedAccount } from '../utils/sendGating';
+import {
+  isUnsubscribedAccount, emailConfirmationBlock, paymentInProgressMessage, PAYMENT_ALREADY_IN_PROGRESS_CODE,
+} from '../utils/sendGating';
 
 // ───────────────────────────────────────────────────────────────
 // Phase 3D Batch A — A2.4: ephemeral checkout-resume persistence
@@ -265,15 +267,37 @@ export default function SendGreeting() {
     return runGiftEntitlementPreflight(null, { early: true });
   };
 
+  // LANE E3 (2026-10-10) — an unconfirmed email blocks the gift checkout before any card step. The
+  // caution shows only the confirm-your-email message and the EXISTING resend action
+  // (api.resendVerificationEmail); never Top Up / Upgrade / Gift-only. Every outcome is "don't proceed".
+  const openEmailConfirmationCaution = (emailPreflight) => new Promise((resolve) => {
+    giftOnlyAcknowledgedRef.current = false;
+    const stop = () => {
+      setEntitlementCaution(null);
+      resolve({ proceed: false, giftOnlyToken: null });
+    };
+    setEntitlementCaution({
+      preflight: emailPreflight, giftAttemptId: null,
+      onTopUp: stop, onUpgrade: stop, onContinueGiftOnly: stop, onClose: stop,
+    });
+  });
+
   const runGiftEntitlementPreflight = async (giftAttemptId, { early = false } = {}) => {
     let preflight;
     try {
       preflight = await api.getSendEntitlementPreflight();
     } catch {
+      // (LANE E3: an unconfirmed email is still refused 403 EMAIL_NOT_VERIFIED by the payment
+      // routes before any charge; that refusal shows the same caution.)
       // The read-only preflight itself failing must never block an otherwise-fine send — the
       // authoritative server-side gate on the actual charge/order route still applies regardless.
       return { proceed: true, giftOnlyToken: null };
     }
+    // LANE E3 — checked BEFORE canSendGreeting: a sender with sends left but an unconfirmed email
+    // would otherwise be charged and then refused at send time. Server preflight only (its rule is
+    // the send handler's exact gate; see emailConfirmationBlock).
+    const emailBlocked = emailConfirmationBlock({ preflight });
+    if (emailBlocked) return openEmailConfirmationCaution(emailBlocked);
     if (preflight?.canSendGreeting) return { proceed: true, giftOnlyToken: null };
 
     // LANE E2 — already explicitly confirmed Gift Only in the early check for this checkout: get the
@@ -1839,9 +1863,16 @@ export default function SendGreeting() {
     navigate(`/dashboard/checkout?sendDraftId=${uuid}`);
   };
 
+  // LANE E3 (2026-10-10) — true from the first line of a QR Cash charge attempt until it settles
+  // (charge, any 3DS bank step, /finalize). A ref, not state, so a second call in the same tick is
+  // refused before a second /charge-now can be issued.
+  const qrCashChargeInFlight = useRef(false);
+
   // QR Cash™ confirmation handler: charge then send (with 3DS support)
   const handleGiftConfirm = async (paymentMethodId, stripeInstance) => {
+    if (qrCashChargeInFlight.current) return; // LANE E3 — never a second charge call mid-attempt
     if (!pendingGreetingData || !paymentMethodId) return;
+    qrCashChargeInFlight.current = true;
     setGiftCharging(true);
     setGiftChargeError(null);
 
@@ -1854,7 +1885,7 @@ export default function SendGreeting() {
     // caution modal otherwise. The server's own gate on /charge-now is still authoritative — this
     // is the UX layer, not the safety layer.
     const { proceed, giftOnlyToken } = await runGiftEntitlementPreflight(giftRequestId);
-    if (!proceed) { setGiftCharging(false); return; }
+    if (!proceed) { qrCashChargeInFlight.current = false; setGiftCharging(false); return; }
 
     try {
       // Step 1: Charge for the QR Cash™ gift
@@ -1945,10 +1976,29 @@ export default function SendGreeting() {
       // authorization binds to the attempt that was actually blocked.
       if (error?.code === 'SEND_ENTITLEMENT_AT_RISK') {
         setGiftCharging(false);
+        // LANE E3 — this attempt is over (nothing was charged); release the guard so the one
+        // explicit re-attempt below can run.
+        qrCashChargeInFlight.current = false;
         const retry = await runGiftEntitlementPreflight(giftRequestId);
         if (retry.proceed) {
-          return handleGiftConfirm(paymentMethodId, stripeInstance);
+          // Awaited (LANE E3) so this attempt's finally cannot release the guard mid-re-attempt.
+          return await handleGiftConfirm(paymentMethodId, stripeInstance);
         }
+        return;
+      }
+      // LANE E3 — the server says an earlier attempt for this gift is still awaiting the bank's
+      // verification. Show its words, and KEEP the same giftRequestId: rotating it here is what
+      // would let the next click open a second PaymentIntent. No retry is made.
+      if (error?.code === PAYMENT_ALREADY_IN_PROGRESS_CODE) {
+        setGiftChargeError(paymentInProgressMessage(error));
+        return;
+      }
+      // LANE E3 — /charge-now refused an unconfirmed email (nothing was charged). Close the card
+      // step and show the same confirm-your-email message as the preflight, with the resend action.
+      if (error?.code === 'EMAIL_NOT_VERIFIED') {
+        setIsGiftConfirmOpen(false);
+        setPendingGreetingData(null);
+        openEmailConfirmationCaution(emailConfirmationBlock({ preflight: { reasonCode: 'EMAIL_NOT_VERIFIED' } }));
         return;
       }
       const msg = error?.message || error?.error || 'Failed to charge QR Cash™ gift. Please try again.';
@@ -1956,6 +2006,7 @@ export default function SendGreeting() {
       // Fresh idempotency key so the next attempt isn't blocked by Stripe
       setGiftRequestId(crypto.randomUUID());
     } finally {
+      qrCashChargeInFlight.current = false;
       setGiftCharging(false);
     }
   };
@@ -4055,6 +4106,7 @@ if (typeof window !== "undefined") {
         isOpen={!!entitlementCaution}
         preflight={entitlementCaution?.preflight}
         unsubscribed={unsubscribed}
+        onResendConfirmation={async () => api.resendVerificationEmail()}
         onClose={() => entitlementCaution?.onClose?.()}
         onTopUp={() => entitlementCaution?.onTopUp?.()}
         onUpgrade={() => entitlementCaution?.onUpgrade?.()}

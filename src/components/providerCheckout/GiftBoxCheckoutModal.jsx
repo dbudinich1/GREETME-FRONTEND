@@ -23,6 +23,7 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import GreetMeLogo from '../GreetMeLogo';
 import api from '../../api/api';
 import { stripePromise } from '../../stripe/stripeProvider';
+import { EMAIL_UNCONFIRMED_MESSAGE } from '../../utils/sendGating';
 
 // The visual language of ProviderCheckoutModal.jsx, reused exactly.
 const label = { display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-secondary, #475569)' };
@@ -467,6 +468,12 @@ function GiftBoxCheckoutForm({
       if (err?.status === 402) {
         setFailure(err?.message || 'Your card was declined.');
         giftRequestId.current = crypto.randomUUID();
+        return;
+      }
+      if (code === 'EMAIL_NOT_VERIFIED') {
+        // LANE E3 — refused before any charge (403); the same confirm-your-email message as the
+        // send preflight. The key is kept: nothing was created under it.
+        setFailure(EMAIL_UNCONFIRMED_MESSAGE);
         return;
       }
       if (err?.status === 429) {

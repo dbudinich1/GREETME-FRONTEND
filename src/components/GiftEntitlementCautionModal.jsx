@@ -14,8 +14,10 @@
 
 import { useState } from 'react';
 import Modal from './Modal';
-import { AlertTriangle, TrendingUp, Wallet, Gift } from 'lucide-react';
-import { freePlanBlockCopy, shouldOfferTopUp } from '../utils/sendGating';
+import { AlertTriangle, TrendingUp, Wallet, Gift, Mail } from 'lucide-react';
+import {
+  freePlanBlockCopy, shouldOfferTopUp, isEmailConfirmationBlock, EMAIL_UNCONFIRMED_MESSAGE,
+} from '../utils/sendGating';
 
 const styles = {
   triangleWrap: {
@@ -87,7 +89,12 @@ function remainingCopy(preflight) {
  */
 export default function GiftEntitlementCautionModal({
   isOpen, onClose, preflight, onTopUp, onUpgrade, onContinueGiftOnly, unsubscribed = false,
+  onResendConfirmation = null,
 }) {
+  // LANE E3 (2026-10-10) — an unconfirmed email blocks every gift checkout. Confirming the email is
+  // the only remedy, so Top Up / Upgrade / Gift-only are never offered for this reason.
+  const emailBlock = isEmailConfirmationBlock(preflight);
+  const [resendState, setResendState] = useState('idle'); // idle | sending | sent | verified | error
   // LANE E2 (2026-10-10) — an expired trial / free-plan account is told the REAL reason in plain
   // words, and is never offered "Purchase Additional Sends" (packs can never unblock a free-plan
   // send). Subscribed accounts see exactly the copy and choices they saw before.
@@ -99,6 +106,7 @@ export default function GiftEntitlementCautionModal({
   const close = () => {
     if (submitting) return; // lossless, but don't abandon an in-flight explicit confirmation
     setConfirmingGiftOnly(false);
+    setResendState('idle');
     onClose();
   };
 
@@ -111,6 +119,53 @@ export default function GiftEntitlementCautionModal({
       setSubmitting(false);
     }
   };
+
+  const handleResend = async () => {
+    if (!onResendConfirmation || resendState === 'sending') return;
+    setResendState('sending');
+    try {
+      const res = await onResendConfirmation();
+      setResendState(res && res.ok === false ? 'error' : 'sent');
+    } catch (err) {
+      // POST /api/auth/resend-verification answers 400 when the email is already confirmed.
+      setResendState(err?.status === 400 ? 'verified' : 'error');
+    }
+  };
+
+  if (emailBlock) {
+    return (
+      <Modal isOpen={isOpen} onClose={close} title="" size="sm">
+        <div data-testid="gift-entitlement-caution">
+          <div style={styles.triangleWrap}>
+            <Mail style={styles.triangle} strokeWidth={2.25} aria-hidden="true" data-testid="caution-email-icon" />
+          </div>
+          <p style={styles.body} data-testid="caution-email-unconfirmed">
+            {(typeof preflight?.message === 'string' && preflight.message.trim()) || EMAIL_UNCONFIRMED_MESSAGE}
+          </p>
+          {onResendConfirmation ? (
+            <button
+              type="button" style={styles.choiceButton} data-testid="caution-resend-confirmation"
+              onClick={handleResend} disabled={resendState === 'sending'}
+            >
+              <Mail size={18} /> {resendState === 'sending' ? 'Sending…' : 'Resend confirmation email'}
+            </button>
+          ) : null}
+          {resendState === 'sent' ? (
+            <p style={styles.remaining} data-testid="caution-resend-sent">Confirmation email sent. Check your inbox.</p>
+          ) : null}
+          {resendState === 'verified' ? (
+            <p style={styles.remaining} data-testid="caution-resend-verified">Your email is already confirmed. Close this and try again.</p>
+          ) : null}
+          {resendState === 'error' ? (
+            <p style={styles.remaining} data-testid="caution-resend-error">Couldn’t resend right now. Please wait a minute and try again.</p>
+          ) : null}
+          <button type="button" style={styles.cancelButton} data-testid="caution-cancel" onClick={close}>
+            Close
+          </button>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal isOpen={isOpen} onClose={close} title="" size="sm">

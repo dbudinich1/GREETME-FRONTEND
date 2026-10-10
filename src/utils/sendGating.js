@@ -123,3 +123,49 @@ export function isAtRecipientCap({ limit, count } = {}) {
   const n = positiveInt(limit);
   return !!n && Number.isInteger(count) && count >= n;
 }
+
+// ---- LANE E3 (2026-10-10): pay safety ----
+
+export const EMAIL_NOT_VERIFIED_CODE = 'EMAIL_NOT_VERIFIED';
+export const EMAIL_UNCONFIRMED_MESSAGE = 'Confirm your email address to send. Check your inbox for the confirmation link.';
+export const PAYMENT_ALREADY_IN_PROGRESS_CODE = 'PAYMENT_ALREADY_IN_PROGRESS';
+export const PAYMENT_ALREADY_IN_PROGRESS_MESSAGE = "This payment is already in progress. Please finish your bank's verification step, or close and start the gift again.";
+
+/** True when a send-preflight result blocks for an unconfirmed email (any of the shapes E3-BE may use). */
+export function isEmailConfirmationBlock(preflight) {
+  if (!preflight || typeof preflight !== 'object') return false;
+  if (preflight.reasonCode === EMAIL_NOT_VERIFIED_CODE) return true;
+  if (preflight.reason === EMAIL_NOT_VERIFIED_CODE || preflight.code === EMAIL_NOT_VERIFIED_CODE) return true;
+  return Array.isArray(preflight.remediation) && preflight.remediation.includes('confirm_email');
+}
+
+/**
+ * The caution-modal preflight to show when a gift checkout must not open because the sender's
+ * email is unconfirmed, or null when it may proceed.
+ *
+ * SERVER-ONLY by design (E3-BE contract 205bb96): the backend send gate is
+ * `emailVerified === false && isDemoAccount !== true && !exempt`, where a MISSING emailVerified is
+ * NOT unconfirmed. The hydrated client user cannot express that: /api/profile and AuthContext both
+ * coerce `emailVerified === true`, so a legacy account with no field reads `false` here, and
+ * isDemoAccount is not hydrated at all. A client-side fallback would therefore block verified legacy
+ * and demo accounts. The preflight (reasonCode EMAIL_NOT_VERIFIED) applies the exact backend rule,
+ * and the payment routes refuse 403 EMAIL_NOT_VERIFIED before any charge if the preflight is
+ * unavailable.
+ */
+export function emailConfirmationBlock({ preflight = null } = {}) {
+  if (!isEmailConfirmationBlock(preflight)) return null;
+  const serverMessage = typeof preflight.message === 'string' && preflight.message.trim()
+    ? preflight.message.trim() : null;
+  return {
+    canSendGreeting: false,
+    reasonCode: EMAIL_NOT_VERIFIED_CODE,
+    message: serverMessage || EMAIL_UNCONFIRMED_MESSAGE,
+    remediation: ['confirm_email'],
+  };
+}
+
+/** The server's own words for a 409 PAYMENT_ALREADY_IN_PROGRESS, else the contract copy. */
+export function paymentInProgressMessage(error) {
+  const m = typeof error?.message === 'string' ? error.message.trim() : '';
+  return m && !/^HTTP \d+$/.test(m) ? m : PAYMENT_ALREADY_IN_PROGRESS_MESSAGE;
+}

@@ -16,6 +16,8 @@ const ERROR_MESSAGES = {
   TRIAL_EXPIRED: 'Your free trial has ended — upgrade to send.',
   // Backend lane E1: Animation Bank pack purchase by an account without an active paid plan.
   ANYTIME_REQUIRES_SUBSCRIPTION: 'Anytime Greet-Me packs are available with an active Greet-Me plan.',
+  // LANE E3 (2026-10-10) — 409 from /api/gifts/charge-now while a 3DS step is outstanding.
+  PAYMENT_ALREADY_IN_PROGRESS: "This payment is already in progress. Please finish your bank's verification step, or close and start the gift again.",
   PAYMENT_REQUIRED: 'A Greet-Me\u2122 subscription is required to send greetings.',
   PAYMENT_FAILED: "Your payment didn't go through. You can update your method and continue whenever you're ready.",
   SUBSCRIPTION_EXPIRED: 'Your Greet-Me\u2122 subscription has expired. Renew to continue.',

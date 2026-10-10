@@ -78,3 +78,57 @@ test("SG-M1: expired gifted plan (tier 'free' + subscriptionStatus 'active', laz
   assert.equal(isUnsubscribedAccount({ tier: "social_butterfly", subscriptionStatus: "trialing", entitlements: { greetingsPeriod: "trial" } }), false, "paid tier + active/trialing still wins");
   assert.equal(isUnsubscribedAccount({ tier: "free", subscriptionStatus: "active", paymentLocked: true }), false, "paymentLocked unchanged");
 });
+
+// ---- LANE E3 (2026-10-10): pay safety ----
+import {
+  isEmailConfirmationBlock, emailConfirmationBlock, paymentInProgressMessage,
+  EMAIL_UNCONFIRMED_MESSAGE, PAYMENT_ALREADY_IN_PROGRESS_MESSAGE,
+} from "./sendGating.js";
+
+const EMAIL_MSG = "Confirm your email address to send. Check your inbox for the confirmation link.";
+
+test("E3: the email message is the exact founder/contract copy", () => {
+  assert.equal(EMAIL_UNCONFIRMED_MESSAGE, EMAIL_MSG);
+});
+
+test("E3: preflight EMAIL_NOT_VERIFIED is recognised in every contract shape", () => {
+  for (const pf of [
+    { canSendGreeting: false, reasonCode: "EMAIL_NOT_VERIFIED" },
+    { canSendGreeting: false, reason: "EMAIL_NOT_VERIFIED" },
+    { ok: false, code: "EMAIL_NOT_VERIFIED" },
+    { canSendGreeting: false, reasonCode: "X", remediation: ["confirm_email"] },
+  ]) assert.equal(isEmailConfirmationBlock(pf), true, JSON.stringify(pf));
+  for (const pf of [null, undefined, {}, { canSendGreeting: true, reasonCode: "OK" }, { reasonCode: "TRIAL_EXPIRED", remediation: ["upgrade", "gift_only"] }]) {
+    assert.equal(isEmailConfirmationBlock(pf), false, JSON.stringify(pf));
+  }
+});
+
+test("E3: the client never infers an unconfirmed email itself (missing emailVerified / demo accounts must not be blocked); server preflight only", () => {
+  assert.equal(emailConfirmationBlock({ preflight: { canSendGreeting: true, reasonCode: "OK" }, user: { emailVerified: false } }), null);
+  assert.equal(emailConfirmationBlock({ preflight: null, user: { emailVerified: false } }), null);
+  assert.equal(emailConfirmationBlock({}), null);
+});
+
+test("E3: emailConfirmationBlock → a confirm_email-only caution (no top_up / upgrade / gift_only); null for a verified sender", () => {
+  // The exact E3-BE (205bb96) preflight body.
+  const fromPreflight = emailConfirmationBlock({ preflight: { ok: true, canSendGreeting: false, sendLimitUnlimited: false, remaining: null, reasonCode: "EMAIL_NOT_VERIFIED", remediation: ["confirm_email"], message: EMAIL_MSG } });
+  const noMessage = emailConfirmationBlock({ preflight: { canSendGreeting: false, reasonCode: "EMAIL_NOT_VERIFIED" } });
+  for (const b of [fromPreflight, noMessage]) {
+    assert.equal(b.reasonCode, "EMAIL_NOT_VERIFIED");
+    assert.equal(b.canSendGreeting, false);
+    assert.equal(b.message, EMAIL_MSG);
+    assert.deepEqual(b.remediation, ["confirm_email"]);
+    assert.equal(shouldOfferTopUp(b), false);
+  }
+  // Verified + subscribed: unchanged (no block at all).
+  assert.equal(emailConfirmationBlock({ preflight: { canSendGreeting: true, reasonCode: "OK" }, user: { emailVerified: true, tier: "close_circle" } }), null);
+  assert.equal(emailConfirmationBlock({ preflight: { canSendGreeting: false, reasonCode: "LIMIT_EXCEEDED" }, user: { emailVerified: true } }), null);
+});
+
+test("E3: 409 PAYMENT_ALREADY_IN_PROGRESS shows the server's words; contract copy as fallback; getErrorMessage maps the code", () => {
+  const server = "This payment is already in progress. Please finish your bank's verification step, or close and start the gift again.";
+  assert.equal(paymentInProgressMessage({ code: "PAYMENT_ALREADY_IN_PROGRESS", message: server }), server);
+  assert.equal(paymentInProgressMessage({ code: "PAYMENT_ALREADY_IN_PROGRESS", message: "HTTP 409" }), PAYMENT_ALREADY_IN_PROGRESS_MESSAGE);
+  assert.equal(paymentInProgressMessage({}), PAYMENT_ALREADY_IN_PROGRESS_MESSAGE);
+  assert.equal(getErrorMessage({ code: "PAYMENT_ALREADY_IN_PROGRESS", status: 409 }), server);
+});

@@ -21,6 +21,7 @@ import {
   statusCopy, toPrepareRequest, validateCheckoutForm,
 } from './providerCheckoutModel';
 import { clearCardFields, loadTokenizer, tokenizeCard } from './acceptJsLoader';
+import { EMAIL_UNCONFIRMED_MESSAGE } from '../../utils/sendGating';
 import {
   fetchProviderProducts, fetchTokenizationConfig, prepareCheckout, submitCheckout,
 } from '../../api/providerCheckout';
@@ -274,7 +275,11 @@ export default function ProviderCheckoutModal({
       // Terminal failure: the fields are cleared here too, so a decline never leaves a card number
       // sitting in a form the browser might restore.
       clearCardFields(setCard);
-      setFailure(err?.message || 'Your card could not be verified.');
+      // LANE E3 — a 403 EMAIL_NOT_VERIFIED refusal shows the same confirm-your-email message as the
+      // send preflight.
+      setFailure(err?.code === 'EMAIL_NOT_VERIFIED'
+        ? EMAIL_UNCONFIRMED_MESSAGE
+        : (err?.message || 'Your card could not be verified.'));
       submitting.current = false;
     } finally {
       setBusy(false);
