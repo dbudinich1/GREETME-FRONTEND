@@ -26,6 +26,14 @@ function walk(dir, out = []) {
 const ALL = [...walk(SRC), join(ROOT, "index.html")].map((p) => ({ p, s: readFileSync(p, "utf8").replace(/\r\n/g, "\n") }));
 const everywhere = (needle) => ALL.filter(({ s }) => (needle instanceof RegExp ? needle.test(s) : s.includes(needle))).map(({ p }) => p);
 
+// Founder decision #7 (2026-10-10): every payout sentence names the claim screen's own methods, in its order
+// (GiftClaim.jsx PAYOUT_METHODS labels) - the same list Help (helpContent.js) and the Terms (Legal.jsx) use.
+const CLAIM_METHODS = [...(/const PAYOUT_METHODS = \[([\s\S]*?)\n\];/.exec(read("src/pages/GiftClaim.jsx")) || [, ""])[1].matchAll(/label: '([^']+)'/g)].map((m) => m[1]);
+const PAYOUT_LIST = `${CLAIM_METHODS.slice(0, -1).join(", ")} or ${CLAIM_METHODS.at(-1)}`;
+test("payout methods: the claim screen lists Zelle, Venmo, Cash App, PayPal", () => {
+  assert.deepEqual(CLAIM_METHODS, ["Zelle", "Venmo", "Cash App", "PayPal"]);
+});
+
 // New text that must be present, per file.
 const PINNED = [
   ["src/components/GuidedSetupFlow.jsx", "it won&rsquo;t count toward your 5 free sends."],
@@ -54,7 +62,7 @@ const PINNED = [
   ["src/pages/DashboardHome.jsx", "Send • Claim • Spend"],
   ["src/pages/Landing.jsx", "New accounts include 5 free sends during your 7-day trial."],
   ["src/components/GuidedSetupFlow.jsx", "received 5 free sends to use in your first 7 days."],
-  ["src/pages/DashboardHome.jsx", "Once redeemed, we review and send the cash to their chosen Venmo, PayPal or Zelle. Payouts are processed manually."],
+  ["src/pages/DashboardHome.jsx", `Once redeemed, we review and send the cash to their chosen ${PAYOUT_LIST}. Payouts are processed manually.`],
   ["src/pages/Profile.jsx", "Voice: Record at least 10 seconds in a quiet environment."],
   ["src/pages/Profile.jsx", "AI will use relationship context to personalize your messages."],
   ["src/components/hub/hubConfig.js", "A good fit for regular gifters"],
@@ -179,7 +187,7 @@ test("Legal 2026-10-06: retention, processors, QR Cash and G1G1 wording are trut
     "Google Analytics",
     "Goody, Florist One or Printful",
     "Unclaimed gifts expire 30 days after the gift is created.",
-    "QR Cash payouts are reviewed and sent manually by our team, to the Zelle, Venmo, Cash App or PayPal account the recipient provides.",
+    `QR Cash payouts are reviewed and sent manually by our team, to the ${PAYOUT_LIST} account the recipient provides.`,
     "G1G1 gifts are not available when a Greet-Me Credit received with a QR Cash gift is applied.",
   ]) assert.ok(legal.includes(t), `Legal.jsx missing: ${t}`);
   for (const t of ["limited period afterward", "payout handling", "48 hours", "48-hour", "Unclaimed gifts expire after 30 days", "referral credit"]) {
