@@ -77,11 +77,52 @@ test("giftAvailable === false: no gift QR, no claim link, none of the gift copy 
   assert.doesNotMatch(t, /refund|payment/i, "never says why");
 });
 
-test("a withdrawn gift is never replaced by a courtesy-credit offer", async () => {
+// D9f Q1 (founder, 2026-10-10): an unclaimed gift withdrawn after delivery gets the card's $5 Greet-Me
+// Credit. The server returns courtesyCreditCode for such a card only once that credit exists; the card
+// keeps the literal truth and shows the EXISTING credit QR beneath it. (Supersedes the Release 2b
+// expectation "a withdrawn gift is never replaced by a courtesy-credit offer".)
+test("withdrawn gift WITH a server credit: the truth line, then the existing $5 credit QR beneath it", async () => {
   const h = await mount({ hasGift: true, gift: GIFT, giftAvailable: false, courtesyCreditCode: "CC-1" });
   await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+  const t = text(h);
+  const truth = h.querySelector('[data-testid="gift-withdrawn"]');
+  assert.ok(truth, t);
+  assert.match(t, /This gift is no longer available\./);
+  const link = h.querySelector('a[href$="/#/claim-credit/CC-1"]');
+  assert.ok(link, "the existing credit QR link");
+  assert.equal(link.getAttribute("aria-label"), "Claim your $5 Greet-Me credit");
+  assert.ok(h.querySelector("img[alt='Scan to claim your $5 Greet-Me credit']"), "the existing credit QR image");
+  assert.ok(truth.compareDocumentPosition(link) & window.Node.DOCUMENT_POSITION_FOLLOWING, "credit renders beneath the truth line");
+  assert.match(t, /Scan or tap to claim your \$5 Greet-Me Credit/);
+  for (const banned of ["A little something extra", "Scan or tap to open your gift", "A Gift From", "Sent especially for you", "Scan or tap to claim your gift"]) {
+    assert.equal(t.includes(banned), false, `must not show "${banned}"`);
+  }
+  assert.equal(h.querySelector(`a[href="${GIFT.claimUrl}"]`), null, "the withdrawn gift stays unclaimable");
+  assert.doesNotMatch(t, /refund|payment/i, "never says why");
+});
+
+test("withdrawn gift WITHOUT a credit: only the truth line (no credit, no 'Sent especially for you')", async () => {
+  const h = await mount({ hasGift: true, gift: GIFT, giftAvailable: false, courtesyCreditCode: null });
+  await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+  const t = text(h);
+  assert.match(t, /This gift is no longer available\./);
   assert.equal(h.querySelector('a[href*="/claim-credit/"]'), null);
-  assert.match(text(h), /This gift is no longer available\./);
+  assert.equal(t.includes("Sent especially for you"), false);
+});
+
+test("sender viewing a withdrawn gift's credit sees the owner caption", async () => {
+  const h = await mount({ hasGift: true, gift: GIFT, giftAvailable: false, courtesyCreditCode: "CC-1", isOwner: true });
+  await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+  assert.match(text(h), /Included with your greeting/);
+});
+
+test("gift-free card keeps today's credit caption; no credit keeps 'Sent especially for you'", async () => {
+  const a = await mount({ hasGift: false, gift: null, courtesyCreditCode: "CC-2" });
+  await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+  assert.match(text(a), /Scan or tap to claim your gift/);
+  assert.equal(a.querySelector('[data-testid="gift-withdrawn"]'), null);
+  const b = await mount({ hasGift: false, gift: null, courtesyCreditCode: null });
+  assert.match(text(b), /Sent especially for you\./);
 });
 
 test("unknown availability (null / undefined) and true keep today's gift page exactly", async () => {
