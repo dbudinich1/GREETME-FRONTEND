@@ -11,15 +11,18 @@ const FREE_TIER = 'free';
 
 /**
  * True when the account has no active paid plan (free tier / trial, active or expired).
- * "Subscribed wins": an active/trialing Stripe status or paymentLocked always counts as subscribed,
- * so a paying account is never treated as unsubscribed. Unknown user (null) → false, which keeps
+ * paymentLocked always counts as subscribed; an active/trialing Stripe status counts only on a
+ * non-free tier (an expired gifted plan reads tier "free" + status "active" and is unsubscribed). Unknown user (null) → false, which keeps
  * today's behaviour until the profile is known.
  */
 export function isUnsubscribedAccount(user) {
   if (!user) return false;
   if (user.paymentLocked === true) return false;
-  if (user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing') return false;
   const tier = user.tier || user.plan || FREE_TIER;
+  // TEAM 5 SG-M1 (lane E3): the active/trialing shortcut applies ONLY to a non-free tier. An expired
+  // gifted plan resolves to tier "free" while its stored subscriptionStatus can still read "active"
+  // (lazy expiry); the backend treats that account as unsubscribed, so the UI must too.
+  if (tier !== FREE_TIER && (user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing')) return false;
   if (tier === FREE_TIER) return true;
   return user.entitlements?.greetingsPeriod === 'trial';
 }

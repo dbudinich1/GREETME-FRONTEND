@@ -20,8 +20,6 @@ test("isUnsubscribedAccount: paid tiers, active/trialing Stripe status or paymen
   for (const tier of ["close_circle", "social_butterfly", "unforgettable", "small_business", "founder"]) {
     assert.equal(isUnsubscribedAccount({ tier, entitlements: { greetingsPeriod: "month" } }), false, tier);
   }
-  assert.equal(isUnsubscribedAccount({ tier: "free", subscriptionStatus: "active" }), false);
-  assert.equal(isUnsubscribedAccount({ tier: "free", subscriptionStatus: "trialing" }), false);
   assert.equal(isUnsubscribedAccount({ tier: "free", paymentLocked: true }), false);
   assert.equal(isUnsubscribedAccount(null), false);
   assert.equal(canOfferAdditionalSends({ tier: "free" }), false);
@@ -70,4 +68,13 @@ test("getErrorMessage: RECIPIENT_LIMIT_REACHED reads the backend's `limit`; TRIA
   assert.match(getErrorMessage({ code: "RECIPIENT_LIMIT_REACHED" }), /recipient limit/, "falls back when no number was sent");
   assert.equal(getErrorMessage({ code: "TRIAL_EXPIRED" }), "Your free trial has ended — upgrade to send.");
   assert.equal(getErrorMessage({ code: "ANYTIME_REQUIRES_SUBSCRIPTION" }), "Anytime Greet-Me packs are available with an active Greet-Me plan.");
+});
+
+test("SG-M1: expired gifted plan (tier 'free' + subscriptionStatus 'active', lazy expiry) is UNSUBSCRIBED; a paid tier + 'active' is subscribed", () => {
+  assert.equal(isUnsubscribedAccount({ tier: "free", subscriptionStatus: "active" }), true);
+  assert.equal(isUnsubscribedAccount({ tier: "free", plan: "free", subscriptionStatus: "trialing" }), true);
+  assert.equal(canOfferAdditionalSends({ tier: "free", subscriptionStatus: "active" }), false, "no Top Up / packs");
+  assert.equal(isUnsubscribedAccount({ tier: "close_circle", subscriptionStatus: "active" }), false);
+  assert.equal(isUnsubscribedAccount({ tier: "social_butterfly", subscriptionStatus: "trialing", entitlements: { greetingsPeriod: "trial" } }), false, "paid tier + active/trialing still wins");
+  assert.equal(isUnsubscribedAccount({ tier: "free", subscriptionStatus: "active", paymentLocked: true }), false, "paymentLocked unchanged");
 });
