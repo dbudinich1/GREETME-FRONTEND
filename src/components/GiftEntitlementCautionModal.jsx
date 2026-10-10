@@ -15,6 +15,7 @@
 import { useState } from 'react';
 import Modal from './Modal';
 import { AlertTriangle, TrendingUp, Wallet, Gift } from 'lucide-react';
+import { freePlanBlockCopy, shouldOfferTopUp } from '../utils/sendGating';
 
 const styles = {
   triangleWrap: {
@@ -85,8 +86,13 @@ function remainingCopy(preflight) {
  *   token and completing the purchase with it — this component does not call the backend itself.
  */
 export default function GiftEntitlementCautionModal({
-  isOpen, onClose, preflight, onTopUp, onUpgrade, onContinueGiftOnly,
+  isOpen, onClose, preflight, onTopUp, onUpgrade, onContinueGiftOnly, unsubscribed = false,
 }) {
+  // LANE E2 (2026-10-10) — an expired trial / free-plan account is told the REAL reason in plain
+  // words, and is never offered "Purchase Additional Sends" (packs can never unblock a free-plan
+  // send). Subscribed accounts see exactly the copy and choices they saw before.
+  const freePlanCopy = freePlanBlockCopy(preflight, { unsubscribed });
+  const offerTopUp = shouldOfferTopUp(preflight, { unsubscribed });
   const [confirmingGiftOnly, setConfirmingGiftOnly] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -113,22 +119,33 @@ export default function GiftEntitlementCautionModal({
           <div style={styles.triangleWrap}>
             <AlertTriangle style={styles.triangle} strokeWidth={2.25} aria-hidden="true" data-testid="caution-triangle" />
           </div>
-          <h2 style={styles.headline}>Your gift may arrive without its Greet-Me</h2>
-          <p style={styles.body}>
-            Before we place your gift order, make sure you have a Greet-Me send available so your
-            greeting can arrive with your gift and make the moment unforgettable.
-          </p>
-          {remainingCopy(preflight) ? (
-            <p style={styles.remaining} data-testid="caution-remaining">{remainingCopy(preflight)}</p>
-          ) : null}
+          {freePlanCopy ? (
+            <>
+              <h2 style={styles.headline} data-testid="caution-free-plan-headline">{freePlanCopy.headline}</h2>
+              <p style={styles.body}>{freePlanCopy.body}</p>
+            </>
+          ) : (
+            <>
+              <h2 style={styles.headline}>Your gift may arrive without its Greet-Me</h2>
+              <p style={styles.body}>
+                Before we place your gift order, make sure you have a Greet-Me send available so your
+                greeting can arrive with your gift and make the moment unforgettable.
+              </p>
+              {remainingCopy(preflight) ? (
+                <p style={styles.remaining} data-testid="caution-remaining">{remainingCopy(preflight)}</p>
+              ) : null}
+            </>
+          )}
 
           {/* FOUNDER-APPROVED LABEL CORRECTION (2026-09-30) — was "Top Up"/"Upgrade". Same
               handlers, same testids, same destinations; copy only. */}
-          <button type="button" style={styles.choiceButton} data-testid="caution-topup" onClick={onTopUp}>
-            <Wallet size={18} /> Purchase Additional Sends
-          </button>
+          {offerTopUp ? (
+            <button type="button" style={styles.choiceButton} data-testid="caution-topup" onClick={onTopUp}>
+              <Wallet size={18} /> Purchase Additional Sends
+            </button>
+          ) : null}
           <button type="button" style={styles.choiceButton} data-testid="caution-upgrade" onClick={onUpgrade}>
-            <TrendingUp size={18} /> Upgrade Plan
+            <TrendingUp size={18} /> {freePlanCopy ? 'Upgrade to send' : 'Upgrade Plan'}
           </button>
           <button
             type="button" style={styles.giftOnlyButton} data-testid="caution-gift-only"
@@ -145,8 +162,8 @@ export default function GiftEntitlementCautionModal({
           <div style={styles.confirmBox}>
             <p style={styles.confirmText}>
               Your gift may arrive without a Greet-Me. The greeting message you wrote will not be
-              sent unless you top up or upgrade later. Are you sure you want to continue with the
-              gift only?
+              sent unless you {offerTopUp ? 'top up or upgrade' : 'upgrade'} later. Are you sure you want
+              to continue with the gift only?
             </p>
           </div>
           <div style={styles.confirmActions}>

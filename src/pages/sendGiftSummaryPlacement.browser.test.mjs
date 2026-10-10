@@ -575,7 +575,8 @@ test("C3. the cadence is wired end to end: Done & Send -> review -> checkout -> 
   // 7b: the review's flower confirmation is what begins the flower checkout.
   assert.match(src, /onConfirmFlowersCheckout=\{handleReviewFlowersCheckout\}/,
     "the review routes a flower confirmation to the flowers checkout");
-  assert.match(src, /const handleReviewFlowersCheckout = \(\) => \{[\s\S]*?setIsFlowersCheckoutOpen\(true\);/,
+  // LANE E2 (2026-10-10): the handler is async — it consults the send preflight before opening checkout.
+  assert.match(src, /const handleReviewFlowersCheckout = async \(\) => \{[\s\S]*?setIsFlowersCheckoutOpen\(true\);/,
     "and that handler opens the flower checkout");
 
   // 8: the accepted handoff is the only thing that continues the send.

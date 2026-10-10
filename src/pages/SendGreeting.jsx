@@ -57,6 +57,7 @@ import { pushInApp, showManualToast } from '../utils/notify';
 import { COMMS_EVENTS, COMMS_CATEGORIES } from '../utils/commsCatalog';
 import { normalizeOccasionKey } from '../utils/normalizeOccasionKey';
 import { getErrorMessage } from '../utils/errorMessages';
+import { isUnsubscribedAccount } from '../utils/sendGating';
 
 // ───────────────────────────────────────────────────────────────
 // Phase 3D Batch A — A2.4: ephemeral checkout-resume persistence
@@ -123,6 +124,9 @@ export default function SendGreeting() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, refreshProfile } = useAuth();
+  // LANE E2 (2026-10-10) — free-plan / no-active-paid-plan account. Additional sends (Animation
+  // Bank packs / Anytime) are never offered to it; see utils/sendGating.js.
+  const unsubscribed = isUnsubscribedAccount(user);
   const [contacts, setContacts] = useState([]);
   const [showInlineAdd, setShowInlineAdd] = useState(false);
   const [newContactName, setNewContactName] = useState('');
@@ -247,7 +251,21 @@ export default function SendGreeting() {
     saveDraftAndNavigate('/dashboard/animations?openPacks=true&returnTo=send');
   };
 
-  const runGiftEntitlementPreflight = async (giftAttemptId) => {
+  // LANE E2 (2026-10-10) — set only when the sender already chose "Continue with Gift Only" in the
+  // EARLY check (before the card/payment step). The later, at-charge check then requests the real
+  // server-issued Gift Only token without asking the same question twice. Never a token itself;
+  // cleared whenever a gift checkout opens fresh or closes.
+  const giftOnlyAcknowledgedRef = useRef(false);
+
+  // LANE E2 — the SAME preflight, consulted BEFORE the card/payment step opens, so the sender
+  // learns the real reason (e.g. an ended free trial) before entering a card. Read-only: it never
+  // requests a Gift Only token (that stays bound to the real charge attempt below).
+  const runEarlyGiftEntitlementCheck = () => {
+    giftOnlyAcknowledgedRef.current = false;
+    return runGiftEntitlementPreflight(null, { early: true });
+  };
+
+  const runGiftEntitlementPreflight = async (giftAttemptId, { early = false } = {}) => {
     let preflight;
     try {
       preflight = await api.getSendEntitlementPreflight();
@@ -258,6 +276,17 @@ export default function SendGreeting() {
     }
     if (preflight?.canSendGreeting) return { proceed: true, giftOnlyToken: null };
 
+    // LANE E2 — already explicitly confirmed Gift Only in the early check for this checkout: get the
+    // real token for THIS attempt without re-asking. Any failure falls through to the caution again.
+    if (!early && giftOnlyAcknowledgedRef.current) {
+      giftOnlyAcknowledgedRef.current = false;
+      try {
+        const auth = await api.requestGiftOnlyAuthorization(giftAttemptId);
+        const giftOnlyToken = auth?.giftOnlyToken || auth?.token || null;
+        if (auth?.ok && giftOnlyToken) return { proceed: true, giftOnlyToken };
+      } catch { /* fall through to the caution */ }
+    }
+
     return new Promise((resolve) => {
       setEntitlementCaution({
         preflight,
@@ -265,7 +294,10 @@ export default function SendGreeting() {
         onTopUp: () => {
           setEntitlementCaution(null);
           resolve({ proceed: false, giftOnlyToken: null });
-          saveDraftForAnimationBankReturn();
+          // LANE E2 — packs can never unblock a free-plan send; the modal hides this choice for an
+          // unsubscribed account, and this guard keeps any stale caller off the packs page too.
+          if (unsubscribed) saveDraftForPricingReturn();
+          else saveDraftForAnimationBankReturn();
         },
         onUpgrade: () => {
           setEntitlementCaution(null);
@@ -273,6 +305,14 @@ export default function SendGreeting() {
           saveDraftForPricingReturn();
         },
         onContinueGiftOnly: async () => {
+          if (early) {
+            // Explicitly confirmed (second screen) before any card entry. Remember the choice; the
+            // real token is requested at charge time for the real attempt id.
+            giftOnlyAcknowledgedRef.current = true;
+            setEntitlementCaution(null);
+            resolve({ proceed: true, giftOnlyToken: null });
+            return;
+          }
           try {
             const auth = await api.requestGiftOnlyAuthorization(giftAttemptId);
             const giftOnlyToken = auth?.giftOnlyToken || auth?.token || null;
@@ -1411,10 +1451,14 @@ export default function SendGreeting() {
   // Reached from CONTINUE on the pre-send review, after the sender has come back from the Gift Place
   // and looked at the arrangement they picked. Checkout never begins at the moment a product is
   // selected: selecting attaches, Continue pays.
-  const handleReviewFlowersCheckout = () => {
+  const handleReviewFlowersCheckout = async () => {
     const selectedContact = contacts.find(c => c.id === formData.contactId);
     if (!selectedContact) return;
     if (!giftSettings?.flowersProduct?.providerProductId) return;
+    // LANE E2 — preflight BEFORE the payment step.
+    setIsPreSendReviewOpen(false);
+    const early = await runEarlyGiftEntitlementCheck();
+    if (!early.proceed) return;
     const greetingData = buildGreetingData(selectedContact);
     setPendingGreetingData(greetingData);
     // A fresh checkout is a fresh chance to send. Released here and nowhere else, so it is armed by
@@ -1632,6 +1676,7 @@ export default function SendGreeting() {
   // greeting is released, and the DRAFT — formData, the chosen arrangement, the photos — is
   // untouched, so the sender can change or remove the gift and send without composing again.
   const handleFlowersCheckoutClose = () => {
+    giftOnlyAcknowledgedRef.current = false;
     setIsFlowersCheckoutOpen(false);
     setPendingGreetingData(null);
   };
@@ -1643,10 +1688,14 @@ export default function SendGreeting() {
   // ───────────────────────────────────────────────
 
   // A DELIBERATE MIRROR of handleReviewFlowersCheckout: park the greeting, open the payment step.
-  const handleReviewGiftBoxCheckout = () => {
+  const handleReviewGiftBoxCheckout = async () => {
     const selectedContact = contacts.find(c => c.id === formData.contactId);
     if (!selectedContact) return;
     if (!giftSettings?.giftBoxProduct?.providerProductId) return;
+    // LANE E2 — preflight BEFORE the payment step.
+    setIsPreSendReviewOpen(false);
+    const early = await runEarlyGiftEntitlementCheck();
+    if (!early.proceed) return;
     const greetingData = buildGreetingData(selectedContact);
     setPendingGreetingData(greetingData);
     // The same one-send latch the flowers path uses: armed by this human action, disarmed by the send.
@@ -1712,15 +1761,20 @@ export default function SendGreeting() {
   // Closing the gift box checkout. Before payment NOTHING WAS CHARGED: the parked greeting is released
   // and the draft is untouched. After a held (paid, unconfirmed) outcome the held payload is kept.
   const handleGiftBoxCheckoutClose = () => {
+    giftOnlyAcknowledgedRef.current = false;
     setIsGiftBoxCheckoutOpen(false);
     setPendingGreetingData(null);
   };
 
   // QR Cash fresh-charge path: opens the existing GiftConfirmationModal.
   // Reuses the terminal logic that previously lived in handleSubmit branch B.
-  const handleReviewQRCashFresh = () => {
+  const handleReviewQRCashFresh = async () => {
     const selectedContact = contacts.find(c => c.id === formData.contactId);
     if (!selectedContact) return;
+    // LANE E2 — preflight BEFORE the card step.
+    setIsPreSendReviewOpen(false);
+    const early = await runEarlyGiftEntitlementCheck();
+    if (!early.proceed) return;
     const greetingData = buildGreetingData(selectedContact);
     setPendingGreetingData(greetingData);
     setGiftChargeError(null);
@@ -1755,6 +1809,7 @@ export default function SendGreeting() {
 
     const uuid = crypto.randomUUID();
 
+    giftOnlyAcknowledgedRef.current = false; // LANE E2 — this path asks once, here, before Stripe
     const { proceed, giftOnlyToken } = await runGiftEntitlementPreflight(uuid);
     if (!proceed) return; // caution modal handled Top Up / Upgrade / Cancel / Gift Only itself
 
@@ -2713,6 +2768,7 @@ if (typeof window !== "undefined") {
               follow-up to your gift.
             </p>
             <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
+              {!unsubscribed && (
               <button
                 type="button"
                 data-testid="gift-separated-topup"
@@ -2724,6 +2780,7 @@ if (typeof window !== "undefined") {
               >
                 Top Up
               </button>
+              )}
               <button
                 type="button"
                 data-testid="gift-separated-upgrade"
@@ -3962,6 +4019,7 @@ if (typeof window !== "undefined") {
       <GiftConfirmationModal
         isOpen={isGiftConfirmOpen}
         onClose={() => {
+          giftOnlyAcknowledgedRef.current = false;
           setIsGiftConfirmOpen(false);
           setPendingGreetingData(null);
           setGiftChargeError(null);
@@ -3996,6 +4054,7 @@ if (typeof window !== "undefined") {
       <GiftEntitlementCautionModal
         isOpen={!!entitlementCaution}
         preflight={entitlementCaution?.preflight}
+        unsubscribed={unsubscribed}
         onClose={() => entitlementCaution?.onClose?.()}
         onTopUp={() => entitlementCaution?.onTopUp?.()}
         onUpgrade={() => entitlementCaution?.onUpgrade?.()}

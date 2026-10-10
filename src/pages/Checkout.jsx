@@ -472,7 +472,8 @@ export default function Checkout() {
       window.location.href = data.url;
     } catch (error) {
       console.error('Stripe checkout error:', error);
-      setErrors({ submit: getErrorMessage(error) });
+      // LANE E2 (2026-10-10) — a pack purchase refused for an unsubscribed account gets an Upgrade link.
+      setErrors({ submit: getErrorMessage(error), submitNeedsPlan: error?.code === 'ANYTIME_REQUIRES_SUBSCRIPTION' });
       setIsProcessing(false);
     }
   };
@@ -855,6 +856,19 @@ export default function Checkout() {
                 fontSize: '0.875rem'
               }}>
                 {errors.submit}
+                {errors.submitNeedsPlan ? (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      data-testid="checkout-needs-plan-upgrade"
+                      onClick={() => navigate('/pricing')}
+                      style={{ background: 'none', border: 'none', padding: 0, color: '#b91c1c', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit' }}
+                    >
+                      Upgrade
+                    </button>
+                  </>
+                ) : null}
               </div>
             )}
           </div>
