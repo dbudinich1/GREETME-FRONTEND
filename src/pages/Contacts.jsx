@@ -317,6 +317,10 @@ export default function Recipients() {
         console.warn('API authentication failed, using local storage');
         const stored = localStorage.getItem('greetme_recipients');
         setRecipients(stored ? JSON.parse(stored) : []);
+      } else if (response && response.networkError) {
+        // LIVE-1 — the request never reached the server: keep the list already on screen instead of
+        // replacing it with an empty one.
+        console.warn('Recipients refresh did not reach the server; keeping the current list');
       } else {
         setRecipients(response.data || []);
         setServerRecipientCount(Array.isArray(response?.data) ? response.data.length : null);
@@ -396,6 +400,22 @@ export default function Recipients() {
     setTimeout(() => setAlert(null), 5000);
   };
 
+  // LIVE-1 — api.request() RETURNS (does not throw) { ok:false, status:0, networkError:true } when a
+  // request never reaches the server, and { ok:false, status:401|404 } for those statuses. A recipient
+  // save is only a save when the server accepted it; anything else becomes a thrown failure so
+  // ContactForm's own error path (errors.submit / the Auto-Gift modal's submitError) shows it, the
+  // form stays open, and no success alert or "Saved ✓" toast fires.
+  const throwIfSaveNotAccepted = (response) => {
+    if (!response || response.ok !== false) return;
+    const error = new Error(response.networkError
+      ? 'We couldn’t save — check your connection and try again.'
+      : (response.error || response.message || 'We couldn’t save that recipient. Please try again.'));
+    error.status = response.status;
+    error.saveNotAccepted = true;
+    if (response.networkError) error.networkError = true;
+    throw error;
+  };
+
   const handleAddRecipient = async (contactData) => {
     // SLICE E7 — the Business roster is a different store on a different router. One decision,
     // taken here, rather than a handler that guesses which list it is writing to.
@@ -406,6 +426,7 @@ export default function Recipients() {
     }
     try {
       const response = await api.createContact(contactData);
+      throwIfSaveNotAccepted(response);
 
       const newRecipient = {
         id: response?.data?.id || Date.now(),
@@ -430,6 +451,10 @@ export default function Recipients() {
       }
     } catch (error) {
       console.error('Add recipient error:', error);
+
+      // LIVE-1 — not accepted by the server (e.g. never reached it): not "stored locally", not a
+      // success. Hand it back to the form, which shows the message and stays open for a retry.
+      if (error?.saveNotAccepted) throw error;
 
       // SUB-RECIPIENT-CAPS — do NOT fall back to local/offline storage when the plan cap is hit.
       if (error?.code === 'RECIPIENT_LIMIT_REACHED') {
@@ -474,7 +499,8 @@ export default function Recipients() {
       return;
     }
     try {
-      await api.updateContact(editingContact.id, contactData);
+      const response = await api.updateContact(editingContact.id, contactData);
+      throwIfSaveNotAccepted(response);
 
       // Auto-add any new recipient photos to media library
       autoAddRecipientPhotosToLibrary(contactData);
