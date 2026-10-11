@@ -45,13 +45,24 @@ before(async () => {
       }));
     },
   };
+  // Release 2 activation: the shipped availability constant is TRUE. These tests characterize the UNAVAILABLE path, so this
+  // bundle reads the real config module with only that one literal forced to false; the ON path is proved by w07AuthFlow.browser.test.mjs.
+  const forceUnavailable = {
+    name: "force-scheduled-qrcash-unavailable",
+    setup(b) {
+      b.onLoad({ filter: /config[\\/]scheduledQrCash\.js$/ }, (a) => ({
+        contents: readFileSync(a.path, "utf8").replace(/export const SCHEDULED_QRCASH_AVAILABLE = true;/, "export const SCHEDULED_QRCASH_AVAILABLE = false;"),
+        loader: "js",
+      }));
+    },
+  };
   writeFileSync(ENTRY, `export { default as ContactForm } from "./ContactForm.jsx";\n`);
   await esbuild.build({
     entryPoints: [ENTRY], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
     jsx: "automatic", jsxImportSource: "react",
     external: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"],
     define: { "import.meta.env": "{}", "process.env.NODE_ENV": '"production"' },
-    plugins: [stub], logLevel: "silent",
+    plugins: [stub, forceUnavailable], logLevel: "silent",
   });
   rmSync(ENTRY, { force: true });
   const { window } = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
