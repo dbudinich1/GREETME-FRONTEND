@@ -84,7 +84,7 @@ async function toReview(s, { gift = "none", occasion = "birthday" } = {}) {
   if (occasion) await choose(s.tid("sendnow-occasion"), occasion);
 }
 
-test("steps: who (category or one person), what (gift, Exclude Featured Spread), review - and QR Cash is not selectable", async () => {
+test("steps: who (category or one person), what (gift, Exclude Featured Spread), review - and QR Cash is selectable (Release 2 activation)", async () => {
   const s = await mount(flow(fakeClient()));
   await click(s.tid("sendnow-open"));
   assert.equal(s.tid("sendnow-count").textContent.includes("2"), true, "the default category (Clients) has 2 people");
@@ -94,7 +94,7 @@ test("steps: who (category or one person), what (gift, Exclude Featured Spread),
   assert.equal(s.tid("sendnow-next-1").disabled, false);
   await click(s.tid("sendnow-next-1"));
   assert.ok(s.tid("sendnow-what"));
-  assert.equal(s.host.querySelector("#sendnow-gift-qrcash").disabled, true, "inactive QR Cash is not selectable");
+  assert.equal(s.host.querySelector("#sendnow-gift-qrcash").disabled, false, "QR Cash is selectable now that scheduled QR Cash is activated (Release 2)");
   assert.equal(s.host.querySelector("#sendnow-gift-marketplace"), null, "no Greet-Me Gifts class");
   assert.ok(s.tid("sendnow-exclude-spread"), "the owner option exists");
   assert.equal(s.qa("input[type=radio][value='gift_boxes']").length, 0, "no all-gifts browser here");
