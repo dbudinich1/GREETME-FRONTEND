@@ -38,3 +38,12 @@ test('the Hearts Marketplace category select is constrained inline (global selec
   assert.match(s, /flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between'/);
   assert.match(block, /onChange=\{\(e\) => setCategoryKey\(e\.target\.value\)\}/, 'behavior unchanged');
 });
+
+test('Impact per-send consent: the proposed sentence, shown at checkout only for the Impact plan (business_scale)', async () => {
+  const { IMPACT_PER_SEND_CONSENT_NOTICE } = await import('./subscriptionTerms.js');
+  assert.equal(IMPACT_PER_SEND_CONSENT_NOTICE, 'Each Greet-Me you send on the Impact plan is charged $2.99 to the card on your subscription.');
+  const s = src('pages/Checkout.jsx');
+  assert.match(s, /import \{ SUBSCRIPTION_RENEWAL_NOTICE, PLATFORM_FEE_ONE_TIME_NOTICE, IMPACT_PER_SEND_CONSENT_NOTICE \} from '\.\.\/utils\/subscriptionTerms'/);
+  assert.match(s, /subscriptionItem\?\.planTier === 'business_scale' && \([\s\S]{0,160}data-testid="checkout-impact-per-send-consent"[\s\S]{0,200}\{IMPACT_PER_SEND_CONSENT_NOTICE\}/);
+  assert.equal(s.match(/IMPACT_PER_SEND_CONSENT_NOTICE/g).length, 2, 'imported once, rendered once');
+});
