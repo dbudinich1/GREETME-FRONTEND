@@ -158,7 +158,10 @@ test("checkout still sends the code as salesAttributionToken, subscription only"
 
 test("carrier is not cleared on logout (no logout wiring)", () => {
   const AUTH = readFileSync(path.join(HERE, "..", "..", "context", "AuthContext.jsx"), "utf8");
-  assert.equal(/salesAttributionCarrier/.test(AUTH), false);
+  // SALES-ATTR-B: AuthContext may READ the carrier (salesAuthField for register/login) but must
+  // import nothing else from it, so it can never clear it.
+  const imports = AUTH.match(/import \{([^}]*)\} from '\.\.\/pages\/sales\/salesAttributionCarrier\.js'/g) || [];
+  assert.deepEqual(imports, ["import { salesAuthField } from '../pages/sales/salesAttributionCarrier.js'"]);
 });
 
 test("localStorage throwing → no crash, falls back to sessionStorage behaviour", () => {

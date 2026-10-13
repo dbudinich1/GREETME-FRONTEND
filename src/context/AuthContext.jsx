@@ -7,6 +7,8 @@ import { getErrorMessage } from '../utils/errorMessages';
 import { clearToken as clearFundraiserToken } from '../pages/fundraiser/attributionCarrier.js';
 // CL-03: once per session, tell the server the browser timezone when it has none (silent, never blocks).
 import { syncBrowserTimezone } from '../utils/browserTimezoneSync';
+// SALES-ATTR-B: send a held salesperson referral code with register/login so the server records it.
+import { salesAuthField } from '../pages/sales/salesAttributionCarrier.js';
 
 // Safari private browsing throws SecurityError on localStorage access.
 // These helpers prevent that from crashing the app.
@@ -108,7 +110,7 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, ...salesAuthField() }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -136,7 +138,7 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, ...salesAuthField() }),
       });
       const data = await response.json();
       if (!response.ok) {
