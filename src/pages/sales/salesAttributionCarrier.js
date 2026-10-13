@@ -212,3 +212,16 @@ export function salesCheckoutField({ purchaseType } = {}) {
   const token = readToken();
   return token ? { salesAttributionToken: token } : {};
 }
+
+/**
+ * SALES-ATTR-B — the register / login request fragment.
+ *
+ * Returns `{ salesAttributionCode }` when a valid code is held, otherwise `{}` so the field is
+ * omitted and the auth request is byte-identical to before. The server resolves the code and
+ * records the durable pending attribution, so it survives a verification link opened in another
+ * browser profile or device. Does NOT clear the carrier — the clear stays at checkout.
+ */
+export function salesAuthField() {
+  const code = readToken();
+  return code ? { salesAttributionCode: code } : {};
+}
