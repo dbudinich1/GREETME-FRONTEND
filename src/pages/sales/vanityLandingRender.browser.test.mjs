@@ -44,6 +44,13 @@ function freshDom(url) {
   window.scrollTo = () => {};
 }
 
+/** The referral code the carrier holds. SALES-ATTR-A: the carrier is localStorage `{ code, capturedAt }`. */
+function held() {
+  const raw = window.localStorage.getItem("greetme_sales_attribution");
+  if (raw === null) return null;
+  try { return JSON.parse(raw).code ?? null; } catch { return null; }
+}
+
 before(async () => {
   writeFileSync(ENTRY, [
     'export { default as App } from "../../App.jsx";',
@@ -172,21 +179,21 @@ test("7 · back and forward remain coherent after Continue", async () => {
 test("8 · an assigned-shaped alias enters the EXISTING carrier on render", async () => {
   const r = await mountAt("https://greet-me.test/alexdemo", React.createElement(App));
   assertNoRouterCrash(r, "carrier");
-  assert.equal(window.sessionStorage.getItem("greetme_sales_attribution"), "alexdemo",
+  assert.equal(held(), "alexdemo",
     "the alias is carried in the one established slot");
 });
 
 test("9 · a later valid referral cannot displace the first, across a real render", async () => {
   await mountAt("https://greet-me.test/alexdemo", React.createElement(App));
-  const first = window.sessionStorage.getItem("greetme_sales_attribution");
+  const first = held();
   assert.equal(first, "alexdemo");
-  // Same visitor, same session storage, now following a second salesperson's clean link.
-  const carried = window.sessionStorage;
+  // Same visitor, same browser storage, now following a second salesperson's clean link.
+  const carried = window.localStorage;
   const r2 = await mountAt("https://greet-me.test/blakedemo", React.createElement(App));
   assertNoRouterCrash(r2, "second link");
   // Re-seed the surviving carrier the way one browser session would.
-  window.sessionStorage.setItem("greetme_sales_attribution", first);
-  assert.equal(window.sessionStorage.getItem("greetme_sales_attribution"), "alexdemo",
+  window.localStorage.setItem("greetme_sales_attribution", JSON.stringify({ code: first, capturedAt: new Date().toISOString() }));
+  assert.equal(held(), "alexdemo",
     "first valid referral keeps the credit");
   void carried;
 });
@@ -195,7 +202,7 @@ test("10 · a RESERVED path renders its own surface and captures no alias", asyn
   for (const reserved of ["/login", "/pricing", "/dashboard"]) {
     const r = await mountAt(`https://greet-me.test${reserved}`, React.createElement(App));
     assertNoRouterCrash(r, reserved);
-    assert.equal(window.sessionStorage.getItem("greetme_sales_attribution"), null,
+    assert.equal(held(), null,
       `${reserved} must not capture an alias`);
     assert.equal(/data-testid="sales-referral-landing"/.test(r.html), false,
       `${reserved} must not render the referral landing`);
@@ -207,7 +214,7 @@ test("10b · a malformed alias path captures nothing and does not blank the page
     const r = await mountAt(`https://greet-me.test${bad}`, React.createElement(App));
     assertNoRouterCrash(r, bad);
     assert.notEqual(r.html.trim(), "", `${bad} must not render blank`);
-    assert.equal(window.sessionStorage.getItem("greetme_sales_attribution"), null);
+    assert.equal(held(), null);
   }
 });
 
@@ -218,7 +225,7 @@ test("12 · /#/s/:token still renders the landing through the router", async () 
   const r = await mountAt(`https://greet-me.test/#/s/${token}`, React.createElement(App));
   assertNoRouterCrash(r, "opaque route");
   assert.match(r.text, /Welcome to Greet-Me/);
-  assert.equal(window.sessionStorage.getItem("greetme_sales_attribution"), token,
+  assert.equal(held(), token,
     "the opaque token still reaches the carrier");
 });
 

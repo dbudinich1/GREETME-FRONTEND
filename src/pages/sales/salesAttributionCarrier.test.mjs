@@ -158,9 +158,11 @@ test("· the sales carrier mirrors the existing fundraiser carrier conventions",
     assert.ok(fundraiser.includes(`export function ${fn}`), `fundraiser has ${fn}`);
     assert.ok(sales.includes(`export function ${fn}`), `sales mirrors ${fn}`);
   }
-  // sessionStorage, never localStorage or a cookie.
+  // SALES-ATTR-A: localStorage (durable across the email-verification tab) with a sessionStorage
+  // fallback — never a cookie.
+  assert.match(codeOnly(sales), /localStorage/);
   assert.match(codeOnly(sales), /sessionStorage/);
-  assert.equal(/localStorage|document\.cookie/.test(codeOnly(sales)), false);
+  assert.equal(/document\.cookie/.test(codeOnly(sales)), false);
   // Distinct storage keys — the two carriers never collide.
   assert.notEqual("greetme_sales_attribution", "greetme_fundraiser_attribution");
   assert.match(sales, /greetme_sales_attribution/);
