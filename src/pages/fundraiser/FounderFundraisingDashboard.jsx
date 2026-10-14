@@ -11,6 +11,8 @@ import { payoutOnlyLine } from "./partnerEarningsCopy.js";
 import { pageWrap, box, h, btn, btnGhost, Stat, StateView, Empty, HeldBadge } from "./FundraiserUI.jsx";
 // P2 — pure state model for the partner-administrator panel (no React/DOM/fetch inside).
 import { STATES, resolveOutcome, assignOutcome, messageFor, canAssign, isAssigned } from "./partnerAdminAssign.js";
+// PRE-2 enabling field — the existing founder-only salesperson client (same one SalespersonControlCenter uses).
+import { salesAdminApi } from "../../api/salesAdmin.js";
 
 // NOTE: everything here is module-LOCAL. Exporting helpers from a component file trips
 // react-refresh/only-export-components, and a separate module would fall outside this slice's
@@ -1005,6 +1007,10 @@ export default function FounderFundraisingDashboard() {
 
   const [detail, setDetail] = useState(null);
   const [form, setForm] = useState({ legalName: "", orgType: "school" });
+  // Optional originating salesperson for a NEW organization. "" = None (the default). The backend
+  // binds a FUNDRAISER_PARTNER origination ONLY at creation, and rejects an unknown/inactive id.
+  const [orgSalespersonId, setOrgSalespersonId] = useState("");
+  const [salespeople, setSalespeople] = useState([]);
   // P2 — partner-administrator panel. `admin.state` is one of STATES; `admin.account` holds ONLY
   // the resolver's four approved fields. Nothing is cached or persisted; it resets per organization.
   const [adminEmail, setAdminEmail] = useState("");
@@ -1022,6 +1028,10 @@ export default function FounderFundraisingDashboard() {
     setOverview(ov.data);
     const list = await fundraiserApi.founder.organizations();
     setOrgs(stateFor(list) === "ok" ? list.data : []);
+    // Active salespeople only (the server refuses an inactive one). A failed read leaves just "None".
+    const sp = await salesAdminApi.list();
+    const rows = sp && sp.ok && sp.data && Array.isArray(sp.data.salespeople) ? sp.data.salespeople : [];
+    setSalespeople(rows.filter((r) => r && r.salespersonId && (r.status ? r.status === "active" : r.active !== false)));
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -1336,8 +1346,10 @@ export default function FounderFundraisingDashboard() {
   async function createOrg(e) {
     e.preventDefault();
     if (!form.legalName.trim()) return;
-    const r = await fundraiserApi.founder.createOrganization(form);
-    if (r.ok) { setForm({ legalName: "", orgType: "school" }); load(); }
+    // `salespersonId` is sent ONLY when one was chosen; "None" sends exactly the original body.
+    const body = orgSalespersonId ? { ...form, salespersonId: orgSalespersonId } : form;
+    const r = await fundraiserApi.founder.createOrganization(body);
+    if (r.ok) { setForm({ legalName: "", orgType: "school" }); setOrgSalespersonId(""); load(); }
   }
 
   if (!isFundraiserUiEnabled()) return <StateView state="dormant" />;
@@ -1364,6 +1376,13 @@ export default function FounderFundraisingDashboard() {
           <input placeholder="Legal name" value={form.legalName} onChange={(e) => setForm({ ...form, legalName: e.target.value })} style={{ padding: 8, borderRadius: 6, border: "1px solid #d8cdbb", flex: 1, minWidth: 200 }} />
           <select value={form.orgType} onChange={(e) => setForm({ ...form, orgType: e.target.value })} style={{ padding: 8, borderRadius: 6, border: "1px solid #d8cdbb" }}>
             <option value="school">School</option><option value="athletic">Athletic</option><option value="youth">Youth</option><option value="community">Community</option><option value="nonprofit">Nonprofit</option><option value="other">Other</option>
+          </select>
+          <select aria-label="Originating salesperson" data-testid="org-salesperson" value={orgSalespersonId}
+            onChange={(e) => setOrgSalespersonId(e.target.value)} style={{ padding: 8, borderRadius: 6, border: "1px solid #d8cdbb" }}>
+            <option value="">Originating salesperson: None</option>
+            {salespeople.map((s) => (
+              <option key={s.salespersonId} value={s.salespersonId}>{s.displayName ? `${s.displayName} (${s.salespersonId})` : s.salespersonId}</option>
+            ))}
           </select>
           <button style={btn} type="submit">Create organization</button>
         </form>
