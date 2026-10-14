@@ -9,6 +9,10 @@ import { clearToken as clearFundraiserToken } from '../pages/fundraiser/attribut
 import { syncBrowserTimezone } from '../utils/browserTimezoneSync';
 // SALES-ATTR-B: send a held salesperson referral code with register/login so the server records it.
 import { salesAuthField } from '../pages/sales/salesAttributionCarrier.js';
+// F-1: send the held fundraiser referral token with register/login (flag-gated exactly like Checkout)
+// so the server records a durable pending attribution that survives the email-verification new tab.
+import { fundraiserAuthField } from '../pages/fundraiser/attributionCarrier.js';
+import { isFundraiserUiEnabled } from '../config/fundraiserGate.js';
 
 // Safari private browsing throws SecurityError on localStorage access.
 // These helpers prevent that from crashing the app.
@@ -110,7 +114,7 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, ...salesAuthField() }),
+        body: JSON.stringify({ email, password, ...salesAuthField(), ...fundraiserAuthField({ flagEnabled: isFundraiserUiEnabled() }) }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -138,7 +142,7 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, ...salesAuthField() }),
+        body: JSON.stringify({ name, email, password, ...salesAuthField(), ...fundraiserAuthField({ flagEnabled: isFundraiserUiEnabled() }) }),
       });
       const data = await response.json();
       if (!response.ok) {

@@ -9,6 +9,11 @@
 // The token is submitted at checkout as `fundraiserAttributionToken` ONLY for a personal SUBSCRIPTION
 // or fundraiser MERCH purchase, AND ONLY while the Fundraiser UI flag is enabled. It is never attached
 // to gifts, QR Cash, G1G1, onboarding fees, or any other one-time/unrelated checkout.
+//
+// F-1 (2026-10-14) — the same opaque token is ALSO sent with register/login (fundraiserAuthField), so
+// the server can record a durable pending attribution before mandatory email verification opens a new
+// tab that has no sessionStorage. Same flag gate; the carrier itself (sessionStorage, per tab) is
+// unchanged and register/login never clear it.
 
 export const FUNDRAISER_ATTRIBUTION_KEY = "greetme_fundraiser_attribution";
 
@@ -51,6 +56,16 @@ export function clearToken() {
 export function fundraiserCheckoutField({ purchaseType, flagEnabled } = {}) {
   if (!flagEnabled) return {};
   if (purchaseType !== "subscription" && purchaseType !== "merch") return {};
+  const token = readToken();
+  return token ? { fundraiserAttributionToken: token } : {};
+}
+
+// F-1 — the register/login-request fragment. Returns `{ fundraiserAttributionToken }` ONLY when the
+// Fundraiser UI flag is enabled AND a valid token is preserved; else `{}` (field omitted). Carries ONLY
+// the opaque token. Does NOT clear the carrier — the clear stays at the checkout success boundary.
+// The server re-validates the token and re-resolves it again at checkout; this is transport only.
+export function fundraiserAuthField({ flagEnabled } = {}) {
+  if (flagEnabled !== true) return {};
   const token = readToken();
   return token ? { fundraiserAttributionToken: token } : {};
 }
