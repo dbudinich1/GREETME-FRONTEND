@@ -412,10 +412,11 @@ test("7. Return to Greeting goes back to Send with the flower still attached", a
     assert.equal(saved.giftSettings?.flowersProduct?.providerProductId, "DEMO-T18");
     assert.equal(saved.giftSettings?.flowersProduct?.name, "Sunlit Rose Bouquet");
 
-    // And the return carries the flowers gift type, which is what SendGreeting restores from.
+    // E01 (2026-10-15): the return carries NO gift type, so SendGreeting restores the saved `flowers`
+    // record above instead of having it overwritten by the URL.
     const src = readFileSync(join(__dirname, "Merch.jsx"), "utf8");
-    assert.match(src, /const giftType = lastAddedItem\?\.giftType === 'flowers' \? 'flowers' : 'merch';/);
-    assert.match(src, /navigate\(`\/dashboard\/send\?returnTo=send&giftType=\$\{giftType\}`\)/);
+    assert.match(src, /navigate\('\/dashboard\/send\?returnTo=send'\);/);
+    assert.doesNotMatch(src, /returnTo=send&giftType=/);
   } finally { await m.unmount(); }
 });
 

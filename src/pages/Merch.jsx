@@ -504,6 +504,19 @@ export default function Merch() {
         // merchandise stays untagged and independent.
         ...(cameFromSendGreeting && { sendContext: 'greeting-flow' }),
       });
+      // E01: inside a send, the pick decides the greeting's gift type, exactly as a provider pick
+      // does above. `marketplace` is the type the review screen opens the cart checkout for.
+      if (cameFromSendGreeting) {
+        try {
+          const saved = JSON.parse(sessionStorage.getItem('sendGreetingState') || '{}');
+          sessionStorage.setItem('sendGreetingState', JSON.stringify({
+            ...saved,
+            giftSettings: { ...(saved.giftSettings || {}), type: 'marketplace' },
+          }));
+        } catch {
+          // The cart item is already tagged; the restore falls back to the type saved on browse.
+        }
+      }
       window.dispatchEvent(new Event('cartUpdated'));
       setPickerProduct(null);
       // A CART ITEM NOW OWNS THE CONFIRMATION. Any arrangement held from an earlier selection is
@@ -579,11 +592,11 @@ export default function Merch() {
 
   const handleReturnToGreeting = () => {
     setShowCartModal(false);
-    // WHICHEVER CATEGORY THIS CONFIRMATION IS FOR. SendGreeting restores the attachment from the
-    // giftType it is handed, so a flower must come back as `flowers` and merch as `merch`. Defaulting
-    // to merch keeps every pre-existing return byte-identical.
-    const giftType = lastAddedItem?.giftType === 'flowers' ? 'flowers' : 'merch';
-    navigate(`/dashboard/send?returnTo=send&giftType=${giftType}`);
+    // E01: NO giftType ON THE RETURN. Every pick already wrote its own type into sendGreetingState
+    // (flowers / gift_boxes above, marketplace for merch), and SendGreeting restores that record when
+    // the URL carries no type. Handing it `merch` overwrote a gift box or flower and left the review
+    // with no checkout branch; the header button, which runs with no confirmation, did the same.
+    navigate('/dashboard/send?returnTo=send');
   };
 
   return (
