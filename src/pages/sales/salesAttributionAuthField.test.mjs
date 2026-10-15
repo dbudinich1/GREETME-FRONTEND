@@ -74,9 +74,9 @@ test("AuthContext register AND login both spread salesAuthField() into the reque
   const login = AUTH.slice(AUTH.indexOf("const login = async"), AUTH.indexOf("const register = async"));
   const register = AUTH.slice(AUTH.indexOf("const register = async"), AUTH.indexOf("const logout = "));
   assert.match(login, /\/api\/auth\/login/);
-  assert.match(login, /body: JSON\.stringify\(\{ email, password, \.\.\.salesAuthField\(\) \}\)/);
+  assert.match(login, /body: JSON\.stringify\(\{ email, password, \.\.\.salesAuthField\(\)(, \.\.\.fundraiserAuthField\(\{ flagEnabled: isFundraiserUiEnabled\(\) \}\))? \}\)/);
   assert.match(register, /\/api\/auth\/register/);
-  assert.match(register, /body: JSON\.stringify\(\{ name, email, password, \.\.\.salesAuthField\(\) \}\)/);
+  assert.match(register, /body: JSON\.stringify\(\{ name, email, password, \.\.\.salesAuthField\(\)(, \.\.\.fundraiserAuthField\(\{ flagEnabled: isFundraiserUiEnabled\(\) \}\))? \}\)/);
   // Register/login never clear the sales carrier.
   assert.equal(/clearToken as clearSales|salesAttributionCarrier\.js';[\s\S]*clearToken\(/.test(login + register), false);
 });
