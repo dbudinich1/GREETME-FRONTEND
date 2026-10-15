@@ -8,6 +8,13 @@ import GreetMeLogo from '../components/GreetMeLogo';
 
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
+// Intro video. FAST_START is the same video (content, narration, music, length) re-encoded at 1080p
+// with its playback index first, 5.3 MB instead of 114 MB. ORIGINAL is the file the page has always
+// played; it stays untouched as the fallback and the rollback.
+const INTRO_VIDEO_FAST_START = 'https://greetmedanny.blob.core.windows.net/public/greetme-intro-v2.mp4';
+const INTRO_VIDEO_ORIGINAL = 'https://greetmedanny.blob.core.windows.net/public/greetme-demo.mp4.mp4';
+const INTRO_VIDEO_PRELOAD = 'auto';
+
 export default function Landing() {
   const { isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
@@ -18,13 +25,14 @@ export default function Landing() {
   // never renders as an empty charcoal box. (P0.3)
   const [videoStatus, setVideoStatus] = useState('loading');
 
-  // Delayed autoplay — let page paint first, then attempt video after 2s
+  // Muted autoplay as soon as the video is on the page. The former 2 s wait cost 2 s on every visit
+  // and bought nothing: the video loads on its own connection and does not block the page's paint.
+  // A browser may still refuse autoplay (data saver, low-power mode, settings); the video then shows
+  // its first frame, and a tap starts it with sound (see the container's onClick).
   useEffect(() => {
     if (!demoRef.current || isAuthenticated || loading) return;
-    const timer = setTimeout(() => {
-      if (demoRef.current) demoRef.current.play().catch(() => {});
-    }, 2000);
-    return () => clearTimeout(timer);
+    demoRef.current.muted = true;
+    demoRef.current.play().catch(() => {});
   }, [isAuthenticated, loading]);
 
   // Demo mode: ?demo=1 prevents auth redirect so founder can show landing while logged in
@@ -101,24 +109,34 @@ export default function Landing() {
         cursor: demoMuted ? 'pointer' : 'default',
       }}
         onClick={() => {
-          if (demoMuted && demoRef.current) {
-            demoRef.current.muted = false;
+          const v = demoRef.current;
+          if (!v) return;
+          // Tap for sound. If autoplay was refused, the same tap also starts playback (a tap is the
+          // interaction browsers require before sound).
+          if (demoMuted) {
+            v.muted = false;
             setDemoMuted(false);
           }
+          if (v.paused) v.play().catch(() => {});
         }}
       >
         <video
           ref={demoRef}
-          src="https://greetmedanny.blob.core.windows.net/public/greetme-demo.mp4.mp4"
-          preload="none"
+          preload={INTRO_VIDEO_PRELOAD}
           muted
           playsInline
           onLoadedData={() => setVideoStatus('ready')}
           onCanPlay={() => setVideoStatus('ready')}
           onPlaying={() => setVideoStatus('ready')}
-          onError={() => setVideoStatus('failed')}
           style={{ width: '100%', display: videoStatus === 'failed' ? 'none' : 'block', background: '#1f2937' }}
-        />
+        >
+          {/* The same video, re-encoded with its playback index at the start, then the original as a
+              fallback: if the first cannot load (e.g. not uploaded yet, or removed to roll back), the
+              browser moves to the next source by itself. A <source> reports its own load error, so
+              the failure fallback below is driven by the LAST source. */}
+          <source src={INTRO_VIDEO_FAST_START} type="video/mp4" />
+          <source src={INTRO_VIDEO_ORIGINAL} type="video/mp4" onError={() => setVideoStatus('failed')} />
+        </video>
 
         {/* Loading placeholder — branded; prevents an empty charcoal box during load */}
         {videoStatus === 'loading' && (
@@ -146,7 +164,7 @@ export default function Landing() {
               See how a Greet-Me comes to life.
             </div>
             <a
-              href="https://greetmedanny.blob.core.windows.net/public/greetme-demo.mp4.mp4"
+              href={INTRO_VIDEO_ORIGINAL}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
