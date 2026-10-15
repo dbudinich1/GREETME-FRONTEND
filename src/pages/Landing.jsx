@@ -1,10 +1,11 @@
 // src/pages/Landing.jsx
 // Public entry screen for unauthenticated users; redirects logged-in users to dashboard
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import GreetMeLogo from '../components/GreetMeLogo';
+import useIntroVideo from '../hooks/useIntroVideo';
 
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
@@ -18,22 +19,11 @@ const INTRO_VIDEO_PRELOAD = 'auto';
 export default function Landing() {
   const { isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
-  const [demoMuted, setDemoMuted] = useState(true);
-  const demoRef = useRef(null);
-  // Demo video load state: 'loading' until it can play, 'ready' once playing,
-  // 'failed' on load error. Drives a branded placeholder/fallback so the hero
-  // never renders as an empty charcoal box. (P0.3)
-  const [videoStatus, setVideoStatus] = useState('loading');
-
-  // Muted autoplay as soon as the video is on the page. The former 2 s wait cost 2 s on every visit
-  // and bought nothing: the video loads on its own connection and does not block the page's paint.
-  // A browser may still refuse autoplay (data saver, low-power mode, settings); the video then shows
-  // its first frame, and a tap starts it with sound (see the container's onClick).
-  useEffect(() => {
-    if (!demoRef.current || isAuthenticated || loading) return;
-    demoRef.current.muted = true;
-    demoRef.current.play().catch(() => {});
-  }, [isAuthenticated, loading]);
+  // Intro video: TAP TO PLAY, NO AUTOPLAY (founder, 2026-10-15). The first tap plays from the start
+  // with sound; then the same tap pauses and resumes; after the end it replays. Load state drives the
+  // branded placeholder/fallback so the hero never renders as an empty charcoal box. (P0.3)
+  const intro = useIntroVideo();
+  const videoStatus = intro.status;
 
   // Demo mode: ?demo=1 prevents auth redirect so founder can show landing while logged in
   const isDemoView = new URLSearchParams(window.location.hash.split('?')[1] || '').get('demo') === '1';
@@ -106,31 +96,15 @@ export default function Landing() {
         position: 'relative',
         // Reserve a branded area while loading/failed; once ready the video drives height.
         minHeight: videoStatus === 'ready' ? undefined : '320px',
-        cursor: demoMuted ? 'pointer' : 'default',
+        cursor: 'pointer',
       }}
-        onClick={() => {
-          const v = demoRef.current;
-          if (!v) return;
-          // Tap for sound. If autoplay was refused, the same tap also starts playback (a tap is the
-          // interaction browsers require before sound).
-          if (demoMuted) {
-            v.muted = false;
-            setDemoMuted(false);
-          }
-          if (v.paused) v.play().catch(() => {});
-        }}
+        onClick={intro.tap}
       >
         <video
-          ref={demoRef}
+          ref={intro.videoRef}
           preload={INTRO_VIDEO_PRELOAD}
-          muted
           playsInline
-          onLoadedData={() => setVideoStatus('ready')}
-          onCanPlay={() => setVideoStatus('ready')}
-          onPlaying={() => setVideoStatus('ready')}
-          // A source that loads but cannot be played (e.g. it fails to decode) is reported on the
-          // <video> itself, not on the <source>; it still gets the failure card below.
-          onError={() => setVideoStatus('failed')}
+          {...intro.videoEvents}
           style={{ width: '100%', display: videoStatus === 'failed' ? 'none' : 'block', background: '#1f2937' }}
         >
           {/* The same video, re-encoded with its playback index at the start, then the original as a
@@ -138,7 +112,7 @@ export default function Landing() {
               next source by itself. A <source> that cannot be fetched reports its own error, so that
               case is driven by the LAST source. */}
           <source src={INTRO_VIDEO_FAST_START} type="video/mp4" />
-          <source src={INTRO_VIDEO_ORIGINAL} type="video/mp4" onError={() => setVideoStatus('failed')} />
+          <source src={INTRO_VIDEO_ORIGINAL} type="video/mp4" onError={intro.lastSourceError} />
         </video>
 
         {/* Loading placeholder — branded; prevents an empty charcoal box during load */}
@@ -183,7 +157,7 @@ export default function Landing() {
         )}
 
         {/* Tap-for-sound — only once the video is actually ready/playing */}
-        {videoStatus === 'ready' && demoMuted && (
+        {videoStatus === 'ready' && !intro.started && (
           <div style={{
             position: 'absolute',
             bottom: '0.75rem',
