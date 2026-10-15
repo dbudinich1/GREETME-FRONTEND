@@ -97,10 +97,13 @@ test("Merch.jsx stamps the tag only when entered from the send flow", () => {
 });
 
 test("returning from Merch preserves the draft and reopens the same gift mode", () => {
-  // REWRITTEN: same round trip, one expression. The return carries the confirmation's own gift type,
-  // so merch still comes back as merch and a flower comes back as flowers.
-  assert.match(MERCH, /navigate\(`\/dashboard\/send\?returnTo=send&giftType=\$\{giftType\}`\)/);
-  assert.match(MERCH, /=== 'flowers' \? 'flowers' : 'merch'/);
+  // E01 (2026-10-15): the return carries NO gift type. Each pick writes its own type into the saved
+  // draft (flowers / gift_boxes, and marketplace for Branded Goods picked during a send), and the
+  // Send page restores that record. Handing it `merch` used to overwrite a gift box or flower and left
+  // the review with no checkout. The mounted round trips live in giftReturnRoundTrip.browser.test.mjs.
+  assert.match(MERCH, /navigate\('\/dashboard\/send\?returnTo=send'\);/);
+  assert.doesNotMatch(MERCH, /returnTo=send&giftType=/);
+  assert.doesNotMatch(MERCH, /=== 'flowers' \? 'flowers' : 'merch'/);
   // SendGreeting restores the snapshot it wrote before browsing, and re-selects
   // the gift type carried on the URL.
   assert.match(SEND, /sessionStorage\.setItem\('sendGreetingState'/);

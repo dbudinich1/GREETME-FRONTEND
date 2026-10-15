@@ -412,10 +412,11 @@ test("7. Return to Greeting goes back to Send with the flower still attached", a
     assert.equal(saved.giftSettings?.flowersProduct?.providerProductId, "DEMO-T18");
     assert.equal(saved.giftSettings?.flowersProduct?.name, "Sunlit Rose Bouquet");
 
-    // And the return carries the flowers gift type, which is what SendGreeting restores from.
+    // E01 (2026-10-15): the return carries NO gift type, so SendGreeting restores the saved `flowers`
+    // record above instead of having it overwritten by the URL.
     const src = readFileSync(join(__dirname, "Merch.jsx"), "utf8");
-    assert.match(src, /const giftType = lastAddedItem\?\.giftType === 'flowers' \? 'flowers' : 'merch';/);
-    assert.match(src, /navigate\(`\/dashboard\/send\?returnTo=send&giftType=\$\{giftType\}`\)/);
+    assert.match(src, /navigate\('\/dashboard\/send\?returnTo=send'\);/);
+    assert.doesNotMatch(src, /returnTo=send&giftType=/);
   } finally { await m.unmount(); }
 });
 
@@ -471,9 +472,11 @@ test("11. a standard merch product still confirms the way it always did", async 
     assert.equal(cartCalls[0].printfulSyncProductId, "MERCH-1");
     // In the send flow the item is tagged so the greeting can claim it — untouched behaviour.
     assert.equal(cartCalls[0].sendContext, "greeting-flow");
-    // And no greeting-draft attachment was written for merch.
+    // E01 (2026-10-15): inside a greeting, a Branded Goods pick records the greeting's gift type as
+    // `marketplace` — the type the review opens the cart checkout for — and never a flower attachment.
     const saved = JSON.parse(window.sessionStorage.getItem("sendGreetingState") || "{}");
-    assert.equal(saved.giftSettings?.type, undefined, "merch does not write a flowers attachment");
+    assert.equal(saved.giftSettings?.type, "marketplace", "the pick is recorded as marketplace");
+    assert.equal(saved.giftSettings?.flowersProduct, undefined, "merch does not write a flowers attachment");
   } finally { await m.unmount(); }
 });
 

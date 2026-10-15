@@ -589,8 +589,10 @@ test("15. inside a greeting the flower still says Select Gift and still returns 
 
       // And it still goes back to the greeting rather than a checkout.
       await click(byText(m.host, /Return to Greeting/));
-      assert.deepEqual(navigations, ["/dashboard/send?returnTo=send&giftType=flowers"],
-        "Return to Greeting carries giftType=flowers, unchanged");
+      // E01 (2026-10-15): the return carries no gift type; the saved `flowers` record (asserted
+      // above) is what the Send page restores.
+      assert.deepEqual(navigations, ["/dashboard/send?returnTo=send"],
+        "Return to Greeting goes back to the greeting without overwriting the saved gift type");
       assert.equal(checkoutOpen(m.host), false, "no checkout is opened from the greeting path");
     } finally { await m.unmount(); }
   });
