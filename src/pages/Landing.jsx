@@ -128,12 +128,15 @@ export default function Landing() {
           onLoadedData={() => setVideoStatus('ready')}
           onCanPlay={() => setVideoStatus('ready')}
           onPlaying={() => setVideoStatus('ready')}
+          // A source that loads but cannot be played (e.g. it fails to decode) is reported on the
+          // <video> itself, not on the <source>; it still gets the failure card below.
+          onError={() => setVideoStatus('failed')}
           style={{ width: '100%', display: videoStatus === 'failed' ? 'none' : 'block', background: '#1f2937' }}
         >
           {/* The same video, re-encoded with its playback index at the start, then the original as a
-              fallback: if the first cannot load (e.g. not uploaded yet, or removed to roll back), the
-              browser moves to the next source by itself. A <source> reports its own load error, so
-              the failure fallback below is driven by the LAST source. */}
+              fallback: if the first cannot load (e.g. not uploaded yet), the browser moves to the
+              next source by itself. A <source> that cannot be fetched reports its own error, so that
+              case is driven by the LAST source. */}
           <source src={INTRO_VIDEO_FAST_START} type="video/mp4" />
           <source src={INTRO_VIDEO_ORIGINAL} type="video/mp4" onError={() => setVideoStatus('failed')} />
         </video>

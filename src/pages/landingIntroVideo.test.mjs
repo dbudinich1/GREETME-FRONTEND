@@ -37,6 +37,9 @@ test("the fast-start file is tried first and the untouched original is the fallb
   // The load-failure card is driven by the LAST source, so it appears only when both fail.
   assert.match(CODE, /<source src=\{INTRO_VIDEO_ORIGINAL\} type="video\/mp4" onError=\{\(\) => setVideoStatus\('failed'\)\} \/>/);
   assert.doesNotMatch(CODE, /<video[^>]*\ssrc=/, "the <video> element itself carries no src");
+  // Team 5 N2: a source that loads but cannot be played errors on the <video>, so it keeps a handler.
+  const videoTag = CODE.slice(CODE.indexOf("<video"), CODE.indexOf("<source"));
+  assert.match(videoTag, /onError=\{\(\) => setVideoStatus\('failed'\)\}/, "the <video> keeps its own error handler");
   assert.match(CODE, /href=\{INTRO_VIDEO_ORIGINAL\}/, "the 'Watch the demo' fallback link still opens the original");
 });
 
