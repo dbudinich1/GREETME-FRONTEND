@@ -209,8 +209,9 @@ test("Gift Cards, Coming Soon, cart and both return flows are unchanged", () => 
   assert.match(MERCH, /Coming later — not yet available/);
   assert.match(MERCH, /Coming Soon/);
   assert.equal((MERCH.match(/cartService\.addItem\(/g) || []).length, 1);
-  assert.match(MERCH, /navigate\(`\/dashboard\/send\?returnTo=send&giftType=\$\{giftType\}`\)/);
-  assert.match(MERCH, /=== 'flowers' \? 'flowers' : 'merch'/);
+  // E01 (2026-10-15): the greeting return carries no gift type; the Send page restores the saved one.
+  assert.match(MERCH, /navigate\('\/dashboard\/send\?returnTo=send'\);/);
+  assert.doesNotMatch(MERCH, /returnTo=send&giftType=/);
   assert.match(MERCH, /searchParams\.get\('returnRecipientId'\)/);
   assert.match(MERCH, /sendContext: 'greeting-flow'/);
 });

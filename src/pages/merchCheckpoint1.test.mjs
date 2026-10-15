@@ -416,9 +416,10 @@ test("a provider category loads its catalogue on SELECTION, with no button and n
   assert.match(selectFn, /chosen\.giftType === 'gift_boxes' \? 'gift_boxes' : 'flowers'/,
     "tagged so the return knows which category it is");
   assert.match(selectFn, /giftType: pickedGiftType/, "the confirmation carries that tag");
-  // The return still exists — on the confirmation's own button, carrying the flower's gift type.
-  assert.match(CODE, /navigate\(`\/dashboard\/send\?returnTo=send&giftType=\$\{giftType\}`\)/);
-  assert.match(CODE, /lastAddedItem\?\.giftType === 'flowers' \? 'flowers' : 'merch'/);
+  // The return still exists on the confirmation's own button. E01 (2026-10-15): it carries NO gift
+  // type; the Send page restores the type this pick saved (round trips: giftReturnRoundTrip).
+  assert.match(CODE, /navigate\('\/dashboard\/send\?returnTo=send'\);/);
+  assert.doesNotMatch(CODE, /returnTo=send&giftType=/);
   // REWRITTEN. This asserted `if (!cameFromSendGreeting) return;` — that outside a greeting the action
   // did nothing at all. That was true, and it was the DEFECT: the button was enabled, fired, and was
   // silently discarded, because the only checkout the page knew about was the Printful cart's and a
@@ -445,13 +446,11 @@ test("a provider category loads its catalogue on SELECTION, with no button and n
 test("the personal-greeting round trip and direct entry are preserved", () => {
   assert.match(SRC, /returnTo === 'send'/);
   assert.match(SRC, /searchParams\.get\('returnRecipientId'\)/);
-  // REWRITTEN. Both round trips now go through ONE return, which carries whichever gift type the
-  // confirmation belongs to — so there is one navigation expression instead of two literals, and
-  // merch still returns as merch.
-  assert.match(SRC, /navigate\(`\/dashboard\/send\?returnTo=send&giftType=\$\{giftType\}`\)/);
-  assert.match(SRC, /const giftType = lastAddedItem\?\.giftType === 'flowers' \? 'flowers' : 'merch';/);
-  assert.equal((SRC.match(/returnTo=send&giftType=/g) || []).length, 1,
+  // Both round trips go through ONE return. E01 (2026-10-15): it carries no gift type, so the Send
+  // page restores whichever type the pick saved instead of having it overwritten as `merch`.
+  assert.equal((SRC.match(/navigate\('\/dashboard\/send\?returnTo=send'\);/g) || []).length, 1,
     "one return expression serves every category");
+  assert.doesNotMatch(SRC, /returnTo=send&giftType=/);
   assert.match(SRC, /sendContext: 'greeting-flow'/);
   // Direct entry: both session headers are conditional, so /dashboard/gifts with no query
   // parameters renders the marketplace on its own.
