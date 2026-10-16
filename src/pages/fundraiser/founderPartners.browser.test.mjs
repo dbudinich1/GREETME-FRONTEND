@@ -683,3 +683,10 @@ test("partner share (Low): only a scheduled change ⇒ 'Not in place yet', the s
   assert.match($("terms-scheduled").textContent, /Scheduled from 2027-03-01: Year 1 20%/);
   assert.equal($("change-terms").textContent, "Change terms");
 });
+
+test("home (RC2-5): a scheduled-only partner shows the scheduled state in the partners list, not 'Not set'", async () => {
+  await mount(baseRoutes({ orgTerms: { org_a: null }, histA: [], scheduled: { org_a: { ...ORG_TERMS_A, versionId: "ot_2", effectiveFrom: "2027-03-01T00:00:00.000Z" } } }));
+  const row = [...document.querySelectorAll("tbody tr")].find((r) => r.textContent.includes("Hillcrest Boosters")).textContent;
+  assert.match(row, /Scheduled from 2027-03-01: Year 1 20% · Year 2 15% · Year 3\+ 10%/);
+  assert.ok(!row.includes("Not set"));
+});

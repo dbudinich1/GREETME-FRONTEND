@@ -1398,7 +1398,8 @@ export default function FounderFundraisingDashboard() {
                   return (
                     <tr key={o.organizationId}>
                       <td style={td}>{o.legalName || o.organizationId}</td><td style={td}><Chip s={partnerStatus(o)} /></td>
-                      <td style={{ ...td, fontSize: 13 }}>{!x ? "…" : x.error ? "—" : (x.activeTerms ? termsLine(x.activeTerms.rules) : "Not set")}</td>
+                      <td style={{ ...td, fontSize: 13 }}>{!x ? "…" : x.error ? "—" : x.activeTerms ? termsLine(x.activeTerms.rules)
+                        : x.scheduled ? `Scheduled from ${isoDate(x.scheduled.effectiveFrom)}: ${termsLine(x.scheduled.rules)}` : "Not set"}</td>
                       <td style={td}>{!x ? "…" : x.error ? "—" : x.campaigns.length}</td>
                       <td style={{ ...td, textAlign: "right" }}><button type="button" style={btnGhost} data-testid={`open-${o.organizationId}`} onClick={() => { setOpenId(o.organizationId); setScreen("detail"); if (o.status !== "applied") refreshCampaigns(o.organizationId); }}>Open</button></td>
                     </tr>
