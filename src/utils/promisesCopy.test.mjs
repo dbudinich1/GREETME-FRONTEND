@@ -147,7 +147,9 @@ test("round 2 (founder 2026-10-06): banner has no auto-selection claim; Landing 
   assert.deepEqual(everywhere("paid plan after your free trial"), []);
   assert.deepEqual(everywhere("turn on Auto-Send"), []);
   assert.ok(read("src/pages/DashboardHome.jsx").includes("turn on Enable Auto-Gift."));
-  assert.ok(read("src/pages/Landing.jsx").includes("and add a gift to any occasion."));
+  // Founder 2026-10-15 replaced the Landing subheadline (which ended "…and add a gift to any occasion.") with the
+  // settled supporting line below; the no-paid-plan-clause checks above still apply to the whole codebase.
+  assert.ok(read("src/pages/Landing.jsx").includes("Personalized, automatic moments. Truly unforgettable!"));
 });
 
 test("founder colour-coding 2026-10-06: items not approved are back to their daab7e5 wording", () => {
