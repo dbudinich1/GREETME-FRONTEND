@@ -19,7 +19,7 @@ import { payoutOnlyLine } from "./partnerEarningsCopy.js";
 import { salesAdminApi } from "../../api/salesAdmin.js";
 import {
   money, isoDate, validateYearRates, buildYearRatesRule, dateToUtcInstant, termsLine,
-  activeTermsFromHistories, partnerTermsRules, partnerStatus, lastEndedInterval, failureText, totalsByKey, quarterlyRows, BRANDED_GOODS_NOT_CALCULATED,
+  activeTermsFromHistories, partnerTermsRules, createdWithoutTerms, partnerStatus, lastEndedInterval, failureText, totalsByKey, quarterlyRows, BRANDED_GOODS_NOT_CALCULATED,
 } from "./fundraiserP1Model.js";
 
 const input = { padding: 8, borderRadius: 6, border: "1px solid #d8cdbb", font: "inherit", boxSizing: "border-box" };
@@ -904,7 +904,7 @@ function CampaignsTab({ p, status, extras, onChanged, onRefreshCampaigns }) {
     setTitle(""); setAdding(false);
     // ADDENDUM 1 / N4: the server always returns { campaign, termsIssue }; termsIssue.issued === false
     // (and only that) means the campaign was created without terms.
-    setNote(r.data && r.data.termsIssue && r.data.termsIssue.issued === false ? "The campaign was created without terms, so it can’t start until the partner share is in place." : null);
+    setNote(createdWithoutTerms(r.data) ? "The campaign was created without terms, so it can’t start until the partner share is in place." : null);
     await onChanged();
   }
   return (

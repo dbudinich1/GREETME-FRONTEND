@@ -172,6 +172,13 @@ export function failureText(res) {
   return STATUS_TEXT[res.status] || "That didn’t go through. Nothing was changed.";
 }
 
+/** N4 — campaign create: { campaign, termsIssue }. Only issued === false means the campaign has no terms;
+ *  reason CAMPAIGN_HAS_TERMS (orgTerms.js) means it already had terms, which is not a failure. */
+export function createdWithoutTerms(body) {
+  const t = body && body.termsIssue;
+  return !!t && t.issued === false && t.reason !== "CAMPAIGN_HAS_TERMS";
+}
+
 /** A5 rows -> a lookup by key. Malformed bodies yield an empty map (never invented rows). */
 export function totalsByKey(body) {
   const rows = body && Array.isArray(body.rows) ? body.rows : [];

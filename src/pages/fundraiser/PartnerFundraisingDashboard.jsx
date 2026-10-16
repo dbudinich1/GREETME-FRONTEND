@@ -13,7 +13,7 @@ import { isFundraiserUiEnabled } from "../../config/fundraiserGate.js";
 import { pageWrap, box, h, btn, btnGhost, Stat, StateView, Empty } from "./FundraiserUI.jsx";
 import ParticipantQrCode from "./ParticipantQrCode.jsx"; // F1-7 — scannable QR from the server payload
 import Chip from "./FundraiserChip.jsx";
-import { money, termsLine, partnerTermsRules, failureText } from "./fundraiserP1Model.js";
+import { money, termsLine, partnerTermsRules, failureText, createdWithoutTerms } from "./fundraiserP1Model.js";
 
 const input = { padding: 8, borderRadius: 6, border: "1px solid #d8cdbb", font: "inherit", boxSizing: "border-box" };
 const label = { display: "block", fontSize: ".85rem", fontWeight: 700, margin: "0 0 4px" };
@@ -46,7 +46,7 @@ function NewCampaign({ organizationId, onCreated, onCancel }) {
     if (stateFor(r) !== "ok") { setE({ submit: failureText(r) }); return; }
     // ADDENDUM 1 / N4: the server always returns { campaign, termsIssue }; only termsIssue.issued === false
     // means the campaign was created without terms.
-    onCreated(body.title, !!(r.data && r.data.termsIssue && r.data.termsIssue.issued === false));
+    onCreated(body.title, createdWithoutTerms(r.data));
   };
   return (
     <form onSubmit={submit} noValidate data-testid="new-campaign" style={{ border: "1px solid #e6e2da", borderRadius: 8, padding: 14, maxWidth: 520, marginTop: 10 }}>

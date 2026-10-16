@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   money, quarterLabel, isoDate, validateYearRates, buildYearRatesRule, dateToUtcInstant, termsLine, partnerTermsRules,
-  activeTermsFromHistories, partnerStatus, lastEndedInterval, failureText, totalsByKey, quarterlyRows, BRANDED_GOODS_NOT_CALCULATED,
+  activeTermsFromHistories, partnerStatus, createdWithoutTerms, lastEndedInterval, failureText, totalsByKey, quarterlyRows, BRANDED_GOODS_NOT_CALCULATED,
 } from "./fundraiserP1Model.js";
 
 test("money formats minor units and never invents a zero", () => {
@@ -89,6 +89,14 @@ test("report rows: A5 by key; quarterly rows with and without the A6 split", () 
   const split = quarterlyRows({ organizations: [{ organizationId: "o", quarters: { "2026-Q4": { grossCents: 1, subscriptionGrossCents: 1, brandedGoodsGrossCents: 0 } }, unsettled: { records: 0, grossCents: 0 } }] }, "o");
   assert.equal(split.split, true); assert.equal(split.rows.length, 1);
   assert.deepEqual(quarterlyRows({ organizations: [] }, "o"), { rows: [], split: false });
+});
+
+test("N4: createdWithoutTerms reads the real termsIssue shapes", () => {
+  assert.equal(createdWithoutTerms({ campaign: {}, termsIssue: { issued: true, versionId: "v" } }), false);
+  assert.equal(createdWithoutTerms({ campaign: {}, termsIssue: { issued: false, reason: "NO_ACTIVE_ORG_TERMS" } }), true);
+  assert.equal(createdWithoutTerms({ campaign: {}, termsIssue: { issued: false, reason: "TERMS_ISSUE_FAILED", code: null } }), true);
+  assert.equal(createdWithoutTerms({ campaign: {}, termsIssue: { issued: false, reason: "CAMPAIGN_HAS_TERMS" } }), false);
+  assert.equal(createdWithoutTerms({ campaign: {} }), false);
 });
 
 test("the Branded Goods sentence states only what is true today", () => {
