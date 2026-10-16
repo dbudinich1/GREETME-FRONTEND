@@ -398,6 +398,34 @@ test("partner share: first terms on an active partner use the organization terms
   assert.equal(posts().filter((c) => c.path.endsWith("/economics/draft") || c.path.endsWith("/change-rate")).length, 0);
 });
 
+test("partner share (N5): a not-yet-active partner WITH saved terms uses change-rate — no second draft, no orphan approved version", async () => {
+  await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p" } } }));
+  await click($("open-org_p"));
+  await click($("change-terms"));
+  await fillTerms();
+  await click($("save-terms"));
+  assert.deepEqual(posts().map((c) => c.path), [`${A}/organizations/org_p/economics/change-rate`]);
+});
+
+test("partner share (N5): an approved-but-not-active org terms version also routes to change-rate", async () => {
+  await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p", status: "approved" } } }));
+  await click($("open-org_p"));
+  assert.match($("terms-line").textContent, /Not set/);
+  await click($("change-terms"));
+  await fillTerms();
+  await click($("save-terms"));
+  assert.deepEqual(posts().map((c) => c.path), [`${A}/organizations/org_p/economics/change-rate`]);
+});
+
+test("partner share (N5): RATE_MISMATCH is stated plainly", async () => {
+  await mount(baseRoutes({ handle: (m, p) => (m === "POST" && p.endsWith("/change-rate") ? { status: 400, data: { code: "RATE_MISMATCH" } } : null) }));
+  await click($("open-org_a"));
+  await click($("change-terms"));
+  await fillTerms();
+  await click($("save-terms"));
+  assert.equal($("terms-error").textContent, "These terms differ from the terms already saved for this partner, so nothing was changed.");
+});
+
 test("partner share: a partner not active yet sets terms through the organization terms routes", async () => {
   await mount(baseRoutes());
   await click($("open-org_p"));

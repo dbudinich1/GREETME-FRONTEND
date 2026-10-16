@@ -18,7 +18,7 @@ import { STATES, resolveOutcome, assignOutcome, messageFor } from "./partnerAdmi
 import { salesAdminApi } from "../../api/salesAdmin.js";
 import {
   money, isoDate, validateYearRates, buildYearRatesRule, dateToUtcInstant, termsLine,
-  activeTermsFromHistories, partnerStatus, lastEndedInterval, failureText, totalsByKey, quarterlyRows, BRANDED_GOODS_NOT_CALCULATED,
+  activeTermsFromHistories, partnerTermsRules, partnerStatus, lastEndedInterval, failureText, totalsByKey, quarterlyRows, BRANDED_GOODS_NOT_CALCULATED,
 } from "./fundraiserP1Model.js";
 
 const input = { padding: 8, borderRadius: 6, border: "1px solid #d8cdbb", font: "inherit", boxSizing: "border-box" };
@@ -518,13 +518,13 @@ function PartnerShare({ p, status, extras, onChanged }) {
     if (!c.ok) return; // zero requests while incomplete
     setBusy(true);
     let fail = null;
-    if (active && status === "active") {
-      // Terms in force on an active partner ⇒ the existing org-wide change-rate moves every campaign
-      // together (and, per ADDENDUM 1, re-issues the organization terms for later campaigns).
+    if (extras && (extras.hasTerms || active)) {
+      // N5 — terms already saved (in force, approved or draft), active OR not-yet-active partner ⇒ the
+      // existing org-wide change-rate (it also re-issues the organization terms for later campaigns).
       const r = await fundraiserApi.founder.changeOrganizationRate(p.organizationId, { rules: c.rules, treatments: c.treatments, effectiveFrom: c.effectiveFrom, reason: c.reason });
       if (stateFor(r) !== "ok") fail = r;
     } else {
-      // No terms yet, or a partner not active yet ⇒ a new organization terms version (ADDENDUM 1).
+      // No terms saved yet ⇒ the first organization terms version (ADDENDUM 1).
       fail = await saveOrgTerms(p.organizationId, c);
     }
     setBusy(false);
@@ -754,14 +754,19 @@ const isInForce = (t) => !!t && (t.status === undefined || t.status === "active"
 async function readExtras(org) {
   const tr = await fundraiserApi.founder.orgTerms(org.organizationId);
   const t = stateFor(tr) === "ok" && tr.data ? tr.data.terms : null;
-  const orgTerms = isInForce(t) ? { rules: { kind: t.kind, basis: t.basis, yearRates: t.yearRates }, effectiveFrom: t.effectiveFrom } : null;
-  if (org.status === "applied") return { campaigns: [], activeTerms: orgTerms, error: stateFor(tr) !== "ok" };
+  const orgTerms = isInForce(t) ? { rules: partnerTermsRules(t), effectiveFrom: t.effectiveFrom } : null;
+  // N5 — ANY saved organization terms version (active, approved or draft) means a later save must use
+  // change-rate, never a second draft → approve → activate (the one-rate guard would refuse it and
+  // leave an orphan approved version behind).
+  const hasOrgTerms = !!t || (stateFor(tr) === "ok" && tr.data && Array.isArray(tr.data.history) && tr.data.history.length > 0);
+  if (org.status === "applied") return { campaigns: [], activeTerms: orgTerms, hasTerms: hasOrgTerms, error: stateFor(tr) !== "ok" };
   const cmp = await fundraiserApi.founder.campaigns(org.organizationId);
-  if (stateFor(cmp) !== "ok" || !Array.isArray(cmp.data)) return { error: true, campaigns: [], activeTerms: orgTerms };
-  if (orgTerms) return { campaigns: cmp.data, activeTerms: orgTerms };
+  if (stateFor(cmp) !== "ok" || !Array.isArray(cmp.data)) return { error: true, campaigns: [], activeTerms: orgTerms, hasTerms: hasOrgTerms };
+  if (orgTerms) return { campaigns: cmp.data, activeTerms: orgTerms, hasTerms: true };
   const hist = await Promise.all(cmp.data.map((c) => fundraiserApi.founder.economicsHistory(c.campaignId)));
   const lists = hist.map((x) => (stateFor(x) === "ok" && Array.isArray(x.data) ? x.data : null));
-  return { campaigns: cmp.data, activeTerms: activeTermsFromHistories(lists.filter(Boolean)), historyIncomplete: lists.some((l) => l === null) };
+  const legacy = activeTermsFromHistories(lists.filter(Boolean));
+  return { campaigns: cmp.data, activeTerms: legacy, hasTerms: hasOrgTerms || !!legacy, historyIncomplete: lists.some((l) => l === null) };
 }
 
 export default function FounderFundraisingDashboard() {

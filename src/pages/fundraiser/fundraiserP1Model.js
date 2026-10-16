@@ -138,7 +138,7 @@ const CODE_TEXT = Object.freeze({
   NOT_FOUND: "That record no longer exists. Nothing was changed.",
   OVERLAP: "That date overlaps or comes before the terms already in force. Choose a later date.",
   EFFECTIVE_FROM_INVALID: "That date overlaps or comes before the terms already in force. Choose a later date.",
-  RATE_MISMATCH: "These terms differ from the partner’s current terms. Use Change terms to move every campaign together.",
+  RATE_MISMATCH: "These terms differ from the terms already saved for this partner, so nothing was changed.",
   INCOMPLETE: "These terms are incomplete, so they can’t be saved.",
   DUPLICATE_ORGANIZATION: "A partner with this legal name already exists.",
   SALESPERSON_NOT_FOUND: "That salesperson wasn’t found.",
