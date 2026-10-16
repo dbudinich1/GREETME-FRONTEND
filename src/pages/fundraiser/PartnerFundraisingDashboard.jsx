@@ -44,8 +44,9 @@ function NewCampaign({ organizationId, onCreated, onCancel }) {
     const r = await fundraiserApi.partner.createCampaign(organizationId, body);
     setBusy(false);
     if (stateFor(r) !== "ok") { setE({ submit: failureText(r) }); return; }
-    // ADDENDUM 1: a create response may carry termsIssue (the campaign was created without terms).
-    onCreated(body.title, !!(r.data && r.data.termsIssue));
+    // ADDENDUM 1 / N4: the server always returns { campaign, termsIssue }; only termsIssue.issued === false
+    // means the campaign was created without terms.
+    onCreated(body.title, !!(r.data && r.data.termsIssue && r.data.termsIssue.issued === false));
   };
   return (
     <form onSubmit={submit} noValidate data-testid="new-campaign" style={{ border: "1px solid #e6e2da", borderRadius: 8, padding: 14, maxWidth: 520, marginTop: 10 }}>

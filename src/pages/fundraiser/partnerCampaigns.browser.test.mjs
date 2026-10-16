@@ -88,6 +88,7 @@ function routes(over = {}) {
     if (m === "GET" && p === `${P}/orgs/org_1/campaigns`) return { status: 200, data: over.campaigns || CAMPAIGNS };
     if (m === "GET" && p === `${P}/orgs/org_1/terms`) return { status: 200, data: { terms: over.terms === undefined ? YEAR_TERMS : over.terms } };
     if (m === "GET" && /\/participants\/m1\/links$/.test(p)) return { status: 200, data: { attributionId: "a1", referralCode: "AVA-1", referralLink: "https://greet-me.com/#/f/ftk_real", qrPayload: "https://greet-me.com/#/f/ftk_real", tokenVersion: 1, status: "active" } };
+    if (m === "POST" && p === `${P}/orgs/org_1/campaigns`) return { status: 201, data: { campaign: { campaignId: "cmp_new", title: b && b.title, status: "draft" }, termsIssue: { issued: true, versionId: "ev_new", sourceVersionId: "ot_1", effectiveFrom: "2026-11-01T00:00:00.000Z" } } };
     if (m === "POST") return { status: 201, data: { ok: true } };
     return null;
   };
@@ -173,8 +174,16 @@ test("new campaign: validation, then POST with title and goal in cents; created 
   assert.match($("created").textContent, /“Winter Drive” was created as a draft\./);
 });
 
-test("new campaign created without terms (termsIssue) ⇒ the notice says it can't start yet", async () => {
-  await mount(routes({ handle: (m, p) => (m === "POST" && p.endsWith("/campaigns") ? { status: 201, data: { campaignId: "cmp_9", termsIssue: { code: "NO_ORG_TERMS" } } } : null) }));
+test("new campaign (N4): the real success shape termsIssue { issued: true } shows the plain draft notice only", async () => {
+  await mount(routes({ handle: (m, p) => (m === "POST" && p.endsWith("/campaigns") ? { status: 201, data: { campaign: { campaignId: "cmp_9", title: "Winter Drive", status: "draft" }, termsIssue: { issued: true, versionId: "ev_9", sourceVersionId: "ot_1", effectiveFrom: "2026-11-01T00:00:00.000Z" } } } : null) }));
+  await click($("new-campaign-btn"));
+  await setValue($("nc-title"), "Winter Drive");
+  await submit($("new-campaign"));
+  assert.equal($("created").textContent, "“Winter Drive” was created as a draft.");
+});
+
+test("new campaign (N4): termsIssue { issued: false } ⇒ the notice says it can't start yet", async () => {
+  await mount(routes({ handle: (m, p) => (m === "POST" && p.endsWith("/campaigns") ? { status: 201, data: { campaign: { campaignId: "cmp_9", title: "Winter Drive", status: "draft" }, termsIssue: { issued: false, reason: "TERMS_ISSUE_FAILED", code: null } } } : null) }));
   await click($("new-campaign-btn"));
   await setValue($("nc-title"), "Winter Drive");
   await submit($("new-campaign"));

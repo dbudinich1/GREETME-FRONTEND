@@ -97,6 +97,7 @@ function baseRoutes(over = {}) {
         : [{ key: "2026-Q4", label: "2026 Q4", recordedMinor: 4321, reversedMinor: 100, netMinor: 4221, entryCount: 3 }] } };
     }
     if (method === "GET" && /\/reconciliation\/quarterly-gross$/.test(path)) return { status: 200, data: { organizations: [{ organizationId: "org_a", quarters: { "2026-Q4": { grossCents: 92400, records: 3, subscriptionGrossCents: 80000, brandedGoodsGrossCents: 12400 } }, unsettled: { grossCents: 0, records: 0 } }] } };
+    if (method === "POST" && path === `${A}/campaigns`) return { status: 201, data: { campaign: { campaignId: "cmp_new", organizationId: body && body.organizationId, title: body && body.title, status: "draft" }, termsIssue: { issued: true, versionId: "ev_new", sourceVersionId: "ot_1", effectiveFrom: "2026-11-01T00:00:00.000Z" } } };
     if (method === "POST") return { status: 200, data: { organizationId: "org_new", legalName: body && body.legalName, id: "v_x", status: "ok" } };
     return null;
   };
@@ -432,8 +433,19 @@ test("campaigns tab: Add a campaign posts the founder create route as a draft", 
   assert.equal($("founder-campaign-note"), null);
 });
 
-test("campaigns tab: a create response with termsIssue is explained", async () => {
-  await mount(baseRoutes({ handle: (m, p) => (m === "POST" && p === `${A}/campaigns` ? { status: 201, data: { campaignId: "cmp_9", termsIssue: { code: "NO_ORG_TERMS" } } } : null) }));
+test("campaigns tab (N4): the real success shape termsIssue { issued: true } shows NO warning", async () => {
+  await mount(baseRoutes({ handle: (m, p) => (m === "POST" && p === `${A}/campaigns` ? { status: 201, data: { campaign: { campaignId: "cmp_9", title: "Winter Drive", status: "draft" }, termsIssue: { issued: true, versionId: "ev_9", sourceVersionId: "ot_1", effectiveFrom: "2026-11-01T00:00:00.000Z" } } } : null) }));
+  await click($("open-org_a"));
+  await click($("tab-campaigns"));
+  await click($("founder-add-campaign"));
+  await setValue($("founder-campaign-name"), "Winter Drive");
+  await act(async () => { document.querySelector('[data-testid="panel-campaigns"] form').dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true })); });
+  await settle();
+  assert.equal($("founder-campaign-note"), null);
+});
+
+test("campaigns tab (N4): termsIssue { issued: false } is explained", async () => {
+  await mount(baseRoutes({ handle: (m, p) => (m === "POST" && p === `${A}/campaigns` ? { status: 201, data: { campaign: { campaignId: "cmp_9", title: "Winter Drive", status: "draft" }, termsIssue: { issued: false, reason: "TERMS_ISSUE_FAILED", code: null } } } : null) }));
   await click($("open-org_a"));
   await click($("tab-campaigns"));
   await click($("founder-add-campaign"));

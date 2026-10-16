@@ -574,8 +574,9 @@ function CampaignsTab({ p, status, extras, onChanged }) {
     setBusy(false);
     if (stateFor(r) !== "ok") { setE(failureText(r)); return; }
     setTitle(""); setAdding(false);
-    // ADDENDUM 1: a create response may carry termsIssue (created without terms).
-    setNote(r.data && r.data.termsIssue ? "The campaign was created without terms, so it can’t start until the partner share is in place." : null);
+    // ADDENDUM 1 / N4: the server always returns { campaign, termsIssue }; termsIssue.issued === false
+    // (and only that) means the campaign was created without terms.
+    setNote(r.data && r.data.termsIssue && r.data.termsIssue.issued === false ? "The campaign was created without terms, so it can’t start until the partner share is in place." : null);
     await onChanged();
   }
   return (
