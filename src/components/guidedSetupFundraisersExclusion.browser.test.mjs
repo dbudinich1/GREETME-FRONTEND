@@ -137,6 +137,11 @@ test("the welcome popup is NOT shown on the public Fundraisers page (signed in, 
   assert.equal(await mountAt("/fundraisers", { user: { id: "u1" } }), false);
 });
 
+test("N18: /Fundraisers (any case) also hides the popup", async () => {
+  assert.equal(await mountAt("/Fundraisers"), false);
+  assert.equal(await mountAt("/FUNDRAISERS/"), false);
+});
+
 test("another DashboardLayout page is unchanged: For Business still shows the popup when the gate says show", async () => {
   assert.equal(await mountAt("/business"), true);
   assert.equal(await mountAt("/pricing"), true);
@@ -151,6 +156,8 @@ test("the gate is still the gate everywhere: when it says no, no page shows the 
 test("the exclusion is route-specific: only /fundraisers (and its trailing-slash form) is excluded", () => {
   assert.equal(isGuidedSetupExcludedRoute("/fundraisers"), true);
   assert.equal(isGuidedSetupExcludedRoute("/fundraisers/"), true);
+  // N18 — React Router matches case-insensitively, so the exclusion does too.
+  for (const p of ["/Fundraisers", "/FUNDRAISERS", "/FundRaisers/"]) assert.equal(isGuidedSetupExcludedRoute(p), true, p);
   for (const p of ["/", "/business", "/pricing", "/dashboard", "/dashboard/fundraiser", "/fundraisers-x", "/f/abc", "", undefined, null]) {
     assert.equal(isGuidedSetupExcludedRoute(p), false, String(p));
   }

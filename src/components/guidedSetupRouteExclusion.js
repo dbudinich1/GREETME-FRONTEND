@@ -5,8 +5,9 @@
 // Hearts earning rules and the popup on every other page are untouched.
 const EXCLUDED_ROUTES = Object.freeze(["/fundraisers"]);
 
-/** True only for the public Fundraisers page (a trailing slash is tolerated). */
+/** True only for the public Fundraisers page (a trailing slash is tolerated). Case-insensitive, because
+ *  React Router matches routes case-insensitively (/Fundraisers renders the same page) — N18. */
 export function isGuidedSetupExcludedRoute(pathname) {
-  const p = String(pathname || "").replace(/\/+$/, "") || "/";
+  const p = String(pathname || "").toLowerCase().replace(/\/+$/, "") || "/";
   return EXCLUDED_ROUTES.includes(p);
 }
