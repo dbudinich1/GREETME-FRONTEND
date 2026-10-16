@@ -680,9 +680,9 @@ function PartnerShare({ p, status, extras, onChanged }) {
       {extras && extras.error ? <p style={err}>This information couldn’t be loaded.</p> : (
         <p style={{ margin: 0, fontSize: 15 }} data-testid="terms-line"><strong>{active ? termsLine(active.rules) : extras && extras.scheduled ? "Not in place yet" : "Not set"}</strong>{active && active.effectiveFrom ? ` · takes effect ${isoDate(active.effectiveFrom)}` : ""}</p>
       )}
-      {extras && extras.scheduled ? (
-        <p style={{ margin: "6px 0 0", fontSize: 14 }} data-testid="terms-scheduled">Scheduled from {isoDate(extras.scheduled.effectiveFrom)}: {termsLine(extras.scheduled.rules)}</p>
-      ) : null}
+      {extras && extras.scheduled ? (extras.scheduledSteps && extras.scheduledSteps.length ? extras.scheduledSteps : [extras.scheduled]).map((st, i) => (
+        <p key={`${st.effectiveFrom}:${i}`} style={{ margin: "6px 0 0", fontSize: 14 }} data-testid="terms-scheduled">Scheduled from {isoDate(st.effectiveFrom)}: {termsLine(st.rules)}</p>
+      )) : null}
       {extras && extras.pending && !active && !extras.scheduled ? (
         <FinishPendingTerms p={p} pending={extras.pending} canSet={canSet} onChanged={onChanged} />
       ) : null}
@@ -1290,6 +1290,10 @@ async function readExtras(org) {
   // N9 — the founder terms view is { terms: in force, scheduled: future change | null, history }.
   const sv = stateFor(tr) === "ok" && tr.data ? tr.data.scheduled : null;
   const scheduled = sv ? { rules: partnerTermsRules(sv), effectiveFrom: sv.effectiveFrom } : null;
+  // RC4-1 — every future active version, ascending (scheduledSteps); `scheduled` is the next one. Falls
+  // back to `scheduled` alone when the server does not send scheduledSteps.
+  const stepViews = stateFor(tr) === "ok" && tr.data && Array.isArray(tr.data.scheduledSteps) ? tr.data.scheduledSteps : (sv ? [sv] : []);
+  const scheduledSteps = stepViews.filter(Boolean).map((v) => ({ rules: partnerTermsRules(v), effectiveFrom: v.effectiveFrom }));
   // RR1 — a DRAFT or APPROVED organization terms version that never became active is "saved, not in
   // place yet". It is finished through the org-terms routes (approve / activate); change-rate is used
   // ONLY when an ACTIVE version exists (in force or scheduled), because the server refuses it otherwise
@@ -1297,10 +1301,10 @@ async function readExtras(org) {
   const pending = t && (t.status === "draft" || t.status === "approved") && t.versionId
     ? { versionId: t.versionId, status: t.status, rules: partnerTermsRules(t), complete: pendingTermsComplete(t) } : null;
   const hasActiveOrgTerms = !!orgTerms || !!scheduled;
-  if (org.status === "applied") return { campaigns: [], activeTerms: orgTerms, scheduled, pending, hasActiveTerms: hasActiveOrgTerms, error: stateFor(tr) !== "ok" };
+  if (org.status === "applied") return { campaigns: [], activeTerms: orgTerms, scheduled, scheduledSteps, pending, hasActiveTerms: hasActiveOrgTerms, error: stateFor(tr) !== "ok" };
   const cmp = await fundraiserApi.founder.campaigns(org.organizationId);
-  if (stateFor(cmp) !== "ok" || !Array.isArray(cmp.data)) return { error: true, campaigns: [], activeTerms: orgTerms, scheduled, pending, hasActiveTerms: hasActiveOrgTerms };
-  if (orgTerms || scheduled) return { campaigns: cmp.data, activeTerms: orgTerms, scheduled, pending, hasActiveTerms: true };
+  if (stateFor(cmp) !== "ok" || !Array.isArray(cmp.data)) return { error: true, campaigns: [], activeTerms: orgTerms, scheduled, scheduledSteps, pending, hasActiveTerms: hasActiveOrgTerms };
+  if (orgTerms || scheduled) return { campaigns: cmp.data, activeTerms: orgTerms, scheduled, scheduledSteps, pending, hasActiveTerms: true };
   const hist = await Promise.all(cmp.data.map((c) => fundraiserApi.founder.economicsHistory(c.campaignId)));
   const lists = hist.map((x) => (stateFor(x) === "ok" && Array.isArray(x.data) ? x.data : null));
   const legacy = activeTermsFromHistories(lists.filter(Boolean));
@@ -1411,7 +1415,10 @@ export default function FounderFundraisingDashboard() {
                     <tr key={o.organizationId}>
                       <td style={td}>{o.legalName || o.organizationId}</td><td style={td}><Chip s={partnerStatus(o)} /></td>
                       <td style={{ ...td, fontSize: 13 }}>{!x ? "…" : x.error ? "—" : x.activeTerms ? termsLine(x.activeTerms.rules)
-                        : x.scheduled ? `Scheduled from ${isoDate(x.scheduled.effectiveFrom)}: ${termsLine(x.scheduled.rules)}` : "Not set"}</td>
+                        : x.scheduled ? `Scheduled from ${isoDate(x.scheduled.effectiveFrom)}: ${termsLine(x.scheduled.rules)}` : "Not set"}
+                        {/* RC4-1 — compact: the next step only, plus a count of the later ones. */}
+                        {x && !x.error && x.scheduled && x.activeTerms ? <div style={{ color: "#8a7c6c" }}>Scheduled from {isoDate(x.scheduled.effectiveFrom)}: {termsLine(x.scheduled.rules)}</div> : null}
+                        {x && !x.error && x.scheduledSteps && x.scheduledSteps.length > 1 ? <div style={{ color: "#8a7c6c" }} data-testid={`list-more-${o.organizationId}`}>+{x.scheduledSteps.length - 1} more scheduled</div> : null}</td>
                       <td style={td}>{!x ? "…" : x.error ? "—" : x.campaigns.length}</td>
                       <td style={{ ...td, textAlign: "right" }}><button type="button" style={btnGhost} data-testid={`open-${o.organizationId}`} onClick={() => { setOpenId(o.organizationId); setScreen("detail"); if (o.status !== "applied") refreshCampaigns(o.organizationId); }}>Open</button></td>
                     </tr>

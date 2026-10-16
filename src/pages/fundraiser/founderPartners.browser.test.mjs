@@ -87,8 +87,12 @@ function baseRoutes(over = {}) {
     if (method === "GET" && /\/organizations\/[^/]+\/terms$/.test(path)) {
       const id = path.split("/").at(-2);
       const t = id in (over.orgTerms || {}) ? over.orgTerms[id] : (id === "org_a" ? ORG_TERMS_A : null);
-      const sch = (over.scheduled || {})[id] || null;
-      return { status: 200, data: { terms: t, scheduled: sch, history: [t, sch].filter(Boolean) } };
+      const steps = (over.steps || {})[id] || null;
+      const sch = steps ? steps[0] || null : (over.scheduled || {})[id] || null;
+      const body = { terms: t, scheduled: sch, history: [t, ...(steps || [sch])].filter(Boolean) };
+      // RC4-1 (p1-be-int 3ba7104): scheduledSteps = every future active version, ascending; [] if none.
+      if (!over.noSteps) body.scheduledSteps = steps || (sch ? [sch] : []);
+      return { status: 200, data: body };
     }
     if (method === "GET" && /\/organizations\/org_a\/campaigns$/.test(path)) return { status: 200, data: over.campaignsA || CAMPAIGNS_A };
     if (method === "GET" && /\/organizations\/[^/]+\/campaigns$/.test(path)) return { status: 200, data: [] };
@@ -706,4 +710,47 @@ test("partner share (RC2-5): with a complete saved version, finishing it is the 
   assert.equal($("change-terms").textContent, "Enter different terms instead");
   await click($("change-terms"));
   assert.ok($("terms-form"), "the alternative still opens the same terms form");
+});
+
+const STEP_1 = { ...ORG_TERMS_A, versionId: "ot_2", economicsVersion: 2, status: "active", yearRates: { year_1: 25, year_2: 15, year_3_plus: 10 }, effectiveFrom: "2027-03-01T00:00:00.000Z", effectiveThrough: "2027-06-01T00:00:00.000Z", approvedAt: "2026-12-01T00:00:00.000Z", createdAt: "2026-12-01T00:00:00.000Z" };
+const STEP_2 = { ...ORG_TERMS_A, versionId: "ot_3", economicsVersion: 3, status: "active", yearRates: { year_1: 30, year_2: 20, year_3_plus: 10 }, effectiveFrom: "2027-06-01T00:00:00.000Z", effectiveThrough: null, approvedAt: "2026-12-02T00:00:00.000Z", createdAt: "2026-12-02T00:00:00.000Z" };
+
+test("RC4-1: two stacked scheduled changes ⇒ one 'Scheduled from' line each on the partner page, in order", async () => {
+  await mount(baseRoutes({ steps: { org_a: [STEP_1, STEP_2] } }));
+  await click($("open-org_a"));
+  assert.match($("terms-line").textContent, /Year 1 20%/);
+  assert.deepEqual([...document.querySelectorAll('[data-testid="terms-scheduled"]')].map((e) => e.textContent), [
+    "Scheduled from 2027-03-01: Year 1 25% \u00b7 Year 2 15% \u00b7 Year 3+ 10%",
+    "Scheduled from 2027-06-01: Year 1 30% \u00b7 Year 2 20% \u00b7 Year 3+ 10%",
+  ]);
+});
+
+test("RC4-1: the partners list stays compact — next step plus '+1 more scheduled'", async () => {
+  await mount(baseRoutes({ steps: { org_a: [STEP_1, STEP_2] } }));
+  const row = [...document.querySelectorAll("tbody tr")].find((r) => r.textContent.includes("Hillcrest Boosters")).textContent;
+  assert.match(row, /Year 1 20% · Year 2 15% · Year 3\+ 10%Scheduled from 2027-03-01: Year 1 25%/);
+  assert.match($("list-more-org_a").textContent, /^\+1 more scheduled$/);
+});
+
+test("RC4-1: scheduled-only with two steps ⇒ 'Not in place yet' and both lines; list shows the next step and '+1 more'", async () => {
+  await mount(baseRoutes({ orgTerms: { org_a: null }, histA: [], steps: { org_a: [STEP_1, STEP_2] } }));
+  const row = [...document.querySelectorAll("tbody tr")].find((r) => r.textContent.includes("Hillcrest Boosters")).textContent;
+  assert.match(row, /Scheduled from 2027-03-01: Year 1 25%/);
+  assert.ok(!row.includes("Not set"));
+  assert.equal($("list-more-org_a").textContent, "+1 more scheduled");
+  await click($("open-org_a"));
+  assert.equal($("terms-line").textContent, "Not in place yet");
+  assert.equal(document.querySelectorAll('[data-testid="terms-scheduled"]').length, 2);
+});
+
+test("RC4-1: no scheduledSteps in the response ⇒ falls back to the single `scheduled` view", async () => {
+  await mount(baseRoutes({ noSteps: true, scheduled: { org_a: STEP_1 } }));
+  await click($("open-org_a"));
+  assert.deepEqual([...document.querySelectorAll('[data-testid="terms-scheduled"]')].map((e) => e.textContent), ["Scheduled from 2027-03-01: Year 1 25% \u00b7 Year 2 15% \u00b7 Year 3+ 10%"]);
+});
+
+test("RC4-1: scheduledSteps [] ⇒ no scheduled line", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_a"));
+  assert.equal($("terms-scheduled"), null);
 });
