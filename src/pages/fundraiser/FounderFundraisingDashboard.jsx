@@ -13,7 +13,8 @@ import { fundraiserApi, stateFor } from "../../api/fundraiserApi.js";
 import { isFundraiserUiEnabled } from "../../config/fundraiserGate.js";
 import { pageWrap, box, h, btn, btnGhost, Stat, StateView, Empty } from "./FundraiserUI.jsx";
 import Chip from "./FundraiserChip.jsx";
-import { STATES, resolveOutcome, assignOutcome, messageFor } from "./partnerAdminAssign.js";
+import { STATES, resolveOutcome, assignOutcome, messageFor, canAssign, isAssigned } from "./partnerAdminAssign.js";
+import { payoutOnlyLine } from "./partnerEarningsCopy.js";
 // Held org-salesperson field (eb9e450): the existing founder-only salesperson client.
 import { salesAdminApi } from "../../api/salesAdmin.js";
 import {
@@ -319,6 +320,12 @@ function ReasonAction({ testid, title, heading, warning, confirmText, danger, on
   const [reason, setReason] = useState("");
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  // Escape closes the confirmation without sending anything (as the previous founder screen did).
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onCancel(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel]);
   return (
     <div role="dialog" aria-label={title} data-testid={testid} style={{ background: danger ? "#fef2f2" : "#f8fafc", border: `1px solid ${danger ? "#fecaca" : "#e2e8f0"}`, borderRadius: 8, padding: 10, marginTop: 8 }}>
       {heading ? <p style={{ margin: "0 0 6px", fontWeight: 700 }}>{heading}</p> : null}
@@ -344,19 +351,22 @@ function Activation({ p, status, extras, onChanged }) {
   const [endDate, setEndDate] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
+  const [notice, setNotice] = useState(null);
   const adminAssigned = Array.isArray(p.adminUserIds) && p.adminUserIds.length > 0;
   const termsSet = !!(extras && extras.activeTerms);
   const checks = [["Organization saved", true], ["Partner administrator assigned", adminAssigned], ["Partner share set", termsSet]];
   const ready = checks.every(([, v]) => v);
   const name = p.legalName || p.organizationId;
 
-  async function run(call) {
-    setBusy(true); setMessage(null);
+  async function run(call, label) {
+    setBusy(true); setMessage(null); setNotice(null);
     const res = await call();
     setBusy(false);
     if (stateFor(res) !== "ok") { const m = failureText(res); setMessage(m); return m; }
     setMode(null);
-    await onChanged();
+    const refreshed = await onChanged();
+    // Adopted only from the server: a FAILED re-read is reported as stale, never invented.
+    setNotice({ label: label || null, stale: refreshed === false });
     return null;
   }
 
@@ -397,7 +407,7 @@ function Activation({ p, status, extras, onChanged }) {
           ) : null}
           {mode === "suspend" ? (
             <ReasonAction testid="suspend-confirm" title="Suspend partner" warning={SUSPEND_WARNING} confirmText="Suspend" danger
-              onConfirm={(why) => run(() => fundraiserApi.founder.suspendOrganization(p.organizationId, why))} onCancel={() => setMode(null)} />
+              onConfirm={(why) => run(() => fundraiserApi.founder.suspendOrganization(p.organizationId, why), "Suspend")} onCancel={() => setMode(null)} />
           ) : null}
           {mode === "end" ? (
             <div role="dialog" aria-label="End partnership" data-testid="end-confirm" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: 10 }}>
@@ -431,16 +441,18 @@ function Activation({ p, status, extras, onChanged }) {
           </div>
           {mode === "reinstate" ? (
             <ReasonAction testid="reinstate-confirm" title="Reinstate partner" confirmText="Reinstate"
-              onConfirm={(why) => run(() => fundraiserApi.founder.reinstateOrganization(p.organizationId, why))} onCancel={() => setMode(null)} />
+              onConfirm={(why) => run(() => fundraiserApi.founder.reinstateOrganization(p.organizationId, why), "Reinstate")} onCancel={() => setMode(null)} />
           ) : null}
         </div>
       ) : (
         <p>Status: {String(p.status || "unknown")}</p>
       )}
       {message ? <p data-testid="activation-error" role="status" style={err}>{message}</p> : null}
+      {notice && notice.label ? <p data-testid="orglife-success" style={{ color: "#2f6f4f", margin: "8px 0 0" }}>{notice.label} applied.</p> : null}
+      {notice && notice.stale ? <p data-testid="orglife-stale" style={{ ...err, fontSize: ".85rem" }}>The change was applied, but the organization list could not be re-read. Reload to see current state.</p> : null}
       {/* Existing founder control, kept in the least prominent place: close the organization. Same route,
           warning and confirmation wording as the previous founder screen. Not offered once closed. */}
-      {status !== "closed" && mode !== "close" ? (
+      {["prepared", "active", "ended", "suspended"].includes(status) && mode !== "close" ? (
         <p style={{ margin: "14px 0 0" }}>
           <button type="button" data-testid="orglife-close" onClick={() => setMode("close")}
             style={{ background: "none", border: 0, padding: 0, color: "#8a7c6c", textDecoration: "underline", cursor: "pointer", font: "inherit", fontSize: 13 }}>Close organization</button>
@@ -448,18 +460,108 @@ function Activation({ p, status, extras, onChanged }) {
       ) : null}
       {mode === "close" ? (
         <ReasonAction testid="close-org-confirm" title="Close organization" heading={`Close ${name}?`} warning={CLOSE_WARNING} confirmText="Yes, close" danger
-          onConfirm={(why) => run(() => fundraiserApi.founder.closeOrganization(p.organizationId, why))} onCancel={() => setMode(null)} />
+          onConfirm={(why) => run(() => fundraiserApi.founder.closeOrganization(p.organizationId, why), "Close")} onCancel={() => setMode(null)} />
       ) : null}
     </div>
   );
 }
 
+// N6 — the existing partner-administrator panel, restored unchanged (resolve an exact email, review the
+// resolver's approved fields, assign, read-back, partner-portal link). Used for the first administrator
+// and to add another one. Authorization is entirely server-side (founder-only for both calls).
+function partnerPortalUrl() {
+  let base = "";
+  try { base = window.location.origin; } catch { base = ""; }
+  return `${base}/#/dashboard/fundraiser`;
+}
+
+function AdminPanel({ organization, onChanged }) {
+  const [adminEmail, setAdminEmail] = useState("");
+  const [admin, setAdmin] = useState({ state: STATES.EMPTY, account: null, reason: null });
+  async function resolveAdmin(e) {
+    e.preventDefault();
+    setAdmin({ state: STATES.RESOLVING, account: null, reason: null });
+    const r = await fundraiserApi.founder.resolveUserByEmail(adminEmail);
+    const out = resolveOutcome(r);
+    setAdmin({ ...out, reason: null });
+  }
+  async function assignAdmin() {
+    if (!canAssign(admin.state, admin.account)) return;
+    const userId = admin.account.userId;
+    setAdmin((a) => ({ ...a, state: STATES.ASSIGNING, reason: null }));
+    const r = await fundraiserApi.founder.assignPartnerAdmin(organization.organizationId, userId);
+    const out = assignOutcome(r);
+    setAdmin((a) => ({ ...a, state: out.state, reason: out.reason }));
+    // Existing read-back behaviour: re-read the organization list so adminUserIds is truthful.
+    if (out.state === STATES.ASSIGNED && onChanged) await onChanged();
+  }
+  return (
+    <div data-testid="admin-panel" style={{ marginTop: 12 }}>
+      <p style={{ margin: "0 0 8px", color: "#5b4f42", fontSize: ".9rem" }}>
+        Current: {Array.isArray(organization.adminUserIds) && organization.adminUserIds.length > 0
+          ? `${organization.adminUserIds.length} assigned`
+          : "none assigned"}
+      </p>
+      <form onSubmit={resolveAdmin} style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }} data-testid="admin-resolve-form">
+        <input
+          type="email"
+          placeholder="Administrator email"
+          value={adminEmail}
+          onChange={(e) => { setAdminEmail(e.target.value); setAdmin({ state: STATES.EMPTY, account: null, reason: null }); }}
+          style={{ padding: 8, borderRadius: 6, border: "1px solid #d8cdbb", flex: 1, minWidth: 220 }}
+          data-testid="admin-email"
+        />
+        <button style={btn} type="submit" disabled={admin.state === STATES.RESOLVING || admin.state === STATES.ASSIGNING} data-testid="admin-resolve">
+          {admin.state === STATES.RESOLVING ? "Resolving…" : "Resolve"}
+        </button>
+      </form>
+
+      {admin.state === STATES.RESOLVED && admin.account && (
+        <div style={{ border: "1px solid #d8cdbb", borderRadius: 6, padding: 10, marginBottom: 8 }} data-testid="admin-resolved">
+          <div><strong>{admin.account.email}</strong></div>
+          <div style={{ color: "#5b4f42", fontSize: ".9rem" }}>
+            Email verified: <strong data-testid="admin-verified">{admin.account.emailVerified ? "yes" : "no"}</strong>
+            {" · "}Founder account: <strong data-testid="admin-isfounder">{admin.account.isFounder ? "yes" : "no"}</strong>
+          </div>
+          {admin.account.isFounder ? (
+            <p style={{ margin: "8px 0 0", color: "#8a3b2a" }} data-testid="admin-founder-block">
+              A platform founder cannot be a partner administrator.
+            </p>
+          ) : (
+            <button style={{ ...btn, marginTop: 8 }} onClick={assignAdmin} disabled={!canAssign(admin.state, admin.account)} data-testid="admin-assign">Assign as partner administrator</button>
+          )}
+        </div>
+      )}
+
+      {admin.state === STATES.ASSIGNING && <p style={{ color: "#5b4f42" }} data-testid="admin-assigning">Assigning…</p>}
+
+      {[STATES.INVALID_EMAIL, STATES.NOT_FOUND, STATES.AMBIGUOUS, STATES.SERVICE_FAILURE, STATES.ASSIGNED, STATES.ASSIGN_FAILED].includes(admin.state) && (
+        <p style={{ color: admin.state === STATES.ASSIGNED ? "#2f6f4f" : "#8a3b2a", marginTop: 0 }}
+          data-testid={admin.state === STATES.ASSIGNED ? "admin-success" : "admin-error"}>{messageFor(admin.state, admin.reason)}</p>
+      )}
+
+      {admin.state === STATES.ASSIGNED && admin.account && (
+        <p style={{ color: "#5b4f42", fontSize: ".9rem", marginTop: 0 }} data-testid="admin-readback">
+          Read-back: {isAssigned(organization, admin.account.userId) ? "present in adminUserIds ✓" : "not yet reflected"}
+        </p>
+      )}
+
+      {admin.state === STATES.ASSIGNED && admin.account && (
+        <p style={{ color: "#5b4f42", fontSize: ".85rem", marginTop: 0 }} data-testid="admin-next-step">
+          Direct them to the partner portal to get started:{" "}
+          <code data-testid="admin-partner-link">{partnerPortalUrl()}</code>
+          <button type="button" style={{ ...btnGhost, marginLeft: 8, padding: "2px 8px", fontSize: ".78rem" }} data-testid="admin-copy-partner-link"
+            onClick={async () => { try { await navigator.clipboard.writeText(partnerPortalUrl()); } catch { /* clipboard unavailable — the visible URL above still works */ } }}>
+            Copy link
+          </button>
+        </p>
+      )}
+    </div>
+  );
+}
+
 function Relationship({ p, salespeople, onChanged }) {
-  const [assigning, setAssigning] = useState(false);
-  const [email, setEmail] = useState("");
-  const [found, setFound] = useState(null);
-  const [error, setError] = useState(null);
-  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
   const count = Array.isArray(p.adminUserIds) ? p.adminUserIds.length : 0;
   const rows = [["Type", typeLabel(p.orgType)], ["Partner administrator", count > 0 ? `${count} assigned` : "Not assigned"]];
   // The salesperson is shown only when the server's record carries the field; never guessed.
@@ -467,15 +569,6 @@ function Relationship({ p, salespeople, onChanged }) {
     const id = p.originationSalespersonId;
     const s = id ? salespeople.find((x) => x.salespersonId === id) : null;
     rows.push(["Salesperson", id ? (s && s.displayName ? s.displayName : id) : "None"]);
-  }
-  async function assign() {
-    if (!found) { setError("Find the partner administrator’s account first."); return; }
-    setBusy(true);
-    const out = assignOutcome(await fundraiserApi.founder.assignPartnerAdmin(p.organizationId, found.userId));
-    setBusy(false);
-    if (out.state !== STATES.ASSIGNED) { setError(messageFor(out.state, out.reason)); return; }
-    setAssigning(false); setFound(null); setEmail("");
-    await onChanged();
   }
   return (
     <div style={box} data-testid="relationship">
@@ -485,17 +578,10 @@ function Relationship({ p, salespeople, onChanged }) {
           <tr key={a}><td style={{ padding: "4px 14px 4px 0", color: "#8a7c6c" }}>{a}</td><td style={{ padding: "4px 0", fontWeight: 600, overflowWrap: "anywhere" }}>{b}</td></tr>
         ))}
       </tbody></table>
-      {count === 0 ? (!assigning ? (
-        <button type="button" style={{ ...btnGhost, marginTop: 10 }} data-testid="assign-admin" onClick={() => setAssigning(true)}>Assign administrator</button>
-      ) : (
-        <div style={{ marginTop: 12, maxWidth: 520 }}>
-          <AdminFinder email={email} setEmail={setEmail} found={found} setFound={setFound} error={error} setError={setError} />
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-            <button type="button" style={btn} data-testid="assign-admin-yes" disabled={busy || !found} onClick={assign}>{busy ? "Assigning…" : "Assign administrator"}</button>
-            <button type="button" style={btnGhost} onClick={() => { setAssigning(false); setError(null); }}>Cancel</button>
-          </div>
-        </div>
-      )) : null}
+      <button type="button" style={{ ...btnGhost, marginTop: 10 }} data-testid="admin-panel-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {open ? "Hide" : count > 0 ? "Add another administrator" : "Assign administrator"}
+      </button>
+      {open ? <AdminPanel key={p.organizationId} organization={p} onChanged={onChanged} /> : null}
     </div>
   );
 }
@@ -558,8 +644,246 @@ function PartnerShare({ p, status, extras, onChanged }) {
   );
 }
 
+// The campaign lifecycle is the BACKEND's state machine (lifecycle/campaignService.js ALLOWED),
+// copied here so the panel can only ever offer a move the server would accept. Nothing is added:
+// there is no "reopen", no "archive", no path out of closed.
+const F4_TRANSITIONS = Object.freeze({
+  draft: ["active", "closed"],
+  active: ["paused", "closed"],
+  paused: ["active", "closed"],
+  closed: [],
+});
+
+/** Targets the server would accept from this status. An unknown status offers nothing. */
+function f4AllowedTargets(status) {
+  return Object.prototype.hasOwnProperty.call(F4_TRANSITIONS, status) ? F4_TRANSITIONS[status] : [];
+}
+
+/**
+ * Making a campaign live is the only move that needs economics already in force.
+ *
+ * This is a FRONTEND safety gate, not a backend guarantee. `setCampaignStatus` does not consult
+ * economics at all, so a campaign can be made active server-side with no active economics — the
+ * panel simply refuses to be the thing that does it, because an active campaign with no economics
+ * accrues attribution against terms nobody agreed. The wording below says "first", not "required",
+ * for exactly that reason.
+ */
+const f4NeedsActiveEconomics = (target) => target === "active";
+
+/** The one sentence each target owes the founder before it is chosen. */
+const F4_WARNINGS = Object.freeze({
+  active: "Makes this campaign eligible for new fundraiser attribution. Its economics must already be active. Payouts remain held.",
+  paused: "Stops new attribution eligibility until the campaign is made active again. Payouts remain held.",
+  closed: "Closing is terminal under the current backend contract: a closed campaign cannot be reopened through this state machine.",
+});
+
+/** Failure text for a status change. Machine codes may SELECT a sentence; they never reach the DOM. */
+function f4FailureMessage(res) {
+  if (!res) return "That didn't go through. The campaign status is unchanged.";
+  if (res.networkError) return "Couldn't reach the server. The campaign status is unchanged.";
+  const code = res.data && typeof res.data.code === "string" ? res.data.code : "";
+  if (code === "BAD_TRANSITION") return "That move is no longer possible from this campaign's current status. Reload to see where it stands.";
+  if (code === "NOT_FOUND") return "That campaign no longer exists. Nothing was changed.";
+  if (code === "ETAG_MISMATCH") return "This campaign changed while you were reviewing it. Reload and try again.";
+  const byStatus = {
+    400: "That status change was rejected. The campaign status is unchanged.",
+    401: "Your session has expired. Sign in again. The campaign status is unchanged.",
+    403: "This action is limited to the founder account. The campaign status is unchanged.",
+    404: "That organization or campaign no longer exists. Nothing was changed.",
+    409: "This campaign changed while you were reviewing it. Reload and try again.",
+    423: "Campaign status changes are on hold right now. Nothing was changed.",
+  };
+  return byStatus[res.status] || "That didn't go through. The campaign status is unchanged.";
+}
+
+/**
+ * F4 — review and change a campaign's lifecycle status.
+ *
+ * A SEPARATE top-level component, for the reason F3 records: with this state and markup inline,
+ * the parent passes the React Compiler's budget and every pre-existing memoization in the file is
+ * dropped. It is also the honest shape — this panel owns a reason, a target and a confirmation,
+ * and none of that belongs to the dashboard.
+ *
+ * It receives facts, never decides them. `campaign` is the server's own record (its id AND its
+ * current status), and `activeEconomicsVersion` is whatever the economics history confirmed as
+ * active — so no local optimism can promote a campaign or its economics.
+ */
+function FounderCampaignStatusPanel({ organizationId, organizationName, campaign, activeEconomicsVersion, onRefreshCampaigns }) {
+  const [target, setTarget] = useState("");
+  const [reason, setReason] = useState("");
+  const [closeAck, setCloseAck] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [changed, setChanged] = useState(null);
+  const [staleList, setStaleList] = useState(false);
+
+  // Escape closes the confirmation without sending anything, whether or not the box holds focus.
+  useEffect(() => {
+    if (!confirming) return undefined;
+    const onKey = (ev) => { if (ev.key === "Escape") setConfirming(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [confirming]);
+
+  const currentStatus = campaign.status;
+  const targets = f4AllowedTargets(currentStatus);
+  const hasActiveEconomics = Boolean(activeEconomicsVersion);
+  const activeEconomicsId = activeEconomicsVersion
+    ? (activeEconomicsVersion.id || activeEconomicsVersion.versionId || null) : null;
+  // A target is blocked when it is the one move that needs economics already in force.
+  const blockedByEconomics = f4NeedsActiveEconomics(target) && !hasActiveEconomics;
+  const closeConfirmed = target !== "closed" || closeAck.trim() === campaign.campaignId;
+
+  function openConfirm() {
+    setMessage(null);
+    if (!targets.includes(target)) { setError("Choose what this campaign should become."); return; }
+    if (blockedByEconomics) { setError("Activate campaign economics first."); return; }
+    if (reason.trim() === "") { setError("Say why this campaign is changing status."); return; }
+    setError(null); setConfirming(true);
+  }
+
+  async function commit() {
+    if (busy) return;
+    // Revalidated AT SEND TIME against the record as it stands now. A control that was legitimate
+    // a moment ago is not a licence to send: the campaign, its status, or the economics in force
+    // may all have moved while this was being read.
+    if (!f4AllowedTargets(campaign.status).includes(target)) {
+      setConfirming(false);
+      setMessage("That move is no longer possible from this campaign's current status. Reload to see where it stands.");
+      return;
+    }
+    if (f4NeedsActiveEconomics(target) && !hasActiveEconomics) {
+      setConfirming(false); setError("Activate campaign economics first."); return;
+    }
+    const why = reason.trim();
+    if (why === "") { setConfirming(false); setError("Say why this campaign is changing status."); return; }
+    if (!closeConfirmed) { setConfirming(false); setError("Type the campaign ID to confirm closing."); return; }
+
+    setError(null); setMessage(null); setStaleList(false); setBusy(true);
+    const res = await fundraiserApi.founder.setCampaignStatus(
+      organizationId, campaign.campaignId, target, why,
+    );
+    setBusy(false); setConfirming(false);
+    if (!res || stateFor(res) !== "ok") { setMessage(f4FailureMessage(res)); return; }
+    // Adopted ONLY from the server's answer. If it declined to say, nothing is claimed.
+    const c = res.data || {};
+    setChanged({ campaignId: c.campaignId || campaign.campaignId, status: c.status || null });
+    setReason(""); setCloseAck("");
+    // Reconcile the list. A FAILED refresh is reported as stale — it never invents a new status.
+    if (onRefreshCampaigns) {
+      const ok = await onRefreshCampaigns();
+      setStaleList(ok !== true);
+    }
+  }
+
+  return (
+    <section data-testid="f4-panel" style={box}>
+      <h2 style={h}>Campaign status</h2>
+
+      <div data-testid="f4-review" style={{ fontSize: ".82rem", background: "#f6f6f6", borderRadius: 8, padding: ".55rem" }}>
+        <div>Organization: <span data-testid="f4-review-org">{organizationName}</span></div>
+        <div>Campaign: <span data-testid="f4-review-campaign">{campaign.title || campaign.campaignId}</span></div>
+        <div>Campaign ID: <span data-testid="f4-review-campaign-id">{campaign.campaignId}</span></div>
+        <div>Current status: <span data-testid="f4-review-current">{currentStatus}</span></div>
+        <div>Target status: <span data-testid="f4-review-target">{target || "—"}</span></div>
+        {f4NeedsActiveEconomics(target) ? (
+          <div>Active economics version: <span data-testid="f4-review-economics">{activeEconomicsId || "none"}</span></div>
+        ) : null}
+        <div>Reason: <span data-testid="f4-review-reason">{reason.trim() || "—"}</span></div>
+      </div>
+
+      {targets.length === 0 ? (
+        <p data-testid="f4-terminal" style={{ fontSize: ".82rem", color: "#555", margin: ".5rem 0 0" }}>
+          This campaign is closed. Closing is terminal under the current backend contract, so there
+          is no status change to make.
+        </p>
+      ) : (
+        <>
+          <label style={{ display: "block", fontSize: ".8rem", margin: ".5rem 0" }}>
+            <span style={{ fontWeight: 700 }}>Change status to</span>
+            <select data-testid="f4-target" value={target}
+              onChange={(ev) => { setTarget(ev.target.value); setError(null); setCloseAck(""); }}>
+              <option value="">Choose a status…</option>
+              {targets.map((t) => (
+                // The one move that needs economics in force is offered, but not enabled, without
+                // them — hiding it would leave the founder guessing why the campaign cannot go live.
+                <option key={t} value={t} disabled={f4NeedsActiveEconomics(t) && !hasActiveEconomics}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {targets.includes("active") && !hasActiveEconomics ? (
+            <p data-testid="f4-economics-gate" style={{ fontSize: ".8rem", color: "#b00", margin: ".2rem 0" }}>
+              Activate campaign economics first.
+            </p>
+          ) : null}
+
+          {target && F4_WARNINGS[target] ? (
+            <p data-testid="f4-warning" style={{ fontSize: ".8rem", color: "#555", margin: ".2rem 0" }}>
+              {F4_WARNINGS[target]}
+            </p>
+          ) : null}
+
+          <label style={{ display: "block", fontSize: ".8rem" }}>
+            Reason for this change
+            <textarea data-testid="f4-reason" value={reason} rows={2}
+              onChange={(ev) => { setReason(ev.target.value); setError(null); }} />
+          </label>
+
+          {target === "closed" ? (
+            <label style={{ display: "block", fontSize: ".8rem" }}>
+              Closing cannot be undone. Type the campaign ID <strong>{campaign.campaignId}</strong> to confirm.
+              <input data-testid="f4-close-ack" value={closeAck}
+                onChange={(ev) => { setCloseAck(ev.target.value); setError(null); }} />
+            </label>
+          ) : null}
+
+          {error ? <p data-testid="f4-error" style={{ color: "#b00", fontSize: ".8rem" }}>{error}</p> : null}
+
+          {!confirming ? (
+            <button type="button" data-testid="f4-open" disabled={busy} onClick={openConfirm}>
+              Review this status change…
+            </button>
+          ) : (
+            <div data-testid="f4-confirm" role="group" aria-label="Confirm campaign status change"
+              style={{ border: "1px solid #b00", borderRadius: 8, padding: ".55rem", marginTop: ".4rem" }}>
+              <p data-testid="f4-confirm-text" style={{ fontSize: ".82rem", margin: "0 0 .5rem" }}>
+                Move {campaign.title || campaign.campaignId} ({campaign.campaignId}) from{" "}
+                <strong>{currentStatus}</strong> to <strong data-testid="f4-confirm-target">{target}</strong>?
+                {" "}{F4_WARNINGS[target]}
+              </p>
+              <button type="button" data-testid="f4-cancel" onClick={() => setConfirming(false)}>Cancel</button>
+              <button type="button" data-testid="f4-confirm-go" disabled={busy || !closeConfirmed} onClick={commit}>
+                {busy ? "Changing…" : `Change status to ${target}`}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {message ? <p data-testid="f4-message" role="status" style={{ color: "#b00", fontSize: ".82rem" }}>{message}</p> : null}
+      {changed ? (
+        <p data-testid="f4-changed" style={{ fontSize: ".82rem" }}>
+          Campaign <strong data-testid="f4-changed-campaign">{changed.campaignId}</strong> is now{" "}
+          <strong data-testid="f4-changed-status">{changed.status || "—"}</strong>. Economics terms are
+          unchanged and payouts remain held.
+        </p>
+      ) : null}
+      {staleList ? (
+        <p data-testid="f4-stale" style={{ fontSize: ".8rem", color: "#b00" }}>
+          The campaign list could not be refreshed, so what is shown above may be out of date.
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 // ── Partner page: Campaigns tab ───────────────────────────────────────────────────────────────
-function CampaignsTab({ p, status, extras, onChanged }) {
+function CampaignsTab({ p, status, extras, onChanged, onRefreshCampaigns }) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
   const [e, setE] = useState("");
@@ -604,6 +928,44 @@ function CampaignsTab({ p, status, extras, onChanged }) {
             ))}</tbody>
           </table></div>
         )}
+      {list.length > 0 ? <CampaignStatusChooser p={p} campaigns={list} onRefreshCampaigns={onRefreshCampaigns} /> : null}
+    </div>
+  );
+}
+
+// N6 — the existing per-campaign status control (start / pause / close), restored unchanged. A campaign
+// is chosen from the server's own list; its economics history is read so activation is gated exactly
+// as before (the server also refuses with TERMS_NOT_ACTIVE).
+function CampaignStatusChooser({ p, campaigns, onRefreshCampaigns }) {
+  const [campaignId, setCampaignId] = useState("");
+  const [activeVersion, setActiveVersion] = useState(null);
+  const pick = async (id) => {
+    setCampaignId(id); setActiveVersion(null);
+    if (!id) return;
+    const hist = await fundraiserApi.founder.economicsHistory(id);
+    const list = stateFor(hist) === "ok" && Array.isArray(hist.data) ? hist.data : [];
+    setActiveVersion(list.slice().sort((x, y) => (y?.economicsVersion || 0) - (x?.economicsVersion || 0)).find((v) => v && v.status === "active") || null);
+  };
+  const campaign = campaigns.find((c) => c.campaignId === campaignId) || null;
+  return (
+    <div style={{ marginTop: 14 }} data-testid="campaign-status-chooser">
+      <label style={{ display: "block", fontSize: ".85rem", color: "#5b4f42" }}>
+        Change a campaign’s status{" "}
+        <select data-testid="f4-campaign" value={campaignId} onChange={(e) => pick(e.target.value)} style={{ ...input, padding: 4 }}>
+          <option value="">Choose a campaign…</option>
+          {campaigns.map((c) => <option key={c.campaignId} value={c.campaignId}>{c.title || c.campaignId} ({c.status})</option>)}
+        </select>
+      </label>
+      {campaign ? (
+        <FounderCampaignStatusPanel
+          key={`${p.organizationId}:${campaign.campaignId}:${campaign.status}`}
+          organizationId={p.organizationId}
+          organizationName={p.legalName}
+          campaign={campaign}
+          activeEconomicsVersion={activeVersion}
+          onRefreshCampaigns={onRefreshCampaigns}
+        />
+      ) : null}
     </div>
   );
 }
@@ -623,12 +985,15 @@ function ReportsTab({ p, extras }) {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [pt, lt, byCampaign, byQuarter, qg] = await Promise.all([
+      const [pt, lt, byCampaign, byQuarter, qg, rec, pay, aud] = await Promise.all([
         fundraiserApi.founder.participantTotals(orgId),
         fundraiserApi.founder.ledgerTotals(orgId),
         fundraiserApi.founder.reportTotals({ groupBy: "campaign", organizationId: orgId }),
         fundraiserApi.founder.reportTotals({ groupBy: "quarter", organizationId: orgId }),
         fundraiserApi.founder.quarterlyGross(orgId),
+        fundraiserApi.founder.reconciliation(orgId),
+        fundraiserApi.founder.payoutStatus(orgId),
+        fundraiserApi.founder.audit(orgId),
       ]);
       if (!alive) return;
       setData({
@@ -636,6 +1001,10 @@ function ReportsTab({ p, extras }) {
         byCampaign: stateFor(byCampaign) === "ok" ? totalsByKey(byCampaign.data) : null,
         byQuarter: stateFor(byQuarter) === "ok" && byQuarter.data && Array.isArray(byQuarter.data.rows) ? byQuarter.data.rows : null,
         quarterly: stateFor(qg) === "ok" ? quarterlyRows(qg.data, orgId) : null,
+        attributionRecords: stateFor(pt) === "ok" && pt.data ? pt.data.attributionRecords : null,
+        reconciliation: stateFor(rec) === "ok" ? rec.data : null,
+        payout: pay.status === 503 ? { held: true, dormant: true } : (stateFor(pay) === "ok" ? pay.data : null),
+        audit: stateFor(aud) === "ok" && Array.isArray(aud.data) ? aud.data : null,
       });
     })();
     return () => { alive = false; };
@@ -708,13 +1077,29 @@ function ReportsTab({ p, extras }) {
         </ul>
         <p style={help}>No figures are shown for these, because none are calculated today.</p>
       </div>
+
+      {/* N6 — oversight items from the previous founder screen, restored (least prominent: last). */}
+      <div style={box} data-testid="report-oversight">
+        <h3 style={{ ...h, fontSize: 17 }}>Oversight</h3>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+          <Stat label="Attribution records" value={n(data.attributionRecords)} />
+        </div>
+        <p data-testid="oversight-reconciliation">Reconciliation: {data.reconciliation ? (data.reconciliation.reconciled ? "✓ reconciled" : `drift ${data.reconciliation.driftCount ?? 0}`) : "couldn’t be loaded"}</p>
+        <p data-testid="oversight-payout">{payoutOnlyLine(data.payout)}</p>
+        <h4 style={{ margin: "12px 0 6px" }}>Audit history</h4>
+        {data.audit === null ? unavailable : data.audit.length === 0 ? <Empty>No audit events yet.</Empty> : (
+          <ul data-testid="oversight-audit" style={{ margin: 0, paddingLeft: 18, color: "#5b4f42" }}>
+            {data.audit.slice(0, 8).map((a) => <li key={a.id}>{a.at} — {a.action} ({a.subjectType})</li>)}
+          </ul>
+        )}
+      </div>
     </>
   );
 }
 
 const TABS = [["overview", "Overview"], ["campaigns", "Campaigns"], ["reports", "Reports & Analytics"]];
 
-function PartnerPage({ p, extras, salespeople, onBack, onChanged }) {
+function PartnerPage({ p, extras, salespeople, onBack, onChanged, onRefreshCampaigns }) {
   const [tab, setTab] = useState("overview");
   const status = partnerStatus(p);
   return (
@@ -736,12 +1121,12 @@ function PartnerPage({ p, extras, salespeople, onBack, onChanged }) {
       </div>
       {tab === "overview" ? (
         <>
-          <Activation key={`${p.organizationId}:${p.status}:${status}`} p={p} status={status} extras={extras} onChanged={onChanged} />
+          <Activation key={p.organizationId} p={p} status={status} extras={extras} onChanged={onChanged} />
           <Relationship p={p} salespeople={salespeople} onChanged={onChanged} />
           <PartnerShare p={p} status={status} extras={extras} onChanged={onChanged} />
         </>
       ) : null}
-      {tab === "campaigns" ? <CampaignsTab p={p} status={status} extras={extras} onChanged={onChanged} /> : null}
+      {tab === "campaigns" ? <CampaignsTab p={p} status={status} extras={extras} onChanged={onChanged} onRefreshCampaigns={onRefreshCampaigns} /> : null}
       {tab === "reports" ? <ReportsTab p={p} extras={extras} /> : null}
     </>
   );
@@ -786,10 +1171,11 @@ export default function FounderFundraisingDashboard() {
 
   const refreshOrgs = useCallback(async () => {
     const list = await fundraiserApi.founder.organizations();
-    if (stateFor(list) !== "ok" || !Array.isArray(list.data)) { setOrgsError(true); return; }
+    if (stateFor(list) !== "ok" || !Array.isArray(list.data)) { setOrgsError(true); return false; }
     setOrgsError(false);
     setOrgs(list.data);
     await loadExtras(list.data);
+    return true;
   }, [loadExtras]);
 
   const load = useCallback(async () => {
@@ -810,10 +1196,19 @@ export default function FounderFundraisingDashboard() {
   }, [refreshOrgs]);
   useEffect(() => { load(); }, [load]);
 
+  // N6 — re-read one organization's campaigns after a status change. Updates state ONLY when the read
+  // succeeded; a failed refresh leaves the last server-confirmed campaigns standing (reported as stale).
+  const refreshCampaigns = useCallback(async (organizationId) => {
+    const res = await fundraiserApi.founder.campaigns(organizationId);
+    if (stateFor(res) !== "ok" || !Array.isArray(res.data)) return false;
+    setExtras((x) => ({ ...x, [organizationId]: { ...(x[organizationId] || {}), campaigns: res.data } }));
+    return true;
+  }, []);
+
   const refreshAll = useCallback(async () => {
     const ov = await fundraiserApi.founder.overview();
     if (stateFor(ov) === "ok" && ov.data && ov.data.organizations) setOverview(ov.data);
-    await refreshOrgs();
+    return refreshOrgs();
   }, [refreshOrgs]);
 
   if (!isFundraiserUiEnabled()) return <StateView state="dormant" />;
@@ -828,6 +1223,7 @@ export default function FounderFundraisingDashboard() {
       {screen === "register" ? <Register salespeople={salespeople} onSaved={refreshAll} onCancel={() => setScreen("home")} /> : null}
       {screen === "detail" && open ? (
         <PartnerPage key={open.organizationId} p={open} extras={extras[open.organizationId]} salespeople={salespeople}
+          onRefreshCampaigns={() => refreshCampaigns(open.organizationId)}
           onBack={() => { setScreen("home"); setOpenId(null); }} onChanged={refreshAll} />
       ) : null}
       {screen === "home" || (screen === "detail" && !open) ? (
@@ -863,7 +1259,7 @@ export default function FounderFundraisingDashboard() {
                       <td style={td}>{o.legalName || o.organizationId}</td><td style={td}><Chip s={partnerStatus(o)} /></td>
                       <td style={{ ...td, fontSize: 13 }}>{!x ? "…" : x.error ? "—" : (x.activeTerms ? termsLine(x.activeTerms.rules) : "Not set")}</td>
                       <td style={td}>{!x ? "…" : x.error ? "—" : x.campaigns.length}</td>
-                      <td style={{ ...td, textAlign: "right" }}><button type="button" style={btnGhost} data-testid={`open-${o.organizationId}`} onClick={() => { setOpenId(o.organizationId); setScreen("detail"); }}>Open</button></td>
+                      <td style={{ ...td, textAlign: "right" }}><button type="button" style={btnGhost} data-testid={`open-${o.organizationId}`} onClick={() => { setOpenId(o.organizationId); setScreen("detail"); if (o.status !== "applied") refreshCampaigns(o.organizationId); }}>Open</button></td>
                     </tr>
                   );
                 })}</tbody>

@@ -534,3 +534,19 @@ test("register: a failed salespeople read leaves only None, and registering stil
   await click($("r-save"));
   assert.deepEqual(posts().find((c) => c.path === `${A}/organizations`).body, { legalName: "Eastside Youth", orgType: "school" });
 });
+
+test("reports (N6): oversight restored — attribution records, reconciliation drift, payout status, audit history", async () => {
+  await mount(baseRoutes({ handle: (m, p) => {
+    if (m === "GET" && p.endsWith("/org_a/reconciliation")) return { status: 200, data: { reconciled: false, driftCount: 2 } };
+    if (m === "GET" && p.endsWith("/org_a/payouts/status")) return { status: 200, data: { posture: "manual_review_only", payoutsEnabled: false, held: true } };
+    if (m === "GET" && p.endsWith("/org_a/audit")) return { status: 200, data: [{ id: "a1", at: "2026-11-01T00:00:00.000Z", action: "activate", subjectType: "organization" }] };
+    return null;
+  } }));
+  await click($("open-org_a"));
+  await click($("tab-reports"));
+  const box = $("report-oversight").textContent;
+  assert.match(box, /Attribution records\s*2/);
+  assert.match($("oversight-reconciliation").textContent, /drift 2/);
+  assert.equal($("oversight-payout").textContent, "Payouts have not started yet.");
+  assert.match($("oversight-audit").textContent, /2026-11-01T00:00:00\.000Z — activate \(organization\)/);
+});
