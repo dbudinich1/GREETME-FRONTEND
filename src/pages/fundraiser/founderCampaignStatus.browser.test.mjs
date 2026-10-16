@@ -797,3 +797,14 @@ test("N11: TERMS_NOT_ACTIVE from the server is explained, not shown as 'it chang
   assert.match($("f4-message").textContent, /can’t start until the partner share is in place/);
   assert.ok(!document.body.textContent.includes("TERMS_NOT_ACTIVE"));
 });
+
+test("RR9: the success message survives the list refresh that moves the status", async () => {
+  const routes = await openCampaign();
+  await proposeChange("active");
+  routes["/campaigns"] = { status: 200, data: [campaignAt("active")] };
+  await click($("f4-confirm-go"));
+  assert.equal($("f4-review-current").textContent, "active", "the refreshed status is shown");
+  assert.ok($("f4-changed"), "and the success message is still there");
+  assert.equal($("f4-changed-status").textContent, "active");
+  assert.equal($("f4-target").value, "", "the form is clean for the next change");
+});

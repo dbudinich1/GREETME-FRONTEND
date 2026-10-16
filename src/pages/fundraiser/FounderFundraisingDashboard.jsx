@@ -780,6 +780,13 @@ function FounderCampaignStatusPanel({ organizationId, organizationName, campaign
   const [message, setMessage] = useState(null);
   const [changed, setChanged] = useState(null);
   const [staleList, setStaleList] = useState(false);
+  // RR9 — when the server-confirmed status moves, the form is cleared but the success message stays
+  // (the panel is no longer remounted on a status change, which used to wipe it).
+  const [seenStatus, setSeenStatus] = useState(campaign.status);
+  if (seenStatus !== campaign.status) {
+    setSeenStatus(campaign.status);
+    setTarget(""); setReason(""); setCloseAck(""); setConfirming(false); setError(null); setMessage(null);
+  }
 
   // Escape closes the confirmation without sending anything, whether or not the box holds focus.
   useEffect(() => {
@@ -1035,7 +1042,7 @@ function CampaignStatusChooser({ p, campaigns, onRefreshCampaigns }) {
       </label>
       {campaign ? (
         <FounderCampaignStatusPanel
-          key={`${p.organizationId}:${campaign.campaignId}:${campaign.status}`}
+          key={`${p.organizationId}:${campaign.campaignId}`}
           organizationId={p.organizationId}
           organizationName={p.legalName}
           campaign={campaign}
