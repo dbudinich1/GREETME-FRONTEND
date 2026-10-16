@@ -115,12 +115,16 @@ export default function Landing() {
   const sampleMedia = useSampleMediaAvailable(SAMPLE_TALKING_PHOTO_URL, SAMPLE_ENTRY_ENABLED);
   const SHOW_SAMPLE_ENTRY = SAMPLE_ENTRY_ENABLED && sampleMedia === 'available';
   const hashQuery = new URLSearchParams(window.location.hash.split('?')[1] || '');
-  const isSampleCreditView = SAMPLE_ENTRY_ENABLED && hashQuery.get('sample') === 'credit';
+  // A scanned sample QR asks for the reveal; it is honoured only when the sample itself is shown (same gate as
+  // the button: enabled AND its video loads). While the video is being checked, nothing is shown yet.
+  const sampleCreditRequested = SAMPLE_ENTRY_ENABLED && hashQuery.get('sample') === 'credit';
+  const isSampleCreditView = sampleCreditRequested && SHOW_SAMPLE_ENTRY;
+  const sampleCreditPending = sampleCreditRequested && sampleMedia === 'checking';
   const [sampleOpen, setSampleOpen] = useState(false);
-  const [scanRevealOpen, setScanRevealOpen] = useState(isSampleCreditView);
+  const [scanRevealOpen, setScanRevealOpen] = useState(sampleCreditRequested);
   const sampleBtnRef = useRef(null);
   const openSample = () => { intro.pause(); setScanRevealOpen(false); setSampleOpen(true); };
-  const clearSampleQuery = () => { try { if (isSampleCreditView) window.history.replaceState(null, '', window.location.pathname + '#/'); } catch { /* ignore */ } };
+  const clearSampleQuery = () => { try { if (sampleCreditRequested) window.history.replaceState(null, '', window.location.pathname + '#/'); } catch { /* ignore */ } };
   const returnFocusRef = useRef(false);
   const closeSample = () => { setSampleOpen(false); setScanRevealOpen(false); clearSampleQuery(); returnFocusRef.current = true; };
   // After the sample closes, focus goes back to the button that opened it.
@@ -131,13 +135,14 @@ export default function Landing() {
   }, [sampleOpen, scanRevealOpen]);
 
   // Demo mode: ?demo=1 prevents auth redirect so founder can show landing while logged in.
-  // A scanned sample QR (?sample=credit) is exempt the same way, so a signed-in visitor sees the sample reveal.
+  // A scanned sample QR (?sample=credit) is exempt the same way, so a signed-in visitor sees the sample reveal,
+  // but only when the sample is actually shown; if its video is missing, the usual redirect applies.
   const isDemoView = hashQuery.get('demo') === '1';
   useEffect(() => {
-    if (!loading && isAuthenticated && !isDemoView && !isSampleCreditView) {
+    if (!loading && isAuthenticated && !isDemoView && !isSampleCreditView && !sampleCreditPending) {
       navigate('/dashboard', { replace: true });
     }
-  }, [isAuthenticated, loading, navigate, isDemoView, isSampleCreditView]);
+  }, [isAuthenticated, loading, navigate, isDemoView, isSampleCreditView, sampleCreditPending]);
 
   if (loading) {
     return (

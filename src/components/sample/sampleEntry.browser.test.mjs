@@ -49,9 +49,10 @@ const stubs = (enabled) => ({
 
 before(async () => {
   writeFileSync(ENTRY,
-    'import { MemoryRouter } from "react-router-dom";\n'
+    'import { MemoryRouter, useLocation } from "react-router-dom";\n'
     + 'import Landing from "./Landing.jsx";\n'
-    + 'export function App() { return (<MemoryRouter><Landing /></MemoryRouter>); }\n');
+    + 'function Loc() { const l = useLocation(); return (<span data-testid="router-path">{l.pathname}</span>); }\n'
+    + 'export function App() { return (<MemoryRouter><Loc /><Landing /></MemoryRouter>); }\n');
   for (const [k, enabled] of [["off", false], ["on", true]]) {
     await esbuild.build({
       entryPoints: [ENTRY], outfile: OUT[k], bundle: true, format: "esm", platform: "browser",
@@ -179,6 +180,26 @@ test("a scanned sample QR shows the sample $5 reveal: inert claim, Back opens th
     assert.ok($("sample-overlay"), "Back opens the full sample");
     assert.equal($("landing-scan-reveal"), null);
   }
+});
+
+test("signed in + scanned sample QR: reveal only when the sample is shown; video missing -> usual redirect (Team 5 C2)", async () => {
+  // Video missing: the exemption does not apply, so the visitor goes to the dashboard as usual.
+  await mount("on", { hash: "#/?sample=credit", signedIn: true, mediaMode: "missing" });
+  assert.equal($("landing-page"), null, "no plain landing for a signed-in visitor");
+  assert.equal($("landing-scan-reveal"), null);
+  assert.equal($("router-path").textContent, "/dashboard", "redirected to the dashboard");
+  // Still checking: nothing is shown and no redirect happens yet.
+  await mount("on", { hash: "#/?sample=credit", signedIn: true, mediaMode: "silent" });
+  assert.equal($("landing-page"), null);
+  assert.equal($("router-path").textContent, "/", "no redirect while the video is being checked");
+  // Video available: the reveal is shown and the visitor stays.
+  await mount("on", { hash: "#/?sample=credit", signedIn: true, mediaMode: "available" });
+  assert.ok($("landing-scan-reveal"));
+  assert.equal($("router-path").textContent, "/");
+  // Signed out with the video missing: the ordinary landing, no reveal.
+  await mount("on", { hash: "#/?sample=credit", signedIn: false, mediaMode: "missing" });
+  assert.ok($("landing-page"));
+  assert.equal($("landing-scan-reveal"), null);
 });
 
 test("the sample makes no network call and writes no greetme_ storage", async () => {
