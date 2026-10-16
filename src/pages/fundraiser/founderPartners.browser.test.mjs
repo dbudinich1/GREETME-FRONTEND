@@ -407,8 +407,8 @@ test("partner share: first terms on an active partner use the organization terms
   assert.equal(posts().filter((c) => c.path.endsWith("/economics/draft") || c.path.endsWith("/change-rate")).length, 0);
 });
 
-test("partner share (N5): a not-yet-active partner WITH saved terms uses change-rate — no second draft, no orphan approved version", async () => {
-  await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p" } } }));
+test("partner share (N5): a not-yet-active partner WITH ACTIVE terms uses change-rate — no second draft, no orphan approved version", async () => {
+  await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p" } }, handle: realChangeRate(["org_p"]) }));
   await click($("open-org_p"));
   await click($("change-terms"));
   await fillTerms();
@@ -416,14 +416,56 @@ test("partner share (N5): a not-yet-active partner WITH saved terms uses change-
   assert.deepEqual(posts().map((c) => c.path), [`${A}/organizations/org_p/economics/change-rate`]);
 });
 
-test("partner share (N5): an approved-but-not-active org terms version also routes to change-rate", async () => {
-  await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p", status: "approved" } } }));
+// RR1 — real server behaviour: change-rate refuses 400 NO_ACTIVE when no ACTIVE version exists
+// (economicsService.changeOrganizationRate). These routes answer exactly as p1-be-int does.
+const realChangeRate = (activeOrgs) => (m, p) => {
+  if (m === "POST" && p.endsWith("/economics/change-rate")) {
+    const id = p.split("/").at(-3);
+    return activeOrgs.includes(id) ? { status: 200, data: { organizationId: id, campaigns: [] } } : { status: 400, data: { error: "no active economics to change", code: "NO_ACTIVE" } };
+  }
+  if (m === "POST" && p.endsWith("/terms/draft")) return { status: 201, data: { version: { id: "ot_new", status: "draft" } } };
+  if (m === "POST" && /\/terms\/[^/]+\/approve$/.test(p)) return { status: 200, data: { version: { id: p.split("/").at(-2), status: "approved" } } };
+  if (m === "POST" && /\/terms\/[^/]+\/activate$/.test(p)) return { status: 200, data: { version: { id: p.split("/").at(-2), status: "active" } } };
+  return null;
+};
+
+for (const pendingStatus of ["draft", "approved"]) {
+  test(`partner share (RR1): with only a ${pendingStatus} org terms version, Save never calls change-rate (no NO_ACTIVE dead end)`, async () => {
+    await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p", status: pendingStatus } }, handle: realChangeRate([]) }));
+    await click($("open-org_p"));
+    assert.match($("terms-line").textContent, /Not set/);
+    assert.match($("terms-pending").textContent, /Saved, not in place yet: Year 1 20% · Year 2 15% · Year 3\+ 10%/);
+    await click($("change-terms"));
+    await fillTerms();
+    await click($("save-terms"));
+    assert.deepEqual(posts().map((c) => c.path), [`${A}/organizations/org_p/terms/draft`, `${A}/organizations/org_p/terms/ot_new/approve`, `${A}/organizations/org_p/terms/ot_new/activate`]);
+    assert.equal($("terms-error"), null, "no NO_ACTIVE message");
+  });
+}
+
+test("partner share (RR1): 'Put these terms in place' finishes a saved DRAFT (approve, then activate) through the org-terms routes", async () => {
+  await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p", status: "draft" } }, handle: realChangeRate([]) }));
   await click($("open-org_p"));
-  assert.match($("terms-line").textContent, /Not set/);
-  await click($("change-terms"));
-  await fillTerms();
-  await click($("save-terms"));
-  assert.deepEqual(posts().map((c) => c.path), [`${A}/organizations/org_p/economics/change-rate`]);
+  await click($("finish-terms"));
+  await click($("finish-terms-yes"));
+  assert.equal(posts().length, 0, "date and reason are required first");
+  await setValue($("pending-from"), "2027-02-01");
+  await setValue($("pending-reason"), "Agreement countersigned");
+  await click($("finish-terms-yes"));
+  assert.deepEqual(posts().map((c) => [c.path, c.body]), [
+    [`${A}/organizations/org_p/terms/ot_p/approve`, { reason: "Agreement countersigned" }],
+    [`${A}/organizations/org_p/terms/ot_p/activate`, { effectiveFrom: "2027-02-01T00:00:00.000Z", activationReason: "Agreement countersigned" }],
+  ]);
+});
+
+test("partner share (RR1): an already APPROVED saved version is only activated", async () => {
+  await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p", status: "approved" } }, handle: realChangeRate([]) }));
+  await click($("open-org_p"));
+  await click($("finish-terms"));
+  await setValue($("pending-from"), "2027-02-01");
+  await setValue($("pending-reason"), "go");
+  await click($("finish-terms-yes"));
+  assert.deepEqual(posts().map((c) => c.path), [`${A}/organizations/org_p/terms/ot_p/activate`]);
 });
 
 test("partner share (N5): RATE_MISMATCH is stated plainly", async () => {

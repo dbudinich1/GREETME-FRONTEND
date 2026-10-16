@@ -586,6 +586,56 @@ function Relationship({ p, salespeople, onChanged }) {
   );
 }
 
+// RR1 — finish a saved organization terms version that never became active: approve it if it is still a
+// draft, then activate it from the chosen date. Uses only the org-terms routes; nothing is re-entered.
+function FinishPendingTerms({ p, pending, canSet, onChanged }) {
+  const [open, setOpen] = useState(false);
+  const [from, setFrom] = useState("");
+  const [reason, setReason] = useState("");
+  const [errors, setErrors] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState(null);
+  async function finish() {
+    if (busy) return;
+    const e = {};
+    const at = dateToUtcInstant(from);
+    if (!at.ok) e.from = at.error;
+    if (!reason.trim()) e.reason = "Say why these terms are being set.";
+    setErrors(e); setMessage(null);
+    if (Object.keys(e).length) return;
+    setBusy(true);
+    let res = { ok: true, status: 200 };
+    if (pending.status === "draft") res = await fundraiserApi.founder.approveOrgTerms(p.organizationId, pending.versionId, reason.trim());
+    if (stateFor(res) === "ok") res = await fundraiserApi.founder.activateOrgTerms(p.organizationId, pending.versionId, { effectiveFrom: at.iso, activationReason: reason.trim() });
+    setBusy(false);
+    if (stateFor(res) !== "ok") { setMessage(failureText(res)); await onChanged(); return; }
+    setOpen(false);
+    await onChanged();
+  }
+  return (
+    <div data-testid="terms-pending" style={{ marginTop: 8, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, padding: "8px 10px", fontSize: 14 }}>
+      <div>Saved, not in place yet: <strong>{termsLine(pending.rules)}</strong></div>
+      {canSet && !open ? <button type="button" style={{ ...btnGhost, marginTop: 8 }} data-testid="finish-terms" onClick={() => setOpen(true)}>Put these terms in place</button> : null}
+      {canSet && open ? (
+        <div style={{ marginTop: 10 }}>
+          <label htmlFor="pending-from" style={label}>Terms take effect</label>
+          <input id="pending-from" type="date" data-testid="pending-from" value={from} onChange={(e) => { setFrom(e.target.value); setErrors({}); }} style={{ ...input, width: 180 }} />
+          {errors.from ? <p style={err}>{errors.from}</p> : null}
+          <p style={help}>Takes effect at 00:00 UTC on this date.</p>
+          <label htmlFor="pending-reason" style={{ ...label, marginTop: 10 }}>Reason (required &mdash; it is recorded in the audit history)</label>
+          <input id="pending-reason" data-testid="pending-reason" value={reason} onChange={(e) => { setReason(e.target.value); setErrors({}); }} style={{ ...input, width: "100%", maxWidth: 420 }} />
+          {errors.reason ? <p style={err}>{errors.reason}</p> : null}
+          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+            <button type="button" style={btn} data-testid="finish-terms-yes" disabled={busy} onClick={finish}>{busy ? "Saving…" : "Put these terms in place"}</button>
+            <button type="button" style={btnGhost} onClick={() => setOpen(false)}>Cancel</button>
+          </div>
+        </div>
+      ) : null}
+      {message ? <p data-testid="finish-terms-error" role="status" style={err}>{message}</p> : null}
+    </div>
+  );
+}
+
 function PartnerShare({ p, status, extras, onChanged }) {
   const [changing, setChanging] = useState(false);
   const [entry, setEntry] = useState(EMPTY_ENTRY);
@@ -604,13 +654,15 @@ function PartnerShare({ p, status, extras, onChanged }) {
     if (!c.ok) return; // zero requests while incomplete
     setBusy(true);
     let fail = null;
-    if (extras && (extras.hasTerms || active)) {
-      // N5 — terms already saved (in force, approved or draft), active OR not-yet-active partner ⇒ the
-      // existing org-wide change-rate (it also re-issues the organization terms for later campaigns).
+    if (extras && (extras.hasActiveTerms || active)) {
+      // N5 / RR1 — an ACTIVE version exists (in force or scheduled), active or not-yet-active partner ⇒
+      // the existing org-wide change-rate (it also re-issues the organization terms for later campaigns).
       const r = await fundraiserApi.founder.changeOrganizationRate(p.organizationId, { rules: c.rules, treatments: c.treatments, effectiveFrom: c.effectiveFrom, reason: c.reason });
       if (stateFor(r) !== "ok") fail = r;
     } else {
-      // No terms saved yet ⇒ the first organization terms version (ADDENDUM 1).
+      // No active version yet ⇒ a new organization terms version, drafted, approved and activated
+      // (ADDENDUM 1). An unfinished draft/approved version may stay in history: the server has no route
+      // to edit or archive it, and it never blocks this activation.
       fail = await saveOrgTerms(p.organizationId, c);
     }
     setBusy(false);
@@ -627,6 +679,9 @@ function PartnerShare({ p, status, extras, onChanged }) {
       )}
       {extras && extras.scheduled ? (
         <p style={{ margin: "6px 0 0", fontSize: 14 }} data-testid="terms-scheduled">Scheduled from {isoDate(extras.scheduled.effectiveFrom)}: {termsLine(extras.scheduled.rules)}</p>
+      ) : null}
+      {extras && extras.pending && !active && !extras.scheduled ? (
+        <FinishPendingTerms p={p} pending={extras.pending} canSet={canSet} onChanged={onChanged} />
       ) : null}
       <p style={help}>Each customer’s Year 1 starts at their first qualifying purchase through this partner.</p>
       {canSet && !changing ? (
@@ -1197,21 +1252,24 @@ async function readExtras(org) {
   const tr = await fundraiserApi.founder.orgTerms(org.organizationId);
   const t = stateFor(tr) === "ok" && tr.data ? tr.data.terms : null;
   const orgTerms = isInForce(t) ? { rules: partnerTermsRules(t), effectiveFrom: t.effectiveFrom } : null;
-  // N5 — ANY saved organization terms version (active, approved or draft) means a later save must use
-  // change-rate, never a second draft → approve → activate (the one-rate guard would refuse it and
-  // leave an orphan approved version behind).
   // N9 — the founder terms view is { terms: in force, scheduled: future change | null, history }.
   const sv = stateFor(tr) === "ok" && tr.data ? tr.data.scheduled : null;
   const scheduled = sv ? { rules: partnerTermsRules(sv), effectiveFrom: sv.effectiveFrom } : null;
-  const hasOrgTerms = !!t || !!sv || (stateFor(tr) === "ok" && tr.data && Array.isArray(tr.data.history) && tr.data.history.length > 0);
-  if (org.status === "applied") return { campaigns: [], activeTerms: orgTerms, scheduled, hasTerms: hasOrgTerms, error: stateFor(tr) !== "ok" };
+  // RR1 — a DRAFT or APPROVED organization terms version that never became active is "saved, not in
+  // place yet". It is finished through the org-terms routes (approve / activate); change-rate is used
+  // ONLY when an ACTIVE version exists (in force or scheduled), because the server refuses it otherwise
+  // (400 NO_ACTIVE, economicsService.changeOrganizationRate).
+  const pending = t && (t.status === "draft" || t.status === "approved") && t.versionId
+    ? { versionId: t.versionId, status: t.status, rules: partnerTermsRules(t) } : null;
+  const hasActiveOrgTerms = !!orgTerms || !!scheduled;
+  if (org.status === "applied") return { campaigns: [], activeTerms: orgTerms, scheduled, pending, hasActiveTerms: hasActiveOrgTerms, error: stateFor(tr) !== "ok" };
   const cmp = await fundraiserApi.founder.campaigns(org.organizationId);
-  if (stateFor(cmp) !== "ok" || !Array.isArray(cmp.data)) return { error: true, campaigns: [], activeTerms: orgTerms, scheduled, hasTerms: hasOrgTerms };
-  if (orgTerms || scheduled) return { campaigns: cmp.data, activeTerms: orgTerms, scheduled, hasTerms: true };
+  if (stateFor(cmp) !== "ok" || !Array.isArray(cmp.data)) return { error: true, campaigns: [], activeTerms: orgTerms, scheduled, pending, hasActiveTerms: hasActiveOrgTerms };
+  if (orgTerms || scheduled) return { campaigns: cmp.data, activeTerms: orgTerms, scheduled, pending, hasActiveTerms: true };
   const hist = await Promise.all(cmp.data.map((c) => fundraiserApi.founder.economicsHistory(c.campaignId)));
   const lists = hist.map((x) => (stateFor(x) === "ok" && Array.isArray(x.data) ? x.data : null));
   const legacy = activeTermsFromHistories(lists.filter(Boolean));
-  return { campaigns: cmp.data, activeTerms: legacy, hasTerms: hasOrgTerms || !!legacy, historyIncomplete: lists.some((l) => l === null) };
+  return { campaigns: cmp.data, activeTerms: legacy, pending, hasActiveTerms: !!legacy, historyIncomplete: lists.some((l) => l === null) };
 }
 
 export default function FounderFundraisingDashboard() {
