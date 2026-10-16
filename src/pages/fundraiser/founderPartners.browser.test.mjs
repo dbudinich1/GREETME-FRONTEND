@@ -698,3 +698,12 @@ test("partner share (RC2-5): an incomplete saved draft offers no 'Put these term
   assert.equal($("finish-terms-incomplete").textContent, "These saved terms are incomplete, so they can’t be put in place. Use Set terms to enter the partner share.");
   assert.ok($("change-terms"), "Set terms is still offered");
 });
+
+test("partner share (RC2-5): with a complete saved version, finishing it is the primary path and new terms the secondary one", async () => {
+  await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p", status: "draft" } } }));
+  await click($("open-org_p"));
+  assert.equal($("finish-terms").style.background, "rgb(107, 58, 42)", "the finish button is the filled primary button");
+  assert.equal($("change-terms").textContent, "Enter different terms instead");
+  await click($("change-terms"));
+  assert.ok($("terms-form"), "the alternative still opens the same terms form");
+});

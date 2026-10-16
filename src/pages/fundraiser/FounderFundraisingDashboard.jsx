@@ -618,7 +618,7 @@ function FinishPendingTerms({ p, pending, canSet, onChanged }) {
       {canSet && !pending.complete ? (
         <p data-testid="finish-terms-incomplete" style={{ ...help, marginTop: 6 }}>These saved terms are incomplete, so they can’t be put in place. Use Set terms to enter the partner share.</p>
       ) : null}
-      {canSet && pending.complete && !open ? <button type="button" style={{ ...btnGhost, marginTop: 8 }} data-testid="finish-terms" onClick={() => setOpen(true)}>Put these terms in place</button> : null}
+      {canSet && pending.complete && !open ? <button type="button" style={{ ...btn, marginTop: 8 }} data-testid="finish-terms" onClick={() => setOpen(true)}>Put these terms in place</button> : null}
       {canSet && open ? (
         <div style={{ marginTop: 10 }}>
           <label htmlFor="pending-from" style={label}>Terms take effect</label>
@@ -688,7 +688,16 @@ function PartnerShare({ p, status, extras, onChanged }) {
       ) : null}
       <p style={help}>Each customer’s Year 1 starts at their first qualifying purchase through this partner.</p>
       {canSet && !changing ? (
-        <button type="button" style={{ ...btnGhost, marginTop: 10 }} onClick={() => setChanging(true)} data-testid="change-terms">{active || (extras && extras.scheduled) ? "Change terms" : "Set terms"}</button>
+        // RC2-5(3) — when a complete saved version is waiting, finishing it is the primary path (filled button
+        // above); entering different terms is offered as the secondary path. Same action either way.
+        extras && extras.pending && extras.pending.complete && !active && !extras.scheduled ? (
+          <p style={{ margin: "10px 0 0", fontSize: 13 }}>
+            <button type="button" onClick={() => setChanging(true)} data-testid="change-terms"
+              style={{ background: "none", border: 0, padding: 0, color: "#6b3a2a", textDecoration: "underline", cursor: "pointer", font: "inherit" }}>Enter different terms instead</button>
+          </p>
+        ) : (
+          <button type="button" style={{ ...btnGhost, marginTop: 10 }} onClick={() => setChanging(true)} data-testid="change-terms">{active || (extras && extras.scheduled) ? "Change terms" : "Set terms"}</button>
+        )
       ) : null}
       {canSet && changing ? (
         <div style={{ marginTop: 12 }}>
