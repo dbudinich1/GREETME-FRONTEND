@@ -44,7 +44,8 @@ function NewCampaign({ organizationId, onCreated, onCancel }) {
     const r = await fundraiserApi.partner.createCampaign(organizationId, body);
     setBusy(false);
     if (stateFor(r) !== "ok") { setE({ submit: failureText(r) }); return; }
-    onCreated(body.title);
+    // ADDENDUM 1: a create response may carry termsIssue (the campaign was created without terms).
+    onCreated(body.title, !!(r.data && r.data.termsIssue));
   };
   return (
     <form onSubmit={submit} noValidate data-testid="new-campaign" style={{ border: "1px solid #e6e2da", borderRadius: 8, padding: 14, maxWidth: 520, marginTop: 10 }}>
@@ -335,7 +336,7 @@ export default function PartnerFundraisingDashboard() {
             </div>
             {notice ? <p role="status" data-testid="created" style={{ color: "#166534", background: "#ecfdf3", border: "1px solid #bbf7d0", borderRadius: 6, padding: "6px 10px", fontSize: 13.5 }}>{notice}</p> : null}
             {creating ? <NewCampaign organizationId={organizationId} onCancel={() => setCreating(false)}
-              onCreated={async (title) => { setCreating(false); setNotice(`“${title}” was created as a draft.`); await load(); }} /> : null}
+              onCreated={async (title, termsIssue) => { setCreating(false); setNotice(`“${title}” was created as a draft.${termsIssue ? " It can’t start until your partner share is in place; contact Greet-Me." : ""}`); await load(); }} /> : null}
             {campaignsError ? <p style={err}>This information couldn’t be loaded.</p> : campaigns.length === 0 ? <Empty>No campaigns yet.</Empty> : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 10, marginTop: 12 }}>
                 {campaigns.map((c) => {

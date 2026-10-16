@@ -129,32 +129,91 @@ function AdminFinder({ email, setEmail, found, setFound, error, setError }) {
   );
 }
 
-// ── Register (save, not active) ───────────────────────────────────────────────────────────────
-// Three steps. The partner share is set from the partner's page once it has a campaign: terms are
-// kept per campaign (Report 87 C2), and a campaign can only exist once the partner is active.
-const STEPS = ["Organization", "Partner administrator", "Review and save"];
+// ── Partner share entry (Year 1 / 2 / 3+, treatments, reason) — used by Register and the partner page ──
+const EMPTY_ENTRY = () => ({ terms: { y1: "", y2: "", y3: "" }, from: "", treatments: EMPTY_TREATMENTS(), reason: "" });
+
+/** Validate an entry the way the server will. Returns { ok, errors, rules, treatments, effectiveFrom, reason }. */
+function checkEntry(entry) {
+  const v = validateYearRates(entry.terms);
+  const errors = { ...v.errors };
+  const at = dateToUtcInstant(entry.from);
+  if (!at.ok) errors.from = at.error;
+  for (const k of Object.keys(TREATMENTS)) if (!TREATMENTS[k].includes(entry.treatments[k])) errors[k] = "Choose a treatment.";
+  if (!entry.reason.trim()) errors.reason = "Say why these terms are being set.";
+  const ok = Object.keys(errors).length === 0;
+  return ok ? { ok, errors, rules: buildYearRatesRule(v.yearRates), treatments: { ...entry.treatments }, effectiveFrom: at.iso, reason: entry.reason.trim() } : { ok, errors };
+}
+
+function TermsEntry({ entry, setEntry, errors, setErrors }) {
+  const upd = (patch) => { setEntry({ ...entry, ...patch }); setErrors({}); };
+  return (
+    <>
+      <TermsForm value={entry.terms} onChange={(x) => upd({ terms: x })} effectiveFrom={entry.from} onEffectiveFrom={(x) => upd({ from: x })} errors={errors} />
+      <fieldset data-testid="terms-treatments" style={{ border: "1px solid #e6e2da", borderRadius: 8, padding: ".6rem", margin: "12px 0 0" }}>
+        <legend style={{ fontSize: ".85rem", fontWeight: 700 }}>Treatments</legend>
+        {Object.entries(TREATMENTS).map(([key, allowed]) => (
+          <label key={key} style={{ display: "block", margin: ".3rem 0", fontSize: ".85rem" }}>
+            {TREATMENT_FIELD_LABELS[key]}{" "}
+            <select data-testid={`terms-${key}`} value={entry.treatments[key]} onChange={(ev) => upd({ treatments: { ...entry.treatments, [key]: ev.target.value } })} style={{ ...input, padding: 4 }}>
+              <option value="">Choose…</option>
+              {allowed.map((x) => <option key={x} value={x}>{TREATMENT_VALUE_LABELS[x]}</option>)}
+            </select>
+            {errors[key] ? <span style={{ color: "#b00" }}> {errors[key]}</span> : null}
+          </label>
+        ))}
+      </fieldset>
+      <div style={{ marginTop: 12 }}>
+        <label htmlFor="terms-reason" style={label}>Reason (required &mdash; it is recorded in the audit history)</label>
+        <input id="terms-reason" data-testid="terms-reason" value={entry.reason} onChange={(e) => upd({ reason: e.target.value })} style={{ ...input, width: "100%", maxWidth: 420 }} />
+        {errors.reason ? <p style={err}>{errors.reason}</p> : null}
+      </div>
+    </>
+  );
+}
+
+/** ADDENDUM 1 — organization-level terms: draft → approve → activate. Returns null on success, else the failed response. */
+async function saveOrgTerms(organizationId, c) {
+  const d = await fundraiserApi.founder.draftOrgTerms(organizationId, { rules: c.rules, treatments: c.treatments });
+  const dv = d && d.data && (d.data.version || d.data);
+  const dId = dv && (dv.id || dv.versionId);
+  if (stateFor(d) !== "ok") return d;
+  if (!dId) return { ok: false, status: 500, data: null };
+  const a = await fundraiserApi.founder.approveOrgTerms(organizationId, dId, c.reason);
+  if (stateFor(a) !== "ok") return a;
+  const av = a.data && (a.data.version || a.data);
+  const aId = (av && (av.id || av.versionId)) || dId;
+  const act = await fundraiserApi.founder.activateOrgTerms(organizationId, aId, { effectiveFrom: c.effectiveFrom, activationReason: c.reason });
+  return stateFor(act) === "ok" ? null : act;
+}
+
+// ── Register (save, not active) — the approved rev 6 four steps ─────────────────────────────────
+const STEPS = ["Organization", "Partner administrator", "Partner share", "Review and save"];
 function Register({ salespeople, onSaved, onCancel }) {
   const [step, setStep] = useState(0);
   const [org, setOrg] = useState({ legalName: "", orgType: "school", salespersonId: "" });
   const [email, setEmail] = useState("");
   const [found, setFound] = useState(null);
   const [findError, setFindError] = useState(null);
+  const [entry, setEntry] = useState(EMPTY_ENTRY);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
   const [saved, setSaved] = useState(null);
   const spName = (id) => { const s = salespeople.find((x) => x.salespersonId === id); return s ? (s.displayName || s.salespersonId) : "None"; };
+  const checked = step >= 3 ? checkEntry(entry) : null;
 
   const next = () => {
     const e = {};
     if (step === 0 && !org.legalName.trim()) e.legalName = "Enter the organization’s legal name.";
     if (step === 1 && !found) { setFindError("Find the partner administrator’s account first."); return; }
+    if (step === 2) { const c = checkEntry(entry); if (!c.ok) Object.assign(e, c.errors); }
     setErrors(e);
     if (Object.keys(e).length === 0) setStep(step + 1);
   };
 
   async function save() {
-    if (busy || !found) return;
+    const c = checkEntry(entry);
+    if (busy || !found || !c.ok) return;
     setBusy(true); setMessage(null);
     // `salespersonId` is sent ONLY when one was chosen; "None" sends exactly { legalName, orgType }.
     const body = { legalName: org.legalName.trim(), orgType: org.orgType };
@@ -163,18 +222,22 @@ function Register({ salespeople, onSaved, onCancel }) {
     if (stateFor(created) !== "ok" || !created.data || !created.data.organizationId) {
       setBusy(false); setMessage(`The partner was not saved. ${failureText(created)}`); return;
     }
-    const assigned = assignOutcome(await fundraiserApi.founder.assignPartnerAdmin(created.data.organizationId, found.userId));
+    const orgId = created.data.organizationId;
+    const assigned = assignOutcome(await fundraiserApi.founder.assignPartnerAdmin(orgId, found.userId));
+    const termsFail = await saveOrgTerms(orgId, c);
     setBusy(false);
-    setSaved({ name: created.data.legalName || body.legalName, adminAssigned: assigned.state === STATES.ASSIGNED });
+    setSaved({ name: created.data.legalName || body.legalName, adminAssigned: assigned.state === STATES.ASSIGNED, termsSaved: termsFail === null, termsError: termsFail ? failureText(termsFail) : null });
     if (onSaved) onSaved();
   }
 
   if (saved) {
+    const all = saved.adminAssigned && saved.termsSaved;
     return (
       <div style={box} data-testid="register-saved">
         <h2 style={h}>Partner saved, not active yet</h2>
-        <p>{saved.name} is set up{saved.adminAssigned ? " with its administrator" : ""}. Nothing is live: its administrator can’t open a partner dashboard and no sales count until you activate it from the partner’s page.</p>
+        <p>{all ? `${saved.name} is set up with its administrator and terms.` : `${saved.name} is saved.`} Nothing is live: its administrator can’t open a partner dashboard and no sales count until you activate it from the partner’s page.</p>
         {!saved.adminAssigned ? <p data-testid="register-admin-failed" style={{ ...err, fontSize: ".9rem" }}>The administrator could not be assigned. Assign them from the partner’s page.</p> : null}
+        {!saved.termsSaved ? <p data-testid="register-terms-failed" style={{ ...err, fontSize: ".9rem" }}>The partner share could not be saved. {saved.termsError} Set it from the partner’s page.</p> : null}
         <button type="button" style={btn} onClick={onCancel}>Back to partners</button>
       </div>
     );
@@ -218,22 +281,27 @@ function Register({ salespeople, onSaved, onCancel }) {
       ) : null}
 
       {step === 2 ? (
+        <div data-testid="step-terms">
+          <TermsEntry entry={entry} setEntry={setEntry} errors={errors} setErrors={setErrors} />
+        </div>
+      ) : null}
+
+      {step === 3 ? (
         <div data-testid="step-review" style={{ maxWidth: 560 }}>
           <table style={{ fontSize: 14, borderCollapse: "collapse" }}><tbody>
             {[["Organization", `${org.legalName.trim()} (${typeLabel(org.orgType)})`], ["Salesperson", org.salespersonId ? spName(org.salespersonId) : "None"],
-              ["Partner administrator", found ? found.email : ""]].map(([a, b]) => (
+              ["Partner administrator", found ? found.email : ""], ["Partner share", checked && checked.ok ? termsLine(checked.rules) : ""], ["Takes effect", entry.from]].map(([a, b]) => (
               <tr key={a}><td style={{ padding: "4px 14px 4px 0", color: "#8a7c6c" }}>{a}</td><td style={{ padding: "4px 0", fontWeight: 600, overflowWrap: "anywhere" }}>{b}</td></tr>
             ))}
           </tbody></table>
           <p style={{ ...help, marginTop: 10 }}>Saving does not activate the partner. You activate it separately from its page when you’re ready.</p>
-          <p style={help}>You set the partner share from the partner’s page once it is active and has a campaign.</p>
           {message ? <p data-testid="register-error" role="status" style={err}>{message}</p> : null}
         </div>
       ) : null}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
         {step > 0 ? <button type="button" style={btnGhost} onClick={() => { setErrors({}); setStep(step - 1); }}>Back</button> : null}
-        {step < 2 ? <button type="button" style={btn} data-testid="r-next" onClick={next}>Continue</button>
+        {step < 3 ? <button type="button" style={btn} data-testid="r-next" onClick={next}>Continue</button>
           : <button type="button" style={btn} data-testid="r-save" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save partner (not active yet)"}</button>}
         <button type="button" style={btnGhost} onClick={onCancel}>Cancel</button>
       </div>
@@ -242,15 +310,18 @@ function Register({ salespeople, onSaved, onCancel }) {
 }
 
 // ── Partner page: Overview ─────────────────────────────────────────────────────────────────────
+const CLOSE_WARNING = "Closing stops this organization fundraising in the same way suspension does, and is intended as the " +
+  "permanent end of the relationship rather than a pause. Existing records are kept and payouts remain held.";
 const SUSPEND_WARNING = "Suspending stops this organization fundraising immediately: its public referral links stop resolving, " +
   "new checkout attribution is refused, and its partner administrators lose access. Existing records are kept and payouts remain held. Reinstating undoes it.";
 
-function ReasonAction({ testid, title, warning, confirmText, danger, onConfirm, onCancel }) {
+function ReasonAction({ testid, title, heading, warning, confirmText, danger, onConfirm, onCancel }) {
   const [reason, setReason] = useState("");
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   return (
     <div role="dialog" aria-label={title} data-testid={testid} style={{ background: danger ? "#fef2f2" : "#f8fafc", border: `1px solid ${danger ? "#fecaca" : "#e2e8f0"}`, borderRadius: 8, padding: 10, marginTop: 8 }}>
+      {heading ? <p style={{ margin: "0 0 6px", fontWeight: 700 }}>{heading}</p> : null}
       {warning ? <p style={{ margin: "0 0 8px" }}>{warning}</p> : null}
       <label htmlFor={`${testid}-reason`} style={label}>Reason (required &mdash; it is recorded in the organization&rsquo;s audit history)</label>
       <input id={`${testid}-reason`} data-testid={`${testid}-reason`} value={reason} onChange={(e) => { setReason(e.target.value); setError(null); }} style={{ ...input, width: "100%", maxWidth: 420 }} />
@@ -268,13 +339,14 @@ function ReasonAction({ testid, title, warning, confirmText, danger, onConfirm, 
   );
 }
 
-function Activation({ p, status, onChanged }) {
+function Activation({ p, status, extras, onChanged }) {
   const [mode, setMode] = useState(null); // activate | suspend | end | reinstate
   const [endDate, setEndDate] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
   const adminAssigned = Array.isArray(p.adminUserIds) && p.adminUserIds.length > 0;
-  const checks = [["Organization saved", true], ["Partner administrator assigned", adminAssigned]];
+  const termsSet = !!(extras && extras.activeTerms);
+  const checks = [["Organization saved", true], ["Partner administrator assigned", adminAssigned], ["Partner share set", termsSet]];
   const ready = checks.every(([, v]) => v);
   const name = p.legalName || p.organizationId;
 
@@ -366,6 +438,18 @@ function Activation({ p, status, onChanged }) {
         <p>Status: {String(p.status || "unknown")}</p>
       )}
       {message ? <p data-testid="activation-error" role="status" style={err}>{message}</p> : null}
+      {/* Existing founder control, kept in the least prominent place: close the organization. Same route,
+          warning and confirmation wording as the previous founder screen. Not offered once closed. */}
+      {status !== "closed" && mode !== "close" ? (
+        <p style={{ margin: "14px 0 0" }}>
+          <button type="button" data-testid="orglife-close" onClick={() => setMode("close")}
+            style={{ background: "none", border: 0, padding: 0, color: "#8a7c6c", textDecoration: "underline", cursor: "pointer", font: "inherit", fontSize: 13 }}>Close organization</button>
+        </p>
+      ) : null}
+      {mode === "close" ? (
+        <ReasonAction testid="close-org-confirm" title="Close organization" heading={`Close ${name}?`} warning={CLOSE_WARNING} confirmText="Yes, close" danger
+          onConfirm={(why) => run(() => fundraiserApi.founder.closeOrganization(p.organizationId, why))} onCancel={() => setMode(null)} />
+      ) : null}
     </div>
   );
 }
@@ -418,58 +502,33 @@ function Relationship({ p, salespeople, onChanged }) {
 
 function PartnerShare({ p, status, extras, onChanged }) {
   const [changing, setChanging] = useState(false);
-  const [terms, setTerms] = useState({ y1: "", y2: "", y3: "" });
-  const [from, setFrom] = useState("");
-  const [treatments, setTreatments] = useState(EMPTY_TREATMENTS);
-  const [reason, setReason] = useState("");
+  const [entry, setEntry] = useState(EMPTY_ENTRY);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
   const active = extras && extras.activeTerms;
-  const campaigns = (extras && extras.campaigns) || [];
-  const canSet = status === "active";
+  const canSet = status === "active" || status === "prepared";
 
-  function cancel() { setChanging(false); setErrors({}); setMessage(null); setTerms({ y1: "", y2: "", y3: "" }); setFrom(""); setTreatments(EMPTY_TREATMENTS()); setReason(""); }
+  function cancel() { setChanging(false); setErrors({}); setMessage(null); setEntry(EMPTY_ENTRY()); }
 
   async function save() {
     if (busy) return;
-    const v = validateYearRates(terms);
-    const e = { ...v.errors };
-    const at = dateToUtcInstant(from);
-    if (!at.ok) e.from = at.error;
-    for (const k of Object.keys(TREATMENTS)) if (!TREATMENTS[k].includes(treatments[k])) e[k] = "Choose a treatment.";
-    if (!reason.trim()) e.reason = "Say why these terms are being set.";
-    setErrors(e); setMessage(null);
-    if (Object.keys(e).length > 0) return; // zero requests while incomplete
-    const rules = buildYearRatesRule(v.yearRates);
-    const why = reason.trim();
+    const c = checkEntry(entry);
+    setErrors(c.errors); setMessage(null);
+    if (!c.ok) return; // zero requests while incomplete
     setBusy(true);
-    if (active) {
-      // Terms already in force ⇒ the existing org-wide change moves every campaign together.
-      const r = await fundraiserApi.founder.changeOrganizationRate(p.organizationId, { rules, treatments: { ...treatments }, effectiveFrom: at.iso, reason: why });
-      setBusy(false);
-      if (stateFor(r) !== "ok") { setMessage(failureText(r)); return; }
+    let fail = null;
+    if (active && status === "active") {
+      // Terms in force on an active partner ⇒ the existing org-wide change-rate moves every campaign
+      // together (and, per ADDENDUM 1, re-issues the organization terms for later campaigns).
+      const r = await fundraiserApi.founder.changeOrganizationRate(p.organizationId, { rules: c.rules, treatments: c.treatments, effectiveFrom: c.effectiveFrom, reason: c.reason });
+      if (stateFor(r) !== "ok") fail = r;
     } else {
-      // First terms: kept on the partner's campaigns (existing draft → approve → activate per campaign).
-      const targets = campaigns.filter((c) => c && c.status !== "closed");
-      if (targets.length === 0) { setBusy(false); setMessage("Add a campaign first (Campaigns tab). The partner share is kept on the partner’s campaigns; later campaigns receive it automatically."); return; }
-      let done = 0;
-      for (const c of targets) {
-        const d = await fundraiserApi.founder.draftEconomics({ organizationId: p.organizationId, campaignId: c.campaignId, rules, treatments: { ...treatments } });
-        const dId = d && d.data && (d.data.id || d.data.versionId);
-        const a = stateFor(d) === "ok" && dId ? await fundraiserApi.founder.approveEconomics(p.organizationId, dId, why) : d;
-        const aId = a && a.data && (a.data.id || a.data.versionId);
-        const act = stateFor(a) === "ok" && aId ? await fundraiserApi.founder.activateEconomics(p.organizationId, aId, { effectiveFrom: at.iso, activationReason: why }) : a;
-        if (stateFor(act) !== "ok") {
-          setBusy(false);
-          setMessage(`${failureText(act)} The partner share is in place on ${done} of ${targets.length} campaigns.`);
-          await onChanged();
-          return;
-        }
-        done += 1;
-      }
-      setBusy(false);
+      // No terms yet, or a partner not active yet ⇒ a new organization terms version (ADDENDUM 1).
+      fail = await saveOrgTerms(p.organizationId, c);
     }
+    setBusy(false);
+    if (fail) { setMessage(failureText(fail)); await onChanged(); return; }
     cancel();
     await onChanged();
   }
@@ -481,31 +540,12 @@ function PartnerShare({ p, status, extras, onChanged }) {
         <p style={{ margin: 0, fontSize: 15 }} data-testid="terms-line"><strong>{active ? termsLine(active.rules) : "Not set"}</strong>{active && active.effectiveFrom ? ` · takes effect ${isoDate(active.effectiveFrom)}` : ""}</p>
       )}
       <p style={help}>Each customer’s Year 1 starts at their first qualifying purchase through this partner.</p>
-      {!canSet ? <p style={help} data-testid="terms-after-activation">You set the partner share once the partner is active and has a campaign.</p> : null}
       {canSet && !changing ? (
         <button type="button" style={{ ...btnGhost, marginTop: 10 }} onClick={() => setChanging(true)} data-testid="change-terms">{active ? "Change terms" : "Set terms"}</button>
       ) : null}
       {canSet && changing ? (
         <div style={{ marginTop: 12 }}>
-          <TermsForm value={terms} onChange={(x) => { setTerms(x); setErrors({}); }} effectiveFrom={from} onEffectiveFrom={(x) => { setFrom(x); setErrors({}); }} errors={errors} />
-          <fieldset data-testid="terms-treatments" style={{ border: "1px solid #e6e2da", borderRadius: 8, padding: ".6rem", margin: "12px 0 0" }}>
-            <legend style={{ fontSize: ".85rem", fontWeight: 700 }}>Treatments</legend>
-            {Object.entries(TREATMENTS).map(([key, allowed]) => (
-              <label key={key} style={{ display: "block", margin: ".3rem 0", fontSize: ".85rem" }}>
-                {TREATMENT_FIELD_LABELS[key]}{" "}
-                <select data-testid={`terms-${key}`} value={treatments[key]} onChange={(ev) => { setTreatments({ ...treatments, [key]: ev.target.value }); setErrors({}); }} style={{ ...input, padding: 4 }}>
-                  <option value="">Choose…</option>
-                  {allowed.map((a) => <option key={a} value={a}>{TREATMENT_VALUE_LABELS[a]}</option>)}
-                </select>
-                {errors[key] ? <span style={{ color: "#b00" }}> {errors[key]}</span> : null}
-              </label>
-            ))}
-          </fieldset>
-          <div style={{ marginTop: 12 }}>
-            <label htmlFor="terms-reason" style={label}>Reason (required &mdash; it is recorded in the audit history)</label>
-            <input id="terms-reason" data-testid="terms-reason" value={reason} onChange={(e) => { setReason(e.target.value); setErrors({}); }} style={{ ...input, width: "100%", maxWidth: 420 }} />
-            {errors.reason ? <p style={err}>{errors.reason}</p> : null}
-          </div>
+          <TermsEntry entry={entry} setEntry={setEntry} errors={errors} setErrors={setErrors} />
           <p style={help}>New terms apply to sales from the new date, for every campaign of this partner. Earlier sales keep the terms they were made under.</p>
           <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
             <button type="button" style={btn} data-testid="save-terms" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save new terms"}</button>
@@ -524,6 +564,7 @@ function CampaignsTab({ p, status, extras, onChanged }) {
   const [title, setTitle] = useState("");
   const [e, setE] = useState("");
   const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState(null);
   const list = (extras && extras.campaigns) || [];
   async function add(ev) {
     ev.preventDefault();
@@ -533,6 +574,8 @@ function CampaignsTab({ p, status, extras, onChanged }) {
     setBusy(false);
     if (stateFor(r) !== "ok") { setE(failureText(r)); return; }
     setTitle(""); setAdding(false);
+    // ADDENDUM 1: a create response may carry termsIssue (created without terms).
+    setNote(r.data && r.data.termsIssue ? "The campaign was created without terms, so it can’t start until the partner share is in place." : null);
     await onChanged();
   }
   return (
@@ -550,6 +593,7 @@ function CampaignsTab({ p, status, extras, onChanged }) {
           {e ? <p data-testid="founder-campaign-error" style={{ ...err, flexBasis: "100%" }}>{e}</p> : null}
         </form>
       ) : null}
+      {note ? <p data-testid="founder-campaign-note" role="status" style={err}>{note}</p> : null}
       {extras && extras.error ? <p style={err}>This information couldn’t be loaded.</p>
         : list.length === 0 ? <Empty>No campaigns yet.</Empty> : (
           <div style={{ ...scrollX, marginTop: 10 }}><table style={table}>
@@ -691,7 +735,7 @@ function PartnerPage({ p, extras, salespeople, onBack, onChanged }) {
       </div>
       {tab === "overview" ? (
         <>
-          <Activation key={`${p.organizationId}:${p.status}:${status}`} p={p} status={status} onChanged={onChanged} />
+          <Activation key={`${p.organizationId}:${p.status}:${status}`} p={p} status={status} extras={extras} onChanged={onChanged} />
           <Relationship p={p} salespeople={salespeople} onChanged={onChanged} />
           <PartnerShare p={p} status={status} extras={extras} onChanged={onChanged} />
         </>
@@ -703,10 +747,17 @@ function PartnerPage({ p, extras, salespeople, onBack, onChanged }) {
 }
 
 // Campaigns and terms in force for one organization. A failed read is reported, never invented.
+// Terms come from the organization terms read (ADDENDUM 1); organizations created before it fall back
+// to the open-window campaign version, the same fallback the server uses.
+const isInForce = (t) => !!t && (t.status === undefined || t.status === "active");
 async function readExtras(org) {
-  if (org.status === "applied") return { campaigns: [], activeTerms: null };
+  const tr = await fundraiserApi.founder.orgTerms(org.organizationId);
+  const t = stateFor(tr) === "ok" && tr.data ? tr.data.terms : null;
+  const orgTerms = isInForce(t) ? { rules: { kind: t.kind, basis: t.basis, yearRates: t.yearRates }, effectiveFrom: t.effectiveFrom } : null;
+  if (org.status === "applied") return { campaigns: [], activeTerms: orgTerms, error: stateFor(tr) !== "ok" };
   const cmp = await fundraiserApi.founder.campaigns(org.organizationId);
-  if (stateFor(cmp) !== "ok" || !Array.isArray(cmp.data)) return { error: true, campaigns: [], activeTerms: null };
+  if (stateFor(cmp) !== "ok" || !Array.isArray(cmp.data)) return { error: true, campaigns: [], activeTerms: orgTerms };
+  if (orgTerms) return { campaigns: cmp.data, activeTerms: orgTerms };
   const hist = await Promise.all(cmp.data.map((c) => fundraiserApi.founder.economicsHistory(c.campaignId)));
   const lists = hist.map((x) => (stateFor(x) === "ok" && Array.isArray(x.data) ? x.data : null));
   return { campaigns: cmp.data, activeTerms: activeTermsFromHistories(lists.filter(Boolean)), historyIncomplete: lists.some((l) => l === null) };

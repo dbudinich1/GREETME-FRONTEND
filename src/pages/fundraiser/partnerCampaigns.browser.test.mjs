@@ -173,6 +173,14 @@ test("new campaign: validation, then POST with title and goal in cents; created 
   assert.match($("created").textContent, /“Winter Drive” was created as a draft\./);
 });
 
+test("new campaign created without terms (termsIssue) ⇒ the notice says it can't start yet", async () => {
+  await mount(routes({ handle: (m, p) => (m === "POST" && p.endsWith("/campaigns") ? { status: 201, data: { campaignId: "cmp_9", termsIssue: { code: "NO_ORG_TERMS" } } } : null) }));
+  await click($("new-campaign-btn"));
+  await setValue($("nc-title"), "Winter Drive");
+  await submit($("new-campaign"));
+  assert.match($("created").textContent, /“Winter Drive” was created as a draft\. It can’t start until your partner share is in place; contact Greet-Me\./);
+});
+
 test("new campaign refused (ORG_NOT_ACTIVE) ⇒ plain message, no code shown", async () => {
   await mount(routes({ handle: (m, p) => (m === "POST" && p.endsWith("/campaigns") ? { status: 409, data: { code: "ORG_NOT_ACTIVE" } } : null) }));
   await click($("new-campaign-btn"));
@@ -188,7 +196,7 @@ test("draft campaign: Start posts { status: active }; TERMS_NOT_ACTIVE is explai
   assert.match($("campaign-page").textContent, /Goal: none set/);
   await click($("status-active"));
   assert.deepEqual(posts().find((c) => c.path === `${P}/orgs/org_1/campaigns/cmp_2/status`).body, { status: "active" });
-  assert.match($("campaign-error").textContent, /can’t start until the partner share is in place/);
+  assert.match($("campaign-error").textContent, /can’t go ahead until the partner share is in place/);
 });
 
 test("active campaign: Pause posts; Close needs confirmation and Keep it open sends nothing", async () => {

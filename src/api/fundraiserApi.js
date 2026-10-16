@@ -124,6 +124,14 @@ export const fundraiserApi = {
     // defaults it to now. Amounts already recorded are never touched by either call.
     endOrganization: (id, effectiveAt) => post(`/api/fundraiser/admin/organizations/${id}/end`, effectiveAt ? { effectiveAt } : {}),
     resumeOrganization: (id, effectiveAt) => post(`/api/fundraiser/admin/organizations/${id}/resume`, effectiveAt ? { effectiveAt } : {}),
+    // ADDENDUM 1 — organization-level terms (allowed while the organization is applied or approved).
+    // Same bodies as the existing per-campaign economics routes: draft { rules, treatments },
+    // approve { reason }, activate { effectiveFrom, activationReason }. Nothing is defaulted here.
+    orgTerms: (id) => get(`/api/fundraiser/admin/organizations/${id}/terms`),
+    draftOrgTerms: (id, { rules, treatments }) => post(`/api/fundraiser/admin/organizations/${id}/terms/draft`, { rules, treatments }),
+    approveOrgTerms: (id, versionId, reason) => post(`/api/fundraiser/admin/organizations/${id}/terms/${versionId}/approve`, { reason }),
+    activateOrgTerms: (id, versionId, { effectiveFrom, activationReason }) =>
+      post(`/api/fundraiser/admin/organizations/${id}/terms/${versionId}/activate`, { effectiveFrom, activationReason }),
     // Existing founder-only org-wide rate change (moves every campaign with active terms together).
     // Body carries exactly the fields the server reads; nothing is defaulted here.
     changeOrganizationRate: (id, { rules, treatments, effectiveFrom, reason }) =>

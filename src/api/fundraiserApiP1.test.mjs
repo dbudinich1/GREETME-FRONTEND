@@ -63,6 +63,23 @@ test("A5 founder report totals: GET with groupBy and optional organizationId (en
   bearerOnly(last());
 });
 
+test("ADDENDUM 1 organization terms: read, draft { rules, treatments }, approve { reason }, activate { effectiveFrom, activationReason }", async () => {
+  await fundraiserApi.founder.orgTerms("org_1");
+  assert.equal(last().method, "GET");
+  assert.equal(last().url, "/api/fundraiser/admin/organizations/org_1/terms");
+  const rules = { kind: "year_rates", basis: "ENSR", yearRates: { year_1: 20, year_2: 15, year_3_plus: 10 } };
+  await fundraiserApi.founder.draftOrgTerms("org_1", { rules, treatments: { taxTreatment: "excluded_from_base" }, extra: "dropped" });
+  assert.equal(last().url, "/api/fundraiser/admin/organizations/org_1/terms/draft");
+  assert.deepEqual(last().body, { rules, treatments: { taxTreatment: "excluded_from_base" } });
+  await fundraiserApi.founder.approveOrgTerms("org_1", "v1", "why");
+  assert.equal(last().url, "/api/fundraiser/admin/organizations/org_1/terms/v1/approve");
+  assert.deepEqual(last().body, { reason: "why" });
+  await fundraiserApi.founder.activateOrgTerms("org_1", "v1", { effectiveFrom: "2027-01-01T00:00:00.000Z", activationReason: "why" });
+  assert.equal(last().url, "/api/fundraiser/admin/organizations/org_1/terms/v1/activate");
+  assert.deepEqual(last().body, { effectiveFrom: "2027-01-01T00:00:00.000Z", activationReason: "why" });
+  bearerOnly(last());
+});
+
 test("existing founder quarterly gross route (A6 split is read from the same response)", async () => {
   await fundraiserApi.founder.quarterlyGross("org_1");
   assert.equal(last().method, "GET");
