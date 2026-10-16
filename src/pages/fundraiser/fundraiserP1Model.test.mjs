@@ -74,6 +74,7 @@ test("failure text: codes select a sentence and are never shown", () => {
     assert.ok(!/changed while you were looking/.test(failureText({ ok: false, status: 409, data: { code } })), code);
   }
   assert.match(failureText({ ok: false, status: 400, data: { code: "RESERVED_CAMPAIGN_KEY" } }), /reserved/);
+  assert.equal(failureText({ ok: false, status: 409, data: { code: "NOT_ACTIVATED" } }), "This partner was never activated, so it can’t be reinstated. To work with this organization, register it as a new partner.");
   // EFFECTIVE_FROM_INVALID is never sent by the server: it now takes the generic status sentence.
   assert.equal(failureText({ ok: false, status: 400, data: { code: "EFFECTIVE_FROM_INVALID" } }), "That was rejected. Nothing was changed.");
   assert.match(failureText({ ok: false, status: 500, data: null }), /Nothing was changed/);

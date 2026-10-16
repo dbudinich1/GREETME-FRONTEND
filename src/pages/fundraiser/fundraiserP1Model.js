@@ -138,7 +138,8 @@ const CODE_TEXT = Object.freeze({
   NOT_FOUND: "That record no longer exists. Nothing was changed.",
   OVERLAP: "That date overlaps or comes before the terms already in force. Choose a later date.",
   // N11 — codes the routes really send (p1-be-int), each with a sentence that tells the founder what to do.
-  NOT_ACTIVATED: "This partner was never activated, so it can’t be reinstated. Close it, or register it again.",
+  // Sent when reinstating an organization that was suspended or closed before it was ever activated.
+  NOT_ACTIVATED: "This partner was never activated, so it can’t be reinstated. To work with this organization, register it as a new partner.",
   RELATIONSHIP_ENDED: "The partnership is ended for that date, so nothing was recorded or changed.",
   RELATIONSHIP_ALREADY_ENDED: "The partnership is already ended.",
   RELATIONSHIP_NOT_ENDED: "The partnership isn’t ended, so there is nothing to resume.",
