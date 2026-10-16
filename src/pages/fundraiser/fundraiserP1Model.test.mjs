@@ -103,6 +103,14 @@ test("the Branded Goods sentence states only what is true today", () => {
   assert.equal(BRANDED_GOODS_NOT_CALCULATED, "Branded Goods purchases are recorded; partner amounts for them are not calculated yet.");
 });
 
+test("N12: countsByCampaign sums participant rows per campaign", async () => {
+  const { countsByCampaign } = await import("./fundraiserP1Model.js");
+  const m = countsByCampaign([{ campaignId: "c1", visits: 2, scans: 1, conversions: 1, status: "active" }, { campaignId: "c1", visits: 3, scans: 0, conversions: 0, status: "removed" }, { campaignId: null, visits: 9 }]);
+  assert.deepEqual(m.get("c1"), { participants: 1, visits: 5, scans: 1, conversions: 1 });
+  assert.equal(m.size, 1);
+  assert.equal(countsByCampaign(null).size, 0);
+});
+
 test("N17: partnerStatusLabel", async () => {
   const { partnerStatusLabel } = await import("./fundraiserP1Model.js");
   assert.equal(partnerStatusLabel("approved", { status: "ended" }), "Partnership ended");

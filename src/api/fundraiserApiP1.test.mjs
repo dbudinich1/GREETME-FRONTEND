@@ -80,6 +80,15 @@ test("ADDENDUM 1 organization terms: read, draft { rules, treatments }, approve 
   bearerOnly(last());
 });
 
+test("N12 founder results and campaign-totals: GET, founder router, organization in the path", async () => {
+  await fundraiserApi.founder.results("org_1");
+  assert.equal(last().method, "GET");
+  assert.equal(last().url, "/api/fundraiser/admin/organizations/org_1/results");
+  await fundraiserApi.founder.campaignTotals("org_1");
+  assert.equal(last().url, "/api/fundraiser/admin/organizations/org_1/campaign-totals");
+  bearerOnly(last());
+});
+
 test("existing founder quarterly gross route (A6 split is read from the same response)", async () => {
   await fundraiserApi.founder.quarterlyGross("org_1");
   assert.equal(last().method, "GET");

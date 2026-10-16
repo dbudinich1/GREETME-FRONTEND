@@ -141,6 +141,10 @@ export const fundraiserApi = {
       get(`/api/fundraiser/admin/reports/totals?groupBy=${encodeURIComponent(groupBy || "")}${organizationId ? `&organizationId=${encodeURIComponent(organizationId)}` : ""}`),
     // Existing founder-only quarterly gross read (A6 adds per-quarter subscription / Branded Goods splits).
     quarterlyGross: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/reconciliation/quarterly-gross`),
+    // N12 — founder read-only reuses of the partner reads (same shapes): per-participant counts rows,
+    // and { organizationId, campaigns, totals } with organization-wide visits/scans/conversions.
+    results: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/results`),
+    campaignTotals: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/campaign-totals`),
     participantTotals: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/totals/participants`),
     ledgerTotals: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/totals/ledger`),
     reconciliation: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/reconciliation`),

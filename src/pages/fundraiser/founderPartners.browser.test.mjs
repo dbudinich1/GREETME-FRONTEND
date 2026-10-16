@@ -55,6 +55,12 @@ const ORG_ENDED = { organizationId: "org_e", legalName: "Eastgate Band", orgType
 const CAMPAIGNS_A = [{ campaignId: "cmp_1", organizationId: "org_a", title: "Fall Drive", status: "active" }, { campaignId: "cmp_2", organizationId: "org_a", title: "Spring Drive", status: "draft" }];
 const ACTIVE_V = { id: "ev_1", campaignId: "cmp_1", status: "active", effectiveFrom: "2026-11-01T00:00:00.000Z", effectiveThrough: null, rules: { kind: "year_rates", basis: "ENSR", yearRates: { year_1: 20, year_2: 15, year_3_plus: 10 } } };
 const ORG_TERMS_A = { versionId: "ot_1", status: "active", kind: "year_rates", basis: "ENSR", yearRates: { year_1: 20, year_2: 15, year_3_plus: 10 }, effectiveFrom: "2026-11-01T00:00:00.000Z" };
+// perParticipantResults rows: toAttributionRow + visits/scans/conversions/renewals/reversals (p1-be-int partnerDashboard.js)
+const RESULTS_A = [
+  { attributionId: "a1", participantId: "m1", campaignId: "cmp_1", displayName: "Ava M.", referralCode: "AVA", status: "active", visits: 40, scans: 20, conversions: 4, renewals: 1, reversals: 0 },
+  { attributionId: "a2", participantId: "m2", campaignId: "cmp_1", displayName: "Ben T.", referralCode: "BEN", status: "active", visits: 30, scans: 9, conversions: 2, renewals: 0, reversals: 0 },
+  { attributionId: "a3", participantId: "m3", campaignId: "cmp_1", displayName: "Gone G.", referralCode: "GON", status: "removed", visits: 7, scans: 2, conversions: 0, renewals: 0, reversals: 0 },
+];
 const SALESPEOPLE = [{ salespersonId: "sp-ann", displayName: "Ann Seller", status: "active" }, { salespersonId: "sp-old", displayName: "Old Rep", status: "inactive" }];
 
 let calls = [];
@@ -88,6 +94,8 @@ function baseRoutes(over = {}) {
     if (method === "GET" && /\/organizations\/[^/]+\/campaigns$/.test(path)) return { status: 200, data: [] };
     if (method === "GET" && /\/campaigns\/cmp_1\/economics\/history$/.test(path)) return { status: 200, data: over.histA === undefined ? [ACTIVE_V] : over.histA };
     if (method === "GET" && /\/economics\/history$/.test(path)) return { status: 200, data: [] };
+    if (method === "GET" && /\/organizations\/org_a\/results$/.test(path)) return over.resultsStatus ? { status: over.resultsStatus, data: {} } : { status: 200, data: RESULTS_A };
+    if (method === "GET" && /\/organizations\/org_a\/campaign-totals$/.test(path)) return { status: 200, data: { organizationId: "org_a", campaigns: CAMPAIGNS_A, totals: { organizationId: "org_a", visits: 77, scans: 31, registrations: 3, conversions: 6, renewals: 2 } } };
     if (method === "GET" && /\/totals\/participants$/.test(path)) return { status: 200, data: { participants: 4, attributionRecords: 2 } };
     if (method === "GET" && /\/totals\/ledger$/.test(path)) return { status: 200, data: { conversions: 3, renewals: 2, refunds: 1 } };
     if (method === "GET" && path === `${A}/reports/totals`) {
@@ -506,7 +514,8 @@ test("reports: a failed totals read is reported, never shown as $0", async () =>
   await mount(baseRoutes({ totalsStatus: 500 }));
   await click($("open-org_a"));
   await click($("tab-reports"));
-  assert.equal($("report-by-campaign"), null);
+  assert.ok(!/\$0\.00/.test($("report-by-campaign").textContent), "no amount is invented");
+  assert.match($("report-by-campaign").textContent, /Fall Drive.*\u2014/);
   assert.ok(document.querySelectorAll('[data-testid="report-unavailable"]').length >= 2);
 });
 
@@ -563,4 +572,33 @@ test("partner share (N9): no scheduled change, no scheduled line", async () => {
   await mount(baseRoutes());
   await click($("open-org_a"));
   assert.equal($("terms-scheduled"), null);
+});
+
+test("reports (N12): Visits / Scans tiles, per-campaign counts, organization \u2192 campaign \u2192 participant drill-down", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_a"));
+  await click($("tab-reports"));
+  assert.match($("org-tiles").textContent, /Visits\s*77.*Scans\s*31/);
+  const rows = [...$("report-by-campaign").querySelectorAll("tbody tr")].map((r) => [...r.querySelectorAll("td")].map((td) => td.textContent));
+  assert.deepEqual(rows[0].slice(0, 5), ["Fall Drive", "Active", "77", "31", "6"], "sums of the campaign's participant rows (removed participants' counts included)");
+  assert.deepEqual(rows[1].slice(2, 5), ["0", "0", "0"]);
+  await click($("drill-cmp_1"));
+  assert.match($("panel-reports").textContent, /Hillcrest Boosters \u203a Fall Drive/);
+  assert.match($("campaign-tiles").textContent, /Participants\s*2.*Visits\s*77.*Scans\s*31.*New supporters\s*6/);
+  const people = $("participant-rows").textContent;
+  assert.match(people, /Ava M\.40 visits \u00b7 20 scans \u00b7 4 new supporters/);
+  assert.ok(!people.includes("Gone G."), "removed participants are not listed");
+  await click($("drill-org"));
+  assert.ok($("report-by-campaign"));
+  assert.ok(calls.some((c) => c.path === `${A}/organizations/org_a/results`));
+  assert.ok(calls.some((c) => c.path === `${A}/organizations/org_a/campaign-totals`));
+});
+
+test("reports (N12): a failed results read shows dashes and says so, never zeros", async () => {
+  await mount(baseRoutes({ resultsStatus: 500 }));
+  await click($("open-org_a"));
+  await click($("tab-reports"));
+  const first = [...$("report-by-campaign").querySelectorAll("tbody tr")][0].textContent;
+  assert.match(first, /Fall Drive.*\u2014\u2014\u2014/);
+  assert.ok($("report-unavailable"));
 });

@@ -19,7 +19,7 @@ import { payoutOnlyLine } from "./partnerEarningsCopy.js";
 import { salesAdminApi } from "../../api/salesAdmin.js";
 import {
   money, isoDate, validateYearRates, buildYearRatesRule, dateToUtcInstant, termsLine,
-  activeTermsFromHistories, partnerTermsRules, createdWithoutTerms, partnerStatus, lastEndedInterval, failureText, totalsByKey, quarterlyRows, BRANDED_GOODS_NOT_CALCULATED,
+  activeTermsFromHistories, partnerTermsRules, createdWithoutTerms, countsByCampaign, partnerStatus, lastEndedInterval, failureText, totalsByKey, quarterlyRows, BRANDED_GOODS_NOT_CALCULATED,
 } from "./fundraiserP1Model.js";
 
 const input = { padding: 8, borderRadius: 6, border: "1px solid #d8cdbb", font: "inherit", boxSizing: "border-box" };
@@ -988,11 +988,12 @@ function AmountCells({ row }) {
 
 function ReportsTab({ p, extras }) {
   const [data, setData] = useState({ loading: true });
+  const [campaignId, setCampaignId] = useState(null); // N12 drill-down: organization → campaign → participant
   const orgId = p.organizationId;
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [pt, lt, byCampaign, byQuarter, qg, rec, pay, aud] = await Promise.all([
+      const [pt, lt, byCampaign, byQuarter, qg, rec, pay, aud, res, ct] = await Promise.all([
         fundraiserApi.founder.participantTotals(orgId),
         fundraiserApi.founder.ledgerTotals(orgId),
         fundraiserApi.founder.reportTotals({ groupBy: "campaign", organizationId: orgId }),
@@ -1001,6 +1002,8 @@ function ReportsTab({ p, extras }) {
         fundraiserApi.founder.reconciliation(orgId),
         fundraiserApi.founder.payoutStatus(orgId),
         fundraiserApi.founder.audit(orgId),
+        fundraiserApi.founder.results(orgId),
+        fundraiserApi.founder.campaignTotals(orgId),
       ]);
       if (!alive) return;
       setData({
@@ -1012,6 +1015,8 @@ function ReportsTab({ p, extras }) {
         reconciliation: stateFor(rec) === "ok" ? rec.data : null,
         payout: pay.status === 503 ? { held: true, dormant: true } : (stateFor(pay) === "ok" ? pay.data : null),
         audit: stateFor(aud) === "ok" && Array.isArray(aud.data) ? aud.data : null,
+        results: stateFor(res) === "ok" && Array.isArray(res.data) ? res.data : null,
+        orgTotals: stateFor(ct) === "ok" && ct.data && ct.data.totals ? ct.data.totals : null,
       });
     })();
     return () => { alive = false; };
@@ -1020,27 +1025,72 @@ function ReportsTab({ p, extras }) {
   const unavailable = <p style={err} data-testid="report-unavailable">This information couldn’t be loaded.</p>;
   if (data.loading) return <div style={box}><StateView state="loading" /></div>;
   const n = (v) => (typeof v === "number" ? v : 0);
+  const perCampaign = data.results ? countsByCampaign(data.results) : null;
+  const c = campaignId ? campaigns.find((x) => x.campaignId === campaignId) || null : null;
+  const cc = c && perCampaign ? perCampaign.get(String(c.campaignId)) || { participants: 0, visits: 0, scans: 0, conversions: 0 } : null;
+  const dash = "\u2014";
   return (
     <>
       <div style={box} data-testid="panel-reports">
-        <p style={{ fontSize: 14, margin: "0 0 10px" }}>{p.legalName || p.organizationId}</p>
-        <h3 style={{ ...h, fontSize: 17 }}>Organization activity</h3>
-        {data.counts ? (
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <nav aria-label="Report level" style={{ fontSize: 14, marginBottom: 10 }}>
+          <button type="button" data-testid="drill-org" onClick={() => setCampaignId(null)} style={{ background: "none", border: 0, padding: 0, color: c ? "#6b3a2a" : "#3b332b", fontWeight: c ? 400 : 700, cursor: "pointer", textDecoration: c ? "underline" : "none", font: "inherit" }}>{p.legalName || p.organizationId}</button>
+          {c ? <> › <strong>{c.title || c.campaignId}</strong></> : null}
+        </nav>
+        <h3 style={{ ...h, fontSize: 17 }}>{c ? "Campaign" : "Organization"} activity</h3>
+        {!c ? (data.counts ? (
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }} data-testid="org-tiles">
             <Stat label="Participants" value={n(data.counts.participants)} />
+            <Stat label="Visits" value={data.orgTotals ? n(data.orgTotals.visits) : dash} />
+            <Stat label="Scans" value={data.orgTotals ? n(data.orgTotals.scans) : dash} />
             <Stat label="New supporters" value={n(data.counts.ledger.conversions)} />
             <Stat label="Renewals" value={n(data.counts.ledger.renewals)} />
             <Stat label="Refunds" value={n(data.counts.ledger.refunds)} />
           </div>
-        ) : unavailable}
-        <h4 style={{ margin: "16px 0 6px" }}>By campaign</h4>
-        {campaigns.length === 0 ? <Empty>No campaigns yet.</Empty> : data.byCampaign === null ? unavailable : (
-          <div style={scrollX}><table style={table} data-testid="report-by-campaign">
-            <thead><tr><th style={th}>Campaign</th><th style={th}>Status</th><th style={th}>Partner share recorded</th><th style={th}>Reversed</th><th style={th}>Net</th></tr></thead>
-            <tbody>{campaigns.map((c) => (
-              <tr key={c.campaignId}><td style={td}>{c.title || c.campaignId}</td><td style={td}><Chip s={c.status} /></td><AmountCells row={data.byCampaign.get(String(c.campaignId))} /></tr>
-            ))}</tbody>
-          </table></div>
+        ) : unavailable) : (cc ? (
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }} data-testid="campaign-tiles">
+            <Stat label="Participants" value={cc.participants} />
+            <Stat label="Visits" value={cc.visits} />
+            <Stat label="Scans" value={cc.scans} />
+            <Stat label="New supporters" value={cc.conversions} />
+          </div>
+        ) : unavailable)}
+        {!c ? (
+          <>
+            <h4 style={{ margin: "16px 0 6px" }}>By campaign</h4>
+            {campaigns.length === 0 ? <Empty>No campaigns yet.</Empty> : (
+              <div style={scrollX}><table style={table} data-testid="report-by-campaign">
+                <thead><tr><th style={th}>Campaign</th><th style={th}>Status</th><th style={th}>Visits</th><th style={th}>Scans</th><th style={th}>New supporters</th><th style={th}>Partner share recorded</th><th style={th}>Reversed</th><th style={th}>Net</th><th style={th}></th></tr></thead>
+                <tbody>{campaigns.map((x) => {
+                  const k = perCampaign ? perCampaign.get(String(x.campaignId)) || { visits: 0, scans: 0, conversions: 0 } : null;
+                  const a = data.byCampaign ? data.byCampaign.get(String(x.campaignId)) : undefined;
+                  return (
+                    <tr key={x.campaignId}><td style={td}>{x.title || x.campaignId}</td><td style={td}><Chip s={x.status} /></td>
+                      <td style={td}>{k ? k.visits : dash}</td><td style={td}>{k ? k.scans : dash}</td><td style={td}>{k ? k.conversions : dash}</td>
+                      {data.byCampaign ? <AmountCells row={a} /> : <><td style={td}>{dash}</td><td style={td}>{dash}</td><td style={td}>{dash}</td></>}
+                      <td style={{ ...td, textAlign: "right" }}><button type="button" style={btnGhost} data-testid={`drill-${x.campaignId}`} onClick={() => setCampaignId(x.campaignId)}>Details</button></td></tr>
+                  );
+                })}</tbody>
+              </table></div>
+            )}
+            {data.results === null || data.byCampaign === null ? unavailable : null}
+          </>
+        ) : (
+          <>
+            <h4 style={{ margin: "16px 0 6px" }}>By participant</h4>
+            {data.results === null ? unavailable : (() => {
+              const rows = data.results.filter((r) => r && String(r.campaignId) === String(c.campaignId) && r.status !== "removed");
+              return rows.length === 0 ? <Empty>No participants yet.</Empty> : (
+                <ul data-testid="participant-rows" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                  {rows.map((m) => (
+                    <li key={m.participantId || m.attributionId} style={{ borderTop: "1px solid #f0ebe3", padding: "8px 0" }}>
+                      <strong>{m.displayName || m.attributionId}</strong>
+                      <div style={{ color: "#8a7c6c", fontSize: 13 }}>{n(m.visits)} visits · {n(m.scans)} scans · {n(m.conversions)} new supporters</div>
+                    </li>
+                  ))}
+                </ul>
+              );
+            })()}
+          </>
         )}
       </div>
 

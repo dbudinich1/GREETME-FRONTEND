@@ -179,6 +179,21 @@ export function createdWithoutTerms(body) {
   return !!t && t.issued === false && t.reason !== "CAMPAIGN_HAS_TERMS";
 }
 
+/** N12 — per-participant result rows (partner perParticipantResults shape) grouped by campaign. Each campaign
+ *  gets the SUM of its participants' visits / scans / conversions; rows of removed participants still count. */
+export function countsByCampaign(rows) {
+  const map = new Map();
+  for (const r of Array.isArray(rows) ? rows : []) {
+    if (!r || !r.campaignId) continue;
+    const k = String(r.campaignId);
+    const c = map.get(k) || { participants: 0, visits: 0, scans: 0, conversions: 0 };
+    if (r.status !== "removed") c.participants += 1;
+    c.visits += Number(r.visits) || 0; c.scans += Number(r.scans) || 0; c.conversions += Number(r.conversions) || 0;
+    map.set(k, c);
+  }
+  return map;
+}
+
 /** A5 rows -> a lookup by key. Malformed bodies yield an empty map (never invented rows). */
 export function totalsByKey(body) {
   const rows = body && Array.isArray(body.rows) ? body.rows : [];
