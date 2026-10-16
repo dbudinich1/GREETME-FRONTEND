@@ -62,11 +62,20 @@ test("partner status as rev 6 presents it", () => {
 });
 
 test("failure text: codes select a sentence and are never shown", () => {
-  for (const code of ["NOT_APPLIED", "ORG_NOT_ACTIVE", "TERMS_NOT_ACTIVE", "NO_PARTNER_ADMIN", "NO_ACTIVE", "ORG_TERMS_NOT_ALLOWED"]) {
+  for (const code of ["NOT_APPLIED", "ORG_NOT_ACTIVE", "TERMS_NOT_ACTIVE", "NO_PARTNER_ADMIN", "NO_ACTIVE", "ORG_TERMS_NOT_ALLOWED",
+    "NOT_ACTIVATED", "RELATIONSHIP_ENDED", "RELATIONSHIP_ALREADY_ENDED", "RELATIONSHIP_NOT_ENDED", "RELATIONSHIP_INTERVAL_OVERLAP",
+    "INVALID_EFFECTIVE_AT", "RESERVED_CAMPAIGN_KEY", "SALESPERSON_TERMS_MISSING", "NO_ACTIVE_ORG_TERMS"]) {
     const t = failureText({ ok: false, status: 409, data: { code } });
     assert.ok(t.length > 0); assert.ok(!t.includes(code));
   }
   assert.match(failureText({ networkError: true, status: 0 }), /Couldn.t reach the server/);
+  // N11: no code falls back to the misleading "This changed while you were looking at it" any more.
+  for (const code of ["RELATIONSHIP_INTERVAL_OVERLAP", "RELATIONSHIP_ALREADY_ENDED", "RELATIONSHIP_NOT_ENDED", "NOT_ACTIVATED", "SALESPERSON_TERMS_MISSING"]) {
+    assert.ok(!/changed while you were looking/.test(failureText({ ok: false, status: 409, data: { code } })), code);
+  }
+  assert.match(failureText({ ok: false, status: 400, data: { code: "RESERVED_CAMPAIGN_KEY" } }), /reserved/);
+  // EFFECTIVE_FROM_INVALID is never sent by the server: it now takes the generic status sentence.
+  assert.equal(failureText({ ok: false, status: 400, data: { code: "EFFECTIVE_FROM_INVALID" } }), "That was rejected. Nothing was changed.");
   assert.match(failureText({ ok: false, status: 500, data: null }), /Nothing was changed/);
 });
 

@@ -685,6 +685,10 @@ function f4FailureMessage(res) {
   if (code === "BAD_TRANSITION") return "That move is no longer possible from this campaign's current status. Reload to see where it stands.";
   if (code === "NOT_FOUND") return "That campaign no longer exists. Nothing was changed.";
   if (code === "ETAG_MISMATCH") return "This campaign changed while you were reviewing it. Reload and try again.";
+  // N11 — the server's own refusals on this route (p1-be-int), never shown as "it changed".
+  if (code === "TERMS_NOT_ACTIVE") return "This campaign can’t start until the partner share is in place. The campaign status is unchanged.";
+  if (code === "ORG_NOT_ACTIVE" || code === "ORG_NOT_APPROVED") return "This partner isn’t active, so its campaigns can’t be started. The campaign status is unchanged.";
+  if (code === "RESERVED_CAMPAIGN_KEY") return "That record is reserved by Greet-Me and can’t be changed here.";
   const byStatus = {
     400: "That status change was rejected. The campaign status is unchanged.",
     401: "Your session has expired. Sign in again. The campaign status is unchanged.",

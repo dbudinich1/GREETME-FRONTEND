@@ -789,3 +789,11 @@ test("F4 blast radius: a double confirm does not send twice", async () => {
   await click($("f4-confirm-go"));
   assert.equal(statusCalls().length, 1, "an in-flight change must not be re-sent");
 });
+
+test("N11: TERMS_NOT_ACTIVE from the server is explained, not shown as 'it changed'", async () => {
+  await openCampaign(baseRoutes({ [STATUS_SUFFIX]: { status: 409, data: { code: "TERMS_NOT_ACTIVE" } } }));
+  await proposeChange("active");
+  await click($("f4-confirm-go"));
+  assert.match($("f4-message").textContent, /can’t start until the partner share is in place/);
+  assert.ok(!document.body.textContent.includes("TERMS_NOT_ACTIVE"));
+});
