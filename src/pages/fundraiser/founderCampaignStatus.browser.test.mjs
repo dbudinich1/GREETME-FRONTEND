@@ -289,7 +289,7 @@ test("F4 economics gate: without ACTIVE economics, activation is offered but not
   assert.ok(activeOption, "the founder can still see the move exists");
   assert.equal(activeOption.disabled, true, "but it is not an enabled action");
   assert.ok($("f4-economics-gate"));
-  assert.equal($("f4-economics-gate").textContent.trim(), "Activate campaign economics first.");
+  assert.equal($("f4-economics-gate").textContent.trim(), "The partner share must be in place before this campaign can start.");
 });
 
 test("F4 economics gate: approved-but-not-active economics do NOT satisfy the gate", async () => {
@@ -301,7 +301,7 @@ test("F4 economics gate: approved-but-not-active economics do NOT satisfy the ga
   assert.equal($("f4-confirm"), null, "no confirmation is offered for a blocked activation");
   assert.equal(statusCalls().length, 0);
   assert.equal(calls.length, before, "zero requests of any kind");
-  assert.equal($("f4-error").textContent, "Activate campaign economics first.");
+  assert.equal($("f4-error").textContent, "The partner share must be in place before this campaign can start.");
 });
 
 test("F4 economics gate: with no economics history at all, activation is blocked", async () => {
@@ -366,7 +366,7 @@ test("F4 review: the economics version is shown only when it is relevant", async
 });
 
 for (const [target, current, pattern] of [
-  ["active", "draft", [/eligible for new fundraiser attribution/i, /economics must already be active/i, /payouts remain held/i]],
+  ["active", "draft", [/eligible for new fundraiser attribution/i, /partner share must already be in place/i, /payouts remain held/i]],
   ["paused", "active", [/stops new attribution eligibility/i, /payouts remain held/i]],
   ["closed", "draft", [/terminal/i, /cannot be reopened/i]],
 ]) {

@@ -730,7 +730,7 @@ const f4NeedsActiveEconomics = (target) => target === "active";
 
 /** The one sentence each target owes the founder before it is chosen. */
 const F4_WARNINGS = Object.freeze({
-  active: "Makes this campaign eligible for new fundraiser attribution. Its economics must already be active. Payouts remain held.",
+  active: "Makes this campaign eligible for new fundraiser attribution. The partner share must already be in place. Payouts remain held.",
   paused: "Stops new attribution eligibility until the campaign is made active again. Payouts remain held.",
   closed: "Closing is terminal under the current backend contract: a closed campaign cannot be reopened through this state machine.",
 });
@@ -801,7 +801,7 @@ function FounderCampaignStatusPanel({ organizationId, organizationName, campaign
   function openConfirm() {
     setMessage(null);
     if (!targets.includes(target)) { setError("Choose what this campaign should become."); return; }
-    if (blockedByEconomics) { setError("Activate campaign economics first."); return; }
+    if (blockedByEconomics) { setError("The partner share must be in place before this campaign can start."); return; }
     if (reason.trim() === "") { setError("Say why this campaign is changing status."); return; }
     setError(null); setConfirming(true);
   }
@@ -817,7 +817,7 @@ function FounderCampaignStatusPanel({ organizationId, organizationName, campaign
       return;
     }
     if (f4NeedsActiveEconomics(target) && !hasActiveEconomics) {
-      setConfirming(false); setError("Activate campaign economics first."); return;
+      setConfirming(false); setError("The partner share must be in place before this campaign can start."); return;
     }
     const why = reason.trim();
     if (why === "") { setConfirming(false); setError("Say why this campaign is changing status."); return; }
@@ -880,7 +880,7 @@ function FounderCampaignStatusPanel({ organizationId, organizationName, campaign
 
           {targets.includes("active") && !hasActiveEconomics ? (
             <p data-testid="f4-economics-gate" style={{ fontSize: ".8rem", color: "#b00", margin: ".2rem 0" }}>
-              Activate campaign economics first.
+              The partner share must be in place before this campaign can start.
             </p>
           ) : null}
 
