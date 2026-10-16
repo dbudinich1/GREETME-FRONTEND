@@ -6,7 +6,7 @@
 // 75% composition; phones adapt spacing to their width. Intro-video behaviour is Team 2's
 // (useIntroVideo): this file only renders the controls and calls its handlers.
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import GreetMeLogo from '../components/GreetMeLogo';
@@ -94,6 +94,15 @@ export default function Landing() {
   // Intro video: TAP TO PLAY, NO AUTOPLAY (founder, 2026-10-15). The first tap plays from the start
   // with sound; then the same tap pauses and resumes; after the end it replays.
   const intro = useIntroVideo();
+  // The cover's Play disappears when playback starts; keep keyboard focus in the control bar
+  // (Resume until the video is playing, then Pause) instead of letting it fall to the page.
+  const barCtrlRef = useRef(null);
+  const focusBarRef = useRef(false);
+  useEffect(() => {
+    if (!focusBarRef.current || !intro.started || intro.ended) return;
+    barCtrlRef.current?.focus();
+    if (intro.playing) focusBarRef.current = false;
+  }, [intro.started, intro.ended, intro.playing]);
   const videoStatus = intro.status;
 
   // Demo mode: ?demo=1 prevents auth redirect so founder can show landing while logged in
@@ -169,7 +178,7 @@ export default function Landing() {
             {showCover && (
               <div className="gm-landing-cover" data-testid="landing-video-cover">
                 <button type="button" className="gm-landing-play" data-testid="landing-big-play" aria-label={coverLabel}
-                  onClick={(e) => { e.stopPropagation(); intro.tap(); }}>
+                  onClick={(e) => { e.stopPropagation(); focusBarRef.current = true; intro.tap(); }}>
                   {intro.ended ? '↺' : '▶'}
                 </button>
               </div>
@@ -200,10 +209,10 @@ export default function Landing() {
 
           <div className="gm-landing-bar" data-testid="landing-video-controls">
             {intro.playing ? (
-              <button type="button" className="gm-landing-ctrl" onClick={intro.pause} aria-label="Pause intro video" data-testid="landing-pause"
+              <button type="button" ref={barCtrlRef} className="gm-landing-ctrl" onClick={intro.pause} aria-label="Pause intro video" data-testid="landing-pause"
                 disabled={videoStatus === 'failed'}>❚❚ Pause</button>
             ) : (
-              <button type="button" className="gm-landing-ctrl on" onClick={intro.tap} aria-label={intro.started && !intro.ended ? 'Resume intro video' : 'Play intro video'}
+              <button type="button" ref={barCtrlRef} className="gm-landing-ctrl on" onClick={intro.tap} aria-label={intro.started && !intro.ended ? 'Resume intro video' : 'Play intro video'}
                 data-testid="landing-play" disabled={videoStatus === 'failed'}>▶ {intro.started && !intro.ended ? 'Resume' : 'Play'}</button>
             )}
             <button type="button" className="gm-landing-ctrl" onClick={intro.replay} aria-label="Replay intro video from the start" data-testid="landing-replay"

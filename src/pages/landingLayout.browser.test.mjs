@@ -4,7 +4,8 @@
 //   - settled copy and labels, the italic supporting line, one grouping panel with three cards;
 //   - "View Sample Greet-Me" kept OFF (SHOW_SAMPLE_ENTRY = false) until the sample is authorized;
 //   - intro-video controls call Team 2's useIntroVideo only: nothing plays before a tap, the cover's
-//     Play starts from 0:00 with sound, Pause/Resume, Replay, the after-end Replay cover, the error card.
+//     Play starts from 0:00 with sound, Pause/Resume, Replay, the after-end Replay cover, the error card;
+//   - keyboard focus moves to the bar (Resume, then Pause) when the cover's Play goes away (Team 5 N2).
 // jsdom has no media pipeline, so play()/pause() are stubbed on the element prototype (as in
 // useIntroVideo.browser.test.mjs); Landing, the hook and React are the real ones. Auth is stubbed signed out.
 //
@@ -139,6 +140,33 @@ test("after the end the cover offers Replay, which starts over", async () => {
   assert.equal($("landing-big-play").getAttribute("aria-label"), "Replay intro video from the start");
   await click($("landing-big-play"));
   assert.deepEqual(calls.slice(-2), [["seek", 0], ["play", { t: 0, muted: false }]]);
+});
+
+test("keyboard focus stays in the control bar when the cover's Play disappears (Team 5 N2)", async () => {
+  await mount();
+  await fire("loadeddata");
+  $("landing-big-play").focus();
+  await click($("landing-big-play"));
+  assert.equal(document.activeElement, $("landing-pause"), "first Play from the cover: focus moves to Pause");
+
+  await fire("pause"); await fire("ended");
+  $("landing-big-play").focus();
+  await click($("landing-big-play"));
+  assert.equal(document.activeElement, $("landing-pause"), "Replay from the after-end cover: focus moves to Pause");
+
+  // The browser has not started playing yet when the cover goes away: focus waits on Resume, then Pause.
+  const proto = window.HTMLMediaElement.prototype;
+  const realPlay = proto.play;
+  proto.play = function play() { calls.push(["play", { t: this.currentTime, muted: this.muted }]); return Promise.resolve(); };
+  try {
+    await mount();
+    await fire("loadeddata");
+    $("landing-big-play").focus();
+    await click($("landing-big-play"));
+    assert.equal(document.activeElement, $("landing-play"), "before playback starts, focus is on the bar's Resume, not the page");
+    await fire("playing");
+    assert.equal(document.activeElement, $("landing-pause"), "once playing, focus is on Pause");
+  } finally { proto.play = realPlay; }
 });
 
 test("when no source works, the branded card links to the original and the controls are disabled", async () => {
