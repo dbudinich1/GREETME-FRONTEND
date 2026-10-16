@@ -117,6 +117,22 @@ export const fundraiserApi = {
         `/api/fundraiser/admin/organizations/${organizationId}/campaigns/${campaignId}/status`,
         { status, reason },
       ),
+    // ── P1 (Report 87 A1/A4/A5/A9, API contract) ──
+    // A1 — activate an organization registered as "applied". 409 { code: "NOT_APPLIED" } otherwise.
+    activateOrganization: (id) => post(`/api/fundraiser/admin/organizations/${id}/activate`, {}),
+    // A4 — end / resume the partnership. `effectiveAt` (ISO) is sent only when given; the server
+    // defaults it to now. Amounts already recorded are never touched by either call.
+    endOrganization: (id, effectiveAt) => post(`/api/fundraiser/admin/organizations/${id}/end`, effectiveAt ? { effectiveAt } : {}),
+    resumeOrganization: (id, effectiveAt) => post(`/api/fundraiser/admin/organizations/${id}/resume`, effectiveAt ? { effectiveAt } : {}),
+    // Existing founder-only org-wide rate change (moves every campaign with active terms together).
+    // Body carries exactly the fields the server reads; nothing is defaulted here.
+    changeOrganizationRate: (id, { rules, treatments, effectiveFrom, reason }) =>
+      post(`/api/fundraiser/admin/organizations/${id}/economics/change-rate`, { rules, treatments, effectiveFrom, reason }),
+    // A5 — sums of RECORDED partner amounts only (no estimates). groupBy: organization | campaign | quarter.
+    reportTotals: ({ groupBy, organizationId } = {}) =>
+      get(`/api/fundraiser/admin/reports/totals?groupBy=${encodeURIComponent(groupBy || "")}${organizationId ? `&organizationId=${encodeURIComponent(organizationId)}` : ""}`),
+    // Existing founder-only quarterly gross read (A6 adds per-quarter subscription / Branded Goods splits).
+    quarterlyGross: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/reconciliation/quarterly-gross`),
     participantTotals: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/totals/participants`),
     ledgerTotals: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/totals/ledger`),
     reconciliation: (orgId) => get(`/api/fundraiser/admin/organizations/${orgId}/reconciliation`),
@@ -129,6 +145,17 @@ export const fundraiserApi = {
     myOrganizations: () => get("/api/fundraiser/partner/orgs"),
     overview: (orgId, campaignId) => get(`/api/fundraiser/partner/orgs/${orgId}/overview${campaignId ? `?campaignId=${campaignId}` : ""}`),
     campaigns: (orgId) => get(`/api/fundraiser/partner/orgs/${orgId}/campaigns`),
+    // ── P1 (Report 87 A2/A5/A9, API contract) — own organization only, enforced server-side ──
+    // A2 — create a campaign (starts as a draft) and move it between statuses. The organization is
+    // taken from the path; the body never carries it.
+    createCampaign: (orgId, b) => post(`/api/fundraiser/partner/orgs/${orgId}/campaigns`, b),
+    setCampaignStatus: (orgId, campaignId, status) =>
+      post(`/api/fundraiser/partner/orgs/${orgId}/campaigns/${campaignId}/status`, { status }),
+    // A9 — the organization's active terms, read-only. { terms: {...} | null }.
+    terms: (orgId) => get(`/api/fundraiser/partner/orgs/${orgId}/terms`),
+    // A5 — recorded partner amounts for the caller's own organization. groupBy: campaign | quarter.
+    reportTotals: (orgId, groupBy) =>
+      get(`/api/fundraiser/partner/orgs/${orgId}/reports/totals?groupBy=${encodeURIComponent(groupBy || "")}`),
     roster: (orgId, campaignId) => get(`/api/fundraiser/partner/orgs/${orgId}/participants${campaignId ? `?campaignId=${campaignId}` : ""}`),
     createParticipant: (orgId, b) => post(`/api/fundraiser/partner/orgs/${orgId}/participants`, b),
     importRoster: (orgId, b) => post(`/api/fundraiser/partner/orgs/${orgId}/participants/import`, b),
