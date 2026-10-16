@@ -13,7 +13,7 @@ import { isFundraiserUiEnabled } from "../../config/fundraiserGate.js";
 import { pageWrap, box, h, btn, btnGhost, Stat, StateView, Empty } from "./FundraiserUI.jsx";
 import ParticipantQrCode from "./ParticipantQrCode.jsx"; // F1-7 — scannable QR from the server payload
 import Chip from "./FundraiserChip.jsx";
-import { money, termsLine, partnerTermsRules, failureText, createdWithoutTerms } from "./fundraiserP1Model.js";
+import { money, termsLine, partnerTermsRules, failureText, createdWithoutTerms, partnerStatusLabel } from "./fundraiserP1Model.js";
 
 const input = { padding: 8, borderRadius: 6, border: "1px solid #d8cdbb", font: "inherit", boxSizing: "border-box" };
 const label = { display: "block", fontSize: ".85rem", fontWeight: 700, margin: "0 0 4px" };
@@ -239,7 +239,7 @@ function CampaignPage({ organizationId, campaign: c, onBack, onChanged }) {
 }
 
 // C6 — the partner's own agreement, read-only and understated: one small line, details on request.
-function AgreementLine({ terms, orgName, orgStatus }) {
+function AgreementLine({ terms, orgName, orgStatus, relationship }) {
   const [open, setOpen] = useState(false);
   const rules = partnerTermsRules(terms);
   const row = (a, b) => <tr key={a}><td style={{ padding: "3px 12px 3px 0", color: "#8a7c6c" }}>{a}</td><td style={{ padding: "3px 0" }}>{b}</td></tr>;
@@ -256,7 +256,7 @@ function AgreementLine({ terms, orgName, orgStatus }) {
         <div data-testid="agreement-details" style={{ marginTop: 8, background: "#faf7f2", border: "1px solid #e6e2da", borderRadius: 8, padding: "8px 10px" }}>
           <table style={{ borderCollapse: "collapse", fontSize: 13 }}><tbody>
             {row("Organization", orgName)}
-            {row("Status", orgStatus === "approved" ? "Active" : String(orgStatus || "—"))}
+            {row("Status", partnerStatusLabel(orgStatus, relationship))}
             {row("Your share", rules ? termsLine(rules) : "Not set yet")}
           </tbody></table>
           <p style={{ margin: "6px 0 0" }}>Each supporter’s Year 1 starts with their first qualifying purchase through your links and lasts 12 months; Year 3+ continues while your partnership is active. To change anything in your agreement, contact Greet-Me.</p>
@@ -327,7 +327,8 @@ export default function PartnerFundraisingDashboard() {
               <Stat label="Participants" value={rows.length} />
               <Stat label="Supporters" value={n(ov.totals && ov.totals.conversions)} />
             </div>
-            <AgreementLine terms={terms} orgName={orgName} orgStatus={org ? org.status : ov.organizationStatus} />
+            <AgreementLine terms={terms} orgName={orgName} orgStatus={org ? org.status : ov.organizationStatus}
+              relationship={(org && (org.relationship ?? org.relationshipStatus)) ?? ov.relationship ?? ov.relationshipStatus ?? null} />
           </div>
 
           <div style={box} data-testid="partner-campaigns">

@@ -102,3 +102,12 @@ test("N4: createdWithoutTerms reads the real termsIssue shapes", () => {
 test("the Branded Goods sentence states only what is true today", () => {
   assert.equal(BRANDED_GOODS_NOT_CALCULATED, "Branded Goods purchases are recorded; partner amounts for them are not calculated yet.");
 });
+
+test("N17: partnerStatusLabel", async () => {
+  const { partnerStatusLabel } = await import("./fundraiserP1Model.js");
+  assert.equal(partnerStatusLabel("approved", { status: "ended" }), "Partnership ended");
+  assert.equal(partnerStatusLabel("approved", "ended"), "Partnership ended");
+  assert.equal(partnerStatusLabel("approved", { status: "active" }), "Active");
+  assert.equal(partnerStatusLabel("approved", null), "Approved");
+  assert.equal(partnerStatusLabel("suspended", null), "Suspended");
+});

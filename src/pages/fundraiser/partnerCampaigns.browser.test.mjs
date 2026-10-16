@@ -245,3 +245,16 @@ test("no pay or payout control on the partner screens", async () => {
   await click($("manage-cmp_1"));
   assert.deepEqual(scan(), []);
 });
+
+test("N17: the agreement status never claims Active for an ended (or unknown) relationship", async () => {
+  const at = async (orgsBody) => {
+    await mount(routes({ handle: (m, p) => (m === "GET" && p === `${P}/orgs` ? { status: 200, data: orgsBody } : null) }));
+    await click($("agreement-toggle"));
+    return $("agreement-details").textContent;
+  };
+  assert.match(await at({ organizations: [{ organizationId: "org_1", name: "Hillcrest Boosters", status: "approved", relationship: { status: "ended" } }] }), /Status\s*Partnership ended/);
+  assert.match(await at({ organizations: [{ organizationId: "org_1", name: "Hillcrest Boosters", status: "approved", relationship: { status: "active" } }] }), /Status\s*Active/);
+  const unknown = await at({ organizations: [{ organizationId: "org_1", name: "Hillcrest Boosters", status: "approved" }] });
+  assert.match(unknown, /Status\s*Approved/);
+  assert.ok(!/Status\s*Active/.test(unknown));
+});

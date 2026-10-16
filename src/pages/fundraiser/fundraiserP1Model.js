@@ -206,3 +206,17 @@ export function quarterlyRows(body, organizationId) {
 
 /** Founder rule (A7): Branded Goods partner amounts are not calculated yet (Part 2 held). */
 export const BRANDED_GOODS_NOT_CALCULATED = "Branded Goods purchases are recorded; partner amounts for them are not calculated yet.";
+
+// N17 — the partner's status as it truly stands. "Active" is claimed only when the server says the
+// relationship is active; an ended relationship shows "Partnership ended"; when the server sends no
+// relationship field the organization status alone is shown ("Approved"), never "Active".
+export function partnerStatusLabel(orgStatus, relationship) {
+  const rel = relationship && typeof relationship === "object" ? relationship.status : (typeof relationship === "string" ? relationship : null);
+  if (orgStatus === "approved") {
+    if (rel === "ended") return "Partnership ended";
+    if (rel === "active") return "Active";
+    return "Approved";
+  }
+  return orgStatus ? String(orgStatus).charAt(0).toUpperCase() + String(orgStatus).slice(1) : "—";
+}
+
