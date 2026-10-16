@@ -153,7 +153,16 @@ async function mount({ flag = true, user = { id: "u1", email: "p@x.com" }, loadi
 async function rerender(root) { await act(async () => { root.render(React.createElement(DashboardLayout)); }); await settle(); }
 
 // Every rendered link carrying this href, across BOTH nav consumers (mobile drawer + desktop bar).
-const partnerLinks = () => [...document.querySelectorAll('[data-nav="/dashboard/fundraiser"]')];
+// Report 87 A7 (rev 6): the partner entry is now the "Partner Dashboard" child behind the
+// "Fundraisers" caret, so the caret is opened (when present) before looking for it.
+const rawPartnerLinks = () => [...document.querySelectorAll('[data-nav="/dashboard/fundraiser"]')];
+const fundraisersCaret = () => document.querySelector('button[aria-label="Open Fundraisers menu"]');
+const partnerLinks = () => {
+  const caret = fundraisersCaret();
+  if (caret) act(() => { caret.click(); });
+  return rawPartnerLinks();
+};
+const publicFundraisersLinks = () => [...document.querySelectorAll('[data-nav="/fundraisers"]')];
 const founderLinks = () => [...document.querySelectorAll('[data-nav="/dashboard/fundraiser/admin"]')];
 const labelsOf = (sel) => [...document.querySelectorAll(sel)].map((e) => e.textContent.trim());
 
@@ -255,12 +264,33 @@ test("B3fix: the new session never inherits the previous session's answer", asyn
 
 // ── visibility matrix (rendered) ──
 
-test("B3fix: qualified partner administrator renders 'Greet-Me Fundraise' at /dashboard/fundraiser", async () => {
+test("A7: qualified partner administrator gets 'Fundraisers' plus a caret with 'Partner Dashboard' at /dashboard/fundraiser", async () => {
   await mount({ next: OK(1) });
-  const links = partnerLinks();
+  assert.ok(publicFundraisersLinks().some((l) => l.textContent.includes("Fundraisers")), "Fundraisers item rendered");
+  assert.ok(fundraisersCaret(), "caret rendered for a partner administrator");
+  assert.equal(rawPartnerLinks().length, 0, "child hidden until the caret is opened");
+  await act(async () => { fundraisersCaret().dispatchEvent(new window.MouseEvent("click", { bubbles: true })); });
+  await settle();
+  const links = rawPartnerLinks();
   assert.ok(links.length >= 1);
   assert.equal(links[0].getAttribute("href"), "/dashboard/fundraiser");
-  assert.ok(links.some((l) => l.textContent.includes("Greet-Me Fundraise")), "exact label rendered");
+  assert.ok(links.some((l) => l.textContent.includes("Partner Dashboard")), "exact label rendered");
+});
+
+test("A7: a signed-in non-partner sees 'Fundraisers' (public page) with NO caret and no partner entry", async () => {
+  await mount({ next: STATUS(403, { code: "NO_FUNDRAISER_ROLE" }) });
+  const pub = publicFundraisersLinks();
+  assert.ok(pub.length >= 1, "Fundraisers item rendered");
+  assert.equal(pub[0].getAttribute("href"), "/fundraisers");
+  assert.equal(fundraisersCaret(), null, "no caret");
+  assert.equal(rawPartnerLinks().length, 0);
+});
+
+test("A7: signed out sees 'Fundraisers' and makes no partner probe", async () => {
+  await mount({ user: null, next: OK(1) });
+  assert.ok(publicFundraisersLinks().length >= 1);
+  assert.equal(partnerCalls, 0);
+  assert.equal(fundraisersCaret(), null);
 });
 
 test("B3fix: multi-organization partner also sees it", async () => {
@@ -292,6 +322,7 @@ test("B3fix: flag disabled ⇒ hidden AND zero fundraiser requests", async () =>
   await mount({ flag: false, next: OK(1) });
   assert.equal(partnerCalls, 0, "no request while the gate is off");
   assert.equal(partnerLinks().length, 0);
+  assert.equal(publicFundraisersLinks().length, 0, "A7: no Fundraisers item while the gate is off (gate semantics unchanged)");
 });
 
 test("B3fix: unmount during an in-flight request performs no post-unmount update", async () => {
@@ -351,13 +382,19 @@ test("B3fix: desktop AND mobile consumers both reflect the shared navigation res
     await settle();
   };
   try {
-    // QUALIFIED — desktop
+    // QUALIFIED — desktop (the child appears once the Fundraisers caret is opened)
     await mount({ next: OK(1) });
-    assert.equal(partnerLinks().length, 1, "desktop bar shows the entry");
+    await act(async () => { fundraisersCaret().dispatchEvent(new window.MouseEvent("click", { bubbles: true })); });
+    await settle();
+    assert.equal(rawPartnerLinks().length, 1, "desktop bar shows the entry");
     // QUALIFIED — mobile drawer
     await openDrawer();
-    assert.equal(partnerLinks().length, 1, "mobile drawer shows the same entry");
-    assert.equal(partnerLinks()[0].getAttribute("href"), "/dashboard/fundraiser");
+    if (rawPartnerLinks().length === 0) {
+      await act(async () => { fundraisersCaret().dispatchEvent(new window.MouseEvent("click", { bubbles: true })); });
+      await settle();
+    }
+    assert.equal(rawPartnerLinks().length, 1, "mobile drawer shows the same entry");
+    assert.equal(rawPartnerLinks()[0].getAttribute("href"), "/dashboard/fundraiser");
 
     // UNQUALIFIED — absent from both
     window.innerWidth = 1024;
@@ -381,7 +418,7 @@ test("B3fix: existing personal navigation entries are unchanged in presence and 
   const all = [...document.querySelectorAll("[data-nav]")].map((e) => e.getAttribute("data-nav"));
   const firstIdx = expected.map((h) => all.indexOf(h));
   assert.deepEqual(firstIdx, [...firstIdx].sort((a, b) => a - b), "personal navigation order preserved");
-  assert.ok(all.indexOf("/dashboard/fundraiser") > all.indexOf("/business"), "partner entry stays in its existing position after For Business");
+  assert.ok(all.indexOf("/fundraisers") > all.indexOf("/business"), "A7: the Fundraisers item takes the partner entry's position after For Business");
 });
 
 test("B3fix: the nested Corporate Campaign Dashboard child is untouched", async () => {
