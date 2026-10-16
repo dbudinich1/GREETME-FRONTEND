@@ -675,3 +675,11 @@ test("campaigns tab (N12): a failed results read shows a dash, never zero", asyn
   const first = [...$("panel-campaigns").querySelectorAll("tbody tr")][0].textContent;
   assert.match(first, /Fall DriveActive\u2014\u2014/);
 });
+
+test("partner share (Low): only a scheduled change ⇒ 'Not in place yet', the scheduled line, and 'Change terms'", async () => {
+  await mount(baseRoutes({ orgTerms: { org_a: null }, histA: [], scheduled: { org_a: { ...ORG_TERMS_A, versionId: "ot_2", effectiveFrom: "2027-03-01T00:00:00.000Z" } } }));
+  await click($("open-org_a"));
+  assert.equal($("terms-line").textContent, "Not in place yet");
+  assert.match($("terms-scheduled").textContent, /Scheduled from 2027-03-01: Year 1 20%/);
+  assert.equal($("change-terms").textContent, "Change terms");
+});

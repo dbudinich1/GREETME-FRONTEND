@@ -675,7 +675,7 @@ function PartnerShare({ p, status, extras, onChanged }) {
     <div style={box} data-testid="partner-share">
       <h3 style={{ ...h, fontSize: 17 }}>Partner share</h3>
       {extras && extras.error ? <p style={err}>This information couldn’t be loaded.</p> : (
-        <p style={{ margin: 0, fontSize: 15 }} data-testid="terms-line"><strong>{active ? termsLine(active.rules) : "Not set"}</strong>{active && active.effectiveFrom ? ` · takes effect ${isoDate(active.effectiveFrom)}` : ""}</p>
+        <p style={{ margin: 0, fontSize: 15 }} data-testid="terms-line"><strong>{active ? termsLine(active.rules) : extras && extras.scheduled ? "Not in place yet" : "Not set"}</strong>{active && active.effectiveFrom ? ` · takes effect ${isoDate(active.effectiveFrom)}` : ""}</p>
       )}
       {extras && extras.scheduled ? (
         <p style={{ margin: "6px 0 0", fontSize: 14 }} data-testid="terms-scheduled">Scheduled from {isoDate(extras.scheduled.effectiveFrom)}: {termsLine(extras.scheduled.rules)}</p>
@@ -685,7 +685,7 @@ function PartnerShare({ p, status, extras, onChanged }) {
       ) : null}
       <p style={help}>Each customer’s Year 1 starts at their first qualifying purchase through this partner.</p>
       {canSet && !changing ? (
-        <button type="button" style={{ ...btnGhost, marginTop: 10 }} onClick={() => setChanging(true)} data-testid="change-terms">{active ? "Change terms" : "Set terms"}</button>
+        <button type="button" style={{ ...btnGhost, marginTop: 10 }} onClick={() => setChanging(true)} data-testid="change-terms">{active || (extras && extras.scheduled) ? "Change terms" : "Set terms"}</button>
       ) : null}
       {canSet && changing ? (
         <div style={{ marginTop: 12 }}>
