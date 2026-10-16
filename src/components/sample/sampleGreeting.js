@@ -27,7 +27,7 @@ export const SAMPLE_GREETING = {
   occasionKey: 'just_because',
   relationshipKey: 'friend',
   writtenIntroText: "Just because — you've been on my mind.\n\nYour friendship means the world to me. I'm so grateful for all the laughter and support you bring to my life. Here's to many more adventures together!",
-  poemText: "Some forget occasions, some forget names.\nSome meant to stop by while time passed with shame!\nSo here's to the ones that time forgot —\nthe love you intended — forget them not!",
+  poemText: "Some forget occasions, some forget names.\nSome mean to stop by while time passes in shame.\nSo here's to the ones that time forgot —\nthe love you intended — forget them not!",
   finaleText: "No occasion needed — just you, and all the moments we've shared. I'm so glad you're in my life.\n\nForget them not.",
   photos: [
     '/assets/onboarding/memory-1-beach-toast.jpeg',
