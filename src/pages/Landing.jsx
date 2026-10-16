@@ -6,11 +6,17 @@
 // 75% composition; phones adapt spacing to their width. Intro-video behaviour is Team 2's
 // (useIntroVideo): this file only renders the controls and calls its handlers.
 
-import { useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import GreetMeLogo from '../components/GreetMeLogo';
 import useIntroVideo from '../hooks/useIntroVideo';
+import SampleCreditReveal from '../components/sample/SampleCreditReveal.jsx';
+import useSampleMediaAvailable from '../components/sample/useSampleMediaAvailable';
+import { SAMPLE_ENTRY_ENABLED, SAMPLE_TALKING_PHOTO_URL, SAMPLE_CHROME } from '../components/sample/sampleGreeting.js';
+
+// The sample viewer (with the card player and its styles) loads only when the visitor opens it.
+const SampleGreetingOverlay = lazy(() => import('../components/sample/SampleGreetingOverlay.jsx'));
 
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 const SERIF = '"Playfair Display", Georgia, serif';
@@ -22,9 +28,9 @@ const INTRO_VIDEO_FAST_START = 'https://greetmedanny.blob.core.windows.net/publi
 const INTRO_VIDEO_ORIGINAL = 'https://greetmedanny.blob.core.windows.net/public/greetme-demo.mp4.mp4';
 const INTRO_VIDEO_PRELOAD = 'auto';
 
-// "View Sample Greet-Me" keeps its approved place but is OFF until the sample viewer is authorized
-// (it needs the approved sample build and its media). Off = nothing rendered: no dead button, no link.
-const SHOW_SAMPLE_ENTRY = false;
+// "View Sample Greet-Me" (founder: required; Report 71 rev 2 sample, beneath the supporting line). It is
+// rendered only when the sample is enabled AND its talking-photo video loads (see sampleGreeting.js), so it
+// is never a dead button or a placeholder. Nothing shows while the video is being checked.
 
 // Settled founder copy (2026-10-15).
 const REGISTER_LABEL = 'Create your free account';
@@ -105,13 +111,33 @@ export default function Landing() {
   }, [intro.started, intro.ended, intro.playing]);
   const videoStatus = intro.status;
 
-  // Demo mode: ?demo=1 prevents auth redirect so founder can show landing while logged in
-  const isDemoView = new URLSearchParams(window.location.hash.split('?')[1] || '').get('demo') === '1';
+  // Sample Greet-Me: the entry, the viewer, and the reveal a scanned sample QR opens (#/?sample=credit).
+  const sampleMedia = useSampleMediaAvailable(SAMPLE_TALKING_PHOTO_URL, SAMPLE_ENTRY_ENABLED);
+  const SHOW_SAMPLE_ENTRY = SAMPLE_ENTRY_ENABLED && sampleMedia === 'available';
+  const hashQuery = new URLSearchParams(window.location.hash.split('?')[1] || '');
+  const isSampleCreditView = SAMPLE_ENTRY_ENABLED && hashQuery.get('sample') === 'credit';
+  const [sampleOpen, setSampleOpen] = useState(false);
+  const [scanRevealOpen, setScanRevealOpen] = useState(isSampleCreditView);
+  const sampleBtnRef = useRef(null);
+  const openSample = () => { intro.pause(); setScanRevealOpen(false); setSampleOpen(true); };
+  const clearSampleQuery = () => { try { if (isSampleCreditView) window.history.replaceState(null, '', window.location.pathname + '#/'); } catch { /* ignore */ } };
+  const returnFocusRef = useRef(false);
+  const closeSample = () => { setSampleOpen(false); setScanRevealOpen(false); clearSampleQuery(); returnFocusRef.current = true; };
+  // After the sample closes, focus goes back to the button that opened it.
   useEffect(() => {
-    if (!loading && isAuthenticated && !isDemoView) {
+    if (sampleOpen || scanRevealOpen || !returnFocusRef.current) return;
+    returnFocusRef.current = false;
+    sampleBtnRef.current?.focus();
+  }, [sampleOpen, scanRevealOpen]);
+
+  // Demo mode: ?demo=1 prevents auth redirect so founder can show landing while logged in.
+  // A scanned sample QR (?sample=credit) is exempt the same way, so a signed-in visitor sees the sample reveal.
+  const isDemoView = hashQuery.get('demo') === '1';
+  useEffect(() => {
+    if (!loading && isAuthenticated && !isDemoView && !isSampleCreditView) {
       navigate('/dashboard', { replace: true });
     }
-  }, [isAuthenticated, loading, navigate, isDemoView]);
+  }, [isAuthenticated, loading, navigate, isDemoView, isSampleCreditView]);
 
   if (loading) {
     return (
@@ -121,7 +147,7 @@ export default function Landing() {
     );
   }
 
-  if (isAuthenticated && !isDemoView) return null;
+  if (isAuthenticated && !isDemoView && !isSampleCreditView) return null;
 
   // Before the first tap, a branded cover with Play hides the not-yet-playing frame. After the end it
   // offers Replay. While playing or paused the video itself shows; the control bar stays visible.
@@ -148,10 +174,10 @@ export default function Landing() {
           <p className="gm-landing-sup" data-testid="landing-support">Personalized, automatic moments. Truly unforgettable!</p>
           {SHOW_SAMPLE_ENTRY ? (
             <>
-              <button type="button" className="gm-landing-primary" data-testid="landing-view-sample">
-                <span aria-hidden="true">✉</span> View Sample Greet-Me
+              <button type="button" ref={sampleBtnRef} className="gm-landing-primary" data-testid="landing-view-sample" onClick={openSample}>
+                <span aria-hidden="true">✉</span> {SAMPLE_CHROME.ctaLabel}
               </button>
-              <p className="gm-landing-small">Open a real Greet-Me, start to finish.</p>
+              <p className="gm-landing-small">{SAMPLE_CHROME.ctaSubline}</p>
             </>
           ) : null}
         </section>
@@ -249,6 +275,17 @@ export default function Landing() {
           <a href="#/legal" style={{ color: C.onPage, textDecoration: 'underline' }}>Legal</a>
         </p>
       </footer>
+
+      {SHOW_SAMPLE_ENTRY && sampleOpen ? (
+        <Suspense fallback={null}>
+          <SampleGreetingOverlay onClose={closeSample} />
+        </Suspense>
+      ) : null}
+      {SHOW_SAMPLE_ENTRY && scanRevealOpen && !sampleOpen ? (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, overflowY: 'auto' }} data-testid="landing-scan-reveal">
+          <SampleCreditReveal onBack={() => { setScanRevealOpen(false); setSampleOpen(true); }} onClose={closeSample} />
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -43,6 +43,9 @@ before(async () => {
     entryPoints: [ENTRY], outfile: BUNDLE, bundle: true, format: "esm", platform: "browser",
     jsx: "automatic", jsxImportSource: "react", plugins: [authStub],
     external: ["react", "react-dom", "react-dom/client", "react/jsx-runtime", "react-router-dom"], logLevel: "silent",
+    // The lazily loaded sample viewer brings the card player; its styles/images are not needed here.
+    loader: { ".css": "empty", ".jpg": "dataurl", ".jpeg": "dataurl", ".png": "dataurl", ".svg": "dataurl", ".wav": "dataurl", ".mp3": "dataurl" },
+    define: { "import.meta.env": "{}", "process.env.NODE_ENV": '"production"' },
   });
   const dom = new JSDOM('<!doctype html><html><body></body></html>', { pretendToBeVisual: true, url: "http://localhost/" });
   window = dom.window;
@@ -179,11 +182,14 @@ test("when no source works, the branded card links to the original and the contr
   assert.equal($("landing-video-cover"), null);
 });
 
-test("source: the layout calls useIntroVideo only and keeps the sample gate a single local constant", () => {
+test("source: the layout calls useIntroVideo only; the sample entry is gated on enablement AND available media", () => {
   const src = readFileSync(join(__dirname, "Landing.jsx"), "utf8");
-  assert.match(src, /const SHOW_SAMPLE_ENTRY = false;/);
+  assert.match(src, /const SHOW_SAMPLE_ENTRY = SAMPLE_ENTRY_ENABLED && sampleMedia === 'available';/);
+  assert.match(readFileSync(join(__dirname, "..", "components", "sample", "sampleGreeting.js"), "utf8"), /export const SAMPLE_ENTRY_ENABLED = false;/,
+    "the sample stays off until the player change is authorized");
   assert.match(src, /onClick=\{intro\.pause\}/);
   assert.match(src, /onClick=\{intro\.replay\}/);
   assert.match(src, /intro\.tap\(\)/);
-  assert.doesNotMatch(src, /GreetingCard|FinaleSpread|SampleGreeting|sample=credit/, "no sample viewer in this build");
+  assert.doesNotMatch(src, /GreetingCardProto|FinaleSpread/, "the landing never imports the card player directly");
+  assert.match(src, /lazy\(\(\) => import\('..\/components\/sample\/SampleGreetingOverlay\.jsx'\)\)/, "the viewer loads only when opened");
 });
