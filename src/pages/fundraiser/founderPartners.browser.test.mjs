@@ -81,7 +81,8 @@ function baseRoutes(over = {}) {
     if (method === "GET" && /\/organizations\/[^/]+\/terms$/.test(path)) {
       const id = path.split("/").at(-2);
       const t = id in (over.orgTerms || {}) ? over.orgTerms[id] : (id === "org_a" ? ORG_TERMS_A : null);
-      return { status: 200, data: { terms: t, history: t ? [t] : [] } };
+      const sch = (over.scheduled || {})[id] || null;
+      return { status: 200, data: { terms: t, scheduled: sch, history: [t, sch].filter(Boolean) } };
     }
     if (method === "GET" && /\/organizations\/org_a\/campaigns$/.test(path)) return { status: 200, data: over.campaignsA || CAMPAIGNS_A };
     if (method === "GET" && /\/organizations\/[^/]+\/campaigns$/.test(path)) return { status: 200, data: [] };
@@ -549,4 +550,17 @@ test("reports (N6): oversight restored — attribution records, reconciliation d
   assert.match($("oversight-reconciliation").textContent, /drift 2/);
   assert.equal($("oversight-payout").textContent, "Payouts have not started yet.");
   assert.match($("oversight-audit").textContent, /2026-11-01T00:00:00\.000Z — activate \(organization\)/);
+});
+
+test("partner share (N9): the share in force and, separately, the scheduled change", async () => {
+  await mount(baseRoutes({ scheduled: { org_a: { ...ORG_TERMS_A, versionId: "ot_2", yearRates: { year_1: 25, year_2: 15, year_3_plus: 10 }, effectiveFrom: "2027-03-01T00:00:00.000Z" } } }));
+  await click($("open-org_a"));
+  assert.match($("terms-line").textContent, /Year 1 20% \u00b7 Year 2 15% \u00b7 Year 3\+ 10% \u00b7 takes effect 2026-11-01/);
+  assert.equal($("terms-scheduled").textContent, "Scheduled from 2027-03-01: Year 1 25% \u00b7 Year 2 15% \u00b7 Year 3+ 10%");
+});
+
+test("partner share (N9): no scheduled change, no scheduled line", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_a"));
+  assert.equal($("terms-scheduled"), null);
 });

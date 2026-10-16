@@ -353,7 +353,7 @@ function Activation({ p, status, extras, onChanged }) {
   const [message, setMessage] = useState(null);
   const [notice, setNotice] = useState(null);
   const adminAssigned = Array.isArray(p.adminUserIds) && p.adminUserIds.length > 0;
-  const termsSet = !!(extras && extras.activeTerms);
+  const termsSet = !!(extras && (extras.activeTerms || extras.scheduled));
   const checks = [["Organization saved", true], ["Partner administrator assigned", adminAssigned], ["Partner share set", termsSet]];
   const ready = checks.every(([, v]) => v);
   const name = p.legalName || p.organizationId;
@@ -625,6 +625,9 @@ function PartnerShare({ p, status, extras, onChanged }) {
       {extras && extras.error ? <p style={err}>This information couldn’t be loaded.</p> : (
         <p style={{ margin: 0, fontSize: 15 }} data-testid="terms-line"><strong>{active ? termsLine(active.rules) : "Not set"}</strong>{active && active.effectiveFrom ? ` · takes effect ${isoDate(active.effectiveFrom)}` : ""}</p>
       )}
+      {extras && extras.scheduled ? (
+        <p style={{ margin: "6px 0 0", fontSize: 14 }} data-testid="terms-scheduled">Scheduled from {isoDate(extras.scheduled.effectiveFrom)}: {termsLine(extras.scheduled.rules)}</p>
+      ) : null}
       <p style={help}>Each customer’s Year 1 starts at their first qualifying purchase through this partner.</p>
       {canSet && !changing ? (
         <button type="button" style={{ ...btnGhost, marginTop: 10 }} onClick={() => setChanging(true)} data-testid="change-terms">{active ? "Change terms" : "Set terms"}</button>
@@ -1147,11 +1150,14 @@ async function readExtras(org) {
   // N5 — ANY saved organization terms version (active, approved or draft) means a later save must use
   // change-rate, never a second draft → approve → activate (the one-rate guard would refuse it and
   // leave an orphan approved version behind).
-  const hasOrgTerms = !!t || (stateFor(tr) === "ok" && tr.data && Array.isArray(tr.data.history) && tr.data.history.length > 0);
-  if (org.status === "applied") return { campaigns: [], activeTerms: orgTerms, hasTerms: hasOrgTerms, error: stateFor(tr) !== "ok" };
+  // N9 — the founder terms view is { terms: in force, scheduled: future change | null, history }.
+  const sv = stateFor(tr) === "ok" && tr.data ? tr.data.scheduled : null;
+  const scheduled = sv ? { rules: partnerTermsRules(sv), effectiveFrom: sv.effectiveFrom } : null;
+  const hasOrgTerms = !!t || !!sv || (stateFor(tr) === "ok" && tr.data && Array.isArray(tr.data.history) && tr.data.history.length > 0);
+  if (org.status === "applied") return { campaigns: [], activeTerms: orgTerms, scheduled, hasTerms: hasOrgTerms, error: stateFor(tr) !== "ok" };
   const cmp = await fundraiserApi.founder.campaigns(org.organizationId);
-  if (stateFor(cmp) !== "ok" || !Array.isArray(cmp.data)) return { error: true, campaigns: [], activeTerms: orgTerms, hasTerms: hasOrgTerms };
-  if (orgTerms) return { campaigns: cmp.data, activeTerms: orgTerms, hasTerms: true };
+  if (stateFor(cmp) !== "ok" || !Array.isArray(cmp.data)) return { error: true, campaigns: [], activeTerms: orgTerms, scheduled, hasTerms: hasOrgTerms };
+  if (orgTerms || scheduled) return { campaigns: cmp.data, activeTerms: orgTerms, scheduled, hasTerms: true };
   const hist = await Promise.all(cmp.data.map((c) => fundraiserApi.founder.economicsHistory(c.campaignId)));
   const lists = hist.map((x) => (stateFor(x) === "ok" && Array.isArray(x.data) ? x.data : null));
   const legacy = activeTermsFromHistories(lists.filter(Boolean));
