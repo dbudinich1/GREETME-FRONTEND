@@ -1197,7 +1197,8 @@ function ReportsTab({ p, extras }) {
           <Stat label="Attribution records" value={n(data.attributionRecords)} />
         </div>
         <p data-testid="oversight-reconciliation">Reconciliation: {data.reconciliation ? (data.reconciliation.reconciled ? "✓ reconciled" : `drift ${data.reconciliation.driftCount ?? 0}`) : "couldn’t be loaded"}</p>
-        <p data-testid="oversight-payout">{payoutOnlyLine(data.payout)}</p>
+        {/* RR7 — a failed read is reported as such; 'Payouts have not started yet.' is said only from a real answer. */}
+        <p data-testid="oversight-payout">{data.payout ? payoutOnlyLine(data.payout) : "Payout status couldn’t be loaded."}</p>
         <h4 style={{ margin: "12px 0 6px" }}>Audit history</h4>
         {data.audit === null ? unavailable : data.audit.length === 0 ? <Empty>No audit events yet.</Empty> : (
           <ul data-testid="oversight-audit" style={{ margin: 0, paddingLeft: 18, color: "#5b4f42" }}>

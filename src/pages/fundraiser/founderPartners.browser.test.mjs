@@ -644,3 +644,17 @@ test("reports (N12): a failed results read shows dashes and says so, never zeros
   assert.match(first, /Fall Drive.*\u2014\u2014\u2014/);
   assert.ok($("report-unavailable"));
 });
+
+test("reports (RR7): a failed payout-status read says it couldn't be loaded, never 'Payouts have not started yet.'", async () => {
+  await mount(baseRoutes({ handle: (m, p) => (m === "GET" && p.endsWith("/org_a/payouts/status") ? { status: 500, data: {} } : null) }));
+  await click($("open-org_a"));
+  await click($("tab-reports"));
+  assert.equal($("oversight-payout").textContent, "Payout status couldn’t be loaded.");
+});
+
+test("reports (RR7): a 503 (payouts held server-side) still reads as not started", async () => {
+  await mount(baseRoutes({ handle: (m, p) => (m === "GET" && p.endsWith("/org_a/payouts/status") ? { status: 503, data: { disabled: true } } : null) }));
+  await click($("open-org_a"));
+  await click($("tab-reports"));
+  assert.equal($("oversight-payout").textContent, "Payouts have not started yet.");
+});
