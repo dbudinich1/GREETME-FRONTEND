@@ -951,7 +951,17 @@ function CampaignsTab({ p, status, extras, onChanged, onRefreshCampaigns }) {
   const [e, setE] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
+  const [counts, setCounts] = useState(undefined); // N12 — per-campaign participants / supporters (founder results read)
   const list = (extras && extras.campaigns) || [];
+  const listKey = list.map((c) => c.campaignId).join(",");
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const r = await fundraiserApi.founder.results(p.organizationId);
+      if (alive) setCounts(stateFor(r) === "ok" && Array.isArray(r.data) ? countsByCampaign(r.data) : null);
+    })();
+    return () => { alive = false; };
+  }, [p.organizationId, listKey]);
   async function add(ev) {
     ev.preventDefault();
     if (!title.trim()) { setE("Enter a campaign name."); return; }
@@ -984,10 +994,15 @@ function CampaignsTab({ p, status, extras, onChanged, onRefreshCampaigns }) {
       {extras && extras.error ? <p style={err}>This information couldn’t be loaded.</p>
         : list.length === 0 ? <Empty>No campaigns yet.</Empty> : (
           <div style={{ ...scrollX, marginTop: 10 }}><table style={table}>
-            <thead><tr><th style={th}>Campaign</th><th style={th}>Status</th></tr></thead>
-            <tbody>{list.map((c) => (
-              <tr key={c.campaignId}><td style={td}>{c.title || c.campaignId}</td><td style={td}><Chip s={c.status} /></td></tr>
-            ))}</tbody>
+            <thead><tr><th style={th}>Campaign</th><th style={th}>Status</th><th style={th}>Participants</th><th style={th}>Supporters</th></tr></thead>
+            <tbody>{list.map((c) => {
+              const k = counts ? counts.get(String(c.campaignId)) || { participants: 0, conversions: 0 } : null;
+              const show = (v) => (counts === undefined ? "…" : k ? v : "—");
+              return (
+                <tr key={c.campaignId}><td style={td}>{c.title || c.campaignId}</td><td style={td}><Chip s={c.status} /></td>
+                  <td style={td}>{show(k && k.participants)}</td><td style={td}>{show(k && k.conversions)}</td></tr>
+              );
+            })}</tbody>
           </table></div>
         )}
       {list.length > 0 ? <CampaignStatusChooser p={p} campaigns={list} onRefreshCampaigns={onRefreshCampaigns} /> : null}

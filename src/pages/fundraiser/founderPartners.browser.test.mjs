@@ -658,3 +658,20 @@ test("reports (RR7): a 503 (payouts held server-side) still reads as not started
   await click($("tab-reports"));
   assert.equal($("oversight-payout").textContent, "Payouts have not started yet.");
 });
+
+test("campaigns tab (N12): Participants and Supporters columns from the founder results read", async () => {
+  await mount(baseRoutes());
+  await click($("open-org_a"));
+  await click($("tab-campaigns"));
+  const rows = [...$("panel-campaigns").querySelectorAll("tbody tr")].map((r) => [...r.querySelectorAll("td")].map((td) => td.textContent));
+  assert.deepEqual(rows[0], ["Fall Drive", "Active", "2", "6"], "removed participants are not counted as participants; their supporters still count");
+  assert.deepEqual(rows[1], ["Spring Drive", "Draft", "0", "0"]);
+});
+
+test("campaigns tab (N12): a failed results read shows a dash, never zero", async () => {
+  await mount(baseRoutes({ resultsStatus: 500 }));
+  await click($("open-org_a"));
+  await click($("tab-campaigns"));
+  const first = [...$("panel-campaigns").querySelectorAll("tbody tr")][0].textContent;
+  assert.match(first, /Fall DriveActive\u2014\u2014/);
+});
