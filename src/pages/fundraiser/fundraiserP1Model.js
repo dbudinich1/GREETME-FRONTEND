@@ -173,6 +173,19 @@ export function failureText(res) {
   return STATUS_TEXT[res.status] || "That didn’t go through. Nothing was changed.";
 }
 
+/** RC2-5 — can a saved org-terms version (founder terms view) be put in place as it stands? Judged only on
+ *  the share fields the view carries; treatments are not in the view, so the server stays the final check. */
+export function pendingTermsComplete(view) {
+  if (!view || typeof view !== "object") return false;
+  const num = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 100;
+  if (view.kind === "year_rates") {
+    const y = view.yearRates || {};
+    return num(y.year_1) && num(y.year_2) && num(y.year_3_plus);
+  }
+  const ok = (s) => !!s && (s.type === "none" || (s.type === "custom") || (s.type === "percent_of_base" && num(s.percent)));
+  return ok(view.initialShare) && ok(view.renewalShare);
+}
+
 /** N4 — campaign create: { campaign, termsIssue }. Only issued === false means the campaign has no terms;
  *  reason CAMPAIGN_HAS_TERMS (orgTerms.js) means it already had terms, which is not a failure. */
 export function createdWithoutTerms(body) {

@@ -690,3 +690,11 @@ test("home (RC2-5): a scheduled-only partner shows the scheduled state in the pa
   assert.match(row, /Scheduled from 2027-03-01: Year 1 20% · Year 2 15% · Year 3\+ 10%/);
   assert.ok(!row.includes("Not set"));
 });
+
+test("partner share (RC2-5): an incomplete saved draft offers no 'Put these terms in place' and says why", async () => {
+  await mount(baseRoutes({ orgTerms: { org_p: { ...ORG_TERMS_A, versionId: "ot_p", status: "draft", yearRates: { year_1: 20, year_2: null, year_3_plus: 10 } } } }));
+  await click($("open-org_p"));
+  assert.equal($("finish-terms"), null);
+  assert.equal($("finish-terms-incomplete").textContent, "These saved terms are incomplete, so they can’t be put in place. Use Set terms to enter the partner share.");
+  assert.ok($("change-terms"), "Set terms is still offered");
+});

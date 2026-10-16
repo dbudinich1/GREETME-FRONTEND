@@ -19,7 +19,7 @@ import { payoutOnlyLine } from "./partnerEarningsCopy.js";
 import { salesAdminApi } from "../../api/salesAdmin.js";
 import {
   money, isoDate, validateYearRates, buildYearRatesRule, dateToUtcInstant, termsLine,
-  activeTermsFromHistories, partnerTermsRules, createdWithoutTerms, countsByCampaign, partnerStatus, lastEndedInterval, failureText, totalsByKey, quarterlyRows, BRANDED_GOODS_NOT_CALCULATED,
+  activeTermsFromHistories, partnerTermsRules, createdWithoutTerms, countsByCampaign, pendingTermsComplete, partnerStatus, lastEndedInterval, failureText, totalsByKey, quarterlyRows, BRANDED_GOODS_NOT_CALCULATED,
 } from "./fundraiserP1Model.js";
 
 const input = { padding: 8, borderRadius: 6, border: "1px solid #d8cdbb", font: "inherit", boxSizing: "border-box" };
@@ -615,7 +615,10 @@ function FinishPendingTerms({ p, pending, canSet, onChanged }) {
   return (
     <div data-testid="terms-pending" style={{ marginTop: 8, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, padding: "8px 10px", fontSize: 14 }}>
       <div>Saved, not in place yet: <strong>{termsLine(pending.rules)}</strong></div>
-      {canSet && !open ? <button type="button" style={{ ...btnGhost, marginTop: 8 }} data-testid="finish-terms" onClick={() => setOpen(true)}>Put these terms in place</button> : null}
+      {canSet && !pending.complete ? (
+        <p data-testid="finish-terms-incomplete" style={{ ...help, marginTop: 6 }}>These saved terms are incomplete, so they can’t be put in place. Use Set terms to enter the partner share.</p>
+      ) : null}
+      {canSet && pending.complete && !open ? <button type="button" style={{ ...btnGhost, marginTop: 8 }} data-testid="finish-terms" onClick={() => setOpen(true)}>Put these terms in place</button> : null}
       {canSet && open ? (
         <div style={{ marginTop: 10 }}>
           <label htmlFor="pending-from" style={label}>Terms take effect</label>
@@ -1283,7 +1286,7 @@ async function readExtras(org) {
   // ONLY when an ACTIVE version exists (in force or scheduled), because the server refuses it otherwise
   // (400 NO_ACTIVE, economicsService.changeOrganizationRate).
   const pending = t && (t.status === "draft" || t.status === "approved") && t.versionId
-    ? { versionId: t.versionId, status: t.status, rules: partnerTermsRules(t) } : null;
+    ? { versionId: t.versionId, status: t.status, rules: partnerTermsRules(t), complete: pendingTermsComplete(t) } : null;
   const hasActiveOrgTerms = !!orgTerms || !!scheduled;
   if (org.status === "applied") return { campaigns: [], activeTerms: orgTerms, scheduled, pending, hasActiveTerms: hasActiveOrgTerms, error: stateFor(tr) !== "ok" };
   const cmp = await fundraiserApi.founder.campaigns(org.organizationId);

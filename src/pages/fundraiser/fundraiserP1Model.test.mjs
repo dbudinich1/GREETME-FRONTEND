@@ -112,6 +112,15 @@ test("N12: countsByCampaign sums participant rows per campaign", async () => {
   assert.equal(countsByCampaign(null).size, 0);
 });
 
+test("RC2-5: pendingTermsComplete judges the visible share fields", async () => {
+  const { pendingTermsComplete } = await import("./fundraiserP1Model.js");
+  assert.equal(pendingTermsComplete({ kind: "year_rates", yearRates: { year_1: 20, year_2: 15, year_3_plus: 0 } }), true);
+  assert.equal(pendingTermsComplete({ kind: "year_rates", yearRates: { year_1: 20, year_2: null, year_3_plus: 10 } }), false);
+  assert.equal(pendingTermsComplete({ kind: "initial_renewal", initialShare: { type: "percent_of_base", percent: 10 }, renewalShare: { type: "none", percent: null } }), true);
+  assert.equal(pendingTermsComplete({ kind: "initial_renewal", initialShare: { type: "percent_of_base", percent: null }, renewalShare: null }), false);
+  assert.equal(pendingTermsComplete(null), false);
+});
+
 test("N17: partnerStatusLabel", async () => {
   const { partnerStatusLabel } = await import("./fundraiserP1Model.js");
   assert.equal(partnerStatusLabel("approved", { status: "ended" }), "Partnership ended");
