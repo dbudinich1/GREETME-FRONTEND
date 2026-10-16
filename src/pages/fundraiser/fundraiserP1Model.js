@@ -132,6 +132,7 @@ const CODE_TEXT = Object.freeze({
   TERMS_NOT_ACTIVE: "This can’t go ahead until the partner share is in place.",
   NO_PARTNER_ADMIN: "Assign a partner administrator before activating.",
   NO_ACTIVE: "There are no terms in force to change yet.",
+  ORG_TERMS_NOT_ALLOWED: "The partner share can’t be changed while the partnership is ended or closed.",
   ETAG_MISMATCH: "This changed while you were looking at it. Reload and try again.",
   BAD_TRANSITION: "That change is no longer possible from the current status. Reload to see where it stands.",
   NOT_FOUND: "That record no longer exists. Nothing was changed.",

@@ -62,7 +62,7 @@ test("partner status as rev 6 presents it", () => {
 });
 
 test("failure text: codes select a sentence and are never shown", () => {
-  for (const code of ["NOT_APPLIED", "ORG_NOT_ACTIVE", "TERMS_NOT_ACTIVE", "NO_PARTNER_ADMIN", "NO_ACTIVE"]) {
+  for (const code of ["NOT_APPLIED", "ORG_NOT_ACTIVE", "TERMS_NOT_ACTIVE", "NO_PARTNER_ADMIN", "NO_ACTIVE", "ORG_TERMS_NOT_ALLOWED"]) {
     const t = failureText({ ok: false, status: 409, data: { code } });
     assert.ok(t.length > 0); assert.ok(!t.includes(code));
   }
