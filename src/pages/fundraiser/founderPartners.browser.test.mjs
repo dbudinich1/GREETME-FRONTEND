@@ -604,7 +604,7 @@ test("reports (N6): oversight restored — attribution records, reconciliation d
   assert.match(box, /Attribution records\s*2/);
   assert.match($("oversight-reconciliation").textContent, /drift 2/);
   assert.equal($("oversight-payout").textContent, "Payouts have not started yet.");
-  assert.match($("oversight-audit").textContent, /2026-11-01T00:00:00\.000Z — activate \(organization\)/);
+  assert.equal($("oversight-audit").textContent, "Nov 1, 2026, 00:00 UTC — Activate (organization)");
 });
 
 test("partner share (N9): the share in force and, separately, the scheduled change", async () => {

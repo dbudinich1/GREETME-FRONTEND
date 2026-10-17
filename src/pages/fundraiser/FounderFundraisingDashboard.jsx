@@ -31,6 +31,11 @@ const th = { textAlign: "left", color: "#8a7c6c", fontSize: 13, padding: "0 8px 
 const td = { padding: "8px 8px 8px 0", borderTop: "1px solid #f0ebe3", verticalAlign: "top" };
 const err = { color: "#b00", fontSize: ".8rem", margin: "4px 0 0" };
 
+const B_STATUS = { draft: "Draft", active: "Active", paused: "Paused", closed: "Closed" };
+const bStatus = (v) => B_STATUS[v] || (v ? String(v).charAt(0).toUpperCase() + String(v).slice(1) : "\u2014");
+const bDate = (iso) => { const t = Date.parse(iso || ""); if (!Number.isFinite(t)) return String(iso || ""); const d = new Date(t);
+  return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}, ${d.toISOString().slice(11, 16)} UTC`; };
+const bAction = (a) => { const t = String(a || "").replace(/[_-]+/g, " "); return t ? t.charAt(0).toUpperCase() + t.slice(1) : "\u2014"; };
 const ORG_TYPES = [["school", "School"], ["athletic", "Athletic"], ["youth", "Youth"], ["community", "Community"], ["nonprofit", "Nonprofit"], ["other", "Other"]];
 const typeLabel = (v) => (ORG_TYPES.find(([k]) => k === v) || [v, v ? String(v) : "—"])[1];
 
@@ -542,7 +547,7 @@ function AdminPanel({ organization, onChanged }) {
 
       {admin.state === STATES.ASSIGNED && admin.account && (
         <p style={{ color: "#5b4f42", fontSize: ".9rem", marginTop: 0 }} data-testid="admin-readback">
-          Read-back: {isAssigned(organization, admin.account.userId) ? "present in adminUserIds ✓" : "not yet reflected"}
+          {isAssigned(organization, admin.account.userId) ? "Confirmed: they are now an administrator of this partner." : "Not confirmed yet. Reload this page to check."}
         </p>
       )}
 
@@ -867,8 +872,8 @@ function FounderCampaignStatusPanel({ organizationId, organizationName, campaign
         <div>Organization: <span data-testid="f4-review-org">{organizationName}</span></div>
         <div>Campaign: <span data-testid="f4-review-campaign">{campaign.title || campaign.campaignId}</span></div>
         <div>Campaign ID: <span data-testid="f4-review-campaign-id">{campaign.campaignId}</span></div>
-        <div>Current status: <span data-testid="f4-review-current">{currentStatus}</span></div>
-        <div>Target status: <span data-testid="f4-review-target">{target || "—"}</span></div>
+        <div>Current status: <span data-testid="f4-review-current">{bStatus(currentStatus)}</span></div>
+        <div>Target status: <span data-testid="f4-review-target">{target ? bStatus(target) : "—"}</span></div>
         {f4NeedsActiveEconomics(target) ? (
           <div>Active economics version: <span data-testid="f4-review-economics">{activeEconomicsId || "none"}</span></div>
         ) : null}
@@ -891,7 +896,7 @@ function FounderCampaignStatusPanel({ organizationId, organizationName, campaign
                 // The one move that needs economics in force is offered, but not enabled, without
                 // them — hiding it would leave the founder guessing why the campaign cannot go live.
                 <option key={t} value={t} disabled={f4NeedsActiveEconomics(t) && !hasActiveEconomics}>
-                  {t}
+                  {bStatus(t)}
                 </option>
               ))}
             </select>
@@ -926,7 +931,7 @@ function FounderCampaignStatusPanel({ organizationId, organizationName, campaign
           {error ? <p data-testid="f4-error" style={{ color: "#b00", fontSize: ".8rem" }}>{error}</p> : null}
 
           {!confirming ? (
-            <button type="button" data-testid="f4-open" disabled={busy} onClick={openConfirm}>
+            <button type="button" style={{ ...btnGhost, marginTop: 6 }} data-testid="f4-open" disabled={busy} onClick={openConfirm}>
               Review this status change…
             </button>
           ) : (
@@ -934,12 +939,12 @@ function FounderCampaignStatusPanel({ organizationId, organizationName, campaign
               style={{ border: "1px solid #b00", borderRadius: 8, padding: ".55rem", marginTop: ".4rem" }}>
               <p data-testid="f4-confirm-text" style={{ fontSize: ".82rem", margin: "0 0 .5rem" }}>
                 Move {campaign.title || campaign.campaignId} ({campaign.campaignId}) from{" "}
-                <strong>{currentStatus}</strong> to <strong data-testid="f4-confirm-target">{target}</strong>?
+                <strong>{bStatus(currentStatus)}</strong> to <strong data-testid="f4-confirm-target">{bStatus(target)}</strong>?
                 {" "}{F4_WARNINGS[target]}
               </p>
-              <button type="button" data-testid="f4-cancel" onClick={() => setConfirming(false)}>Cancel</button>
-              <button type="button" data-testid="f4-confirm-go" disabled={busy || !closeConfirmed} onClick={commit}>
-                {busy ? "Changing…" : `Change status to ${target}`}
+              <button type="button" style={{ ...btnGhost, marginRight: 8 }} data-testid="f4-cancel" onClick={() => setConfirming(false)}>Cancel</button>
+              <button type="button" style={btn} data-testid="f4-confirm-go" disabled={busy || !closeConfirmed} onClick={commit}>
+                {busy ? "Changing…" : `Change status to ${bStatus(target)}`}
               </button>
             </div>
           )}
@@ -950,7 +955,7 @@ function FounderCampaignStatusPanel({ organizationId, organizationName, campaign
       {changed ? (
         <p data-testid="f4-changed" style={{ fontSize: ".82rem" }}>
           Campaign <strong data-testid="f4-changed-campaign">{changed.campaignId}</strong> is now{" "}
-          <strong data-testid="f4-changed-status">{changed.status || "—"}</strong>. Economics terms are
+          <strong data-testid="f4-changed-status">{changed.status ? bStatus(changed.status) : "—"}</strong>. Economics terms are
           unchanged and payouts remain held.
         </p>
       ) : null}
@@ -1049,7 +1054,7 @@ function CampaignStatusChooser({ p, campaigns, onRefreshCampaigns }) {
         Change a campaign’s status{" "}
         <select data-testid="f4-campaign" value={campaignId} onChange={(e) => pick(e.target.value)} style={{ ...input, padding: 4 }}>
           <option value="">Choose a campaign…</option>
-          {campaigns.map((c) => <option key={c.campaignId} value={c.campaignId}>{c.title || c.campaignId} ({c.status})</option>)}
+          {campaigns.map((c) => <option key={c.campaignId} value={c.campaignId}>{c.title || c.campaignId} ({bStatus(c.status)})</option>)}
         </select>
       </label>
       {campaign ? (
@@ -1236,7 +1241,7 @@ function ReportsTab({ p, extras }) {
         <h4 style={{ margin: "12px 0 6px" }}>Audit history</h4>
         {data.audit === null ? unavailable : data.audit.length === 0 ? <Empty>No audit events yet.</Empty> : (
           <ul data-testid="oversight-audit" style={{ margin: 0, paddingLeft: 18, color: "#5b4f42" }}>
-            {data.audit.slice(0, 8).map((a) => <li key={a.id}>{a.at} — {a.action} ({a.subjectType})</li>)}
+            {data.audit.slice(0, 8).map((a) => <li key={a.id}>{bDate(a.at)} — {bAction(a.action)} ({a.subjectType})</li>)}
           </ul>
         )}
       </div>

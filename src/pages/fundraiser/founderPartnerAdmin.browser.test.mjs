@@ -201,7 +201,7 @@ test("P2 UI: ASSIGNING then ASSIGNED — success is shown and read-back reflects
   const assignCall = calls.find((c) => c.url.includes("/partner-admins"));
   assert.equal(JSON.parse(assignCall.body).userId, ACCOUNT.userId, "the RESOLVED userId is forwarded, never invented");
   assert.ok($("admin-readback"), "read-back rendered");
-  assert.match($("admin-readback").textContent, /present in adminUserIds/, "existing read-back behaviour reflects the assignment");
+  assert.equal($("admin-readback").textContent, "Confirmed: they are now an administrator of this partner.", "existing read-back behaviour reflects the assignment (variant B wording)");
 
   // TEAM 5 (2026-09-29) — previously "Administrator assigned." was the ONLY thing the founder
   // saw; nothing told them what to actually give the new partner admin. Assignment is a pure
