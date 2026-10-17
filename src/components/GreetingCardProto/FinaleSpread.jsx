@@ -133,7 +133,9 @@ function tightenLineHeight(el) {
 // removed and copy is swapped to neutral "included with your greeting"
 // variants. No layout, animation, autofit, typography, or card-motion
 // changes — only conditional removal of <a> tap targets around existing art.
-export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, giftAvailable, courtesyCreditCode, isOwner }) {
+// Optional `sample` = { qrTarget, onCreditTap } (landing Sample Greet-Me only): the courtesy QR/link point to
+// qrTarget and a tap calls onCreditTap instead of navigating. Absent => rendering and behaviour unchanged.
+export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, giftAvailable, courtesyCreditCode, isOwner, sample = null }) {
   const closingMessageRef = useRef(null);
   const [qrImageError, setQrImageError] = useState(false);
   const [courtesyQrUrl, setCourtesyQrUrl] = useState(null);
@@ -164,6 +166,16 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, g
       color: { dark: '#000000', light: '#ffffff' },
     }).then(setCourtesyQrUrl).catch(() => {});
   }, [giftQrAvailable, courtesyCreditCode]);
+
+  // Landing sample only: the same QR, encoding the sample address. Never runs for a real greeting.
+  const sampleQrTarget = sample ? sample.qrTarget : null;
+  useEffect(() => {
+    if (giftQrAvailable || courtesyCreditCode || !sampleQrTarget) return;
+    QRCode.toDataURL(sampleQrTarget, {
+      width: 400, margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+    }).then(setCourtesyQrUrl).catch(() => {});
+  }, [giftQrAvailable, courtesyCreditCode, sampleQrTarget]);
 
   // AUTO-FIT: shrink-only until no clipping
   const runAutoFit = useCallback(() => {
@@ -335,7 +347,7 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, g
                   <p className="gc-gift-instruction" data-testid="gift-withdrawn">This gift is no longer available.</p>
                 ) : null}
 
-                {courtesyCreditCode ? (
+                {(courtesyCreditCode || sample) ? (
                   courtesyQrUrl ? (
                     <>
                       {/* D6-R1: courtesy-credit QR is always anchor-wrapped and clickable
@@ -343,7 +355,8 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, g
                           is handled downstream at CreditClaim.jsx via the existing
                           isSenderViewingOwnCredit branch (lines 445-479 in that file). */}
                       <a
-                        href={`${window.location.origin}/#/claim-credit/${courtesyCreditCode}`}
+                        href={sample ? sample.qrTarget : `${window.location.origin}/#/claim-credit/${courtesyCreditCode}`}
+                        onClick={sample ? (e) => { e.preventDefault(); sample.onCreditTap(); } : undefined}
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label="Claim your $5 Greet-Me credit"
@@ -382,7 +395,8 @@ export default function FinaleSpread({ finaleText, occasionKey, hasGift, gift, g
                     <p className="gc-gift-instruction" style={{ marginBottom: '0.5em' }}>
                       We've included $5 toward your first Greet-Me subscription.{' '}
                       <a
-                        href={`/#/claim-credit/${courtesyCreditCode}`}
+                        href={sample ? sample.qrTarget : `/#/claim-credit/${courtesyCreditCode}`}
+                        onClick={sample ? (e) => { e.preventDefault(); sample.onCreditTap(); } : undefined}
                         style={{
                           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
                           color: '#10b981',
