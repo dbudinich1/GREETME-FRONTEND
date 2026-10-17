@@ -2,7 +2,7 @@
 //
 // "View Sample Greet-Me" on the landing (founder: required; Report 71 rev 2), MOUNTED with the real Landing,
 // the real sample viewer and the real, unchanged card player:
-//   - as committed (SAMPLE_ENTRY_ENABLED = false): no button, no media request, ?sample=credit ignored;
+//   - as committed (SAMPLE_ENTRY_ENABLED = true): the video address is checked once and the button is shown;
 //   - enabled, but the talking-photo video is missing or still being checked: no button and no placeholder;
 //   - enabled and the video loads: the button sits beneath the supporting line, opens the sample at the
 //     envelope, Close returns focus to it; a scanned sample QR (#/?sample=credit) shows the sample $5 reveal
@@ -27,7 +27,7 @@ import esbuild from "esbuild";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PAGES = join(__dirname, "..", "..", "pages");
 const ENTRY = join(PAGES, `.__sample.${process.pid}.entry.jsx`);
-const OUT = { off: join(PAGES, `.__sample.${process.pid}.off.mjs`), on: join(PAGES, `.__sample.${process.pid}.on.mjs`) };
+const OUT = { committed: join(PAGES, `.__sample.${process.pid}.committed.mjs`), on: join(PAGES, `.__sample.${process.pid}.on.mjs`) };
 const SAMPLE_URL = "https://greetmedanny.blob.core.windows.net/public/greetme-sample-talking-photo-v1.mp4";
 const PLAYER_HAS_SAMPLE = /\bsample\b/.test(readFileSync(join(__dirname, "..", "GreetingCardProto", "FinaleSpread.jsx"), "utf8")
   .split("\n").filter((l) => !/^\s*\/\//.test(l)).join("\n"));
@@ -40,8 +40,9 @@ const stubs = (enabled) => ({
   setup(b) {
     b.onResolve({ filter: /context\/AuthContext$/ }, () => ({ path: "auth", namespace: "stub" }));
     b.onLoad({ filter: /^auth$/, namespace: "stub" }, () => ({ contents: "export const useAuth = () => globalThis.__auth;", loader: "js" }));
-    b.onLoad({ filter: /sampleGreeting\.js$/ }, (a) => ({
-      contents: readFileSync(a.path, "utf8").replace("export const SAMPLE_ENTRY_ENABLED = false;", `export const SAMPLE_ENTRY_ENABLED = ${enabled};`),
+    // enabled === null: the committed sampleGreeting.js, unmodified.
+    if (enabled !== null) b.onLoad({ filter: /sampleGreeting\.js$/ }, (a) => ({
+      contents: readFileSync(a.path, "utf8").replace(/export const SAMPLE_ENTRY_ENABLED = (true|false);/, `export const SAMPLE_ENTRY_ENABLED = ${enabled};`),
       loader: "js",
     }));
   },
@@ -53,7 +54,7 @@ before(async () => {
     + 'import Landing from "./Landing.jsx";\n'
     + 'function Loc() { const l = useLocation(); return (<span data-testid="router-path">{l.pathname}</span>); }\n'
     + 'export function App() { return (<MemoryRouter><Loc /><Landing /></MemoryRouter>); }\n');
-  for (const [k, enabled] of [["off", false], ["on", true]]) {
+  for (const [k, enabled] of [["committed", null], ["on", true]]) {
     await esbuild.build({
       entryPoints: [ENTRY], outfile: OUT[k], bundle: true, format: "esm", platform: "browser",
       jsx: "automatic", jsxImportSource: "react", plugins: [stubs(enabled)], logLevel: "silent",
@@ -101,11 +102,11 @@ before(async () => {
   React = (await import("react")).default;
   act = React.act;
   ({ createRoot } = await import("react-dom/client"));
-  mods.off = await import(pathToFileURL(OUT.off).href);
+  mods.committed = await import(pathToFileURL(OUT.committed).href);
   mods.on = await import(pathToFileURL(OUT.on).href);
 });
 
-after(() => { for (const f of [ENTRY, OUT.off, OUT.on]) { try { rmSync(f, { force: true }); } catch { /* ignore */ } } });
+after(() => { for (const f of [ENTRY, OUT.committed, OUT.on]) { try { rmSync(f, { force: true }); } catch { /* ignore */ } } });
 
 const flush = async (n = 4) => { for (let i = 0; i < n; i++) await act(async () => { await new Promise((r) => setTimeout(r, 0)); }); };
 async function mount(build, { hash = "#/", signedIn = false, mediaMode = "available" } = {}) {
@@ -124,14 +125,16 @@ const PLACEHOLDER = /MISSING ASSET|pending|placeholder|coming soon|not available
 const greetmeKeys = () => [...Array(window.localStorage.length).keys()].map((i) => window.localStorage.key(i))
   .concat([...Array(window.sessionStorage.length).keys()].map((i) => window.sessionStorage.key(i))).filter((k) => /^greetme_/.test(k));
 
-test("as committed (sample not enabled): no button, no media request, a scanned sample link is ignored", async () => {
-  await mount("off");
-  assert.equal($("landing-view-sample"), null);
-  assert.deepEqual(probes, [], "the sample video is not requested");
-  await mount("off", { hash: "#/?sample=credit" });
-  assert.equal($("landing-scan-reveal"), null);
-  await mount("off", { hash: "#/?sample=credit", signedIn: true });
-  assert.equal($("landing-page"), null, "a signed-in visitor is redirected as today");
+test("as committed (sample enabled): the video is checked once, the button shows, a scanned sample link shows the reveal", async () => {
+  assert.match(readFileSync(join(__dirname, "sampleGreeting.js"), "utf8"), /export const SAMPLE_ENTRY_ENABLED = true;/);
+  await mount("committed");
+  assert.deepEqual(probes, [SAMPLE_URL], "the sample video address is checked once");
+  assert.ok($("landing-view-sample"), "the button is shown");
+  assert.equal($("landing-support").nextElementSibling, $("landing-view-sample"), "directly beneath the supporting line");
+  await mount("committed", { hash: "#/?sample=credit" });
+  assert.ok($("landing-scan-reveal"), "a scanned sample link shows the sample reveal");
+  await mount("committed", { mediaMode: "missing" });
+  assert.equal($("landing-view-sample"), null, "video missing: still no button");
 });
 
 test("enabled but the talking-photo video is missing or still checking: no button and no placeholder", async () => {
@@ -221,14 +224,12 @@ test("sample data follows the package rules: no job, credit code, gift or claim 
   assert.doesNotMatch(src.replace(/\/\/.*$/gm, ""), /claim-credit/);
 });
 
-test("finale QR -> sample reveal needs the authorized player change; until then the sample stays off", (t) => {
+test("finale QR -> sample reveal needs the authorized player change, which the enabled sample requires", (t) => {
   if (PLAYER_HAS_SAMPLE) {
     t.skip("player change present: the finale QR/reveal step is tested by its own test, finaleSpreadSample.browser.test.mjs");
     return;
   }
   // Player unchanged: its QR needs a real credit code, which the sample never has, so the sample cannot reach
-  // its QR/reveal step and must not be offered.
-  const finale = readFileSync(join(__dirname, "..", "GreetingCardProto", "FinaleSpread.jsx"), "utf8");
-  assert.match(finale, /\{courtesyCreditCode \? \(/);
-  assert.match(readFileSync(join(__dirname, "sampleGreeting.js"), "utf8"), /export const SAMPLE_ENTRY_ENABLED = false;/);
+  // its QR/reveal step. The sample is now enabled, so the player change must be present.
+  assert.fail("SAMPLE_ENTRY_ENABLED is true but FinaleSpread.jsx lacks the sample QR/reveal change");
 });

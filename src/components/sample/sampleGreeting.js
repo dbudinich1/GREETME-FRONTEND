@@ -13,7 +13,7 @@
 //      so it must not be offered.
 //   2. the talking-photo video at SAMPLE_TALKING_PHOTO_URL actually loads (checked in the browser), so the
 //      entry can never ship pointing at a missing file.
-export const SAMPLE_ENTRY_ENABLED = false;
+export const SAMPLE_ENTRY_ENABLED = true;
 
 // ONE address for the talking-photo video (new blob; nothing is overwritten).
 export const SAMPLE_TALKING_PHOTO_URL = 'https://greetmedanny.blob.core.windows.net/public/greetme-sample-talking-photo-v1.mp4';

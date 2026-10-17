@@ -185,8 +185,8 @@ test("when no source works, the branded card links to the original and the contr
 test("source: the layout calls useIntroVideo only; the sample entry is gated on enablement AND available media", () => {
   const src = readFileSync(join(__dirname, "Landing.jsx"), "utf8");
   assert.match(src, /const SHOW_SAMPLE_ENTRY = SAMPLE_ENTRY_ENABLED && sampleMedia === 'available';/);
-  assert.match(readFileSync(join(__dirname, "..", "components", "sample", "sampleGreeting.js"), "utf8"), /export const SAMPLE_ENTRY_ENABLED = false;/,
-    "the sample stays off until the player change is authorized");
+  assert.match(readFileSync(join(__dirname, "..", "components", "sample", "sampleGreeting.js"), "utf8"), /export const SAMPLE_ENTRY_ENABLED = true;/,
+    "the sample is enabled (founder-authorized now that its talking-photo video is live)");
   assert.match(src, /onClick=\{intro\.pause\}/);
   assert.match(src, /onClick=\{intro\.replay\}/);
   assert.match(src, /intro\.tap\(\)/);
