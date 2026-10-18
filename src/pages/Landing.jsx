@@ -170,7 +170,10 @@ export default function Landing() {
       if (!(natural > 0)) return;                             // not laid out (e.g. test DOM)
       const top = rect.top + window.scrollY;
       const avail = window.innerHeight - top - 12;
-      const next = Math.max(FIT_MIN, Math.min(1, avail / natural));
+      let next = Math.max(FIT_MIN, Math.min(1, avail / natural));
+      // Shrink-only after load: on phones the panel keeps full width, so wrapping makes height non-proportional
+      // and a grow/shrink pair can alternate forever. A real window resize resets to 1 and fits again.
+      if (next > cur) next = cur;
       if (Math.abs(next - cur) > 0.004) {
         root.style.setProperty('--fit', next.toFixed(3));
         // On phones the panel keeps full width while text shrinks, so height is not proportional: re-check until it settles.
@@ -179,14 +182,15 @@ export default function Landing() {
     };
     fit();
     const ro = typeof window.ResizeObserver === 'function' ? new window.ResizeObserver(fit) : null; ro?.observe(panel);
-    window.addEventListener('resize', fit);
+    const onResize = () => { root.style.setProperty('--fit', '1'); fit.passes = 0; fit(); };
+    window.addEventListener('resize', onResize);
     document.fonts?.ready?.then(fit).catch(() => {});
     // Layout settles for about a second after load (fonts, media metadata); re-check on animation frames meanwhile.
     // Layout only: playback is never started or delayed here.
     let frames = 0; let raf = 0;
     const settle = () => { fit(); if (++frames < 90 && window.requestAnimationFrame) raf = window.requestAnimationFrame(settle); };
     settle();
-    return () => { ro?.disconnect(); window.removeEventListener('resize', fit); if (raf && window.cancelAnimationFrame) window.cancelAnimationFrame(raf); };
+    return () => { ro?.disconnect(); window.removeEventListener('resize', onResize); if (raf && window.cancelAnimationFrame) window.cancelAnimationFrame(raf); };
   }, [SHOW_SAMPLE_ENTRY]);
 
   // Hamburger menu (one open state; only one of the two placements is visible at a time).
