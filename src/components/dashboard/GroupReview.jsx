@@ -93,7 +93,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
   const ownerMismatch = Boolean(run && (!userId || String(run.userId) !== String(userId)));
   const blockers = [
     ...(!userId || ownerMismatch ? ['Sign in again to send to a group.'] : []),
-    ...(senderVoiceMissing ? ['Every Greet-Me uses your recorded voice. Record it first (Re-record on the dashboard).'] : []),
+    ...(senderVoiceMissing ? ['Every Greet-Me uses your recorded voice. Record it first: Start recording, in Personalize on the dashboard.'] : []),
     ...(senderPhotoMissing ? ['Every Greet-Me includes your photo so the recipient knows it is from you. Add a profile photo first.'] : []),
     ...(!sizeOk ? [included.length > GROUP_MAX ? `A group is up to ${GROUP_MAX} people.` : 'A group needs at least two people. Send to one person with Send Now.'] : []),
     ...allowance.reasons,
