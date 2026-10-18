@@ -73,10 +73,16 @@ export function chooseGift(row, giftType) {
   return { type: giftType, autoGift: false };
 }
 
-/** The QR Cash amount shown in a resolver row (the saved amount, else the scheduler's displayed default). */
+/**
+ * The QR Cash amount a resolver row shows: exactly what the save will write (the same normaliser), so the screen and
+ * the record never disagree. A Custom amount (amount 0 + customAmount, as the scheduler stores it) shows its custom
+ * figure. Returns null when the record will carry no usable amount — the row then shows no figure at all.
+ */
 export function resolverGiftAmount(gift) {
   if (!gift || gift.type !== 'qrcash') return null;
-  return gift.amount === undefined || gift.amount === null ? QRCASH_DEFAULT_DOLLARS : gift.amount;
+  const saved = normalizeGiftSettingsForSave({ x: gift }).x;
+  if (saved.amount === 0) return Number.isFinite(saved.customAmount) && saved.customAmount > 0 ? saved.customAmount : null;
+  return typeof saved.amount === 'number' && saved.amount > 0 ? saved.amount : null;
 }
 
 export const rowComplete = (row) => Boolean(row && row.date && row.gift && row.gift.type);

@@ -650,7 +650,7 @@ export default function DashboardHome() {
                         <select aria-label={`${o} gift`} value={r.gift ? r.gift.type : ''} onChange={(e) => setRow(o, { gift: chooseGift(r, e.target.value) })} className="rgift">
                           {RESOLVER_GIFT_OPTIONS.map(([v, t]) => <option key={v} value={v} disabled={v === ''}>{t}</option>)}
                         </select>
-                        <span className="rline">{resolverGiftAmount(r.gift) !== null ? <b>QR Cash ${resolverGiftAmount(r.gift)} · </b> : null}{resolverGiftLine(r.gift)}{r.gift && r.gift.type !== 'none' ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(resolvePerson.id, r.type)}>Gift details in their Occasion Scheduler</button></> : null}</span>
+                        <span className="rline">{r.gift && r.gift.type === 'qrcash' ? <b>{resolverGiftAmount(r.gift) !== null ? `QR Cash $${resolverGiftAmount(r.gift)} · ` : 'QR Cash · '}</b> : null}{resolverGiftLine(r.gift)}{r.gift && r.gift.type !== 'none' ? <> <button type="button" className="link" style={{ fontSize: 12.5 }} onClick={() => goScheduler(resolvePerson.id, r.type)}>Gift details in their Occasion Scheduler</button></> : null}</span>
                       </div>
                     );
                   })}

@@ -67,6 +67,10 @@ test("a gift choice is explicit; re-choosing the saved type keeps the saved sett
     "QR Cash saves the $25 the scheduler displays by default, exactly like ContactForm");
   assert.equal(R.resolverGiftAmount({ type: "qrcash", autoGift: true, amount: 50 }), 50, "a saved amount is shown as saved");
   assert.equal(R.resolverGiftAmount({ type: "merch" }), null);
+  assert.equal(R.resolverGiftAmount({ type: "qrcash", autoGift: false, amount: 0, customAmount: 40 }), 40, "a Custom amount shows its custom figure");
+  assert.equal(R.resolverGiftAmount({ type: "qrcash", autoGift: false, amount: 0 }), null, "Custom with no figure shows none");
+  assert.equal(R.resolverGiftAmount({ type: "qrcash", autoGift: false }), null, "an older record with no amount saves none, so none is shown");
+  assert.equal(R.resolverGiftAmount({ type: "qrcash", autoGift: true }), 25, "an Auto-Gift record is saved with the displayed $25, so it shows $25");
   assert.equal(R.rowComplete({ date: "2026-12-25", gift: { type: "none", autoGift: false } }), true, "'No gift' is a complete choice");
   assert.equal(R.rowComplete({ date: "2026-12-25", gift: null }), false, "a date alone is not complete");
 });
