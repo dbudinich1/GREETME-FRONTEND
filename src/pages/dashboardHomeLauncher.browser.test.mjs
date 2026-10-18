@@ -114,6 +114,7 @@ const UPCOMING = () => [
   { occasionId: "u3", contactId: "c3", contactName: "Daniel Okafor", occasionType: "anniversary", date: iso(20), daysUntil: 20, autoSend: true, scheduleStatus: null },
   { occasionId: "u4", contactId: "c2", contactName: "Margaret Rivera", occasionType: "birthday", date: iso(30), daysUntil: 30, autoSend: true, scheduleStatus: "cancelled" },
   { occasionId: "u5", contactId: "c3", contactName: "Daniel Okafor", occasionType: "christmas", date: iso(40), daysUntil: 40, autoSend: true, scheduleStatus: "skipped_permanent" },
+  { occasionId: "u7", contactId: "c3", contactName: "Daniel Okafor", occasionType: "birthday", date: iso(55), daysUntil: 55, autoSend: true, scheduleStatus: "skipped_transient" },
   { occasionId: "u6", contactId: "c1", contactName: "Theresa Morgan", occasionType: "anniversary", date: iso(50), daysUntil: 50, autoSend: true, scheduleStatus: "paused" },
 ];
 const SENT = () => [
@@ -369,9 +370,10 @@ test("Upcoming: real statuses; no schedule -> 'Auto-send on' or 'Schedule the Lo
   assert.ok(rows[1].querySelector("[data-testid=gx-up-schedule]"), "no schedule and auto-send off: the action");
   assert.ok(rows[2].querySelector("[data-testid=gx-up-auto]"), "no schedule yet, auto-send on");
   assert.equal(rows[3].textContent.includes("Cancelled"), true);
-  assert.equal(rows[4].textContent.includes("Not sent"), true, "skipped_* reads Not sent, not Preparing");
-  assert.equal(rows[5].textContent.includes("Paused"), true);
-  assert.equal(document.querySelector("[data-testid=gx-tabbody]").textContent.includes("Preparing"), false);
+  const rowFor = (name, occ) => rows.find((r) => r.textContent.includes(name) && r.textContent.includes(occ));
+  assert.equal(rowFor("Daniel", "Christmas").textContent.includes("Not sent"), true, "a permanent skip reads Not sent");
+  assert.equal(rowFor("Theresa", "Anniversary").textContent.includes("Paused"), true);
+  assert.equal(rowFor("Daniel", "Birthday").textContent.includes("Preparing"), true, "a transient skip is retried by the scheduler, so it is not 'Not sent'");
   await click(rows[1].querySelector("[data-testid=gx-up-schedule]"));
   assert.equal(globalThis.__nav.at(-1).to, "/dashboard/contacts?contactId=c2&occasion=mothers_day");
 });

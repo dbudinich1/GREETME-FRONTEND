@@ -50,6 +50,7 @@ export function writeDashboardHandoff(storage, { contactId, occasion, words, mem
   } catch {
     // Storage full (large photos): keep the words at least.
     try {
+      storage.removeItem(DASHBOARD_HANDOFF_KEY); // never leave an older hand-off behind
       if (!payload.words.trim()) return 'none';
       storage.setItem(DASHBOARD_HANDOFF_KEY, JSON.stringify({ ...payload, memoryPhotos: [] }));
       return 'words';

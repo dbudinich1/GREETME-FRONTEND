@@ -105,4 +105,6 @@ test("gift wording is the scheduler's own", () => {
   assert.equal(R.resolverGiftLine({ type: "merch", autoGift: false }), "You’ll receive a reminder 10 days before to confirm.");
   assert.equal(R.resolverGiftLine({ type: "qrcash", autoGift: true }), "Gift will be sent automatically on the occasion date.");
   assert.equal(R.resolverGiftLine({ type: "curated", autoGift: true }), "We’ll remind you 10 days before so you can confirm your gift.");
+  assert.equal(R.resolverGiftLine({ type: "qrcash", autoGift: true }, false), "QR Cash is sent when you send the Greet-Me. Scheduled QR Cash is not available yet.",
+    "follows the scheduler's switch exactly like ContactForm");
 });

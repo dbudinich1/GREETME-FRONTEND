@@ -60,6 +60,13 @@ test("a full or unavailable storage reports what was not carried instead of pret
   assert.equal(writeDashboardHandoff(broken, { contactId: "c1", occasion: "Birthday", words: "x" }), "none");
 });
 
+test("a failed write never leaves an older hand-off behind", () => {
+  const m = new Map([["gm_dashboard_send_handoff_v1", JSON.stringify({ contactId: "c1", occasion: "Birthday", words: "old", memoryPhotos: ["data:old"], at: 1 })]]);
+  const full = { getItem: (k) => (m.has(k) ? m.get(k) : null), removeItem: (k) => m.delete(k), setItem: () => { throw new Error("QuotaExceeded"); } };
+  assert.equal(writeDashboardHandoff(full, { contactId: "c1", occasion: "Birthday", words: "", memoryPhotos: ["data:big"] }, 2), "none");
+  assert.equal(m.has(DASHBOARD_HANDOFF_KEY), false);
+});
+
 test("when the photos do not fit, the words are still carried", () => {
   const m = new Map();
   const tight = { getItem: (k) => (m.has(k) ? m.get(k) : null), removeItem: (k) => m.delete(k),

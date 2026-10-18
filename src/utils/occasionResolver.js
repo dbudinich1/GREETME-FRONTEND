@@ -8,6 +8,7 @@
 // Pure functions only (no React, no network) so the save payload can be tested directly.
 import { occasionTypes } from './helpers';
 import { normalizeGiftSettingsForSave } from './occasionGiftSave';
+import { SCHEDULED_QRCASH_AVAILABLE, SCHEDULED_QRCASH_UNAVAILABLE_COPY } from '../config/scheduledQrCash';
 
 // Dashboard occasion label -> Occasion Scheduler type (utils/helpers.js occasionTypes). Only these occasions exist
 // in the scheduler; every other dashboard occasion is sent with Send Now, one at a time.
@@ -30,10 +31,11 @@ export const RESOLVER_GIFT_OPTIONS = Object.freeze([
   ['marketplace', 'Browse Marketplace'],
 ]);
 
-// The scheduler's own wording for a gift that is not on Auto-Gift (ContactForm.jsx, Gift & Delivery copy).
-export function resolverGiftLine(gift) {
+// The scheduler's own wording (ContactForm.jsx, Gift & Delivery copy), including its scheduled-QR-Cash switch.
+export function resolverGiftLine(gift, scheduledQrCashAvailable = SCHEDULED_QRCASH_AVAILABLE) {
   if (!gift) return '';
   if (gift.type === 'none') return 'The greeting is scheduled with no gift.';
+  if (gift.type === 'qrcash' && !scheduledQrCashAvailable) return SCHEDULED_QRCASH_UNAVAILABLE_COPY;
   if (gift.autoGift === true) {
     return gift.type === 'qrcash' ? 'Gift will be sent automatically on the occasion date.' : 'We’ll remind you 10 days before so you can confirm your gift.';
   }

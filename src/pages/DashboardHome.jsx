@@ -61,7 +61,7 @@ const OCCASION_STATUS_LABELS = {
   failed: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
   cancelled: { text: 'Cancelled', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
   paused: { text: 'Paused', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
-  skipped_transient: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
+  skipped_transient: { text: 'Preparing', color: '#7F8C8D', bg: '#F4F6F7', tone: 'muted' }, // the scheduler retries it
   skipped_permanent: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
   skipped_terminal: { text: 'Not sent', color: '#64748b', bg: '#f1f5f9', tone: 'muted' },
 };
@@ -317,7 +317,7 @@ export default function DashboardHome() {
       : ruleNote.startsWith('sched:') ? `${ruleNote.slice(6)} is sent on its own with Send Now. Several occasions for one person are scheduled in their Occasion Scheduler: Birthday, Anniversary and Christmas.`
         : notSchedulable ? `${notSchedulable} can’t be scheduled in the Occasion Scheduler. Choose Send Now, or Birthday, Anniversary or Christmas.`
           : occLocked ? 'Several people share one occasion.'
-            : whoLocked ? 'Several occasions go to one person, each scheduled on its own date.'
+            : whoLocked ? 'Several occasions go to one person.'
               : 'One person: choose one or more occasions. Several people: one shared occasion.';
   const step1Done = Boolean(mode) && occasions.length > 0;
   const step2Done = chosen.length > 0 && whoDone;
