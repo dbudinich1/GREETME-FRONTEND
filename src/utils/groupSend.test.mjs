@@ -343,3 +343,60 @@ test("409 PAYMENT_ALREADY_IN_PROGRESS stops the run (never retried as a new char
   await G.runGroup(run, deps(q.api));
   assert.ok(run.stopped); assert.equal(q.calls.charge.length, 1);
 });
+
+test("G7 quote expiry: an expired quote is refreshed for that person; an UNCHANGED total continues, a changed total stops for re-confirmation", async () => {
+  let t = 0;
+  const seed = boxRun(2);
+  let total = 4599;
+  const { api, calls } = boxApi({ quote: () => QUOTE_RES(total) });
+  await G.quoteGroupGiftBoxes(seed.items, { api, now: () => t });
+  const fromSeed = () => G.createGroupRun({ occasion: "Birthday", recipients: people(2), defaultGift: BOX,
+    addresses: Object.fromEntries(seed.items.map((i) => [i.contactId, i.address])), quotes: Object.fromEntries(seed.items.map((i) => [i.contactId, i.quote])) });
+  const run2 = fromSeed();
+  t = 3 * 60 * 1000; // every quote expired
+  await G.runGroup(run2, deps(api, { now: () => t }));
+  assert.deepEqual(run2.items.map((i) => i.status), ["sent", "sent"], "same total: no new consent needed");
+  assert.equal(calls.quote.length, 4, "each person re-quoted once");
+  assert.equal(calls.charge.length, 2);
+  const run3 = fromSeed();
+  total = 4999;
+  await G.runGroup(run3, deps(api, { now: () => t }));
+  assert.equal(run3.items[0].status, "needs_quote");
+  assert.match(run3.items[0].error.message, /changed from \$45\.99 to \$49\.99/);
+  assert.ok(run3.stopped);
+  assert.equal(calls.charge.length, 2, "never charged at a changed price without re-confirmation");
+});
+
+test("G7 quote expiry from the server (409 gift_box_quote_expired): refreshed once, and charged only if unchanged", async () => {
+  let first = true;
+  const seed = boxRun(2);
+  const { api, calls } = boxApi();
+  const realCharge = api.chargeGiftBox;
+  api.chargeGiftBox = async (b) => {
+    if (first && b.contactId === "c1") { first = false; calls.charge.push(b); throw Object.assign(new Error("expired"), { status: 409, code: "gift_box_quote_expired" }); }
+    return realCharge(b);
+  };
+  await G.quoteGroupGiftBoxes(seed.items, { api });
+  const r = G.createGroupRun({ occasion: "Birthday", recipients: people(2), defaultGift: BOX,
+    addresses: Object.fromEntries(seed.items.map((i) => [i.contactId, i.address])), quotes: Object.fromEntries(seed.items.map((i) => [i.contactId, i.quote])) });
+  await G.runGroup(r, deps(api));
+  assert.deepEqual(r.items.map((i) => i.status), ["sent", "sent"]);
+  const c1 = calls.charge.filter((b) => b.contactId === "c1");
+  assert.equal(c1.length, 2, "the refused attempt plus one charge after the refresh");
+  assert.equal(c1[0].giftRequestId, c1[1].giftRequestId, "same key: nothing was charged the first time");
+});
+
+test("binding: each recipient's claim token goes only with that recipient's own send request and key", async () => {
+  const run = boxRun(3);
+  const { api, calls } = boxApi();
+  await G.quoteGroupGiftBoxes(run.items, { api });
+  const r = G.createGroupRun({ occasion: "Birthday", recipients: people(3), defaultGift: BOX,
+    addresses: Object.fromEntries(run.items.map((i) => [i.contactId, i.address])), quotes: Object.fromEntries(run.items.map((i) => [i.contactId, i.quote])) });
+  await G.runGroup(r, deps(api));
+  for (const it of r.items) {
+    const send = calls.send.find((p) => p.sendRequestId === it.sendRequestId);
+    assert.equal(send.contactId, it.contactId);
+    assert.equal(send.gift.claimToken, `box-${it.contactId}`);
+  }
+  assert.equal(new Set(r.items.map((i) => i.giftRequestId)).size, 3, "a distinct giftRequestId per recipient");
+});

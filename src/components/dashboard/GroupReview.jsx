@@ -86,6 +86,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
   const allowance = groupAllowance(preflight, included.length);
   const needsCard = items.some((i) => i.gift.type !== 'none');
   const boxItems = items.filter((i) => i.gift.type === 'gift_box');
+  const paidCount = items.filter((i) => i.gift.type !== 'none').length;
   const sizeOk = included.length >= 2 && included.length <= GROUP_MAX;
   const blockers = [
     ...(senderPhotoMissing ? ['Every Greet-Me includes your photo so the recipient knows it is from you. Add a profile photo first.'] : []),
@@ -138,7 +139,8 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
   const refreshRunPrices = async () => {
     setQuoting(true);
     await quoteGroupGiftBoxes(run.items.filter((i) => i.status === 'needs_quote'), { api });
-    run.items.forEach((i) => { if (i.status === 'needs_quote' && i.quote) { i.status = 'pending'; i.error = null; } });
+    // The sender is shown these new prices; pressing Continue confirms them.
+    run.items.forEach((i) => { if (i.status === 'needs_quote' && i.quote) { i.status = 'pending'; i.error = null; i.confirmedTotalCents = i.quote.quotedTotalCents; } });
     saveRun(window.localStorage, run);
     setQuoting(false); force((n) => n + 1);
   };
@@ -223,6 +225,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
                 : 'No gifts: nothing is charged.'}</span>
               {needsCard ? <span className="sub">{card === undefined ? 'Checking your saved card…' : card ? `Charged to your saved ${card.brand ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1) : 'card'} •••• ${card.last4 || ''}, one charge per person.` : ''}</span> : null}
             </div>
+            {paidCount ? <div className="sub" data-testid="grv-rate-note">Payments are limited to 20 requests an hour, shared by QR Cash and gift boxes. This group needs {paidCount} (up to {paidCount * 2} if your bank asks to confirm a payment). If the limit is reached, sending stops and nobody is lost; you can continue later.{paidCount * 2 > 20 ? ' This group may reach the limit.' : ''}</div> : null}
             {blockers.length ? <div className="warn" data-testid="grv-blockers"><AlertCircle size={16} style={{ flex: 'none', marginTop: 2 }} /><span>{blockers.join(' ')}</span></div> : null}
             <div className="grv-actions">
               <span className="sub">{boxItems.length ? 'Prices are the gift-box checkout’s own and valid for 2 minutes. ' : ''}Nothing is charged or sent until you press Send.</span>

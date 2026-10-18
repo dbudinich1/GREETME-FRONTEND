@@ -128,6 +128,9 @@ export function createGroupRun({ occasion, words, recipients, defaultGift, overr
       gift: effectiveGift(defaultGift, overrides[r.contactId]),
       sendRequestId: newId(), giftRequestId: newId(),
       address: addresses[r.contactId] || null, quote: quotes[r.contactId] || null, paymentIntentId: null,
+      // The gift-box total the sender saw and confirmed at review. A re-quote with the SAME total may be charged
+      // without asking again; a different total never is (consent is never assumed for a changed price).
+      confirmedTotalCents: quotes[r.contactId] && Number.isSafeInteger(quotes[r.contactId].quotedTotalCents) ? quotes[r.contactId].quotedTotalCents : null,
       giftPayload: null, status: 'pending', jobId: null, error: null,
     })),
   };
@@ -190,12 +193,26 @@ async function finalizeGiftBoxOrder(item, api) {
   if (res?.ok && res.gift) { const o = giftBoxOutcome(res); if (o.giftPayload) item.paymentIntentId = null; return o; }
   return { held: PAID_NOT_FINALIZED_MESSAGE };
 }
-async function placeGiftBox(item, { api, confirmCardPayment, now = () => Date.now() }) {
+// A quote older than 2 minutes is refreshed for this person before charging. The order goes ahead only when the
+// fresh total equals the total the sender confirmed; a different total stops the run for re-confirmation.
+async function refreshExpiredQuote(item, api, now) {
+  const fresh = { contactId: item.contactId, gift: item.gift, address: item.address };
+  await quoteGroupGiftBoxes([fresh], { api, now });
+  if (fresh.quote && item.confirmedTotalCents !== null && fresh.quote.quotedTotalCents === item.confirmedTotalCents) {
+    item.quote = fresh.quote;
+    return true;
+  }
+  item.quote = null;
+  const message = fresh.quote
+    ? `The price for ${item.name}\u2019s gift box changed from $${(item.confirmedTotalCents / 100).toFixed(2)} to $${(fresh.quote.quotedTotalCents / 100).toFixed(2)}. Review the new price to continue.`
+    : (fresh.quoteError || 'Gift box prices are valid for 2 minutes. Get fresh prices to continue.');
+  throw tagged(new Error(message), { code: 'GIFT_BOX_QUOTE_EXPIRED', needsQuote: true });
+}
+
+async function placeGiftBox(item, { api, confirmCardPayment, now = () => Date.now() }, retried = false) {
   if (item.paymentIntentId) return finalizeGiftBoxOrder(item, api); // already paid: finalize only, never charge again
   const g = groupGift(item.gift);
-  if (!item.quote || isGiftBoxQuoteExpired(item.quote, now())) {
-    throw tagged(new Error('Gift box prices are valid for 2 minutes. Get fresh prices to continue.'), { code: 'GIFT_BOX_QUOTE_EXPIRED', needsQuote: true });
-  }
+  if (!item.quote || isGiftBoxQuoteExpired(item.quote, now())) await refreshExpiredQuote(item, api, now);
   const body = {
     ...toGiftBoxQuoteRequest({ quantity: '1', ...item.address }, g.product),
     quotedTotalCents: item.quote.quotedTotalCents,
@@ -211,6 +228,11 @@ async function placeGiftBox(item, { api, confirmCardPayment, now = () => Date.no
     res = await api.chargeGiftBox(body);
   } catch (err) {
     const code = err?.code;
+    if (code === 'gift_box_quote_expired' && !retried) {
+      // Nothing was charged. Refresh this person's price; continue only if it is unchanged (once).
+      await refreshExpiredQuote(item, api, now);
+      return placeGiftBox(item, { api, confirmCardPayment, now }, true);
+    }
     if (code === 'gift_box_quote_changed' || code === 'gift_box_quote_expired') {
       item.quote = null; // nothing was charged; the sender must see the new price first
       throw tagged(err, { code: 'GIFT_BOX_QUOTE_EXPIRED', needsQuote: true, message: code === 'gift_box_quote_changed' ? 'A gift box price changed. Get fresh prices to continue.' : 'Gift box prices are valid for 2 minutes. Get fresh prices to continue.' });
