@@ -589,7 +589,7 @@ test("G7: a gift box for everyone — address per person (prefilled only from sa
   assert.equal(globalThis.__quotes.length, 3, "every gift box quoted, together");
   assert.equal($$("[data-testid=grv-quote-lines]").length, 3);
   assert.match($$("[data-testid=grv-quote-lines]")[0].textContent, /Product \$36\.99 · S\/H \$6\.00 · Tax \$3\.00 · Total \$45\.99/, "the four lines");
-  assert.match($("[data-testid=grv-total]").textContent, /= \$137\.97/);
+  assert.match($("[data-testid=grv-total]").textContent, /Total \$137\.97/);
   assert.equal(globalThis.__boxCharges.length, 0, "nothing charged at review");
   assert.equal($("[data-testid=grv-send]").disabled, false);
   await click($("[data-testid=grv-send]"));

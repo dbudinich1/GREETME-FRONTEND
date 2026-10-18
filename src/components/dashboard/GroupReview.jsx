@@ -221,7 +221,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
 
             <div className="grv-total" data-testid="grv-total">
               <span>{costs.totalCents || costs.unpriced
-                ? `Gifts ${centsToDollarString(costs.giftCents)}${costs.feeCents ? ` + QR Cash fees ${centsToDollarString(costs.feeCents)}` : ''} = ${centsToDollarString(costs.totalCents)}${costs.unpriced ? ` (+ ${costs.unpriced} gift box${costs.unpriced === 1 ? '' : 'es'} not priced yet)` : ''}`
+                ? `${costs.feeCents ? `Gifts ${centsToDollarString(costs.giftCents)} + QR Cash fees ${centsToDollarString(costs.feeCents)} = ` : 'Total '}${centsToDollarString(costs.totalCents)}${costs.unpriced ? ` (+ ${costs.unpriced} gift box${costs.unpriced === 1 ? '' : 'es'} not priced yet)` : ''}`
                 : 'No gifts: nothing is charged.'}</span>
               {needsCard ? <span className="sub">{card === undefined ? 'Checking your saved card…' : card ? `Charged to your saved ${card.brand ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1) : 'card'} •••• ${card.last4 || ''}, one charge per person.` : ''}</span> : null}
             </div>
