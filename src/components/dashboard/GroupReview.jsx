@@ -161,7 +161,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
         <div className="grv-head">
           <div>
             <span className="eyebrow">{run ? 'Sending' : 'Review'}</span>
-            <h2 id="grv-title">{run ? `${summary.sent} of ${summary.total} accepted for sending` : `${included.length} Greet-Mes for ${occasion}`}</h2>
+            <h2 id="grv-title">{run && ownerMismatch ? 'Group send unavailable' : run ? `${summary.sent} of ${summary.total} accepted for sending` : `${included.length} Greet-Mes for ${occasion}`}</h2>
           </div>
           <button type="button" className="iconbtn" aria-label="Close" onClick={onClose} disabled={running}><X size={16} /></button>
         </div>
@@ -245,9 +245,17 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
               </div>
             </div>
           </>
+        ) : ownerMismatch ? (
+          // N-7: another account's run — show none of its data (no names, emails, gifts, amounts or counts).
+          <>
+            <div className="warn" data-testid="grv-owner"><AlertCircle size={16} style={{ flex: 'none', marginTop: 2 }} /><span>This group send belongs to a different account and can&rsquo;t be continued here.</span></div>
+            <div className="grv-actions">
+              <span className="sub" />
+              <button type="button" className="btn btn-primary" data-testid="grv-retry" disabled><RotateCcw size={16} /> Continue</button>
+            </div>
+          </>
         ) : (
           <>
-            {ownerMismatch ? <div className="warn" data-testid="grv-owner"><AlertCircle size={16} style={{ flex: 'none', marginTop: 2 }} /><span>This group send belongs to a different account and can&rsquo;t be continued here.</span></div> : null}
             {run.stopped ? <div className="warn" data-testid="grv-stopped"><AlertCircle size={16} style={{ flex: 'none', marginTop: 2 }} /><span>Stopped: {run.stopped.message} Nobody after this was charged or sent; nothing was lost.</span></div> : null}
             <div className="grv-list" data-testid="grv-results">
               {run.items.map((it) => {
@@ -274,7 +282,7 @@ export default function GroupReview({ recipients, occasion, words, defaultGiftCh
                   : summary.failed ? 'A gift that was paid for stays with its person and is not charged again on retry.' : ''}</span>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {summary.needsQuote ? <button type="button" className="btn btn-line" data-testid="grv-refresh-run-prices" disabled={quoting || running} onClick={refreshRunPrices}>{quoting ? 'Getting prices…' : 'Get fresh prices'}</button> : null}
-                {!summary.done ? <button type="button" className="btn btn-primary" data-testid="grv-retry" disabled={running || quoting || summary.needsQuote > 0 || ownerMismatch} onClick={() => execute(run)}><RotateCcw size={16} /> {run.stopped || summary.failed ? 'Try the rest again' : 'Continue'}</button>
+                {!summary.done ? <button type="button" className="btn btn-primary" data-testid="grv-retry" disabled={running || quoting || summary.needsQuote > 0} onClick={() => execute(run)}><RotateCcw size={16} /> {run.stopped || summary.failed ? 'Try the rest again' : 'Continue'}</button>
                   : <button type="button" className="btn btn-primary" onClick={onClose}><Check size={16} /> Done</button>}
               </div>
             </div>
